@@ -1,0 +1,376 @@
+.\"	dhcpd.8
+.\"
+.\" Copyright (c) 1995, 1996 The Internet Software Consortium.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.\" Japanese Version Copyright (c) 2001 NAKANO Takeo all rights reserved.
+.\" Translated Thu Dec 27 2001 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.TH dhcpd 8
+.SH 名前
+dhcpd \- Dynamic Host Configuration Protocol (動的ホスト設定プロトコル) サーバ
+.SH 書式
+.B dhcpd
+[
+.B -p
+.I port
+]
+[
+.B -f
+]
+[
+.B -d
+]
+[
+.B -q
+]
+[
+.B -cf
+.I config-file
+]
+[
+.B -lf
+.I lease-file
+]
+[
+.I if0
+[
+.I ...ifN
+]
+]
+.SH 説明
+Internet Software Consortium DHCP サーバである dhcpd は、
+Dynamic Host Configuration Protocol (DHCP) と
+Internet Bootstrap Protocol (BOOTP) とを実装したものである。
+DHCP を用いると、
+TCP/IP ネットワーク上のホストは
+IP アドレスを要求して割り当ててもらうことができ、
+また接続したネットワークの情報を取得できます。
+BOOTP も同様の機能を持っていますが、少々制限があります。
+.SH 動作
+.PP
+DHCP プロトコルは、ネットワーク管理者が知らないホストに対して、
+予めそのネットワークで用意された IP アドレスの範囲 (pool) から、
+自動的に新しい IP アドレスを割り当てます。
+この機構を動作させるには、
+ネットワーク管理者はアドレスの範囲を各サブネットごとに割り当てておき、
+それを
+.BR dhcpd.conf (5)
+に書いておかなければなりません。
+.PP
+dhcpd は起動すると
+.I dhcpd.conf
+ファイルを読み、
+各サブネットごとに利用できるアドレスのリストをメモリに保存します。
+クライアントが DHCP プロトコルを用いてアドレスを要求すると、
+dhcpd はそのクライアントにアドレスを割り当てます。
+各クライアントに貸し出されたアドレスは、
+管理者が決めておいたある期間が経過すると期限切れになります
+(デフォルトでは 1 日)。
+貸し出しを受けたクライアントは、
+そのアドレスの利用を継続するために、
+貸し出しが期限切れになる前に更新を行うことになります。
+貸し出しが期限切れになると、
+その貸し出しアドレスを割り当てられていたクライアントは、
+もうそれ以上貸し出されていた IP アドレスを利用できなくなります。
+.PP
+システムやサーバが再起動した場合に貸し出し情報を保持しておくために、
+dhcpd は割り当てた貸し出しの記録を
+.BR dhcpd.leases (5)
+ファイルに保持しています。dhcpd はホストに貸し出しを行う前に、
+その貸出記録をこのファイルに記録し、
+ファイルの内容を確実にディスクにフラッシュします。
+これによって、システムがクラッシュした場合でも、
+dhcpd は割り当てた貸し出しのことを確実に覚えておけます。
+dhcpd は、起動して dhcpd.conf ファイルを読んだあと、
+dhcpd.leases ファイルを読んで、現在の貸し出し情報をメモリに書き込みます。
+.PP
+新たな貸出記録は dhcpd.leases ファイルの末尾に追加されます。
+dhcpd は、貸し出しデータベースが際限なく大きくなるのを防ぐため、
+時々内部に持っている貸し出しデータベースから新しい
+dhcpd.leases ファイルを生成します。
+このファイルがディスクに書き込まれると、古いファイルは
+.I dhcpd.leases~
+と名前が変更され、新しいファイルが dhcpd.leases になります。
+システムがこの処理の途中でクラッシュしても、
+いずれかの dhcpd.leases ファイルが残っていて、
+そこにはすべての貸し出し情報が残っているはずです。
+従って特殊なクラッシュリカバリ処理は必要ありません。
+.PP
+このサーバは BOOTP もサポートしています。
+DHCP とは異なり、
+BOOTP プロトコルは動的に割り当てられたアドレスが不要になったとき、
+それを復帰させるプロトコルが存在しません。
+BOOTP クライアントに動的にアドレスを割り当てることは可能ですが、
+アドレスを回収して再割り当て可能にするような管理処理が必要になります。
+デフォルトでは、BOOTP クライアントへの貸し出しは永続的なものですが、
+ネットワーク管理者は (それが意味があれば)
+中断をより早くしたり、貸し出し期間を短くできます。
+.PP
+BOOTP クライアントに、古い標準的な方法でアドレスを取得させることもできます。
+これには dhcpd.conf ファイルに各 BOOTP クライアント用の宣言を書いて、
+各クライアントへ永続的にアドレスを割り当てます。
+.PP
+dhcpd.conf ファイルに変更を行ったときは、
+dhcpd は再起動しなければなりません。
+これには SIGTERM (シグナル 15) を
+.I /var/run/dhcpd.pid
+に保存されているプロセス ID に送り、dhcpd を再び起動します。
+DHCP サーバのデータベースは BOOTP のデータベースほど軽量ではないので、
+dhcpd は dhcpd.conf ファイルが変更されたことを知っても、
+自動的に自分自身を再起動することはありません。
+.PP
+注意: これにはたくさん文句が来ています。
+サーバに SIGHUP を送るとデータベースをリロードしてくれれば良いだろうな、
+とは我々も認識しています。これは技術的には不可能ではありませんが、
+非常に多くの作業を必要とします。
+我々のリソースは非常に限られており、
+それらは他のところに振り向けられています。
+どうかメーリングリストに文句をいうのはご遠慮ください。
+この機能を実装するプロジェクトへの資金を提供してくださるとか、
+あなた自身が実装してくださるのならもちろん話は別ですが。
+.SH コマンドライン
+.PP
+dhcpd がブロードキャストを待ち受けるネットワークインターフェースの名前は、
+コマンドラインで指定できます。
+ブロードキャストでないインターフェースを
+dhcpd 自身が特定できないような状況下ではこれを行うべきですが、
+そうでなければ指定しなくてもかまいません。
+インターフェースの名前がコマンドラインにひとつも指定されなければ、
+dhcpd はすべてのネットワークインターフェースが通信状態にあるとみなし、
+可能ならブロードキャストでないインターフェースを対象から外し、
+各インターフェースで DHCP ブロードキャストを待ち受けます。
+.PP
+dhcpd に標準のポート (ポート 67) 以外で待機させたい場合は
+.B -p
+フラグで指定できます。この後には dhcpd を待機させる
+udp のポート番号を書きます。これはデバッグの用途に特に便利です。
+.B -p
+フラグが指定されると、サーバは指定した番号よりも
+1 つ大きなポート番号を用いてクライアントに返事を送ります。
+つまり
+.BR -p " 67"
+を指定した場合は、サーバはポート 67 を聴き、ポート 68 に返事を送ります。
+中継エージェントを経由しなければならないデータグラムは
+.B -p
+フラグで指定したポートに送信されます。
+もし別のポートを使いたい場合は、中継エージェントを設定して、
+同じく別のポートを使わせるようにしなければなりません。
+.PP
+dhcpd をバックグラウンドでデーモンとして動作させるのではなく、
+フォアグラウンドプロセスとして実行するには
+.B -f
+フラグを指定します。これは dhcpd をデバッガの下で動作させたり、
+System V システムの inittab 以外から動作させる場合に便利です。
+.\"nakano out of はこれでいいのか?
+.PP
+dhcpd のログを標準エラー出力に出したい場合は、
+.B -d
+フラグを指定します。これはデバッグの時に便利かもしれません。
+また dhcp の動作記録を完全に記録しておきたいが、
+syslogd が信頼できなかったり使えないような場合にも便利でしょう。
+通常 dhcpd は、すべてのログ出力を
+.BR syslog (3)
+機能を用いて出力します。facility は LOG_DAEMON に設定されます。
+.PP
+dhcpd に標準以外の設定ファイルを読み込ませるには
+.B -cf
+フラグを用います。また別の貸し出しファイルを指定するには
+.B -lf
+フラグを使います。
+実用の現場では、
+dhcpd の実行時には、毎度同じ貸し出しデータベースを用いさせることが重要です。
+したがってこれらのオプションは、
+貸し出しファイルやデータベースファイルを、
+実用でない環境でテストするような場合に限るべきです。
+.PP
+dhcpd をシステムのスタートアップスクリプト (/etc/rc など)
+から起動するときには、
+コピーライトメッセージ全部を出力したくないこともあるかもしれません。
+このメッセージを表示させたくない場合は、
+.B -q
+フラグを指定します。
+.SH 設定
+.BR dhcpd.conf (5)
+ファイルの文法は別に説明されてます。
+この節は設定作業を概観するだけに使い、
+詳細なリファレンス情報は
+.BR dhcpd.conf (5)
+のマニュアルページにあたってください。
+.PP
+.SH サブネット
+dhcpd は、サービスを提供するすべてのサブネットに対して、
+サブネット番号とネットマスクを知らなければなりません。
+さらに dhcpd が動的にアドレスを割り当てるには、
+各サブネットごとに 1 つ以上のアドレス領域を
+あてがわれておく必要があります。
+クライアントホストが起動するごとに、
+dhcpd はこの領域からアドレスを順番に割り当てます。
+よって、DHCP サポートを提供する非常に簡単な設定は次のようになります。
+.nf
+.sp 1
+	subnet 239.252.197.0 netmask 255.255.255.0 {
+	  range 239.252.197.10 239.252.197.250;
+        }
+.fi
+.PP
+次のように複数のアドレス領域を指定することもできます。
+.nf
+.sp 1
+	subnet 239.252.197.0 netmask 255.255.255.0 {
+	  range 239.252.197.10 239.252.197.107;
+	  range 239.252.197.113 239.252.197.250;
+	}
+.fi
+.PP
+BOOTP サービスだけを提供し、動的なアドレス割り当ては提供しない場合は、
+アドレス範囲の項目は省略し、subnet 文だけを書いておけば OK です。
+.PP
+.SH 貸し出し期間
+DHCP 貸し出し期間は、0 秒から無限までの、ほとんどあらゆる長さにできます。
+あるサブネットに対して、あるいは導入されたシステムに対して、
+どのような長さが良いかは、サービスを受けるホストの種類によって異なります。
+.PP
+例えば、システムが時々追加/削除されるが、
+移動することはあまりないようなオフィス環境では、
+貸し出し期間は 1 か月より長くしておくのが良いでしょう。
+組み立てフロアの最終テスト環境では、
+最大貸し出し期間は 30 分程度
+(すなわち出荷前の簡単なネットワーク動作確認テストに充分なくらい)
+にしておくのがいいでしょう。
+.PP
+貸し出し期間を 2 種類指定することもできます。
+クライアントが特に貸し出し期間に関する要望を送ってこなかった場合の
+デフォルトの期間と、最大貸し出し期間とです。
+これらは subnet コマンドの内部項目として指定します。
+.nf
+.sp 1
+	subnet 239.252.197.0 netmask 255.255.255.0 {
+	  range 239.252.197.10 239.252.197.107;
+	  default-lease-time 600;
+	  max-lease-time 7200;
+	}
+.fi
+.PP
+この subnet 宣言では、デフォルトの貸し出し期間を 600 秒 (10 分)、
+最大貸し出し期間を 7200 秒 (2 時間) にしてあります。
+他に良く使われる値としては、86400 (1 日)、604800 (1 週間)、
+2592000 (30 日) などがあります。
+.PP
+各サブネットに別々の貸し出し期間を指定してもかまいません。
+オフィス環境と組み立て環境とを
+同じ DHCP サーバにサービスさせるような場合には、
+各サブネットのデフォルト/最大貸し出し期間それぞれに、
+大きく異なる値を指定するのが良いこともあるでしょう。
+.SH BOOTP サポート
+BOOTP クライアントは、それぞれ dhcpd.conf ファイルに
+明示的に宣言しておく必要があります。
+もっとも基本的な宣言では、
+クライアントのネットワークインターフェースのハードウェアアドレスと、
+そのクライアントに割り当てる IP アドレスとを指定します。
+クライアントがサーバから起動ファイルをロードできるようにしたい場合は、
+そのファイル名も指定しなければなりません。
+簡単な bootp クライアント宣言は次のようになります。
+.nf
+.sp 1
+	host haagen {
+	  hardware ethernet 08:00:2b:4c:59:23;
+	  fixed-address 239.252.197.9;
+	  filename "/tftpboot/haagen.boot";
+	}
+.fi
+.SH オプション
+DHCP では (およびベンダによる拡張のなされた BOOTP でも)、
+クライアントでのネットワークインターフェースの設定情報
+(例えばサブネットマスクなど) とか、
+クライアントからネットワークサービス (DNS や IP ルータなど)
+にアクセスするための情報などを、サーバから提供する機構を備えています。
+.PP
+これらのオプションはサブネット単位で指定できます。
+BOOTP クライアントに対しては、クライアント単位でも指定できます。
+BOOTP クライアント宣言でオプション指定がされていて、
+かつそのサブネット宣言でもオプション指定がされている場合は、
+クライアント宣言でのオプションが優先されます。
+ほぼ完全な DHCP 設定は、次のようになるでしょう。
+.nf
+.sp 1
+	subnet 239.252.197.0 netmask 255.255.255.0 {
+	  range 239.252.197.10 239.252.197.250;
+	  default-lease-time 600 max-lease-time 7200;
+	  option subnet-mask 255.255.255.0;
+	  option broadcast-address 239.252.197.255;
+	  option routers 239.252.197.1;
+	  option domain-name-servers 239.252.197.2, 239.252.197.3;
+	  option domain-name "isc.org";
+	}
+.fi
+.PP
+BOOTP ホストがこのサブネットにあって、
+これを別のドメインにし、別のネームサーバを利用させたい場合には、
+次のように宣言することになるでしょう。
+.nf
+.sp 1
+	host haagen {
+	  hardware ethernet 08:00:2b:4c:59:23;
+	  fixed-address 239.252.197.9;
+	  filename "/tftpboot/haagen.boot";
+	  option domain-name-servers 192.5.5.1;
+	  option domain-name "vix.com";
+	}
+.fi
+.PP
+dhcpd.conf ファイルの文法に関するより完全な記述は、
+.BR dhcpd.conf (5)
+で提供されています。
+.SH ファイル
+.B /etc/dhcpd.conf, /var/state/dhcp/dhcpd.leases, /var/run/dhcpd.pid,
+.B /var/state/dhcp/dhcpd.leases~.
+.SH 関連項目
+dhclient(8), dhcrelay(8), dhcpd.conf(5), dhcpd.leases(5)
+.SH 著者
+.BR dhcpd (8)
+は Ted Lemon <mellon@vix.com>
+が Vixie Labs との契約のもとに書きました。
+このプロジェクトの資金は、
+Internet Software Corporation によって提供されました。
+Internet Software Consortium の情報は
+.B http://www.isc.org/isc
+にあります。
+.SH 訳注
+ファイルの置き場所はインストールによって変わることがあります。
+ここではデフォルトの
+.IR /etc ", " /var/run/ ", " /var/state/dhcp
+などを仮定してあります。

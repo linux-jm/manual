@@ -1,0 +1,392 @@
+.\"   Copyright (C) 1996-1999 Free Software Foundation, Inc.
+.\"
+.\"   Permission is granted to make and distribute verbatim copies of
+.\" this manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\"   Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\"   Permission is granted to copy and distribute translations of this
+.\" manual into another language, under the above conditions for modified
+.\" versions, except that this permission notice may be stated in a
+.\" translation approved by the Foundation.
+.\"
+.\" Copyright (C) 1996 Xavier Leroy.
+.\"
+.\" Japanese Version Copyright (C) 2002-2003 Suzuki Takashi
+.\"         all rights reserved.
+.\" Translated Fri Jan  3 23:23:30 JST 2003
+.\"         by Suzuki Takashi.
+.\"
+.\"WORD:    semaphore           セマフォ
+.\"WORD:    atomically          一息で
+.\"WORD:    semaphore object    セマフォオブジェクト
+.\"WORD:    atomic compare-and-swap 不可分の比較交換命令
+.\"WORD:    atomic operation    不可分命令
+.\"WORD:    wait on the semaphore   セマフォの獲得待ち
+.\"
+.\"
+.TH SEMAPHORES 3 LinuxThreads
+
+
+.\"O .SH NAME
+.\"O sem_init, sem_wait, sem_trywait, sem_post, sem_getvalue, sem_destroy \- operations on semaphores
+.SH "名前"
+sem_init, sem_wait, sem_trywait, sem_post, sem_getvalue, sem_destroy \- セマフォの操作
+
+.\"O .SH SYNOPSIS
+.SH "書式"
+.B #include <semaphore.h>
+
+.BI "int sem_init(sem_t *" sem ", int " pshared ", unsigned int " value ");"
+
+.BI "int sem_wait(sem_t * " sem ");"
+
+.BI "int sem_trywait(sem_t * " sem ");"
+
+.BI "int sem_post(sem_t * " sem ");"
+
+.BI "int sem_getvalue(sem_t * " sem ", int * " sval ");"
+
+.BI "int sem_destroy(sem_t * " sem ");"
+
+.\"O .SH DESCRIPTION
+.\"O This manual page documents POSIX 1003.1b semaphores, not to be
+.\"O confused with SystemV semaphores as described in 
+.\"O .BR "ipc" (5),
+.\"O .BR "semctl" (2)
+.\"O and 
+.\"O .BR "semop" (2).
+.SH "説明"
+このマニュアルページは POSIX 1003.1b のセマフォについて記述しており、
+.BR "ipc" (5)
+や
+.BR "semctl" (2)
+、
+.BR "semop" (2)
+に記述されている SystemV セマフォと混同してはならない。
+
+.\"O Semaphores are counters for resources shared between threads. The
+.\"O basic operations on semaphores are: increment the counter atomically,
+.\"O and wait until the counter is non-null and decrement it atomically.
+セマフォはスレッド間で共有される資源を管理するためのカウンタである。
+セマフォに関する基本的な操作は次の 2 つである:
+カウンタを一息で 1 だけ増加させることと、
+カウンタが 0 でなくなるまで待ったあと一息で 1 だけ減少させることである。
+
+.\"O .B "sem_init"
+.\"O initializes the semaphore object pointed to by 
+.\"O .IR "sem" .
+.\"O The
+.\"O count associated with the semaphore is set initially to 
+.\"O .IR "value" .
+.\"O The
+.\"O .I "pshared"
+.\"O argument indicates whether the semaphore is local to the
+.\"O current process (
+.\"O .I "pshared"
+.\"O is zero) or is to be shared between several
+.\"O processes (
+.\"O .I "pshared"
+.\"O is not zero). LinuxThreads currently does not
+.\"O support process-shared semaphores, thus 
+.\"O .B "sem_init"
+.\"O always returns with
+.\"O error 
+.\"O .B "ENOSYS"
+.\"O if 
+.\"O .I "pshared"
+.\"O is not zero.
+.B "sem_init"
+は
+.I "sem"
+で指定されるセマフォオブジェクトを初期化する。
+セマフォに結び付けられるカウントは
+.I "value"
+に初期化される。
+引数
+.I "pshared"
+はセマフォが現在のプロセスだけで有効 (
+.I "pshared"
+が 0) か複数のプロセスで共有される (
+.I "pshared"
+が非 0) かを指定する。LinuxThreads は現在のところ
+プロセス間共有セマフォはサポートしていない。
+そのため、
+.I "pshared"
+が 0 でない場合は、
+.B "sem_init"
+は常にエラー
+.B "ENOSYS"
+を返す。
+
+.\"O .B "sem_wait"
+.\"O suspends the calling thread until the semaphore pointed to
+.\"O by 
+.\"O .I "sem"
+.\"O has non-zero count. It then atomically decreases the
+.\"O semaphore count.
+.B "sem_wait"
+は、
+.I "sem"
+で指定されるセマフォのカウントが非 0 になるまで
+呼び出しスレッドの実行を停止する。
+そしてセマフォカウントを一息で 1 だけ減少させる。
+
+.\"O .B "sem_trywait"
+.\"O is a non-blocking variant of 
+.\"O .BR "sem_wait" .
+.\"O If the
+.\"O semaphore pointed to by 
+.\"O .I "sem"
+.\"O has non-zero count, the count is
+.\"O atomically decreased and 
+.\"O .B "sem_trywait"
+.\"O immediately returns 0.
+.\"O If the semaphore count is zero, 
+.\"O .B "sem_trywait"
+.\"O immediately returns with
+.\"O error 
+.\"O .BR "EAGAIN" .
+.B "sem_trywait"
+はブロックをともなわない
+.B "sem_wait"
+である。
+.I "sem"
+で指定されるセマフォのカウントが非 0 の場合には
+一息でカウントが 1 だけ減少されて
+.B "sem_trywait"
+は直ちに 0 を返す。
+セマフォカウントが 0 の場合には
+.B "sem_trywait"
+は直ちにエラー
+.B "EAGAIN"
+を返す。
+
+.\"O .B "sem_post"
+.\"O atomically increases the count of the semaphore pointed to
+.\"O by 
+.\"O .IR "sem" .
+.\"O This function never blocks and can safely be used in
+.\"O asynchronous signal handlers.
+.B "sem_post"
+は
+.I "sem"
+で指定されるセマフォのカウントを一息で 1 だけ増加させる。
+この関数は決してブロックすることはなく、
+非同期シグナルハンドラの中でも安全に使用することができる。
+
+.\"O .B "sem_getvalue"
+.\"O stores in the location pointed to by 
+.\"O .I "sval"
+.\"O the current
+.\"O count of the semaphore 
+.\"O .IR "sem" .
+.B "sem_getvalue"
+は
+.I "sval"
+で指し示される領域に
+セマフォ
+.I "sem"
+の現在のカウントを格納する。
+
+.\"O .B "sem_destroy"
+.\"O destroys a semaphore object, freeing the resources it
+.\"O might hold. No threads should be waiting on the semaphore at the time
+.\"O .B "sem_destroy"
+.\"O is called. In the LinuxThreads implementation, no
+.\"O resources are associated with semaphore objects, thus 
+.\"O .B "sem_destroy"
+.\"O actually does nothing except checking that no thread is waiting on the
+.\"O semaphore.
+.B "sem_destroy"
+はセマフォオブジェクトを破壊し、
+セマフォオブジェクトが保持していた資源を解放する。
+.B "sem_destroy"
+が呼び出されるときにそのセマフォを獲得待ちしている
+スレッドがあってはならない。
+LinuxThreads の実装では、
+セマフォオブジェクトは何も資源を保持しないため、
+.B "sem_destroy"
+はそのスレッドを獲得待ちしているスレッドがないことを
+チェックする以外に何もしない。
+
+.\"O .SH CANCELLATION
+.SH "取り消し"
+
+.\"O .B "sem_wait"
+.\"O is a cancellation point.
+.B "sem_wait"
+は取り消しポイントである。
+
+.\"O .SH "ASYNC-SIGNAL SAFETY"
+.SH "非同期シグナルの安全性"
+
+.\"O On processors supporting atomic compare-and-swap (Intel 486, Pentium
+.\"O and later, Alpha, PowerPC, MIPS II, Motorola 68k), the 
+.\"O .B "sem_post"
+.\"O function is async-signal safe and can therefore be
+.\"O called from signal handlers. This is the only thread synchronization
+.\"O function provided by POSIX threads that is async-signal safe.
+不可分の比較交換命令 (compare-and-swap) をサポートしている
+CPU (Intel 486 や Pentium およびその後継、
+Alpha 、 PowerPC 、 MIPS II 、 Motorola 68k) では、
+関数
+.B "sem_post"
+は非同期シグナルに対して安全であり、
+そのためシグナルハンドラから呼び出すことが可能である。
+.B "sem_post"
+は、非同期シグナルに対して安全な、
+POSIX スレッドで提供される唯一のスレッド同期関数である。
+
+.\"O On the Intel 386 and the Sparc, the current LinuxThreads
+.\"O implementation of 
+.\"O .B "sem_post"
+.\"O is not async-signal safe by lack of the
+.\"O required atomic operations.
+Intel 386 と Sparc においては、
+現時点の LinuxThreads の実装では
+.B "sem_post"
+は非同期シグナルに対して安全でない。
+これは必要な不可分命令が存在しないからである。
+
+.\"O .SH "RETURN VALUE"
+.SH "返り値"
+
+.\"O The 
+.\"O .B "sem_wait"
+.\"O and 
+.\"O .B "sem_getvalue"
+.\"O functions always return 0.
+.\"O All other semaphore functions return 0 on success and -1 on error, in
+.\"O addition to writing an error code in 
+.\"O .BR "errno" .
+関数
+.B "sem_wait"
+および
+.B "sem_getvalue"
+は常に 0 を返す。
+他のセマフォ関数はすべて、
+成功すると 0 を返し、
+エラーならば -1 を返してエラーコードを
+.B "errno"
+に格納する。
+
+.\"O .SH ERRORS
+.SH "エラー"
+
+.\"O The 
+.\"O .B "sem_init"
+.\"O function sets 
+.\"O .B "errno"
+.\"O to the following codes on error:
+.\"O .RS
+.\"O .TP
+.\"O .B "EINVAL"
+.\"O .I "value"
+.\"O exceeds the maximal counter value 
+.\"O .B "SEM_VALUE_MAX"
+.\"O .TP
+.\"O .B "ENOSYS"
+.\"O .I "pshared"
+.\"O is not zero
+.\"O .RE
+関数
+.B "sem_init"
+はエラーの場合に次のようなエラーコードを
+.B "errno"
+に格納する。
+.RS
+.TP
+.B "EINVAL"
+.I "value"
+がカウンタの最大値
+.B "SEM_VALUE_MAX"
+を超えている。
+.TP
+.B "ENOSYS"
+.I "pshared"
+が 0 でない。
+.RE
+
+.\"O The 
+.\"O .B "sem_trywait"
+.\"O function sets 
+.\"O .B "errno"
+.\"O to the following error code on error:
+.\"O .RS
+.\"O .TP
+.\"O .B "EAGAIN"
+.\"O the semaphore count is currently 0
+.\"O .RE
+関数
+.B "sem_trywait"
+はエラーの場合に次のようなエラーコードを
+.B "errno"
+に格納する。
+.RS
+.TP
+.B "EAGAIN"
+現時点のセマフォカウントが 0 である。
+.RE
+
+.\"O The 
+.\"O .B "sem_post"
+.\"O function sets 
+.\"O .B "errno"
+.\"O to the following error code on error:
+.\"O .RS
+.\"O .TP
+.\"O .B "ERANGE"
+.\"O after incrementation, the semaphore value would exceed 
+.\"O .B "SEM_VALUE_MAX"
+.\"O (the semaphore count is left unchanged in this case)
+.\"O .RE
+関数
+.B "sem_post"
+はエラーの場合に次のようなエラーコードを
+.B "errno"
+に格納する。
+.RS
+.TP
+.B "ERANGE"
+カウンタを増加すると、セマフォの値が
+.B "SEM_VALUE_MAX"
+を超えてしまう
+(この場合、セマフォカウントは変更されない) 。
+.RE
+
+.\"O The 
+.\"O .B "sem_destroy"
+.\"O function sets 
+.\"O .B "errno"
+.\"O to the following error code on error:
+.\"O .RS
+.\"O .TP
+.\"O .B "EBUSY"
+.\"O some threads are currently blocked waiting on the semaphore.
+.\"O .RE
+関数
+.B "sem_destroy"
+はエラーの場合に次のようなエラーコードを
+.B "errno"
+に格納する:
+.RS
+.TP
+.B "EBUSY"
+指定したセマフォの獲得待ちでブロックされているスレッドがある。
+.RE
+
+.\"O .SH AUTHOR
+.SH "著者"
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.\"O .SH "SEE ALSO"
+.SH "関連事項"
+.BR "pthread_mutex_init" (3),
+.BR "pthread_cond_init" (3),
+.BR "pthread_cancel" (3),
+.BR "ipc" (5).

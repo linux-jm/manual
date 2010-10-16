@@ -1,0 +1,152 @@
+.\" Copyright (c) 2000 Keith Owens <kaos@ocs.com.au>
+.\" This program is distributed according to the Gnu General Public License.
+.\" See the file COPYING in the kernel source directory.
+.\"
+.TH KALLSYMS 8 "January 31, 2002" Linux "Linux Module Support"
+.SH NAME
+kallsyms \- Extract all kernel symbols for debugging
+.SH SYNOPSIS
+.B kallsyms
+[\-Vh] kernel_filename
+.SH DESCRIPTION
+.hy 0
+.B Kallsyms
+extracts all the non-stack symbols from a kernel and builds a data blob
+that can be linked into that kernel for use by debuggers.
+.PP
+A normal kernel only exports symbols that are used by modules.
+For debugging you may want a list of all the non-stack symbols, not
+just the exported ones.
+.B kallsyms
+extracts all sections and symbols from a kernel, constructs a list of
+the sections, symbols and their addresses and writes a relocatable
+object containing just the __kallsyms section.
+After the __kallsyms section is linked into the kernel and the kernel
+has been booted, any debugger can use the data in the __kallsyms
+section to get better symbol resolution.
+.PP
+For example, a debugger can use the __kallsyms data to resolve a kernel
+address to:
+.PD 0
+.IP * 3
+The owning kernel or module.
+.IP * 3
+The section within the owning code.
+.IP * 3
+The nearest symbol.
+.PD 1
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Display a summary of options and exit.
+.TP
+.BR \-V ", " \-\-version
+Display the version of \fBkallsyms\fR and exit.
+.SH LINKER PASSES
+.PP
+To create a kernel containing an accurate __kallsyms section, you have
+to make four linker passes instead of the normal single link step.
+kallsyms and the linker are fast, the three extra steps take a few
+seconds on a P200.
+.IP 1 3
+The initial build of the kernel, without any __kallsyms data.
+Run \fBkallsyms\fR against the output of this link, creating a relocatable
+object which contains all the sections and symbols in the raw kernel.
+.IP 2 3
+Link the kernel again, this time including the \fBkallsyms\fR output from
+step (1).
+Adding the __kallsyms section changes the number of sections and many
+of the kernel symbol offsets so run \fBkallsyms\fR again against the second
+link, again saving the relocatable output.
+.IP 3 3
+Link the kernel again, this time including the \fBkallsyms\fR output from
+step (2).
+Run \fBkallsyms\fR against the latest version of the kernel.
+The size and position of the __kallsyms section on this run is now
+stable, none of the kernel sections or symbols will change after this
+run.
+The \fBkallsyms\fR output contains the final values of the kernel symbols.
+.IP 4 3
+Link the final kernel, including the \fBkallsyms\fR output from step (3).
+.SH DATA FORMAT
+.PP
+The __kallsyms section is a bit unusual.
+It deliberately has no relocatable data, all "pointers" are represented
+as byte offsets into the section or as absolute numbers.
+This means it can be stored anywhere without relocation problems.
+In particular it can be stored within a kernel image, it can be stored
+separately from the kernel image, it can be appended to a module just
+before loading, it can be stored in a separate area, etc.
+.PP
+\fI/usr/include/sys/kallsyms.h\fR contains the mappings for the __kallsyms
+data.
+.SS Header
+.PD 0
+.IP * 3
+Size of header.
+.IP * 3
+Total size of the __kallsyms data, including strings.
+.IP * 3
+Number of sections.
+This only included sections which are loaded into memory.
+.IP * 3
+Offset to the first section entry from start of the __kallsyms header.
+.IP * 3
+Size of each section entry, excluding the name string.
+.IP * 3
+Number of symbols.
+.IP * 3
+Offset to the first symbol entry from the start of the __kallsyms
+header.
+.IP * 3
+Size of each symbol entry, excluding the name string.
+.IP * 3
+Offset to the first string from the start of the __kallsyms header.
+.IP * 3
+Start address of the first section[1].
+.IP * 3
+End address of the last section[1].
+.PD 1
+.SS Section entry
+.PP
+One entry per loaded section.
+Since __kallsyms is a loaded section, if the input file contains a
+__kallsyms section then it is included in this list.
+.PD 0
+.IP * 3
+Start of the section within the kernel[1].
+.IP * 3
+Size of section.
+.IP * 3
+Offset to the name of section, from the start of the __kallsyms
+strings.
+.IP * 3
+Section flags, from the original Elf section.
+.PD 1
+.SS Symbol entry
+.PP
+One per symbol in the input file.
+Only symbols that fall within loaded sections are stored.
+.PD 0
+.IP * 3
+Offset to the __kallsyms section entry that this symbol falls within.
+The offset is from the start of the __kallsyms section entries.
+.IP * 3
+Address of the symbol within the kernel[1].
+The symbols are sorted in ascending order on this field.
+.IP * 3
+Offset to the name of symbol, from the start of the __kallsyms strings.
+.PD 1
+.SS Strings
+.PP
+A set of NUL terminated strings.
+Each name is referenced using an offset from the start of the
+__kallsyms string area.
+.SS Note [1]
+.PP
+These fields are exceptions to the "everything is an offset" rule.
+They contain absolute addresses within the kernel.
+.SH SEE ALSO
+\fBinsmod\fR(8).
+.SH HISTORY
+Initial version by Keith Owens <kaos@ocs.com.au>, April 2000

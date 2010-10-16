@@ -1,0 +1,229 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)recno.3	8.5 (Berkeley) 8/18/94
+.\"
+.\" Japanese Version Copyright (c) 1999 Shouichi Saito
+.\"	all rights reserved.
+.\" Translated Mon Jul 26 12:18:39 JST 1999
+.\"	by Shouichi Saito <ss236rx@ymg.urban.ne.jp>
+.\" Proofed Tue Aug 19 1999 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.\"WORD:	access method		アクセスメソッド
+.\"WORD:	pad character		埋め文字
+.TH RECNO 3 1994-08-18 "" "Linux Programmer's Manual"
+.UC 7
+.SH 名前
+recno \- レコード番号データベースへのアクセスメソッド
+.SH 書式
+.nf
+.ft B
+#include <sys/types.h>
+#include <db.h>
+.ft R
+.fi
+.SH 説明
+ルーチン
+.BR dbopen (3)
+はデータベースファイルに対するライブラリインターフェースである。
+サポートされているファイルフォーマットの一つに、
+レコード番号ファイル (record number file: recno file) がある。
+データベースへのアクセスメソッドに関する一般的な記述は
+.BR dbopen (3),
+に書かれている。
+このマニュアルページでは recno 特有の情報についてのみ記述する。
+.PP
+レコード番号データ構造は、フラットなファイル形式に格納された
+可変長/固定長レコードからなり、論理レコード番号でアクセスされる。
+レコード番号 5 があれば、レコード番号 1 から 4 も存在する。
+レコード番号 1 を削除すると、レコード番号 5 は 4 に付け替えられ、
+カーソルも移動する。レコード番号 1 以降のものは一つ繰り上がるわけである。
+.PP
+.BR dbopen (3)
+で使う recno アクセスメソッドに特有のデータ構造体は、
+.I <db.h>
+インクルードファイルで次のように定義されている。
+.PP
+.in +4n
+.nf
+typedef struct {
+    unsigned long flags;
+    unsigned int  cachesize;
+    unsigned int  psize;
+    int           lorder;
+    size_t        reclen;
+    unsigned char bval;
+    char         *bfname;
+} RECNOINFO;
+.fi
+.in
+.PP
+この構造体の要素を以下に示す。
+.TP
+flags
+flag の値は
+以下の値のいずれかか、これらの論理和で指定される。
+.RS
+.TP
+.B R_FIXEDLEN
+レコード長が固定であり、バイト区切りではない。
+構造体の要素
+.I reclen
+はレコードの長さを指定する。また、要素
+.I bval
+は埋め文字 (pad character) を指定する。
+データベースに入れられたレコードの内
+.I reclen
+バイトに満たないものでは、残りの部分に埋め文字が自動的に入る。
+.TP
+.B R_NOKEY
+.BR dbopen (3)
+で指定されたインターフェイスでは、シーケンシャルなレコード取得は
+呼び出しキーとデータ構造体の両方を埋めていく。
+.B R_NOKEY
+フラグが指定されていると、キー構造体を埋めるのに
+.I cursor
+ルーチンを必要としない。
+これを用いれば、アプリケーションがファイルの終りの方を取得する際に、
+その途中のレコードを読まなくても済む事になる。
+.TP
+.B R_SNAPSHOT
+このフラグを指定すると、
+.BR dbopen (3)
+の呼び出しの際、
+オリジナルファイルから変更されていないレコードを読む代わりに、
+ファイルの snapshot を用いる。
+.RE
+.TP
+.I cachesize
+想定されるメモリキャッシュの最大サイズ (バイト単位)。
+この値は
+.B あくまで
+参考であり、アクセスメソッドはこの値を越えたメモリの
+割り当てに成功することもある。
+.I cachesize
+が 0 (あるいは指定されていない) の場合、デフォルトのキャッシュが使われる。
+.TP
+.I psize
+recno アクセスメソッドは、自身のレコードのコピーをメモリ内部に
+btree で保存している。
+この値は、その btree 中のノードに対して用いられる
+ページサイズ (バイト単位) である。
+.I psize
+が 0 (あるいは指定されていない) の場合、
+ファイルシステムの I/O ブロックサイズを基にして
+ページサイズが決められる。
+詳細は
+.BR btree (3)
+を参照。
+.TP
+.I lorder
+データベースに格納されているメタデータの整数値のバイトオーダー。
+この数字は、順序を整数で表したものである。
+例えばビッグエンディアンなら、この数値は 4,321 となる。
+.I lorder
+が 0 (指定されていない) の場合、現在のホスト
+で使われているバイトオーダーが使われる。
+.TP
+.I reclen
+固定レコード長の長さ。
+.TP
+.I bval
+可変レコード長において、
+レコードの終りを示す区切りバイト (区切り文字) である。
+固定レコード長では埋め文字として使われる。
+値が指定されていないと、
+可変レコード長のレコードの終りには改行 ("\en") が使われる。
+固定レコード長のレコードは空白 (space) で埋められる。
+.TP
+.I bfname
+recno アクセスメソッドは、
+自身のレコードのコピーをメモリ内部で btree に保存している。
+.I bfname
+が NULL でない場合、これは btree ファイル名
+(btree ファイルを
+.BR dbopen (3)
+する時に指定するファイル名) を指定する。
+.PP
+.I recno
+アクセスメソッドで使われるキー/データ対のデータ部分は、
+他のアクセスメソッドと同じである。
+しかしキーは異なっている。
+キーの
+.I data
+フィールドは
+.I recno_t
+型の、メモリ位置へのポインタでなければならない。
+.I recno_t
+は
+.I <db.h>
+インクルードファイルで定義されている。
+この型は通常、その実装で利用可能な最大の符号無し整数である。
+キーの
+.I size
+フィールドはその型のサイズとなる。
+.PP
+recno アクセスメソッドのファイルに関連づけられる
+メタデータは存在できないから、
+デフォルト値 (固定レコード長やセパレータ文字など)
+に対する変更はファイルを開く毎に明示的に指定しなければならない。
+.PP
+.BR dbopen (3)
+で指定されたインターフェイスでは、
+.I put
+インターフェイスを使って新しいレコードを作成するときに、
+指定したレコード番号がデータベース中に存在している最大レコード番号より
+一つ以上大きいと、
+空のレコードが同時にできてしまう。
+.SH エラー
+.I recno
+アクセスメソッドルーチンは失敗すると
+.BR dbopen (3)
+で指定されているエラーに応じた
+.IR errno " か、"
+あるいは以下に示す
+.I errno
+をセットする。
+.TP
+.B EINVAL
+固定長データベースにレコードを追加するとき、データが長すぎた。
+.SH バグ
+バイトオーダーとしてはビッグエンディアンとリトルエンディアンのみが
+サポートされている。
+.SH 関連項目
+.BR btree (3),
+.BR dbopen (3),
+.BR hash (3),
+.BR mpool (3)
+.sp
+.IR "Document Processing in a Relational Database System" ,
+Michael Stonebraker, Heidi Stettner, Joseph Kalash, Antonin Guttman,
+Nadene Lynn, Memorandum No. UCB/ERL M82/32, May 1982.

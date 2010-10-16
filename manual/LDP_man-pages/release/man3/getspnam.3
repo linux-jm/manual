@@ -1,0 +1,248 @@
+.\" Copyright (c) 2003 Andries Brouwer (aeb@cwi.nl) and
+.\" Walter Harms (walter.harms@informatik.uni-oldenburg.de)
+.\"
+.\" Distributed under GPL
+.\"
+.\" Japanese Version Copyright (c) 2004 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated 2004-08-20, Yuichi SATO <ysato444@yahoo.co.jp>
+.\"
+.TH GETSPNAM 3  2010-02-25 "GNU" "Linux Programmer's Manual"
+.SH 名前
+getspnam, getspnam_r, getspent, getspent_r, setspent, endspent,fgetspent, fgetspent_r, sgetspent, sgetspent_r, putspent, lckpwdf, ulckpwdf \- shadow パスワードファイルのエントリを取得する
+.SH 書式
+.nf
+/* 一般的な shadow パスワードファイル API */
+.br
+.B #include <shadow.h>
+.sp
+.BI "struct spwd *getspnam(const char *" name );
+.sp
+.B struct spwd *getspent(void);
+.sp
+.B void setspent(void);
+.sp
+.B void endspent(void);
+.sp
+.BI "struct spwd *fgetspent(FILE *" fp );
+.sp
+.BI "struct spwd *sgetspent(const char *" s );
+.sp
+.BI "int putspent(struct spwd *" p ", FILE *" fp );
+.sp
+.B int lckpwdf(void);
+.sp
+.B int ulckpwdf(void);
+.sp
+/* GNU 版における拡張 */
+.br
+.B #include <shadow.h>
+.sp
+.BI "int getspent_r(struct spwd *" spbuf ,
+.br
+.BI "        char *" buf ", size_t " buflen ", struct spwd **" spbufp );
+.sp
+.BI "int getspnam_r(const char *" name ", struct spwd *" spbuf ,
+.br
+.BI "        char *" buf ", size_t " buflen ", struct spwd **" spbufp );
+.sp
+.BI "int fgetspent_r(FILE *" fp ", struct spwd *" spbuf ,
+.br
+.BI "        char *" buf ", size_t " buflen ", struct spwd **" spbufp );
+.sp
+.BI "int sgetspent_r(const char *" s ", struct spwd *" spbuf ,
+.br
+.BI "        char *" buf ", size_t " buflen ", struct spwd **" spbufp );
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.ad l
+.BR getspent_r (),
+.BR getspnam_r (),
+.BR fgetspent_r (),
+.BR sgetspent_r ():
+_BSD_SOURCE || _SVID_SOURCE
+.ad b
+.SH 説明
+昔は暗号化されたパスワードをパスワードファイルに
+見えるように公開しておいても安全だと考えられていた。
+Julianne Frances Haugh は shadow パスワード・スイートを実装した。
+これは暗号化されたパスワードを、root のみが読むことができる
+shadow パスワード・データベース (例えば、
+ローカルの shadow パスワードファイル
+.IR /etc/shadow ,
+NIS, LDAP)
+に保持する。
+.LP
+以下で説明する関数は、伝統的なパスワード・データベースに対する
+関数に似ている (例えば
+.BR getpwnam (3)
+や
+.BR getpwent (3)
+を参照)。
+.\" FIXME 以下を一時的にコメントアウトした。
+.\" PAM と nsswitch.conf の関係については、ユーザ、グループ、shadow
+.\" パスワードの関数についてのページから参照されるどこかにはっきりと
+.\" 記載しておく必要がある。
+.\" (Jul 2005, mtk)
+.\"
+.\" この shadow パスワードの設定は
+.\" PAM (pluggable authentication modules) で取り替えることができる。
+.\" 現在のところ、どの情報源を使用するかは
+.\" .I /etc/nsswitch.conf
+.\" ファイルに記述される。
+.LP
+.BR getspnam ()
+関数は、ユーザ名
+.I name
+にマッチする shadow パスワード・データベースのエントリを
+要素毎に分解し、各要素を格納した構造体へのポインタを返す。
+.LP
+.BR getspent ()
+関数は shadow パスワード・データベースにおける次のエントリへのポインタを返す。
+入力ストリームにおける位置は、
+.BR setspent ()
+で初期化される。
+読み込みが終わった後に、
+.BR endspent ()
+を呼び出すと、リソースを解放できる。
+.\" 最初に getspent() を呼び出す前に、
+.\" setspent() を呼び出さなければならないシステムもある。
+.\" glibc ではその必要がない。
+.LP
+.BR fgetspent ()
+関数は
+.BR getspent ()
+に似ているが、
+.BR setspent ()
+で暗黙のうちにオープンされるストリームではなく、与えられたストリームを使う。
+.LP
+.BR sgetspent ()
+関数は与えられた文字列
+.I s
+を解析し struct
+.I spwd
+に格納する。
+.LP
+.BR putspent ()
+関数は与えられた struct
+.I spwd
+.I *p
+の内容を shadow パスワードファイル形式のテキスト行でストリーム
+.I fp
+に書き出す。
+空文字列として、
+値が NULL の文字列エントリと値が \-1 の数値エントリが
+書き出される。
+.LP
+.BR lckpwdf ()
+関数は、 shadow パスワード・データベースを
+多重同時アクセスから守るためのものである。
+この関数はロックの獲得を試み、
+成功した場合は 0 を返す。
+失敗した場合 (15 秒以内にロックが取得できなかった場合) は \-1 を返す。
+.BR ulckpwdf ()
+関数はロックを再び解放する。
+shadow パスワードファイルへの直接アクセスから
+保護する手段がない点に注意すること。
+.BR lckpwdf ()
+を使うプログラムだけがロックを通知できる。
+.LP
+これらの関数はオリジナルの shadow API を構成していた関数であり、
+いろいろなシステムで広く利用可能である。
+.\" libc5 でも利用可能である。
+.\" SUN には sgetspent() がない。
+.SS リエントラント版
+パスワード・データベースに対するリエントラント版と同じように、
+glibc には shadow パスワードファイルに対してリエントラント版がある。
+.BR getspnam_r ()
+関数は
+.BR getspnam ()
+と似ているが、取得した shadow パスワード構造体を
+.I spbuf
+が指す領域に格納する。
+shadow パスワード構造体は文字列群へのポインタを含み、
+これらの文字列群はサイズ
+.I buflen
+のバッファ
+.I buf
+に格納される。
+.I *spbufp
+には (成功した場合は) 結果へのポインタが格納され、
+(エントリが見つからなかった場合またはエラーが起こった場合は)
+NULL が格納される。
+.LP
+関数
+.BR getspent_r (),
+.BR fgetspent_r (),
+.BR sgetspent_r ()
+はそれぞれリエントラントでないバージョンと同様の機能を持つ。
+.LP
+glibc でないシステムにもこれらと同じ名前の関数があるが、
+プロトタイプが異なることも多い。
+.\" SUN には sgetspent_r() がない。
+.SS 構造体
+shadow パスワード構造体は \fI<shadow.h>\fP で以下のように定義されている:
+.sp
+.in +4n
+.nf
+struct spwd {
+    char *sp_namp;     /* ログイン名 */
+    char *sp_pwdp;     /* 暗号化されたパスワード */
+    long  sp_lstchg;   /* 最終更新日
+                          (1970-01-01 00:00:00 +0000 (UTC)) からの日数) */
+    long  sp_min;      /* 変更が出来るようになるまでの最短日数 */
+    long  sp_max;      /* 変更をしなくてもよい最長日数 */
+    long  sp_warn;     /* パスワードが期限切れになる前に
+                          ユーザに変更の警告を出す日数 */
+    long  sp_inact;    /* パスワードが期限切れになってから
+                          アカウントが無効になるまでの日数 */
+    long  sp_expire;   /* アカウントが無効になる日付
+                          (1970-01-01 00:00:00 +0000 (UTC)) からの日数) */
+    unsigned long sp_flag;  /* 予約フィールド */
+};
+.fi
+.in
+.SH 返り値
+ポインタを返す関数は、これ以上エントリがない場合や
+処理中にエラーが発生した場合 NULL を返す。
+\fIint\fP を返り値として持つ関数は、
+成功した場合 0 を返し、失敗した場合 \-1 を返す。
+.LP
+リエントラント版でない関数では、返り値が静的な領域を指しており、
+引き続いてこれらの関数を呼び出した場合に上書きされる可能性がある。
+.LP
+リエントラント版の関数は、成功した場合に 0 を返す。
+エラーの場合は、エラー番号が返される。
+.SH エラー
+.TP
+.B ERANGE
+与えられたバッファが小さすぎる。
+.SH ファイル
+.TP
+.I /etc/shadow
+ローカルの shadow パスワード・データベースファイル
+.TP
+.I /etc/.pwd.lock
+ロックファイル
+.LP
+インクルードファイル
+.I <paths.h>
+は定数
+.B _PATH_SHADOW
+を定義している。
+これは shadow パスワードファイルのパス名である。
+.SH 準拠
+shadow パスワード・データベースと関連 API は POSIX.1-2001
+には記載されていない。しかしながら、多くの他のシステムでも
+同様の API が提供されている。
+.SH 関連項目
+.BR getgrnam (3),
+.BR getpwnam (3),
+.BR getpwnam_r (3),
+.BR shadow (5)

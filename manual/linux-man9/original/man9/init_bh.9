@@ -1,0 +1,188 @@
+.\" -*- nroff -*-
+.TH INIT_BH 9 "1997/08/14 07:53:12" "Linux DDI 2.1.48" "Linux Kernel Functions"
+.\" copyright (C) 1997 Neil Moore <amethyst@maxwell.ml.org>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+
+.\" Turn off hyphentation
+.hlm 0
+.\" Turn off adjustment
+.na
+.SH NAME
+init_bh, remove_bh, mark_bh, disable_bh, enable_bh \- split-half interrupt handling
+.SH SYNOPSIS
+.B #include <linux/interrupt.h>
+.\" To keep all components of a declaration together, escape all white
+.\" space except after a comma.  In case the proc name plus the first
+.\" declaration is too long for one line, allow a break after '(' by
+.\" adding '\%'.
+.HP
+.BI "void\ init_bh(int " nr ", void\ (*" routine ")(void));"
+.\" We don't want an inter-paragraph space between the two declarations,
+.\" but we have to end the paragraph to stop the hanging indent.  .PD 0
+.\" gets rid of inter-paragraph spacing
+.PD 0
+.HP
+.BI "void\ remove_bh(int\ " nr ");"
+.HP
+.BI "void\ mark_bh(int\ " nr ");"
+.HP
+.BI "void\ disable_bh(int\ " nr ");"
+.HP
+.BI "void\ enable_bh(int\ " nr ");"
+.\" And set it back to normal now
+.PD 1
+.\" Back to standard adjustment
+.ad
+.\" Allow hypenation, omit if you want no hyphenation in the man page
+.hlm 1
+.SH DESCRIPTION
+.SS Theory
+.PP
+Split-half handling is a means of dividing an interrupt handler into two
+sections, one of which (known as the \(oqtop half') is time-critical and
+one of which (the \(oqbottom half') is not.
+.PP
+The top half (the handler registered with
+.BR "request_irq" "(9))"
+normally moves data between the device and a memory buffer, ensures that the
+device is in a sane state, and little else.  While the top half of a handler
+is running, the IRQ is question is blocked; if it is a fast interrupt handler
+(i.e., it has
+.B SA_INTERRUPT
+set), all interrupts are disabled.
+.PP
+The bottom half does whatever remains to be done.  Bottom halves run with
+interrupts enabled, although a locking mechanism ensures that only one
+bottom half will be running at a given time.  Bottom halves are run by
+.BR do_bottom_half() ,
+which is called from
+.B schedule()
+and
+.BR ret_from_sys_call() ". "
+.SS Usage
+.PP
+.B init_bh()
+installs
+.I routine()
+as bottom half number
+.IR nr ". "
+It operates by adding an entry to the
+.B bh_base[]
+table, and setting the appropriate bit of the
+.B bh_mask
+vector.  Rather than specifying a number explicitly, one should add an entry
+to the anonymous enum in
+.IR "include/linux/interrupt.h" ". "
+.PP
+.B remove_bh()
+removes bottom half number
+.I nr
+from the list of bottom halves.  It removes the entry from
+.B bh_base[]
+and clears the appropriate bit of
+.BR bh_mask ". "
+.PP
+.B mark_bh()
+requests that the kernel run the specified bottom half at the first available
+opportunity.  This function is normally called from the top half of an interrupt
+handler.  It operates by setting the appropriate bit of the
+.B bh_active
+vector.
+.PP
+.B disable_bh()
+disables bottom half number
+.I nr
+by clearing the appropriate bit of
+.BR bh_mask .
+This function also increments
+.BI bh_mask_count[ nr ]\fR,
+which is used to ensure that nested calls to
+.B disable_bh()
+must be matched by an equal number of calls to
+.BR enable_bh() .
+.PP
+.B enable_bh()
+enables a bottom half previously disabled by
+.BR disable_bh() .
+This function decrements
+.BI bh_mask_count[ nr ]\fR.
+Then, if that value is zero, the specified bottom half is enabled
+by setting the appropriate bit of
+.BR bh_mask .
+.SH "RETURN VALUE"
+No value is returned.
+.SH AVAILABILITY
+Linux 2.0+.
+.B init_bh()
+and
+.B remove_bh()
+were not present in older versions on Linux.  Under those versions,
+.B bh_base[]
+and
+.B bh_mask
+must be modified by hand.
+.SH "SEE ALSO"
+.BR request_irq "(9), " queue_task "(9)"
+.PP
+.IR include/asm*/softirq.h ", " include/linux/interrupt.h ", " kernel/softirq.c
+.PP
+\(lqKernel Korner\(rq in issue 26 of
+.I The Linux Journal
+includes a discussion of split-half interrupts under Linux.  An online copy of
+this article can be found at
+.BR http://www.ssc.com/lj/issue26/interrupt.html .
+.SH AUTHOR
+.RI "Neil Moore <" amethyst@maxwell.ml.org ">"
+.SH BUGS
+Only 32 bottom halves are allowed.  Increasing this number requires changing
+the size of
+.B bh_base[]
+and
+.BI bh_mask_count[]
+in
+.IR kernel/softirq.c,
+and changing
+.B bh_active
+and
+.B bh_mask
+(in the same file) to a larger type.  A better solution, however, would be to
+consolidate multiple bottom halves into a single one by using task queues.
+See
+.BR queue_task (9)
+for details.
+.\"
+.\" init_bh.9,v
+.\" Revision 1.4  1997/08/14 07:53:12  amethyst
+.\" Formatting changes.
+.\"
+.\" Revision 1.3  1997/08/08 16:40:50  amethyst
+.\" Updated for 2.1.48 -- init_bh() and friends are now available again on the PPC.
+.\"
+.\" Revision 1.2  1997/07/27 09:39:45  amethyst
+.\" Changed some wording.
+.\" Fixed a few typographical warts.
+.\" Added email address to copyright notice.
+.\"
+.\" Revision 1.1  1997/07/27 09:27:17  amethyst
+.\" Initial revision
+.\"
+.\"

@@ -1,0 +1,413 @@
+.\" written by Andrew Morgan <morgan@kernel.org>
+.\" may be distributed as per GPL
+.\" Modified by David A. Wheeler <dwheeler@ida.org>
+.\" Modified 2004-05-27, mtk
+.\" Modified 2004-06-21, aeb
+.\" Modified 2008-04-28, morgan of kernel.org
+.\"     Update in line with addition of file capabilities and
+.\"     64-bit capability sets in kernel 2.6.2[45].
+.\" Modified 2009-01-26, andi kleen
+.\"
+.\" Japanese Version Copyright (c) 1999 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1999-12-26, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated & Modified 2005-02-03, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2006-01-31, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated & Modified 2006-07-23, Akihiro MOTOKI, LDP v2.36
+.\" Updated & Modified 2008-08-11, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2009-02-24, Akihiro MOTOKI, LDP v3.19
+.\"
+.\"WORD:	capability		ケーパビリティ
+.\"WORD:	effective capability	実効ケーパビリティ
+.\"WORD:	inheritable capabilit	継承可能ケーパビリティ
+.\"WORD:	permitted capabily	許可ケーパビリティ
+.\"
+.TH CAPGET 2 2009-01-26 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O capget, capset \- set/get capabilities of thread(s)
+capget, capset \- スレッドのケーパビリティを設定/取得する
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #undef _POSIX_SOURCE
+.br
+.B #include <sys/capability.h>
+.sp
+.BI "int capget(cap_user_header_t " hdrp ", cap_user_data_t " datap );
+.sp
+.BI "int capset(cap_user_header_t " hdrp ", const cap_user_data_t " datap );
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O As of Linux 2.2,
+.\"O the power of the superuser (root) has been partitioned into
+.\"O a set of discrete capabilities.
+.\"O Each thread has a set of effective capabilities identifying
+.\"O which capabilities (if any) it may currently exercise.
+.\"O Each thread also has a set of inheritable capabilities that may be
+.\"O passed through an
+.\"O .BR execve (2)
+.\"O call, and a set of permitted capabilities
+.\"O that it can make effective or inheritable.
+Linux 2.2 で、スーパーユーザー (root) の権限は、個別のケーパビリティ
+(capabilities) へと分割され、その集合として表現されるようになった。
+各スレッドは「実効ケーパビリティ (effective capability) の集合」を持ち、
+それによって現在どの操作が実行可能かを識別できる。
+また、各スレッドは、
+「継承可能ケーパビリティ (inheritable capability) の集合」と
+「許可ケーパビリティ (permitted capability) の集合」を持つ。
+「継承可能ケーパビリティの集合」は
+.BR execve (2)
+を通じて渡すことができるケーパビリティの集合であり、
+「許可ケーパビリティ (permitted capability) の集合」は
+実効ケーパビリティや継承可能ケーパビリティとして有効にできる
+ケーパビリティを規定するものである。
+.PP
+.\"O These two functions are the raw kernel interface for getting and
+.\"O setting thread capabilities.
+.\"O Not only are these system calls specific to Linux,
+.\"O but the kernel API is likely to change and use of
+.\"O these functions (in particular the format of the
+.\"O .I cap_user_*_t
+.\"O types) is subject to extension with each kernel revision,
+.\"O but old programs will keep working.
+この二つの関数はスレッドのケーパビリティを取得したり設定したりするための
+生のカーネルインターフェースである。
+これらのシステムコールは Linux 特有であるというだけでなく、
+カーネル API は変更されるかもしれず、これらの
+関数の使用法 (特に
+.I cap_user_*_t
+型という書式) はカーネルのリビジョン毎に拡張されるかもしれないが、
+以前のプログラムはそのまま動作する。
+.sp
+.\"O The portable interfaces are
+.\"O .BR cap_set_proc (3)
+.\"O and
+.\"O .BR cap_get_proc (3);
+移植性のあるインターフェースは
+.BR cap_set_proc (3)
+と
+.BR cap_get_proc (3)
+である。
+.\"O if possible you should use those interfaces in applications.
+可能ならばアプリケーションはこれらの関数を使用すべきである。
+.\"O If you wish to use the Linux extensions in applications, you should
+.\"O use the easier-to-use interfaces
+.\"O .BR capsetp (3)
+.\"O and
+.\"O .BR capgetp (3).
+アプリケーションに Linux 拡張を使用したい場合には、より簡単に
+使えるインターフェースである
+.BR capsetp (3)
+と
+.BR capgetp (3)
+を使用すべきである。
+.\"O .SS "Current details"
+.SS 現在の詳細
+.\"O Now that you have been warned, some current kernel details.
+.\"O The structures are defined as follows.
+現在のカーネルの詳細について注意を述べておく。
+構造体は以下のように定義される。
+.sp
+.nf
+.in +4n
+#define _LINUX_CAPABILITY_VERSION_1  0x19980330
+#define _LINUX_CAPABILITY_U32S_1     1
+
+#define _LINUX_CAPABILITY_VERSION_2  0x20071026
+#define _LINUX_CAPABILITY_U32S_2     2
+
+typedef struct __user_cap_header_struct {
+   __u32 version;
+   int pid;
+} *cap_user_header_t;
+
+typedef struct __user_cap_data_struct {
+   __u32 effective;
+   __u32 permitted;
+   __u32 inheritable;
+} *cap_user_data_t;
+.fi
+.in -4n
+.sp
+.\"O .I effective, permitted, inheritable
+.\"O are bitmasks of the capabilities defined in
+.\"O .I capability(7).
+.\"O Note the
+.\"O .I CAP_*
+.\"O values are bit indexes and need to be bit-shifted before ORing into
+.\"O the bit fields.
+.\"O To define the structures for passing to the system call you have to use the
+.\"O .I struct __user_cap_header_struct
+.\"O and
+.\"O .I struct __user_cap_data_struct
+.\"O names because the typedefs are only pointers.
+.I effective, permitted, inheritable
+は、
+.BR capability (7)
+で定義されるケーパビリティのビットマスクである。
+.I CAP_*
+はビット番号を表すインデックス値であり、
+ビットフィールドに OR を行う前に
+.I CAP_*
+の値の分だけビットシフトを行う必要がある。
+typedef の方はポインタなので、
+このシステムコールに渡す構造体を定義するには、
+.I struct __user_cap_header_struct
+と
+.I struct __user_cap_data_struct
+という名前を使用しなければならない。
+
+.\"O Kernels prior to 2.6.25 prefer
+.\"O 32-bit capabilities with version
+.\"O .BR _LINUX_CAPABILITY_VERSION_1 ,
+.\"O and kernels 2.6.25+ prefer 64-bit capabilities with version
+.\"O .BR _LINUX_CAPABILITY_VERSION_2 .
+.\"O Note, 64-bit capabilities use
+.\"O .IR datap [0]
+.\"O and
+.\"O .IR datap [1],
+.\"O whereas 32-bit capabilities only use
+.\"O .IR datap [0].
+カーネル 2.6.25 より前では、バージョン
+.B _LINUX_CAPABILITY_VERSION_1
+の 32 ビットケーパビリティが推奨である。
+カーネル 2.6.25 以降では、バージョン
+.B _LINUX_CAPABILITY_VERSION_2
+の 64 ビットケーパビリティが推奨である。
+64 ビットケーパビリティでは
+.IR datap [0]
+と
+.IR datap [1]
+が使用されるのに対し、
+32 ビットケーパビリティでは
+.IR datap [0]
+だけが使用される。
+.sp
+.\"O Another change affecting the behavior of these system calls is kernel
+.\"O support for file capabilities (VFS capability support).
+.\"O This support is currently a compile time option (added in kernel 2.6.24).
+これらのシステムコールの挙動に影響があるもう一つの変更点は、
+ファイルケーパビリティ (file capabilities) のカーネルによるサポート
+(VFS ケーパビリティのサポート) である。
+VFS ケーパビリティのサポートは現在のところコンパイル時のオプションである
+(カーネル 2.6.24 で追加された)。
+.sp
+.\"O For
+.\"O .BR capget ()
+.\"O calls, one can probe the capabilities of any process by specifying its
+.\"O process ID with the
+.\"O .I hdrp->pid
+.\"O field value.
+.BR capget ()
+では、
+.I hdrp->pid
+のフィールド値にケーパビリティを知りたいプロセスのプロセス ID を
+指定することで、任意のプロセスのケーパビリティを調べることができる。
+.\"O .SS With VFS Capability Support
+.SS VFS ケーパビリティがサポートされている場合
+.\"O VFS Capability support creates a file-attribute method for adding
+.\"O capabilities to privileged executables.
+.\"O This privilege model obsoletes kernel support for one process
+.\"O asynchronously setting the capabilities of another.
+.\"O That is, with VFS support, for
+.\"O .BR capset ()
+.\"O calls the only permitted values for
+.\"O .I hdrp->pid
+.\"O are 0 or
+.\"O .BR getpid (2),
+.\"O which are equivalent.
+VFS ケーパビリティのサポートでは、特権実行ファイルにケーパビリティを
+追加するためのファイル属性メソッドが作成された。
+この特権モデルの導入により、あるプロセスにより別のプロセスのケーパビリティ
+を非同期に設定する機能のカーネルによるサポートは廃止される。
+つまり、VFS サポートでは、
+.BR capset ()
+を呼び出す際に
+.I hdrp->pid
+の値として許されるのは 0 と
+.BR getpid (2)
+が返す値だけとなる (どちらの値でも等価である)。
+.\"O .SS Without VFS Capability Support
+.SS VFS ケーパビリティがサポートされていない場合
+.\"O When the kernel does not support VFS capabilities,
+.\"O .BR capset ()
+.\"O calls can operate on the capabilities of the thread specified by the
+.\"O .I pid
+.\"O field of
+.\"O .I hdrp
+.\"O when that is nonzero, or on the capabilities of the calling thread if
+.\"O .I pid
+.\"O is 0.
+カーネルが VFS ケーパビリティをサポートしていない場合、
+.I hdrp
+の
+.I pid
+フィールドが 0 以外であれば、
+.BR capset ()
+の操作対象は
+.I pid
+で指定されたスレッドのケーパビリティになる。
+.I pid
+が 0 の場合は呼び出し元のスレッドのケーパビリティが操作対象となる。
+.\"O If
+.\"O .I pid
+.\"O refers to a single-threaded process, then
+.\"O .I pid
+.\"O can be specified as a traditional process ID;
+.\"O operating on a thread of a multithreaded process requires a thread ID
+.\"O of the type returned by
+.\"O .BR gettid (2).
+.I pid
+がシングルスレッド・プロセスを参照している場合、
+.I pid
+は以前から使われているプロセスID を使って指定できる。
+マルチスレッド・プロセス内のあるスレッドを対象にする場合は、
+.BR gettid (2)
+が返すスレッドID を用いて指定する必要がある。
+.\"O For
+.\"O .BR capset (),
+.\"O .I pid
+.\"O can also be: \-1, meaning perform the change on all threads except the
+.\"O caller and
+.\"O .BR init (8);
+.\"O or a value less than \-1, in which case the change is applied
+.\"O to all members of the process group whose ID is \-\fIpid\fP.
+また、
+.BR capset ()
+では \-1 や \-1 より小さな値を指定することもできる。
+\-1 は呼び出し元と
+.BR init (8)
+を除く全てのスレッドを対象として変更を行うことを、
+\-1 より小さな値は ID が \-\fIpid\fP のプロセスグループの全メンバ
+を対象として変更を行うことを意味する。
+
+.\"O For details on the data, see
+.\"O .BR capabilities (7).
+このデータの詳細は
+.BR capabilities (7)
+を参照すること。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O On success, zero is returned.
+.\"O On error, \-1 is returned, and
+.\"O .I errno
+.\"O is set appropriately.
+成功した場合には 0 を返す。エラーの場合には \-1 を返し、
+.I errno
+を適切に設定する。
+
+.\"O The calls will fail with the error
+.\"O .BR EINVAL ,
+.\"O and set the
+.\"O .I version
+.\"O field of
+.\"O .I hdrp
+.\"O to the kernel preferred value of
+.\"O .B _LINUX_CAPABILITY_VERSION_?
+.\"O when an unsupported
+.\"O .I version
+.\"O value is specified.
+.I hdrp
+のフィールド
+.I version
+にサポートされていない値が指定された場合、
+呼び出しはエラー
+.B EINVAL
+で失敗し、
+.I version
+にカーネル推奨の
+.B _LINUX_CAPABILITY_VERSION_?
+を設定する。
+.\"O In this way, one can probe what the current
+.\"O preferred capability revision is.
+このようにして、現在の推奨ケーパビリティ・リビジョンが何かを
+調べることができる。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EFAULT
+.\"O Bad memory address.
+.\"O .I hdrp
+.\"O must not be NULL.
+.\"O .I datap
+.\"O may only be NULL when the user is trying to determine the preferred
+.\"O capability version format supported by the kernel.
+不正なメモリアドレス。
+.I hdrp
+は NULL であってはならない。
+.I datap
+に NULL を指定してよいのは、ユーザがカーネルがサポートしている
+推奨のケーパビリティ・バージョンを判定しようとしているときだけである。
+.TP
+.B EINVAL
+.\"O One of the arguments was invalid.
+引き数のどれかが無効である。
+.TP
+.B EPERM
+.\"O An attempt was made to add a capability to the Permitted set, or to set
+.\"O a capability in the Effective or Inheritable sets that is not in the
+.\"O Permitted set.
+「許可ケーパビリティセット」にケーパビリティを追加しようとしているか、
+もしくは「許可ケーパビリティセット」に含まれないケーパビリティを
+「実効ケーパビリティセット」や「継承可能ケーパビリティセット」に
+セットしようとしている。
+.TP
+.B EPERM
+.\"O The caller attempted to use
+.\"O .BR capset ()
+.\"O to modify the capabilities of a thread other than itself,
+.\"O but lacked sufficient privilege.
+.\"O For kernels supporting VFS
+.\"O capabilities, this is never permitted.
+.\"O For kernels lacking VFS
+.\"O support, the
+.\"O .B CAP_SETPCAP
+.\"O capability is required.
+.\"O (A bug in kernels before 2.6.11 meant that this error could also
+.\"O occur if a thread without this capability tried to change its
+.\"O own capabilities by specifying the
+.\"O .I pid
+.\"O field as a nonzero value (i.e., the value returned by
+.\"O .BR getpid (2))
+.\"O instead of 0.)
+呼び出し元が自分以外のスレッドのケーパビリティを
+.BR capset ()
+を使って修正しようとしたが、十分な特権がなかった。
+VFS ケーパビリティをサポートしているカーネルでは、
+この操作が許可されることは決してない。
+VFS ケーパビリティをサポートしていないカーネルでは、
+.B CAP_SETPCAP
+ケーパビリティが必要である。
+(バージョン 2.6.11 より前のカーネルには、
+このケーパビリティを持たないスレッドが
+.I pid
+フィールドに 0 でない値 (つまり、0 の代わりに
+.BR getpid (2)
+が返す値) を指定して自分自身のケーパビリティを変更しようとした場合にも、
+このエラーが発生するというバグがあった。)
+.TP
+.B ESRCH
+.\"O No such thread.
+そのようなスレッドが存在しない。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+.\"O These system calls are Linux-specific.
+これらのシステムコールは Linux 独自である。
+.\"O .SH NOTES
+.SH 備考
+.\"O The portable interface to the capability querying and setting
+.\"O functions is provided by the
+.\"O .I libcap
+.\"O library and is available:
+ケーパビリティを設定したり取得したりする機能のための移植性ある
+インターフェースは
+.I libcap
+ライブラリによって提供される。
+このライブラリは以下から入手できる:
+.br
+http://www.kernel.org/pub/linux/libs/security/linux-privs
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR clone (2),
+.BR gettid (2),
+.BR capabilities (7)

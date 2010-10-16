@@ -1,0 +1,302 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (c) 2006 Andrew Morton <akpm@osdl.org>
+.\" and Copyright 2006 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" 2006-07-05 Initial creation, Michael Kerrisk based on
+.\"     Andrew Morton's comments in fs/sync.c
+.\"
+.\" Japanese Version Copyright (c) 2007 Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2007-01-09, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.43
+.\" Updated 2008-08-06, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2010-04-23, Akihiro MOTOKI, LDP v3.24
+.\"
+.TH SYNC_FILE_RANGE 2 2010-01-17 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O sync_file_range \- sync a file segment with disk
+sync_file_range \- ファイルセグメントをディスクと同期する
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #define _GNU_SOURCE
+.B #include <fcntl.h>
+
+.BI "int sync_file_range(int " fd ", off64_t " offset ", off64_t " nbytes ,
+.BI "                    unsigned int " flags );
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .BR sync_file_range ()
+.\"O permits fine control when synchronizing the open file referred to by the
+.\"O file descriptor
+.\"O .I fd
+.\"O with disk.
+.BR sync_file_range ()
+を使うと、ファイルディスクリプタ
+.I fd
+で参照されるオープンされたファイルのディスクとの同期に関して、
+きめ細かな制御が可能となる。
+
+.\"O .I offset
+.\"O is the starting byte of the file range to be synchronized.
+.\"O .I nbytes
+.\"O specifies the length of the range to be synchronized, in bytes; if
+.\"O .I nbytes
+.\"O is zero, then all bytes from
+.\"O .I offset
+.\"O through to the end of file are synchronized.
+.\"O Synchronization is in units of the system page size:
+.\"O .I offset
+.\"O is rounded down to a page boundary;
+.\"O .I (offset+nbytes-1)
+.\"O is rounded up to a page boundary.
+.I offset
+は、同期を行うファイルの領域の開始バイトである。
+.I nbytes
+には同期を行う領域の長さをバイト単位で指定する。
+.I nbytes
+が 0 の場合は、
+.I offset
+からファイル末尾までの全バイトを同期する。
+同期はシステムのページサイズの単位で行われる。
+.I offset
+はページ境界にあわせて切り下げられ、
+.I (offset+nbytes-1)
+はページ境界にあわせて切り上げられる。
+
+.\"O The
+.\"O .I flags
+.\"O bit-mask argument can include any of the following values:
+ビットマスク引き数
+.I flags
+には以下の値を指定することができる:
+.TP
+.B SYNC_FILE_RANGE_WAIT_BEFORE
+.\"O Wait upon write-out of all pages in the specified range
+.\"O that have already been submitted to the device driver for write-out
+.\"O before performing any write.
+何らかの書き込みを行う前に、指定された領域のページで
+書き出しを行うようにデバイスドライバにすでに要求が発行されている
+ページの書き出しが全て完了するのを待つ。
+.TP
+.B SYNC_FILE_RANGE_WRITE
+.\"O Initiate write-out of all dirty pages in the specified
+.\"O range which are not presently submitted write-out.
+.\"O Note that even this may block if you attempt to
+.\"O write more than request queue size.
+指定された領域のページで、書き出し要求が発行されていない
+全ての dirty (キャッシュだけが変更されている) ページの
+書き出しを開始する。
+リクエストキューの大きさより多く書き込もうとした場合には、
+この処理は停止 (block) する可能性がある点に注意すること。
+.TP
+.B SYNC_FILE_RANGE_WAIT_AFTER
+.\"O Wait upon write-out of all pages in the range
+.\"O after performing any write.
+何らかの書き込み後に、指定された領域の全てのページの
+書き出しが行われるのを待つ。
+.PP
+.\"O Specifying
+.\"O .I flags
+.\"O as 0 is permitted, as a no-op.
+.I flags
+に 0 を指定した場合、何もしないことを表す。
+.\"O .SS Warning
+.SS 警告
+.\"O This system call is extremely dangerous and should not be used in portable
+.\"O programs.
+このシステムコールは非常に危険であり、
+移植性が必要なプログラムで使用すべきではない。
+.\"O None of these operations writes out the file's metadata.
+.\"O Therefore, unless the application is strictly performing overwrites of
+.\"O already-instantiated disk blocks, there are no guarantees that the data will
+.\"O be available after a crash.
+これらの操作ではどれもファイルのメタデータの書き出しを行わない。
+したがって、アプリケーションにより作成済みのディスクブロックの
+上書きの実行が確実に行われない限り、クラッシュの後でもデータが
+利用できる保証はない。
+.\"O There is no user interface to know if a write is purely an overwrite.
+.\"O On filesystem using copy-on-write semantics (e.g.,
+.\"O .IR btrfs )
+.\"O an overwrite of existing allocated blocks is impossible.
+.\"O When writing into preallocated space,
+.\"O many filesystems also require calls into the block
+.\"O allocator, which this system call does not sync out to disk.
+.\"O This system call does not flush disk write caches and thus does not provide
+.\"O any data integrity on systems with volatile disk write caches.
+書き込みが上書きだけであるかを知るためのユーザインタフェースは存在しない。
+.RI ( btrfs
+などの) copy-on-write 動作を使ったファイルシステムでは、
+既存の割り当て済みのブロックに対する上書き自体ができない。
+前もって割り当てられた領域に書き込みを行う場合、
+多くのファイルシステムでは block allocator への書き込みも必要となるが、
+このシステムコールは block allocator のディスクへの同期を行わない。
+このシステムコールはディスク書き込みキャッシュのフラッシュを
+行わないので、揮発性のディスク書き込みキャッシュを使ったシステムでは
+このシステムコールではデータの一貫性を確保できないことになる。
+.\"O .SS Some details
+.SS 詳細
+.\"O .B SYNC_FILE_RANGE_WAIT_BEFORE
+.\"O and
+.\"O .B SYNC_FILE_RANGE_WAIT_AFTER
+.\"O will detect any
+.\"O I/O errors or
+.\"O .B ENOSPC
+.\"O conditions and will return these to the caller.
+.B SYNC_FILE_RANGE_WAIT_BEFORE
+と
+.B SYNC_FILE_RANGE_WAIT_AFTER
+は I/O エラーや
+.B ENOSPC
+状態を検出し、呼び出し元にこれらの情報を返す。
+
+.\"O Useful combinations of the
+.\"O .I flags
+.\"O bits are:
+.I flags
+の役に立つビットの組み合わせを以下に示す:
+.TP
+.B SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE
+.\"O Ensures that all pages
+.\"O in the specified range which were dirty when
+.\"O .BR sync_file_range ()
+.\"O was called are placed
+.\"O under write-out.
+.\"O This is a start-write-for-data-integrity operation.
+指定された範囲内のページで、
+.BR sync_file_range ()
+が呼び出された際に dirty であった全てのページが、
+確実に書き出し対象となるようにする。
+これは、start-write-for-data-integrity 操作
+(データ完全性確保のための書き込み開始の操作) である。
+.TP
+.B SYNC_FILE_RANGE_WRITE
+.\"O Start write-out of all dirty pages in the specified range which
+.\"O are not presently under write-out.
+.\"O This is an asynchronous flush-to-disk
+.\"O operation.
+.\"O This is not suitable for data integrity operations.
+指定された範囲内のページで、現在書き出し中でない全ての dirty ページの
+書き出しを開始する。これは非同期のディスクへのフラッシュ (flush-to-disk)
+操作である。データ完全性確保が必要な操作としては適切ではない。
+.TP
+.BR SYNC_FILE_RANGE_WAIT_BEFORE " (or " SYNC_FILE_RANGE_WAIT_AFTER )
+.\"O Wait for
+.\"O completion of write-out of all pages in the specified range.
+.\"O This can be used after an earlier
+.\"O .B SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE
+.\"O operation to wait for completion of that operation, and obtain its result.
+指定された範囲内の全てのページの書き出しの完了を待つ。
+このフラグは、前に行われた操作
+.B SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE
+の後に使用でき、この操作の完了を待ち、結果を取得することができる。
+.TP
+.B SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE | \
+SYNC_FILE_RANGE_WAIT_AFTER
+.\"O This is a write-for-data-integrity operation
+.\"O that will ensure that all pages in the specified range which were dirty when
+.\"O .BR sync_file_range ()
+.\"O was called are committed to disk.
+これは write-for-data-integrity 操作
+(データ完全性確保のための書き込み) であり、指定された範囲内の、
+.BR sync_file_range ()
+が呼ばれた時点で dirty な全てのページが
+ディスクに格納されることが保証される。
+.\"O .SH RETURN VALUE
+.SH 返り値
+.\"O On success,
+.\"O .BR sync_file_range ()
+.\"O returns 0; on failure \-1 is returned and
+.\"O .I errno
+.\"O is set to indicate the error.
+成功の場合、
+.BR sync_file_range ()
+は 0 を返す。失敗の場合、\-1 を返し、
+.I error
+にエラーを示す値を設定する。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EBADF
+.\"O .I fd
+.\"O is not a valid file descriptor.
+.I fd
+が有効なファイルディスクリプタではない。
+.TP
+.B EINVAL
+.\"O .I flags
+.\"O specifies an invalid bit; or
+.\"O .I offset
+.\"O or
+.\"O .I nbytes
+.\"O is invalid.
+.I flags
+に不正なビットが指定されている。または
+.I offset
+か
+.I nbytes
+が不正である。
+.TP
+.B EIO
+.\"O I/O error.
+I/O エラー。
+.TP
+.B ENOMEM
+.\"O Out of memory.
+メモリ不足である。
+.TP
+.B ENOSPC
+.\"O Out of disk space.
+ディスク領域不足である。
+.TP
+.B ESPIPE
+.\"O .I fd
+.\"O refers to something other than a regular file, a block device,
+.\"O a directory, or a symbolic link.
+.I fd
+が、通常のファイル、ブロックデバイス、ディレクトリ、シンボリックリンク
+以外のものを指している。
+.\" FIXME . (bug?) Actually, how can 'fd' refer to a symbolic link (S_ISLNK)?
+.\" (In userspace at least) it isn't possible to obtain a file descriptor
+.\" for a symbolic link.
+.SH バージョン
+.\"O .BR sync_file_range ()
+.\"O appeared on Linux in kernel 2.6.17.
+.BR sync_file_range ()
+はカーネル 2.6.17 で Linux に登場した。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+.\"O This system call is Linux-specific, and should be avoided
+.\"O in portable programs.
+このシステムコールは Linux 独自であり、
+移植性が必要なプログラムでは使用を避けるべきである。
+.\"O .SH VERSIONS
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR fdatasync (2),
+.BR fsync (2),
+.BR msync (2),
+.BR sync (2),
+.BR feature_test_macros (7)

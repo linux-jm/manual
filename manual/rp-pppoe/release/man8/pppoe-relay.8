@@ -1,0 +1,153 @@
+.\" $Id: pppoe-relay.8,v 1.6 2002/04/09 17:28:38 dfs Exp $ 
+.\" LIC: GPL
+.\"
+.\" Japanese Version Copyright (c) 2001 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Sun Oct 14 01:12:31 JST 2001
+.\"         by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\"
+.\"WORD:
+.\"
+.TH PPPOE-RELAY 8 "26 January 2001"
+.\""
+.UC 4
+.SH 名前
+pppoe-relay \- ユーザー空間 PPPoE リレーエージェント
+.SH 書式
+.B pppoe-relay \fR[\fIoptions\fR]
+
+.SH 説明
+\fBpppoe-relay\fR は Linux で使われる
+PPPoE (Point-to-Point Protocol over Ethernet) の
+ユーザー空間リレーエージェントである。
+\fBpppoe-relay\fR はクライアント \fBpppoe\fR と
+サーバー \fBpppoe-server\fR と連携して動作する。
+\fBpppoe-relay\fR の動作についての詳細は、
+このマニュアルで後にでてくる「動作」のセクションを参照すること。
+
+.SH オプション
+.TP
+.B \-S \fIinterface\fR
+イーサーネットインターフェース \fIinterface\fR を
+\fBpppoe-relay\fR が管理するインターフェースのリストに追加する。
+PPPoE サーバーだけが、このインターフェースに接続できる。
+
+.TP
+.B \-C \fIinterface\fR
+イーサーネットインターフェース \fIinterface\fR を
+\fBpppoe-relay\fR が管理するインターフェースのリストに追加する。
+PPPoE クライアントだけが、このインターフェースに接続できる。
+
+.TP
+.B \-B \fIinterface\fR
+イーサーネットインターフェース \fIinterface\fR を
+\fBpppoe-relay\fR が管理するインターフェースのリストに追加する。
+PPPoE クライアントとサーバーの両方が、このインターフェースに接続できる。
+
+.TP
+.B \-n \fInum\fR
+最大 \fInum\fR 個の PPPoE セッションを許可する。
+指定されない場合のデフォルトは 5000 である。
+\fInum\fR は 1 〜 65534 の範囲である。
+
+.TP
+.B \-i \fItimeout\fR
+セッションのアイドルタイムアウトを指定する。
+セッションの接続先と接続元の両方が \fItimeout\fR 秒以上
+アイドルになっていた場合、そのセッションを終了する。
+\fItimeout\fR を 0 に指定すると、
+アイドルによりセッションが終了されることはない。
+
+アイドルセッションの満了をチェックするルーチンは、
+最も頻繁に実行されたとしても 30 秒に 1 回であるので、
+最も短いタイムアウトの値もこれに近い。
+\fItimeout\fR のデフォルトの値は 600 秒 (10 分) である。
+
+.TP
+.B \-F
+\fB\-F\fR オプションを指定すると、\fBpppoe-relay\fR は
+バックグラウンドに fork \fIされず\fR、
+フォアグラウンドに残ったままになる。
+
+.TP
+.B \-h
+\fB\-h\fR オプションを指定すると、
+使用法についての簡単なメッセージを表示して終了する。
+
+.SH 動作
+
+\fBpppoe-relay\fR は、\fB-B\fR または \fB-C\fR オプションで指定された
+全てのインターフェースに入ってくる PPPoE PADI フレームを待ち受ける。
+PADI フレームが入ってくると、
+\fBpppoe-relay\fR は Relay-Session-ID タグを追加し、
+\fB-B\fR または \fB-S\fR オプションで指定された
+全てのインターフェースに PADI をブロードキャストする。
+(ただし PADI フレームが入ってきたインターフェースは除く)。
+
+受信した全ての PADO フレームは、
+(送られてきた PADI フレームに有効な Relay-Session-ID タグがあると仮定して)
+PADI を送ってきたクライアントにリレーして戻される。
+同様に、クライアントからの PADR フレームは、
+マッチしたアクセス集信装置にリレーして戻される。
+
+PADS フレームを受信すると、\fBpppoe-relay\fR は
+接続元と接続先の MAC アドレスとセッション ID を
+ハッシュテーブルに入れる。
+アクセス集信装置が監視するセッション ID は、
+クライアントが監視するセッション ID と異なるかもしれない。
+\fBpppoe-relay\fR はセッション ID が重複しないように
+セッションの番号をふり直さなければならない。
+接続元または接続先がセッションフレームを送信すると、
+\fBpppoe-relay\fR はハッシュテーブルにあるセッションエントリを参照し、
+適切な接続相手にフレームを受け渡す。
+
+PADT フレームを受信すると、\fBpppoe-relay\fR は
+接続相手に PADT フレームを受け渡し、
+ハッシュテーブルからセッションエントリを削除する。
+
+クライアントやサーバーがクラッシュした場合 (またはフレームが失われた場合)、
+PADT フレームは送信されず、\fBpppoe-relay\fR のハッシュテーブルは
+失効したセッションで一杯になってしまう。
+そのため、セッションを掃除するルーチンが定期的に実行され、
+ハッシュテーブルから古くなったセッションを削除する。
+\fItimeout\fR 秒間データが流れていない場合、
+そのセッションは「古くなった」とされる。
+タイムアウトによりセッションが削除される場合、
+セッションが kill されたことを知らせるために、
+接続元と接続先に PADT フレームが送られる。
+
+.SH 起動方法の例
+
+.nf
+pppoe-relay -C eth0 -S eth1
+.fi
+
+上記の例では、eth0 ネットワーク上の PPPoE クライアントと
+eth1 ネットワーク上の PPPoE サーバーの間でフレームが受け渡される。
+
+.nf
+pppoe-relay -B eth0 -B eth1
+.fi
+
+これは透過的なリレーの例である -- 
+eth0, eth1 ネットワークとクライアント・サーバーの
+どの組み合わせでもフレームが受け渡される。
+
+.nf
+pppoe-relay -S eth0 -C eth1 -C eth2 -C eth3
+.fi
+
+この例では、eth0 ネットワーク上のサーバーと
+eth1, eth2, eth3 ネットワーク上のクライアントの間で
+フレームが受け渡される。
+
+.SH 著者
+\fBpppoe-relay\fR は David F. Skoll <dfs@roaringpenguin.com> によって
+作成された。
+
+\fBpppoe\fR のホームページは
+\fIhttp://www.roaringpenguin.com/pppoe/\fR である。
+
+.SH 関連項目
+adsl-start(8), adsl-stop(8), adsl-connect(8), pppd(8), pppoe.conf(5),
+pppoe(8), adsl-setup(8), adsl-status(8), pppoe-sniff(8), pppoe-server(8)

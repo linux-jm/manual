@@ -1,0 +1,1065 @@
+.\" Copyright (C) 2007 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" with some input from Stepan Kasal <kasal@ucw.cz>
+.\"
+.\" Some content retained from an earlier version of this page:
+.\" Copyright (C) 1998 Andries Brouwer (aeb@cwi.nl)
+.\" Modifications for 2.2 and 2.4 Copyright (C) 2002 Ian Redfern
+.\" <redferni@logica.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 1998 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1998-07-22, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2003-02-06, Kentaro Shirakata <argrath@ub32.org>
+.\" Modified 2005-04-05, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2007-09-08, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.64
+.\" Updated 2008-11-09, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.13
+.\"
+.TH SYSCALLS 2 2009-05-06 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O syscalls \- Linux system calls
+syscalls \- Linux のシステムコール
+.\"O .SH SYNOPSIS
+.SH 書式
+.\"O Linux system calls.
+Linux のシステムコール。
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The system call is the fundamental interface between an application
+.\"O and the Linux kernel.
+システムコールは、アプリケーションと Linux カーネルとの間の
+基本的なインタフェースである。
+.\"O .SS System calls and library wrapper functions
+.SS システムコールとライブラリのラッパー関数
+.\"O System calls are generally not invoked directly,
+.\"O but rather via wrapper functions in glibc (or perhaps some other library).
+.\"O For details of direct invocation of a system call, see
+.\"O .BR intro (2).
+.\"O Often, but not always, the name of the wrapper function is the same
+.\"O as the name of the system call that it invokes.
+.\"O For example, glibc contains a function
+.\"O .BR truncate ()
+.\"O which invokes the underlying "truncate" system call.
+システムコールは一般には直接起動されず、
+glibc (や他の何らかのライブラリ)  経由で起動される。
+システムコールの直接起動については、詳細は
+.BR intro (2)
+を参照のこと。
+いつもという訳ではないが、普通は、ラッパー関数の名前はその関数が起動する
+システムコールの名前と同じである。
+例えば、glibc には
+.BR truncate ()
+という関数があり、この関数は "truncate" システムコールを起動する。
+
+.\"O Often the glibc wrapper function is quite thin, doing little work
+.\"O other than copying arguments to the right registers
+.\"O before invoking the system call,
+.\"O and then setting
+.\"O .I errno
+.\"O appropriately after the system call has returned.
+.\"O (These are the same steps that are performed by
+.\"O .BR syscall (2),
+.\"O which can be used to invoke system calls
+.\"O for which no wrapper function is provided.)
+.\"O Note: system calls indicate a failure by returning a negative error
+.\"O number to the caller;
+.\"O when this happens,
+.\"O the wrapper function negates the returned error number
+.\"O (to make it positive), copies it to
+.\"O .IR errno ,
+.\"O and returns \-1 to the caller of the wrapper.
+たいていの場合、glibc のラッパー関数はかなり簡単なもので、
+システムコールを起動する前に引き数を適切なレジスタにコピーし、
+システムコールが返った後は
+.I errno
+を適切に設定する以外は、ほとんど処理を行わない
+(これらは、ラッパー関数が提供されていない場合に
+システムコールを起動するのに使用する
+.BR syscall (2)
+により実行される処理と同じである)。
+[注意] システムコールは失敗を示すのに負のエラー番号を呼び出し元に返す。
+失敗が起こった際には、ラッパー関数は返されたエラー番号を反転して
+(正の値に変換し)、それを
+.I errno
+にコピーし、ラッパー関数の呼び出し元に \-1 を返す。
+
+.\"O Sometimes, however, the wrapper function does some extra work
+.\"O before invoking the system call.
+.\"O For example, nowadays there are (for reasons described below) two
+.\"O related system calls,
+.\"O .BR truncate (2)
+.\"O and
+.\"O .BR truncate64 (2),
+.\"O and the glibc
+.\"O .BR truncate ()
+.\"O wrapper function checks which of those system calls
+.\"O are provided by the kernel and determines which should be employed.
+しかしながら、時には、ラッパー関数がシステムコールを起動する前に
+何らかの追加の処理を行う場合がある。
+例えば、現在、
+二つの関連するシステムコール
+.BR truncate (2)
+と
+.BR truncate64 (2)
+があり、glibc のラッパー関数
+.BR truncate ()
+は、カーネルがこれらのシステムコールのうちどちらを提供しているかをチェックし、
+どちらを採用するかを決定する。
+.\"O .SS System call list
+.SS システムコールのリスト
+.\"O Below is a list of those system calls that are common to most platforms.
+.\"O In the list, the
+.\"O .I Kernel
+.\"O column indicates the kernel version
+.\"O for those system calls that were new in Linux 2.2,
+.\"O or have appeared since that kernel version.
+.\"O Note the following points:
+以下は、ほとんどのプラットフォームに共通するシステムコールのリストである。
+このリストで、
+.I Kernel
+の列は、Linux 2.2 以降で登場したシステムコールが
+登場したカーネルバージョンを示す。
+以下に詳細な説明を記す。
+.IP * 3
+.\"O Where no kernel version is indicated,
+.\"O the system call appeared in kernel 1.0 or earlier.
+カーネルバージョンがない場合、そのシステムコールは
+カーネル 1.0 もしくはそれ以前に登場した。
+.IP *
+.\"O Where a system call is marked "1.2"
+.\"O this means the system call probably appeared in a 1.1.x kernel version,
+.\"O and first appeared in a stable kernel with 1.2.
+.\"O (Development of the 1.2 kernel was initiated from a branch of kernel
+.\"O 1.0.6 via the 1.1.x unstable kernel series.)
+システムコールに "1.2" と書かれている場合、
+そのシステムコールがおそらくバージョン 1.1.x のカーネルで登場し、
+安定版のカーネルでは 1.2 で初めて登場したことを意味する。
+(バージョン 1.2 のカーネルは、カーネル 1.0.6 から分岐し、
+バージョン 1.1.x の不安定版のカーネル系列として開発された。)
+.IP *
+.\"O Where a system call is marked "2.0"
+.\"O this means the system call probably appeared in a 1.3.x kernel version,
+.\"O and first appeared in a stable kernel with 2.0.
+.\"O (Development of the 2.0 kernel was initiated from a branch of kernel
+.\"O 1.2.x, somewhere around 1.2.10,
+.\"O via the 1.3.x unstable kernel series.)
+システムコールに "2.0" と書かれている場合、
+そのシステムコールがおそらくバージョン 1.3.x のカーネルで登場し、
+安定版のカーネルでは 2.0 で初めて登場したことを意味する。
+(バージョン 2.0 のカーネルは、バージョン 1.2.10 あたりのカーネル 1.2.x
+から分岐し、バージョン 1.3.x の不安定版のカーネル系列として開発された。)
+.\" Was kernel 2.0 started from a branch of 1.2.10?
+.\" At least from the timestamps of the tarballs of
+.\" of 1.2.10 and 1.3.0, that's how it looks, but in
+.\" fact the diff doesn't seem very clear, the
+.\" 1.3.0 .tar.bz is much bigger (2.0 MB) than the
+.\" 1.2.10 .tar.bz2 (1.8 MB), and AEB points out the
+.\" timestamps of some files in 1.3.0 seem to be older
+.\" than those in 1.2.10.  All of this suggests
+.\" that there might not have been a clean branch point.
+.IP *
+.\"O Where a system call is marked "2.2"
+.\"O this means the system call probably appeared in a 2.1.x kernel version,
+.\"O and first appeared in a stable kernel with 2.2.0.
+.\"O (Development of the 2.2 kernel was initiated from a branch of kernel
+.\"O 2.0.21 via the 2.1.x unstable kernel series.)
+システムコールに "2.2" と書かれている場合、
+そのシステムコールがおそらくバージョン 2.1.x のカーネルで登場し、
+安定版のカーネルでは 2.2.0 で初めて登場したことを意味する。
+(バージョン 2.2 のカーネルは、カーネル 2.0.21 から分岐し、
+バージョン 2.1.x の不安定版のカーネル系列として開発された。)
+.IP *
+.\"O Where a system call is marked "2.4"
+.\"O this means the system call probably appeared in a 2.3.x kernel version,
+.\"O and first appeared in a stable kernel with 2.4.0.
+.\"O (Development of the 2.4 kernel was initiated from a branch of
+.\"O kernel 2.2.8 via the 2.3.x unstable kernel series.)
+システムコールに "2.4" と書かれている場合、
+そのシステムコールがおそらくバージョン 2.3.x のカーネルで登場し、
+安定版のカーネルでは 2.4.0 で初めて登場したことを意味する。
+(バージョン 2.4 のカーネルは、カーネル 2.2.8 から分岐し、
+バージョン 2.3.x の不安定版のカーネル系列として開発された。)
+.IP *
+.\"O Where a system call is marked "2.6"
+.\"O this means the system call probably appeared in a 2.5.x kernel version,
+.\"O and first appeared in a stable kernel with 2.6.0.
+.\"O (Development of kernel 2.6 was initiated from a branch
+.\"O of kernel 2.4.15 via the 2.5.x unstable kernel series.)
+システムコールに "2.6" と書かれている場合、
+そのシステムコールがおそらくバージョン 2.5.x のカーネルで登場し、
+安定版のカーネルでは 2.6.0 で初めて登場したことを意味する。
+(バージョン 2.6 のカーネルは、カーネル 2.4.15 から分岐し、
+バージョン 2.5.x の不安定版のカーネル系列として開発された。)
+.IP *
+.\"O Starting with kernel 2.6.0, the development model changed,
+.\"O and new system calls may appear in each 2.6.x release.
+.\"O In this case, the exact version number where the system call appeared
+.\"O is shown.
+カーネル 2.6.0 から開発モデルは変更され、
+新しいシステムコールが個々の 2.6.x のリリースでも登場するようになった。
+この場合、リストでは、システムコールが登場した
+厳密なバージョン番号が記載されている。
+.IP *
+.\"O In some cases, a system call was added to a stable kernel
+.\"O series after it branched from the previous stable kernel
+.\"O series, and then backported into the earlier stable kernel series.
+.\"O For example some system calls that appeared in 2.6.x were also backported
+.\"O into a 2.4.x release after 2.4.15.
+.\"O When this is so, the version where the system call appeared
+.\"O in both of the major kernel series is listed.
+前の安定版カーネル系列から分岐した後に安定版カーネル系列にシステムコール
+が追加された場合、以前の安定版カーネル系列にそのシステムコールが
+移植 (backport) されることがある。
+例えば、2.6.x で登場したシステムコールのいくつかは、
+2.4.15 以降の 2.4.x リリースにも backport された。
+この場合、システムコールが登場したバージョンとして、
+両方の安定版系列のバージョンが記載されている。
+.PP
+.\"O The list of system calls that are available as at kernel 2.6.28
+.\"O (or in a few cases only on older kernels) is as follows:
+カーネル 2.6.28 で利用可能なシステムコールのリストを以下に示す
+(それ以前のカーネルでだけ利用可能なものも少数だが含まれる):
+.\"
+.\" Looking at scripts/checksyscalls.sh in the kernel source is
+.\" instructive about i386 specifics.
+.\"
+.TS
+l l l
+---
+l l l.
+\fBSystem call\fP	\fBKernel\fP	\fBNotes\fP
+
+\fB_llseek\fP(2)	1.2
+\fB_newselect\fP(2)
+\fB_sysctl\fP(2)
+\fBaccept\fP(2)
+\fBaccept4\fP(2)	2.6.28
+\fBaccess\fP(2)
+\fBacct\fP(2)
+\fBadd_key\fP(2)	2.6.11
+\fBadjtimex\fP(2)
+\fBafs_syscall\fP(2)		Not implemented
+\fBalarm\fP(2)
+\fBalloc_hugepages\fP(2)	2.5.36	Removed in 2.5.44
+\fBbdflush\fP(2)
+\fBbind\fP(2)
+\fBbreak\fP(2)		Not implemented
+\fBbrk\fP(2)
+\fBcacheflush\fP(2)	1.2	Not on i386
+\fBcapget\fP(2)	2.2
+\fBcapset\fP(2)	2.2
+\fBchdir\fP(2)
+\fBchmod\fP(2)
+\fBchown\fP(2)
+\fBchown32\fP(2)	2.4
+\fBchroot\fP(2)
+\fBclock_getres\fP(2)	2.6
+\fBclock_gettime\fP(2)	2.6
+\fBclock_nanosleep\fP(2)	2.6
+\fBclock_settime\fP(2)	2.6
+\fBclone\fP(2)
+\fBclose\fP(2)
+\fBconnect\fP(2)
+\fBcreat\fP(2)
+\fBcreate_module\fP(2)
+\fBdelete_module\fP(2)
+\fBdup\fP(2)
+\fBdup2\fP(2)
+\fBdup3\fP(2)	2.6.27
+\fBepoll_create\fP(2)	2.6
+\fBepoll_create1\fP(2)	2.6.27
+\fBepoll_ctl\fP(2)	2.6
+\fBepoll_pwait\fP(2)	2.6.19
+\fBepoll_wait\fP(2)	2.6
+\fBeventfd\fP(2)	2.6.22
+\fBeventfd2\fP(2)	2.6.27
+\fBexecve\fP(2)
+\fBexit\fP(2)
+\fBexit_group\fP(2)	2.6
+\fBfaccessat\fP(2)	2.6.16
+\fBfadvise64\fP(2)	2.6
+.\" Implements \fBposix_fadvise\fP(2)
+\fBfadvise64_64\fP(2)	2.6
+\fBfallocate\fP(2)	2.6.23
+\fBfchdir\fP(2)
+\fBfchmod\fP(2)
+\fBfchmodat\fP(2)	2.6.16
+\fBfchown\fP(2)
+\fBfchown32\fP(2)	2.4
+\fBfchownat\fP(2)	2.6.16
+\fBfcntl\fP(2)
+\fBfcntl64\fP(2)	2.4
+\fBfdatasync\fP(2)
+\fBfgetxattr\fP(2)	2.6; 2.4.18
+\fBflistxattr\fP(2)	2.6; 2.4.18
+\fBflock\fP(2)	2.0
+\fBfork\fP(2)
+\fBfree_hugepages\fP(2)	2.5.36	Removed in 2.5.44
+\fBfremovexattr\fP(2)	2.6; 2.4.18
+\fBfsetxattr\fP(2)	2.6; 2.4.18
+\fBfstat\fP(2)
+\fBfstat64\fP(2)	2.4
+\fBfstatat64\fP(2)	2.6.16
+\fBfstatfs\fP(2)
+\fBfstatfs64\fP(2)	2.6
+\fBfsync\fP(2)
+\fBftime\fP(2)		Not implemented
+.\" Implemented in glibc; see \fBftime\fP(3)
+\fBftruncate\fP(2)
+\fBftruncate64\fP(2)	2.4
+\fBfutex\fP(2)	2.6
+\fBfutimesat\fP(2)	2.6.16
+\fBget_kernel_syms\fP(2)
+\fBget_mempolicy\fP(2)	2.6.6
+\fBget_robust_list\fP(2)	2.6.17
+\fBget_thread_area\fP(2)	2.6
+\fBgetcpu\fP(2)	2.6.19
+\fBgetcwd\fP(2)	2.2
+\fBgetdents\fP(2)	2.0
+\fBgetdents64\fP(2)	2.4
+\fBgetegid\fP(2)
+\fBgetegid32\fP(2)	2.4
+\fBgeteuid\fP(2)
+\fBgeteuid32\fP(2)	2.4
+\fBgetgid\fP(2)
+\fBgetgid32\fP(2)	2.4
+\fBgetgroups\fP(2)
+\fBgetgroups32\fP(2)	2.4
+\fBgetitimer\fP(2)
+\fBgetpeername\fP(2)
+\fBgetpagesize\fP(2)	2.0	Not on i386
+\fBgetpgid\fP(2)
+\fBgetpgrp\fP(2)
+\fBgetpid\fP(2)
+\fBgetpmsg\fP(2)		Not implemented
+.\" Reserved for STREAMS support
+\fBgetppid\fP(2)
+\fBgetpriority\fP(2)
+\fBgetresgid\fP(2)	2.2
+\fBgetresgid32\fP(2)	2.4
+\fBgetresuid\fP(2)	2.2
+\fBgetresuid32\fP(2)	2.4
+\fBgetrlimit\fP(2)
+\fBgetrusage\fP(2)
+\fBgetsid\fP(2)	2.0
+\fBgetsockname\fP(2)
+\fBgetsockopt\fP(2)
+\fBgettid\fP(2)	2.4.11
+\fBgettimeofday\fP(2)
+\fBgetuid\fP(2)
+\fBgetuid32\fP(2)	2.4
+.\" \fBgetunwind\fP(2)	2.4.8	ia64; DEPRECATED
+\fBgetxattr\fP(2)	2.6; 2.4.18
+\fBgtty\fP(2)		Not implemented
+\fBidle\fP(2)		Not implemented
+\fBinit_module\fP(2)
+\fBinotify_add_watch\fP(2)	2.6.13
+\fBinotify_init\fP(2)	2.6.13
+\fBinotify_init1\fP(2)	2.6.27
+\fBinotify_rm_watch\fP(2)	2.6.13
+\fBio_cancel\fP(2)	2.6
+\fBio_destroy\fP(2)	2.6
+\fBio_getevents\fP(2)	2.6
+\fBio_setup\fP(2)	2.6
+\fBio_submit\fP(2)	2.6
+\fBioctl\fP(2)
+\fBioperm\fP(2)
+\fBiopl\fP(2)
+\fBioprio_get\fP(2)	2.6.13
+\fBioprio_set\fP(2)	2.6.13
+\fBipc\fP(2)
+.\" Implements System V IPC calls
+\fBkexec_load\fP(2)	2.6.7
+.\" Was named sys_kexec_load() from 2.6.7 to 2.6.16
+\fBkeyctl\fP(2)	2.6.11
+\fBkill\fP(2)
+\fBlchown\fP(2)	2.2
+\fBlchown32\fP(2)	2.4
+\fBlgetxattr\fP(2)	2.6; 2.4.18
+\fBlink\fP(2)
+\fBlinkat\fP(2)	2.6.16
+\fBlisten\fP(2)
+\fBlistxattr\fP(2)	2.6; 2.4.18
+\fBllistxattr\fP(2)	2.6; 2.4.18
+\fBlock\fP(2)		Not implemented
+\fBlookup_dcookie\fP(2)	2.6
+\fBlremovexattr\fP(2)	2.6; 2.4.18
+\fBlseek\fP(2)
+\fBlsetxattr\fP(2)	2.6; 2.4.18
+\fBlstat\fP(2)
+\fBlstat64\fP(2)	2.4
+\fBmadvise\fP(2)	2.4
+\fBmadvise1\fP(2)	2.4
+\fBmbind\fP(2)	2.6.6
+.\" \fBmemory_ordering\fP(2)	???	Sparc64
+\fBmigrate_pages\fP(2)	2.6.16
+\fBmincore\fP(2)	2.4
+\fBmkdir\fP(2)
+\fBmkdirat\fP(2)	2.6.16
+\fBmknod\fP(2)
+\fBmknodat\fP(2)	2.6.16
+\fBmlock\fP(2)
+\fBmlockall\fP(2)
+\fBmmap\fP(2)
+\fBmmap2\fP(2)	2.4
+\fBmodify_ldt\fP(2)
+\fBmount\fP(2)
+\fBmove_pages\fP(2)	2.6.18
+\fBmprotect\fP(2)
+\fBmpx\fP(2)		Not implemented
+\fBmq_getsetattr\fP(2)	2.6.6
+.\" Implements \fBmq_getattr\fP(3) and \fBmq_setattr\fP(3)
+\fBmq_notify\fP(2)	2.6.6
+\fBmq_open\fP(2)	2.6.6
+\fBmq_timedreceive\fP(2)	2.6.6
+\fBmq_timedsend\fP(2)	2.6.6
+\fBmq_unlink\fP(2)
+\fBmremap\fP(2)	2.0
+\fBmsgctl\fP(2)
+\fBmsgget\fP(2)
+\fBmsgrcv\fP(2)
+\fBmsgsnd\fP(2)
+\fBmsync\fP(2)	2.0
+.\" \fBmultiplexer\fP(2)	??	__NR_multiplexer reserved on
+.\"		PowerPC, but unimplemented?
+\fBmunlock\fP(2)
+\fBmunlockall\fP(2)
+\fBmunmap\fP(2)
+\fBnanosleep\fP(2)	2.0
+\fBnfsservctl\fP(2)	2.2
+\fBnice\fP(2)
+\fBoldfstat\fP(2)
+\fBoldlstat\fP(2)
+\fBoldolduname\fP(2)
+\fBoldstat\fP(2)
+\fBolduname\fP(2)
+\fBopen\fP(2)
+\fBopenat\fP(2)	2.6.16
+\fBpause\fP(2)
+\fBpciconfig_iobase\fP(2)	2.2.15; 2.4	Not on i386
+.\" Alpha, PowerPC, ARM; not i386
+\fBpciconfig_read\fP(2)	2.0.26; 2.2	Not on i386
+.\" , PowerPC, ARM; not i386
+\fBpciconfig_write\fP(2)	2.0.26; 2.2	Not on i386
+.\" , PowerPC, ARM; not i386
+\fBpersonality\fP(2)	1.2
+.\" \fBperfctr\fP(2)	???	Sparc32, Sparc64
+.\" \fBperfmonctl\fP(2)	???	ia64
+\fBphys\fP(2)		Not implemented
+.\" Unimplemented (no slot since 2.1.116)
+\fBpipe\fP(2)
+\fBpipe2\fP(2)	2.6.27
+\fBpivot_root\fP(2)	2.4
+\fBpoll\fP(2)	2.2
+\fBppoll\fP(2)	2.6.16
+\fBprctl\fP(2)	2.2
+\fBpread64\fP(2)		Added as "pread" in 2.2;
+		renamed "pread64" in 2.6
+\fBpreadv\fP(2)	2.6.30
+\fBprof\fP(2)		Not implemented
+\fBprofil\fP(2)		Not implemented
+.\" Implemented in glibc; see \fBprofil\fP(3)
+\fBpselect6\fP(2)	2.6.16
+.\" Implements \fBpselect\fP(2)
+\fBptrace\fP(2)
+\fBputpmsg\fP(2)		Not implemented
+.\" Reserved for STREAMS support
+\fBpwrite64\fP(2)		Added as "pwrite" in 2.2;
+		renamed "pwrite64" in 2.6
+\fBpwritev\fP(2)	2.6.30
+\fBquery_module\fP(2)	2.2
+\fBquotactl\fP(2)
+\fBread\fP(2)
+\fBreadahead\fP(2)	2.4.13
+\fBreaddir\fP(2)
+.\" Supersedes \fBgetdents\fP(2)
+\fBreadlink\fP(2)
+\fBreadlinkat\fP(2)	2.6.16
+\fBreadv\fP(2)	2.0
+\fBreboot\fP(2)
+\fBrecv\fP(2)
+\fBrecvfrom\fP(2)
+\fBrecvmsg\fP(2)
+\fBremap_file_pages\fP(2)	2.6
+\fBremovexattr\fP(2)	2.6; 2.4.18
+\fBrename\fP(2)
+\fBrenameat\fP(2)	2.6.16
+\fBrequest_key\fP(2)	2.6.11
+\fBrestart_syscall\fP(2)	2.6
+\fBrmdir\fP(2)
+\fBrt_sigaction\fP(2)	2.2
+\fBrt_sigpending\fP(2)	2.2
+\fBrt_sigprocmask\fP(2)	2.2
+\fBrt_sigqueueinfo\fP(2)	2.2
+.\" Implements \fBsigqueue\fP(2)
+\fBrt_sigreturn\fP(2)	2.2
+\fBrt_sigsuspend\fP(2)	2.2
+\fBrt_sigtimedwait\fP(2)	2.2
+\fBsched_get_priority_max\fP(2)	2.0
+\fBsched_get_priority_min\fP(2)	2.0
+\fBsched_getaffinity\fP(2)	2.6
+\fBsched_getparam\fP(2)	2.0
+\fBsched_getscheduler\fP(2)	2.0
+\fBsched_rr_get_interval\fP(2)	2.0
+\fBsched_setaffinity\fP(2)	2.6
+\fBsched_setparam\fP(2)	2.0
+\fBsched_setscheduler\fP(2)	2.0
+\fBsched_yield\fP(2)	2.0
+\fBsecurity\fP(2)		Not implemented
+\fBselect\fP(2)
+\fBsemctl\fP(2)
+\fBsemget\fP(2)
+\fBsemop\fP(2)
+\fBsemtimedop\fP(2)	2.6; 2.4.22
+\fBsend\fP(2)
+\fBsendfile\fP(2)	2.2
+\fBsendfile64\fP(2)	2.6; 2.4.19
+\fBsendmsg\fP(2)
+\fBsendto\fP(2)
+\fBset_mempolicy\fP(2)	2.6.6
+\fBset_robust_list\fP(2)	2.6.17
+\fBset_thread_area\fP(2)	2.6
+\fBset_tid_address\fP(2)	2.6
+\fBset_zone_reclaim\fP(2)	2.6.13	Removed in 2.6.16 (was never
+		available to userspace)
+.\" See http://lkml.org/lkml/2005/8/1/83
+.\" "[PATCH] remove sys_set_zone_reclaim()"
+\fBsetdomainname\fP(2)
+\fBsetfsgid\fP(2)	1.2
+\fBsetfsgid32\fP(2)	2.4
+\fBsetfsuid\fP(2)	1.2
+\fBsetfsuid32\fP(2)	2.4
+\fBsetgid\fP(2)
+\fBsetgid32\fP(2)	2.4
+\fBsetgroups\fP(2)
+\fBsetgroups32\fP(2)	2.4
+\fBsethostname\fP(2)
+\fBsetitimer\fP(2)
+\fBsetpgid\fP(2)
+\fBsetpriority\fP(2)
+\fBsetregid\fP(2)
+\fBsetregid32\fP(2)	2.4
+\fBsetresgid\fP(2)	2.2
+\fBsetresgid32\fP(2)	2.4
+\fBsetresuid\fP(2)	2.2
+\fBsetresuid32\fP(2)	2.4
+\fBsetreuid\fP(2)
+\fBsetreuid32\fP(2)	2.4
+\fBsetrlimit\fP(2)
+\fBsetsid\fP(2)
+\fBsetsockopt\fP(2)
+\fBsettimeofday\fP(2)
+\fBsetuid\fP(2)
+\fBsetuid32\fP(2)	2.4
+\fBsetup\fP(2)		Removed in 2.2
+\fBsetxattr\fP(2)	2.6; 2.4.18
+\fBsgetmask\fP(2)
+\fBshmat\fP(2)
+\fBshmctl\fP(2)
+\fBshmdt\fP(2)
+\fBshmget\fP(2)
+\fBshutdown\fP(2)
+\fBsigaction\fP(2)
+\fBsigaltstack\fP(2)	2.2
+\fBsignal\fP(2)
+\fBsignalfd\fP(2)	2.6.22
+\fBsignalfd4\fP(2)	2.6.27
+\fBsigpending\fP(2)
+\fBsigprocmask\fP(2)
+\fBsigreturn\fP(2)
+\fBsigsuspend\fP(2)
+\fBsocket\fP(2)
+\fBsocketcall\fP(2)
+.\" Implements BSD socket calls
+\fBsocketpair\fP(2)
+\fBsplice\fP(2)	2.6.17
+\fBspu_create\fP(2)	2.6.16	PowerPC only
+\fBspu_run\fP(2)	2.6.16	PowerPC only
+\fBssetmask\fP(2)
+\fBstat\fP(2)
+\fBstat64\fP(2)	2.4
+\fBstatfs\fP(2)
+\fBstatfs64\fP(2)	2.6
+\fBstime\fP(2)
+\fBstty\fP(2)		Not implemented
+\fBswapoff\fP(2)
+\fBswapon\fP(2)
+\fBsymlink\fP(2)
+\fBsymlinkat\fP(2)	2.6.16
+\fBsync\fP(2)
+\fBsync_file_range\fP(2)	2.6.17
+.\" \fBsys_debug_setcontext\fP(2)	???	PowerPC if CONFIG_PPC32
+\fBsysfs\fP(2)	1.2
+\fBsysinfo\fP(2)
+\fBsyslog\fP(2)
+.\" glibc interface is \fBklogctl\fP(3)
+\fBtee\fP(2)	2.6.17
+\fBtgkill\fP(2)	2.6
+\fBtime\fP(2)
+\fBtimer_create\fP(2)	2.6
+\fBtimer_delete\fP(2)	2.6
+\fBtimer_getoverrun\fP(2)	2.6
+\fBtimer_gettime\fP(2)	2.6
+\fBtimer_settime\fP(2)	2.6
+\fBtimerfd_create\fP(2)	2.6.25
+\fBtimerfd_gettime\fP(2)	2.6.25
+\fBtimerfd_settime\fP(2)	2.6.25
+\fBtimes\fP(2)
+\fBtkill\fP(2)	2.6; 2.4.22
+\fBtruncate\fP(2)
+\fBtruncate64\fP(2)	2.4
+\fBtuxcall\fP(2)		Not implemented
+.\" Unimplemented; no slot on i386
+.\" As at 2.6.22, tuxcall has a slot on PowerPC, x86_64, and alpha
+\fBugetrlimit\fP(2)	2.4
+\fBulimit\fP(2)		Not implemented
+.\" Implemented in glibc; see \fBulimit\fP(3)
+\fBumask\fP(2)
+\fBumount\fP(2)
+.\" sys_oldumount() -- __NR_umount
+\fBumount2\fP(2)	2.2
+.\" sys_umount() -- __NR_umount2
+\fBuname\fP(2)
+\fBunlink\fP(2)
+\fBunlinkat\fP(2)	2.6.16
+\fBunshare\fP(2)	2.6.16
+\fBuselib\fP(2)
+\fBustat\fP(2)
+\fButime\fP(2)
+\fButimensat\fP(2)	2.6.22
+\fButimes\fP(2)	2.6
+\fBvfork\fP(2)
+\fBvhangup\fP(2)
+\fBvm86old\fP(2)
+.\" Superseded by \fBvm86\fP(2)
+\fBvmsplice\fP(2)	2.6.17
+\fBvserver\fP(2)		Not implemented
+\fBwait4\fP(2)
+\fBwaitid\fP(2)	2.6.10
+\fBwaitpid\fP(2)
+\fBwrite\fP(2)
+\fBwritev\fP(2)	2.0
+.TE
+.PP
+.\"O On many platforms, including i386, socket calls are all multiplexed
+.\"O (via glibc wrapper functions) through
+.\"O .BR socketcall (2)
+.\"O and similarly System V IPC calls are multiplexed through
+.\"O .BR ipc (2).
+i386 を含む多くのプラットフォームでは、ソケット関連のシステムコールは
+(glibc のラッパー関数を介してだが) すべて
+.BR socketcall (2)
+経由に多重されている。
+同様に、System V IPC 関連のシステムコールは
+.BR ipc (2)
+経由に多重されている。
+.\"O .SH NOTES
+.SH 注意
+.\"O Note the following points:
+以下の点に留意すること:
+.IP * 3
+.\"O Although slots are reserved for them in the system call table,
+.\"O the following system calls are not implemented in the standard kernel:
+以下のシステムコールは、
+システムコール・テーブルにスロットが予約されているが、
+標準のカーネルには実装されていない:
+.BR afs_syscall (2), \" __NR_afs_syscall is 53 on Linux 2.6.22/i386
+.BR break (2),       \" __NR_break is 17 on Linux 2.6.22/i386
+.BR ftime (2),       \" __NR_ftime is 35 on Linux 2.6.22/i386
+.BR getpmsg (2),     \" __NR_getpmsg is 188 on Linux 2.6.22/i386
+.BR gtty (2),        \" __NR_gtty is 32 on Linux 2.6.22/i386
+.BR idle (2),        \" __NR_idle is 112 on Linux 2.6.22/i386
+.BR lock (2),        \" __NR_lock is 53 on Linux 2.6.22/i386
+.BR madvise1 (2),    \" __NR_madvise1 is 219 on Linux 2.6.22/i386
+.BR mpx (2),         \" __NR_mpx is 66 on Linux 2.6.22/i386
+.BR phys (2),        \" Slot has been reused
+.BR prof (2),        \" __NR_prof is 44 on Linux 2.6.22/i386
+.BR profil (2),      \" __NR_profil is 98 on Linux 2.6.22/i386
+.BR putpmsg (2),     \" __NR_putpmsg is 189 on Linux 2.6.22/i386
+.\" __NR_security is 223 on Linux 2.4/i386; absent on 2.6/i386, present
+.\" on a couple of 2.6 architectures
+.BR security (2),    \" __NR_security is 223 on Linux 2.4/i386
+.BR stty (2),        \" __NR_stty is 31 on Linux 2.6.22/i386
+.BR tuxcall (2),     \" __NR_tuxcall is 184 on x86_64, also on PPC and alpha
+.BR ulimit (2),      \" __NR_ulimit is 58 on Linux 2.6.22/i386
+.\"O and
+.BR vserver (2)      \" __NR_vserver is 273 on Linux 2.6.22/i386
+.\"O (see also
+.\"O .BR unimplemented (2)).
+.RB ( unimplemented (2)
+も参照)。
+.\"O However,
+.\"O .BR ftime (3),
+.\"O .BR profil (3)
+.\"O and
+.\"O .BR ulimit (3)
+.\"O exist as library routines.
+しかし、
+.BR ftime (3),
+.BR profil (3),
+.BR ulimit (3)
+はライブラリ・ルーチンとして実装されている。
+.\"O The slot for
+.\"O .BR phys (2)
+.\"O is in use since kernel 2.1.116 for
+.\"O .BR umount (2);
+.\"O .BR phys (2)
+.\"O will never be implemented.
+.BR phys (2)
+用の場所は 2.1.116 以降では
+.BR umount (2)
+用に使用されている;
+将来においても
+.BR phys (2)
+は実装されない。
+.IP *
+.\"O The
+.\"O .BR getpmsg (2)
+.\"O and
+.\"O .BR putpmsg (2)
+.\"O calls are for kernels patched to support STREAMS,
+.\"O and may never be in the standard kernel.
+.BR getpmsg (2)
+と
+.BR putpmsg (2)
+は、ストリーム対応のパッチが当てられたカーネル用のもので、
+標準のカーネルに存在することは今後もない。
+.\" The security call is for future use.
+.PP
+.\"O Roughly speaking, the code belonging to the system call
+.\"O with number __NR_xxx defined in
+.\"O .I /usr/include/asm/unistd.h
+.\"O can be found in the kernel source in the routine
+.\"O .IR sys_xxx ().
+.\"O (The dispatch table for i386 can be found in
+.\"O .IR /usr/src/linux/arch/i386/kernel/entry.S .)
+たいていは、
+.I /usr/include/asm/unistd.h
+で定義されている番号 __NR_xxx のシステムコールのコードは、
+カーネル・ソースの
+.IR sys_xxx ()
+というルーチンに書かれている
+(i386 における実行テーブルは
+.I /usr/src/linux/arch/i386/kernel/entry.S
+に書かれている)。
+.\"O There are many exceptions, however, mostly because
+.\"O older system calls were superseded by newer ones,
+.\"O and this has been treated somewhat unsystematically.
+.\"O On platforms with
+.\"O proprietary OS emulation, such as parisc, sparc, sparc64 and alpha,
+.\"O there are many additional system calls; mips64 also contains a full
+.\"O set of 32-bit system calls.
+しかしこれには多くの例外がある。古いシステムコールは新版に置き換えられて
+きたが、この置き換えはあまり体系立てて行われて来なかったからである。
+parisc, sparc, sparc64, alpha といったプロプリエタリ OS のエミュレーション
+機能があるプラットフォームでは、多くの追加システムコールがある。
+mips64 には、32 ビットシステムコールのフルセットも含まれている。
+
+.\"O Over time, changes to the interfaces of some system calls have been
+.\"O necessary.
+.\"O One reason for such changes was the need to increase the size of
+.\"O structures or scalar values passed to the system call.
+時間の経過とともに、いくつかのシステムコールではインタフェースの
+変更が必要になってきた。
+こうした変更の理由の一つは、システムコールに渡される構造体やスカラー値
+のサイズを増やす必要があることだった。
+.\"O Because of these changes, there are now various groups
+.\"O of related system calls
+.\"O (e.g.,
+.\"O .BR truncate (2)
+.\"O and
+.\"O .BR truncate64 (2))
+.\"O which perform similar tasks, but which vary in
+.\"O details such as the size of their arguments.
+これらの変更の結果、現在では、同様の処理を実行するが
+引き数のサイズなどの詳細は異なる、一連のシステムコール群が
+いくつか存在する
+(例えば、
+.BR truncate (2)
+と
+.BR truncate64 (2))。
+.\"O (As noted earlier, applications are generally unaware of this:
+.\"O the glibc wrapper functions do some work to ensure that the right
+.\"O system call is invoked, and that ABI compatibility is
+.\"O preserved for old binaries.)
+(すでに述べたように、
+一般にはアプリケーションがこのことを意識することはない。
+glibc のラッパー関数が、適切なシステムコールを起動し、古いバイナリに
+対して ABI レベルでの互換性を保持することを保証する処理を行っている。)
+.\"O Examples of systems calls that exist in multiple versions are
+.\"O the following:
+複数のバージョンが存在するシステムコールの例を以下に挙げる。
+.IP * 3
+.\"O By now there are three different versions of
+.\"O .BR stat (2):
+.\"O .IR sys_stat ()
+.\"O (slot
+.\"O .IR __NR_oldstat ),
+.\"O .IR sys_newstat ()
+.\"O (slot
+.\"O .IR __NR_stat ),
+.\"O and
+.\"O .IR sys_stat64 ()
+.\"O (slot
+.\"O .IR __NR_stat64 ),
+.\"O with the last being the most current.
+これまでに、
+.BR stat (2)
+には 3 種類の異なるバージョンが存在する。
+.IR sys_stat ()
+(スロットは
+.IR __NR_oldstat )、
+.IR sys_newstat ()
+(スロットは
+.IR __NR_stat )、
+.IR sys_stat64 ()
+(カーネル 2.4 で導入; スロットは
+.IR __NR_stat64 )。
+3つのうち最後のものが最新である。
+.\" e.g., on 2.6.22/i386: __NR_oldstat 18, __NR_stat 106, __NR_stat64 195
+.\" The stat system calls deal with three different data structures,
+.\" defined in include/asm-i386/stat.h: __old_kernel_stat, stat, stat64
+.\"O A similar story applies for
+.\"O .BR lstat (2)
+.\"O and
+.\"O .BR fstat (2).
+.BR lstat (2)
+と
+.BR fstat (2)
+についても同様である。
+.IP *
+.\"O Similarly, the defines
+.\"O .IR __NR_oldolduname ,
+.\"O .IR __NR_olduname ,
+.\"O and
+.\"O .I __NR_uname
+.\"O refer to the routines
+.\"O .IR sys_olduname (),
+.\"O .IR sys_uname ()
+.\"O and
+.\"O .IR sys_newuname ().
+また、 
+.IR __NR_oldolduname ,
+.IR __NR_olduname ,
+.I __NR_uname
+という定義は、それぞれ
+.IR sys_olduname (),
+.IR sys_uname (),
+.IR sys_newuname ()
+というルーチンを参照している。
+.IP *
+.\"O In Linux 2.0, a new version of
+.\"O .BR vm86 (2)
+.\"O appeared, with the old and the new kernel routines being named
+.\"O .IR sys_vm86old ()
+.\"O and
+.\"O .IR sys_vm86 ().
+Linux 2.0 では、
+.BR vm86 (2)
+の新バージョンが登場した。カーネルルーチンの
+古いバージョン、新しいバージョンはそれぞれ
+.IR sys_vm86old (),
+.IR sys_vm86 ()
+という名前である。
+.IP *
+.\"O In Linux 2.4, a new version of
+.\"O .BR getrlimit (2)
+.\"O appeared, with the old and the new kernel routines being named
+.\"O .IR sys_old_getrlimit ()
+.\"O (slot
+.\"O .IR __NR_getrlimit )
+.\"O and
+.\"O .IR sys_getrlimit ()
+.\"O (slot
+.\"O .IR __NR_ugetrlimit ).
+Linux 2.4 では、
+.BR getrlimit (2)
+の新バージョンが登場した。カーネルルーチンの
+古いバージョン、新しいバージョンはそれぞれ
+.IR sys_old_getrlimit ()
+(スロットは
+.IR __NR_getrlimit ),
+.IR sys_getrlimit ()
+(スロットは
+.IR __NR_ugetrlimit )
+という名前である。
+.IP *
+.\"O Linux 2.4 increased the size of user and group IDs from 16 to 32 bits.
+Linux 2.4 で、ユーザ ID とグループ ID のサイズが
+16 ビットから 32 ビットに増えた。
+.\" 64 bit off_t changes: ftruncate64, *stat64,
+.\" fcntl64 (because of the flock structure), getdents64, *statfs64
+.\"O To support this change, a range of system calls were added
+.\"O (e.g.,
+.\"O .BR chown32 (2),
+.\"O .BR getuid32 (2),
+.\"O .BR getgroups32 (2),
+.\"O .BR setresuid32 (2)),
+.\"O superseding earlier calls of the same name without the
+.\"O "32" suffix.
+この変更に対応するため、いくつかのシステムコールが追加された
+.RB ( chown32 (2),
+.BR getuid32 (2),
+.BR getgroups32 (2),
+.BR setresuid32 (2)
+など)。
+これらのシステムコールが、末尾の "32" が付かない同名の
+古いバージョンに代わって使われるようになった。
+.IP *
+.\"O Linux 2.4 added support for applications on 32-bit architectures
+.\"O to access large files (i.e., files for which the sizes and
+.\"O file offsets can't be represented in 32 bits.)
+.\"O To support this change, replacements were required for system calls
+.\"O that deal with file offsets and sizes.
+.\"O Thus the following system calls were added:
+.\"O .BR fcntl64 (2),
+.\"O .BR ftruncate64 (2),
+.\"O .BR getdents64 (2),
+.\"O .BR stat64 (2),
+.\"O .BR statfs64 (2),
+.\"O and their analogs that work with file descriptors or
+.\"O symbolic links.
+.\"O These system calls supersede the older system calls
+.\"O which, except in the case of the "stat" calls,
+.\"O have the same name without the "64" suffix.
+Linux 2.4 では、32 ビット・アーキテクチャ上のアプリケーションが
+大きなファイル (つまり、32 ビットでは表現できないサイズや
+ファイル・オフセットが必要なファイル) にアクセスできるようになった。
+この変更に対応するため、ファイル・オフセットとサイズを扱う
+システムコールの置き換えが必要となった。その結果、
+.BR fcntl64 (2),
+.BR ftruncate64 (2),
+.BR getdents64 (2),
+.BR stat64 (2),
+.BR statfs64 (2)
+と、ファイルディスクリプタやシンボリックリンクで同じ機能を持つ
+システムコールが追加された。
+これらのシステムコールが、末尾の "64" が付かない同名の
+古いバージョンに代わって使われるようになった。
+但し、"stat" 系のシステムコールはその限りではない。
+
+.\"O On newer platforms that only have 64-bit file access and 32-bit uids
+.\"O (e.g., alpha, ia64, s390x) there are no *64 or *32 calls.
+.\"O Where the *64 and *32 calls exist, the other versions are obsolete.
+64-bit ファイルアクセスと 32-bit UID のみを持つ
+新しいプラットフォーム (alpha, ia64, s390x など) では、
+*64 や *32 という名前のシステムコールはない。
+*64 や *32 というシステムコールが存在する場合、
+*64 や *32 がついていないシステムコールは廃止扱いである。
+.IP *
+.\"O The
+.\"O .I rt_sig*
+.\"O calls were added in kernel 2.2 to support the addition
+.\"O of real-time signals (see
+.\"O .BR signal (7)).
+.\"O These system calls supersede the older system calls of the same
+.\"O name without the "rt_" prefix.
+リアルタイムシグナル
+.RB ( signal (7)
+参照) への対応を追加するために、
+.I rt_sig*
+系のシステムコールがカーネル 2.2 で追加された。
+これらのシステムコールが、先頭に "rt_" が付かない同名の
+古いバージョンに代わって使われるようになった。
+.IP *
+.\"O The
+.\"O .BR select (2)
+.\"O and
+.\"O .BR mmap (2)
+.\"O system calls use five or more arguments,
+.\"O which caused problems the way
+.\"O argument passing on the i386 used to be set up.
+.BR select (2)
+と
+.BR mmap (2)
+は 5つもしくはそれ以上の引き数を使用しており、
+i386 では引き数の受け渡しに問題が生じる。
+.\"O Thus, while other architectures have
+.\"O .IR sys_select ()
+.\"O and
+.\"O .IR sys_mmap ()
+.\"O corresponding to
+.\"O .I __NR_select
+.\"O and
+.\"O .IR __NR_mmap ,
+.\"O on i386 one finds
+.\"O .IR old_select ()
+.\"O and
+.\"O .IR old_mmap ()
+.\"O (routines that use a pointer to a
+.\"O argument block) instead.
+そのため、他のアーキテクチャでは
+.I __NR_select
+と
+.I __NR_mmap
+に対応する
+.IR sys_select ()
+と
+.IR sys_mmap ()
+が存在するが、i386 では代わりに
+.IR old_select ()
+と
+.IR old_mmap ()
+というルーチンがある
+(これらのルーチンは引き数ブロックへのポインタを使用する)。
+.\"O These days passing five arguments
+.\"O is not a problem any more, and there is a
+.\"O .I __NR__newselect
+.\"O .\" (used by libc 6)
+.\"O that corresponds directly to
+.\"O .IR sys_select ()
+.\"O and similarly
+.\"O .IR __NR_mmap2 .
+現在では 5つの引き数を渡すことはもはや問題ではなくなっており、
+.\" (libc 6 で使用される)
+.I __NR__newselect
+は
+.IR sys_select ()
+に直接対応するようになっている。
+.I __NR_mmap2
+についても同様である。
+.\" .PP
+.\" Two system call numbers,
+.\" .IR __NR__llseek
+.\" and
+.\" .IR __NR__sysctl
+.\" have an additional underscore absent in
+.\" .IR sys_llseek ()
+.\" and
+.\" .IR sys_sysctl ().
+.\"
+.\" In kernel 2.1.81,
+.\" .BR lchown (2)
+.\" and
+.\" .BR chown (2)
+.\" were swapped; that is,
+.\" .BR lchown (2)
+.\" was added with the semantics that were then current for
+.\" .BR chown (2),
+.\" and the semantics of the latter call were changed to what
+.\" they are today.
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR syscall (2),
+.BR unimplemented (2),
+.BR libc (7)

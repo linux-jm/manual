@@ -1,0 +1,455 @@
+'\" t
+.\" Don't change the first line, it tells man that tbl is needed.
+.\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\" $Id: netdevice.7,v 1.10 2001/08/15 18:01:06 hanataka Exp $
+.\"
+.\" Modified, 2004-11-25, mtk, formatting and a few wording fixes
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Translated Mon 6 Dec 1999 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated Wed 14 Feb 2001 by Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2009-02-12 by Kentaro Shirakata <argrath@ub32.org>
+.\"
+.\"WORD		load balancing bundle	負荷分散グループ
+.\"WORD		file descriptor		ファイルディスクリプタ
+.\"WORD		capability		権限
+.\"
+.TH NETDEVICE  7 2009-01-14 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O netdevice \- Low level access to Linux network devices
+.SH 名前
+netdevice \- Linux ネットワークデバイスへの低レベルアクセス
+.\"O .SH SYNOPSIS
+.SH 書式
+.B "#include <sys/ioctl.h>"
+.br
+.B "#include <net/if.h>"
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O This man page describes the sockets interface which is used to configure
+.\"O network devices.
+この man ページでは、ネットワークデバイスを設定するために
+用いるソケットインターフェースについて解説する。
+
+.\"O Linux supports some standard ioctls to configure network devices.
+.\"O They can be used on any socket's file descriptor regardless of the
+.\"O family or type.
+.\"O They pass an
+.\"O . ifreq
+.\"O structure:
+Linux はネットワークデバイスを設定するための標準的な ioctl を
+いくつか備えている。これらはどんなソケットのファイルディスクリプタにも
+用いることができる。ファミリーやタイプは何でもよい。
+これらの ioctl は
+.I ifreq
+構造体を渡す。
+
+.in +4n
+.nf
+struct ifreq {
+    char ifr_name[IFNAMSIZ]; /* Interface name */
+    union {
+        struct sockaddr ifr_addr;
+        struct sockaddr ifr_dstaddr;
+        struct sockaddr ifr_broadaddr;
+        struct sockaddr ifr_netmask;
+        struct sockaddr ifr_hwaddr;
+        short           ifr_flags;
+        int             ifr_ifindex;
+        int             ifr_metric;
+        int             ifr_mtu;
+        struct ifmap    ifr_map;
+        char            ifr_slave[IFNAMSIZ];
+        char            ifr_newname[IFNAMSIZ];
+        char           *ifr_data;
+    };
+};
+
+struct ifconf {
+    int                 ifc_len; /* size of buffer */
+    union {
+        char           *ifc_buf; /* buffer address */
+        struct ifreq   *ifc_req; /* array of structures */
+    };
+};
+.fi
+.in
+
+.\"O Normally, the user specifies which device to affect by setting
+.\"O .I ifr_name
+.\"O to the name of the interface.
+.\"O All other members of the structure may
+.\"O share memory.
+通常、ユーザーによる設定対象デバイスの指定は、
+.I ifr_name
+にインターフェースの名前をセットすることによって行う。
+他の構造体の全てのメンバは、メモリを共有する。
+.\"O .SS Ioctls
+.SS ioctl
+.\"O If an ioctl is marked as privileged then using it requires an effective
+.\"O user ID of 0 or the
+.\"O .B CAP_NET_ADMIN
+.\"O capability.
+.\"O If this is not the case
+.\"O .B EPERM
+.\"O will be returned.
+「特権が必要」と記述されている ioctl を実行するには、
+実効ユーザー ID が 0 か、
+.B CAP_NET_ADMIN
+権限が必要である。これが満たされていない場合は
+.B EPERM
+が返される。
+.TP
+.B SIOCGIFNAME
+.\"O Given the
+.\"O .IR ifr_ifindex ,
+.\"O return the name of the interface in
+.\"O .IR ifr_name .
+.\"O This is the only ioctl which returns its result in
+.\"O .IR ifr_name .
+.I ifr_ifindex
+を受け取り、インターフェースの名前を
+.I ifr_name
+に入れて返す。これは結果を
+.I ifr_name
+として返す唯一の ioctl である。
+.TP
+.B SIOCGIFINDEX
+.\"O Retrieve the interface index of the interface into
+.\"O .IR ifr_ifindex .
+インターフェースの interface index を取得し、
+.I ifr_ifindex
+に入れて返す。
+.TP
+.BR SIOCGIFFLAGS ", " SIOCSIFFLAGS
+.\"O Get or set the active flag word of the device.
+.\"O .I ifr_flags
+.\"O contains a bit mask of the following values:
+デバイスの active フラグワードを取得または設定する。
+.I ifr_flags
+には以下の値のビットマスクが入る。
+.TS
+tab(:);
+c s
+l l.
+.\"O Device flags
+.\"O IFF_UP:Interface is running.
+.\"O IFF_BROADCAST:Valid broadcast address set.
+.\"O IFF_DEBUG:Internal debugging flag.
+.\"O IFF_LOOPBACK:Interface is a loopback interface.
+.\"O IFF_POINTOPOINT:Interface is a point-to-point link.
+.\"O IFF_RUNNING:Resources allocated.
+.\"O IFF_NOARP:No arp protocol
+.\"O IFF_PROMISC:Interface is in promiscuous mode.
+.\"O IFF_NOTRAILERS:Avoid use of trailers.
+.\"O IFF_ALLMULTI:Receive all multicast packets.
+.\"O IFF_MASTER:Master of a load balancing bundle.
+.\"O IFF_SLAVE:Slave of a load balancing bundle.
+.\"O IFF_MULTICAST:Supports multicast
+.\"O IFF_PORTSEL:Is able to select media type via ifmap.
+.\"O IFF_AUTOMEDIA:Auto media selection active.
+.\"O IFF_DYNAMIC:T{
+.\"O The addresses are lost when the interface goes down.
+.\"O T}
+.\"O IFF_LOWER_UP:Driver signals L1 up (since Linux 2.6.17)
+.\"O IFF_DORMANT:Driver signals dormant (since Linux 2.6.17)
+.\"O IFF_ECHO:Echo sent packets (since Linux 2.6.25)
+デバイスフラグ
+IFF_UP:インターフェースは動作中。
+IFF_BROADCAST:T{
+有効なブロードキャストアドレスがセットされている。
+T}
+IFF_DEBUG:内部のデバッグフラグ。
+IFF_LOOPBACK:インターフェースはループバックである。
+IFF_POINTOPOINT:T{
+インターフェースは point-to-point リンクである。
+T}
+IFF_RUNNING:リソースが割り当て済み。
+IFF_NOARP:arp プロトコルがない。
+IFF_PROMISC:インターフェースは promiscuous モードである。
+IFF_NOTRAILERS:trailer の利用を避ける。
+IFF_ALLMULTI:全てのマルチキャストパケットを受信する。
+IFF_MASTER:負荷分散グループのマスターである。
+IFF_SLAVE:負荷分散グループのスレーブである。
+IFF_MULTICAST:マルチキャストをサポートしている。
+IFF_PORTSEL:ifmap によってメディアタイプを選択できる。
+IFF_AUTOMEDIA:自動メディア選択が有効になっている。
+IFF_DYNAMIC:T{
+このインターフェースが閉じると、アドレスは失われる。
+T}
+IFF_LOWER_UP:ドライバからの L1 アップの通知 (Linux 2.6.17 以降)
+IFF_DORMANT:ドライバからの休止状態の通知 (Linux 2.6.17 以降)
+IFF_ECHO:送られたパケットをエコーする (Linux 2.6.25 以降)
+
+
+.TE
+.\"O Setting the active flag word is a privileged operation, but any
+.\"O process may read it.
+active フラグワードの設定は特権が必要な操作である。
+しかし読み出しはどんなプロセスからも可能である。
+.TP
+.BR SIOCGIFMETRIC ", " SIOCSIFMETRIC
+.\"O Get or set the metric of the device using
+.\"O .IR ifr_metric .
+.\"O This is currently not implemented; it sets
+.\"O .I ifr_metric
+.\"O to 0 if you attempt to read it and returns
+.\"O .B EOPNOTSUPP
+.\"O if you attempt to set it.
+デバイスのメトリックを
+.I ifr_metric
+を用いて取得・設定する。
+これはまだ実装されていない。読み出そうとすると
+.I ifr_metric
+に 0 をセットして返り、設定しようとすると
+.B EOPNOTSUPP
+が返る。
+.TP
+.BR SIOCGIFMTU ", " SIOCSIFMTU
+.\"O Get or set the MTU (Maximum Transfer Unit) of a device using
+.\"O .IR ifr_mtu .
+.\"O Setting the MTU is a privileged operation.
+.\"O Setting the MTU to
+.\"O too small values may cause kernel crashes.
+デバイスの MTU (Maximum Transfer Unit) を
+.I ifr_mtu
+を用いて取得・設定する。 MTU の設定は特権が必要な操作である。
+MTU の値を小さくしすぎるとカーネルがクラッシュするかもしれない。
+.TP
+.BR SIOCGIFHWADDR ", " SIOCSIFHWADDR
+.\"O Get or set the hardware address of a device using
+.\"O .IR ifr_hwaddr .
+デバイスのハードウェアアドレスを
+.I ifr_hwaddr
+を用いて取得・設定する。
+.\"O The hardware address is specified in a struct
+.\"O .IR sockaddr .
+ハードウェアアドレスは
+.I sockaddr
+構造体に設定される。
+.\"O .I sa_family
+.\"O contains the ARPHRD_* device type,
+.\"O .I sa_data
+.\"O the L2 hardware address starting from byte 0.
+.I sa_family
+には ARPHRD_* デバイスタイプが入り、
+.I sa_data
+にはバイト 0 から始まる L2 ハードウェアアドレスが入る。
+.\"O Setting the hardware address is a privileged operation.
+ハードウェアアドレスの設定は特権が必要な操作である。
+.TP
+.B SIOCSIFHWBROADCAST
+.\"O Set the hardware broadcast address of a device from
+.\"O .IR ifr_hwaddr .
+.\"O This is a privileged operation.
+デバイスのハードウェアブロードキャストアドレスを
+.I ifr_hwaddr
+の値に設定する。この操作には特権が必要である。
+.TP
+.BR SIOCGIFMAP ", " SIOCSIFMAP
+.\"O Get or set the interface's hardware parameters using
+.\"O .IR ifr_map .
+.\"O Setting the parameters is a privileged operation.
+インターフェースのハードウェアのパラメータを
+.I ifr_map
+を用いて取得・設定する。
+パラメータの設定は特権が必要な操作である。
+
+.in +4n
+.nf
+struct ifmap {
+    unsigned long   mem_start;
+    unsigned long   mem_end;
+    unsigned short  base_addr;
+    unsigned char   irq;
+    unsigned char   dma;
+    unsigned char   port;
+};
+.fi
+.in
+
+.\"O The interpretation of the ifmap structure depends on the device driver
+.\"O and the architecture.
+ifmap 構造体の解釈はデバイスドライバとアーキテクチャに依存する。
+.TP
+.BR SIOCADDMULTI ", " SIOCDELMULTI
+.\"O Add an address to or delete an address from the device's link layer
+.\"O multicast filters using
+.\"O .IR ifr_hwaddr .
+.\"O These are privileged operations.
+.\"O See also
+.\"O .BR packet (7)
+.\"O for an alternative.
+デバイスのリンク層のマルチキャストフィルターから、
+.I ifr_hwaddr
+のアドレスを追加・削除する。これらの操作には特権が必要である。
+別の方法が
+.BR packet (7)
+で解説されている。
+.TP
+.BR SIOCGIFTXQLEN ", " SIOCSIFTXQLEN
+.\"O Get or set the transmit queue length of a device using
+.\"O .IR ifr_qlen .
+.\"O Setting the transmit queue length is a privileged operation.
+デバイスの送信キューの長さを
+.I ifr_qlen
+に取得・設定する。送信キューの長さの設定には特権が必要である。
+.TP
+.B SIOCSIFNAME
+.\"O Changes the name of the interface specified in
+.\"O .I ifr_name
+.\"O to
+.\"O .IR ifr_newname .
+.\"O This is a privileged operation.
+.\"O It is only allowed when the interface
+.\"O is not up.
+.I ifr_name
+で指定したインターフェースの名前を
+.I ifr_newname
+に変更する。この操作には特権が必要である。インターフェースが up していない
+時にのみ使用できる。
+.TP
+.B SIOCGIFCONF
+.\"O Return a list of interface (transport layer) addresses.
+.\"O This currently
+.\"O means only addresses of the
+.\"O .B AF_INET
+.\"O (IPv4) family for compatibility.
+インターフェース(トランスポート層)アドレスのリストを返す。
+現在のところ、互換性のために
+.B AF_INET
+(IPv4) ファミリーのアドレスのみである。
+.\"O The user passes a
+.\"O .I ifconf
+.\"O structure as argument to the ioctl.
+.\"O It contains a pointer to an array of
+.\"O .I ifreq
+.\"O structures in
+.\"O .I ifc_req
+.\"O and its length in bytes in
+.\"O .IR ifc_len .
+ユーザーは
+.I ifconf
+構造体を ioctl の引数として渡す。
+.I ifconf
+構造体には、
+.I ifreq
+構造体の配列へのポインタである
+.I ifc_req
+と、バイト単位の配列の長さを指定する
+.I ifc_len
+が含まれる。
+.\"O The kernel fills the ifreqs with all current L3 interface addresses that
+.\"O are running:
+.\"O .I ifr_name
+.\"O contains the interface name (eth0:1 etc.),
+.\"O .I ifr_addr
+.\"O the address.
+カーネルは ifreqs を現在動作している全ての L3 インターフェースアドレスで埋める。
+.I ifr_name
+にはインターフェース名 (eth0:1 など) が入り、
+.I ifr_addr
+にはアドレスが入る。
+.\"O The kernel returns with the actual length in
+.\"O .IR ifc_len .
+カーネルは実際の長さを
+.I ifc_len
+に返す。
+.\"O If
+.\"O .I ifc_len
+.\"O is equal to the original length the buffer probably has overflowed
+.\"O and you should retry with a bigger buffer to get all addresses.
+.I ifc_len
+が元のバッファの長さと同じだった場合、
+オーバーフローを起こしている可能性があるので、
+全てのアドレスを取得するためにより大きなバッファで再試行するべきである。
+.\"O When no error occurs the ioctl returns 0;
+.\"O otherwise \-1.
+.\"O Overflow is no an error.
+エラーがなかった場合は ioctl は 0 を返す。
+エラーがあった場合は \-1 を返す。
+オーバーフローはエラーとは見なされない。
+.\" Slaving isn't supported in 2.2
+.\" .
+.\" .TP
+.\" .BR SIOCGIFSLAVE ", " SIOCSIFSLAVE
+.\" Get or set the slave device using
+.\" .IR ifr_slave .
+.\" Setting the slave device is a privileged operation.
+.\" .PP
+.\" FIXME add amateur radio stuff.
+.PP
+.\"O Most protocols support their own ioctls to configure protocol-specific
+.\"O interface options.
+.\"O See the protocol man pages for a description.
+ほとんどのプロトコルには、専用のインターフェースオプションを
+設定するための独自の ioctl が存在する。
+説明は各プロトコルの man ページを見よ。
+.PP
+.\"O In addition some devices support private ioctls.
+.\"O These are not described here.
+さらに、デバイスによってはプライベートな ioctl がある。
+これらはここでは説明しない。
+.\"O .SH NOTES
+.SH 注意
+.\"O Strictly speaking,
+.\"O .B SIOCGIFCONF
+.\"O is IP specific and belongs in
+.\"O .BR ip (7).
+厳密にいうと、
+.B SIOCGIFCONF
+は IP 固有であり、
+.BR ip (7)
+に属する。
+.LP
+.\"O The names of interfaces with no addresses or that don't have the
+.\"O .B IFF_RUNNING
+.\"O flag set can be found via
+.\"O .IR /proc/net/dev .
+アドレスがなかったり、
+.B IFF_RUNNING
+フラグがセットされていないインターフェースの名前は
+.I /proc/net/dev
+で知ることができる。
+.LP
+.\"O Local IPv6 IP addresses can be found via
+.\"O .I /proc/net
+.\"O or via
+.\"O .BR rtnetlink (7).
+ローカル IPV6 IP アドレスは
+.I /proc/net
+か
+.BR rtnetlink (7)
+で知ることができる。
+.\"O .SH BUGS
+.SH バグ
+.\"O glibc 2.1 is missing the
+.\"O .I ifr_newname
+.\"O macro in
+.\"O .IR <net/if.h> .
+.\"O Add the following to your program as a workaround:
+glibc 2.1 では
+.I <net/if.h>
+に
+.I ifr_newname
+マクロがない。
+とりあえずの対応策として、以下のコードを追加しておくこと。
+.sp
+.in +4n
+.nf
+#ifndef ifr_newname
+#define ifr_newname     ifr_ifru.ifru_slave
+#endif
+.fi
+.in
+.RE
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR proc (5),
+.BR capabilities (7),
+.BR ip (7),
+.BR rtnetlink (7)

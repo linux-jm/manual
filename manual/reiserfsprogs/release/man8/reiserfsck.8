@@ -1,0 +1,270 @@
+.\" -*- nroff -*-
+.\" Copyright 1996-2004 Hans Reiser.
+.\" 
+.\" Japanese Version Copyright (c) 2001-2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Thu Mar 15 19:18:20 JST 2001
+.\"         by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated & Modified Mon Apr  9 19:07:07 JST 2001 by Yuichi SATO
+.\" Updated & Modified Fri Apr 12 02:39:54 JST 2002 by Yuichi SATO
+.\" Updated & Modified Tue Apr 29 19:00:43 JST 2003
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified Sat Jan 31 14:52:17 JST 2004 by Yuichi SATO
+.\" Updated & Modified Sat May  8 13:15:25 JST 2004 by Yuichi SATO
+.\" Updated & Modified Sat Mar  5 04:21:34 JST 2005 by Yuichi SATO
+.\" 
+.\"WORD:	recover		復旧
+.\"WORD:	consistency	整合性
+.\" 
+.TH REISERFSCK 8 "February 2004" "Reiserfsprogs-3.6.19"
+.SH 名前
+reiserfsck \- ReiserFS ファイルシステムのチェックツール
+.SH 書式
+.B reiserfsck 
+[ \fB-afprVy\fR ]
+[ \fB--rebuild-sb\fR | \fB--check\fR | \fB--fix-fixable\fR
+| \fB--rebuild-tree\fR | \fB--clean-attributes\fR ]
+.\" [ \fB-i\fR | \fB--interactive\fR ]
+[ \fB-j\fR | \fB--journal\fR \fIdevice\fR ]
+[ \fB-z\fR | \fB--adjust-size\fR ]
+[ \fB-n\fR | \fB--nolog\fR ]
+[ \fB-B\fR | \fB--badblocks \fIfile\fR ]
+[ \fB-l\fR | \fB--logfile \fIfile\fR ]
+[ \fB-q\fR | \fB--quiet\fR ]
+[ \fB-y\fR | \fB--yes\fR ]
+.\" [ \fB-b\fR | \fB--scan-marked-in-bitmap \fIbitmap-filename\fR ]
+.\" [ \fB-h\fR | \fB--hash \fIhash-name\fR ]
+.\" [ \fB-g\fR | \fB--background\fR ]
+[ \fB-S\fR | \fB--scan-whole-partition\fR ]
+[ \fB--no-journal-available\fR ]
+.I device
+.SH 説明
+\fBreiserfsck\fP はデバイス上の ReiserFS ファイルシステムを捜して、
+必要なトランザクションを再現する。
+さらに、ファイルシステムをチェックまたは修復する。
+.TP
+.I device
+デバイスまたはパーティションに対応するスペシャルファイル
+(例えば、/dev/hdXX は IDE ディスクパーティションで、
+/dev/sdXX は SCSI ディスクパーティションである)。
+.SH オプション
+.TP
+.B --rebuild-sb
+このオプションは ReiserFS パーティションのスーパーブロックを復旧する。
+このオプションが必要なのは、
+ReiserFS ファイルシステムがあるにも関わらず、mount が
+「read_super_block: reiserfs ファイルシステムが見つかりません
+(can't find a reiserfs file system)」と表示したときのみである。
+しかし、何らかのパーティション編集プログラムを使用した後で
+ファイルシステムが見つからなくなった場合は、
+再分割のときに何か不具合が起こって
+パーティションの開始位置が変更されたかも知れない
+ということを思い出してほしい。
+もしそうならば、間違った場所にスーパーブロックを再構築するのではなく、
+始めにパーティションの正しい開始位置を見つけるべきである。
+.TP
+.B --check
+デフォルトの動作であるこのオプションでは、
+ファイルシステムの整合性をチェックするが、
+壊れたデータが発見されても修正は行わない。
+読み込みのみでマウントされたファイルシステムに対しても使うことができる。
+.TP
+.B --fix-fixable
+このオプションは --rebuild-tree オプションなしで修正できる
+壊れたデータを復旧する。
+通常このオプションが必要なのは、
+\fB--check\fR オプションで「\fB--fix-fixable\fR で
+修復可能な壊れたデータが見つかった
+(corruption that can be fixed with \fB--fix-fixable\fR)」
+と表示されたときのみである。
+このオプションで行われるのは、
+データブロックへの誤ったポインタのゼロ化・
+ディレクトリの st_size と st_blocksの修正・
+不正なディレクトリエントリの削除などである。
+.TP
+.B --rebuild-tree
+このオプションは、デバイス上に見つかったリーフノード (leaf node) を使って、
+ファイルシステムツリー全体を再構築する。
+通常このオプションが必要なのは、
+\fBreiserfsck --check\fR で
+「\fB--rebuild-tree\fR を付けて実行する必要がある
+(Running with \fB--rebuild-tree\fR is required)」
+と表示されたときのみである。
+\fB--rebuild-tree\fR オプションを付けて実行する場合は、
+パーティション全体のバックアップコピーを取っておくことを強く推奨する。
+いったん \fBreiserfsck --rebuild-tree\fR を開始したら、
+動作を完了させなければならない (中断すべきではない)。
+完了しないと、ファイルシステムはマウントできない状態のままにされる。
+これはその後のデータの破壊を防ぐためである。
+.TP
+.B --clean-attributes
+このオプションは Stat-Data アイテムの予約フィールドをクリアする。
+かつては ReiserFS に拡張属性がなかった。
+拡張属性が実装されたとき、最初に古いパーティションを
+何も書かれていない状態にする必要があった -- カーネルの ReiserFS のコードは
+構造体の使われていないフィールドを考慮していなかった。
+そのため、古い (属性が実装される前の) カーネルを
+ReiserFS ファイルシステムとともに使っていて、
+拡張属性を使いたい場合は、最初にファイルシステムを
+何も書かれていない状態にするべきである。
+.TP
+.B \fB--journal \fIdevice \fR, \fB-j \fIdevice \fR
+このオプションは、現在のファイルシステムジャーナルのデバイス名を指定する。
+このオプションは、メインデータのデバイスとは
+別のデバイスにジャーナルが存在する場合に必要である
+(エキスパートオプション \fB--no-journal-available\fR を使用すれば、
+このオプションを使わないこともできる)。
+.TP 
+.\" .B --interactive, -i
+.\" 各処理が完了する毎に \fBreiserfsck\fR を停止する。
+.\" .TP
+.B --adjust-size, -z
+このオプションは、
+最後に見つかるバイトのオフセットよりもファイルサイズが大きい場合に、
+\fBreiserfsck\fR にファイルサイズを修正させる。
+つまりファイルの末尾のホール (穴) が削除される。
+最後に見つかるバイトのオフセットよりもファイルサイズが小さい場合は、
+\fB--fix-fixable\fR で修正される。
+.TP
+\fB--badblocks \fIfile\fR, \fB-B \fI file\fR
+このオプションは不正ブロックのリストを、
+指定された `file` で与えられたブロックのリストに設定する。
+ファイルシステムの不正ブロックのリストは、
+新しいリストが追加される前に削除される。
+\fB--fix-fixable\fR を指定することで不正ブロックを修復できる
+(debugreiserfs -B を参照)。
+またブロックデバイスに不正なブロックがある場合は、
+毎回 \fB--rebuild-tree\fR オプションを付けなければならない。
+.TP
+\fB--logfile \fIfile\fR, \fB-l \fI file\fR
+このオプションは、\fBreiserfsck\fR に対して
+壊れたデータに関する情報を標準エラー出力ではなく
+指定したログファイルに書き出すようにさせる。
+.TP
+.B --nolog, -n
+このオプションは、\fBreiserfsck\fR に対して
+壊れたデータについて報告しないようにさせる。
+.TP
+.B --quiet, -q
+このオプションは、\fBreiserfsck\fR に対して
+進捗状況を表示しないようにさせる。
+.TP
+.B --yes, -y
+このオプションは \fBreiserfsck\fR に対して、
+「これから実行することをユーザに提示した後で、
+ユーザの了承を得る」という動作をさせないようにする。
+\fBreiserfsck\fR はユーザが了承すると仮定する。
+安全のため、\fB--rebuild-tree\fR オプションと一緒に指定すると、
+このオプションは動作しない。
+.TP
+\fB-a\fR, \fB-p\fR
+通常このオプションは、fsck -A により
+/etc/fstab にリストされているパーティションを
+自動チェックするときに受け渡される。
+これらのオプションを使うと、
+\fBreiserfsck\fR は指定されたファイルシステムの情報を表示し、
+スーパーブロックにあるエラーフラグが設定されているかをチェックし、
+簡単なチェックをいくつか行う。
+これらのチェックにより、壊れたデータが明らかになったり、
+(修正可能な) 壊れたデータを指し示すフラグが
+スーパーブロックに設定されているのが見つかった場合は、
+\fBreiserfsck\fR は修正可能データの修正モードに移行する。
+修正不能な壊れたデータを示すフラグが、
+スーパブロックに設定されているのが見つかった場合、
+\fBreiserfsck\fR はエラーを出して終了する。
+.TP
+.B -V
+このオプションは reiserfsprogs のバージョンを表示して終了する。
+.TP
+\fB-r\fR, \fB-f\fR
+これらのオプションは無視される。
+.TP
+.SH エキスパートオプション
+\fB自分がやっていることが分からない場合は、
+これらのオプションを使ってはならない。
+これらのオプションを使った結果、
+データが失われたとしても我々は責任はとらない。\fR
+.TP
+.B --no-journal-available
+このオプションを指定すると、ジャーナルデバイスが使用できない場合でも
+\fBreiserfsck\fR を続行することができる。
+このオプションはジャーナルがメインデータデバイスにある場合は影響しない。
+注意: この操作の後には、\fBreiserfstune\fR により
+新しいジャーナルデバイスを指定しなければならない。
+.TP
+.B --scan-whole-partition, -S
+このオプションは \fB--rebuild-tree\fR のときに、
+パーティションの使用されている領域だけでなく、
+パーティション全体をスキャンさせる。
+.SH "reiserfsck の使用例"
+1. reiserfs パーティション /dev/hda1 に何か不具合があると思った場合、
+または単に定期的なディスクチェックを行おうとした場合に
+\fBreiserfsck\fR を使用する。
+
+2. \fBreiserfsck --check --logfile check.log /dev/hda1\fR を実行する。
+\fBreiserfsck --check\fR がステータス 0 で終了した場合は、
+エラーがなかったことを示している。
+
+3. \fBreiserfsck --check\fR がステータス 1 で終了して
+(かつ修正可能な壊れたデータがあることが報告された) 場合は、
+\fBreiserfsck --fix-fixable --logfile fixable.log /dev/hda1\fR を
+実行すべきである。
+
+4. \fBreiserfsck --check\fR がステータス 2 で終了して
+(かつ致命的な壊れたデータがあることが報告された) 場合は、
+\fBreiserfsck --rebuild-tree\fR を実行する必要がある。
+\fBreiserfsck --check\fR が何らかの理由で失敗した場合も、
+\fBreiserfsck --rebuild-tree\fR を実行すべきである。
+ただしこの場合はバグレポートとして報告してほしい。
+
+5. \fBreiserfsck --rebuild-tree\fR を実行する前に、
+パーティション全体のバックアップを取っておくこと。
+その後に \fBreiserfsck --rebuild-tree --logfile rebuild.log /dev/hda1\fR を
+実行すること。
+
+6. \fBreiserfsck --rebuild-tree\fR のステップが失敗した場合、
+または期待していた復旧が出来なかった場合は、
+バグレポートとして報告してほしい。
+プラットフォームや Linux カーネルのバージョンを含む
+できる限りの情報を提供してほしい。
+我々は問題を解決する手助けをしようと思う。
+.SH 終了コード
+\fBreiserfsck\fR は以下の終了コードを使う:
+.br
+\   \fI0\fR \-\ エラーなし。
+.br
+\   \fI1\fR \-\ ファイルシステムのエラーが修正された。
+.br
+\   \fI2\fR \-\ 再起動が必要である。
+.br
+\   \fI4\fR \-\ ファイルシステムの致命的なエラーが
+.br
+\	  修正されないまま残されており、
+.br
+\	  \fBreiserfsck --rebuild-tree\fR を実行する必要がある。
+.br
+\   \fI6\fR \-\ ファイルシステムの修復可能なエラーが
+.br
+\	  修正されないまま残されており、
+.br
+\	  \fBreiserfsck --fix-fixable\fR を実行する必要がある。
+.br
+\   \fI8\fR \-\ 操作エラー。
+.br
+\   \fI16\fR \-\ 使用法エラーまたは書式エラー。
+.br
+.SH 著者
+このバージョンの \fBreiserfsck\fR は
+Vitaly Fertman <vitaly@namesys.com> によって書かれた。
+.SH バグ
+バグは、できる限り多くの情報 (ハードウェア・カーネル・パッチ・設定・
+表示された全てのメッセージ・ログファイル) とともに、
+ReiserFS の開発者 <reiserfs-dev@namesys.com> に報告してほしい。
+関連する情報があるかもしれないので syslog を調べてほしい。
+.SH 今後の予定
+修復の高速化とシグナル処理。
+.SH 関連項目
+.BR mkreiserfs (8),
+.BR reiserfstune (8)
+.BR resize_reiserfs (8),
+.BR debugreiserfs (8),

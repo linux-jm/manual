@@ -1,0 +1,239 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (C) 2001 David Gez <davidge@jazzfree.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Based on comments from mm/filemap.c. Last modified on 10-06-2001
+.\" Modified, 25 Feb 2002, Michael Kerrisk, <mtk.manpages@gmail.com>
+.\"    Added notes on MADV_DONTNEED
+.\" FIXME
+.\" 2.6.32 added MADV_HWPOISON, MADV_MERGEABLE, and MADV_UNMERGEABLE
+.\" 2.6.33 added MADV_SOFT_OFFLINE
+.\"
+.\" Japanese Version Copyright (c) 2001 NAKANO Takeo all rights reserved.
+.\" Translated Thu Aug 16 2001 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated Tue 8 Oct 2002 by NAKANO Takeo
+.\" Updated 2007-01-08, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.43
+.\"
+.TH MADVISE 2 2008-04-22 "Linux" "Linux Programmer's Manual"
+.SH 名前
+madvise \- メモリ利用に関するアドバイスを与える
+.SH 書式
+.B #include <sys/mman.h>
+.sp
+.BI "int madvise(void *" addr ", size_t " length ", int " advice );
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR madvise ():
+_BSD_SOURCE
+.SH 説明
+.BR madvise ()
+システムコールは、アドレス
+.I addr
+からはじまる
+.I length
+バイトのメモリブロックのページング入出力をどう扱えば良いか、
+カーネルにアドバイスする。
+これを用いると、
+アプリケーションからカーネルに、
+マップされたメモリや共有メモリをどのように扱ってほしいか伝えることができ、
+カーネルはそれに応じて先読みやキャッシュなどの適切な手法を選択できる。
+このコールはアプリケーションの動作そのものには影響しない
+.RB ( MADV_DONTNEED
+の場合は別) が、
+性能には影響しうる。
+なおこのアドバイスを受け入れるかどうかはカーネルに任される。
+.LP
+アドバイスは引き数
+.I advice
+によって与える。以下のいずれかを指定できる。
+.TP
+.B MADV_NORMAL
+特別な扱いは行わない。これがデフォルトである。
+.TP
+.B MADV_RANDOM
+ページ参照はランダムな順序で行われそうだ。
+(したがって、先読みはあまり効果がなさそうだ。)
+.TP
+.B MADV_SEQUENTIAL
+ページ参照はシーケンシャルな順序で行われそうだ。
+(したがって与えた範囲のページは積極的に先読みしておくと良いだろう。
+またアクセスが終わったら速やかに解放して良い。)
+.TP
+.B MADV_WILLNEED
+近い将来にアクセスされそうだ。
+(したがってこれらのページを今のうちに先読みしておくといいだろう。)
+.TP
+.B MADV_DONTNEED
+しばらくアクセスはなさそうだ。
+(現時点でアプリケーションは与えた範囲の処理を終えている。
+したがってカーネルはこれに関連するリソースを解放して良い。)
+これ以降この範囲のページへのアクセスがあると、
+成功はするが、メモリの内容をマップ元のファイルからロードし直すことになる
+.RB ( mmap (2)
+を見よ) か、
+または元ファイルがないマップページでは
+アクセスがあったときに 0 埋めが行われることになる。
+.TP
+.BR MADV_REMOVE " (Linux 2.6.16 以降)"
+指定された範囲のページと関連するバッキングストアを解放する。
+現在のところ、
+.\" 2.6.18-rc5
+shmfs/tmpfs だけがこれに対応している。
+他のファイルシステムでは
+.B ENOSYS
+が返される。
+.\" Databases want to use this feature to drop a section of their
+.\" bufferpool (shared memory segments) - without writing back to
+.\" disk/swap space. This feature is also useful for supporting
+.\" hot-plug memory on UML.
+.TP
+.BR MADV_DONTFORK " (Linux 2.6.16 以降)"
+.\" See http://lwn.net/Articles/171941/
+.BR fork (2)
+が行われた後、指定された範囲のページを子プロセスが利用できないようにする。
+この機能は、書き込み時コピー (copy-on-write) 方式で、
+.BR fork (2)
+の後で親プロセスがページに書き込みを行った場合に
+ページの物理位置が変化しないようにするのに有効である
+(ページの再配置はハードウェアがそのページに DMA 転送を行うような場合に
+問題を起こすことがある)。
+.\" [PATCH] madvise MADV_DONTFORK/MADV_DOFORK
+.\" Currently, copy-on-write may change the physical address of
+.\" a page even if the user requested that the page is pinned in
+.\" memory (either by mlock or by get_user_pages). This happens
+.\" if the process forks meanwhile, and the parent writes to that
+.\" page.  As a result, the page is orphaned: in case of
+.\" get_user_pages, the application will never see any data hardware
+.\" DMA's into this page after the COW.  In case of mlock'd memory,
+.\" the parent is not getting the realtime/security benefits of mlock.
+.\"
+.\" In particular, this affects the Infiniband modules which do DMA from
+.\" and into user pages all the time.
+.\"
+.\" This patch adds madvise options to control whether memory range is
+.\" inherited across fork. Useful e.g. for when hardware is doing DMA
+.\" from/into these pages.  Could also be useful to an application
+.\" wanting to speed up its forks by cutting large areas out of
+.\" consideration.
+.\"
+.\" SEE ALSO: http://lwn.net/Articles/171941/
+.\" "Tweaks to madvise() and posix_fadvise()", 14 Feb 2006
+.TP
+.BR MADV_DOFORK " (Linux 2.6.16 以降)"
+.B MADV_DONTFORK
+の影響を取り消し、デフォルトの動作に戻す。
+つまり、
+.BR fork (2)
+の前後でマッピングは継承されるようになる。
+.SH 返り値
+.BR madvise ()
+は成功すると 0 を返す。
+エラーが起こると \-1 を返し、
+.I errno
+を適切な値に設定する。
+.SH エラー
+.TP
+.B EAGAIN
+何らかのカーネルリソースが一時的に利用できなかった。
+.TP
+.B EBADF
+指定したマップは存在するが、ファイルではないところをマップしている。
+.TP
+.B EINVAL
+.\" .I len
+.\" is zero,
+.I len
+の値が負、
+.I addr
+がページ境界でない、
+.I advice
+が正しい値でない、
+アプリケーションがロックされたページや共有ページを
+.RB ( MADV_DONTNEED
+で) 解放しようとしている、など。
+.TP
+.B EIO
+.RB ( MADV_WILLNEED
+の場合) この範囲のページングを行うと、
+プロセスの RSS (resident set size) の最大値を越えてしまう。
+.\"nakano RSS は訳語がありましたっけ?
+.TP
+.B ENOMEM
+.RB ( MADV_WILLNEED
+の場合) メモリが足りず、ページングに失敗した。
+.TP
+.B ENOMEM
+指定した範囲のアドレスが、現在マップされていない。
+あるいはプロセスのアドレス空間の内部にない。
+.SH 準拠
+POSIX.1b.
+POSIX.1-2001 では、
+.BR posix_madvise (3)
+.\" FIXME . Write a posix_fadvise(3) page.
+を
+.B POSIX_MADV_NORMAL
+などの定数とともに記述していた
+(それぞれの振る舞いはここで述べたものに近い)。
+ファイルアクセスに対しても
+.BR posix_fadvise (2)
+という類似の関数が存在する。
+
+.BR MADV_REMOVE ,
+.BR MADV_DONTFORK ,
+.B MADV_DOFORK
+は Linux 固有である。
+.SH 注意
+.SS "Linux での注意"
+現在の Linux の実装 (2.4.0) では、
+このシステムコールをアドバイスというよりは命令と見ている。
+したがってこのアドバイスに対して通常行われる動作が不可能な場合は、
+エラーを返すことがある (上記の エラー の記述を参照)。
+この振舞いは標準とは異なる。
+.LP
+Linux の実装では
+.I addr
+のアドレスはページ境界の値でなければならない。また
+.I length
+は 0 であっても構わない。
+また Linux 版の
+.BR madvise ()
+では、指定されたアドレス範囲にマップされていない部分があると、
+これらを無視して残りの部分にアドバイスを適用する
+(しかしシステムコールに対してはちゃんと
+.B ENOMEM
+を返す)。
+.\" .SH 歴史
+.\" .BR madvise ()
+.\" 関数は 4.4BSD で最初に登場した。
+.SH 関連項目
+.BR getrlimit (2),
+.BR mincore (2),
+.BR mmap (2),
+.BR mprotect (2),
+.BR msync (2),
+.BR munmap (2)

@@ -1,0 +1,170 @@
+.\"    This file documents the GNU utilities for finding files that match
+.\" certain criteria and performing various operations on them.
+.\"
+.\"    Copyright (C) 1994 Free Software Foundation, Inc.
+.\"
+.\"    Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\"    Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\"    Permission is granted to copy and distribute translations of this
+.\" manual into another language, under the above conditions for modified
+.\" versions, except that this permission notice may be stated in a
+.\" translation approved by the Foundation.
+.\"
+.\" Japanese Version Copyright (c) 1997 NAKANO Takeo all rights reserved.
+.\" Translated Thu May 11 1997 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.\"WORD		front compression		前置圧縮
+.\"WORD		offset differential count	オフセット差分カウント
+.TH LOCATEDB 5L \" -*- nroff -*-
+.SH 名前
+locatedb \- 前置圧縮されたファイル名データベース
+.SH 説明
+このマニュアルページは GNU 版
+.BR locate
+で用いるファイル名データベースのフォーマットについて記述したものである。
+ファイル名データベースには、最後に更新された時点において、
+特定のディレクトリツリー下に存在していたファイルのリストが含まれている。
+.PP
+複数のデータベースを共存させることもできる。
+環境変数やコマンドラインオプションを指定すれば、
+ユーザーは \fBlocate\fP に検索させるデータベースを選択することができる。
+詳しくは
+.BR locate (1L)
+を見よ。
+システム管理者はデフォルトで用いられるデータベースの名前や、
+データベースの更新頻度、
+またデータベースに入れるディレクトリなどを選択することができる。
+通常ファイル名データベースの更新は
+\fBupdatedb\fP プログラムを定期的に実行させることによって行なう
+(夜間が良いだろう)。詳細は
+.BR updatedb (1L)
+を見よ。
+.PP
+\fBupdatedb\fP は \fBfrcode\fP というプログラムを呼び出して
+ファイル名のリストを前置圧縮 (front compression) する。
+これによってデータベースのサイズは 1/4 から 1/5 になる。
+前置圧縮 (インクリメンタルエンコーディングとも呼ばれる)
+は以下のような動作をする。
+.PP
+データベースのエントリはソートされたリストからなっている
+(ユーザーの利便性のため、大文字小文字は区別していない)。
+従って、各々のエントリは直前のエントリと最初の数文字が一致していることが多い。
+それぞれのデータベースエントリには、
+まずオフセット差分カウントという 1 バイトのデータが入っている。
+これは現在のエントリと直前のエントリの共有部分の文字数から、
+直前のエントリとそのもうひとつ前のエントリの共有文字数を引いたものである
+(従ってこの数値は負になることもある)。
+カウントの後には共有部分の文字列以降の残りが ASCII 文字列で与えられる。
+これはヌル文字で終端するとみなされる。
+.PP
+もしオフセット差分カウントがバイトデータで与えられる範囲
+(+/\-127) を越えた場合は、バイトデータ 0x80 がカウントに代入され、
+2 バイトのワードデータがその後に続く。
+このワードデータでは高位バイトが先に来る
+(ネットワークバイトオーダー)。
+.PP
+すべてのデータベースは、
+ファイルエントリの最初に `LOCATE02' というダミーのエントリを持つ。
+これは \fBlocate\fP によってチェックされ、
+このデータベースが正しいフォーマットであることを確認するために用いられる。
+実際の検索においてはこのエントリは無視される。
+.PP
+複数のデータベースを連結することはできない。
+最初の (ダミー) エントリを結合するデータベースから取り去れば良さそうだが、
+これは正しくない。
+なぜなら後に続くデータベースの最初のエントリにおける
+オフセット差分カウントは正しい値を取り得ないからである。
+.PP
+Unix 版
+.B locate
+および
+.B find
+や、以前の GNU 版で用いられていた古いデータベースフォーマットも存在している。
+この古い形式のデータベースを作成する場合には、
+\fBupdatedb\fP は \fBbigram\fP と \fBcode\fP というプログラムを呼び出す。
+古いフォーマットが上に述べた記述と異なる点を以下に示す。
+それぞれのエントリがオフセット差分カウントのバイトデータで始まり
+ヌル文字で終わる代わりに、
+0 から 28 までのバイトデータが
+\-14 から 14 までのオフセット差分カウントとして用いられ、
+これがエントリ区切りを兼ねることになる。
+この範囲外の長いオフセット差分カウントを示すデータには、
+0x80 ではなく 0x1e (30) が使われる。
+長いカウントを保有するデータにはホストのバイトオーダが用いられ
+(これはネットワークバイトオーダと等しいとは限らない)、
+またホストの integer のワードサイズ (4 バイトのことが多い) 
+が用いられる。
+またここにストアされるデータは実際の値から 14 を引いた値になる。
+データベースの各エントリには終端バイトが無く、
+30 以下の値を持つバイトデータが次のエントリの始まりであると認識される。
+.PP
+さらに古いデータベース形式では、
+ダミーエントリの代わりに先頭に 256 バイトのテーブルがあり、
+ファイルリストでもっとも頻繁に用いられている
+bigram が並べてある。
+bigram とは隣接した二つのバイトデータをインデックス付けしたものである。
+データベースに現われるバイトデータのうち、
+最高位ビットがセットされているものは
+(残りの 7 ビットをインデックスとして) bigram テーブルのデータと置換される。
+この bigram とオフセット差分カウントを用いることで、
+データベースの大きさは新しいフォーマットより 20-25% 小さくなっている。
+しかし 8 ビットクリーンでないという欠点を併せ持つ。
+ファイル名に含まれるバイトデータのうち、
+スペシャルコードに属するものは、
+データベース中ではすべてクエスチョンマークで置き換えられる。
+これは任意の一文字を表わすシェルのワイルドカードなので、
+実際のファイル名に現われることはない。
+.SH 例
+\fBfrcode\fP への入力が以下のようなものとする（ヌル文字は改行に置き換えて
+ある）:
+.RS
+.sp
+.nf
+/usr/src
+/usr/src/cmd/aardvark.c
+/usr/src/cmd/armadillo.c
+/usr/tmp/zoo
+.fi
+.sp
+.RE
+直前のエントリとの最長一致部分の長さは:
+.RS
+.sp
+.nf
+0 /usr/src
+8 /cmd/aardvark.c
+14 rmadillo.c
+5 tmp/zoo
+.fi
+.sp
+.RE
+\fBfrcode\fP からの出力は、最後のヌル文字を改行に代え、カウントバイト
+を数字に代えると以下のようなものになる:
+.RS
+.sp
+.nf
+0 LOCATE02
+0 /usr/src
+8 /cmd/aardvark.c
+6 rmadillo.c
+\-9 tmp/zoo
+
+(6 = 14 \- 8 また \-9 = 5 \- 14)
+.fi
+.RE
+.SH 関連項目
+.BR find (1L),
+.BR locate (1L),
+.BR updatedb (1L),
+.BR xargs (1L)
+.br
+.B Finding Files
+(on-line in Info, or printed)
+

@@ -1,0 +1,949 @@
+.\"
+.\"  epoll by Davide Libenzi ( efficient event notification retrieval )
+.\"  Copyright (C) 2003  Davide Libenzi
+.\"
+.\"  This program is free software; you can redistribute it and/or modify
+.\"  it under the terms of the GNU General Public License as published by
+.\"  the Free Software Foundation; either version 2 of the License, or
+.\"  (at your option) any later version.
+.\"
+.\"  This program is distributed in the hope that it will be useful,
+.\"  but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"  GNU General Public License for more details.
+.\"
+.\"  You should have received a copy of the GNU General Public License
+.\"  along with this program; if not, write to the Free Software
+.\"  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+.\"
+.\"  Davide Libenzi <davidel@xmailserver.org>
+.\"
+.\" Japanese Version Copyright (c) 2004-2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Sat Jun 19 07:50:04 JST 2004
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2005-01-18, Yuichi SATO
+.\" Updated 2006-07-14, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"         Catch up to LDP v2.34. epoll.4 is renamed to epoll.7.
+.\" Updated 2007-09-07, Akihiro MOTOKI, LDP v2.64
+.\" Updated 2008-04-08, Akihiro MOTOKI, LDP v2.79
+.\" Updated 2009-02-23, Akihiro MOTOKI, LDP v3.19
+.\"
+.TH EPOLL 7 2009-02-01 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O epoll \- I/O event notification facility
+epoll \- I/O イベント通知機能
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #include <sys/epoll.h>
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .B epoll
+.\"O is a variant of
+.\"O .BR poll (2)
+.\"O that can be used either as an edge-triggered or a level-triggered
+.\"O interface and scales well to large numbers of watched file descriptors.
+.\"O The following system calls are provided to
+.\"O create and manage an
+.\"O .B epoll
+.\"O instance:
+.B epoll
+は
+.BR poll (2)
+の一種であり、エッジトリガインタフェースと
+レベルトリガインタフェースのどちらとしても使用することができ、
+監視するファイルディスクリプタの数が多い場合にも使用できる。
+.B epoll
+インスタンスの作成や管理を行うために
+以下のシステムコールが提供されている:
+.IP * 3
+.\"O An
+.\"O .B epoll
+.\"O instance created by
+.\"O .BR epoll_create (2),
+.\"O which returns a file descriptor referring to the epoll instance.
+.\"O (The more recent
+.\"O .BR epoll_create1 (2)
+.\"O extends the functionality of
+.\"O .BR epoll_create (2).)
+.B epoll
+インスタンスは
+.BR epoll_create (2)
+で作成される。
+.BR epoll_create (2)
+は作成した epoll インスタンスを参照するファイルディスクリプタを返す。
+(もっと新しい
+.BR epoll_create1 (2)
+では、
+.BR epoll_create (2)
+の機能が拡張されている)。
+.IP *
+.\"O Interest in particular file descriptors is then registered via
+.\"O .BR epoll_ctl (2).
+特定のファイルディスクリプタに対する監視内容を
+.BR epoll_ctl (2)
+で登録する。
+.\"O The set of file descriptors currently registered on an
+.\"O .B epoll
+.\"O instance is sometimes called an
+.\"O .I epoll
+.\"O set.
+.B epoll
+インスタンスに現在登録されているファイルディスクリプタの集合は
+.I epoll
+集合と呼ばれることもある。
+.IP *
+.\"O Finally, the actual wait is started by
+.\"O .BR epoll_wait (2).
+最後に
+.BR epoll_wait (2)
+で実際のイベント待ちを開始する。
+.\"O .SS Level-Triggered and Edge-Triggered
+.SS レベルトリガとエッジトリガ
+.\"O The
+.\"O .B epoll
+.\"O event distribution interface is able to behave both as edge-triggered
+.\"O (ET) and as level-triggered (LT).
+.\"O The difference between the two mechanisms
+.\"O can be described as follows.
+.\"O Suppose that
+.\"O this scenario happens:
+.B epoll
+イベント配送 (distribution) インタフェースは、
+エッジトリガ (ET) としてもレベルトリガ (LT) としても動作させることができる。
+二つの配送機構の違いは、次のように説明できる。
+このようなシナリオが起こったとしよう:
+.IP 1. 3
+.\"O The file descriptor that represents the read side of a pipe
+.\"O .RI ( rfd )
+.\"O is registered on the
+.\"O .B epoll
+.\"O instance.
+パイプの読み込み側を表すファイルディスクリプタ
+.RI ( rfd )
+が
+.B epoll
+インスタンスに登録される。
+.IP 2.
+.\"O A pipe writer writes 2 kB of data on the write side of the pipe.
+パイプへ書き込むプログラムが 2 kB のデータをパイプの書き込み側へ書き込む。
+.IP 3.
+.\"O A call to
+.\"O .BR epoll_wait (2)
+.\"O is done that will return
+.\"O .I rfd
+.\"O as a ready file descriptor.
+.BR epoll_wait (2)
+を呼び出すと、読み込み可能 (ready) なファイルディスクリプタとして
+.I rfd
+が返る。
+.IP 4.
+.\"O The pipe reader reads 1 kB of data from
+.\"O .IR rfd .
+パイプから読み出すプログラムが、1 kB のデータを
+.I rfd
+から読み出す。
+.IP 5.
+.\"O A call to
+.\"O .BR epoll_wait (2)
+.\"O is done.
+.BR epoll_wait (2)
+の呼び出しが行われる。
+.PP
+.\"O If the
+.\"O .I rfd
+.\"O file descriptor has been added to the
+.\"O .B epoll
+.\"O interface using the
+.\"O .B EPOLLET
+.\"O (edge-triggered)
+.\"O flag, the call to
+.\"O .BR epoll_wait (2)
+.\"O done in step
+.\"O .B 5
+.\"O will probably hang despite the available data still present in the file
+.\"O input buffer;
+.\"O meanwhile the remote peer might be expecting a response based on the
+.\"O data it already sent.
+.\"O The reason for this is that edge-triggered mode only
+.\"O delivers events when changes occur on the monitored file descriptor.
+.I rfd
+ファイルディスクリプタが
+.B EPOLLET
+フラグ (エッジトリガ) を使って
+.B epoll
+に追加されていると、
+利用可能なデータがファイル入力バッファにまだ存在するにもかかわらず
+ステップ
+.B 5
+の
+.BR epoll_wait (2)
+の呼び出しでハングする可能性がある。
+その一方で、リモートの接続先 (peer) は既に送られたデータに
+基づいて応答を期待しているかもしれない。
+このようなことが起こる理由は、エッジトリガイベント配送では、
+モニタしているファイルでイベントが起ったときにのみイベントが
+配送されるためである。
+.\"O So, in step
+.\"O .B 5
+.\"O the caller might end up waiting for some data that is already present inside
+.\"O the input buffer.
+したがって、ステップ
+.B 5
+では、呼び出し側は結果的に
+入力バッファ内にすで存在するデータを待つことになるかもしれない。
+.\"O In the above example, an event on
+.\"O .I rfd
+.\"O will be generated because of the write done in
+.\"O .B 2
+.\"O and the event is consumed in
+.\"O .BR 3 .
+上記の例では、
+.B 2
+で行われた書き込みによって
+.I rfd
+に関するイベントが生成され、
+.B 3
+でイベントが消費 (consume) される。
+.\"O Since the read operation done in
+.\"O .B 4
+.\"O does not consume the whole buffer data, the call to
+.\"O .BR epoll_wait (2)
+.\"O done in step
+.\"O .B 5
+.\"O might block indefinitely.
+.B 4
+で行われる読み込み操作では、全部のバッファデータを消費しないので、
+ステップ
+.B 5
+で行われる
+.BR epoll_wait (2)
+の呼び出しが
+無期限に停止 (block) するかもしれない。
+
+.\"O An application that employs the
+.\"O .B EPOLLET
+.\"O flag should use nonblocking file descriptors to avoid having a blocking
+.\"O read or write starve a task that is handling multiple file descriptors.
+.B EPOLLET
+フラグを採用するアプリケーションでは、
+インタフェースはブロックしない (nonblocking) ファイルディスクリプタを
+使うべきである。
+これは、ブロックされる読み込みや書き込みによって、
+複数のファイルディスクリプタを扱うタスクが
+停止してしまうのを避けるためである。
+.\"O The suggested way to use
+.\"O .B epoll
+.\"O as an edge-triggered
+.\"O .RB ( EPOLLET )
+.\"O interface is as follows:
+.B epoll
+をエッジトリガ
+.RB ( EPOLLET )
+インタフェースとして使うために提案される方法は以下の通りである。
+.RS
+.TP 4
+.B i
+.\"O with nonblocking file descriptors; and
+ブロックしないファイルディスクリプタと共に使う。
+.TP
+.B ii
+.\"O by waiting for an event only after
+.\"O .BR read (2)
+.\"O or
+.\"O .BR write (2)
+.\"O return
+.\"O .BR EAGAIN .
+.BR read (2)
+または
+.BR write (2)
+が
+.B EAGAIN
+を返した後でのみ、イベントを待つ。
+.RE
+.PP
+.\"O By contrast, when used as a level-triggered interface
+.\"O (the default, when
+.\"O .B EPOLLET
+.\"O is not specified),
+.\"O .B epoll
+.\"O is simply a faster
+.\"O .BR poll (2),
+.\"O and can be used wherever the latter is used since it shares the
+.\"O same semantics.
+一方、レベルトリガインタフェースとして使う場合
+ (こちらがデフォルトである、
+.B EPOLLET
+が指定されなかった場合)、
+.B epoll
+は単に高速な
+.BR poll (2)
+であり、使い方が同じなので、
+.BR poll (2)
+が使われているところではどこでも使用することができる。
+
+.\"O Since even with edge-triggered
+.\"O .BR epoll ,
+.\"O multiple events can be generated upon receipt of multiple chunks of data,
+.\"O the caller has the option to specify the
+.\"O .B EPOLLONESHOT
+.\"O flag, to tell
+.\"O .B epoll
+.\"O to disable the associated file descriptor after the receipt of an event with
+.\"O .BR epoll_wait (2).
+エッジトリガを使った場合でも、複数のデータを受信すると複数の
+.B epoll
+イベントが生成されるので、
+呼び出し側には
+.B EPOLLONESHOT
+フラグを指定するオプションがある。
+このフラグは
+.B epoll
+に対して、
+.BR epoll_wait (2)
+によるイベントを受信した後で、関連するファイルディスクリプタを無効にさせる。
+.\"O When the
+.\"O .B EPOLLONESHOT
+.\"O flag is specified,
+.\"O it is the caller's responsibility to rearm the file descriptor using
+.\"O .BR epoll_ctl (2)
+.\"O with
+.\"O .BR EPOLL_CTL_MOD .
+.B EPOLLONESHOT
+フラグが指定された場合、
+.BR epoll_ctl (2)
+に
+.B EPOLL_CTL_MOD
+を指定してファイルディスクリプタを再度使用できるようにするのは、
+呼び出し側の責任である。
+.\"O .SS /proc interfaces
+.SS /proc インタフェース
+.\"O The following interfaces can be used to limit the amount of
+.\"O kernel memory consumed by epoll:
+epoll が消費するカーネルメモリの量を制限するために、
+以下のインタフェースを使用することができる。
+.TP
+.\" Following was added in 2.6.28, but them removed in 2.6.29
+.\" .TP
+.\" .IR /proc/sys/fs/epoll/max_user_instances " (since Linux 2.6.28)"
+.\" This specifies an upper limit on the number of epoll instances
+.\" that can be created per real user ID.
+.TP
+.\"O .IR /proc/sys/fs/epoll/max_user_watches " (since Linux 2.6.28)"
+.IR /proc/sys/fs/epoll/max_user_watches " (Linux 2.6.28 以降)"
+.\"O This specifies a limit on the total number of
+.\"O file descriptors that a user can register across
+.\"O all epoll instances on the system.
+.\"O The limit is per real user ID.
+.\"O Each registered file descriptor costs roughly 90 bytes on a 32-bit kernel,
+.\"O and roughly 160 bytes on a 64-bit kernel.
+.\"O Currently,
+このファイルは、あるユーザがシステム上の全ての epoll インスタンスに
+登録できるファイルディスクリプタの総数の上限を規定する。
+この上限は実ユーザ ID 単位である。
+登録されたファイルディスクリプタ 1 つが消費するメモリ量は、
+32 ビットカーネルでおよそ 90 バイト、
+64 ビットカーネルでおよそ 160 バイトである。
+.\" 2.6.29 (in 2.6.28, the default was 1/32 of lowmem)
+.\"O the default value for
+.\"O .I max_user_watches
+.\"O is 1/25 (4%) of the available low memory,
+.\"O divided by the registration cost in bytes.
+.\"O motoki: low memory の訳に自信なし。
+現在のところ、
+.I max_user_watches
+のデフォルト値は、利用可能なメモリ下限の 1/25 (4%) であり、
+登録で消費されるメモリ量 (バイト単位) で割った値となる。
+.\"O .SS Example for Suggested Usage
+.SS おすすめな使用例
+.\"O While the usage of
+.\"O .B epoll
+.\"O when employed as a level-triggered interface does have the same
+.\"O semantics as
+.\"O .BR poll (2),
+.\"O the edge-triggered usage requires more clarification to avoid stalls
+.\"O in the application event loop.
+レベルトリガインタフェースとして使用するときの
+.B epoll
+の使い方は
+.BR poll (2)
+と同じである。
+しかしエッジトリガとして使う場合は、
+アプリケーションのイベントループでストール (stall) しないように、
+使い方をより明確にしておく必要がある。
+.\"O In this example, listener is a
+.\"O nonblocking socket on which
+.\"O .BR listen (2)
+.\"O has been called.
+.\"O The function
+.\"O .I do_use_fd()
+.\"O uses the new ready file descriptor until
+.\"O .B EAGAIN
+.\"O is returned by either
+.\"O .BR read (2)
+.\"O or
+.\"O .BR write (2).
+この例では、リスナはブロックしないソケットであり、
+.BR listen (2)
+が呼ばれている。
+関数
+.I do_use_fd()
+は、
+.BR read (2)
+または
+.BR write (2)
+によって
+.B EAGAIN
+が返されるまでは、新しい準備済みのファイルディスクリプタを使う。
+.\"O An event-driven state machine application should, after having received
+.\"O .BR EAGAIN ,
+.\"O record its current state so that at the next call to
+.\"O .I do_use_fd()
+.\"O it will continue to
+.\"O .BR read (2)
+.\"O or
+.\"O .BR write (2)
+.\"O from where it stopped before.
+イベント駆動ステートマシンアプリケーションは、
+.B EAGAIN
+を受信した後、カレントの状態を記録しておくべきである。
+これにより、次の
+.I do_use_fd()
+呼び出しのときに、以前に停止したところから
+.BR read (2)
+または
+.BR write (2)
+を継続することができる。
+
+.in +4n
+.nf
+#define MAX_EVENTS 10
+struct epoll_event ev, events[MAX_EVENTS];
+int listen_sock, conn_sock, nfds, epollfd;
+
+/* Set up listening socket, \(aqlisten_sock\(aq (socket(),
+   bind(), listen()) */
+
+epollfd = epoll_create(10);
+if (epollfd == \-1) {
+    perror("epoll_create");
+    exit(EXIT_FAILURE);
+}
+
+ev.events = EPOLLIN;
+ev.data.fd = listen_sock;
+if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == \-1) {
+    perror("epoll_ctl: listen_sock");
+    exit(EXIT_FAILURE);
+}
+
+for (;;) {
+    nfds = epoll_wait(epollfd, events, MAX_EVENTS, \-1);
+    if (nfds == \-1) {
+        perror("epoll_pwait");
+        exit(EXIT_FAILURE);
+    }
+
+    for (n = 0; n < nfds; ++n) {
+        if (events[n].data.fd == listen_sock) {
+            conn_sock = accept(listen_sock,
+                            (struct sockaddr *) &local, &addrlen);
+            if (conn_sock == \-1) {
+                perror("accept");
+                exit(EXIT_FAILURE);
+            }
+            setnonblocking(conn_sock);
+            ev.events = EPOLLIN | EPOLLET;
+            ev.data.fd = conn_sock;
+            if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,
+                        &ev) == \-1) {
+                perror("epoll_ctl: conn_sock");
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            do_use_fd(events[n].data.fd);
+        }
+    }
+}
+.fi
+.in
+
+.\"O When used as an edge-triggered interface, for performance reasons, it is
+.\"O possible to add the file descriptor inside the
+.\"O .B epoll
+.\"O interface
+.\"O .RB ( EPOLL_CTL_ADD )
+.\"O once by specifying
+.\"O .RB ( EPOLLIN | EPOLLOUT ).
+.\"O This allows you to avoid
+.\"O continuously switching between
+.\"O .B EPOLLIN
+.\"O and
+.\"O .B EPOLLOUT
+.\"O calling
+.\"O .BR epoll_ctl (2)
+.\"O with
+.\"O .BR EPOLL_CTL_MOD .
+エッジトリガインタフェースとして使う場合、性能上の理由により、
+一度
+.RB ( EPOLLIN | EPOLLOUT )
+を指定してから
+.RB ( EPOLL_CTL_ADD
+で) ファイルディスクリプタを
+.B epoll
+インタフェースに追加することができる。
+これにより、
+.BR epoll_ctl (2)
+に
+.B EPOLL_CTL_MOD
+を指定して呼び出すことで
+.B EPOLLIN
+と
+.B EPOLLOUT
+の連続的な切り替えが避けられる。
+.\"O .SS Questions and Answers
+.SS 質問と解答
+.TP 4
+.B Q0
+.\"O What is the key used to distinguish the file descriptors registered in an
+.\"O .B epoll
+.\"O set?
+.B epoll
+集合内の登録されたファイルディスクリプタを区別するには、
+何をキーとして使えばよいか？
+.TP
+.B A0
+.\"O The key is the combination of the file descriptor number and
+.\"O the open file description
+.\"O (also known as an "open file handle",
+.\"O the kernel's internal representation of an open file).
+キーはファイルディスクリプタ番号とオープンファイル記述 (open file
+description) の組である (オープンファイル記述は "open file handle" とも
+呼ばれ、オープンされたファイルのカーネルの内部表現である)。
+.TP
+.B Q1
+.\"O What happens if you register the same file descriptor on an
+.\"O .B epoll
+.\"O instance twice?
+1 つの
+.B epoll
+インスタンスに同じファイルディスクリプタを 2 回登録するとどうなるか？
+.TP
+.B A1
+.\"O You will probably get
+.\"O .BR EEXIST .
+.\"O However, it is possible to add a duplicate
+.\"O .RB ( dup (2),
+.\"O .BR dup2 (2),
+.\"O .BR fcntl (2)
+.\"O .BR F_DUPFD )
+.\"O descriptor to the same
+.\"O .B epoll
+.\"O instance.
+たぶん
+.B EEXIST
+を受け取るだろう。
+しかしながら、同じ
+.B epoll
+インスタンスに対して複製されたディスクリプタを追加することは可能である
+.RB ( dup (2),
+.BR dup2 (2),
+.BR fcntl (2)
+.B F_DUPFD
+など)。
+.\" But a descriptor duplicated by fork(2) can't be added to the
+.\" set, because the [file *, fd] pair is already in the epoll set.
+.\" That is a somewhat ugly inconsistency.  On the one hand, a child process
+.\" cannot add the duplicate file descriptor to the epoll set.  (In every
+.\" other case that I can think of, descriptors duplicated by fork have
+.\" similar semantics to descriptors duplicated by dup() and friends.)  On
+.\" the other hand, the very fact that the child has a duplicate of the
+.\" descriptor means that even if the parent closes its descriptor, then
+.\" epoll_wait() in the parent will continue to receive notifications for
+.\" that descriptor because of the duplicated descriptor in the child.
+.\"
+.\" See http://thread.gmane.org/gmane.linux.kernel/596462/
+.\" "epoll design problems with common fork/exec patterns"
+.\"
+.\" mtk, Feb 2008
+.\"O This can be a useful technique for filtering events,
+.\"O if the duplicate file descriptors are registered with different
+.\"O .I events
+.\"O masks.
+複製したファイルディスクリプタを異なる
+.I events
+マスクで登録すれば、イベントをフィルタリングするのに
+この機能は有用な手法である。
+.TP
+.B Q2
+.\"O Can two
+.\"O .B epoll
+.\"O instances wait for the same file descriptor?
+.\"O If so, are events reported to both
+.\"O .B epoll
+.\"O file descriptors?
+2 つの
+.B epoll
+インスタンスが同じファイルディスクリプタを待ち受けることは可能か？
+もし可能であれば、イベントは両方の
+.B epoll
+ファイルディスクリプタに報告されるか？
+.TP
+.B A2
+.\"O Yes, and events would be reported to both.
+.\"O However, careful programming may be needed to do this correctly.
+イベントは両方に報告される。
+しかしながら、これを正しく扱うには注意深くプログラミングする必要が
+あるかもしれない。
+.TP
+.B Q3
+.\"O Is the
+.\"O .B epoll
+.\"O file descriptor itself poll/epoll/selectable?
+.B epoll
+ファイルディスクリプタ自身は poll/epoll/select が可能か？
+.TP
+.B A3
+.\"O Yes.
+.\"O If an
+.\"O .B epoll
+.\"O file descriptor has events waiting then it will
+.\"O indicate as being readable.
+可能である。
+.B epoll
+ファイルディスクリプタに処理待ちのイベントがある場合は、
+読み出し可能だと通知されることだろう。
+.TP
+.B Q4
+.\"O What happens if one attempts to put an
+.\"O .B epoll
+.\"O file descriptor into its own file descriptor set?
+.B epoll
+ファイルディスクリプタを自身のファイルディスクリプタ集合に
+入れようとするとどうなるか？
+.TP
+.B A4
+.\"O The
+.\"O .BR epoll_ctl (2)
+.\"O call will fail
+.\"O .RB ( EINVAL ).
+.\"O However, you can add an
+.\"O .B epoll
+.\"O file descriptor inside another
+.\"O .B epoll
+.\"O file descriptor set.
+.BR epoll_ctl (2)
+の呼び出しは
+.RB ( EINVAL
+で) 失敗するだろう。
+ただし
+.B epoll
+ファイルディスクリプタを他の
+.B epoll
+ファイルディスクリプタ集合の内部に追加することは可能である。
+.TP
+.B Q5
+.\"O Can I send an
+.\"O .B epoll
+.\"O file descriptor over a Unix domain socket to another process?
+.B epoll
+ファイルディスクリプタを Unix ドメインソケットで他のプロセスに送ることは可能か？
+.TP
+.B A5
+.\"O Yes, but it does not make sense to do this, since the receiving process
+.\"O would not have copies of the file descriptors in the
+.\"O .B epoll
+.\"O set.
+可能だが、これをすることに意味はない。
+なぜなら、受信側のプロセスが
+.B epoll
+集合内のファイルディスクリプタのコピーを持っていないからである。
+.TP
+.B Q6
+.\"O Will closing a file descriptor cause it to be removed from all
+.\"O .B epoll
+.\"O sets automatically?
+ファイルディスクリプタをクローズすると、そのファイルディスクリプタは全ての
+.B epoll
+集合から自動的に削除されるか？
+.TP
+.B A6
+.\"O Yes, but be aware of the following point.
+削除されるが、以下の点に注意が必要である。
+.\"O A file descriptor is a reference to an open file description (see
+.\"O .BR open (2)).
+ファイルディスクリプタはオープンファイル記述
+.RB ( open (2)
+参照) への参照である。
+.\"O Whenever a descriptor is duplicated via
+.\"O .BR dup (2),
+.\"O .BR dup2 (2),
+.\"O .BR fcntl (2)
+.\"O .BR F_DUPFD ,
+.\"O or
+.\"O .BR fork (2),
+.\"O a new file descriptor referring to the same open file description is
+.\"O created.
+ディスクリプタの複製を
+.BR dup (2),
+.BR dup2 (2),
+.BR fcntl (2)
+の
+.B F_DUPFD
+や
+.BR fork (2)
+経由で行う度に、同じオープンファイル記述を参照する新規のファイル
+ディスクリプタが生成される。
+.\"O An open file description continues to exist until all
+.\"O file descriptors referring to it have been closed.
+オープンファイル記述自体は、自身を参照する全てのファイルディスクリプタ
+がクローズされるまで存在し続ける。
+.\"O A file descriptor is removed from an
+.\"O .B epoll
+.\"O set only after all the file descriptors referring to the underlying
+.\"O open file description have been closed
+.\"O (or before if the descriptor is explicitly removed using
+.\"O .BR epoll_ctl ()
+.\"O .BR EPOLL_CTL_DEL ).
+ファイルディスクリプタが
+.B epoll
+集合から削除されるのは、対応するオープンファイル記述を参照している
+全てのファイルディスクリプタがクローズされた後である
+.RB ( epoll_ctl ()
+.B EPOLL_CTL_DEL
+を使ってそのディスクリプタを明示的に削除した場合にも削除される)。
+.\"O This means that even after a file descriptor that is part of an
+.\"O .B epoll
+.\"O set has been closed,
+.\"O events may be reported for that file descriptor if other file
+.\"O descriptors referring to the same underlying file description remain open.
+このことは、
+.B epoll
+集合に属しているあるファイルディスクリプタをクローズした後であっても、
+同じファイル記述を参照する他のファイルディスクリプタがオープンされている間は、
+クローズしたファイルディスクリプタ宛にイベントが報告される可能性があると
+いうことを意味する。
+.TP
+.B Q7
+.\"O If more than one event occurs between
+.\"O .BR epoll_wait (2)
+.\"O calls, are they combined or reported separately?
+2 つ以上のイベントが
+.BR epoll_wait (2)
+コールの間に発生した場合、それらはまとめて報告されるか、
+それとも別々に報告されるか？
+.TP
+.B A7
+.\"O They will be combined.
+まとめて報告されるだろう。
+.TP
+.B Q8
+.\"O Does an operation on a file descriptor affect the
+.\"O already collected but not yet reported events?
+ファイルディスクリプタに対する操作は、
+既に集められているがまだ報告されていないイベントに影響するか？
+.TP
+.B A8
+.\"O You can do two operations on an existing file descriptor.
+.\"O Remove would be meaningless for
+.\"O this case.
+.\"O Modify will reread available I/O.
+既存のファイルディスクリプタに対して 2 つの操作を行うことができる。
+この場合、削除には意味がない。
+変更すると、使用可能な I/O が再び読み込まれる。
+.TP
+.B Q9
+.\"O Do I need to continuously read/write a file descriptor
+.\"O until
+.\"O .B EAGAIN
+.\"O when using the
+.\"O .B EPOLLET
+.\"O flag (edge-triggered behavior) ?
+.B EPOLLET
+フラグ (エッジトリガ動作) を使っている場合、
+.B EAGAIN
+を受け取るまで、
+継続してファイルディスクリプタを読み書きする必要があるか？
+.TP
+.B A9
+.\"O Receiving an event from
+.\"O .BR epoll_wait (2)
+.\"O should suggest to you that such
+.\"O file descriptor is ready for the requested I/O operation.
+.BR epoll_wait (2)
+からイベントを受け取ることは、
+そのファイルディスクリプタが要求された I/O 操作に対して準備済みである、
+ということをユーザに示すものである。
+.\"O You must consider it ready until the next (nonblocking)
+.\"O read/write yields
+.\"O .BR EAGAIN .
+次の (ブロックしない) read/write で
+.B EAGAIN
+を受け取るまではファイルディスクリプタは準備済みであると
+考えなければならない。
+.\"O When and how you will use the file descriptor is entirely up to you.
+そのファイルディスクリプタをいつどのように使うかは、
+全くユーザに任されてる。
+.sp
+.\"O For packet/token-oriented files (e.g., datagram socket,
+.\"O terminal in canonical mode),
+.\"O the only way to detect the end of the read/write I/O space
+.\"O is to continue to read/write until
+.\"O .BR EAGAIN .
+パケット指向やトークン指向のファイル (例えば、データグラムソケット、
+canonical モードの端末) では、
+読み込み用 / 書き込み用の I/O 空間の末尾を検知する唯一の方法は
+.B EAGAIN
+になるまで read/write を行うことである。
+.sp
+.\"O For stream-oriented files (e.g., pipe, FIFO, stream socket), the
+.\"O condition that the read/write I/O space is exhausted can also be detected by
+.\"O checking the amount of data read from / written to the target file
+.\"O descriptor.
+ストリーム指向のファイル (例えば、パイプ、FIFO、ストリームソケット) では、
+読み込み用 / 書き込み用の I/O 空間が使い尽くされた状態は、
+対象となるファイルディスクリプタから読み込んだデータ量または
+書き込んだデータ量をチェックすることでも検知できる。
+.\"O For example, if you call
+.\"O .BR read (2)
+.\"O by asking to read a certain amount of data and
+.\"O .BR read (2)
+.\"O returns a lower number of bytes, you
+.\"O can be sure of having exhausted the read I/O space for the file
+.\"O descriptor.
+.\"O The same is true when writing using
+.\"O .BR write (2).
+.\"O (Avoid this latter technique if you cannot guarantee that
+.\"O the monitored file descriptor always refers to a stream-oriented file.)
+例えば、ある特定の量のデータを読み込むために
+.BR read (2)
+を呼んだときに、
+.BR read (2)
+が返したバイト数がそれより少なかった場合、
+そのファイルディスクリプタの読み込み用 I/O 空間が
+使い尽くされたことが分かる。
+.BR write (2)
+を使って書き込みをするときも、同じことが言える
+(監視しているファイルディスクリプタが常にストリーム指向のファイルを
+参照していることを保証できない場合には、後者の手法の使用を避けること)。
+.\"O .SS Possible Pitfalls and Ways to Avoid Them
+.SS ありがちな落とし穴と回避方法
+.TP
+.\"O .B o Starvation (edge-triggered)
+.B o 飢餓 (starvation) (エッジトリガ)
+.PP
+.\"O If there is a large amount of I/O space,
+.\"O it is possible that by trying to drain
+.\"O it the other files will not get processed causing starvation.
+.\"O (This problem is not specific to
+.\"O .BR epoll .)
+大きな I/O 空間がある場合、
+その I/O 空間のデータを全て処理 (drain) しようとすると、
+他のファイルが処理されず、飢餓を発生させることがある
+(この問題は
+.B epoll
+に固有のものではない)。
+.PP
+.\"O The solution is to maintain a ready list
+.\"O and mark the file descriptor as ready
+.\"O in its associated data structure, thereby allowing the application to
+.\"O remember which files need to be processed but still round robin amongst
+.\"O all the ready files.
+.\"O This also supports ignoring subsequent events you
+.\"O receive for file descriptors that are already ready.
+この問題の解決法は、準備済み状態のリストを管理して、
+関連する data 構造体の中でファイルディスクリプタが
+利用可能であるとマークすることである。
+それによって、利用可能なすべてのファイルの中で
+どのファイルを処理する必要があるかを憶えることができ、
+しかも順番に処理 (round robin) することができる。
+既に利用可能であるファイルディスクリプタに対して
+それ以後に受け取るイベントを無視することもできる。
+.TP
+.\"O .B o If using an event cache...
+.B o イベントキャッシュを使っている場合
+.PP
+.\"O If you use an event cache or store all the file descriptors returned from
+.\"O .BR epoll_wait (2),
+.\"O then make sure to provide a way to mark
+.\"O its closure dynamically (i.e., caused by
+.\"O a previous event's processing).
+.\"O Suppose you receive 100 events from
+.\"O .BR epoll_wait (2),
+.\"O and in event #47 a condition causes event #13 to be closed.
+イベントキャッシュを使っている場合、
+または
+.BR epoll_wait (2)
+から返された全てのファイルディスクリプタを格納している場合、
+クローズされたことを動的にマークする
+(つまり前のイベントの処理によってマークされる) 方法を提供すべきである。
+.BR epoll_wait (2)
+から 100 個のイベントを受け取り、
+イベント #47 ではある条件でイベント #13 が閉じられると仮定する。
+.\"O If you remove the structure and
+.\"O .BR close (2)
+.\"O the file descriptor for event #13, then your
+.\"O event cache might still say there are events waiting for that
+.\"O file descriptor causing confusion.
+イベント #13 の構造体を削除しファイルディスクリプタを
+.BR close (2)
+すると、イベントキャッシュはそのファイルディスクリプタを待つイベントが
+存在するといって、混乱が起きる。
+.PP
+.\"O One solution for this is to call, during the processing of event 47,
+.\"O .BR epoll_ctl ( EPOLL_CTL_DEL )
+.\"O to delete file descriptor 13 and
+.\"O .BR close (2),
+.\"O then mark its associated
+.\"O data structure as removed and link it to a cleanup list.
+.\"O If you find another
+.\"O event for file descriptor 13 in your batch processing,
+.\"O you will discover the file descriptor had been
+.\"O previously removed and there will be no confusion.
+この問題を解決する 1 つの方法は、イベント 47 の処理をしている間に、
+ファイルディスクリプタ 13 を削除して
+.BR close (2)
+するために
+.BR epoll_ctl ( EPOLL_CTL_DEL )
+を呼び出し、関連付けられた data 構造体を削除済みとマークして、
+クリーンアップリストにリンクすることである。
+バッチ処理の中でファイルディスクリプタ 13 についての
+他のイベントを見つけた場合、
+そのファイルディスクリプタが以前に削除されたものであると分かるので、
+混乱は起きない。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O The
+.\"O .B epoll
+.\"O API was introduced in Linux kernel 2.5.44.
+.B epoll
+API は Linux カーネル 2.5.44 に導入された。
+.\"O .\" Its interface should be finalized in Linux kernel 2.5.66.
+.\" インタフェースは Linux カーネル 2.5.66 で確定されるべきである。
+.\"O Support was added to glibc in version 2.3.2.
+glibc でのサポートはバージョン 2.3.2 で追加された。
+.\"O .SH CONFORMING TO
+.SH 準拠
+.\"O The
+.\"O .B epoll
+.\"O API is Linux-specific.
+.\"O Some other systems provide similar
+.\"O mechanisms, for example, FreeBSD has
+.\"O .IR kqueue ,
+.\"O and Solaris has
+.\"O .IR /dev/poll .
+.B epoll
+API は Linux 固有である。
+他のシステムでも同様の機構が提供されている場合がある。
+例えば、FreeBSD の
+.I kqueue
+や Solaris の
+.I /dev/poll
+などである。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR epoll_create (2),
+.BR epoll_create1 (2),
+.BR epoll_ctl (2),
+.BR epoll_wait (2)

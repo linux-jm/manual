@@ -1,0 +1,230 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" This manpage is Copyright (C) 2006 Silicon Graphics, Inc.
+.\"                               Christoph Lameter
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" FIXME Should programs normally be using this API directly, or should
+.\" they rather be using interfaces in the numactl package?
+.\" (e.g., compare with recommendation in mbind(2)).
+.\" 
+.\" Japanese Version Copyright (c) 2008  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2008-10-26, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" 
+.TH MOVE_PAGES 2 2008-10-06 "Linux" "Linux Programmer's Manual"
+.SH 名前
+move_pages \- あるプロセスの個々のページを別のノードに移動する
+.SH 書式
+.nf
+.B #include <numaif.h>
+.sp
+.BI "long move_pages(int " pid ", unsigned long count, void **" pages ,
+.BI "                const int *" nodes ", int *" status ", int " flags );
+.fi
+.SH 説明
+.BR move_pages ()
+は、プロセス
+.I pid
+の指定されたページ
+.I pages
+を
+.I nodes
+で指定されたメモリノードに移動する。
+移動の結果は
+.I status
+に反映される。
+.I flags
+では移動されるページに関する制約を指定する。
+
+.I pid
+は、移動されるページが属するプロセスの ID である。
+別のプロセスのページを移動するためには、呼び出し元が特権
+.RB ( CAP_SYS_NICE )
+を持っているか、呼び出したプロセスの実ユーザ ID か実効ユーザ ID が
+ページ移動対象のプロセスの実ユーザ ID か保存 set-user-ID のどちらかと
+一致しなければならない。
+.I pid
+が 0 の場合、
+.BR move_pages ()
+は呼び出したプロセスのページを移動する。
+
+.I count
+は移動するページ数である。
+.I count
+により
+.IR pages ,
+.IR nodes ,
+.I status
+の 3 つの配列の大きさが定義される。
+
+.I pages
+は、移動すべきページへのポインタの配列であり、
+各ポインタはページ境界に揃えた値を指定すべきである。
+.\" FIXME what if they are not aligned?
+.I pid
+で指定されたプロセスで見えるアドレスを指定する。
+
+.I nodes
+は、各ページの希望の移動場所を示す整数値の配列であり、
+配列の各要素はノード番号である。
+.I nodes
+には NULL を指定することもでき、この場合には
+.BR move_pages ()
+はどのページも移動しないが、各ページが現在配置されているノードを配列
+.I status
+に格納して返す。どのページを移動する必要があるかを判断するために、
+各ページの状態の取得が必要な場合もある。
+
+.I status
+は、各ページの状態を表す整数値の配列である。
+この配列に有効な値が格納されるのは、
+.BR move_pages ()
+がエラーを返さなかった場合だけである。
+
+.I flags
+には、どの種類のページを移動するかを指定する。
+.B MPOL_MF_MOVE
+は、そのプロセスが排他的に使用しているページだけを移動することを意味する。
+.B MPOL_MF_MOVE_ALL
+は、複数のプロセス間で共有されているページも移動できることを意味する。
+.B MPOL_MF_MOVE_ALL
+を使用するためには、そのプロセスが特権
+.RB ( CAP_SYS_NICE )
+を持っていなければならない。
+.SH status 配列に格納されるページ状態
+.I status
+配列の各要素として、以下の値が返される。
+.TP
+.B 0..MAX_NUMNODES
+そのページが配置されているノードを示す。
+.TP
+.B -EACCES
+そのページは複数のプロセスによりマップされており、
+.B MPOL_MF_MOVE_ALL
+が指定された場合にのみ移動できる。
+.TP
+.B -EBUSY
+そのページが現在ビジーであり、移動できない。後でもう一度試すこと。
+この状況は、ページが I/O の実行中であったり、カーネルの他のサブシステム
+がそのページへの参照を保持している場合に発生する。
+.TP
+.B -EFAULT
+そのページが zero page であるか、そのメモリ領域はそのプロセスにより
+マップされていない。
+.TP
+.B -EIO
+ページを書き戻す (write back) ことができない。
+ページが dirty で、ファイルシステムが dirty なページを移動できるような
+移動機能を提供していないため、そのページを移動するためにはページを
+書き戻さなければならない。
+.TP
+.B -EINVAL
+dirty なページを移動できない。
+ファイルシステムが dirty なページを移動するための機能を提供しておらず、
+ページを書き戻す能力もない。
+.TP
+.B -ENOENT
+ページが存在しない。
+.TP
+.B -ENOMEM
+移動先のノードでメモリを確保することができない。
+.SH 返り値
+成功すると、
+.BR move_pages ()
+は 0 を返す。
+.\" FIXME Is the following quite true: does the wrapper in numactl
+.\" do the right thing?
+エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.SH エラー
+.TP
+.B E2BIG
+移動すべきページが多過ぎる。
+.TP
+.B EACCES
+.\" FIXME Clarify "current cpuset".  Is that the cpuset of the caller
+.\" or the target?
+移動先のノードのいずれかが現在の CPU 集合では許可されていない。
+.TP
+.B EFAULT
+パラメータ配列にアクセスできなかった。
+.TP
+.B EINVAL
+.I flags
+に
+.B MPOL_MF_MOVE
+でも
+.B MPOL_MF_MOVE_ALL
+でもない値が指定されたか、カーネルスレッドのページを移動させようとした。
+.TP
+.B ENODEV
+移動先のノードのいずれかがオンラインでない。
+.TP
+.B ENOENT
+移動が必要なページが全く見つからなかった。
+指定された全てのページが、すでに移動先のノードに存在するか、存在しないか、
+無効なアドレスであったか、複数のプロセスによってマップされていて移動でき
+なかったか、のいずれかであった。
+.TP
+.B EPERM
+呼び出し元は
+.B MPOL_MF_MOVE_ALL
+を指定したが、十分な特権
+.RB ( CAP_SYS_NICE )
+を持っていない。
+または、呼び出し元が他のユーザに属するプロセスのページを移動しようとしたが、
+それを行えるだけの特権
+.RB ( CAP_SYS_NICE )
+を持っていなかった。
+.TP
+.B ESRCH
+プロセスが存在しない。
+.SH バージョン
+.BR move_pages ()
+は、バージョン 2.6.18 で初めて Linux に登場した。
+.SH 準拠
+このシステムコールは Linux 固有である。
+.SH 注意
+ライブラリによるサポートについては
+.BR numa (7)
+を参照。
+
+.\" FIXME Clarify "current cpuset".  Is that the cpuset of the caller
+.\" or the target?
+現在の CPU 集合で許可されているノードの集合を取得するには、フラグ
+.B MPOL_F_MEMS_ALLOWED
+を指定して
+.BR get_mempolicy (2)
+を使用すればよい。
+取得した情報は、CPU 集合の手動または自動での再構成により
+いつ何時変化してしまうか分からない。
+
+この関数を使用すると、ページの位置 (ノード) が
+指定されたアドレスに対して設定されたメモリポリシー
+.RB ( mbind (2)
+参照) や指定されたプロセスに対して設定されたメモリポリシー
+.RB ( set_mempolicy (2)
+参照) に違反してしまう可能性がある。
+つまり、メモリポリシーは
+.BR move_pages ()
+で使われる移動先ノードを制限しないということである。
+.SH 関連項目
+.BR get_mempolicy (2),
+.BR mbind (2),
+.BR set_mempolicy (2),
+.BR numa (3),
+.BR numa_maps (5),
+.BR cpuset (7),
+.BR numa (7),
+.BR migratepages (8),
+.BR numa_stat (8)

@@ -1,0 +1,1253 @@
+.\"(c) Copyright 1992, by Panagiotis Tsirigotis
+.\"(c) Sections Copyright 1998-2001 by Rob Braun
+.\"All rights reserved.  The file named COPYRIGHT specifies the terms 
+.\"and conditions for redistribution.
+.\"
+.\" $Id: xinetd.conf.man,v 1.3 1999/10/14 23:46:27 bbraun Exp $
+.\"
+.\" Japanese Version Copyright (C) 2001 SEKINE Tatsuo
+.\"	all rights reserved.
+.\" Translated May 19, 2001 by SEKINE Tatsuo <tsekine@isoternet.org>
+.\"
+.\" Update and Modified on Fri Feb 21 00:40:09 JST 2003
+.\"	by System Design and Research Institute Co.,Ltd. <info@sdri.co.jp>
+.\" 
+.\"WORD identification server	ident サーバ
+.\"WORD resident set size	常駐サイズ
+.\"WORD swap out		スワップアウト
+.\"WORD fork			フォーク
+.\"WORD splat			表示する
+.\"WORD facility		機能分類
+.TH XINETD.CONF 5 "14 June 2001"
+.\" *************************** NAME *********************************
+.SH 名前
+xinetd.conf \- 拡張されたインターネットサービスデーモンの設定ファイル
+.\" *********************** DESCRIPTION ****************************
+.SH 説明
+.B "xinetd.conf"
+は \fBxinetd\fP によって提供されるサービスを決定する設定ファイルである。
+行の最初の空白ではない文字が '#' ならばコメント行とみなされる。
+空行は無視される。
+.LP
+ファイルは以下の形式のエントリからなる:
+.RS
+.nf
+.ft B
+.sp
+service <service_name>
+{
+.RS
+.ft B
+<属性> <assign_op> <値> <値> ...
+.I "..."
+.RE
+.B }
+.ft R
+.fi
+.RE
+.LP
+代入演算子
+.I assign_op
+は
+.B '=', 
+.B '+=',
+.B '-='
+のいずれかである。
+殆んどの属性は単純な代入演算子である
+.B '='
+のみをサポートする。
+値が値の組合せであるような属性は、すべての代入演算子をサポートする。
+そのような属性については、
+.B '+='
+は組合せに値を追加することを、
+.B '-='
+は組合せから値を削除することを意味する。
+どの属性がどの演算子をサポートするかは、
+すべての属性について述べた後に記述する。
+.LP
+各エントリは \fIservice_name\fP で識別されるサービスについて定義する。
+.TP 17
+.\"SEKINE あえて service name → service_name にしています
+.B id
+この属性はサービスを識別するのに用いられる。
+サービスの中には違うプロトコルを使えるものがあり、
+その場合は設定ファイルの別のエントリに記述されるので、
+そうしたときに有用である。
+デフォルトではサービス id は service_name と同じである。
+.TP
+.B type
+以下の値の任意の組合せである:
+.RS
+.TP 12
+.B RPC
+RPC を使ったサービスである
+.TP
+.B INTERNAL
+\fBxinetd\fP によって提供されるサービス
+.TP
+.B TCPMUX/TCPMUXPLUS
+well-known(良く知られた)TCPMUX ポートを使う、RFC 1078
+プロトコルによって開始されるサービス。
+後述する TCPMUX サービスについて書かれた節を参照のこと。
+.TP
+.B UNLISTED
+標準的なシステムファイル
+(RPC サービスなら
+.IR /etc/rpc ,
+RPC でないサービスなら
+.IR /etc/services )
+にはないサービス
+.RE
+.TP
+.B flags
+以下のフラグの任意の組合せである:
+.RS
+.TP 12
+.B INTERCEPT
+パケットまたはすでに受けつけた接続を、
+それが受け付けてよい場所から来ているのかを確かめるために横取りする
+(内部サービスまたはマルチスレッドサービスは横取りできない)。
+.TP
+.B NORETRY
+フォークに失敗しても再試行しない。
+.TP
+.B IDONLY
+リモート側が、リモートのユーザを識別しているときのみ接続を受け付ける
+(すなわち、リモートホストは ident サーバを動かさなければならない)。
+ログオプション
+.B USERID
+が使われてない場合には、このフラグは効果がない。
+.TP
+.B NAMEINARGS
+"server_args" の最初の引き数を、サーバが実行される際の argv[0] にする。
+これにより、普通の inetd のように "server" を tcpd にし、
+サーバー名を "server_args" に入れることで、tcpd を使うことができる。
+.TP
+.B NODELAY
+サービスが TCP のサービスで NODELAY フラグが立てられている場合、
+ソケットに TCP_NODELAY フラグを立てる。
+サービスが TCP のサービスでなければ、このオプションは効果がない。
+.TP
+.B KEEPALIVE
+サービスが TCP のサービスで、KEEPALIVE フラグが立てられた場合は、
+ソケットに SO_KEEPALIVE フラグが立てられる。
+サービスが TCP のサービスでなければ、このオプションは効果がない。
+.TP
+.B NOLIBWRAP
+サービスへのアクセスを判断するのに、tcpwrap の内部呼び出しを行わない。
+xinetd のように長い時間動くプロセスには libwrap 機能が使えないので、
+これは必要になる;
+その様な場合には tcpd プログラムを明示的に起動することができる(NAMEINARGS フラグの項を見よ)。
+.TP
+.B SENSOR
+サービスの代わりに、指定されたポートへのアクセスを検知するセンサーを使う。
+注意: これはステルススキャンを検知しない。
+必要ないということが分かっているサービスにのみ、このフラグを用いるべきである。
+このサービスのポートへアクセスがあると、IP アドレスが no_access
+リストへ追加される。
+以降の同じ IP アドレスからのアクセスは、deny_time で設定した期限が切れるまで
+拒否される。
+このリストへ費やす時間の長さは、deny_time 属性で設定が可能である。
+また、SENSOR フラグが指定された場合、同じ行に何が書かれていようと、
+サーバに INTERNAL 属性が指定されたと xinetd はみなす。
+あと一つ覚えておくべき重要なことは、socket_type を stream に設定した場合は、
+wait 属性は no に設定されなければならないということである。
+.TP
+.B IPv4
+サービスを IPv4 サービス(AF_INET)にする。
+.TP
+.B IPv6
+IPv6 がシステムで有効であれば、サービスを IPv6 サービス(AF_INET6)にする。
+.RE
+.TP
+.B disable
+"yes" または "no" の真偽値をとる。
+これによりサービスが使用不能になり、起動されなくなる。
+DISABLE フラグに関する記述を見よ。
+.RE
+.TP
+.B socket_type
+この属性に指定可能な値は以下:
+.RS
+.TP 12
+.I stream
+ストリーム型サービス
+.TP
+.I dgram
+データグラム型サービス
+.TP
+.I raw
+IP への直接制御が必要なサービス
+.TP
+.I seqpacket
+信頼できる連続的なデータグラム交換が必要なサービス
+.RE
+.TP
+.B protocol
+サービスに使われるプロトコルを指定する。
+プロトコルは
+.I /etc/protocols
+になければならない。
+この属性が指定されなかった場合、サービスのデフォルトのプロトコルが使われる。
+.TP
+.B wait
+この属性はサービスがシングルスレッドか、マルチスレッドかを決定する。
+値が \fIyes\fP ならシングルスレッドである;
+すなわち \fBxinetd\fP は、サーバーを起動したらそのサーバが死ぬまでは、
+そのサービスへの要求に対する処理を停止する。
+値が \fIno\fP ならサービスはマルチスレッドであり、
+\fBxinetd\fP はサービスへの新たな要求を処理し続ける。
+.TP
+.B user
+サーバプロセスの uid を指定する。
+ユーザ名は
+.I /etc/passwd
+になければならない。
+\fBxinetd\fP の実効ユーザIDがスーパーユーザーではない場合には、
+この属性は効果がない。
+.TP
+.B group
+サーバプロセスの gid を指定する。
+グループ名は
+.I /etc/group
+になければならない。
+\fBxinetd\fP の実効ユーザIDがスーパーユーザーではない場合には、
+この属性は効果がない。
+.TP
+.B instances
+サーバが同時にいくつサービスできるかを指定する(デフォルトは無制限)。
+この属性の値は数値か、もしくは無制限を意味する
+.B UNLIMITED
+のどちらかである。
+.TP
+.B nice
+サーバーの優先度を指定する。
+値は(負の)数値である; 詳しくは nice(3)(訳注:Linux では nice(2))を見よ。
+.TP
+.B server
+そのサービスのために実行するプログラムを指定する
+.TP
+.B server_args
+サーバに渡される引き数を指定する。
+\fBinetd\fP とは違い、サーバ名は \fIserver_args\fP には含め\fIない\fP。
+.TP
+.B only_from
+そのサービスを可能にするリモートホストを指定する。
+値は IP アドレスのリストで、以下の方法の任意の組合せである:
+.RS
+.TP 5
+.B a)
+%d.%d.%d.%d形式の数値アドレス。
+右端の部分が 0 であればワイルドカードとして扱われる
+(例えば、128.138.12.0 は 128.128.12 サブネットのすべてのホストに合致する)。
+0.0.0.0 はすべてのインターネットアドレスに合致する。
+IPv6 ホストは abcd:ef01::2345:6789 のような形式で指定する。
+IPv4 の場合のワイルドカードに関するルールは、IPv6 アドレスには適用されない
+.TP
+.B b)
+%d.%d.%d.{%d,%d,...}形式の組合せアドレス。
+4 つすべての部分が必要なわけではない
+(すなわち%d.%d.{%d,%d,...%d}形式も可である)。
+しかし、組合せの部分はアドレスの最後でなければならない。
+この形式は IPv6 ホストでは使えない。
+.TP
+.B c)
+.RI ( /etc/networks
+から得られる)ネットワーク名。
+この形式は IPv6 ホストでは使えない。
+.TP
+.B d)
+ホスト名。
+xinetd への接続がなされると、逆引きが行われ、
+得られた正規名(canonical name)と指定されたホスト名が比較される。
+\&.domain.com 形式のドメイン名を指定することもできる。
+クライアント IP の逆引き結果が .domain.com 内部なら、
+そのクライアントは合致したことになる。
+.TP
+.B e)
+1.2.3.4/32 形式の IPアドレス/ネットマスク 範囲指定。
+.RE
+.TP
+.B ""
+値の指定をせずにこの属性を指定すると、
+いかなるユーザにもサービス使用不可となる。
+.TP
+.B no_access
+そのサービスが使用できないリモートホストを指定する。
+値の指定方法は \fBonly_from\fP と同じである。
+これら二つの属性により \fBxinetd\fP は場所に基づいたアクセス制御を行う。
+サービスに対しこの二つのどちらも指定されない場合には、
+そのサービスは誰でも使用可になる。
+サービスに対しこの二つが共に指定された場合には、
+リモートホストのアドレスがよりよく(より正確に)合致した方に基づき、
+そのサービスがそのホストで使用できるかどうかが決定される
+(例えば、\fBonly_from\fP リストに 128.138.209.0 があり、
+\fBno_access\fP リストに 128.138.209.10 があった場合には、
+アドレスが 128.138.209.10 のホストはそのサービスへはアクセスできない)。
+.TP
+.B access_times
+サービスが使用できる時間間隔を指定する。
+間隔の形式は \fI時:分-時:分\fP である
+(間隔の境界での接続は受け付けられる\fIだろう\fP)。
+時間は 0 から 23 の範囲で、分は 0 から 59 である。
+.TP
+.B log_type
+サービスのログ出力がどこに送られるかを指定する。
+二つの形式がある:
+.RS
+.TP
+.B SYSLOG " \fIsyslog_facility [syslog_level]\fP"
+ログ出力は指定された機能分類(facility)で syslog に送られる。
+指定可能な機能分類は
+.IR daemon ", " auth ", " authpriv ", " user ", " mail , 
+.IR lpr ", " news ", " uucp ", " ftp ", " "local0-7"
+である。
+指定可能なレベル名は
+.IR emerg ", " alert ", " crit ", " err ", " warning ", " notice ", " info ", " debug
+である。
+レベル指定がない場合には、メッセージは
+.I info
+レベルで記録される。
+.TP
+.B FILE " \fIfile [soft_limit [hard_limit]]\fP"
+ログ出力は \fIfile\fP に追加され、そのファイルが無ければ作成される。
+ログファイルのサイズに関しては、二つの制限をオプションで指定できる。
+一つ目の制限は弱い制限(soft_limit)である;
+.B xinetd
+はこの制限を最初に越えたときにログ出力を行う
+.RB ( xinetd
+が syslog に出力する場合は、メッセージは優先度レベル
+.I alert
+で送られる)。
+二つ目の制限は強い制限(hard_limit)である;
+.B xinetd
+は影響があるサービス
+(ログファイルとして共通のログファイルを使っている場合には、
+二つ以上のサービスが影響受ける)
+のログ出力を中止し、その様にしたというメッセージをログ出力する
+.RB ( xinetd
+が syslog に出力する場合は、メッセージは優先度レベル
+.I alert
+で送られる)。
+強い制限が指定されていない場合は、デフォルトは弱い制限を 1% 増やした値である。
+ただし、増やすサイズはパラメータ
+.SM LOG_EXTRA_MIN
+と
+.SM LOG_EXTRA_MAX
+(デフォルトは 5K と 20K で、
+これらの定数は(コンパイル時に) \fIconfig.h\fP で定義される)
+の間になければならない。
+.RE
+.TP
+.B log_on_success
+サーバ起動時と終了時にどの情報をログ出力するかを指定する
+(サービス id はログエントリに必ず含まれる)。
+以下の値の任意の組合せが指定可能である:
+.RS
+.TP 12
+.B PID
+サーバのプロセスIDを出力する
+(サービスが \fBxinetd\fP によって実装され、
+他のプロセスへとフォークされない場合には、プロセス ID として 0 が出力される)
+.TP
+.B HOST
+リモートホストのアドレスを出力する
+.TP
+.B USERID
+RFC 1413 で示される ident(identification) プロトコルを使って、
+リモートユーザのユーザ ID を出力する。
+このオプションはマルチスレッドなストリームサービスにのみ使用できる。
+.TP
+.B EXIT
+サーバが終了したことを、終了ステータスまたは終了シグナルと共に出力する
+.RB ( PID
+オプションが指定されている場合にはプロセスIDも出力される)
+.TP
+.B DURATION 
+サービスセッションの時間を出力する
+.RE
+.TP
+.B log_on_failure
+サーバが起動できなかった場合
+(リソースが足りなかった場合と、アクセス制御による制限による場合のどちらでも)
+にどの情報をログ出力するかを指定する。
+サービスのidは失敗した理由と共に常にログエントリに含まれる。
+以下の値の任意の組合せが指定可能である:
+.RS
+.TP 12
+.B HOST
+リモートホストのアドレスを出力する
+.TP
+.B USERID
+RFC 1413 で示されるident プロトコルを使って、
+リモートユーザのユーザ ID を出力する。
+このオプションはマルチスレッドなストリームサービスにのみ使用できる。
+.TP 
+.B ATTEMPT
+失敗があったことを出力する
+(このオプションは他のすべてのオプションに含まれる)。
+.RE
+.TP
+.B rpc_version
+RPC サービスの RPC バージョンを指定する。
+バージョンには一つの数か、\fInumber\fP-\fInumber\fP 形式の範囲を指定できる。
+.TP
+.B rpc_number
+.I リストにない(UNLISTED)
+RPCサービスの番号を指定する
+(サービスが標準的なシステムファイルにリストされているなら、
+この属性は無視される)。
+.TP
+.B env
+この属性の値は 'name=value' 形式の文字列のリストである。
+これらの文字列はサーバが起動する前に、環境に加えられる
+(すなわち、
+サーバの環境は \fBxinetd\fP の環境に指定された文字列を加えたものである)。
+.TP
+.B passenv
+この属性の値は \fBxinetd\fP の環境変数のリストで、
+その環境がサーバへと渡される。
+空のリストは、
+.I env
+属性を使って明示的に指定されたものを除いて、
+どの変数もサーバへと渡されないことを意味する
+(この属性と
+.I env
+の組合せによって、
+サーバにどの環境が渡されるかを正確に指定できるということである)
+.TP
+.B port
+サービスのポートを指定する。
+.I /etc/services
+ファイルにリストされているサービスに対してこの属性が指定された場合、
+その値とファイルにあるポート番号とは等しくなければならない。
+.TP
+.B redirect
+TCP サービスの他ホストへの転送を指定する。
+このポートへの接続を xinetd が受け取ったら、プロセスを起動し、
+指定されたホストのポート番号への接続を確立し、
+二つのホストの間ですべてのデータを転送する。
+このオプションは、内部マシンが外界から見えない場合に有用である。
+書式は redirect = (IPアドレス) (ポート) である。
+IP アドレスの代わりにホスト名を使うこともできる。
+ホスト名検索は xinetd が起動した時の一回のみ行われ、
+最初に返された IP アドレスが xinetd が再起動されるまで使われる。
+このオプションが指定された場合には "server" 属性は必要ではない。
+"server" 属性が指定されても、こちらの属性の方が優先される。
+.TP
+.B bind
+マシンの特定のインタフェースにサービスを割り当てることを指定する。
+これは、安全なインタフェースであるローカルインタフェースで待ち(listen)、
+外部インタフェースではそうしないような telnet サーバが
+作成できることを意味する。
+また、あるインタフェースのあるポートで何かしている場合に、
+同時に違うインタフェースの同じポートで全く違ったことができる。
+書式は bind = (インタフェースの IP アドレス) である。
+.TP
+.B interface
+bind に同じ。
+.TP
+.B banner
+サービスへの接続が確立された時に、
+リモートホストで表示されるファイルの名前を指定する。
+このバナーはアクセス制御に関係なく表示される。
+接続がなされた場合には *いつでも* これが表示されるはずである。
+.TP
+.B banner_success
+サービスへの接続が許可された時に、
+リモートホストで表示されるファイルの名前を指定する。
+このバナーはサービスへのアクセスが許可されるとすぐに表示される。
+.TP
+.B banner_fail
+サービスへの接続が拒否された時に、
+リモートホストで表示されるファイルの名前を指定する。
+このバナーはアクセスが拒否されるとすぐに表示される。
+ユーザに対し、そのユーザが何か悪いことをしたということ、
+そしてこれ以上何もするなということを通知するのに有用である。
+.TP
+.B per_source
+発信元 IP アドレスごとの、そのサービスに対する最大サービス数を指定する。
+引き数には一つの整数か "UNLIMITED"(無制限) をとる。
+このオプションは、デフォルトセクション(後述)で指定することも可能である。
+.TP
+.B cps
+入ってくる接続の割合の制限。
+二つの引き数を取る。
+最初の引き数は 1 秒あたりに処理する接続数である。
+入ってくる接続の割合がこの値より大きくなると、
+サービスは一時的に使用不可になる。
+二つ目の引き数は、使用不可になってから再び使用可能になるまでに待つ秒数である。
+この設定のデフォルトは、50 の入ってくる接続と、待つのは 10 秒である。
+.TP
+.B max_load
+サービスが接続の受け付けを停止するようになる負荷(load)値を、
+浮動小数点数で指定する。
+例えば、2 や 2.5 である。
+負荷がこの値になると、サービスは接続の受け付けを停止する。
+これは 1 分間の平均負荷値(load average)である。
+これは OS に依存した機能で、Linux と Solaris でだけサポートされる。
+.TP
+.B groups
+.\"SEKINE 実効 GID 以外に有効な group を、一般には何て呼ぶのでしょう?
+"yes" または "no" を引き数にとる。
+groups 属性が "yes" の場合、サーバの実効 UID でアクセスできる
+グループにアクセスできるようにサーバが実行される。
+groups 属性が "no" の場合、サーバは他のグループなしで実行される。
+多くの BSD システムでは、この属性は "yes" にされなければならない。
+このオプションは、デフォルトセクションで指定することも可能である。
+.TP
+.B umask
+サービスが継承する umask を指定する。
+8進数で指定する。
+全てのサービスの umask を設定するために、"defaults" セクションで
+指定することも可能である。
+xinetd は自分自身の umask を、継承した umask と 022 との OR に設定する。
+umask オプションが指定されなければ、この xinetd の umask 値が全ての
+子プロセスに継承される。
+.TP
+.B enabled
+有効にするサービス名のリストを指定する。
+この属性の引数としてリストされたサービスだけが有効になる。
+すなわち、残りのサービスは無効になる。
+"disable" 属性と "DISABLE" フラグは、この属性でリストされたかに関係なく
+サービスが有効になるのを防ぐことができることに注目せよ。
+.TP
+.B include
+"include /etc/xinetd/service" という形式で、ファイル名を指定する。
+そのファイルは新たな設定ファイルとして解析(parse)される。
+xinetd.conf の include が指定された場所にファイルを貼り付けるのとは、
+同じではない。
+取り込まれたファイルは xinetd.conf と同じ形式でなければならない。
+サービス定義の内部でこの属性を指定してはいけない。
+サービス定義の外側で指定されなければならない。
+.TP
+.B includedir
+"includedir /etc/xinetd.d" という形式でディレクトリ名を指定する。
+そのディレクトリのすべてのファイル(ただし名前にドット('.')を含むファイルと、
+名前がチルダ('~')で終わるファイル以外)
+は xinetd 設定ファイルとして解析される。
+ファイルは C ロケールでのアルファベット順で解析される。
+.B includedir 
+はサービス定義の内部で指定されてはならない。
+.TP
+.B rlimit_as
+サービスの、アドレス空間資源の制限を設定する。
+パラメータが一つ必要で、制限するバイト数
+(キロバイト・メガバイトを指定するのに K, M が使える)を表す正の整数か、
+"UNLIMITED" (無制限)を指定する。
+Linux の libc の malloc の実装方法の関係で、
+rlimit_data, rlimit_rss, rlimit_stack よりもこの制限を設定する方が有用である。
+この資源制限は Linux システムでのみ実装されている。
+.TP
+.B rlimit_cpu
+サービスが使える最大 CPU 時間(秒単位)を設定する。
+パラメータが一つ必要で、CPU 時間を制限する正の整数か、
+"UNLIMITED" (無制限)を指定する。
+.TP
+.B rlimit_data
+サービスの最大データサイズの制限を設定する。
+パラメータが一つ必要で、バイト数を表す正の整数か、
+"UNLIMITED" (無制限)を指定する。
+.TP
+.B rlimit_rss
+サービスの最大常駐サイズの制限を設定する。
+この値を小さくすれば、メモリが少ない時に
+プロセスがディスクへとスワップアウトされる候補になりやすくなる。
+パラメータが一つ必要で、バイト数を表す正の整数か、
+"UNLIMITED" (無制限)を指定する。
+.TP
+.B rlimit_stack
+サービスの最大スタックサイズを設定する。
+パラメータが一つ必要で、バイト数を表す正の整数か、
+"UNLIMITED" (無制限)を指定する。
+.TP
+.B deny_time
+SENSOR を作動させた何者かの IP アドレスからの、全てのサービスへのアクセスを
+拒否する期間。単位は分。
+指定可能なオプションは FOREVER, NEVER そして数値である。
+FOREVER では、xinetd が再起動されるまでその IP アドレスは消去されない。
+NEVER は迷惑な IP アドレスをログに取る効果だけである。
+典型的な値は 60 分である。
+これなら、正当な目的でその IP アドレスが再利用されるのを許可する一方で、
+殆んどの DoS 攻撃を防ぐことができる。
+このオプションは SENSOR フラグとの組合わせで用いること。
+.LP
+それぞれのサービスで以上の属性をすべて指定する必要はない。
+必要な属性は以下の通り:
+.sp 1
+.PD .1v
+.RS
+.TP 18
+.B socket_type
+.TP
+.B user
+(非\fI内部\fPサービスのみ)
+.TP
+.B server
+(非\fI内部\fPサービスのみ)
+.TP
+.B wait
+.TP
+.B protocol
+(\fIRPC\fP と \fIリストにない(UNLISTED)\fPサービスのみ)
+.TP
+.B rpc_version
+(\fIRPC\fP サービスのみ)
+.TP
+.B rpc_number
+(\fIリストにない\fP RPC サービスのみ)
+.TP
+.B port
+(\fIリストにない\fP非 RPC サービスのみ)
+.RE
+.PD
+.LP
+以下の属性はすべての代入演算子をサポートする:
+.sp 1
+.PD .1v
+.RS
+.TP 18
+.B only_from
+.TP
+.B no_access
+.TP
+.B log_on_success
+.TP
+.B log_on_failure
+.TP
+.B passenv
+.TP
+.B env
+.RB ( '-='
+演算子はサポートしない)
+.RE
+.PD
+.LP
+これらの属性は一つのサービスエントリで複数回あらわれてもよい。
+残りの属性は
+.B '='
+演算子のみをサポートし、一つのサービスエントリで一回以下しか現れない。
+.LP
+また、設定ファイルは以下の形式のデフォルトエントリを一つ持つ。
+.LP
+.RS
+.nf
+.ft B
+defaults
+{
+.RS
+.ft B
+<属性> = <値> <値> ...
+.I "..."
+.RE
+.ft B
+}
+.ft R
+.fi
+.RE
+.LP
+このエントリは、そのサービスで属性値が指定されなかった場合の、
+デフォルトの属性値を決定する。指定可能なデフォルトの属性は:
+.sp 1
+.PD .1v
+.RS
+.TP 18
+.B log_type
+.TP
+.B bind 
+.TP
+.B per_source 
+.TP
+.B umask 
+.TP
+.B log_on_success
+(積算効果)
+.TP
+.B log_on_failure
+(積算効果)
+.TP
+.B only_from
+(積算効果)
+.TP
+.B no_access
+(積算効果)
+.TP
+.B passenv
+(積算効果)
+.TP
+.B instances
+.TP
+.B disabled
+(積算効果)
+.TP
+.B enabled
+(積算効果)
+.RE
+.PD
+.LP
+積算効果を持つ属性は、複数回指定することができ、その度に積み上げられる
+(すなわち '=' は '+=' と同じことをする)。
+.I disabled
+の例外を除いて、サービスエントリで指定された場合と同じ意味を持つ。
+.I disabled
+は、設定ファイルにエントリがあるものでさえも使用不可にする。
+これにより、コメントアウトする代わりに、
+.I disabled
+属性を使って使用不可にするサービスを、素早く再設定できる。
+この属性の値は、スペースで区切られた、サービス id のリストである。
+.I enabled
+は disabled と同じ特性を持つ。違いは
+.I enabled
+は使用可能にするサービスのリストであるということだ。もし
+.I enabled
+が指定された場合、指定されたサービスだけが使用可能になる。
+.I enabled
+が指定されなかった場合は、すべてのサービスが使用可能と仮定され、
+.I disabled
+にリストされたものが除外される。
+.\" *********************** INTERNAL SERVICES ****************************
+.SH 内部サービス
+.LP
+\fBxinetd\fP は以下のサービスを内部的に提供する
+(ストリーム型、データグラム型の両方とも):
+.IR echo ", " time ", " daytime ", " chargen ", " discard
+である。
+\fBxinetd\fP が他のプロセスへと fork する必要がないということを除けば、
+これらのサービスは、他のサービスと同様にアクセス制限の下にある。
+これら
+.RI ( time ", " daytime
+と、データグラム型の
+.IR echo ", " chargen ", " discard )
+は
+.B instances
+の数に制限がない。
+.LP
+.B xinetd
+はまた、二つの
+.I UNLISTED
+なストリーム型内部サービスを提供する:
+.I servers
+と
+.I services
+である。
+前者は実行しているサーバの情報を表示し、
+一方後者は現在有効なサービスのリストを提供する。
+一行に一つのサービスで、
+各行はサービス名・プロトコル(例えば "tcp")・ポート番号からなる。
+.LP
+今や管理インタフェースがあり、それは内部サービスである。
+サービス名 "xadmin" は予約されており、それは常に内部サービスである。
+このサービスにはポート番号を指定しなければならず、
+多分 IP ベースのアクセス制御もしなければならないだろう。
+なぜならば、これを執筆している時点では、
+パスワード保護を何も持たないからである。
+このポートに telnet し、xinetd にいくらかの問い合わせをすることができる。
+.\" *********************** TCPMUX Services ****************************
+.SH "TCPMUX サービス"
+.LP
+.B xinetd
+は RFC 1078 に準拠した TCPMUX サービスをサポートする。
+サービスがそれに対応する well-known ポートを持たなくても、
+well-known ポートである TCPMUX を通じてアクセスができる。
+.LP
+TCPMUX を通じてアクセスされるサービスは、それぞれ
+.B /etc/xinetd.conf
+にサービスエントリーを持つか、もしくは
+.B includedir
+ディレクトリの設定ファイルにサービスエントリがなければならない。
+.LP
+.\"SEKINE (as defined …) の訳に自信がありません
+.\"SEKINE organization ID はドメイン名としました
+.I service_name
+フィールド(各
+.B xinetd
+の設定ファイルで、サービスの最初で定義される)は
+.B xinetd
+に(RFC 1078 プロトコルによって)渡される文字列に等しくなければならない。
+それはリモートのサービス要求者が最初に well-known ポートである TCPMUX に
+アクセスしたときに渡される。
+プライベートなプロトコルは高い確率で一意になるサービス名を使うべきだ。
+ひとつの方法は、ドメイン名の前にサービス名を付加することである、
+.LP
+.I type
+フィールドは
+.B TCPMUX
+または
+.B TCPMUXPLUS
+のどちらかである。
+.B TCPMUXPLUS
+が指定された場合、
+.B xinetd
+はサービスを初期化する前にプロセス呼び出して、
+(RFC 1078 で定義される)プロトコルの最初のハンドシェイクを処理する。
+type が
+.B TCPMUX
+の場合は、ハンドシェークを遂行するために開始されているサーバが対処する。
+.LP
+サービスが標準的なシステムファイル
+(RPC サービスなら、
+.IR /etc/rpc ,
+RPCサービスでないなら
+.I /etc/services
+など)
+に無い場合は、
+.I type
+には
+.B UNLISTED
+も指定する。
+.LP	
+これらのサービスに対する
+.I socket_type
+は
+.B stream
+でなければならず、また
+.I protocal
+は
+.B tcp
+でなければならない。
+.LP
+以下は TCPMUX サービス設定のサンプルである。
+.PD .1v
+.RS
+.nf
+
+service myorg_server
+{
+.RS
+.IP disable 20
+= no
+.IP type
+= TCPMUX
+.IP socket_type
+= stream
+.IP protocol
+= tcp
+.IP wait
+= no
+.IP user
+= root
+.IP server
+= /usr/etc/my_server_exec
+.RE
+}
+.fi
+.RE
+.PD
+.LP
+well-known ポートの TCPMUX を通じてアクセスされる各サービスの
+サービスエントリの他に、TCPMUX 自身のサービスエントリも
+.B xinetd
+の設定の中に含まれなければならない。
+以下のサンプルを見よ:
+.PD .1v
+.RS
+.nf
+
+service tcpmux
+{
+.RS
+.IP type 20
+= INTERNAL
+.IP id
+= tcpmux
+.IP socket_type
+= stream
+.IP protocol
+= tcp
+.IP user
+= root
+.IP wait
+= no
+.RE
+}
+.fi
+.RE
+.PD                                                                               
+.\" *********************** NOTES ****************************
+.SH 注意
+.IP 1. 4
+以下のサービス属性は、再設定で変更することが\fIできない\fP:
+.BR socket_type ", " wait ", " protocol ", " type
+である。
+.IP 2.
+属性
+.I only_from
+と
+.I no_access
+が(直接、\fIdefaults\fPのどちらでも)指定されなかったサービスは、
+アドレスの照合は成功したものとして扱われる
+(すなわち、アクセスは拒否されない)。
+.IP 3.
+アドレス照合はリモートホストの IP アドレスとを基にしており、
+ドメインアドレスには依らない。
+長い時間がかかるリモートホストの名前検索を避けられるので、そうなっている
+(なぜならば、
+.B xinetd
+は単一スレッドであり、
+名前検索はデーモンがその検索を終えるまで、
+他の全ての要求を受け付けるのを妨げるからである)。
+この枠組の悪い面は、リモートホストの IP アドレスが変わってしまうと
+.B xinetd
+を再設定するまでは、アクセスが拒否されてしまうことである。
+アクセスが実際に供されるかどうかは、
+新たな IP アドレスが許可されたアクセスにあるかどうかによる。
+例えば、ホストの IP アドレスが 1.2.3.4 から 1.2.3.5 に変更され、
+only_from が 1.2.3.0 と指定されていれば、アクセスは拒否されない。
+.IP 4.
+ログオプション
+.B USERID
+が指定され、もしリモートホストが ident サーバを動かしてないか、または
+ident サーバが壊れた返事を送り返してきたら、
+サービスフラグ
+.I IDONLY
+が使われない限り、アクセスは拒否されない。
+.IP 5.
+プロセスをフォークし、
+それがリモートホストとローカルサーバの間でフィルタとして振舞うことにより、
+横取りが機能する。
+これは明らかに性能に影響を及ぼすので、
+各サービスごとのセキュリティと性能との間の妥協は、あなたに任されている。
+以下の表は横取りのオーバーヘッドを示す。
+最初の表は様々なデータグラムサイズでの、UDP ベースのサービスにおけるデータグラムあたりのオーバーヘッドである。
+TCP ベースのサービスについては、横取りによるバンド幅の減少を計測した。
+計測の間は、ある量のデータをクライアントからサーバへ送った
+(時間のオーバーヘッドは UDP ベースのサービスと同じはずだが、
+連続するデータ転送の最初のパケットだけにかかる)。
+データ量は表の
+.IR システムコール数 x システムコールあたりのデータ量
+から得られる。すなわち、各
+.I "send(2)"
+システムコールはそれほど多くのデータを転送した。
+バンド幅の減少は、秒あたりのバイト数と、
+横取りが行われなかった場合からの割合で与えられる。
+全ての計測は SunOS 4.1 が走る SparcStation IPC で行われた。
+.sp 1
+.RS
+.RS
+.PD .1v
+.TP 28
+データグラムサイズ(バイト)
+遅延(ミリ秒)
+.TP
+--------------------------
+------------
+.TP
+64
+1.19
+.TP
+256
+1.51
+.TP
+1024
+1.51
+.TP
+4096
+3.58
+.sp 2
+.TP
+送信バイト
+バンド幅減少
+.TP
+----------
+------------
+.TP
+10000x64
+941 (1.2%)
+.TP
+10000x256
+4,231 (1.8%)
+.TP
+10000x1024
+319,300 (39.5%)
+.TP
+10000x4096
+824,461 (62.1%)
+.RE
+.RE
+.sp 1
+.\" *********************** EXAMPLE ****************************
+.SH 例
+.LP
+.PD .1v
+.RS
+.nf
+#
+# xinetd のサンプル設定ファイル
+#
+
+defaults
+{
+.RS
+.IP log_type 20
+= FILE /var/log/servicelog
+.IP log_on_success
+= PID
+.IP log_on_failure 
+= HOST RECORD
+.IP only_from
+= 128.138.193.0 128.138.204.0
+.IP only_from
+= 128.138.252.1 
+.IP instances
+= 10
+.IP disabled
+= rstatd
+.RE
+}
+
+#
+# 注意 1: protocol 属性は必要ない
+# 注意 2: instances 属性はデフォルト値を上書き
+#
+service login
+{
+.RS
+.IP socket_type 20
+= stream
+.IP protocol
+= tcp
+.IP wait
+= no
+.IP user
+= root
+.IP server
+= /usr/etc/in.rlogind
+.IP instances
+= UNLIMITED
+.RE
+}
+
+#
+# 注意 1: instances 属性はデフォルト値を上書き
+# 注意 2: log_on_success フラグは引き数
+#
+service shell
+{
+.RS
+.IP socket_type 20
+= stream
+.IP wait
+= no
+.IP user
+= root
+.IP instances
+= UNLIMITED
+.IP server
+= /usr/etc/in.rshd
+.IP log_on_success
++= HOST RECORD
+.RE
+}
+
+service ftp
+{
+.RS
+.IP socket_type 20
+= stream
+.IP wait
+= no
+.IP nice
+= 10
+.IP user
+= root
+.IP server
+= /usr/etc/in.ftpd
+.IP server_args
+= -l
+.IP instances
+= 4
+.IP log_on_success
++= DURATION HOST USERID
+.IP access_times
+= 2:00-9:00 12:00-24:00
+.RE
+}
+
+# telnet セッションを、8 メガバイトのメモリーと子プロセスを
+# 合計 20 CPU 秒に制限
+service telnet
+{
+.RS
+.IP socket_type 20
+= stream
+.IP wait
+= no
+.IP nice
+= 10
+.IP user
+= root
+.IP server
+= /usr/etc/in.telnetd
+.IP rlimit_as
+= 8M
+.IP rlimit_cpu
+= 20
+.RE
+}
+
+#
+# このエントリとその次は、内部サービスを指定する。
+# 違うソケットタイプの同じサービスなので、
+# 各エントリを唯一に識別するために id 属性を用いる
+#
+service echo
+{
+.RS
+.IP id 20
+= echo-stream
+.IP type
+= INTERNAL
+.IP socket_type
+= stream
+.IP user
+= root
+.IP wait
+= no
+.RE
+}
+
+service echo
+{
+.RS
+.IP id 20
+= echo-dgram
+.IP type
+= INTERNAL
+.IP socket_type
+= dgram
+.IP user
+= root
+.IP wait
+= no
+.RE
+}
+
+service servers
+{
+.RS
+.IP type 20
+= INTERNAL UNLISTED
+.IP protocol
+= tcp
+.IP port
+= 9099
+.IP socket_type
+= stream
+.IP wait
+= no
+.RE
+}
+
+#
+# RPC サービスのサンプル
+#
+service rstatd
+{
+.RS
+.IP type 20
+= RPC
+.IP socket_type
+= dgram
+.IP protocol
+= udp
+.IP server
+= /usr/etc/rpc.rstatd
+.IP wait
+= yes
+.IP user
+= root
+.IP rpc_version
+= 2-4
+.IP env
+= LD_LIBRARY_PATH=/etc/securelib
+.RE
+}
+
+#
+# リストにないサービスのサンプル
+#
+service unlisted
+{
+.RS
+.IP type 20
+= UNLISTED
+.IP socket_type
+= stream
+.IP protocol
+= tcp
+.IP wait
+= no
+.IP server
+= /home/user/some_server
+.IP port
+= 20020
+.RE
+}
+.RE
+.PD
+.\" *********************** SEE ALSO ****************************
+.SH 関連項目
+.I "xinetd(1L),"
+.LP
+.I "xinetd.log(5)"
+.LP
+Postel J.,
+.IR "Echo Protocol" ,
+RFC 862,
+May 1983
+.LP
+Postel J.,
+.IR "Discard Protocol" ,
+RFC 863,
+May 1983
+.LP
+Postel J.,
+.IR "Character Generator Protocol" ,
+RFC 864,
+May 1983
+.LP
+Postel J.,
+.IR "Daytime Protocol" ,
+RFC 867,
+May 1983
+.LP
+Postel J., Harrenstien K.,
+.IR "Time Protocol" ,
+RFC 868,
+May 1983
+.LP
+M. Lottor,
+.IR "TCP Port Service Multiplexer (TCPMUX)" ,
+RFC 1078,
+Nov 1988
+.LP
+StJohns M.,
+.IR " Identification Protocol" ,
+RFC 1413,
+February 1993
+.\" *********************** BUGS ****************************
+.SH バグ
+.LP
+.B INTERCEPT
+フラグが使われなかった場合、
+\fIwait\fP が \fIyes\fP で \fIsocket_type\fP が \fIstream\fP のときは、
+リモートホストアドレスのアクセス制御は行われない。
+.LP
+.B INTERCEPT
+フラグが使われなかった場合、
+\fIwait\fP が \fIyes\fP で \fIsocket_type\fP が \fIdgram\fP のサービスの
+リモートホストアドレスによるアクセス制御は、最初のパケットにのみ行われる。
+アクセス制御リストにないホストからのパケットをサーバは受け付けてしまう。
+これは
+.B RPC
+サービスの場合に起きる。
+.LP
+環境変数に
+.SM 空白
+を入れる方法がない。
+.LP
+\fIwait\fP が \fIyes\fP で \fIsocket_type\fP が \fIstream\fP のとき、
+接続が受け付けられた場合のみ、ソケットがサーバへ渡される。
+.LP
+.B INTERCEPT
+フラグは、内部サービスとマルチスレッドサービスではサポートされない。

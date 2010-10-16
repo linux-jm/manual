@@ -1,0 +1,532 @@
+.\" Copyright 2003,2004 Andi Kleen, SuSE Labs.
+.\" and Copyright 2007 Lee Schermerhorn, Hewlett Packard
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" 2006-02-03, mtk, substantial wording changes and other improvements
+.\" 2007-08-27, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+.\"     more precise specification of behavior.
+.\"
+.\" Translated 2006-08-14, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.39
+.\" Updated 2007-01-07, Akihiro MOTOKI, LDP v2.43
+.\" Updated 2008-02-13, Akihiro MOTOKI, LDP v2.77
+.\" Updated 2008-08-06, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2008-08-21, Akihiro MOTOKI, LDP v3.07
+.\" Updated 2008-09-02, Akihiro MOTOKI, LDP v3.08
+.\" Updated 2008-11-19, Akihiro MOTOKI, LDP v3.13
+.\"
+.\"WORD:	anonymous memory	無名メモリ
+.\"
+.TH SET_MEMPOLICY 2 2008-08-15 Linux "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O set_mempolicy \- set default NUMA memory policy for a process and its children
+set_mempolicy \- プロセスとその子プロセスの NUMA メモリの
+デフォルトポリシーを設定する
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B "#include <numaif.h>"
+.sp
+.BI "int set_mempolicy(int " mode ", unsigned long *" nodemask ,
+.BI "                  unsigned long " maxnode );
+.sp
+.\"O Link with \fI\-lnuma\fP.
+\fI\-lnuma\fP でリンクする。
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .BR set_mempolicy ()
+.\"O sets the NUMA memory policy of the calling process,
+.\"O which consists of a policy mode and zero or more nodes,
+.\"O to the values specified by the
+.\"O .IR mode ,
+.\"O .I nodemask
+.\"O and
+.\"O .I maxnode
+.\"O arguments.
+.BR set_mempolicy ()
+は、呼び出し元プロセスの NUMA ポリシーを
+.I policy
+に設定する。
+NUMA ポリシーはポリシーモードと 0 個以上のノードから構成され、
+設定内容は引き数
+.IR mode ,
+.IR nodemask ,
+.I maxnode
+により指定される。
+
+.\"O A NUMA machine has different
+.\"O memory controllers with different distances to specific CPUs.
+.\"O The memory policy defines from which node memory is allocated for
+.\"O the process.
+NUMA (非対称メモリアクセス) マシンでは、CPU により
+メモリコントローラが異なり、距離も異なっている。
+メモリポリシーは、どのノードからメモリをそのプロセスに
+割り当てられるかを定めるものである。
+
+.\"O This system call defines the default policy for the process.
+.\"O The process policy governs allocation of pages in the process's
+.\"O address space outside of memory ranges
+.\"O controlled by a more specific policy set by
+.\"O .BR mbind (2).
+.BR set_mempolicy ()
+は、プロセスのデフォルトポリシーを定める。
+プロセスのポリシーは、
+.BR mbind (2)
+で設定される特定のポリシーにより制御されるメモリ領域以外の
+プロセスのアドレス空間におけるページの割り当てに適用される。
+.\"O The process default policy also controls allocation of any pages for
+.\"O memory mapped files mapped using the
+.\"O .BR mmap (2)
+.\"O call with the
+.\"O .B MAP_PRIVATE
+.\"O flag and that are only read [loaded] from by the process
+.\"O and of memory mapped files mapped using the
+.\"O .BR mmap (2)
+.\"O call with the
+.\"O .B MAP_SHARED
+.\"O flag, regardless of the access type.
+プロセスのデフォルトポリシーは、
+.B MAP_PRIVATE
+フラグを指定した
+.BR mmap (2)
+を使ってマップされたメモリマップ・ファイルに対する読み出し専用
+(ロードされるだけ) のページの割り当てにも適用される。
+また、
+.B MAP_SHARED
+フラグを指定した
+.BR mmap (2)
+を使ってマップされたメモリマップ・ファイルに対するページの割り当てにも
+適用される (この場合はページのアクセス種別に関わらず適用される) 。
+.\"O The policy is only applied when a new page is allocated
+.\"O for the process.
+.\"O For anonymous memory this is when the page is first
+.\"O touched by the application.
+設定したポリシーは、プロセスに新規のページが割り当てられるときにのみ
+適用される。無名メモリ (anonymous memory) の場合、新規ページの割り当ては
+アプリケーションが初めてページにアクセスした際に行われる。
+
+.\"O The
+.\"O .I mode
+.\"O argument must specify one of
+.\"O .BR MPOL_DEFAULT ,
+.\"O .BR MPOL_BIND ,
+.\"O .B MPOL_INTERLEAVE
+.\"O or
+.\"O .BR MPOL_PREFERRED .
+.\"O All modes except
+.\"O .B MPOL_DEFAULT
+.\"O require the caller to specify via the
+.\"O .I nodemask
+.\"O argument one or more nodes.
+.I mode
+引き数には
+.BR MPOL_DEFAULT ,
+.BR MPOL_BIND ,
+.BR MPOL_INTERLEAVE ,
+.B MPOL_PREFERRED
+のいずれか一つを指定してしなければならない。
+.B MPOL_DEFAULT
+以外のポリシーの場合、呼び出し元は
+.I nodemask
+引き数で一つ以上のノードを指定する必要がある。
+
+.\"O The
+.\"O .I mode
+.\"O argument may also include an optional
+.\"O .IR "mode flag" .
+.\"O The supported
+.\"O .I "mode flags"
+.\"O are:
+.I mode
+引き数には、追加で
+.I "モードフラグ"
+を含めることもできる。
+サポートされている
+.I "モードフラグ"
+は以下の通りである。
+.TP
+.\"O .BR MPOL_F_STATIC_NODES " (since Linux 2.6.26)"
+.BR MPOL_F_STATIC_NODES " (Linux 2.6.26 以降)"
+.\"O A nonempty
+.\"O .I nodemask
+.\"O specifies physical node ids.
+.\"O Linux does will not remap the
+.\"O .I nodemask
+.\"O when the process moves to a different cpuset context,
+.\"O nor when the set of nodes allowed by the process's
+.\"O current cpuset context changes.
+空でない
+.I nodemask
+は、物理ノード ID である。
+Linux では、そのプロセスが異なる CPU 集合コンテキスト (cpuset context)
+に移動した場合でも、そのプロセスの現在の CPU 集合コンテキストで
+許可されているノード集合が変化した場合でも、
+.I nodemask
+をマッピングし直すことはない。
+.TP
+.\"O .BR MPOL_F_RELATIVE_NODES " (since Linux 2.6.26)"
+.BR MPOL_F_RELATIVE_NODES " (Linux 2.6.26 以降)"
+.\"O A nonempty
+.\"O .I nodemask
+.\"O specifies node ids that are relative to the set of
+.\"O node ids allowed  by the process's current cpuset.
+空でない
+.I nodemask
+は、そのプロセスの現在の CPU 集合で許可されているノード ID 集合
+における相対的なノード ID である。
+.PP
+.\"O .I nodemask
+.\"O points to a bit mask of node IDs that contains up to
+.\"O .I maxnode
+.\"O bits.
+.\"O The bit mask size is rounded to the next multiple of
+.\"O .IR "sizeof(unsigned long)" ,
+.\"O but the kernel will only use bits up to
+.\"O .IR maxnode .
+.I nodemask
+は、最大で
+.I maxnode
+ビットから構成されるノード ID のビットマスクを指す。
+ビットマスクの大きさは、直近の
+.I sizeof(unsigned long)
+の倍数に切り上げられるが、カーネルが使用するのは
+.I maxnode
+個までのビットだけである。
+.\"O A NULL value of
+.\"O .I nodemask
+.\"O or a
+.\"O .I maxnode
+.\"O value of zero specifies the empty set of nodes.
+.\"O If the value of
+.\"O .I maxnode
+.\"O is zero,
+.\"O the
+.\"O .I nodemask
+.\"O argument is ignored.
+NULL 値の
+.I nodemask
+もしくは値が 0 の
+.I maxnode
+はノードの空集合を表す。
+.I maxnode
+の値が 0 の場合、
+.I nodemask
+引き数は無視される。
+
+.\"O Where a
+.\"O .I nodemask
+.\"O is required, it must contain at least one node that is on-line,
+.\"O allowed by the process's current cpuset context,
+.\"O [unless the
+.\"O .B MPOL_F_STATIC_NODES
+.\"O mode flag is specified],
+.\"O and contains memory.
+.I nodemask
+が必須の場面では、
+.I nodemask
+に、オンラインで、そのプロセスの現在の CPU 集合コンテキストで
+許可されており
+.RB ( MPOL_F_STATIC_NODES
+モードフラグが指定されていない場合)、メモリがあるノードが
+少なくとも一つ入っていなければならない。
+.\"O If the
+.\"O .B MPOL_F_STATIC_NODES
+.\"O is set in
+.\"O .I mode
+.\"O and a required
+.\"O .I nodemask
+.\"O contains no nodes that are allowed by the process's current cpuset context,
+.\"O the memory policy reverts to
+.\"O .IR "local allocation" .
+.\"O This effectively overrides the specified policy until the process's
+.\"O cpuset context includes one or more of the nodes specified by
+.\"O .IR nodemask.
+.I mode
+に
+.B MPOL_F_STATIC_NODES
+がセットされ、
+.I nodemask
+が必須の場面で、
+.I nodemask
+に、そのプロセスの現在の CPU 集合コンテキストで許可されたノードが
+一つも含まれていない場合には、メモリのポリシーとしてデフォルトの
+「ローカルから割り当て (local allocation)」が適用される。
+そのプロセスの CPU 集合コンテキストが
+.I nodemask
+で指定されたノードを少なくとも一つ含むようになるまでは、
+結果的に指定された動作が上書きされることになる。
+
+.\"O The
+.\"O .B MPOL_DEFAULT
+.\"O mode specifies that any nondefault process memory policy be removed,
+.\"O so that the memory policy "falls back" to the system default policy.
+.\"O The system default policy is "local allocation"--
+.\"O i.e., allocate memory on the node of the CPU that triggered the allocation.
+.\"O .I nodemask
+.\"O must be specified as NULL.
+.\"O If the "local node" contains no free memory, the system will
+.\"O attempt to allocate memory from a "near by" node.
+.B MPOL_DEFAULT
+モードは、デフォルトではないプロセスのメモリポリシーを削除することを
+指定するものである。これにより、メモリポリシーはシステムの
+デフォルトポリシーに「戻る」ことになる。
+システムのデフォルトポリシーは「ローカルからの割り当て (local allocation)」、
+つまりメモリ割り当てのきっかけとなった CPU のノードのメモリが割り当てられる。
+.I nodemask
+には NULL を指定しなければならない。
+「自ノード (local node)」に空きメモリが全くない場合、システムは
+「近くの (near by) ノード」からメモリを割り当てようと試みる。
+
+.\"O The
+.\"O .B MPOL_BIND
+.\"O mode defines a strict policy that restricts memory allocation to the
+.\"O nodes specified in
+.\"O .IR nodemask .
+.\"O If
+.\"O .I nodemask
+.\"O specifies more than one node, page allocations will come from
+.\"O the node with the lowest numeric node ID first, until that node
+.\"O contains no free memory.
+.\"O Allocations will then come from the node with the next highest
+.\"O node ID specified in
+.\"O .I nodemask
+.\"O and so forth, until none of the specified nodes contain free memory.
+.\"O Pages will not be allocated from any node not specified in the
+.\"O .IR nodemask .
+.B MPOL_BIND
+モードは厳密なポリシーで、メモリ割り当ては
+.I nodemask
+に指定されたノードに限定される。
+.I nodemask
+に 2 個以上のノードが指定された場合、ページの割り当ては
+ノード ID が数字として最小のノードから開始され、
+そのノードに空きメモリがなくなるまでそのノードから
+ページ割り当てが行われる。そのノードに空きメモリがなくなったら、
+.\"motoki: the next highest は the next lowest の間違い？
+次に小さなノード ID を持つノードからページ割り当てが行われる。
+これを、
+.I nodemask
+で指定された全てのノードで空きメモリがなくなるまで繰り返す。
+.I nodemask
+で指定された以外のノードからはページの割り当ては行われない。
+
+.\"O .B MPOL_INTERLEAVE
+.\"O interleaves page allocations across the nodes specified in
+.\"O .I nodemask
+.\"O in numeric node ID order.
+.\"O This optimizes for bandwidth instead of latency
+.\"O by spreading out pages and memory accesses to those pages across
+.\"O multiple nodes.
+.\"O However, accesses to a single page will still be limited to
+.\"O the memory bandwidth of a single node.
+.B MPOL_INTERLEAVE
+では、ページ割り当てを
+.I nodemask
+に指定されたノードの間でノード ID の数字順で交互に行う。
+このポリシーでは、複数のノードにページを広げて配置し、これらのページへのメモリ
+アクセスを分散することで、遅延ではなく、帯域を最適化する。
+ただし、一つのページへのアクセスに関しては依然として一つのノードのメモリ帯域
+が上限となる。
+.\" NOTE:  the following sentence doesn't make sense in the context
+.\" of set_mempolicy() -- no memory area specified.
+.\" To be effective the memory area should be fairly large,
+.\" at least 1MB or bigger.
+
+.\"O .B MPOL_PREFERRED
+.\"O sets the preferred node for allocation.
+.\"O The kernel will try to allocate pages from this node first
+.\"O and fall back to "near by" nodes if the preferred node is low on free
+.\"O memory.
+.\"O If
+.\"O .I nodemask
+.\"O specifies more than one node ID, the first node in the
+.\"O mask will be selected as the preferred node.
+.\"O If the
+.\"O .I nodemask
+.\"O and
+.\"O .I maxnode
+.\"O arguments specify the empty set, then the policy
+.\"O specifies "local allocation"
+.\"O (like the system default policy discussed above).
+.B MPOL_PREFERRED
+は、割り当て時に優先されるノード (preferred node) を設定する。
+カーネルはまず優先ノードからページ割り当てを行おうとし、
+優先ノードに空きメモリが少ない場合に「近くの (near by)」ノードから
+割り当てを行う。
+.I nodemask
+に複数のノード ID が指定された場合は、
+.I nodemask
+内の最初のノードが優先ノードとして選択される。
+引き数
+.IR nodemask ,
+.I maxnode
+で空集合が指定された場合は、ポリシーは (上述のシステムの
+デフォルトポリシーと同様に) 「ローカルからの割り当て」となる。
+
+.\"O The process memory policy is preserved across an
+.\"O .BR execve (2),
+.\"O and is inherited by child processes created using
+.\"O .BR fork (2)
+.\"O or
+.\"O .BR clone (2).
+プロセスのメモリポリシーは
+.BR execve (2)
+の前後で保持され、
+.BR fork (2)
+や
+.BR clone (2)
+を使って作成された子プロセスに継承される。
+.\"O .SH RETURN VALUE
+.SH 返り値
+.\"O On success,
+.\"O .BR set_mempolicy ()
+.\"O returns 0;
+.\"O on error, \-1 is returned and
+.\"O .I errno
+.\"O is set to indicate the error.
+成功すると、
+.BR set_mempolicy ()
+は 0 を返す。エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EFAULT
+.\"O Part of all of the memory range specified by
+.\"O .I nodemask
+.\"O and
+.\"O .I maxnode
+.\"O points outside your accessible address space.
+.\"motoki: Part of all of the memory は Part or all .. の間違い？
+.I nodemask
+と
+.I maxnode
+で指定されたメモリ領域の一部または全部が、
+呼び出し元がアクセス可能なアドレス空間外を指している。
+.TP
+.B EINVAL
+.\"O .I mode
+.\"O is invalid.
+.I mode
+が不正である。
+.\"O Or,
+.\"O .I mode
+.\"O is
+.\"O .B MPOL_DEFAULT
+.\"O and
+.\"O .I nodemask
+.\"O is nonempty,
+.I mode
+が
+.B MPOL_DEFAULT
+で、
+.I nodemask
+が空ではない。
+.\"O or
+.\"O .I mode
+.\"O is
+.\"O .B MPOL_BIND
+.\"O or
+.\"O .B MPOL_INTERLEAVE
+.\"O and
+.\"O .I nodemask
+.\"O is empty.
+.I mode
+が
+.B MPOL_BIND
+か
+.B MPOL_INTERLEAVE
+で、
+.I nodemask
+が空である。
+.\"O Or,
+.\"O .I maxnode
+.\"O specifies more than a page worth of bits.
+.I maxnode
+で実際に意味があるビット数より多くのビット数が指定された。
+.\"O Or,
+.\"O .I nodemask
+.\"O specifies one or more node IDs that are
+.\"O greater than the maximum supported node ID.
+.I nodemask
+に、サポートされている最大ノード ID より大きいノードが指定された。
+.\"O Or, none of the node IDs specified by
+.\"O .I nodemask
+.\"O are on-line and allowed by the process's current cpuset context,
+.\"O or none of the specified nodes contain memory.
+.I nodemask
+に、オンラインで、かつそのプロセスの現在の CPU 集合コンテキストで
+許可されているノードが一つも含まれていないか、
+メモリを含むノードが一つも指定されていない。
+.\"O Or, the
+.\"O .I mode
+.\"O argument specified both
+.\"O .B MPOL_F_STATIC_NODES
+.\"O and
+.\"O .BR MPOL_F_RELATIVE_NODES .
+.I mode
+引き数に
+.B MPOL_F_STATIC_NODES
+と
+.B MPOL_F_RELATIVE_NODES
+の両方が指定された。
+.TP
+.B ENOMEM
+.\"O Insufficient kernel memory was available.
+利用可能なカーネルメモリが十分でなかった。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O The
+.\"O .BR set_mempolicy (),
+.\"O system call was added to the Linux kernel in version 2.6.7.
+.BR set_mempolicy ()
+システムコールはバージョン 2.6.7 で Linux カーネルに追加された。
+.\"O .SH CONFORMING TO
+.SH 準拠
+.\"O This system call is Linux-specific.
+このシステムコールは Linux 独自である。
+.\"O .SH NOTES
+.SH 注意
+.\"O Process policy is not remembered if the page is swapped out.
+ページがスワップ・アウトされる場合には、
+プロセスポリシーの設定は推奨されない。
+.\"O When such a page is paged back in, it will use the policy of
+.\"O the process or memory range that is in effect at the time the
+.\"O page is allocated.
+スワップ・アウトされたページがページ・インする際にも、
+ページ割り当て時に適用されるプロセスポリシーやメモリ領域ポリシーが
+使用される。
+
+.\"O For information on library support, see
+.\"O .BR numa (7).
+ライブラリによるサポートについては
+.BR numa (7)
+を参照。
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR get_mempolicy (2),
+.BR getcpu (2),
+.BR mbind (2),
+.BR mmap (2),
+.BR numa (3),
+.BR cpuset (7),
+.BR numa (7),
+.BR numactl (8)

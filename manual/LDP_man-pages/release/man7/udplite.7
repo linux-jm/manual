@@ -1,0 +1,159 @@
+.\" Copyright (c) 2008 by Gerrit Renker <gerrit@erg.abdn.ac.uk>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" $Id: udplite.7,v 1.12 2008/07/23 15:22:22 gerrit Exp gerrit $
+.\"
+.\" Japanese Version Copyright (c) 2008  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2008-08-21, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.07
+.\" 
+.TH UDPLITE  7 2008-12-03 "Linux" "Linux Programmer's Manual"
+.SH 名前
+udplite \- 軽量なユーザーデータグラムプロトコル
+.SH 書式
+.B #include <sys/socket.h>
+.br
+.\" FIXME . see #defines under `BUGS',
+.\"        when glibc supports this, add
+.\"        #include <netinet/udplite.h>
+.sp
+.B sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDPLITE);
+.SH 説明
+これは RFC\ 3828 に書かれている軽量なユーザーデータグラムプロトコル
+(Lightweight User Datagram Protocol; UDP-Lite) の実装である。
+
+UDP-Lite は UDP (RFC\ 768) の拡張で、可変長のチェックサムをサポートしている。
+このプロトコルが効果を発揮するのは、少しだけ壊れたデータグラムがあった場合に、
+そのデータグラムを下位レイヤーのプロトコルに廃棄させるのではなく、
+それを利用することができるような、ある種のマルチメディア転送においてである。
+
+可変長のチェックサムの対象範囲は
+.BR setsockopt (2)
+オプション経由で設定される。
+このオプションが設定されていない場合、UDP と異なるのは
+違う IP プロトコル識別子 (IANA 番号 136) を使用する点だけである。
+
+UDP-Lite の実装は
+.BR udp (7)
+の完全な拡張、すなわち API と API の動作は同じである。
+これに加えて、2 つのソケットオプションがチェックサムの対象範囲を
+制御するために提供されている。
+.SS アドレスのフォーマット
+UDP-Litev4 は
+.BR ip (7)
+で説明されている
+.I sockaddr_in
+アドレスを使用する。
+UDP-Litev6 は
+.BR ipv6 (7)
+で説明されている
+.I sockaddr_in6
+アドレスを使用する。
+.SS ソケットオプション
+UDP-Lite のソケットオプションを設定/取得するには、
+オプションレベル引き数に
+.B IPPROTO_UDPLITE
+を指定して、取得時には
+.BR getsockopt (2)
+を、設定時には
+.BR setsockopt (2)
+を呼び出す。さらに、全ての
+.B IPPROTO_UDP
+のソケットオプションが UDP-Lite ソケットでも使用できる。
+詳細は
+.BR udp (7)
+を参照のこと。
+
+以下の 2 つが UDP-Lite に固有のオプションである。
+.TP
+.BR UDPLITE_SEND_CSCOV
+このオプションは送信側のチェックサムの対象範囲を設定する。
+.I int
+型を引き数として取り、設定可能な値の範囲は 0 から 2^16-1 までである。
+
+値 0 はデータグラム全体が常にチェックサムの対象となることを意味する。
+値 1〜7 は不正であり (RFC\ 3828 の 3.1 章)、範囲の設定として最小値である
+8 に切り上げられる。
+
+IPv6 の jumbograms (巨大なデータグラム; RFC\ 2675) の場合には、
+UDP-Litev6 のチェックサムの対象範囲は、RFC\ 3828 の 3.5 章にあるように、
+先頭から 2^16-1 オクテットまでに限定される。
+そのため、それより大きな値は 2^16-1 に黙って切り詰められる。
+現在の対象範囲の値を知りたければ、いつでも
+.BR getsockopt (2)
+を使って値を問い合わせることができる。
+.TP
+.BR UDPLITE_RECV_CSCOV
+これは受信側のチェックサムの対象範囲を設定するもので、
+使用される引き数形式と値の範囲は
+.B UDPLITE_SEND_CSCOV
+と同じである。
+このオプションは、部分的なチェックサム対象範囲を持つトラフィックを
+有効にするのに必要なわけではなく、トラフィックフィルターとして機能する。
+このオプションが有効にすると、カーネルは指定されたチェックサム対象範囲
+よりも「短かい」対象範囲を持つパケットを全て廃棄するようになる。
+
+.B UDPLITE_RECV_CSCOV
+の値が実際のパケットのチェックサム対象範囲よりも大きい場合、
+受信したパケットは黙って廃棄される。
+ただし、システムログに対して警告メッセージが生成されるかもしれない。
+.\" SO_NO_CHECK exists and is supported by UDPv4, but is
+.\" commented out in socket(7), hence also commented out here
+.\".PP
+.\"Since UDP-Lite mandates checksums, checksumming can not be disabled
+.\"via the
+.\".B SO_NO_CHECK
+.\"option from
+.\".BR socket (7).
+.SH エラー
+.BR udp (7)
+について書かれている全てのエラーは返る可能性がある。
+UDP-Lite 自体は新たなエラーは追加していない。
+.SH バグ
+.\" FIXME . remove this section once glibc supports UDP-Lite
+glibc によるサポートがない場合は、以下の定義を行う必要がある。
+.in +4n
+.nf
+
+#define IPPROTO_UDPLITE     136
+.\" The following two are defined in the kernel in linux/net/udplite.h
+#define UDPLITE_SEND_CSCOV  10
+#define UDPLITE_RECV_CSCOV  11
+.fi
+.in
+.SH ファイル
+.I /proc/net/snmp
+\- UDP-Litev4 の基本的な統計情報カウンター。
+.br
+.I /proc/net/snmp6
+\- UDP-Litev6 の基本的な統計情報カウンター。
+.SH バージョン
+UDP-Litev4/v6 は Linux 2.6.20 で初めて登場した。
+.SH 関連項目
+.BR udp (7),
+.BR ip (7),
+.BR ipv6 (7),
+.BR socket (7)
+
+RFC\ 3828 for the Lightweight User Datagram Protocol (UDP-Lite)
+.br
+.I Documentation/networking/udplite.txt

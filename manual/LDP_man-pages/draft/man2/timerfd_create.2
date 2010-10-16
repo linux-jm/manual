@@ -1,0 +1,829 @@
+.\" Copyright (C) 2008 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+.\" MA  02111-1307  USA
+.\"
+.\" Japanese Version Copyright (c) 2008  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2008-11-19, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.13
+.\" Updated 2009-04-24, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP 3.20
+.\" 
+.TH TIMERFD_CREATE 2 2009-03-10 Linux "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O timerfd_create, timerfd_settime, timerfd_gettime \-
+.\"O timers that notify via file descriptors
+timerfd_create, timerfd_settime, timerfd_gettime \-
+ファイルディスクリプタ経由で通知するタイマー
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #include <sys/timerfd.h>
+.sp
+.BI "int timerfd_create(int " clockid ", int " flags );
+.sp
+.BI "int timerfd_settime(int " fd ", int " flags ,
+.BI "                    const struct itimerspec *" new_value ,
+.BI "                    struct itimerspec *" old_value );
+.sp
+.BI "int timerfd_gettime(int " fd ", struct itimerspec *" curr_value );
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O These system calls create and operate on a timer
+.\"O that delivers timer expiration notifications via a file descriptor.
+.\"O They provide an alternative to the use of
+.\"O .BR setitimer (2)
+.\"O or
+.\"O .BR timer_create (2),
+.\"O with the advantage that the file descriptor may be monitored by
+.\"O .BR select (2),
+.\"O .BR poll (2),
+.\"O and
+.\"O .BR epoll (7).
+これらのシステムコールは、満了通知をファイルディスクリプタ経由で配送する
+タイマーの生成と操作を行う。
+これらは、
+.BR setitimer (2)
+や
+.BR timer_create (2)
+を用いる方法の代わりとなるものであり、このファイルディスクリプタを
+.BR select (2),
+.BR poll (2),
+.BR epoll (7)
+で監視できるという利点がある。
+
+.\"O The use of these three system calls is analogous to the use of
+.\"O .BR timer_create (2),
+.\"O .BR timer_settime (2),
+.\"O and
+.\"O .BR timer_gettime (2).
+.\"O (There is no analog of
+.\"O .BR timer_getoverrun (2),
+.\"O since that functionality is provided by
+.\"O .BR read (2),
+.\"O as described below.)
+これらのシステムコールを使うのは、それぞれ
+.BR timer_create (2),
+.BR timer_settime (2),
+.BR timer_gettime (2)
+を使うのと同様である
+.RB ( timer_getoverrun (2)
+に対応するものはなく、以下で説明するように
+この機能は
+.BR read (2)
+により提供される)。
+.\"
+.SS timerfd_create()
+.\"O .BR timerfd_create ()
+.\"O creates a new timer object,
+.\"O and returns a file descriptor that refers to that timer.
+.BR timerfd_create ()
+は新規のタイマーオブジェクトを生成し、そのタイマーを参照するファイル
+ディスクリプタを返す。
+.\"O The
+.\"O .I clockid
+.\"O argument specifies the clock that is used to mark the progress
+.\"O of the timer, and must be either
+.\"O .B CLOCK_REALTIME
+.\"O or
+.\"O .BR CLOCK_MONOTONIC .
+.\"O .B CLOCK_REALTIME
+.\"O is a settable system-wide clock.
+.\"O .B CLOCK_MONOTONIC
+.\"O is a nonsettable clock that is not affected
+.\"O by discontinuous changes in the system clock
+.\"O (e.g., manual changes to system time).
+.\"O The current value of each of these clocks can be retrieved using
+.\"O .BR clock_gettime (2).
+.I clockid
+引き数は、タイマーの進捗を管理するためのクロックを指定するもので、
+.B CLOCK_REALTIME
+か
+.B CLOCK_MONOTONIC
+のいずれかでなければならない。
+.B CLOCK_REALTIME
+はシステム全体で使用されるクロックで、このクロックは変更可能である。
+.B CLOCK_MONOTONIC
+は変更されることのないクロックで、(システム時刻の手動での変更などの)
+システムクロックの不連続な変化の影響を受けない。
+これらのクロックの現在の値は
+.BR clock_gettime (2)
+を使って取得できる。
+
+.\"O Starting with Linux 2.6.27, the following values may be bitwise ORed in
+.\"O .IR flags
+.\"O to change the behavior of
+.\"O .BR timerfd_create ():
+Linux 2.6.27 以降では、
+以下の値のいくつかをビット単位の論理和 (OR) で指定することで、
+.BR timerfd_create ()
+の振舞いを変更することができる。
+.TP 14
+.B TFD_NONBLOCK
+.\"O Set the
+.\"O .BR O_NONBLOCK
+.\"O file status flag on the new open file description.
+.\"O Using this flag saves extra calls to
+.\"O .BR fcntl (2)
+.\"O to achieve the same result.
+新しく生成されるオープンファイル記述 (open file description) の
+.B O_NONBLOCK
+ファイルステータスフラグをセットする。
+このフラグを使うことで、
+.B O_NONBLOCK
+をセットするために
+.BR fcntl (2)
+を追加で呼び出す必要がなくなる。
+.TP
+.B TFD_CLOEXEC
+.\"O Set the close-on-exec
+.\"O .RB ( FD_CLOEXEC )
+.\"O flag on the new file descriptor.
+.\"O See the description of the
+.\"O .B O_CLOEXEC
+.\"O flag in
+.\"O .BR open (2)
+.\"O for reasons why this may be useful.
+新しいファイルディスクリプタに対して
+close-on-exec
+.RB ( FD_CLOEXEC )
+フラグをセットする。
+このフラグが役に立つ理由については、
+.BR open (2)
+の
+.B O_CLOEXEC
+フラグの説明を参照のこと。
+.PP
+.\"O In Linux versions up to and including 2.6.26,
+.\"O .I flags
+.\"O must be specified as zero.
+バージョン 2.6.26 以前の Linux では、
+.I flags
+引き数は未使用であり、0 を指定しなければならない。
+.SS timerfd_settime()
+.\"O .BR timerfd_settime ()
+.\"O arms (starts) or disarms (stops)
+.\"O the timer referred to by the file descriptor
+.\"O .IR fd .
+.BR timerfd_settime ()
+は、ファイルディスクリプタ
+.I fd
+により参照されるタイマーを開始したり停止したりする。
+
+.\"O The
+.\"O .I new_value
+.\"O argument specifies the initial expiration and interval for the timer.
+.\"O The
+.\"O .I itimer
+.\"O structure used for this argument contains two fields,
+.\"O each of which is in turn a structure of type
+.\"O .IR timespec :
+.I new_value
+引き数は、タイマーの満了時間 (expiration) の初期値と間隔 (interval) を
+指定する。この引き数で使用されている
+.\"Omotoki: itimer structure は itimerspec structure の間違いだろう。
+.I itimerspec
+構造体には 2 つのフィールドがあり、各フィールドは
+.I timespec
+型の構造体である。
+.in +4n
+.nf
+
+struct timespec {
+    time_t tv_sec;                /* Seconds */
+    long   tv_nsec;               /* Nanoseconds */
+};
+
+struct itimerspec {
+    struct timespec it_interval;  /* Interval for periodic timer */
+    struct timespec it_value;     /* Initial expiration */
+};
+.fi
+.in
+.PP
+.\"O .I new_value.it_value
+.\"O specifies the initial expiration of the timer,
+.\"O in seconds and nanoseconds.
+.\"O Setting either field of
+.\"O .I new_value.it_value
+.\"O to a nonzero value arms the timer.
+.\"O Setting both fields of
+.\"O .I new_value.it_value
+.\"O to zero disarms the timer.
+.I new_value.it_value
+はタイマーの満了時間の初期値を、秒とナノ秒で指定する。
+.I new_value.it_value
+のフィールドのうち少なくとも一方に 0 以外の値を設定すると、
+タイマーが開始される。
+両方のフィールドに 0 を設定すると、タイマーが停止する。
+
+.\"O Setting one or both fields of
+.\"O .I new_value.it_interval
+.\"O to nonzero values specifies the period, in seconds and nanoseconds,
+.\"O for repeated timer expirations after the initial expiration.
+.\"O If both fields of
+.\"O .I new_value.it_interval
+.\"O are zero, the timer expires just once, at the time specified by
+.\"O .IR new_value.it_value .
+.I new_value.it_interval
+はタイマーの一回目の満了後に繰り返しタイマーの満了間隔を、秒とナノ秒で指定する。
+.I new_value.it_interval
+のフィールドのうち少なくとも一方に 0 以外の値を設定すると、
+繰り返しタイマーが有効になる。
+両方のフィールドに 0 を設定した場合、タイマーは
+.I new_value.it_value
+で指定された時間後に、一回だけ満了して停止する。
+
+.\"O The
+.\"O .I flags
+.\"O argument is either 0, to start a relative timer
+.\"O .RI ( new_value.it_interval
+.\"O specifies a time relative to the current value of the clock specified by
+.\"O .IR clockid ),
+.\"O or
+.\"O .BR TFD_TIMER_ABSTIME ,
+.\"O to start an absolute timer
+.\"O .RI ( new_value.it_value
+.\"O specifies an absolute time for the clock specified by
+.\"O .IR clockid ;
+.\"O that is, the timer will expire when the value of that
+.\"O clock reaches the value specified in
+.\"O .IR new_value.it_value ).
+.I flags
+引き数には 0 か
+.B TFD_TIMER_ABSTIME
+を指定する。
+0 は相対時刻タイマーを意味し、
+.I new_value.it_interval
+では
+.I clockid
+で指定されたクロックの現在の値からの相対的な時刻を指定する。
+.B TFD_TIMER_ABSTIME
+は絶対時刻タイマーを意味し、
+.I new_value.it_interval
+では
+.I clockid
+で指定されたクロックの絶対時刻を指定する。つまり、
+クロックの値が
+.I new_value.it_interval
+で指定された時刻に達したら、タイマーが満了する。
+
+.\"O The
+.\"O .I old_value
+.\"O argument returns a structure containing the setting of the timer that
+.\"O was current at the time of the call; see the description of
+.\"O .BR timerfd_gettime ()
+.\"O following.
+.I old_value
+引き数を通じて、
+.BR timerfd_settime ()
+を呼び出した時点でのタイマーの設定を保持した構造体が返される。
+下記の
+.BR timerfd_gettime ()
+の説明を参照。
+.\"
+.SS timerfd_gettime()
+.\"O .BR timerfd_gettime ()
+.\"O returns, in
+.\"O .IR curr_value ,
+.\"O an
+.\"O .IR itimerspec
+.\"O structure that contains the current setting of the timer
+.\"O referred to by the file descriptor
+.\"O .IR fd .
+.BR timerfd_gettime ()
+は、ファイルディスクリプタ
+.I fd
+で参照されるタイマーの現在の設定が入った
+.I itimerspec
+構造体を、
+.I curr_value
+に格納して返す。
+
+.\"O The
+.\"O .I it_value
+.\"O field returns the amount of time
+.\"O until the timer will next expire.
+.\"O If both fields of this structure are zero,
+.\"O then the timer is currently disarmed.
+.\"O This field always contains a relative value, regardless of whether the
+.\"O .BR TFD_TIMER_ABSTIME
+.\"O flag was specified when setting the timer.
+.I it_value
+フィールドは、タイマーが次に満了するまでの残り時間を返す。
+この構造体の両方のフィールドが 0 であれば、タイマーは現在停止している。
+タイマー設定時に
+.B TFD_TIMER_ABSTIME
+フラグが指定されたかに関わらず、このフィールドは常に相対値が格納される。
+
+.\"O The
+.\"O .I it_interval
+.\"O field returns the interval of the timer.
+.\"O If both fields of this structure are zero,
+.\"O then the timer is set to expire just once, at the time specified by
+.\"O .IR curr_value.it_value .
+.I it_interval
+フィールドは、タイマーの間隔を返す。
+この構造体の両方のフィールドが 0 であれば、タイマーは
+.I new_value.it_value
+で指定された時間後に一回だけ満了して停止するように設定されている。
+.\"O .SS Operating on a timer file descriptor
+.SS タイマー・ファイルディスクリプタに対する操作
+.\"O The file descriptor returned by
+.\"O .BR timerfd_create ()
+.\"O supports the following operations:
+.BR timerfd_create ()
+が返すファイルディスクリプタは以下の操作をサポートしている。
+.TP
+.BR read (2)
+.\"O If the timer has already expired one or more times since
+.\"O its settings were last modified using
+.\"O .BR timerfd_settime (),
+.\"O or since the last successful
+.\"O .BR read (2),
+.\"O then the buffer given to
+.\"O .BR read (2)
+.\"O returns an unsigned 8-byte integer
+.\"O .RI ( uint64_t )
+.\"O containing the number of expirations that have occurred.
+.\"O (The returned value is in host byte order,
+.\"O i.e., the native byte order for integers on the host machine.)
+.BR timerfd_settime ()
+を使ってタイマーの設定が最後変更されて以降、または
+.BR read (2)
+の呼び出しに最後に成功して以降に、タイマーの満了が一回以上発生していれば、
+.BR read (2)
+に渡されたバッファに、タイマー満了回数を示す 8 バイトの unsigned 型の整数
+.RI ( uint64_t )
+が返される
+(返される値はホストバイトオーダ、つまりそのホストマシンにおける
+整数の通常のバイトオーダである)。
+.IP
+.\"O If no timer expirations have occurred at the time of the
+.\"O .BR read (2),
+.\"O then the call either blocks until the next timer expiration,
+.\"O or fails with the error
+.\"O .B EAGAIN
+.\"O if the file descriptor has been made nonblocking
+.\"O (via the use of the
+.\"O .BR fcntl (2)
+.\"O .B F_SETFL
+.\"O operation to set the
+.\"O .B O_NONBLOCK
+.\"O flag).
+.BR read (2)
+を行った時点でタイマーの満了が発生していなければ、
+.BR read (2)
+は停止 (block) する、もしくはファイルディスクリプタが
+非停止 (nonblocking) に設定されている場合はエラー
+.B EAGAIN
+で失敗する (非停止モードにするには、
+.BR fcntl (2)
+の
+.B F_SETFL
+命令で
+.B O_NONBLOCK
+フラグをセットする)。
+.IP
+.\"O A
+.\"O .BR read (2)
+.\"O will fail with the error
+.\"O .B EINVAL
+.\"O if the size of the supplied buffer is less than 8 bytes.
+渡されたバッファのサイズが 8 バイト未満の場合、
+.BR read (2)
+はエラー
+.B EINVAL
+で失敗する。
+.TP
+.\"O .BR poll "(2), " select "(2) (and similar)"
+.BR poll "(2), " select "(2) (と同様の操作)"
+.\"O The file descriptor is readable
+.\"O (the
+.\"O .BR select (2)
+.\"O .I readfds
+.\"O argument; the
+.\"O .BR poll (2)
+.\"O .B POLLIN
+.\"O flag)
+.\"O if one or more timer expirations have occurred.
+一つ以上のタイマー満了が発生していれば、
+ファイルディスクリプタは読み出し可能となる
+.RB ( select (2)
+の
+.I readfds
+引き数や
+.BR poll (2)
+の
+.B POLLIN
+フラグ)。
+.IP
+.\"O The file descriptor also supports the other file-descriptor
+.\"O multiplexing APIs:
+.\"O .BR pselect (2),
+.\"O .BR ppoll (2),
+.\"O and
+.\"O .BR epoll (7).
+このファイルディスクリプタは、他のファイルディスクリプタ多重 API である
+.BR pselect (2),
+.BR ppoll (2),
+.BR epoll (7)
+もサポートしている。
+.TP
+.BR close (2)
+.\"O When the file descriptor is no longer required it should be closed.
+.\"O When all file descriptors associated with the same timer object
+.\"O have been closed,
+.\"O the timer is disarmed and its resources are freed by the kernel.
+ファイルディスクリプタがそれ以降は必要なくなった際には、クローズすべきである。
+同じ timer オブジェクトに関連付けられたファイルディスクリプタが全て
+クローズされると、そのタイマーは解除され、
+そのオブジェクト用の資源がカーネルにより解放される。
+.\"
+.\"O .SS fork(2) semantics
+.SS fork(2) での扱い
+.\"O After a
+.\"O .BR fork (2),
+.\"O the child inherits a copy of the file descriptor created by
+.\"O .BR timerfd_create ().
+.\"O The file descriptor refers to the same underlying
+.\"O timer object as the corresponding file descriptor in the parent,
+.\"O and
+.\"O .BR read (2)s
+.\"O in the child will return information about
+.\"O expirations of the timer.
+.BR fork (2)
+が行われると、子プロセスは
+.BR timerfd_create ()
+により生成されたファイルディスクリプタのコピーを
+継承する。そのファイルディスクリプタは、親プロセスの対応する
+ファイルディスクリプタと同じタイマーオブジェクトを参照しており、
+子プロセスの
+.BR read (2)
+でも同じタイマーの満了に関する情報が返される。
+.\"
+.\"O .SS execve(2) semantics
+.SS execve(2) での扱い
+.\"O A file descriptor created by
+.\"O .BR timerfd_create ()
+.\"O is preserved across
+.\"O .BR execve (2),
+.\"O and continues to generate timer expirations if the timer was armed.
+.BR execve (2)
+の前後で
+.BR timerfd_create ()
+により生成されたファイルディスクリプタは保持され、
+タイマーが開始されていた場合にはタイマーの満了が発生し続ける。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O On success,
+.\"O .BR timerfd_create ()
+.\"O returns a new file descriptor.
+.\"O On error, \-1 is returned and
+.\"O .I errno
+.\"O is set to indicate the error.
+成功すると、
+.BR timerfd_create ()
+は新しいファイルディスクリプタを返す。
+エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+
+.\"O .BR timerfd_settime ()
+.\"O and
+.\"O .BR timerfd_gettime ()
+.\"O return 0 on success;
+.\"O on error they return \-1, and set
+.\"O .I errno
+.\"O to indicate the error.
+.BR timerfd_settime ()
+と
+.BR timerfd_gettime ()
+は成功すると 0 を返す。
+エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.\"O .SH ERRORS
+.SH エラー
+.\"O .BR timerfd_create ()
+.\"O can fail with the following errors:
+.BR timerfd_create ()
+は以下のエラーで失敗する可能性がある。
+.TP
+.B EINVAL
+.\"O The
+.\"O .I clockid
+.\"O argument is neither
+.\"O .B CLOCK_MONOTONIC
+.\"O nor
+.\"O .BR CLOCK_REALTIME ;
+.I clockid
+引き数が
+.B CLOCK_MONOTONIC
+でも
+.B CLOCK_REALTIME
+でもない。
+.TP
+.B EINVAL
+.\"O .I flags
+.\"O is invalid;
+.\"O or, in Linux 2.6.26 or earlier,
+.\"O .I flags
+.\"O is nonzero.
+.I flags
+が無効である。もしくは、Linux 2.6.26 以前の場合は
+.I flags
+が 0 以外である。
+.TP
+.B EMFILE
+.\"O The per-process limit of open file descriptors has been reached.
+オープン済みのファイルディスクリプタの数がプロセスあたりの上限に
+達していた。
+.TP
+.B ENFILE
+.\"O The system-wide limit on the total number of open files has been
+.\"O reached.
+オープン済みのファイル総数がシステム全体の上限に達していた。
+.TP
+.B ENODEV
+.\"O Could not mount (internal) anonymous inode device.
+(カーネル内の) 無名 inode デバイスをマウントできなかった。
+.TP
+.B ENOMEM
+.\"O There was insufficient kernel memory to create the timer.
+タイマーを作成するのに十分なカーネルメモリがなかった。
+.PP
+.\"O .BR timerfd_settime ()
+.\"O and
+.\"O .BR timerfd_gettime ()
+.\"O can fail with the following errors:
+.BR timerfd_settime ()
+と
+.BR timerfd_gettime ()
+は以下のエラーで失敗する可能性がある。
+.TP
+.B EBADF
+.\"O .I fd
+.\"O is not a valid file descriptor.
+.I fd
+が有効なファイルディスクリプタでない。
+.TP
+.B EFAULT
+.\"O .IR new_value ,
+.\"O .IR old_value ,
+.\"O or
+.\"O .I curr_value
+.\"O is not valid a pointer.
+.IR new_value ,
+.IR old_value ,
+.I curr_value
+が有効なポインタではない。
+.TP
+.B EINVAL
+.\"O .I fd
+.\"O is not a valid timerfd file descriptor.
+.I fd
+が有効な timerfd ファイルディスクリプタでない。
+.PP
+.\"O .BR timerfd_settime ()
+.\"O can also fail with the following errors:
+.BR timerfd_settime ()
+は以下のエラーで失敗することもある。
+.TP
+.B EINVAL
+.\"O .I new_value
+.\"O is not properly initialized (one of the
+.\"O .I tv_nsec
+.\"O falls outside the range zero to 999,999,999).
+.I new_value
+が適切に初期化されていない
+.RI ( tv_nsec
+の一つが 0 から 999,999,999 までの範囲に入っていない)。
+.TP
+.B EINVAL
+.\" This case only checked since 2.6.29, and 2.2.2[78].some-stable-version.
+.\" In older kernel versions, no check was made for invalid flags.
+.\"O .I flags
+.\"O is invalid.
+.I flags
+が無効である。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O These system calls are available on Linux since kernel 2.6.25.
+.\"O Library support is provided by glibc since version 2.8.
+これらのシステムコールはカーネル 2.6.25 以降の Linux で利用可能である。
+ライブラリ側のサポートはバージョン 2.8 以降の glibc で提供されている。
+.\"O .SH CONFORMING TO
+.SH 準拠
+.\"O These system calls are Linux-specific.
+これらのシステムコールは Linux 固有である。
+.\"O .SH EXAMPLE
+.SH 例
+.\"O The following program creates a timer and then monitors its progress.
+.\"O The program accepts up to three command-line arguments.
+.\"O The first argument specifies the number of seconds for
+.\"O the initial expiration of the timer.
+.\"O The second argument specifies the interval for the timer, in seconds.
+.\"O The third argument specifies the number of times the program should
+.\"O allow the timer to expire before terminating.
+.\"O The second and third command-line arguments are optional.
+以下のプログラムは、タイマーを作成し、その進捗をモニターするものである。
+このプログラムは最大で 3 個のコマンドライン引き数を取り、
+第一引き数ではタイマーの満了時間の初期値 (秒数単位) を、
+第二引き数ではタイマーの間隔 (秒数単位) を、
+第三引き数ではタイマーが何回満了したらプログラムが終了するかを指定する。
+第二引き数と第三引き数は省略可能である。
+
+.\"O The following shell session demonstrates the use of the program:
+以下のシェルのセッションはこのプログラムの使用例を示したものである。
+.in +4n
+.nf
+
+.RB "$" " a.out 3 1 100"
+0.000: timer started
+3.000: read: 1; total=1
+4.000: read: 1; total=2
+.BR "^Z " "                 # type control-Z to suspend the program"
+[1]+  Stopped                 ./timerfd3_demo 3 1 100
+.RB "$ " "fg" "                # Resume execution after a few seconds"
+a.out 3 1 100
+9.660: read: 5; total=7
+10.000: read: 1; total=8
+11.000: read: 1; total=9
+.BR "^C " "                 # type control-C to suspend the program"
+.fi
+.in
+.\"O .SS Program source
+.SS プログラムのソース
+\&
+.nf
+.\" The commented out code here is what we currently need until
+.\" the required stuff is in glibc
+.\"
+.\"
+.\"/* Link with -lrt */
+.\"#define _GNU_SOURCE
+.\"#include <sys/syscall.h>
+.\"#include <unistd.h>
+.\"#include <time.h>
+.\"#if defined(__i386__)
+.\"#define __NR_timerfd_create 322
+.\"#define __NR_timerfd_settime 325
+.\"#define __NR_timerfd_gettime 326
+.\"#endif
+.\"
+.\"static int
+.\"timerfd_create(int clockid, int flags)
+.\"{
+.\"    return syscall(__NR_timerfd_create, clockid, flags);
+.\"}
+.\"
+.\"static int
+.\"timerfd_settime(int fd, int flags, struct itimerspec *new_value,
+.\"        struct itimerspec *curr_value)
+.\"{
+.\"    return syscall(__NR_timerfd_settime, fd, flags, new_value,
+.\"                   curr_value);
+.\"}
+.\"
+.\"static int
+.\"timerfd_gettime(int fd, struct itimerspec *curr_value)
+.\"{
+.\"    return syscall(__NR_timerfd_gettime, fd, curr_value);
+.\"}
+.\"
+.\"#define TFD_TIMER_ABSTIME (1 << 0)
+.\"
+.\"////////////////////////////////////////////////////////////
+#include <sys/timerfd.h>
+#include <time.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>        /* Definition of uint64_t */
+
+#define handle_error(msg) \\
+        do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+static void
+print_elapsed_time(void)
+{
+    static struct timespec start;
+    struct timespec curr;
+    static int first_call = 1;
+    int secs, nsecs;
+
+    if (first_call) {
+        first_call = 0;
+        if (clock_gettime(CLOCK_MONOTONIC, &start) == \-1)
+            handle_error("clock_gettime");
+    }
+
+    if (clock_gettime(CLOCK_MONOTONIC, &curr) == \-1)
+        handle_error("clock_gettime");
+
+    secs = curr.tv_sec \- start.tv_sec;
+    nsecs = curr.tv_nsec \- start.tv_nsec;
+    if (nsecs < 0) {
+        secs\-\-;
+        nsecs += 1000000000;
+    }
+    printf("%d.%03d: ", secs, (nsecs + 500000) / 1000000);
+}
+
+int
+main(int argc, char *argv[])
+{
+    struct itimerspec new_value;
+    int max_exp, fd;
+    struct timespec now;
+    uint64_t exp, tot_exp;
+    ssize_t s;
+
+    if ((argc != 2) && (argc != 4)) {
+        fprintf(stderr, "%s init\-secs [interval\-secs max\-exp]\\n",
+                argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    if (clock_gettime(CLOCK_REALTIME, &now) == \-1)
+        handle_error("clock_gettime");
+
+    /* Create a CLOCK_REALTIME absolute timer with initial
+       expiration and interval as specified in command line */
+
+    new_value.it_value.tv_sec = now.tv_sec + atoi(argv[1]);
+    new_value.it_value.tv_nsec = now.tv_nsec;
+    if (argc == 2) {
+        new_value.it_interval.tv_sec = 0;
+        max_exp = 1;
+    } else {
+        new_value.it_interval.tv_sec = atoi(argv[2]);
+        max_exp = atoi(argv[3]);
+    }
+    new_value.it_interval.tv_nsec = 0;
+
+    fd = timerfd_create(CLOCK_REALTIME, 0);
+    if (fd == \-1)
+        handle_error("timerfd_create");
+
+    if (timerfd_settime(fd, TFD_TIMER_ABSTIME, &new_value, NULL) == \-1)
+        handle_error("timerfd_settime");
+
+    print_elapsed_time();
+    printf("timer started\\n");
+
+    for (tot_exp = 0; tot_exp < max_exp;) {
+        s = read(fd, &exp, sizeof(uint64_t));
+        if (s != sizeof(uint64_t))
+            handle_error("read");
+
+        tot_exp += exp;
+        print_elapsed_time();
+        printf("read: %llu; total=%llu\\n",
+                (unsigned long long) exp,
+                (unsigned long long) tot_exp);
+    }
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.\"O .SH BUGS
+.SH バグ
+.\"O Currently,
+.\"O .\" 2.6.29
+.\"O .BR timerfd_create ()
+.\"O supports fewer types of clock IDs than
+.\"O .BR timer_create (2).
+現在のところ、
+.\" 2.6.29
+.BR timerfd_create ()
+が対応している clockid の種類は
+.BR timer_create (2)
+よりも少ない。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR eventfd (2),
+.BR poll (2),
+.BR read (2),
+.BR select (2),
+.BR setitimer (2),
+.BR signalfd (2),
+.BR timer_create (2),
+.BR timer_gettime (2),
+.BR timer_settime (2),
+.BR epoll (7),
+.BR time (7)

@@ -1,0 +1,509 @@
+.\" Copyright 1993 Giorgio Ciucci (giorgio@crcc.it)
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified Tue Oct 22 17:54:56 1996 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified 1 Jan 2002, Martin Schulze <joey@infodrom.org>
+.\" Modified 4 Jan 2002, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Modified, 27 May 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on capability requirements
+.\" Modified, 11 Nov 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Language and formatting clean-ups
+.\"	Added notes on /proc files
+.\"	Rewrote BUGS note about semget()'s failure to initialize
+.\"		semaphore values
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-02-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2003-04-08, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-03-01, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2006-07-20, Akihiro MOTOKI, LDP v2.36
+.\"
+.\"WORD:	semaphore		セマフォ
+.\"WORD:	identifier		識別子
+.\"WORD:	owner			所有者
+.\"WORD:	group			グループ
+.\"WORD:	other			他人
+.\"WORD:	effective user ID	実効ユーザー ID
+.\"WORD:	effective group ID	実効グループ ID
+.\"WORD:	calling process		呼び出し元のプロセス
+.\"WORD:	process			プロセス
+.\"WORD:	policy			方針
+.\"WORD:	structure		構造体
+.\"WORD:	initialize		初期化
+.\"WORD:	system call		システム・コール
+.\"
+.TH SEMGET 2 2004-05-27 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O semget \- get a semaphore set identifier
+semget \- セマフォ集合の識別子を取得する
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #include <sys/types.h>
+.B #include <sys/ipc.h>
+.B #include <sys/sem.h>
+.fi
+.sp
+.BI "int semget(key_t " key ,
+.BI "int " nsems ,
+.BI "int " semflg );
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The
+.\"O .BR semget ()
+.\"O system call returns the semaphore set identifier
+.\"O associated with the argument
+.\"O .IR key .
+.BR semget ()
+システムコールは、引き数
+.I key
+に対応するセマフォ集合 (semaphore set) の
+識別子 (identifier) を返す。
+.\"O A new set of
+.\"O .I nsems
+.\"O semaphores is created if
+.\"O .I key
+.\"O has the value
+.\"O .B IPC_PRIVATE
+.\"O or if no existing semaphore set is associated with
+.\"O .I key
+.\"O and
+.\"O .B IPC_CREAT
+.\"O is specified in
+.\"O .IR semflg .
+.I key
+の値が
+.B IPC_PRIVATE
+の場合、もしくは
+.I semflg
+に
+.B IPC_CREAT
+が指定されていて、
+.I key
+に対応するセマフォ集合が存在しない場合、
+.I nsems
+個のセマフォからなる新しい集合が作成される。
+.PP
+.\"O If
+.\"O .I semflg
+.\"O specifies both
+.\"O .B IPC_CREAT
+.\"O and
+.\"O .B IPC_EXCL
+.\"O and a semaphore set already exists for
+.\"O .IR key ,
+.\"O then
+.\"O .BR semget ()
+.\"O fails with
+.\"O .I errno
+.\"O set to
+.\"O .BR EEXIST .
+.\"O (This is analogous to the effect of the combination
+.\"O .B O_CREAT | O_EXCL
+.\"O for
+.\"O .BR open (2).)
+.I semflg
+に
+.B IPC_CREAT
+と
+.B IPC_EXCL
+の両方が指定された場合、
+.I key
+に対応するセマフォ集合が既に存在すると、
+.BR semget ()
+は失敗し、
+.I errno
+に
+.B EEXIST
+が設定される
+(これは
+.BR open (2)
+に
+.B O_CREAT | O_EXCL
+が指定された場合の動作と同じである)。
+.PP
+.\"O Upon creation, the least significant 9 bits of the argument
+.\"O .I semflg
+.\"O define the permissions (for owner, group and others)
+.\"O for the semaphore set.
+.\"O These bits have the same format, and the same
+.\"O meaning, as the
+.\"O .I mode
+.\"O argument of
+.\"O .BR open (2)
+.\"O (though the execute permissions are
+.\"O not meaningful for semaphores, and write permissions mean permission
+.\"O to alter semaphore values).
+セマフォ集合作成時に、引き数
+.I semflg
+の下位 9 ビットは、そのセマフォ集合の (所有者 (owner)、グループ (group)、
+他人 (others) に対する) アクセス許可の定義として使用される。
+これらのビットは
+.BR open (2)
+の引き数
+.I mode
+と同じ形式で同じ意味である
+(但し、実行 (execute) 許可はセマフォでは意味を持たず、
+書き込み (write) 許可はセマフォ値の変更 (alter) 許可として機能する)。
+.PP
+.\"O The values of the semaphores in a newly created set are indeterminate.
+.\"O (POSIX.1-2001 is explicit on this point.)
+.\"O Although Linux, like many other implementations,
+.\"O initializes the semaphore values to 0,
+.\"O a portable application cannot rely on this:
+.\"O it should explicitly initialize the semaphores to the desired values.
+新しく作成されたセマフォ集合の各セマフォの値は不定である
+(この点は POSIX.1-2001 に明記されている)。
+Linux は他の多くの実装と同様にセマフォ値を 0 に初期化するが、
+移植性を考慮したアプリケーションではこの動作を前提にすべきではない。
+アプリケーションは明示的にセマフォを希望の値で初期化すべきである。
+.\" In truth, every one of the many implementations that I've tested sets
+.\" the values to zero, but I suppose there is/was some obscure
+.\" implementation out there that does not.
+.PP
+.\"O When creating a new semaphore set,
+.\"O .BR semget ()
+.\"O initializes the set's associated data structure,
+.\"O .I semid_ds
+.\"O (see
+.\"O .BR semctl (2)),
+.\"O as follows:
+新規のセマフォ集合を作成する際、
+.BR semget ()
+はセマフォ集合の情報を保持するデータ構造体
+.I semid_ds
+を次のように初期化する
+.RI ( semid_ds
+については
+.BR semctl (2)
+を参照):
+.IP
+.\"O .I sem_perm.cuid
+.\"O and
+.\"O .I sem_perm.uid
+.\"O are set to the effective user ID of the calling process.
+.I sem_perm.cuid
+と
+.I sem_perm.uid
+に、呼び出し元のプロセスの実効 (effective) ユーザ ID を設定する。
+.IP
+.\"O .I sem_perm.cgid
+.\"O and
+.\"O .I sem_perm.gid
+.\"O are set to the effective group ID of the calling process.
+.I sem_perm.cgid
+と
+.I sem_perm.gid
+に、呼び出し元のプロセスの実効 (effective) グループ ID を設定する。
+.IP
+.\"O The least significant 9 bits of
+.\"O .I sem_perm.mode
+.\"O are set to the least significant 9 bits of
+.\"O .IR semflg .
+.I sem_perm.mode
+の下位 9 ビットに
+.I semflg
+の下位 9 ビットを設定する。
+.IP
+.\"O .I sem_nsems
+.\"O is set to the value of
+.\"O .IR nsems .
+.I sem_nsems
+に
+.I nsems
+の値を設定する。
+.IP
+.\"O .I sem_otime
+.\"O is set to 0.
+.I sem_otime
+に 0 を設定する。
+.IP
+.\"O .I sem_ctime
+.\"O is set to the current time.
+.I sem_ctime
+に現在の時刻を設定する。
+.PP
+.\"O The argument
+.\"O .I nsems
+.\"O can be 0
+.\"O (a don't care)
+.\"O when a semaphore set is not being created.
+.\"O Otherwise
+.\"O .I nsems
+.\"O must be greater than 0
+.\"O and less than or equal to the maximum number of semaphores per semaphore set
+.\"O .RB ( SEMMSL ).
+セマフォ集合の作成を行わない場合は、引き数
+.I nsems
+に (don't care を意味する) 0 を指定してもよい。
+そうでない場合は、
+.I nsems
+は 0 より大きい値でなければならず、セマフォ集合あたりのセマフォの最大数
+.RB ( SEMMSL )
+以下でなければならない。
+.PP
+.\"O If the semaphore set already exists, the permissions are
+.\"O verified.
+セマフォ集合が既に存在した場合は、アクセス許可の検査が行われる。
+.\"O .\" and a check is made to see if it is marked for destruction.
+.\" 破壊 (destruction) マークがないかチェックされる。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O If successful, the return value will be the semaphore set identifier
+.\"O (a nonnegative integer), otherwise \-1
+.\"O is returned, with
+.\"O .I errno
+.\"O indicating the error.
+成功した場合、セマフォ集合の識別子 (非負の整数) が返り値となる。
+失敗した場合は \-1 が返され、
+.I errno
+にエラーを示す値が設定される。
+.\"O .SH ERRORS
+.SH エラー
+.\"O On failure
+.\"O .I errno
+.\"O will be set to one of the following:
+失敗した場合、
+.I errno
+には以下の値のいずれか一つが設定される:
+.TP
+.B EACCES
+.\"O A semaphore set exists for
+.\"O .IR key ,
+.\"O but the calling process does not have permission to access the set,
+.\"O and does not have the
+.\"O .B CAP_IPC_OWNER
+.\"O capability.
+.I key
+に対応するセマフォ集合は存在するが、
+呼び出し元のプロセスはその集合へのアクセス許可がなく、
+.B CAP_IPC_OWNER
+ケーパビリティも持っていない。
+.TP
+.B EEXIST
+.\"O A semaphore set exists for
+.\"O .I key
+.\"O and
+.\"O .I semflg
+.\"O specified both
+.\"O .B IPC_CREAT
+.\"O and
+.\"O .BR IPC_EXCL .
+.I key
+に対応するセマフォ集合が存在し、
+.I semflg
+には
+.B IPC_CREAT
+と
+.B IPC_EXCL
+が指定されていた。
+.\" .TP
+.\"O .\" .B EIDRM
+.\"O .\" The semaphore set is marked to be deleted.
+.\" .B EIDRM
+.\" セマフォ集合に削除 (delete) マークがつけられている。
+.TP
+.B EINVAL
+.\"O .I nsems
+.\"O is less than 0 or greater than the limit on the number
+.\"O of semaphores per semaphore set
+.\"O .RB ( SEMMSL ),
+.I nsems
+が 0 より小さいか、セマフォ集合あたりのセマフォの最大数
+.RB ( SEMMSL )
+より大きい。
+.\"O or a semaphore set corresponding to
+.\"O .I key
+.\"O already exists, and
+.\"O .I nsems
+.\"O is larger than the number of semaphores in that set.
+または、
+.I key
+に対応するセマフォ集合が既に存在し、
+.I nsems
+がその集合のセマフォ数よりも大きい。
+.TP
+.B ENOENT
+.\"O No semaphore set exists for
+.\"O .I key
+.\"O and
+.\"O .I semflg
+.\"O did not specify
+.\"O .BR IPC_CREAT .
+.I key
+に対応するセマフォ集合が存在せず、
+.I semflg
+に
+.B IPC_CREAT
+が指定されてもいない。
+.TP
+.B ENOMEM
+.\"O A semaphore set has to be created but the system does not have
+.\"O enough memory for the new data structure.
+セマフォ集合を作成しようとしたが、新しいデータ構造体を
+作成するのに十分なメモリがシステムに存在しない。
+.TP
+.B ENOSPC
+.\"O A semaphore set has to be created but the system limit for the maximum
+.\"O number of semaphore sets
+.\"O .RB ( SEMMNI ),
+.\"O or the system wide maximum number of semaphores
+.\"O .RB ( SEMMNS ),
+.\"O would be exceeded.
+セマフォ集合を作成しようとすると、システムのセマフォ集合の
+最大数
+.RB ( SEMMNI )
+か、システム全体のセマフォの最大数
+.RB ( SEMMNS )
+のいずれかを超えてしまう。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+SVr4, POSIX.1-2001.
+.\"O .\" SVr4 documents additional error conditions EFBIG, E2BIG, EAGAIN,
+.\"O .\" ERANGE, EFAULT.
+.\" SVr4 には、追加で EFBIG, E2BIG, EAGAIN, ERANGE, EFAULT
+.\" のエラー状態についての記述がある。
+.\"O .SH NOTES
+.SH 注意
+.\"O .B IPC_PRIVATE
+.\"O isn't a flag field but a
+.\"O .I key_t
+.\"O type.
+.B IPC_PRIVATE
+はフラグ・フィールドに指定するものではなく、
+.I key_t
+型である。
+.\"O If this special value is used for
+.\"O .IR key ,
+.\"O the system call ignores everything but the least significant 9 bits of
+.\"O .I semflg
+.\"O and creates a new semaphore set (on success).
+この特別な値が
+.I key
+に指定されると、
+.BR semget ()
+.I semflg
+の下位 9 ビット以外は全て無視し、
+(成功した場合は) 新しいセマフォ集合を作成する。
+.PP
+.\"O The following limits on semaphore set resources affect the
+.\"O .BR semget ()
+.\"O call:
+セマフォ集合のリソースに関する制限のうち、
+.BR semget ()
+に影響を及ぼすものを以下に挙げる:
+.TP
+.B SEMMNI
+.\"O System wide maximum number of semaphore sets: policy dependent
+.\"O (on Linux, this limit can be read and modified via the fourth field of
+.\"O .IR /proc/sys/kernel/sem ).
+.\"O .\" This /proc file is not available in Linux 2.2 and earlier -- MTK
+システム全体のセマフォ集合の最大数: 方針依存
+(Linux では、この制限値は
+.I /proc/sys/kernel/sem
+の第4フィールドに対応し、読み出しも変更もできる)。
+.\" この /proc ファイルは Linux 2.2 以前では利用できない -- MTK
+.TP
+.B SEMMSL
+.\"O Maximum number of semaphores per semid: implementation dependent
+.\"O (on Linux, this limit can be read and modified via the first field of
+.\"O .IR /proc/sys/kernel/sem ).
+semid あたりのセマフォの最大数: 実装依存
+(Linux では、この制限値は
+.I /proc/sys/kernel/sem
+の第1フィールドに対応し、読み出しも変更もできる)。
+.TP
+.B SEMMNS
+.\"O System wide maximum number of semaphores: policy dependent
+.\"O (on Linux, this limit can be read and modified via the second field of
+.\"O .IR /proc/sys/kernel/sem ).
+.\"O Values greater than
+.\"O .B SEMMSL * SEMMNI
+.\"O makes it irrelevant.
+システム全体のセマフォの最大数: 方針依存
+(Linux では、この制限値は
+.I /proc/sys/kernel/sem
+の第2フィールドに対応し、読み出しも変更もできる)。
+.B SEMMSL * SEMMNI
+より大きな値は意味を持たない。
+.\"O .SH BUGS
+.SH バグ
+.\"O The name choice
+.\"O .B IPC_PRIVATE
+.\"O was perhaps unfortunate,
+.\"O .B IPC_NEW
+.\"O would more clearly show its function.
+.B IPC_PRIVATE
+という名前を選んだのはおそらく失敗であろう。
+.B IPC_NEW
+の方がより明確にその機能を表しているだろう。
+.LP
+.\"O The semaphores in a set are not initialized by
+.\"O .BR semget ().
+.\"O .\" In fact they are initialized to zero on Linux, but POSIX.1-2001
+.\"O .\" does not specify this, and we can't portably rely on it.
+.\"O In order to initialize the semaphores,
+.\"O .BR semctl (2)
+.\"O must be used to perform a
+.\"O .B SETVAL
+.\"O or a
+.\"O .B SETALL
+.\"O operation on the semaphore set.
+セマフォ集合内のセマフォは
+.BR semget ()
+では初期化されない。
+.\" 実際は Linux ではセマフォは 0 に初期化されるが、
+.\" POSIX.1-2001 ではこうなることを規定している訳ではないので、
+.\" 移植を考慮するときにはこれを前提にしてはいけない。
+このセマフォを初期化するには、セマフォ集合に対して
+.BR semctl (2)
+を使って
+.B SETVAL
+か
+.B SETALL
+操作を実行する必要がある。
+.\"O (Where multiple peers do not know who will be the first to
+.\"O initialize the set, checking for a nonzero
+.\"O .I sem_otime
+.\"O in the associated data structure retrieved by a
+.\"O .BR semctl (2)
+.\"O .B IPC_STAT
+.\"O operation can be used to avoid races.)
+(複数箇所からセマフォ集合の操作が行われる場面では、
+誰が最初に集合を初期化すればよいか分からない。
+この状況を避けるには、
+.BR semctl (2)
+の
+.B IPC_STAT
+操作で取得できるセマフォのデータ構造体の
+.I sem_otime
+が 0 以外になっているかをチェックすればよい。)
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR semctl (2),
+.BR semop (2),
+.BR ftok (3),
+.BR capabilities (7),
+.BR sem_overview (7),
+.BR svipc (7)

@@ -1,0 +1,200 @@
+.\" Copyright (c) 2003 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" License.
+.\"
+.\" Japanese Version Copyright (c) 2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Thu Jan 27 07:03:56 JST 2005
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\"
+.TH DL_ITERATE_PHDR 3 2007-05-18 "Linux" "Linux Programmer's Manual"
+.SH 名前
+dl_iterate_phdr \- 共有オブジェクトのリストを辿る
+.SH 書式
+.nf
+.B #define _GNU_SOURCE
+.B #include <link.h>
+
+\fBint dl_iterate_phdr(\fP
+          \fBint (*\fPcallback\fB) \
+(struct dl_phdr_info *\fPinfo\fB,\fP
+                           \fBsize_t\fP size\fB, void *\fPdata\fB),\fP
+          \fBvoid *\fPdata\fB);\fP
+.fi
+.SH 説明
+.BR dl_iterate_phdr ()
+関数を使うと、アプリケーションは実行時に
+どの共有オブジェクトをロードしたかを見つけることができる。
+
+.BR dl_iterate_phdr ()
+関数はアプリケーションの共有オブジェクトのリストを辿り、
+各オブジェクトに対して関数
+.I callback
+を 1 回ずつ呼び出す。
+これは全ての共有オブジェクトが処理されるか、
+.I callback
+が 0 以外の値を返すまで行われる。
+
+各々の
+.I callback
+呼び出しは 3 つの引き数を受け取る:
+.I info
+は共有オブジェクトの情報を保持する構造体へのポインタである。
+.I size
+は
+.I info
+で指される構造体のサイズである。
+.I data
+は呼び出し元プログラムから
+.BR dl_iterate_phdr ()
+の呼び出しの (同じく
+.I data
+という名前の) 第 2 引き数として渡される値のコピーである。
+
+.I info
+引き数は、以下のような型の構造体である。
+
+.in +4n
+.nf
+struct dl_phdr_info {
+    ElfW(Addr)        dlpi_addr;  /* オブジェクトのベースアドレス */
+    const char       *dlpi_name;  /* (null 文字で終端された)
+                                     オブジェクト名 */
+    const ElfW(Phdr) *dlpi_phdr;  /* このオブジェクトの
+                                     ELF プログラムヘッダの
+                                     配列へのポインタ */
+    ElfW(Half)        dlpi_phnum; /* \fIdlpi_phdr\fP のアイテム数 */
+};
+.fi
+.in
+
+.RI ( ElfW ()
+マクロ定義は引き数をハードウェアアーキテクチャに適した
+ELF データ型の名前に変換する。
+たとえば、32 ビットプラットフォームでは
+ElfW(Addr) はデータ型名 Elf32_Addr を生成する。
+これらの型についての更に詳細な情報は、ヘッダファイル
+.IR <elf.h> " と " <link.h>
+にある。
+
+.I dlpi_addr
+フィールドは共有オブジェクトのベースアドレス
+(つまり、共有オブジェクトの仮想メモリアドレスと、
+ファイル (このファイルから共有オブジェクトがロードされる) における
+共有オブジェクトのオフセットとの差分) を表す。
+.I dlpi_name
+は null 文字で終端された文字列であり、
+このパス名のファイルから共有オブジェクトがロードされる。
+
+.I dlpi_phdr
+と
+.I dlpi_phnum
+フィールドの意味を理解するには、
+ELF 共有オブジェクトが幾つかのセグメントから構成されていることと、
+各セグメントがそれに対応するプログラムヘッダ
+(そのセグメントを説明する) を持っていることを知っている必要がある。
+.I dlpi_phdr
+フィールドは、この共有オブジェクトのプログラムヘッダの配列へのポインタである。
+.I dlpi_phnum
+は、この配列のサイズを表す。
+
+これらのプログラムヘッダは以下のような形式の構造体である:
+.in +4n
+.nf
+
+typedef struct
+{
+    Elf32_Word  p_type;    /* セグメントの型 */
+    Elf32_Off   p_offset;  /* セグメントのファイルオフセット */
+    Elf32_Addr  p_vaddr;   /* セグメントの仮想アドレス */
+    Elf32_Addr  p_paddr;   /* セグメントの物理アドレス */
+    Elf32_Word  p_filesz;  /* ファイルにおけるセグメントサイズ */
+    Elf32_Word  p_memsz;   /* メモリにおけるセグメントサイズ */
+    Elf32_Word  p_flags;   /* セグメントフラグ */
+    Elf32_Word  p_align;   /* セグメントの配置 (alignment) */
+} Elf32_Phdr;
+.fi
+.in
+
+特定のプログラムヘッダ
+.I x
+の仮想メモリにおける位置は、以下の式で計算できる点に注意すること:
+
+.nf
+  addr == info\->dlpi_addr + info\->dlpi_phdr[x].p_vaddr;
+.fi
+.SH 返り値
+.BR dl_iterate_phdr ()
+関数は最後の
+.I callback
+の呼び出しで返された値を返す。
+.SH バージョン
+.BR dl_iterate_phdr ()
+は glibc のバージョン 2.2.4 以降でサポートされている。
+.SH 準拠
+.BR dl_iterate_phdr ()
+関数は Linux 固有であり、移植を考えたアプリケーションでは避けるべきである。
+.SH 例
+以下のプログラムは、共有オブジェクトがロードされた
+パス名の一覧を表示する。
+各共有オブジェクトについて、このプログラムは
+オブジェクトの ELF セグメントがロードされた
+仮想アドレスの一覧を表示する。
+
+.nf
+#define _GNU_SOURCE
+#include <link.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+static int
+callback(struct dl_phdr_info *info, size_t size, void *data)
+{
+    int j;
+
+    printf("name=%s (%d segments)\\n", info\->dlpi_name,
+        info\->dlpi_phnum);
+
+    for (j = 0; j < info\->dlpi_phnum; j++)
+         printf("\\t\\t header %2d: address=%10p\\n", j,
+             (void *) (info\->dlpi_addr + info\->dlpi_phdr[j].p_vaddr));
+    return 0;
+}
+
+int
+main(int argc, char *argv[])
+{
+    dl_iterate_phdr(callback, NULL);
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+.BR ldd (1),
+.BR objdump (1),
+.BR readelf (1),
+.BR dlopen (3),
+.BR elf (5),
+.BR feature_test_macros (7),
+.BR ld.so (8),
+オンラインのいろいろな場所で入手できる
+.I "Executable and Linking Format Specification"

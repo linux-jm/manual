@@ -1,0 +1,361 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright 1993 Rickard E. Faith (faith@cs.unc.edu) and
+.\" and Copyright 2002 Michael Kerrisk
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified Fri Jan 31 16:26:07 1997 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified Fri Dec 11 17:57:27 1998 by Jamie Lokier <jamie@imbolc.ucc.ie>
+.\" Modified 24 Apr 2002 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Substantial rewrites and additions
+.\" 2005-05-10 mtk, noted that lock conversions are not atomic.
+.\"
+.\" Japanese Version Copyright (c) 1996 Takeshi Ueno
+.\"         all rights reserved.
+.\" Translated 1996-07-03, Takeshi Ueno <tueno@vio.co.jp>
+.\" Modified 1997-12-14, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified 1999-08-14, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified 2002-09-24, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Modified 2005-02-26, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-09-06, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH FLOCK 2 2009-07-25 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O flock \- apply or remove an advisory lock on an open file
+.SH 名前
+flock \- オープンされたファイルに対するアドバイザリ・ロックの適用、解除を行う
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #include <sys/file.h>
+.sp
+.BI "int flock(int " fd ", int " operation );
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O Apply or remove an advisory lock on the open file specified by
+.\"O .IR fd .
+.\"O The argument
+.\"O .I operation
+.\"O is one of the following:
+オープンされたファイルにアドバイザリ・ロック (advisory lock) の適用
+や解除を行う。
+ファイルは
+.I fd
+で指定する。引き数
+.I operation
+には以下のいずれか一つを指定する:
+.RS 4
+.TP 9
+.B LOCK_SH
+.\"O Place a shared lock.
+.\"O More than one process may hold a shared lock for a given file
+.\"O at a given time.
+共有ロックを適用する。 指定したファイルに対して、
+一つ以上のプロセスが同時に共有ロックを保持することができる。
+.TP
+.B LOCK_EX
+.\"O Place an exclusive lock.
+.\"O Only one process may hold an exclusive lock for a given
+.\"O file at a given time.
+排他ロックを適用する。  指定したファイルに対して、
+ただ一つのプロセスだけが同時に排他ロックを保持することができる。
+.TP
+.B LOCK_UN
+.\"O Remove an existing lock held by this process.
+このプロセスが保持している既存のロックを解除する。
+.RE
+.PP
+.\"O A call to
+.\"O .BR flock ()
+.\"O may block if an incompatible lock is held by another process.
+.\"O To make a nonblocking request, include
+.\"O .B LOCK_NB
+.\"O (by
+.\"O .IR OR ing)
+.\"O with any of the above operations.
+.BR flock ()
+を呼び出したときに、指定したロック種別と異なるロックが別プロセスによって
+保持されていると、
+.BR flock ()
+は停止 (block) されることがある。
+非停止 (nonblocking) タイプの要求を行うためには、
+上記の操作 (operation) に
+.B LOCK_NB
+を論理和の形で指定する。
+
+.\"O A single file may not simultaneously have both shared and exclusive locks.
+一つのファイルに共有ロックと排他ロックを同時に設定することはできない。
+
+.\"O Locks created by
+.\"O .BR flock ()
+.\"O are associated with an open file table entry.
+.\"O This means that duplicate file descriptors (created by, for example,
+.\"O .BR fork (2)
+.\"O or
+.\"O .BR dup (2))
+.\"O refer to the same lock, and this lock may be modified
+.\"O or released using any of these descriptors.
+.BR flock ()
+によって作られるロックは、
+オープンされたファイルのテーブル・エントリと関連付けられる。
+したがって、ファイル・ディスクリプタの複製
+.RB ( fork (2)
+や
+.BR dup (2)
+などにより作成される) は同じロックを参照し、
+これらのファイル・ディスクリプタのどれを使っても
+このロックを変更したり解放したりできる。
+.\"O Furthermore, the lock is released either by an explicit
+.\"O .B LOCK_UN
+.\"O operation on any of these duplicate descriptors, or when all
+.\"O such descriptors have been closed.
+また、ロックの解放は、
+上記の複数のファイル・ディスクリプタのいずれかに対して
+明示的に
+.B LOCK_UN
+操作を指示した場合か、これらのファイル・ディスクリプタがすべて
+閉じられた場合に行われる。
+
+.\"O If a process uses
+.\"O .BR open (2)
+.\"O (or similar) to obtain more than one descriptor for the same file,
+.\"O these descriptors are treated independently by
+.\"O .BR flock ().
+.\"O An attempt to lock the file using one of these file descriptors
+.\"O may be denied by a lock that the calling process has
+.\"O already placed via another descriptor.
+あるプロセスが
+.BR open (2)
+(もしくは同様の方法) を使って同じファイルに対して
+複数のディスクリプタを取得した場合、
+.BR flock ()
+はこれら複数のディスクリプタを各々独立のものとして扱う。
+これらのファイル・ディスクリプタの一つを使ってファイルをロックしようと
+した際、そのロック要求は、呼び出し元のプロセスがそのファイルの別の
+ディスクリプタ経由ですでに設定しているロックによって拒否される場合がある。
+
+.\"O A process may only hold one type of lock (shared or exclusive)
+.\"O on a file.
+.\"O Subsequent
+.\"O .BR flock ()
+.\"O calls on an already locked file will convert an existing lock to the new
+.\"O lock mode.
+一つのプロセスは、一つのファイルに対して (共有ロックと排他ロックのうち)
+いずれか一種類のロックしか設定できない。
+既にロックされたファイルに対して
+.BR flock ()
+を呼び出すと、既存のロックを新しいロックモードに変更することになる。
+
+.\"O Locks created by
+.\"O .BR flock ()
+.\"O are preserved across an
+.\"O .BR execve (2).
+.BR flock ()
+により作成されたロックは
+.BR execve (2)
+の前後で保存される。
+
+.\"O A shared or exclusive lock can be placed on a file regardless of the
+.\"O mode in which the file was opened.
+共有ロックも排他ロックも、ファイルがどのモードでオープンされたかに
+関係なく適用することができる。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O On success, zero is returned.
+.\"O On error, \-1 is returned, and
+.\"O .I errno
+.\"O is set appropriately.
+成功の場合、0 が返される。エラーの場合は、\-1 が返され、
+.I errno
+に適切な値が設定される。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EBADF
+.\"O .I fd
+.\"O is not an open file descriptor.
+.I fd
+がオープンされたファイル・ディスクリプタではない。
+.TP
+.B EINTR
+.\"O While waiting to acquire a lock, the call was interrupted by
+.\"O delivery of a signal caught by a handler; see
+.\"O .BR signal (7).
+ロックの獲得を待っている間に、ハンドラにより捕捉されたシグナルを
+受信し、
+.BR flock ()
+が中断された。
+.BR signal (7)
+参照。
+.TP
+.B EINVAL
+.\"O .I operation
+.\"O is invalid.
+.I oepration
+が無効である。
+.TP
+.B ENOLCK
+.\"O The kernel ran out of memory for allocating lock records.
+ロック・レコードを割り当てるためのメモリが不足している。
+.TP
+.B EWOULDBLOCK
+.\"O The file is locked and the
+.\"O .B LOCK_NB
+.\"O flag was selected.
+指定したファイルがロックされており、
+.B LOCK_NB
+フラグが指定されている。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+.\"O 4.4BSD (the
+.\"O .BR flock ()
+.\"O call first appeared in 4.2BSD).
+4.4BSD
+.RB ( flock ()
+コールは 4.2BSD で最初に登場した)。
+.\"O A version of
+.\"O .BR flock (),
+.\"O possibly implemented in terms of
+.\"O .BR fcntl (2),
+.\"O appears on most Unix systems.
+.BR fcntl (2)
+で実装されているものなどを含めると、
+.BR flock ()
+の機能はほとんどの Unix システムで実装されている。
+.\"O .SH NOTES
+.SH 注意
+.\"O .BR flock ()
+.\"O does not lock files over NFS.
+.\"O Use
+.\"O .BR fcntl (2)
+.\"O instead: that does work over NFS, given a sufficiently recent version of
+.\"O Linux and a server which supports locking.
+.BR flock ()
+は NFS 上のファイルのロックをしない。代わりに
+.BR fcntl (2)
+を使用すること。これにより、十分に新しいバージョンの Linux と、ロック機能を
+サポートした NFS サーバを使用することにより、NFS 上でロックができる。
+.PP
+.\"O Since kernel 2.0,
+.\"O .BR flock ()
+.\"O is implemented as a system call in its own right rather
+.\"O than being emulated in the GNU C library as a call to
+.\"O .BR fcntl (2).
+kernel 2.0 以降では、
+.BR flock ()
+は、GNU C ライブラリでの
+.BR fcntl (2)
+を呼び出してのエミュレーションではなく、
+それ自体がシステムコールとして実装されている。
+.\"O This yields true BSD semantics:
+.\"O there is no interaction between the types of lock
+.\"O placed by
+.\"O .BR flock ()
+.\"O and
+.\"O .BR fcntl (2),
+.\"O and
+.\"O .BR flock ()
+.\"O does not detect deadlock.
+これにより正真正銘の BSD での動作が達成される:
+.BR flock ()
+と
+.BR fcntl (2)
+で適用されるロックの種別には相互作用がなくなり、
+.BR flock ()
+がデッドロックを検出しなくなる。
+.PP
+.\"O .BR flock ()
+.\"O places advisory locks only; given suitable permissions on a file,
+.\"O a process is free to ignore the use of
+.\"O .BR flock ()
+.\"O and perform I/O on the file.
+.BR flock ()
+アドバイザリ・ロックだけを適用する。したがって、ファイルに適切なアクセス権を
+付与していれば、プロセスは
+.BR flock ()
+の使用に無視して、ファイルへの入出力を行うことができる。
+.PP
+.\"O .BR flock ()
+.\"O and
+.\"O .BR fcntl (2)
+.\"O locks have different semantics with respect to forked processes and
+.\"O .BR dup (2).
+.BR flock ()
+と
+.BR fcntl (2)
+は fork されたプロセスと
+.BR dup (2)
+で違った動作をする。
+.\"O On systems that implement
+.\"O .BR flock ()
+.\"O using
+.\"O .BR fcntl (2),
+.\"O the semantics of
+.\"O .BR flock ()
+.\"O will be different from those described in this manual page.
+.BR flock ()
+を
+.BR fcntl (2)
+を使って実装しているシステムでは、
+.BR flock ()
+の動作はこのマニュアル・ページに記載されているものとは違うだろう。
+.PP
+.\"O Converting a lock
+.\"O (shared to exclusive, or vice versa) is not guaranteed to be atomic:
+.\"O the existing lock is first removed, and then a new lock is established.
+.\"O Between these two steps,
+.\"O a pending lock request by another process may be granted,
+.\"O with the result that the conversion either blocks, or fails if
+.\"O .B LOCK_NB
+.\"O was specified.
+.\"O (This is the original BSD behavior,
+.\"O and occurs on many other implementations.)
+.\"O .\" Kernel 2.5.21 changed things a little: during lock conversion
+.\"O .\" it is now the highest priority process that will get the lock -- mtk
+ロックの変換 (共有ロックから排他ロックへ、もしくはその反対) がアトミックに
+行われることは保証されていない: 既存のロックがまず削除され、それから新しい
+ロックが設定される。この 2つのステップの間に、他のプロセスからの処理待ちの
+ロック要求が認められるかもしれず、結果として変換は停止 (block) したり、
+.RB ( LOCK_NB
+が指定された場合には) 失敗したりする。
+(これは元々の BSD の動作であり、多くの他の実装でも起こる。)
+.\" カーネル 2.5.21 で少し動作が変更された: ロック変換の最中は
+.\" そのロックを行おうとしているプロセスが最高優先となる -- mtk
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR close (2),
+.BR dup (2),
+.BR execve (2),
+.BR fcntl (2),
+.BR fork (2),
+.BR open (2),
+.BR lockf (3)
+
+.\"O See also
+.\"O .I Documentation/filesystem/locks.txt
+.\"O in the kernel source
+.\"O .RI ( Documentation/locks.txt
+.\"O in older kernels).
+カーネルソース内の
+.I Documentation/filesystem/locks.txt
+(以前のカーネルでは
+.IR Documentation/locks.txt )
+も参照のこと。

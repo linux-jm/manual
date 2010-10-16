@@ -1,0 +1,281 @@
+.\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
+.\" pcmcia.5 1.27 2000/10/16 16:37:38
+.\"
+.\" Japanese Version Copyright (c) 2000 KOJIMA Mitsuhiro and NAKANO Takeo
+.\" all rights reserved.
+.\" Translated Sun May 14 2000 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" based on the draft by KOJIMA Mitsuhiro <isle@st.rim.or.jp>
+.\" Updated Mon 12 Mar 2001 by NAKANO Takeo
+.\"
+.TH PCMCIA 5 "2000/10/16 16:37:38" "pcmcia-cs"
+.SH 名前
+/etc/pcmcia/config \- PCMCIA カードの設定データベース
+.SH 説明
+PCMCIA カード設定ファイルは
+.BR cardmgr (8)
+が起動時に読み込む。
+この設定ファイルは、カードサービスが利用できる
+IO ポート・メモリ・IRQ といったリソースを定義し、
+デバイスドライバのロードや初期化の方法を指定し、
+それぞれの PCMCIA カードの詳細について記述する。
+.SH リソースの記述
+リソースのエントリには 3 つの種類がある。
+.BR include ,
+.BR exclude ,
+.B reserve
+である。
+include したリソースは、
+カードサービスがクライアントとなる各種ドライバに割り当てる。
+カードサービスの制御下にあるリソースは exclude することもできる。
+例えばシステムの特定のデバイスがそのリソースを使うような場合である。
+リソースは reserve することもできる。
+この場合は、そのリソースを特に使いたいと要求するクライアントが現われるか、
+あるいは他に割り当て可能なリソースが無くなるまで、
+そのリソースは割り当てない。
+.PP
+リソースのタイプには 3 つの種類がある。
+.BR port ,
+.BR memory ,
+.B irq
+である。
+デフォルトでは、カードサービスは他のデバイスドライバが使っていない
+irq を自由に使えるものと仮定する。
+しかし、カードサービスは I/O ポートとアドレスの範囲に関しては
+なんの仮定も行わない。 Linux のドライバの中には
+リソースの利用状況を登録しない物があるからである。
+そのため、
+IO ポートとメモリの範囲については、
+PCMCIA デバイスが使って良い部分を明示的に指定しなければならない。
+.PP
+これらをまとめると、設定ファイルの内容は以下のようになる:
+.sp
+.RS
+.nf
+include port 0x300-0x3ff, memory 0xd0000-0xdffff
+reserve irq 3
+exclude irq 4, port 0x3f8-0x3ff
+.RE
+.fi
+.sp
+この例では、カードサービスは I/O ポートの 0x300 から
+0x3ff と、メモリの 0xd0000  から 0xdffff までを割り当てて良いことになる。
+exclude 指定をした irq 4 と I/O ポートの 0x3f8 から 0x3ff は、
+利用可能であっても使わない。
+reserve 指定した irq 3 は、
+特にその割り込みをクライアントが必要とした場合に限って利用する。
+.PP
+カードサービスは、他のカーネルデバイスドライバに割り当てられている
+リソースは決して利用しない。
+.BR include / exclude / reserve
+メカニズムは、カードサービスが使おうと試みるリソースを指定するもので、
+Linux のリソースマネージャーに登録されないデバイスと
+うまく共存するための仕組みなのである。
+.\"kojima [註 釈：かってリソースの指定は /etc/pcmcia/config の最初に
+.\"kojima ありましたが、現在のバージョンでは /etc/pcmcia/config.opts
+.\"kojima と して独立しています。/etc/pcmcia/config は新しくサポート
+.\"kojima されたカードが増えるたびに書きかえられ ま す が、/etc/pcm-
+.\"kojima cia/config.opts は書きかわらないので、システムに依存する記
+.\"kojima 述は *.opts ファイルにまとめるようになりました。]
+.SH デバイスドライバの記述
+カードサービスの全てのクライアントドライバは、
+32 文字のタグによって識別される。
+設定ファイル中の
+.B device
+エントリがクライアントドライバを記述する。
+必須のフィールドは識別用のタグのみで、
+その他のフィールドには、
+そのデバイスを利用するためにロードすべきカーネルモジュールや
+デバイスの実体を有効/無効するために実行するスクリプトを指定する。
+ドライバの実体がソケットに割り当てられると、
+ドライバは cardmgr にシステムから見たそのデバイスの名称
+(ネットワークデバイスならば
+.IR eth0 、
+モデムならば
+.I cua1
+など)
+を通知する。
+この名称は設定用スクリプトに渡される。例えば:
+.sp
+.RS
+.nf
+device "pcnet_cs"
+  class "network"
+  module "net/8390" opts "ei_debug=4", "pcnet_cs"
+.RE
+.fi
+.sp
+という指定では、
+.B pcnet_cs
+デバイスは 2 つのローダブルモジュールが必要であることを示している。
+1 つめのモジュール (8390) はモジュールディレクトリの
+.I net
+サブディレクトリにあり、指定したパラメータ
+.I ei_debug=4
+と共にロードされる。
+2 つめのモジュール (de650_cs) は
+.I pcmcia
+サブディレクトリにある。
+このデバイス (pcnet_cs) は
+.I network
+というクラスに属し、デバイスの起動と終了には、
+設定ファイルと同じディレクトリにある
+.I network スクリプト (/etc/pcmcia/network) が利用される。
+.PP
+デバイスドライバ宣言の外部で、
+特定のカーネルモジュールのデフォルトのオプションを指定することもできる。
+これはローカルな設定オプションを
+メインのカード設定ファイルから分離するのに便利である。
+.\"kojima 各デバイスの設定用スクリプトはデバイスの初期化と終了の際に
+.\"kojima 起動されますが、それ以外にも、サスペンド時にそのデバイスが
+.\"kojima 現在使用中かどうかを確認したり、レジュームの際にデバイスを
+.\"kojima 再設定したりするのにも使われます。 cardmgr は設定用スク リ
+.\"kojima プトをいくつかの引数を指定して起動します。引数として指定さ
+.\"kojima れるのは「取るべき動作」と「デバイス名」で、可能ならば「デ
+.\"kojima バイス番号(major/minor)」も指定します。
+.sp
+.RS
+.nf
+module "pcnet_cs" opts "mem_speed=600"
+.RE
+.fi
+.sp
+.SH カードの記述
+card 宣言は、PCMCIA カードとそのクライアントドライバとを
+結びつけるものである。
+card 宣言は、カードの名称・カードが挿入された際の識別方法・
+利用するドライバ、の 3 つの部分からなる。
+カードを識別するには 6 つのメソッド (方法) がある。
+.B version
+メソッドはカード識別に VERSION_1 id 文字列を用いる。
+.B manfid
+メソッドはカードの MANFID タプルコードを用いる。
+.B pci
+メソッドは CardBus カードの PCI デバイス ID を用いる。
+.B tuple
+メソッドはカードの任意の CIS タプルに埋めこまれた文字列を用いる。
+.B function
+メソッドはカードの function ID を用いる。
+.B anonymous
+メソッドは CIS を持たないカードにマッチする
+(これは旧式のタイプ I メモリカードに用いる物である)。
+以下にいくつか例を示す。
+.sp
+.RS
+.nf
+card "Linksys Ethernet Card"
+  tuple 0x40, 0x0009, "E-CARD PC Ethernet Card"
+  bind "pcnet_cs"
+.RE
+.fi
+.sp
+このカードは 0x40 タプルのオフセット 0x0009 から始まる
+文字列 "E-CARD PC Ethernet Card" によって識別され、
+.B pcnet_cs
+ドライバにバインドされる
+(ドライバはあらかじめ
+.B driver
+宣言で定義されていなければならない)。
+.sp
+.RS
+.nf
+card "Connectware LANdingGear Adapter"
+  manfid 0x0057, 0x1004
+  bind "pcnet_cs"
+.RE
+.fi
+.sp
+このカードは MANFID タプルの内容によって識別される。
+.B pci
+メソッドも同じ形式で、
+.B manfid
+の代わりに
+.B pci
+と書く。
+.sp
+.RS
+.nf
+card "D-Link DE-650 Ethernet Card"
+  version "D-Link", "DE-650"
+  bind "pcnet_cs"
+.RE
+.fi
+.sp
+このカードは VERISON_1 タプルによって識別され、
+.B pcnet_cs
+ドライバにバインドされる。
+.sp
+.RS
+.nf
+card "Serial port device"
+  function serial_port
+  bind "serial_cs"
+.RE
+.fi
+.sp
+これは CIS function ID が 0x02 (シリアルポートカードに対応)
+のあらゆるカードを
+.B serial_cs
+ドライバにバインドする。
+function ID は数字でも良いし、定義済みの function である
+.BR memory_card ,
+.BR serial_port ,
+.BR parallel_port ,
+.BR fixed_disk ,
+.BR video_adapter ,
+.BR network_adapter ,
+.BR aims_card
+のいずれかでもかまわない。
+.PP
+最後に、カードで見付かった設定情報とは異なるものを
+カードサービスに用いさせるような指定も設定ファイルでは可能である。
+カードの設定情報が特に不完全・不正確である場合にこれを使えることもある。
+新しい設定はファイルから読み込む。例を示す:
+.sp
+.RS
+.nf
+card "Evil broken card"
+  manfid 0x1234, 0x5678
+  cis "fixup.cis"
+  bind "serial_cs"
+.RE
+.fi
+.sp
+.SH メモリ領域定義
+メモリ領域定義は、特定の形式のメモリデバイスを
+Memory Technology Driver (MTD) に関連付けするために用いられる。
+MTD はメモリアクセスを、デバイス独立なやり方で提供する。
+カードがこの種のメモリデバイスであると識別されると、
+カードサービスはそのメモリ領域全てに対して MTD を読み込もうとする。
+.PP
+メモリ領域定義は
+.B region
+キーワードと識別文字列から始まる。
+次に識別メソッドである
+.BR default " か " jedec
+が来る。
+.B default
+は他に分類されなかったすべての領域で使う MTD を指定し、
+.B jedec
+はメモリ領域を JEDEC の識別コードによって識別する。
+例えば
+.sp
+.RS
+.nf
+region "Intel Series 2 Flash"
+  jedec 0x89 0xa2
+  mtd "iflash2_mtd"
+.RE
+.fi
+.sp
+は、 JEDEC がマッチすれば
+.B iflash_mtd
+ドライバがロードされることを示している。
+.SH バグ 
+今のところ
+.B reserve
+キーワードの実装はこのバージョンのカードサービスにはあまり便利でない。
+.SH 著者
+David Hinds \- dahinds@users.sourceforge.net
+.SH 関連項目
+.BR cardmgr (8)
+

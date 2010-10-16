@@ -1,0 +1,337 @@
+.\" Copyright 1993 Giorgio Ciucci (giorgio@crcc.it)
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 1998 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated Wed Feb 11 21:29:14 JST 1998
+.\"         by HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\"
+.\"WORD:	semaphore set		セマフォー集合
+.\"WORD:	shared memory segment	共有メモリ・セグメント
+.\"WORD:	message queue		メッセージ・キュー
+.\"
+.\" FIXME There is now duplication of some of the information
+.\" below in semctl.2, msgctl.2, and shmctl.2 -- MTK, Nov 04
+.TH SVIPC 7 2009-01-26 "Linux" "Linux Programmer's Manual"
+.SH 名前
+svipc \- System V プロセス間通信機構
+.SH 書式
+.nf
+.B #include <sys/types.h>
+.B #include <sys/ipc.h>
+.B #include <sys/msg.h>
+.B #include <sys/sem.h>
+.B #include <sys/shm.h>
+.fi
+.SH 説明
+このマニュアル・ページは System V プロセス間通信
+(interprocess communication; IPC) 機構の Linux に
+おける実装を説明する。
+このプロセス間通信機構には、
+メッセージ・キュー (message queue)、セマフォー集合 (semaphore set)、
+共有メモリ・セグメント (shared memory segment) などがある。以下で
+.I "資源 (resource)"
+という用語を使用した場合にはこれらの機構のどれかを意味する。
+.SS 資源へのアクセス許可
+システムのそれぞれの資源は、IPC への操作を許可するかどうかを決定する
+ための情報を共通の構造体
+.I "struct ipc_perm"
+に格納して使用する。
+.I ipc_perm
+構造体は、ヘッダーファイルの
+.I <sys/ipc.h>
+に定義されており、以下のメンバーが含まれている:
+.in +4n
+.nf
+
+struct ipc_perm {
+    uid_t          cuid;   /* 作成者のユーザーID */
+    gid_t          cgid;   /* 作成者のグループID */
+    uid_t          uid;    /* 所有者のユーザーID */
+    gid_t          gid;    /* 所有者のグループID */
+    unsigned short mode;   /* 読み書きの許可 */
+};
+.fi
+.in
+.PP
+.I ipc_perm
+構造体の
+.I mode
+メンバーは以下の 9 ビットで、プロセスの IPC システム・コール
+による資源へのアクセス許可を定義する。
+許可は以下のように解釈される:
+.sp
+.nf
+    0400    ユーザーによる読み込み。
+    0200    ユーザーによる書き込み。
+.sp .5
+    0040    グループによる読み込み。
+    0020    グループによる書き込み。
+.sp .5
+    0004    他人による読み込み。
+    0002    他人による書き込み。
+.fi
+.PP
+システムはビット 0100, 0010, 0001 (実行ビット) は使用しない。
+さらに、セマフォーの場合には
+"書き込み(write)"
+は実際には
+"変更(alter)"
+を意味する。
+.PP
+同じヘッダーファイルには以下のシンボルの定義が含まれている:
+.TP 14
+.B IPC_CREAT
+キー(key)が存在しない場合には新たなエントリを作成する。
+.TP
+.B IPC_EXCL
+キー(key)が存在する場合には失敗する。
+.TP
+.B IPC_NOWAIT
+要求が待たされる場合にはエラーになる。
+.TP
+.B IPC_PRIVATE
+プライベート・キー。
+.TP
+.B IPC_RMID
+資源を削除する。
+.TP
+.B IPC_SET
+資源にオプションを設定する。
+.TP
+.B IPC_STAT
+資源のオプションを取得する。
+.PP
+.B IPC_PRIVATE
+は
+.I key_t
+型である。その他の全てのシンボルはフラグ・フィールドとして
+.I int
+変数に OR 演算で格納することができる。
+.SS メッセージ・キュー
+メッセージ・キューは正の整数
+.RI "(" msqid )
+によって識別され、
+.I <sys/msg.h>
+に定義されている構造体
+.IR "struct msqid_ds"
+に結びつけられている。
+この構造体は以下のメンバーを含んでいる:
+.in +4n
+.nf
+
+struct msqid_ds {
+    struct ipc_perm msg_perm;
+    msgqnum_t       msg_qnum;    /* キューにあるメッセージの数 */
+    msglen_t        msg_qbytes;  /* キューの最大バイト数 */
+    pid_t           msg_lspid;   /* 最後に msgsnd(2) をした PID */
+    pid_t           msg_lrpid;   /* 最後に msgrcv(2) をした PID */
+    time_t          msg_stime;   /* 最後に msgsnd(2) をした時間 */
+    time_t          msg_rtime;   /* 最後に msgrcv(2) をした時間 */
+    time_t          msg_ctime;   /* 最後に変更された時間 */
+};
+.fi
+.in
+.TP 11
+.I msg_perm
+メッセージ・キューへのアクセス許可を指定する
+.I ipc_perm
+構造体。
+.TP
+.I msg_qnum
+現在、このメッセージ・キューにあるメッセージの数。
+.TP
+.I msg_qbytes
+メッセージ・キューに入れることができるメッセージの最大バイト数。
+.TP
+.I msg_lspid
+最後に
+.BR msgsnd (2)
+システム・コールを行なったプロセスの ID。
+.TP
+.I msg_lrpid
+最後に
+.BR msgrcv (2)
+システム・コールを行なったプロセスの ID。
+.TP
+.I msg_stime
+最後に
+.BR msgsnd (2)
+システム・コールを行なった時間。
+.I msg_rtime
+最後に
+.BR msgrcv (2)
+を行なった時間。
+.TP
+.I msg_ctime
+最後に
+.I msqid_ds
+構造体のメンバーが変更された時間。
+.SS セマフォー集合
+セマフォー集合は正の整数
+.RI "(" semid )
+によって識別され、
+.I <sys/sem.h>
+に定義されている構造体
+.IR "struct semid_ds"
+に結びつけられている。
+この構造体は以下のメンバーを含んでいる:
+.in +4n
+.nf
+
+struct semid_ds {
+    struct ipc_perm sem_perm;
+    time_t          sem_otime;   /* 最後に操作した時間 */
+    time_t          sem_ctime;   /* 最後に変更した時間 */
+    unsigned long   sem_nsems;   /* 集合の中にあるセマフォー数 */
+};
+.fi
+.in
+.TP 11
+.I sem_perm
+セマフォー集合へのアクセス許可を指定する
+.I ipc_perm
+構造体。
+.TP
+.I sem_otime
+最後に
+.BR semop (2)
+システム・コールを行なった時間。
+.TP
+.I sem_ctime
+最後に
+.BR semctl (2)
+を行なって上記の構造体のメンバーを変更するか、セマフォー集合に属する
+セマフォーを変更した時間。
+.TP
+.I sem_nsems
+セマフォー集合の中にあるセマフォーの数。
+集合の中にあるそれぞれのセマフォーは負でない整数によって参照され、
+.B 0
+から
+.I sem_nsems\-1
+までの番号を持つ。
+.PP
+セマフォーは
+.I "struct sem"
+型のデータ構造体であり、以下のメンバーを含んでいる:
+.in +4n
+.nf
+
+struct sem {
+    int semval;  /* セマフォーの値 */
+    int sempid;  /* 最後に操作したプロセス ID */
+.\"    unsigned short semncnt; /* semval の増加を待つ数 */
+.\"    unsigned short semzcnt; /* semval = 0 を待つ数 */
+};
+.fi
+.in
+.TP 11
+.I semval
+セマフォー値: 負でない整数。
+.TP
+.I sempid
+このセマフォーを最後に操作したプロセスの ID。
+.\".TP
+.\".I semncnt
+.\".I semval
+.\"の値が増加するを待って停止しているプロセスの数。
+.\".TP
+.\".I semznt
+.\".I semval
+.\"が 0 になるのを待って停止しているプロセスの数。
+.SS 共有メモリ・セグメント
+共有メモリ・セグメトは正の整数
+.RI "(" shmid )
+によって識別され、
+.I <sys/shm.h>
+に定義されている
+.IR "struct shmid_ds"
+構造体に結びつけられている。
+この構造体は以下のメンバーを含んでいる:
+.in +4n
+.nf
+
+struct shmid_ds {
+    struct ipc_perm shm_perm;
+    size_t          shm_segsz;   /* セグメントのサイズ */
+    pid_t           shm_cpid;    /* 作成者のプロセス ID */
+    pid_t           shm_lpid;    /* 最後に操作したプロセス ID */
+    shmatt_t        shm_nattch;  /* 現在、付加している数 */
+    time_t          shm_atime;   /* 最後に付加した時間 */
+    time_t          shm_dtime;   /* 最後に分離した時間 */
+    time_t          shm_ctime;   /* 最後に変更した時間 */
+};
+.fi
+.in
+.TP 11
+.I shm_perm
+共有メモリ・セグメントへのアクセス許可を指定した
+.I ipc_perm
+構造体。
+.TP
+.I shm_segsz
+共有メモリ・セグメントのバイト数。
+.TP
+.I shm_cpid
+共有メモリ・セグメントを作成したプロセスの ID。
+.TP
+.I shm_lpid
+最後に
+.BR shmat (2)
+または
+.BR shmdt (2)
+システム・コールを実行したプロセスの ID。
+.TP
+.I shm_nattch
+この共有メモリ・セグメントをメモリに付加 (attach) しているプロセスの数。
+.TP
+.I shm_atime
+最後に
+.BR shmat (2)
+システム・コールを行なった時間。
+.TP
+.I shm_dtime
+最後に
+.BR shmdt (2)
+システム・コールを行なった時間。
+.TP
+.I shm_ctime
+最後に
+.BR shmctl (2)
+システム・コールを行なって、
+.I shmid_ds
+構造体を変更した時間。
+.SH 関連項目
+.BR ipc (2),
+.BR msgctl (2),
+.BR msgget (2),
+.BR msgrcv (2),
+.BR msgsnd (2),
+.BR semctl (2),
+.BR semget (2),
+.BR semop (2),
+.BR shmat (2),
+.BR shmctl (2),
+.BR shmdt (2),
+.BR shmget (2),
+.BR ftok (3)

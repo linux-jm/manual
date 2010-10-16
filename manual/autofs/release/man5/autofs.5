@@ -1,0 +1,254 @@
+.\" t
+.\" $Id: autofs.5,v 1.8 2004/05/18 12:22:40 raven Exp $
+.\"
+.\" Japanese Version Copyright (c) 2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Sun Jul  3 04:41:33 JST 2005
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\"
+.TH AUTOFS 5 "14 Jan 2000"
+.SH 名前
+autofs \- オートマウントシステムマップの書式
+.SH 説明
+オートマウントシステムマップは、オートマウントシステムのマスタマップ
+.RB ( auto.master (5)
+を参照) によって参照される
+ファイルまたは NIS マップである。
+オートマウントシステムマップは (auto.master ファイルで指定される) 
+マップのマウントポイント以下のファイルシステムがどのように
+マウントされるかを記述する。
+この man ページでは、
+.B sun
+マップの書式について記述している。
+他のマップ書式 (例えば \fBhesiod\fP) が指定された場合、
+この man ページは適用できない。
+マップは即時に変更可能で、オートマウントシステムはそのマップに対して
+次の操作が行われたときに変更を認識できる。
+これは
+.B auto.master
+マップについては当てはまらない。
+.SH 書式
+これはテキストファイルの書式の説明である。
+これらのファイルを指定する別の方法もある。
+空行と # で始まる行は全て無視される。
+マップ内の 1 行の基本的な書式は、以下の通りである:
+.P
+.BI "key [" -options "] location"
+
+.SS key
+間接マウントの場合、これはマウントポイントと
+マウントされているファイルシステム内にあるパスとの間のパス名の一部分である。
+このキーは通常はマウントポイント以下のサブディレクトリ名と考えることができる。
+
+直接マウントの場合、これはマウントポイントの完全なパスである。
+このマップはマスタマップにおける /- というマウントポイントと
+常に関連づけられている。
+
+.SS options
+options は存在してもしなくてもよい。
+options は
+.B auto.master
+ファイルでも指定することができる。
+両方で指定されている場合は、両方の値が足し合わされる
+(これが SunOS との違いである)。
+options はコンマで区切られたオプションのリストで、
+.BR mount (8)
+コマンドに通常与えているものと同じである。
+2 つの特殊なオプションがある。
+.I -fstype=
+はファイルシステムがデフォルトの
+NFS タイプでない場合にファイルシステムタイプを指定するために使用される。
+このオプションは mount コマンドではなく、オートマウントシステムで処理される。
+.I -strict
+はファイルシステムをマウントするときのエラーを
+致命的なものとして扱うために使われる。
+これは複数のファイルシステムがマウントされる
+(`multimounts') 時に重要である。
+このオプションが指定された場合、
+ファイルシステムが 1 つでもマウントできない場合は、
+全てのファイルシステムがマウントされない。
+
+.SS location
+location はどこからファイルシステムをマウントするかを指定する。
+多くの場合、これは NFS ボリュームで通常は
+.I host:pathname
+という記法が使われ、
+リモートファイルシステムとマウントされるパスを示す。
+マウントされるファイルシステムが (ローカルの
+.I /dev
+エントリや smbfs 共有のように) / で始まる場合は、
+: を前に付ける必要がある (例:
+.IR :/dev/sda1 )。
+.SH 例
+.sp
+.RS +.2i
+.ta 1.0i 3.0i
+.nf
+kernel	-ro,soft,intr	ftp.kernel.org:/pub/linux
+boot	-fstype=ext2	:/dev/hda1
+windoze	-fstype=smbfs	://windoze/c
+removable	-fstype=ext2	:/dev/hdd
+cd	-fstype=iso9660,ro	:/dev/hdc
+floppy	-fstype=auto	:/dev/fd0
+server	-rw,hard,intr	/ -ro myserver.me.org:/ \\
+			/usr myserver.me.org:/usr \\
+			/home myserver.me.org:/home
+.fi
+.RE
+.sp
+1 行目では
+.I ftp.kernel.org
+にあるカーネルのディレクトリの NFS リモートマウントを指定している。
+これは読み込み専用でマウントされる。
+2 行目ではローカルの ide ドライブ上の ext2 ボリュームをマウントしている。
+3 行目は Windows マシンで共有で公開されているドライブの
+自動マウントを可能にしている。
+残りは全く説明の必要がないだろう。
+最後のエントリ (最後の 3 行) はマルチマップ (下記を参照) の例である。
+
+(\fBvfat\fP のように) アクセス許可を持たないファイルシステムに対して
+オートマウントシステムを使った場合は、
+\fBroot\fP ユーザとしてマウントされるので、
+(一般の) ユーザは通常はそのファイルシステムに書き込むことができない。
+この問題は (\fIgid=floppy\fP のように)
+オプション \fIgid=<gid>\fP を渡すことで解決できる。
+そうすると、そのファイルシステムは \fBroot\fP ではなく
+グループ \fBfloppy\fP でマウントされる。
+そしてユーザをそのグループに追加することで、
+ファイルシステムに書き込むことができる。
+以下は autofs マップのエントリの例である:
+.sp
+.RS +.2i
+.ta 1.0i 3.0i
+.nf
+floppy-vfat  -fstype=vfat,sync,gid=floppy,umask=002  :/dev/fd0
+.fi
+.RE
+.sp
+.SH 機能
+.SS マップのキーの置換
+.B location
+における & 文字は、その行にマッチする
+.B key
+フィールドの値に展開される
+(これはワイルドカードキーと共に使った場合にのみ意味があるだろう)。
+.SS ワイルドカードキー
+間接マップの
+.B key
+フィールドにおける * は全てのキーにマッチする。
+実用的な例としては、以下のエントリがある:
+.sp
+.RS +.2i
+.ta 1.0i
+.nf
+*	&:/home/&
+.fi
+.RE
+.sp
+これにより、パス
+.RI / mountpoint / hostname / local-path
+を使って、ローカルにあるホスト全ての home ディレクトリに
+アクセスできるようになる。
+.SS 変数の置換
+オートマウントマップの key および location フィールドで、
+シェルスクリプトでおなじみの $ を先頭に付けて
+(フィールド名を区切るために中括弧 (curly brace) も使用可)
+以下の特別な変数を使った場合、次のような値に置き換えられる:
+.sp
+.RS +.2i
+.ta 1.5i
+.nf
+ARCH	アーキテクチャ (uname -m)
+CPU	プロセッサタイプ
+HOST	ホスト名 (uname -n)
+OSNAME	オペレーティングシステム (uname -s)
+OSREL	OS のリリース (uname -r)
+OSVERS	OS のバージョン (uname -v)
+.fi
+.RE
+.sp
+.BR automount (8)
+の -Dvariable=Value マップオプションを使って、
+追加でエントリを定義することができる。
+.SS 実行可能マップ
+マップに実行可能のマークを付けることができる。
+auto.master マップを解析する初期化スクリプトは、これを
+.B program
+マップとしてオートマウントシステムに渡す。
+.B program
+マップは key を引き数としたスクリプトとして呼び出される。
+エラーが発生した場合、出力は 1 行も返されない。
+成功した場合は、マップを含む 1 行以上が
+(改行は \\ でクォートされて) 返される。
+.P
+.B program
+マップを使うためには、
+.BR automount (8)
+デーモンは file タイプではなく program タイプとして
+開始されていなければならない。
+これは初期化スクリプトの中で実装されている。
+.P
+実行可能マップは、エラーの場合、
+全く出力を行わないことに加えて失敗を表すエラーコードを返すことができる。
+標準エラー出力へ送られる全ての出力は、システムログに記録される。
+.SS マルチマウント
+.B multi-mount
+マップは複数のファイルシステムをマウントするのに使用される。
+これは以下の形式である:
+.sp
+.RS +.2i
+.ta 1.0i
+.nf
+.BI "key [" -options "] [mountpoint [" -options "] location...]..."
+.fi
+.RE
+.sp
+.P
+改行を \`\\\' でクォートすれば、複数行に渡って書くこともできる。
+このマップが存在する場合、デフォルトのマウントオプションに加えて、
+マウントポイント毎のマウントオプションが追加される。
+.SS レプリケートされたサーバ
+.sp
+.RS +.2i
+.ta 1.5i
+.nf
+パスが同じ複数のレプリケートされたホスト:
+<path> host1,host2,hostn:/path/path
+
+あるものはパスが同じで、あるものはパスが異なる複数のホスト:
+<path> host1,host2:/blah host3:/some/other/path
+
+パスが異なる (可能性がある) 複数のレプリケートされたホスト:
+<path> host1:/path/pathA host2:/path/pathB
+
+重み付けが異なり、パスが同じレプリケートされたホスト:
+<path> host1(5),host2(6),host3(1):/path/path
+
+重み付けが異なり、異なる (可能性がある) パスのレプリケートされたホスト:
+<path> host1(3):/path/pathA host2(5):/path/pathB
+
+その他の書式は不自然でサポートされていないが、
+変形したこれらの書式でも動作する:
+<path> host1(3),host:/blah
+.fi
+.RE
+.sp
+.SH サポート範囲外
+このバージョンのオートマウントシステムは FILE, NIS, LDAP マップに対する
+直接マップのみをサポートしており、
+SunOS 形式のレプリケートされたファイルシステムについては
+.BR mount (8)
+がサポートする範囲でのみ取り扱う。
+.SH 警告
+Sun の multi-mount 書式とは異なり、
+全てのマウントにおいてマウントポイントは必須である。
+.SH 関連項目
+.BR automount (8),
+.BR auto.master (5),
+.BR autofs (8),
+.BR mount (8).
+.SH 著者
+この man ページは Christoph Lameter <chris@waterf.org> によって
+Debian GNU/Linux システムのために書かれた。
+H. Peter Anvin <hpa@transmeta.com>, Jeremy Fitzhardinge <jeremy@goop.org>,
+Ian Kent <raven@themaw.net> によって編集された。

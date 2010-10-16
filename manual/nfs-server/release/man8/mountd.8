@@ -1,0 +1,223 @@
+.\"
+.\" Original manual page is a part of nfs-server package.
+.\" Following is a exerpt from README of version 2.2beta47.
+.\" 
+.\" 7.  Copyright
+.\" 
+.\" Much of the code in this package was originally  written  by
+.\" Mark Shand, and is placed under the following copyright:
+.\" 
+.\"    This  software may be used for any purpose provided
+.\"    the above  copyright  notice  is  retained.  It  is
+.\"    supplied  as  is,  with  no warranties expressed or
+.\"    implied.
+.\" 
+.\" Other code, especially that written by Rick Sladkey and some
+.\" replacement routines included from the GNU libc, are covered
+.\" by the GNU General Public License, version 2,  or  (at  your
+.\" option) any later version.
+.\" 
+.\" Japanese Version Copyright (c) 1998 NAKANO Takeo all rights reserved.
+.\" Translated Wed 11 Nov 1998 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified Sun Jan 27 17:30:35 JST 2002
+.\"         by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Modified Tue Feb 19 19:06:53 JST 2002 by Yuichi SATO
+.\"
+.TH MOUNTD 8 "11 August 1997"
+.SH 名前
+mountd \- NFS マウントデーモン
+.SH 書式
+.ad l
+.B /usr/sbin/rpc.mountd
+.B "[\ \-f\ exports-file\ ]"
+.B "[\ \-d\ facility\ ]"
+.B "[\ \-P\ port\ ]"
+.B "[\ \-Dhnprv\ ]"
+.B "[\ \-\-debug\ facility ]"
+.B "[\ \-\-exports\-file=file\ ]"
+.B "[\ \-\-help\ ]"
+.B "[\ \-\-allow\-non\-root\ ]"
+.B "[\ \-\-re\-export\ ]"
+.B "[\ \-\-no\-spoof\-trace\ ]"
+.B "[\ \-\-version\ ]"
+.ad b
+.SH 説明
+.I mountd
+プログラムは NFS のマウントデーモンである。
+.I mountd
+は NFS クライアントから MOUNT リクエストを受け取ると、
+エクスポートファイル
+.I /etc/exports
+のリストを参照し、そのリクエストが正当なものかどうかをチェックする。
+クライアントがそのファイルシステムのマウントを許可されている場合には、
+.I mountd
+は要求されたディレクトリのファイルハンドルを作成し、
+そのエントリを
+.I /etc/rmtab
+に追加する。
+UMOUNT リクエストを受け取ると、
+.I mountd
+はクライアントのエントリを
+.I rmtab
+から削除する。
+ただし UMOUNT リクエストの後でも、
+クライアントは依然ファイルハンドルを扱うことが可能であることに注意すること
+(例えばクライアントが同じリモートファイルシステムを
+別々のマウントポイントにマウントしている場合など)。
+またクライアントが
+.I mountd
+に知らせずにリブートすると、
+.I rmtab
+に古いエントリが残ってしまうことにも注意すること。
+.SS "inetd からの起動"
+.I mountd
+は通常システムのブート時に起動するが、
+.I inetd
+から起動することもできる。以下の 2 行を
+.I /etc/inetd.conf
+に追加すればよい:
+.PP
+.nf
+.ta +3i
+mount/1-2 dgram  rpc/udp wait  root  /usr/sbin/rpc.mountd rpc.mountd
+mount/1-2 stream rpc/tcp wait  root  /usr/sbin/rpc.mountd rpc.mountd
+.fi
+.PP
+.I inetd
+から起動した場合には、適当な期間に動作要求がないと
+.I mountd
+は終了する。
+.SH オプション
+.TP
+.BR \-f " または " \\-\-exports\-file
+このオプションはエクスポートファイルを指定する。
+エクスポートファイルには、このサーバーがサービスを提供するクライアントと、
+それぞれのマウントに対して適用されるパラメータがリストされている
+.RB ( exports (5)
+を見よ)。
+デフォルトのエクスポートファイルは
+.I /etc/exports
+である。
+.TP
+.BR "\-d facility" " または " "\-\-debug facility"
+それぞれのトランザクションに対する詳細な内容を、
+標準エラー出力にログ表示する。
+\fIfacility\fP に指定できるのは、
+.I call
+(すべてのコールを記録)、
+.I auth
+(クライアントの認証)、
+.I fhcache
+(ファイルハンドルのキャッシュ操作)、
+.I rmtab
+.RI ( /etc/rmtab
+の操作) である。
+デフォルトでは、デーモンがフォアグラウンドで実行されなければ、
+ログ出力は syslogd に送られる。
+.TP
+.BR \-F " または " \-\-foreground
+通常
+.I mountd
+は端末から分離 (detach) するが、このオプションが与えられると分離しない。
+debug 情報は標準エラー出力に表示される。
+.TP
+.BR \-h " または " \-\-help
+ヘルプの短い要約を表示する。
+.TP
+.BR \-n " または " \-\-allow\-non\-root
+IP の特権ポート以外から来たマウント要求も許可する。
+NFS クライアントの古い実装では、この指定が必要な場合がある。
+逆に新しい実装には、特権ポートのチェックを信頼しないものがある。
+.TP
+.BR "\-P portnum" " または " "\-\-port portnum"
+.I mountd
+に
+.B portnum
+ポートを監視させる。
+デフォルトでは、
+.I mountd
+は
+.I /etc/services
+で指定されている mount/udp ポートを監視する
+(あるいはこれが指定されていないと 1024 以下の任意のポートを監視する)。
+.TP
+.BR \-p " または " \-\-promiscuous
+サーバを「無制限 (promiscuous)」モードにする。
+ネットワーク上のすべてのホストに対してサービスを提供する。
+.TP
+.BR \-r " または " \-\-re\-export
+インポートした NFS や SMB ファイルシステムの再エクスポートを許す。
+これにより、マシンは NFS/SMB の中継器となる。
+ループバックマウントを再エクスポートするときには特に注意すること。
+マウントポイントに再入すると、クライアントファイルシステムのコードと
+サーバーはデッドロックしてしまう。
+.TP
+.BR \-t " または " \-\-no\-spoof\-trace
+デフォルトでは、
+.I mountd
+は権限のないクライアントからの全てのアクセスをログに記録する。
+このオプションを使うと、
+.I exports
+ファイルに明示的にリストされている全てのホストについて、
+このような成りすまし行為をログに記録しない。
+.TP
+.BR \-v " または " \-\-version
+プログラムの現在のバージョン番号を表示する。
+.SS アクセス制御
+セキュリティを強化するため、
+.I mountd
+へのアクセスは TCP wrapper ライブラリで制限することができる。
+同ライブラリは Wietse Venema の tcp_wrappers パッケージの一部である。
+このオプションをサポートするかどうかはコンパイル時に指定できる。
+ローカルなネットワーク (例として 192.168.1.0 としよう) だけに
+アクセスを許可したい場合は、以下のような行を
+.I /etc/hosts.allow
+ファイルに追加すればよい:
+.PP
+.nf
+.ta +3i
+.I "rpc.mountd : 192.168.1. : allow
+.I "rpc.mountd : ALL        : deny
+.fi
+.PP
+'ne 9v
+この例は、TCP wrapper ライブラリが
+オプションをサポートしてコンパイルされた場合に有効である
+(筆者はオプションのサポートを強くすすめる)。
+オプションをサポートしないようにコンパイルされた場合は、
+以下の 2 行を
+.IR /etc/hosts.allow " と " /etc/hosts.deny
+とにそれぞれ追加する必要がある:
+.PP
+.nf
+.ta +3i
+.I "# hosts.allow:
+.I "rpc.mountd : 192.168.1
+.I "# hosts.deny
+.I "rpc.mountd : ALL
+.fi
+.PP
+ここの情報を変更したら、変更を有効にするには
+.I mountd
+を再起動する必要がある。一度 kill して再起動するか、
+HUP シグナルを送れば良い。
+.SH バグ
+.I /etc/mtab
+の情報は不正確であることのほうが多い。
+.SH シグナル
+SIGHUP を受け取ると、
+.I mountd
+は
+.I exports
+ファイルと、
+.IR /etc/hosts.allow " および " /etc/hosts.deny
+ファイルで定義されているすべてのアクセス制限を読みなおす。
+エクスポートの変更を有効にするには、
+.I nfsd
+にも SIGHUP を送る必要があることに注意せよ。
+.SH ファイル
+.I /etc/exports
+.br
+.I /etc/rmtab
+.SH 関連項目
+exports(5), nfsd(8), ugidd(8C), showmount(8)

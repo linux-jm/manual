@@ -1,0 +1,593 @@
+.\" Copyright (c) 2006, 2008 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2006-2008 Akihiro MOTOKI
+.\" Translated 2006-04-15, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2007-01-05, Akihiro MOTOKI, LDP v2.43
+.\" Updated 2007-09-03, Akihiro MOTOKI, LDP v2.64
+.\" Updated 2008-08-10, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2008-09-19, Akihiro MOTOKI, LDP v3.08
+.\"
+.TH CORE 5 2010-02-25 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O core \- core dump file
+core \- コアダンプファイル
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The default action of certain signals is to cause a process to terminate 
+.\"O and produce a
+.\"O .IR "core dump file" ,
+.\"O a disk file containing an image of the process's memory at 
+.\"O the time of termination.
+.\"O This image can be used in a debugger (e.g.,
+.\"O .BR gdb (1))
+.\"O to inspect the state of the program at the time that it terminated.
+.\"O A list of the signals which cause a process to dump core can be found in
+.\"O .BR signal (7).
+ある種のシグナルを受けた場合のデフォルトのアクションは、
+プロセスを終了し (terminate)、
+.I "コアダンプファイル (core dump file)"
+を生成することである。コアダンプファイルは、ディスク上に生成される
+終了時のプロセスのメモリイメージを内容とするファイルである。
+このイメージをデバッガ (例えば
+.BR gdb (1))
+に読み込んで、
+プログラムが終了した時点のプログラムの状態を検査することができる。
+どのシグナルを受けたときにプロセスがコアダンプを生成するかのリストは
+.BR signal (7)
+に書かれている。
+
+.\"O A process can set its soft
+.\"O .B RLIMIT_CORE
+.\"O resource limit to place an upper limit on the size of the core dump file 
+.\"O that will be produced if it receives a "core dump" signal; see
+.\"O .BR getrlimit (2)
+.\"O for details.
+プロセスはソフト・リソース制限
+.B RLIMIT_CORE
+を設定することで、「コアダンプ」シグナルを受信した際に生成される
+コアダンプファイルのサイズに上限を課すことができる。詳細は
+.BR getrlimit (2)
+を参照。
+
+.\"O There are various circumstances in which a core dump file is 
+.\"O not produced:
+コアダンプファイルが生成されない状況がいくつかある:
+.IP * 3
+.\"O The process does not have permission to write the core file.
+.\"O (By default the core file is called 
+.\"O .IR core ,
+.\"O and is created in the current working directory. 
+.\"O See below for details on naming.)
+.\"O Writing the core file will fail if the directory in which 
+.\"O it is to be created is nonwritable, 
+.\"O or if a file with the same name exists and 
+.\"O is not writable
+.\"O or is not a regular file 
+.\"O (e.g., it is a directory or a symbolic link).
+プロセスがコアファイルを書き込む許可を持たない場合
+(デフォルトでは、コアファイルは
+.I core
+という名前で、カレント・ワーキング・ディレクトリに生成される。
+命名規則の詳細は下記を参照)。
+コアファイルを生成しようとしたディレクトリが書き込み可能でない場合、
+もしくは同じ名前のファイルが存在し、そのファイルが書き込み可能でも
+通常のファイルでもない場合 (例えば、ディレクトリやシンボリックリンク)、
+コアファイルの生成は失敗する。
+.IP *
+.\"O A (writable, regular) file with the same name as would be used for the 
+.\"O core dump already exists, but there is more than one hard link to that 
+.\"O file.
+コアダンプに使おうとしたのと同じ名前の (書き込み可能な、通常の) ファイルが
+すでに存在し、そのファイルに対するハードリンクが 2個以上ある場合。
+.IP *
+.\"O The file system where the core dump file would be created is full; 
+.\"O or has run out of inodes; or is mounted read-only; 
+.\"O or the user has reached their quota for the file system.
+コアダンプファイルを生成しようとしたファイルシステムがフルであるか、
+inode が全て使用されているか、読み込み専用でマウントされている場合。
+または、そのユーザのディスク使用量がそのファイルシステムの
+クオータ (quota) に達している。
+.IP *
+.\"O The directory in which the core dump file is to be created does 
+.\"O not exist.
+コアダンプファイルを生成しようとしたディレクトリが存在しない場合。
+.IP *
+.\"O The
+.\"O .B RLIMIT_CORE
+.\"O (core file size) or
+.\"O .B RLIMIT_FSIZE
+.\"O (file size) resource limits for the process are set to zero; see
+.\"O .BR getrlimit (2)
+.\"O and the documentation of the shell's
+.\"O .I ulimit
+.\"O command
+.\"O .RI ( limit
+.\"O in
+.\"O .BR csh (1)).
+プロセス毎のリソース制限
+.B RLIMIT_CORE
+(コアファイルのサイズ) か
+.B RLIMIT_FSIZE
+(ファイルサイズ) が 0 に設定されている場合。
+.BR getrlimit (2)
+やシェルの
+.I ulimit
+コマンドのドキュメント
+.RB ( csh (1)
+の
+.IR limit )
+を参照。
+.IP *
+.\"O The binary being executed by the process does not have read 
+.\"O permission enabled.
+プロセスが実行したバイナリファイルの読み出し許可が有効になっていない場合。
+.IP *
+.\"O The process is executing a set-user-ID (set-group-ID) program
+.\"O that is owned by a user (group) other than the real user (group) 
+.\"O ID of the process.
+.\"O (However, see the description of the
+.\"O .BR prctl (2)
+.\"O .B PR_SET_DUMPABLE
+.\"O operation, and the description of the
+.\"O .I /proc/sys/fs/suid_dumpable
+.\"O .\" FIXME . Perhaps relocate discussion of /proc/sys/fs/suid_dumpable
+.\"O .\" and PR_SET_DUMPABLE to this page?
+.\"O file in
+.\"O .BR proc (5).)
+プロセスが実行している set-user-ID (set-group-ID) プログラムの所有者の
+ユーザ (グループ) が、プロセスの実 UID (実 GID) と異なる場合
+(但し、
+.BR prctl (2)
+.B PR_SET_DUMPABLE
+操作の説明と、
+.BR proc (5)
+の
+.I /proc/sys/fs/suid_dumpable
+ファイルの説明も参照のこと)。
+.\" FIXME . Perhaps relocate discussion of /proc/sys/fs/suid_dumpable
+.\" and PR_SET_DUMPABLE to this page?
+.\"O .SS Naming of core dump files
+.SS コアダンプファイルの名前
+.\"O By default, a core dump file is named 
+.\"O .IR core ,
+.\"O but the 
+.\"O .I /proc/sys/kernel/core_pattern
+.\"O file (since Linux 2.6 and 2.4.21)
+.\"O can be set to define a template that is used to name core dump files.
+.\"O The template can contain % specifiers which are substituted
+.\"O by the following values when a core file is created:
+.\" motoki XXX 同じ内容が重複して書かれている。
+デフォルトでは、コアダンプファイルの名前は
+.I core
+となるが、コアダンプファイルの名前を決めるのに使われるテンプレートを
+.I /proc/sys/kernel/core_pattern
+ファイルに定義することで、ファイル名を変更することができる
+.RI ( /proc/sys/kernel/core_pattern
+は Linux 2.6 および 2.4.21 以降で利用できる)。
+テンプレートには % 指示子 (specifier) を入れることができる。
+これはコアファイルが生成される際に、以下の値に置き換えられる。
+.PP
+.RS 4
+.PD 0
+.TP 4
+%%
+.\"O a single % character
+1 つの % 文字
+.TP
+%p
+.\"O PID of dumped process
+ダンプされたプロセスのプロセスID (PID)
+.TP
+%u
+.\"O (numeric) real UID of dumped process
+ダンプされたプロセスの実ユーザ ID (real UID)
+.TP
+%g
+.\"O (numeric) real GID of dumped process
+ダンプされたプロセスの実グループ ID (real GID)
+.TP
+%s
+.\"O number of signal causing dump
+ダンプを引き起こしたシグナルの番号
+.TP
+%t
+.\"O time of dump, expressed as seconds since the
+.\"O Epoch, 1970-01-01 00:00:00 +0000 (UTC)
+ダンプ時刻、紀元 (Epoch; 1970-01-01 00:00:00 +0000 (UTC))
+からの秒数。
+.TP
+%h
+.\"O hostname (same as \fInodename\fP returned by \fBuname\fP(2))
+ホスト名 (\fBuname\fP(2) で返される \fInodename\fP と同じ)
+.TP
+%e
+.\"O executable filename (without path prefix)
+実行ファイル名 (パス名のプレフィックスは含まれない)
+.TP
+%c
+.\"O core file size soft resource limit of crashing process (since Linux 2.6.24)
+クラッシュしたプロセスのコアファイルのサイズに関するソフトリソース上限
+(Linux 2.6.24 以降)
+.PD
+.RE
+.PP
+.\"O A single % at the end of the template is dropped from the 
+.\"O core filename, as is the combination of a % followed by any 
+.\"O character other than those listed above.
+テンプレートの末尾に 1 個だけ % がある場合、
+その % はコアファイル名には含められない。また、上で列挙されて
+いない % と文字の組み合わせがあった場合も同様である。
+.\"O All other characters in the template become a literal
+.\"O part of the core filename.
+テンプレートにおける他の文字は、
+コアファイル名としてそのまま使われる。
+.\"O The template may include \(aq/\(aq characters, which are interpreted
+.\"O as delimiters for directory names.
+テンプレートには \(aq/\(aq 文字を入れることができ、
+ディレクトリ名の区切り文字と解釈される。
+.\"O The maximum size of the resulting core filename is 128 bytes (64 bytes
+.\"O in kernels before 2.6.19).
+結果として生成されるコアファイル名の最大サイズは 128 バイトである
+(2.6.19 より前のカーネルでは 64 バイト)。
+.\"O The default value in this file is "core".
+このファイルのデフォルト値は "core" である。
+.\"O For backward compatibility, if
+.\"O .I /proc/sys/kernel/core_pattern
+.\"O does not include "%p" and
+.\"O .I /proc/sys/kernel/core_uses_pid
+.\"O (see below)
+.\"O is nonzero, then .PID will be appended to the core filename.
+以前のものとの互換性のため、
+.I /proc/sys/kernel/core_pattern
+に "%p" が含まれず、
+かつ
+.I /proc/sys/kernel/core_uses_pid
+(下記参照) が 0 でない場合は、.PID がコアファイル名に追加される。
+
+.\"O Since version 2.4, Linux has also provided
+.\"O a more primitive method of controlling
+.\"O the name of the core dump file.
+.\"O If the
+.\"O .I /proc/sys/kernel/core_uses_pid
+.\"O file contains the value 0, then a core dump file is simply named
+.\"O .IR core .
+.\"O If this file contains a nonzero value, then the core dump file includes
+.\"O the process ID in a name of the form
+.\"O .IR core.PID .
+バージョン 2.4 以降の Linux では
+コアダンプファイルの名前を制御する原始的な方法も提供されている。
+.I /proc/sys/kernel/core_uses_pid
+ファイルに値 0 が書かれている場合、コアダンプファイルは単純に
+.I core
+という名前になる。このファイルに 0 以外の値が書かれている場合、
+コアダンプファイルは
+.I core.PID
+という形式の名前になり、ファイル名にプロセス ID が含まれる。
+.\"O .SS Piping core dumps to a program
+.SS コアダンプのプログラムへのパイプ
+.\"O Since kernel 2.6.19, Linux supports an alternate syntax for the
+.\"O .I /proc/sys/kernel/core_pattern
+.\"O file.
+.\"O If the first character of this file is a pipe symbol (\fB|\fP),
+.\"O then the remainder of the line is interpreted as a program to be
+.\"O executed.
+.\"O Instead of being written to a disk file, the core dump is given as
+.\"O standard input to the program.
+.\"O Note the following points:
+カーネル 2.6.19 以降では、Linux は
+.I /proc/sys/kernel/core_pattern
+ファイルの別の構文をサポートしている。
+このファイルの最初の文字がパイプ記号 (\fB|\fP) であれば、
+その行の残りの部分は実行するプログラムとして解釈される。
+コアダンプは、ディスク上のファイルに書き込まれるのではなく、
+プログラムの標準入力として渡される。
+以下の点に注意すること。
+.IP * 3
+.\"O The program must be specified using an absolute pathname (or a
+.\"O pathname relative to the root directory, \fI/\fP),
+.\"O and must immediately follow the '|' character.
+プログラムは絶対パス名 (もしくはルートディレクトリ \fI/\fP からの
+相対パス名) で指定されなければならない。
+また、'|' 文字の直後から始めなければならない。
+.IP *
+.\"O The process created to run the program runs as user and group
+.\"O .IR root .
+プログラムを実行するために生成されるプロセスは、
+ユーザ、グループとも
+.I root 
+として実行される。
+.IP *
+.\"O Command-line arguments can be supplied to the
+.\"O program (since kernel 2.6.24),
+.\"O delimited by white space (up to a total line length of 128 bytes).
+コマンドライン引き数をプログラムに与えることができ (カーネル 2.6.24 以降)、
+引き数はホワイトスペースで区切る
+(1行の最大長は 128 バイトが上限である)。
+.IP *
+.\"O The command-line arguments can include any of
+.\"O the % specifiers listed above.
+.\"O For example, to pass the PID of the process that is being dumped, specify
+.\"O .I %p
+.\"O in an argument.
+コマンドライン引き数には、上記のリストにある % 指示子を含めることができる。
+例えば、ダンプされるプロセスの PID を渡すには、
+引き数に
+.I %p
+を指定する。
+.\"O .SS Controlling which mappings are written to the core dump
+.SS どのマッピングをコアダンプに書き込むかを制御する
+.\"O Since kernel 2.6.23, the Linux-specific
+.\"O .IR /proc/PID/coredump_filter
+.\"O file can be used to control which memory segments are written to the
+.\"O core dump file in the event that a core dump is performed for the
+.\"O process with the corresponding process ID.
+カーネル 2.6.23 以降では、Linux 固有のファイル
+.I /proc/PID/coredump_filter
+を使って、対応するプロセス ID を持つプロセスに対してコアダンプが行われる
+際に、どのメモリセグメントをコアダンプファイルに書き込むかを制御できる。
+
+.\"O The value in the file is a bit mask of memory mapping types (see
+.\"O .BR mmap (2)).
+.\"O If a bit is set in the mask, then memory mappings of the
+.\"O corresponding type are dumped; otherwise they are not dumped.
+.\"O The bits in this file have the following meanings:
+このファイルの値はメモリマッピング種別
+.RB ( mmap (2)
+参照) のビットマスクである。
+マスク内のあるビットがセットされると、そのビットに対応する種別の
+メモリマッピングがダンプされる。セットされていないものはダンプされない。
+このファイルの各ビットは以下の意味を持つ。
+.PP
+.PD 0
+.RS 4
+.TP
+bit 0
+.\"O Dump anonymous private mappings.
+無名のプライベートマッピング (anonymous private mappings) をダンプする。
+.TP
+bit 1
+.\"O Dump anonymous shared mappings.
+無名の共有マッピング (anonymous shared mappings) をダンプする。
+.TP
+bit 2
+.\"O Dump file-backed private mappings.
+ファイルと関連付けられたプライベートマッピング
+(file-backed private mappings) をダンプする。
+.TP
+bit 3
+.\"O Dump file-backed shared mappings.
+ファイルと関連付けられた共有マッピング
+(file-backed shared mappings) をダンプする。
+.\" file-backed shared mappings of course also update the underlying
+.\" mapped file.
+.RE
+.PD
+.PP
+.\"O The default value of
+.\"O .I coredump_filter
+.\"O is 0x3;
+.\"O this reflects traditional Linux behavior and means that
+.\"O only anonymous memory segments are dumped.
+.I coredump_filter
+のデフォルト値は 0x3 である。
+この値は昔からの Linux の挙動を反映したものであり、
+無名メモリセグメント (anonymous memory segments) だけがダンプされる
+ことを意味する。
+
+.\"O Memory-mapped I/O pages such as frame buffer are never dumped, and
+.\"O virtual DSO pages are always dumped, regardless of the
+.\"O .I coredump_filter
+.\"O value.
+.I coredump_filter
+の値に関わらず、フレームバッファなどの memory-mapped I/O に関する
+ページは決してダンプされず、仮想 DSO ページは常にダンプされる。
+
+.\"O A child process created via
+.\"O .BR fork (2)
+.\"O inherits its parents
+.\"O .I coredump_filter
+.\"O value;
+.\"O the
+.\"O .I coredump_filter
+.\"O value is preserved across an
+.\"O .BR execve (2).
+.BR fork (2)
+で作成される子プロセスは親プロセスの
+.I coredump_filter
+の値を継承する。
+.BR execve (2)
+の前後で
+.I coredump_filter
+の値は保持される。
+
+.\"O It can be useful to set
+.\"O .I coredump_filter
+.\"O in the parent shell before running a program, for example:
+例のように、プログラムを実行する前に親シェルの
+.I coredump_filter
+を設定しておくと役立つことがある。
+
+.in +4n
+.nf
+.RB "$" " echo 0x7 > /proc/self/coredump_filter"
+.RB "$" " ./some_program"
+.fi
+.in
+.PP
+.\"O This file is only provided if the kernel was built with the
+.\"O .B CONFIG_ELF_CORE
+.\"O configuration option.
+このファイルが提供されるのは、カーネルが設定オプション
+.B CONFIG_ELF_CORE
+を有効にして作成された場合だけである。
+.\"O .SH NOTES
+.SH 備考
+.\"O The 
+.\"O .BR gdb (1)
+.\"O .I gcore
+.\"O command can be used to obtain a core dump of a running process.
+.BR gdb (1)
+の
+.I gcore
+コマンドを使用すると、実行中のプロセスのコアダンプを取得できる。
+
+.\"O If a multithreaded process (or, more precisely, a process that
+.\"O shares its memory with another process by being created with the
+.\"O .B CLONE_VM
+.\"O flag of
+.\"O .BR clone (2))
+.\"O dumps core, then the process ID is always appended to the core filename, 
+.\"O unless the process ID was already included elsewhere in the
+.\"O filename via a %p specification in
+.\"O .IR /proc/sys/kernel/core_pattern .
+マルチスレッドプロセス
+(より正確には、
+.BR clone (2)
+の
+.B CLONE_VM
+で生成された別プロセスとメモリを共有しているプロセス)
+がコアダンプを生成する場合、
+コアファイル名にプロセス ID が必ず付加される。
+ただし、
+.I /proc/sys/kernel/core_pattern
+の %p 指定によりコアファイル名のどこか他の場所にプロセス ID が
+すでに含まれている場合は、プロセス ID が末尾に付加されない。
+.\"O (This is primarily useful when employing the LinuxThreads implementation,
+.\"O where each thread of a process has a different PID.)
+(この機能がまず役に立つのは LinuxThreads 実装を利用している場合である。
+LinuxThreads 実装では、プロセス内の個々のスレッドは異なるプロセス ID
+を持つ。)
+.\" Always including the PID in the name of the core file made
+.\" sense for LinuxThreads, where each thread had a unique PID,
+.\" but doesn't seem to serve any purpose with NPTL, where all the 
+.\" threads in a process share the same PID (as POSIX.1 requires).  
+.\" Probably the behavior is maintained so that applications using 
+.\" LinuxThreads continue appending the PID (the kernel has no easy 
+.\" way of telling which threading implementation the userspace 
+.\" application is using). -- mtk, April 2006
+.\"O .SH EXAMPLE
+.SH 例
+.\"O The program below can be used to demonstrate the use of the
+.\"O pipe syntax in the
+.\"O .I /proc/sys/kernel/core_pattern
+.\"O file.
+.\"O The following shell session demonstrates the use of this program
+.\"O (compiled to create an executable named
+.\"O .IR core_pattern_pipe_test ):
+以下のプログラムは
+.I /proc/sys/kernel/core_pattern
+ファイルのパイプ構文の使用例を示している。
+以下のシェルのセッションはこのプログラムの使用例を示すものである
+(コンパイルして
+.I core_pattern_pipe_test
+という名前の実行ファイルを作成している)。
+.PP
+.in +4n
+.nf
+.RB "$" " cc \-o core_pattern_pipe_test core_pattern_pipe_test.c"
+.RB "$" " su"
+Password:
+.RB "#" " echo \(aq|$PWD/core_pattern_pipe_test %p \
+UID=%u GID=%g sig=%s\(aq > \e"
+.B "    /proc/sys/kernel/core_pattern"
+.RB "#" " exit"
+.RB "$" " sleep 100"
+.BR "^\e" "                     # type control-backslash"
+Quit (core dumped)
+.RB "$" " cat core.info"
+argc=5
+argc[0]=</home/mtk/core_pattern_pipe_test>
+argc[1]=<20575>
+argc[2]=<UID=1000>
+argc[3]=<GID=100>
+argc[4]=<sig=3>
+Total bytes in core dump: 282624
+.fi
+.in
+.\"O .SS Program source
+.SS プログラムのソース
+\&
+.nf
+/* core_pattern_pipe_test.c */
+
+#define _GNU_SOURCE
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define BUF_SIZE 1024
+
+int
+main(int argc, char *argv[])
+{
+    int tot, j;
+    ssize_t nread;
+    char buf[BUF_SIZE];
+    FILE *fp;
+    char cwd[PATH_MAX];
+
+    /* Change our current working directory to that of the
+       crashing process */
+
+    snprintf(cwd, PATH_MAX, "/proc/%s/cwd", argv[1]);
+    chdir(cwd);
+
+    /* Write output to file "core.info" in that directory */
+
+    fp = fopen("core.info", "w+");
+    if (fp == NULL)
+        exit(EXIT_FAILURE);
+
+    /* Display command\-line arguments given to core_pattern
+       pipe program */
+
+    fprintf(fp, "argc=%d\\n", argc);
+    for (j = 0; j < argc; j++)
+        fprintf(fp, "argc[%d]=<%s>\\n", j, argv[j]);
+
+    /* Count bytes in standard input (the core dump) */
+
+    tot = 0;
+    while ((nread = read(STDIN_FILENO, buf, BUF_SIZE)) > 0)
+        tot += nread;
+    fprintf(fp, "Total bytes in core dump: %d\\n", tot);
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR bash (1),
+.BR gdb (1),
+.BR getrlimit (2),
+.BR mmap (2),
+.BR prctl (2),
+.BR sigaction (2),
+.BR elf (5),
+.BR proc (5),
+.BR pthreads (7),
+.BR signal (7)

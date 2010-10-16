@@ -1,0 +1,167 @@
+.\" Copyright (C) 2001 Andries Brouwer <aeb@cwi.nl>.
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" 2007-07-05 mtk: Added details on underlying system call interfaces
+.\"
+.\" Japanese Version Copyright (c) 1997 SUTO, Mitsuaki
+.\"         all rights reserved.
+.\" Translated Thu Jun 26 21:23:19 JST 1997
+.\"         by SUTO, Mitsuaki <suto@av.crl.sony.co.jp>
+.\" Updated & Modified Thu Feb 14 21:53:41 JST 2002
+.\"         by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated 2007-09-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.64
+.\"
+.TH UNAME 2 2008-12-03 "Linux" "Linux Programmer's Manual"
+.SH 名前
+uname \- 現在稼働中のカーネルについての名前と情報を得る
+.SH 書式
+.B #include <sys/utsname.h>
+.sp
+.BI "int uname(struct utsname *" buf );
+.SH 説明
+.BR uname ()
+は
+.I buf
+で指される構造体にシステム情報を返す。
+.I utsname
+構造体は
+.I <sys/utsname.h>
+で以下のように定義されている。
+.in +4n
+.nf
+
+struct utsname {
+    char sysname[];    /* OS の名前 (例: "Linux") */
+    char nodename[];   /* 「実装時に定義された、何らかの
+                          ネットワーク」におけるマシン名 */
+    char release[];    /* OS のリリース (例: "2.6.28") */
+    char version[];    /* OS のバージョン */
+    char machine[];    /* ハードウェア識別子 */
+#ifdef _GNU_SOURCE
+    char domainname[]; /* NIS や YP のドメイン名 */
+#endif
+};
+
+.fi
+.in
+.I struct utsname
+にある配列の長さは指定されていない (「注意」の節を参照)。
+フィールドは NULL バイト (\(aq\\0\(aq) で終端される。
+.SH 返り値
+成功した場合 0 が返る。失敗した場合 \-1 が返り、
+.I errno
+がエラーの内容に従って設定される。
+.SH エラー
+.TP
+.B EFAULT
+.I buf
+が有効でない。
+.SH 準拠
+SVr4, POSIX.1-2001.
+4.3BSD には
+.BR uname ()
+コールがない。
+.PP
+.I domainname
+メンバー (NIS または YP ドメイン名) は GNU の拡張である。
+.SH 注意
+これはシステムコールであり、OS は名前・リリース・バージョンなどを
+たぶん分かっているだろう。
+さらにそれが稼働しているハードウェアも分かっているだろう。
+よって構造体の 4 つのフィールドには意味がある。
+一方、\fInodename\fP フィールドには意味がない:
+このフィールドは現在のマシンの (定義されていない)
+どこかのネットワークにおける名前を与えるが、
+通常マシンは複数のネットワークに属し、複数の名前を持つ。
+さらに、カーネルはこのような情報を知る術を持たないので、
+ここでの答えは前もって教えてやらなければならない。
+これは追加フィールドである \fIdomainname\fP についても同様である。
+.LP
+このため Linux ではシステムコール
+.BR sethostname (2)
+と
+.BR setdomainname (2)
+が使われる。
+.RB 「 sethostname (2)
+で設定されるホスト名は、
+.BR uname ()
+で返される構造体の \fInodename\fP フィールドと同じ文字列である」
+と規定している標準規格はない
+(実際、256 バイトのホスト名と 8 バイトのノード名を許可しているシステムもある)。
+しかし、Linux では同じ文字列が返される。
+.BR setdomainname (2)
+と \fIdomainname\fP フィールドについても同じことが成り立つ。
+.LP
+構造体のフィールドの長さはさまざまである。
+OS やライブラリの中には、
+ハードコードされた 9, 33, 65, 257 などの値を使っているものもある。
+また
+.BR SYS_NMLN ,
+.BR _SYS_NMLN ,
+.BR UTSLEN ,
+.B _UTSNAME_LENGTH
+などを使っているシステムもある。
+はっきり言って、これらの定数を使うのは悪い考え方であり、
+sizeof(...) を使うべきである。
+インターネットホスト名で使う領域を持たせるために、
+257 が選ばれることが多い。
+.LP
+utsname の情報は、
+.IR /proc/sys/kernel/ { ostype ,
+.IR hostname ,
+.IR osrelease ,
+.IR version ,
+.IR domainname }
+を使ってアクセスすることもできる。
+.SS 背後のカーネル・インタフェース
+.LP
+時間の経過とともに、
+.I utsname
+構造体のサイズが大きくなり、この影響で
+.BR uname ()
+には 3つのバージョンが存在する:
+.IR sys_olduname ()
+(スロットは
+.IR __NR_oldolduname )、
+.IR sys_uname ()
+(スロットは
+.IR __NR_olduname )、
+.IR sys_newuname ()
+(スロットは
+.IR __NR_uname )。
+.IR sys_olduname ()
+.\" これは Linux 1.0 より前に遡る話である。
+はすべてのフィールドが長さ 9 を使っていた。
+.IR sys_uname ()
+.\" これも Linux 1.0 より前に遡る話である。
+は長さ 65 を使っていた。
+.IR sys_newuname ()
+も長さ 65 を使っているが、
+\fIdomainname\fP フィールドが追加されている。
+glibc の
+.BR uname ()
+ラッパー関数は、これらの詳細をアプリケーションから隠蔽し、
+カーネルが提供しているシステムコールのうち最新のバージョンを起動する。
+.SH 関連項目
+.BR uname (1),
+.BR getdomainname (2),
+.BR gethostname (2)

@@ -1,0 +1,523 @@
+.\" Copyright 1993 Giorgio Ciucci (giorgio@crcc.it)
+.\" and Copyright 2004, 2005 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified Tue Oct 22 17:53:56 1996 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified Fri Jun 19 10:59:15 1998 by Andries Brouwer <aeb@cwi.nl>
+.\" Modified Sun Feb 18 01:59:29 2001 by Andries Brouwer <aeb@cwi.nl>
+.\" Modified 20 Dec 2001, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Modified 21 Dec 2001, aeb
+.\" Modified 27 May 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on CAP_IPC_OWNER requirement
+.\" Modified 17 Jun 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on CAP_SYS_ADMIN requirement for IPC_SET and IPC_RMID
+.\" Modified, 11 Nov 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Language and formatting clean-ups
+.\"	Rewrote semun text
+.\"	Added semid_ds and ipc_perm structure definitions
+.\" 2005-08-02, mtk: Added IPC_INFO, SEM_INFO, SEM_STAT descriptions.
+.\"
+.\" Japanese Version Copyright (c) 1997,1998 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-02-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified 1998-09-10, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated & Modified 2001-06-03, Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated & Modified 2002-01-02, Yuichi SATO
+.\" Updated & Modified 2005-01-03, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2005-10-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.\"WORD:	semaphore		セマフォ
+.\"WORD:	semaphore set		セマフォ集合
+.\"WORD:	union			共用体
+.\"WORD:	buffer			バッファ
+.\"WORD:	member			メンバー
+.\"WORD:	superuser		スーパー・ユーザ
+.\"WORD:	effective uid		実効ユーザ ID
+.\"WORD:	creator			作成者
+.\"WORD:	owner			所有者
+.\"WORD:	entry			エントリ
+.\"WORD:	undo			アンドゥ
+.\"WORD:	implement		実装
+.\"WORD:	feature test macro	機能検査マクロ
+.\"
+.TH SEMCTL 2 2009-09-27 "Linux" "Linux Programmer's Manual"
+.SH 名前
+semctl \- セマフォの制御操作を行なう
+.SH 書式
+.nf
+.B #include <sys/types.h>
+.B #include <sys/ipc.h>
+.B #include <sys/sem.h>
+.sp
+.BI "int semctl(int " semid ", int " semnum ", int " cmd ", ...);"
+.fi
+.SH 説明
+.BR semctl ()
+は、
+.I semid
+で指定されたセマフォ集合 (semaphore set)
+またはセマフォ集合の
+.I semnun
+番目のセマフォに対して、
+.I cmd
+で指定された制御操作を行なう
+(集合内のセマフォの番号は 0 から始まる)。
+.PP
+この関数は、
+.I cmd
+の値に依存して、3 個または 4 個の引き数を持つ。
+引き数が 4 個の場合、第 4 引き数の型は
+.I "union semun"
+である。
+\fI呼び出し元プログラム\fPは、
+この共用体 (union) を以下のように定義しなければならない。
+
+.nf
+.in +4n
+union semun {
+    int              val;    /* SETVAL の値 */
+    struct semid_ds *buf;    /* IPC_STAT, IPC_SET 用のバッファ */
+    unsigned short  *array;  /* GETALL, SETALL 用の配列 */
+    struct seminfo  *__buf;  /* IPC_INFO 用のバッファ
+                                (Linux 固有) */
+};
+.in
+.fi
+.PP
+.I semid_ds
+データ構造体は \fI<sys/sem.h>\fP で以下のように定義されている:
+.nf
+.in +4n
+
+struct semid_ds {
+    struct ipc_perm sem_perm;  /* 所有権と許可 */
+    time_t          sem_otime; /* 最後の semop の時刻 */
+    time_t          sem_ctime; /* 最後に変更が行われた時刻 */
+    unsigned short  sem_nsems; /* 集合内のセマフォの数 */
+};
+.fi
+.PP
+.in
+.fi
+.PP
+.I ipc_perm
+構造体は \fI<sys/ipc.h>\fP で以下のように定義されている
+(強調されたフィールドは
+.B IPC_SET
+を使って設定可能である):
+.PP
+.nf
+.in +4n
+struct ipc_perm {
+    key_t          __key; /* semget(2) に与えられるキー */
+    uid_t          \fBuid\fP;   /* 所有者 (owner) の実効 UID */
+    gid_t          \fBgid\fP;   /* 所有者の実効 GID */
+    uid_t          cuid;  /* 作成者 (creator) の実効 UID */
+    gid_t          cgid;  /* 作成者の実効 GID */
+    unsigned short \fBmode\fP;  /* 許可 */
+    unsigned short __seq; /* シーケンス番号 */
+};
+.in
+.fi
+.PP
+.I cmd
+として有効な値は
+.TP 10
+.B IPC_STAT
+.I semid
+に関連づけられたカーネルデータ構造体の情報を
+.I arg.buf
+で指された
+.I semid_ds
+構造体へコピーする。
+.I semnum
+引き数は無視される。
+呼び出したプロセスはそのセマフォ集合に対する
+読み込み許可を持たなければならない。
+.TP
+.B IPC_SET
+.I arg.buf
+で指定された
+.I semid_ds
+構造体のメンバーのいくつかの値を、
+このセマフォに関連づけられたカーネルデータ構造体に書き込み、
+.I sem_ctime
+メンバーの値も更新する。
+構造体の以下のメンバーが更新される:
+.IR sem_perm.uid ,
+.IR sem_perm.gid ,
+.I sem_perm.mode
+(の最下位 9 ビット)。
+呼び出したプロセスの実効 UID が所有者
+.RI ( sem_perm.uid )
+または作成者
+.RI ( sem_perm.cuid )
+と一致するか、呼び出した人が特権を持たなければならない。
+.I semnum
+引き数は無視される。
+.TP
+.B IPC_RMID
+セマフォ集合をただちに削除し、その集合上の
+.BR semop (2)
+コールでブロックされている全てのプロセスを目覚めさせる
+(エラー値が返されて、
+.I errno
+に
+.B EIDRM
+が設定される)。
+呼び出したプロセスの実効ユーザ ID が
+そのセマフォ集合の作成者または所有者と一致するか、
+呼び出した人が特権を持たなければならない。
+.I semnum
+引き数は無視される。
+.TP
+.BR IPC_INFO " (Linux 固有)"
+システム全体でのセマフォの制限とパラメータに関する情報を、
+.I arg.__buf
+が指す構造体に入れて返す。
+この構造体は
+.I seminfo
+型である。
+.I seminfo
+は
+.B _GNU_SOURCE
+機能検査マクロが定義された場合に
+.I <sys/sem.h>
+で以下のように定義される:
+.nf
+.in +4n
+
+struct  seminfo {
+    int semmap;  /* セマフォ・マップの最大エントリ数;
+                    カーネル内では未使用 */
+    int semmni;  /* セマフォ集合の最大数 */
+    int semmns;  /* 全セマフォ集合中のセマフォの
+                    最大数 */
+    int semmnu;  /* アンドゥ構造体のシステム全体での
+                    最大数; カーネル内では未使用 */
+    int semmsl;  /* 一つのセマフォ集合の最大セマフォ数 */
+    int semopm;  /* semop(2) に渡す操作の最大数 */
+    int semume;  /* プロセスあたりのアンドゥ・エントリ
+                    の最大数; カーネル内では未使用 */
+    int semusz;  /* 構造体 sem_undo のサイズ */
+    int semvmx;  /* セマフォの最大値 */
+    int semaem;  /* セマフォの調整 (semaphore adjustment;
+                     SEM_UNDO) のために記録される最大値 */
+};
+
+.in
+.fi
+設定
+.IR semmsl ,
+.IR semmns ,
+.IR semopm ,
+.I semmni
+は
+.I /proc/sys/kernel/sem
+経由で変更可能である。
+詳しくは
+.BR proc (5)
+を参照。
+.TP
+.BR SEM_INFO " (Linux 固有)"
+.B IPC_INFO
+のときと同じ情報を格納した
+.I seminfo
+構造体を返す。
+但し、以下のフィールドにはセマフォが消費しているシステム資源に
+関する情報が格納される点が異なる。
+.I semusz
+フィールドは現在システム上に存在するセマフォ集合の数を返す。
+.I semaem
+フィールドはシステム上の全てのセマフォ集合に含まれる
+セマフォの総数を返す。
+.TP
+.BR SEM_STAT " (Linux 固有)"
+.B IPC_STAT
+と同じく
+.I semid_ds
+構造体を返す。
+但し、
+.I semid
+引き数は、セマフォ識別子ではなく、システム上の全てのセマフォ集合
+に関する情報を管理するカーネルの内部配列へのインデックスである。
+.TP
+.B GETALL
+集合の全てのセマフォの
+.B semval
+の値 (現在の値) を
+.I arg.array
+に返す。
+.I semnum
+引き数は無視される。
+呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
+.TP
+.B GETNCNT
+システムコールは集合の
+.I semnum
+番目のセマフォの
+.B semncnt
+の値を返す (集合の
+.I semnum
+番目のセマフォの
+.B semval
+の増加を待っているプロセスの数を返す)。
+呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
+.TP
+.B GETPID
+システムコールは集合の
+.I semnum
+番目のセマフォの
+.B sempid
+の値 (集合の
+.I semnum
+番目のセマフォに最後に
+.BR semop (2)
+コールを実行したプロセスの PID) を返す。
+呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
+.TP
+.B GETVAL
+システムコールは集合の
+.I semnum
+番目のセマフォの
+.B semval
+の値を返す。
+呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
+.TP
+.B GETZCNT
+システムコールは集合の
+.I semnum
+番目のセマフォの
+.B semzcnt
+の値を返す (集合の
+.I semnum
+番目のセマフォの
+.B semval
+の値が 0 になるのを待っているプロセスの数を返す)。
+呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
+.TP
+.B SETALL
+集合の全てのセマフォの
+.B semval
+に
+.I arg.array
+で指定された値を設定する。
+その集合に関連する
+.I semid_ds
+構造体の
+.I sem_ctime
+メンバーの値も更新する。
+全てのプロセスのセマフォの変更についてのアンドゥ・エントリ
+.RB ( semop (2)
+を参照) は消去 (clear) される。
+セマフォの値の変更により、他のプロセス内でブロックされている
+.BR semop (2)
+コールの続行が許可されると、それらのプロセスは起こされる (wake up)。
+.I semnum
+引き数は無視される。
+呼び出したプロセスはそのセマフォ集合に
+変更 (書き込み) 許可を持たなければならない。
+.TP
+.B SETVAL
+集合の
+.I semnum
+番目のセマフォの
+.B semval
+に
+.I arg.val
+の値を設定する。その集合に関連する
+.I semid_ds
+構造体の
+.I sem_ctime
+メンバーの値も更新する。
+全てのプロセスのセマフォの変更についてのアンドゥ・エントリは消去される。
+セマフォの値の変更により、他のプロセス内でブロックされている
+.BR semop (2)
+コールの続行が許可されると、それらのプロセスは起こされる (wake up)。
+呼び出したプロセスはそのセマフォ集合に
+変更 (書き込み) 許可を持たなければならない。
+.SH 返り値
+失敗した場合、
+.BR semctl ()
+は \-1 を返し、
+.I errno
+にそのエラーを示す。
+
+そうでなければシステムコールは
+.I cmd
+によって以下の負でない値を返す:
+.TP 12
+.B GETNCNT
+.B semncnt
+の値
+.TP
+.B GETPID
+.B sempid
+の値
+.TP
+.B GETVAL
+.B semval
+の値
+.TP
+.B GETZCNT
+.B semzcnt
+の値
+.TP
+.B IPC_INFO
+全てのセマフォ集合に関する情報を管理しているカーネルの内部配列の使用中
+エントリのインデックスの最大値
+(この情報は、システムの全てのセマフォ集合に関する情報を取得するために
+.B SEM_STAT
+操作を繰り返し実行する際に使用できる)
+.TP
+.B SEM_INFO
+.B IPC_INFO
+と同じ
+.TP
+.B SEM_STAT
+.I semid
+で指定されたインデックスを持つセマフォ集合の識別子
+.LP
+.I cmd
+の値がそれ以外の場合、成功すると 0 が返される。
+.SH エラー
+失敗した場合は
+.I errno
+には以下の値のどれかが設定される:
+.TP
+.B EACCES
+.I cmd
+引き数が
+.BR GETALL ,
+.BR GETPID ,
+.BR GETVAL ,
+.BR GETNCNT ,
+.BR GETZCNT ,
+.BR IPC_STAT ,
+.BR SEM_STAT ,
+.BR SETALL ,
+.B SETVAL
+のうちの何れかの値を持ち、
+呼び出したプロセスがセマフォに対して必要とされる許可と
+.B CAP_IPC_OWNER
+ケーパビリティ (capability) を持っていない。
+.TP
+.B EFAULT
+.I arg.buf
+または
+.I arg.array
+で指されているアドレスにアクセスすることができない。
+.TP
+.B EIDRM
+セマフォ集合が削除された。
+.TP
+.B EINVAL
+.I cmd
+または
+.I semid
+に無効な値が指定された。
+もしくは、
+.B SEM_STAT
+操作の場合に、
+.I semid
+で指定されたインデックス値が現在未使用の配列のスロットを参照いていた。
+.TP
+.B EPERM
+.I cmd
+引き数に
+.B IPC_SET
+または
+.B IPC_RMID
+が指定され、呼び出したプロセスの実効ユーザ ID がセマフォの
+.RI ( sem_perm.cuid
+で見つかる) 作成者または
+.RI ( sem_perm.uid
+で見つかる) 所有者でもなく、
+プロセスが
+.B CAP_SYS_ADMIN
+ケーパビリティを持たない。
+.TP
+.B ERANGE
+.I cmd
+引き数に
+.B SETALL
+または
+.B SETVAL
+が指定され、(集合のセマフォのどれかの)
+.B semval
+に設定される値が 0 より小さいか、実装の制限
+.B SEMVMX
+よりも大きい。
+.SH 準拠
+SVr4, POSIX.1-2001.
+.\" SVr4 には、他に EINVAL, EOVERFLOW エラーについての記述がある。
+.SH 注意
+.BR IPC_INFO ,
+.BR SEM_STAT ,
+.B SEM_INFO
+操作は
+.BR ipcs (8)
+プログラムによって割当られた資源について情報を提供するために使用される。
+将来的にはこれらは変更されるか、
+/proc ファイル・システム・インタフェースに移動されるかもしれない。
+.LP
+\fI構造体 semid_ds\fP 内の多くのフィールドは、
+Linux 2.2 では
+.I short
+型だったが、Linux 2.4 では
+.I long
+型になった。
+この利点を生かすには、glibc-2.1.91 以降の環境下で
+再コンパイルすれば十分である。
+カーネルは新しい形式の呼び出しと古い形式の呼び出しを
+.I cmd
+内の
+.B IPC_64
+フラグで区別する。
+.PP
+初期のバージョンの glibc では、
+.I semun
+共用体は \fI<sys/sem.h>\fP で定義されていたが、
+POSIX.1-2001 では呼び出し側がこの共用体を定義する必要がある。
+この共用体が定義されて\fIいない\fP glibc のバージョンでは、
+マクロ
+.B _SEM_SEMUN_UNDEFINED
+が \fI<sys/sem.h>\fP で定義されている。
+.PP
+以下は
+.BR semctl ()
+コールに影響するセマフォ集合のシステム制限:
+.TP
+.B SEMVMX
+.B semval
+の最大値 : 実装依存 (32767)。
+.LP
+移植性を高めるための一番良い方法は、常に 4 個の引き数で
+.BR semctl ()
+を呼び出すことである。
+.SH 関連項目
+.BR ipc (2),
+.BR semget (2),
+.BR semop (2),
+.BR capabilities (7),
+.BR sem_overview (7),
+.BR svipc (7)

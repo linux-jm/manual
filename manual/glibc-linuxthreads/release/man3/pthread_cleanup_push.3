@@ -1,0 +1,304 @@
+.\"   Copyright (C) 1996-1999 Free Software Foundation, Inc.
+.\"
+.\"   Permission is granted to make and distribute verbatim copies of
+.\" this manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\"   Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\"   Permission is granted to copy and distribute translations of this
+.\" manual into another language, under the above conditions for modified
+.\" versions, except that this permission notice may be stated in a
+.\" translation approved by the Foundation.
+.\"
+.\" Copyright (C) 1996 Xavier Leroy.
+.\"
+.\" Japanese Version Copyright (C) 2002-2003 Suzuki Takashi
+.\"         all rights reserved.
+.\" Translated Tue Dec 31 21:07:33 JST 2002
+.\"         by Suzuki Takashi.
+.\"
+.\"WORD:    cleanup handler     クリーンアップハンドラ
+.\"WORD:    cancellation        取り消し
+.\"WORD:    stack-like          スタック風の
+.\"WORD:    non-portable extension  ポータブルでない拡張
+.\"WORD:    cancellation type   取り消し型
+.\"WORD:    deferred            （取り消し型の）遅延
+.\"WORD:    asynchronous        （取り消し型の）非同期
+.\"WORD:    cancellation mode   取り消し型
+.\"
+.\"
+.TH PTHREAD_CLEANUP 3 LinuxThreads
+
+
+.SH 名前
+pthread_cleanup_push, pthread_cleanup_pop, pthread_cleanup_push_defer_np, pthread_cleanup_pop_restore_np 
+\- クリーンアップハンドラを登録および削除する
+
+.SH 書式
+.B #include <pthread.h>
+
+.BI "void pthread_cleanup_push(void (*" routine ") (void *), void *" arg ");"
+
+.BI "void pthread_cleanup_pop(int " execute ");"
+
+.BI "void pthread_cleanup_push_defer_np(void (*" routine ") (void *), void *" arg ");"
+
+.BI "void pthread_cleanup_pop_restore_np(int " execute ");"
+
+.SH "説明"
+
+クリーンアップハンドラは、
+.BR "pthread_exit" (3)
+が呼び出されたり、取り消しされたりして
+スレッドが終了するときに呼び出される関数である。
+クリーンアップハンドラは
+スタック風の規則にならって登録および削除される。
+
+クリーンアップハンドラの目的は、
+スレッドが終了するときに保持しているかもしれない資源を
+解放することである。
+殊に、スレッドがロック中の mutex を保持したまま
+終了したり取り消しされたりすると、
+その mutex は永久にロックされたままで、
+ほかのスレッドが正常に実行できなくなってしまう。
+このことを防ぐ最もよい方法は、
+mutex をロックする直前に、
+mutex のロックを解除するための
+クリーンアップハンドラを登録することである。
+同じように、クリーンアップハンドラは
+スレッドの終了時に
+.BR "malloc" (3)
+で確保されたメモリブロックを解放したり
+ファイルディスクリプターをクローズしたりするのに使用できる。
+
+.B "pthread_cleanup_push"
+は関数
+.I "routine"
+を引数
+.I "arg"
+とともにクリーンアップハンドラとして登録する。
+この時点から
+対応する
+.B "pthread_cleanup_pop"
+までの間、
+そのスレッドが
+.BR "pthread_exit" (3)
+または取り消しによって終了する時に、
+関数
+.I "routine"
+が引数
+.I "arg"
+をともなって呼び出されるようになる。
+終了する時点で複数のクリーンアップハンドラが有効になっている場合は、
+クリーンアップハンドラは LIFO 順に呼び出される:
+すなわち、最後に登録されたハンドラが最初に呼び出される。
+
+.B "pthread_cleanup_pop"
+は、最後に登録されたクリーンアップハンドラを削除する。
+引数
+.I "execute"
+が 0 でない場合、
+.B "pthread_cleanup_pop"
+はハンドラを実行する。
+すなわち、
+関数
+.I "routine"
+を引数
+.I "arg"
+をともなって呼び出す。
+引数
+.I "execute"
+が 0 の場合は、ハンドラが削除されるだけで、実行されることはない。
+
+対応する
+.B "pthread_cleanup_push"
+と
+.B "pthread_cleanup_pop"
+の対は、同じ関数内の、
+同じブロック階層になければならない。
+実際、
+.B "pthread_cleanup_push"
+と
+.B "pthread_cleanup_pop"
+はマクロであり、
+.B "pthread_cleanup_push"
+のマクロ展開には
+開き括弧
+.B "{"
+が含まれていて、それに対応する
+閉じ括弧
+.B "}"
+は、対応する
+.B "pthread_cleanup_pop"
+のマクロ展開に含まれている。
+
+.B "pthread_cleanup_push_defer_np"
+は、
+.B "pthread_cleanup_push"
+と
+.BR "pthread_setcanceltype" (3)
+を組み合わせた、ポータブルでない拡張である。
+.B "pthread_cleanup_push"
+とまったく同じようにクリーンアップハンドラを登録するが、
+同時にその時点の取り消し型を保存し、
+取り消し型を遅延 (deferred) に変更する。
+これによって、
+スレッドの取り消し型が非同期 (asynchronous) であっても
+クリーンアップ機構が有効になることが保証される。
+
+.B "pthread_cleanup_pop_restore_np"
+は
+.B "pthread_cleanup_push_defer_np"
+によって登録されたはクリーンアップハンドラを削除し、
+取り消し型を
+.B "pthread_cleanup_push_defer_np"
+が呼び出された時点の値に戻す。
+
+.B "pthread_cleanup_push_defer_np"
+と
+.B "pthread_cleanup_pop_restore_np"
+は対になっていなければならず、
+ともに同じブロック階層になければならない。
+
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_cleanup_push_defer_np(routine, arg);
+...
+pthread_cleanup_pop_defer_np(execute);
+.ft
+.LP
+.RE
+.fi
+
+のような流れは機能的に次のものと同等 (だがよりコンパクトでより効率的) である。
+
+.RS
+.ft 3
+.nf
+.sp
+{ int oldtype;
+  pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &oldtype);
+  pthread_cleanup_push(routine, arg);
+  ...
+  pthread_cleanup_pop(execute);
+  pthread_setcanceltype(oldtype, NULL);
+}
+.ft
+.LP
+.RE
+.fi
+
+.SH "返り値"
+
+なし。
+
+.SH "エラー"
+
+なし。
+
+.SH "著者"
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.SH "関連項目"
+.BR "pthread_exit" (3),
+.BR "pthread_cancel" (3),
+.BR "pthread_setcanceltype" (3).
+
+.SH "例"
+
+次の例は、 mutex
+.I "mut"
+をロック中にスレッドが取り消しされたら
+ロックを解除するように、
+mutex
+.I "mut"
+をロックする方法である: 
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_cleanup_push(pthread_mutex_unlock, (void *) &mut);
+pthread_mutex_lock(&mut);
+/* 何かをする */
+pthread_mutex_unlock(&mut);
+pthread_cleanup_pop(0);
+.ft
+.LP
+.RE
+.fi
+
+最後の 2 行は次のものと同等で、置き換えが可能である: 
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_cleanup_pop(1);
+.ft
+.LP
+.RE
+.fi
+
+上のコードは取り消し型が遅延 (deferred) である場合に限って
+安全であることに注意すること (
+.BR "pthread_setcanceltype" (3)
+を参照 ) 。
+取り消し型が非同期 (asynchronous) の場合には、
+スレッドの取り消しが
+.B "pthread_cleanup_push"
+と
+.B "pthread_mutex_lock"
+の間や、
+.B "pthread_mutex_unlock"
+と
+.B "pthread_cleanup_pop"
+の間で起こる可能性があり、
+どちらの場合にもスレッドはカレントスレッドで
+ロックしていない mutex をロック解除しようとしてしまう。
+このことは非同期取り消しが使いにくいことの主な理由である。
+
+上のコードが非同期取り消し型でも動作しなければならない場合、
+mutex のロックおよびロック解除のために、
+取り消し型を遅延 (deferred) に変更しなければならない:
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &oldtype);
+pthread_cleanup_push(pthread_mutex_unlock, (void *) &mut);
+pthread_mutex_lock(&mut);
+/* do some work */
+pthread_cleanup_pop(1);
+pthread_setcanceltype(oldtype, NULL);
+.ft
+.LP
+.RE
+.fi
+
+上のコードは、ポータブルでない関数
+.B "pthread_cleanup_push_defer_np"
+と
+.B "pthread_cleanup_pop_restore_np"
+を使うことで、よりコンパクトでより効率的な方法に書き直すことができる:
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_cleanup_push_restore_np(pthread_mutex_unlock, (void *) &mut);
+pthread_mutex_lock(&mut);
+/* do some work */
+pthread_cleanup_pop_restore_np(1);
+.ft
+.LP
+.RE
+.fi

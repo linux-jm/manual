@@ -1,0 +1,388 @@
+.\"   Copyright (C) 1996-1999 Free Software Foundation, Inc.
+.\"
+.\"   Permission is granted to make and distribute verbatim copies of
+.\" this manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\"   Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\"   Permission is granted to copy and distribute translations of this
+.\" manual into another language, under the above conditions for modified
+.\" versions, except that this permission notice may be stated in a
+.\" translation approved by the Foundation.
+.\"
+.\" Copyright (C) 1996 Xavier Leroy.
+.\"
+.\" Japanese Version Copyright (C) 2002-2003 Suzuki Takashi
+.\"         all rights reserved.
+.\" Translated Tue Dec 31 20:02:27 JST 2002
+.\"         by Suzuki Takashi.
+.\"
+.\"WORD:    handling of signals シグナルハンドリング
+.\"WORD:    signal mask         シグナルマスク
+.\"WORD:    calling thread      呼び出しスレッド
+.\"WORD:    signal action       シグナルアクション
+.\"WORD:    signal handler      シグナルハンドラ
+.\"
+.\"
+.TH PTHREAD_SIGNAL 3 LinuxThreads
+
+
+.\"O .SH NAME
+.\"O pthread_sigmask, pthread_kill, sigwait \- handling of signals in threads
+.SH "名前"
+pthread_sigmask, pthread_kill, sigwait \- スレッド内でのシグナルハンドリング
+
+.\"O .SH SYNOPSIS
+.SH "書式"
+.B #include <pthread.h>
+.br
+.B #include <signal.h>
+
+.BI "int pthread_sigmask(int " how ", const sigset_t *" newmask ", sigset_t *" oldmask ");"
+
+.BI "int pthread_kill(pthread_t " thread ", int " signo ");"
+
+.BI "int sigwait(const sigset_t *" set ", int *" sig ");"
+
+.\"O .SH DESCRIPTION
+.SH "説明"
+
+.\"O .B "pthread_sigmask"
+.\"O changes the signal mask for the calling thread as
+.\"O described by the 
+.\"O .I "how"
+.\"O and 
+.\"O .I "newmask"
+.\"O arguments. If 
+.\"O .I "oldmask"
+.\"O is not
+.\"O .BR "NULL" ,
+.\"O the previous signal mask is stored in the location pointed to
+.\"O by 
+.\"O .IR "oldmask" .
+.B "pthread_sigmask"
+は呼び出しスレッドのシグナルマスクを
+引数
+.I "how"
+および
+.I "newmask"
+で指定されるように変更する。
+.I "oldmask"
+が
+.B "NULL"
+でないときには、直前のシグナルマスクが
+.I "oldmask"
+で指し示される領域に格納される。
+
+.\"O The meaning of the 
+.\"O .I "how"
+.\"O and 
+.\"O .I "newmask"
+.\"O arguments is the same as for
+.\"O .BR "sigprocmask" (2).
+.\"O If 
+.\"O .I "how"
+.\"O is 
+.\"O .BR "SIG_SETMASK" ,
+.\"O the signal mask is set to
+.\"O .IR "newmask" .
+.\"O If 
+.\"O .I "how"
+.\"O is 
+.\"O .BR "SIG_BLOCK" ,
+.\"O the signals specified to 
+.\"O .I "newmask"
+.\"O are added to the current signal mask.  If 
+.\"O .I "how"
+.\"O is 
+.\"O .BR "SIG_UNBLOCK" ,
+.\"O the
+.\"O signals specified to 
+.\"O .I "newmask"
+.\"O are removed from the current signal
+.\"O mask.
+引数
+.I "how"
+および
+.I "newmask"
+の意味は
+.BR "sigprocmask" (2)
+の引数の意味と同じである。
+.I "how"
+が
+.B "SIG_SETMASK"
+のときには、
+シグナルマスクが
+.I "newmask"
+に設定される。
+.I "how"
+が
+.B "SIG_BLOCK"
+のときには、
+.I "newmask"
+で指定されるシグナルが現時点のシグナルマスクに追加される。
+.I "how"
+が
+.BR "SIG_UNBLOCK"
+のときには、
+.I "newmask"
+で指定されるシグナルが現時点のシグナルマスクから取り除かれる。
+
+.\"O Recall that signal masks are set on a per-thread basis, but signal
+.\"O actions and signal handlers, as set with 
+.\"O .BR "sigaction" (2),
+.\"O are shared
+.\"O between all threads.
+シグナルマスクはスレッドごとに設定されることを思い出してほしい。
+しかし
+.BR "sigaction" (2)
+で設定される
+シグナルアクションとシグナルハンドラは、
+すべてのスレッドで共通である。
+
+.\"O .B "pthread_kill"
+.\"O send signal number 
+.\"O .I "signo"
+.\"O to the thread
+.\"O .IR "thread" .
+.\"O The signal is delivered and handled as described in
+.\"O .BR "kill" (2).
+.B "pthread_kill"
+はシグナル番号
+.I "signo"
+のシグナルを
+スレッド
+.IR "thread"
+に送信する。
+シグナルは
+.BR "kill" (2)
+に書かれているように配送されハンドルされる。
+
+.\"O .B "sigwait"
+.\"O suspends the calling thread until one of the signals
+.\"O in 
+.\"O .I "set"
+.\"O is delivered to the calling thread. It then stores the number
+.\"O of the signal received in the location pointed to by 
+.\"O .I "sig"
+.\"O and
+.\"O returns. The signals in 
+.\"O .I "set"
+.\"O must be blocked and not ignored on
+.\"O entrance to 
+.\"O .BR "sigwait" .
+.\"O If the delivered signal has a signal handler
+.\"O function attached, that function is 
+.\"O .I "not"
+.\"O called.
+.B "sigwait"
+は
+.I "set"
+で指定されるシグナルのうちいずれか 1 つが呼び出しスレッドに
+配送されるまで呼び出しスレッドの実行を停止する。
+そして受信したシグナルの数を
+.I "sig"
+で指し示される領域に格納して返る。
+.I "set"
+で指定されるシグナルは
+.B "sigwait"
+に入るときにブロックされていなければならず、無視されてはならない。
+配送されたシグナルに対するシグナルハンドラが登録されていても、
+ハンドラ関数は呼び出され
+.I "ない"
+。
+
+.\"O .SH CANCELLATION
+.SH "取り消し"
+
+.\"O .B "sigwait"
+.\"O is a cancellation point.
+.B "sigwait"
+は取り消しポイントである。
+
+.\"O .SH "RETURN VALUE"
+.SH "返り値"
+
+.\"O On success, 0 is returned. On failure, a non-zero error code is returned.
+成功すると、0 が返る。
+失敗の場合、非 0 のエラーコードが返る。
+
+.\"O .SH ERRORS
+.SH "エラー"
+
+.\"O The 
+.\"O .B "pthread_sigmask"
+.\"O function returns the following error codes
+.\"O on error:
+.\"O .RS
+.\"O .TP
+.\"O .B "EINVAL"
+.\"O .I "how"
+.\"O is not one of 
+.\"O .BR "SIG_SETMASK" ,
+.\"O .BR "SIG_BLOCK" ,
+.\"O or 
+.\"O .B "SIG_UNBLOCK"
+関数
+.B "pthread_sigmask"
+はエラーのとき、次のようなエラーコードを返す:
+.RS
+.TP
+.B "EINVAL"
+.I "how"
+が
+.B "SIG_SETMASK"
+および
+.B "SIG_BLOCK"
+、
+.B "SIG_UNBLOCK"
+のいずれでもない。
+
+.\"O .TP
+.\"O .B "EFAULT"
+.\"O .I "newmask"
+.\"O or 
+.\"O .I "oldmask"
+.\"O point to invalid addresses
+.\"O .RE
+.TP
+.B "EFAULT"
+.I "newmask"
+または
+.I "oldmask"
+が無効なアドレスを指している。
+.RE
+
+.\"O The 
+.\"O .B "pthread_kill"
+.\"O function returns the following error codes
+.\"O on error:
+.\"O .RS
+.\"O .TP
+.\"O .B "EINVAL"
+.\"O .I "signo"
+.\"O is not a valid signal number
+関数
+.B "pthread_kill"
+はエラーのとき、次のようなエラーコードを返す:
+.RS
+.TP
+.B "EINVAL"
+.I "signo"
+は有効なシグナル番号でない。
+
+.\"O .TP
+.\"O .B "ESRCH"
+.\"O the thread 
+.\"O .I "thread"
+.\"O does not exist (e.g. it has already terminated)
+.\"O .RE
+.TP
+.B "ESRCH"
+スレッド
+.I "thread"
+は存在しない (例えば、そのスレッドはすでに終了している) 。
+.RE
+
+.\"O The 
+.\"O .B "sigwait"
+.\"O function never returns an error.
+関数
+.B "sigwait"
+がエラーを返すことはない。
+
+.\"O .SH AUTHOR
+.SH "著者"
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.\"O .SH "SEE ALSO"
+.SH "関連項目"
+.BR "sigprocmask" (2),
+.BR "kill" (2),
+.BR "sigaction" (2),
+.BR "sigsuspend" (2).
+
+.\"O .SH NOTES
+.SH "注意"
+
+.\"O For 
+.\"O .B "sigwait"
+.\"O to work reliably, the signals being waited for must be
+.\"O blocked in all threads, not only in the calling thread, since
+.\"O otherwise the POSIX semantics for signal delivery do not guarantee
+.\"O that it's the thread doing the 
+.\"O .B "sigwait"
+.\"O that will receive the signal.
+.\"O The best way to achieve this is block those signals before any threads
+.\"O are created, and never unblock them in the program other than by
+.\"O calling 
+.\"O .BR "sigwait" .
+.B "sigwait"
+が確実に機能するように、
+配送を待つシグナルは、呼び出しスレッドだけでなく
+すべてのスレッドでブロックされていなければならない。
+そうでない場合、POSIX のシグナル配送機構は
+シグナルを受信するスレッドが
+.B "sigwait"
+を呼び出しているスレッドとなることを保証しない。
+これを実現する最もよい方法は、
+どのスレッドを生成するよりも前にそれらのシグナルをブロックし、
+プログラム中では
+.B "sigwait"
+を呼び出す以外、ブロックを解除しないことである。
+
+.\"O .SH BUGS
+.SH "バグ"
+
+.\"O Signal handling in LinuxThreads departs significantly from the POSIX
+.\"O standard. According to the standard, ``asynchronous'' (external)
+.\"O signals are addressed to the whole process (the collection of all
+.\"O threads), which then delivers them to one particular thread. The
+.\"O thread that actually receives the signal is any thread that does
+.\"O not currently block the signal.
+LinuxThreads のシグナルハンドリングは POSIX 標準とは大きく異なっている。
+POSIX 標準によると、「非同期の」 (外部の) シグナルは
+プロセス全体 (すべてのスレッドの集まり) に対して発行され、
+その後特定の 1 つのスレッドに配送される。
+実際にシグナルを受信するスレッドは
+その時点でシグナルをブロックしていないスレッドのいずれかとなる。
+
+.\"O In LinuxThreads, each thread is actually a kernel process with its own
+.\"O PID, so external signals are always directed to one particular thread.
+.\"O If, for instance, another thread is blocked in 
+.\"O .B "sigwait"
+.\"O on that
+.\"O signal, it will not be restarted.
+LinuxThreads では、
+それぞれのスレッドが実際には固有の PID をもつカーネルプロセスであるため、
+外部のシグナルは特定の 1 つのスレッドに直接配送される。
+例えば、もし別のスレッドが
+.B "sigwait"
+を使ってそのシグナルをブロックしても、
+そのスレッドが再開されることはない。
+
+.\"O The LinuxThreads implementation of 
+.\"O .B "sigwait"
+.\"O installs dummy signal
+.\"O handlers for the signals in 
+.\"O .I "set"
+.\"O for the duration of the wait. Since
+.\"O signal handlers are shared between all threads, other threads must not
+.\"O attach their own signal handlers to these signals, or alternatively
+.\"O they should all block these signals (which is recommended anyway --
+.\"O see the Notes section).
+.B "sigwait"
+の LinuxThreads の実装では、
+.B "sigwait"
+は待ちの期間中、
+.I "set"
+に含まれるシグナルに対応するダミーのシグナルハンドラを登録する。
+シグナルハンドラはすべてのスレッドで共通であるため、
+他のスレッドはこれらのシグナルに対して独自のシグナルハンドラを登録してはならない。
+あるいはその代わりに、すべてのスレッドが
+これらのシグナルをブロックしなければならない
+(このことはとにかく推奨されている -- 注意のセクションを参照のこと) 。

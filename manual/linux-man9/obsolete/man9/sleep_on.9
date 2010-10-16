@@ -1,0 +1,161 @@
+.\" -*- nroff -*-
+.\"
+.\" copyright (C) 1997 Stephen Williams <steve@icarus.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.TH sleep_on 9 "$Date: 1999/08/11 11:46:46 $" "Linux DDI" "Kernel Functions"
+.\"
+.\" Turn off hyphenation and right justification for the first sections.
+.hlm 0
+.na
+.\" The name should be formatted this way for apropos to work
+.\"O .SH NAME
+.\"O sleep_on \- synchronization using a condition variable
+.SH 名前
+sleep_on \- 状態変数を使ってプロセスの同期を取る
+.\"O .\"
+.\"O .\"
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #include <linux/sched.h>
+.HP
+.BI "void sleep_on(struct\ wait_queue**" condition ")"
+.\"
+.\"O .\" Turn hyphenation and adjustment back on.
+.hlm 1
+.ad
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The
+.\"O .B sleep_on
+.\"O function provides a means for synchronizing between processes and
+.\"O with interrupt handlers. The
+.\"O .I condition
+.\"O parameter is a pointer to a pointer to the opaque wait_queue
+.\"O type. Initialize the condition variable to zero, then pass a pointer
+.\"O to it to the
+.\"O .B sleep_on
+.\"O function. The basic idea is as follows:
+.B sleep_on
+関数は、プロセスと割り込みハンドラ間の同期合わせの手段を
+提供する。
+.I condition
+変数は、漠然とした(opaque)wait_queueタイプ
+のポインタである。condition変数を0に初期化してから、その変数へ
+のポインタを
+.B sleep_on
+関数に渡してやる。基本的な使用法は以下の通り。
+.PP
+.na
+struct wait_queue*con = 0;
+.br
+	[...]
+.br
+sleep_on(&con);
+.ad
+.PP
+.\"O While a process is sleeping, it is fully interruptible, no matter what
+.\"O the cpu state when entering the function. The cpu state is restored on
+.\"O being awakened.
+プロセスがスリープしている間は、そのプロセスは、当該関数に入るとき
+のCPU状態にかかわらず完全に割込み可能となっている。スリープか
+ら解除される際に、CPUの状態は当該関数に入るときの状態に戻される。
+.PP
+.\"O If a null(0) is passed to
+.\"O .BR sleep_on ,
+.\"O it returns immediately, without sleeping. This is a no-op.
+.BR sleep_on
+にNULL(0)が渡されても、スリープせずに即時に復帰する。
+これは何もしないことと同じである。
+
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O The
+.\"O .B sleep_on
+.\"O function only returns when explicitly awakened.
+.B sleep_on
+関数は、明示的にスリープから解除された場合のみ関数から
+返ってくる。
+.\"O .SH AVAILABILITY
+.\"O Linux 1+
+.SH 可用性(AVAILABILITY)
+Linux 1+
+.\"O .SH "SEE ALSO"
+<dt>関連項目
+.hlm 0
+.na
+.BR wake_up "(9)"
+.ad
+.hlm 1
+.PP
+.I "/usr/src/linux/kernel/sched.c"
+.\"O .SH AUTHOR
+.SH 著者
+Stephen Williams <steve@icarus.com>
+.\"O .SH BUGS
+.SH バグ
+.\"O A call to
+.\"O .I "sleep_on(0)"
+.\"O seems like an interesting way to test for and momentarily allow
+.\"O interrupts, but that is not what happens.
+.I "sleep_on(0)"
+のようにコールすることは、瞬間的に割り込みを許可
+するためのちょっと気の利いたやり方のように思われるが、実際は
+何も起こらない。
+.PP
+.\"O The
+.\"O .B sleep_on
+.\"O function cannot be called by interrupt handlers.
+.B sleep_on
+関数を割り込みハンドラからコールすることはできない。
+.PP
+.\"O The function is not atomic with the condition tests that the driver
+.\"O writer might include, so the code executing the
+.\"O .B sleep_on
+.\"O function is protected from interrupts. Failure to do so generally
+.\"O leads to race conditions.
+この関数は、ドライバの開発者が状態の確認をするためにちょっと
+入れてみるような、ごく基本的な関数ではない。そのため、
+.B sleep_on
+関数を実行しようとしている関数は、割り込みから保護されている
+必要がある。このコールに失敗してしまった場合、その結果は一般的
+にはタイミングに依存する。
+
+.\"O From jman-request@linux.or.jp Wed, 01 Apr 1998 18:50:49 +0900
+.\"O Errors-To: jman-request@linux.or.jp
+.\"O X-ML-Driver: CMLD (Version 2.5)
+.\"O Reply-To: jman@linux.or.jp
+.\"O X-ML-Count: 02483
+.\"O X-ML-Name: jman
+.\"O Return-Path: sim@remus.dti.ne.jp
+.\"O Message-Id: <199804010950.AA00036@sim.remus.dti.ne.jp>
+.\"O From: sim@remus.dti.ne.jp (堀田
+.\"O   倫英（MichihideHotta)
+.\"O Date: Wed, 01 Apr 1998 18:50:49 +0900
+.\"O To: man9@linux.or.jp
+.\"O Subject: [jman:02483] [JMAN-D] sleep_on.9
+.\"O MIME-Version: 1.0
+.\"O X-Mailer: AL-Mail32 Version 1.01
+.\"O Content-Type: text/plain; charset=iso-2022-jp
+.\"O 
+.\"O 堀田 倫英（Michihide Hotta)   98/03/16は、私のディスクの命日....
+.\"O [Mail] sim@remus.dti.ne.jp  [Web] http://www.remus.dti.ne.jp/~sim/

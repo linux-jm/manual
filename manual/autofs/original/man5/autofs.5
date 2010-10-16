@@ -1,0 +1,226 @@
+.\" t
+.\" $Id: autofs.5,v 1.8 2004/05/18 12:22:40 raven Exp $
+.TH AUTOFS 5 "6 Apr 1998"
+.TH AUTOFS 5 "14 Jan 2000"
+.SH NAME
+autofs \- Format of the automounter maps
+.SH "DESCRIPTION"
+The automounter maps are files or NIS maps referred to by the master map of
+the automounter (see
+.BR auto.master (5)).
+The automounter maps describe how file systems below the mountpoint of the map
+(given in the auto.master file) are to be mounted.  This describes the
+.B sun
+map format; if another map format is specified (e.g. \fBhesiod\fP),
+this documentation does not apply.
+
+Maps can be changed on the fly and the automouter will recognize those
+changes on the next operation it performs on that map.  This is not
+true for the
+.B auto.master
+map!
+.SH "FORMAT"
+This is a description of the text file format.  Other methods of specifying
+these files may exist.  All empty lines or lines beginning with # are
+ignored. The basic format of one line in such maps is:
+.P
+.BI "key [" -options "] location"
+
+.SS key
+For indirect mounts this is the part of the pathname between the mountpointi
+and the path into the filesystem mounted. Usually you can think about the
+key as a subdirectory name below the mountpoint.
+
+For direct mounts this is the full path of the mountpoint. This map is always
+associated with the /- mountpoint in the master map. 
+
+.SS options
+Options are optional.  Options can also be given in the 
+.B auto.master
+file in which case both values are cumulative (this is a difference
+from SunOS).  The options are a list of comma separated options as
+customary for the
+.BR mount (8)
+command. There are two special options
+.I -fstype=
+used to specify a filesystem type if the filesystem is not of the default
+NFS type.  This option is processed by the automounter and not by the mount
+command.
+.I -strict
+is used to treat errors when mounting file systems as fatal. This is important when
+multiple file systems should be mounted (`multimounts'). If this option
+is given, no file system is mounted at all if at least one file system
+can't be mounted.
+
+.SS location
+The location specifies from where the file system is to be mounted.  In the
+most cases this will be an NFS volume and the usual notation
+.I host:pathname
+is used to indicate the remote filesystem and path to be mounted.  If
+the filesystem to be mounted begins with a / (such as local
+.I /dev
+entries or smbfs shares) a : needs to be prefixed (e.g. 
+.IR :/dev/sda1 ).
+.SH EXAMPLE
+.sp
+.RS +.2i
+.ta 1.0i 3.0i
+.nf
+kernel	-ro,soft,intr	ftp.kernel.org:/pub/linux
+boot	-fstype=ext2	:/dev/hda1
+windoze	-fstype=smbfs	://windoze/c
+removable	-fstype=ext2	:/dev/hdd
+cd	-fstype=iso9660,ro	:/dev/hdc
+floppy	-fstype=auto	:/dev/fd0
+server	-rw,hard,intr	/ -ro myserver.me.org:/ \\
+			/usr myserver.me.org:/usr \\
+			/home myserver.me.org:/home
+.fi
+.RE
+.sp
+In the first line we have a NFS remote mount of the kernel directory on
+.IR ftp.kernel.org .
+This is mounted read-only.  The second line mounts an ext2 volume on a
+local ide drive.  The third makes a share exported from a Windows
+machine available for automounting.  The rest should be fairly
+self-explanatory. The last entry (the last three lines) is an example
+of a multi-map (see below).
+
+If you use the automounter for a filesystem without access permissions
+(like \fBvfat\fP), users usually can't write on such a filesystem
+because it is mounted as user \fBroot\fP.
+You can solve this problem by passing the option \fIgid=<gid>\fP,
+e. g. \fIgid=floppy\fP. The filesystem is then mounted as group
+\fBfloppy\fP instead of \fBroot\fP. Then you can add the users
+to this group, and they can write to the filesystem. Here's an
+example entry for an autofs map:
+.sp
+.RS +.2i
+.ta 1.0i 3.0i
+.nf
+floppy-vfat  -fstype=vfat,sync,gid=floppy,umask=002  :/dev/fd0
+.fi
+.RE
+.sp
+.SH FEATURES
+.SS Map Key Substitution
+An & character in the
+.B location
+is expanded to the value of the 
+.B key
+field that matched the line (which probably only makes sense together with
+a wildcard key).
+.SS Wildcard Key
+A * in the
+.B key
+field of indirect maps matches all keys.  An example for the usefulness
+is the following entry:
+.sp
+.RS +.2i
+.ta 1.0i
+.nf
+*	&:/home/&
+.fi
+.RE
+.sp
+This will enable you to access all the home directory of local hosts using
+the path
+.RI / mountpoint / hostname / local-path .
+.SS Variable Substitution
+The following special variables will be substituted in the key and location
+fields of an automounter map if prefixed with $ as customary from shell
+scripts (Curly braces can be used to separate the fieldname):
+.sp
+.RS +.2i
+.ta 1.5i
+.nf
+ARCH	Architecture (uname -m)
+CPU	Processor Type
+HOST	Hostname (uname -n)
+OSNAME	Operating System (uname -s)
+OSREL	Release of OS (uname -r)
+OSVERS	Version of OS (uname -v)
+.fi
+.RE
+.sp
+Additional entries can be defined with the -Dvariable=Value map-option to
+.BR automount (8).
+.SS Executable Maps
+A map can be marked as executable.  The init script that parses the
+auto.master map will pass this as a
+.B program
+map to the automounter.  A
+.B program
+map will be called as a script with the key as an argument.  It may
+return no lines of output if there's an error, or one or more lines
+containing a map (with \\ quoting line breaks).
+.P
+To use a 
+.B program
+map, the
+.BR automount (8)
+daemon has to be started with the program type instead of the file
+type.  This is implemented in the initialization script.
+.P
+A executable map can return an errorcode to indicate the failure in addition
+to no output at all.  All output sent to stderr is logged into the system
+logs.
+.SS Multiple Mounts
+A
+.B multi-mount map
+can be used to name multiple filesystems to mount.  It takes the form:
+.sp
+.RS +.2i
+.ta 1.0i
+.nf
+.BI "key [" -options "] [mountpoint [" -options "] location...]..."
+.fi
+.RE
+.sp
+.P
+This may extend over multiple lines, quoting the line-breaks with \`\\\'.
+If present, the per-mountpoint mount-options are appended to the
+default mount-options.
+.SS Replicated Server
+.sp
+.RS +.2i
+.ta 1.5i
+.nf
+Multiple replicated hosts, same path:
+<path> host1,host2,hostn:/path/path
+
+Multiple hosts, some with same path, some with another
+<path> host1,host2:/blah host3:/some/other/path
+
+Multiple replicated hosts, different (potentially) paths:
+<path> host1:/path/pathA host2:/path/pathB
+
+Mutliple weighted, replicated hosts same path:
+<path> host1(5),host2(6),host3(1):/path/path
+
+Multiple weighted, replicated hosts different (potentially) paths:
+<path> host1(3):/path/pathA host2(5):/path/pathB
+
+Anything else is questionable and unsupported, but these variations will also work:
+<path> host1(3),host:/blah
+.fi
+.RE
+.sp
+.SH UNSUPPORTED
+This version of the automounter supports direct maps for FILE, NIS and LDAP maps only
+and handles SunOS-style replicated filesystems only to the extent that
+.BR mount (8)
+does.
+.SH CAVEATS
+Unlike Sun's multi-mount syntax, the mountpoint is mandatory for all
+mounts.
+.SH "SEE ALSO"
+.BR automount (8),
+.BR auto.master (5),
+.BR autofs (8),
+.BR mount (8).
+.SH AUTHOR
+This manual page was written by Christoph Lameter <chris@waterf.org>,
+for the Debian GNU/Linux system.  Edited by H. Peter Anvin
+<hpa@transmeta.com>, Jeremy Fitzhardinge <jeremy@goop.org> and
+Ian Kent <raven@themaw.net>.

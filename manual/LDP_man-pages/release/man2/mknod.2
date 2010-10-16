@@ -1,0 +1,239 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" This manpage is Copyright (C) 1992 Drew Eckhardt;
+.\"                               1993 Michael Haardt
+.\"                               1993,1994 Ian Jackson.
+.\" You may distribute it under the terms of the GNU General
+.\" Public License. It comes with NO WARRANTY.
+.\"
+.\" Modified 1996-08-18 by urs
+.\" Modified 2003-04-23 by Michael Kerrisk
+.\" Modified 2004-06-23 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\"
+.\" Japanese Version Copyright (c) 1997 SUTO, Mitsuaki
+.\"         all rights reserved.
+.\" Translated 1997-06-26, SUTO, Mitsuaki <suto@av.crl.sony.co.jp>
+.\" Updated & Modified 1999-03-01, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified 2001-06-04, Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated & Modified 2003-07-26, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2004-12-31, Yuichi SATO
+.\" Updated 2005-09-06, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.\"WORD:	node		ノード
+.\"WORD:	permission	許可属性
+.\"WORD:	resolve		(パス名を) 解決する
+.\"
+.TH MKNOD 2 2008-12-01 "Linux" "Linux Programmer's Manual"
+.SH 名前
+mknod \- 特殊ファイルや通常のファイルを作成する
+.SH 書式
+.nf
+.B #include <sys/types.h>
+.B #include <sys/stat.h>
+.B #include <fcntl.h>
+.B #include <unistd.h>
+.sp
+.BI "int mknod(const char *" pathname ", mode_t " mode ", dev_t " dev );
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR mknod ():
+_BSD_SOURCE || _SVID_SOURCE || _XOPEN_SOURCE\ >=\ 500
+.SH 説明
+システムコール
+.BR mknod ()
+は
+.I pathname
+という名前のファイルシステム・ノード
+(ファイル、デバイススペシャルファイル、名前付きパイプ) を、
+属性
+.I mode
+と
+.I dev
+の指定にしたがって作成する。
+
+.I mode
+引き数には、作成するノードの許可属性 (permission) とタイプを指定する。
+.I mode
+の指定は以下にあげるファイルタイプのうちの 1 つと、
+許可属性の組合せ (ビットごとの OR を使用) で行う。
+
+許可属性は通常通り、プロセスの
+.I umask
+によって修正され、作成されたノードの許可属性は
+.I "(mode & ~umask)"
+となる。
+
+ファイルタイプには
+.BR S_IFREG ,
+.BR S_IFCHR ,
+.BR S_IFBLK ,
+.BR S_IFIFO ,
+.B S_IFSOCK
+.\" (S_IFSOCK は Linux 1.2.4 から存在する)
+のいずれかを指定しなければならない。
+それぞれ順に、通常のファイル (空のファイルとして作成される)・
+キャラクタスペシャルファイル・ブロックスペシャルファイル・
+FIFO (名前付きパイプ)・Unix ドメインソケットである
+(ファイルタイプ 0 は
+.B S_IFREG
+と同じである)。
+
+ファイルタイプが
+.B S_IFCHR
+または
+.B S_IFBLK
+のとき、
+.I dev
+には作成するデバイススペシャルファイルのメジャー番号と
+マイナー番号を指定する
+.RB ( makedev (3)
+は
+.I dev
+のこれらの番号を作成する際に役立つだろう)。
+それ以外の場合は
+.I dev
+は無視される。
+
+.I pathname
+が既に存在する場合、またはシンボリックリンクの場合、
+この呼び出しは
+.B EEXIST
+エラーで失敗する。
+
+新しく作成されたノードの所有者はプロセスの実効ユーザ ID にセットされる。
+新たに作られたノードを保持する
+親ディレクトリの set-group-ID ビットがセットされていたり、
+ファイルシステムが BSD のグループセマンティクスにしたがって
+マウントされている場合には、新しいノードのグループ所有権は親ディレクトリの
+グループ所有権を継承する (親ディレクトリと同じになる)。
+また、そうでなかった場合の所有グループはプロセスの実効グループ ID となる。
+.SH 返り値
+.BR mknod ()
+は成功した場合 0 を、失敗した場合 \-1 を返す
+(失敗した場合
+.I errno
+がエラーの内容にしたがってセットされる)。
+.SH エラー
+.TP
+.B EACCES
+プロセスが親ディレクトリへの書き込み許可を持たない。
+もしくはパス名
+.I pathname
+中のディレクトリ部分のどれかに検索許可属性が無い
+.RB ( path_resolution (7)
+も参照すること)。
+.TP
+.B EEXIST
+.I pathname
+が既に存在する。
+これには
+.I pathname
+がシンボリック・リンクである場合も含まれる
+(シンボリック・リンクが壊れているか (dangling) どうかは関係ない)。
+.TP
+.B EFAULT
+.I pathname
+がそのプロセスのアクセス可能なアドレス空間の外を指している。
+.TP
+.B EINVAL
+.I mode
+が通常のファイル・デバイススペシャルファイル・FIFO・ソケット以外を
+作成するようにセットされている。
+.TP
+.B ELOOP
+パス名
+.I pathname
+を解決するときに、含まれているシンボリックリンクが多すぎた。
+.TP
+.B ENAMETOOLONG
+.I pathname
+が長過ぎる。
+.TP
+.B ENOENT
+.I pathname
+中で指定されているディレクトリが存在しないか、
+またはリンク先の無いシンボリックリンクである。
+.TP
+.B ENOMEM
+十分なカーネルメモリが無い。
+.TP
+.B ENOSPC
+.I pathname
+のあるデバイスに新たにノードを作成する空きが無い。
+.TP
+.B ENOTDIR
+.I pathname
+中のディレクトリ要素が、実際にはディレクトリでない。
+.TP
+.B EPERM
+.I mode
+は通常のファイル・FIFO (名前付きパイプ)・Unix ドメインソケット以外を
+作成するようにセットされているが、実行者が特権
+(Linux では
+.B CAP_MKNOD
+ケーパビリティ (capability)) を持っていない。
+.\" Unix ドメインソケットと通常ファイルに対して mknod() を行うと、
+.\" Linux 2.2 以前では EPERM を返すだけである。
+.\" Linux 2.4 以降では特権を持っていなくてもこれらのファイルを
+.\" 作成するのに mknod() を使用することができる。
+または
+.I pathname
+を保持するファイルシステムが、指定されたノード形式をサポートしていない。
+.TP
+.B EROFS
+.I pathname
+が読み出し専用ファイルシステム上のファイルを指している。
+.SH 準拠
+SVr4, 4.4BSD, POSIX.1-2001 (下記も参照).
+.\" Linux の実装は SVr4 の実装と異なり、パイプの作成には root 権限が不要である。
+.\" また EMULTIHOP と ENOLINK と EINTR のエラーについては記述されていない。
+.SH 注意
+POSIX.1-2001 では次のように書いている：
+.RB 「 mknod ()
+の唯一の移植性のある使用法は、FIFO スペシャルファイルを作成することである。
+.I mode
+が
+.B S_IFIFO
+ではない場合、または
+.I dev
+が 0 ではない場合、
+.BR mknod ()
+の挙動は規定されていない。」
+しかしながら、現在ではこの目的のために
+.BR mknod ()
+を使用すべきではない。この目的のために特別に定義された関数である
+.BR mkfifo ()
+を使用すべきである。
+
+Linux では、ディレクトリを作成するために
+この呼び出しを使用することはできない。
+ディレクトリは
+.BR mkdir (2)
+で作成すべきである。
+.\" Unix ドメインソケットは socket(2) と bind(2) で作成すべきである。
+
+NFS を実現しているプロトコルには多くの不備が存在し、
+それらのいくつかは
+.BR mknod ()
+に影響を与える。
+.SH 関連項目
+.BR chmod (2),
+.BR chown (2),
+.BR fcntl (2),
+.BR mkdir (2),
+.BR mknodat (2),
+.BR mount (2),
+.BR socket (2),
+.BR stat (2),
+.BR umask (2),
+.BR unlink (2),
+.BR makedev (3),
+.BR mkfifo (3),
+.BR path_resolution (7)

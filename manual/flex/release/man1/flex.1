@@ -1,0 +1,353 @@
+.TH FLEX 1 "April 1995" "Version 2.5"
+.SH 名称
+flex \- 高速なレキシカルアナライザを作成する
+.SH 書式
+.B flex
+.B [\-bcdfhilnpstvwBFILTV78+? \-C[aefFmr] \-ooutput \-Pprefix \-Sskeleton]
+.B [\-\-help \-\-version]
+.I [filename ...]
+.SH 概要
+このマニュアルは、
+テキストのパターンマッチングを行うプログラムを作成するツールである
+.I flex
+について記述してあります。
+このマニュアルには tutorial と reference の両方のセクションがあります。
+以下に、セクションの一覧を示します:
+.nf
+
+    解説
+        このツールの簡単な概要
+
+    いくつかの簡単な例
+
+    入力ファイルのフォーマット
+
+    パターン
+        flex で使われている拡張正規表現
+
+    入力がどのようにマッチするか
+        何がマッチするかを決定するルール
+
+    アクション
+        パターンがマッチした時の動作の記述方法
+
+    作成されるスキャナ
+        flex が生成するスキャナの細部を眺める
+	入力ソースの制御方法
+
+    初期状態
+        スキャナに context を埋め込み、
+        "ミニ スキャナ" を管理する
+
+    複数の入力バッファ
+        複数の入力ソースの操作方法
+	ファイルの代わりに文字列からスキャンする方法
+
+    End-of-file ルール
+        入力の終端にマッチさせるための特殊ルール
+
+    雑マクロ
+        アクションで利用できるマクロの概要
+
+    ユーザが利用できる値
+        アクションで得られる値の概要
+
+    Yacc とのインタフェース
+        flex のスキャナと yacc のパーサの接続
+
+    オプション
+        flex のコマンドラインオプション
+        および "%option" 命令
+
+    パフォーマンスに関する考察
+        可能な限り高速なスキャナを作成する方法
+
+    C++ 用スキャナの作成
+        C++ スキャナクラスを作成するための (実験的な) 機能
+
+    Lex や POSIX との非互換な面
+        flex が AT&T の lex や POSIX の lex とどのように違うか
+
+    診断
+        flex (もしくは flex が生成するスキャナ)が表示する、
+	意味のはっきりしないエラーメッセージ
+
+    関連ファイル
+        flex が利用するファイル
+
+    欠陥 / バグ
+        flex の、既にわかっている問題
+
+    関連項目
+        他のドキュメント、関連するツール
+
+    作者
+        連絡方法を含む
+
+.fi
+以下にないセクションについては、オリジナルのオンラインマニュアルを参照して
+下さい。
+.SH 解説
+.I flex
+は
+.I スキャナ
+を生成するためのツールです。
+ここで、スキャナとは、
+テキスト内の字句パターンを解析するプログラムです。
+.I flex
+は指定したファイル、もしくはファイル名が与えられなかった場合は
+標準入力から、作成するスキャナの記述を読み込みます。
+この記述は、
+正規表現と C コードのペアの形をとっています。
+これは
+.I rules
+と呼ばれます。
+.I flex
+は、出力として C ソースファイルの
+.B lex.yy.c
+を作ります。
+これの中では、
+.B yylex()
+ルーチンが定義されます。
+このファイルはコンパイルされ、実行形式を作成するために
+.B \-lfl
+ライブラリとともにリンクされます。
+実行形式が走り始めると、
+正規表現をマッチさせるために
+入力が解析されます。
+マッチするものを見つけると、対応する C コードが実行されます。
+.SH いくつかの簡単な例
+.PP
+最初に、
+.I flex
+をどのように使うかという雰囲気をわかってもらうための簡単な例を示します。
+以下の
+.I flex
+の入力は、
+文字列 "username" を見つけるたびに、それをユーザのログイン名で置き換える
+スキャナを記述してあります:
+.nf
+
+    %%
+    username    printf( "%s", getlogin() );
+
+.fi
+デフォルトでは、
+.I flex
+スキャナにマッチしない全てのテキストは、出力にコピーされます。
+よって、このスキャナの正確な機能は、
+各 "username" を展開しながら入力を出力にコピーする
+というものです。
+この
+.I flex
+への入力では、ルールがたった 1 つしかありません。
+"username" が
+.I pattern
+であり、"printf" が
+.I action
+です。
+"%%" はルールの記述の開始を示すマークです。
+.PP
+別の簡単な例を示します:
+.nf
+
+            int num_lines = 0, num_chars = 0;
+
+    %%
+    \\n      ++num_lines; ++num_chars;
+    .       ++num_chars;
+
+    %%
+    main()
+            {
+            yylex();
+            printf( "# of lines = %d, # of chars = %d\\n",
+                    num_lines, num_chars );
+            }
+
+.fi
+このスキャナは、入力の文字数と行数を数えます (最後に出力されるカウント数以外は
+何も出力されません)。
+最初の行は、2 つのグローバル変数 "num_lines" および "num_chars" を宣言
+しています。これらは、2 番めの "%%" 以降で宣言された
+.B yylex()
+および、
+.B main()
+ルーチン内でアクセス可能です。
+この例には 2 つのルールが記述されています。1 つは改行 ("\\n") にマッチする
+もので、行数と文字数をインクリメントします。
+もう 1 つは改行以外の全ての文字にマッチするものです (正規表現 "." で示して
+あります)。
+.PP
+次に、もう少し複雑な例を示します:
+.nf
+
+    /* scanner for a toy Pascal-like language */
+
+    %{
+    /* need this for the call to atof() below */
+    #include <math.h>
+    %}
+
+    DIGIT    [0-9]
+    ID       [a-z][a-z0-9]*
+
+    %%
+
+    {DIGIT}+    {
+                printf( "An integer: %s (%d)\\n", yytext,
+                        atoi( yytext ) );
+                }
+
+    {DIGIT}+"."{DIGIT}*        {
+                printf( "A float: %s (%g)\\n", yytext,
+                        atof( yytext ) );
+                }
+
+    if|then|begin|end|procedure|function        {
+                printf( "A keyword: %s\\n", yytext );
+                }
+
+    {ID}        printf( "An identifier: %s\\n", yytext );
+
+    "+"|"-"|"*"|"/"   printf( "An operator: %s\\n", yytext );
+
+    "{"[^}\\n]*"}"     /* eat up one-line comments */
+
+    [ \\t\\n]+          /* eat up whitespace */
+
+    .           printf( "Unrecognized character: %s\\n", yytext );
+
+    %%
+
+    main( argc, argv )
+    int argc;
+    char **argv;
+        {
+        ++argv, --argc;  /* skip over program name */
+        if ( argc > 0 )
+                yyin = fopen( argv[0], "r" );
+        else
+                yyin = stdin;
+        
+        yylex();
+        }
+
+.fi
+これは、Pascal に似た言語用の簡単なスキャナです。
+これは、いろいろなタイプの
+.I token
+を識別し、何を見つけたかをレポートします。
+.PP
+.SH 関連ファイル
+.TP
+.B \-lfl
+スキャナがリンクしなければならないファイル。
+.TP
+.I lex.yy.c
+作成されるスキャナ (システムによっては
+.I lexyy.c
+と呼ばれる)。
+.TP
+.I lex.yy.cc
+.B -+
+を使った時に作成される C++ スキャナクラス。
+.TP
+.I <FlexLexer.h>
+C++ スキャナベースクラス
+.B FlexLexer
+とその導出クラス
+.B yyFlexLexer
+を定義するヘッダファイル。
+.TP
+.I flex.skl
+スケルトンスキャナ。
+このファイルは flex の実行時ではなく、 flex を構築する時のみ利用される。
+.TP
+.I lex.backup
+.B \-b
+フラグ用のバックアップ情報 (システムによっては
+.I lex.bck
+と呼ばれる)。
+.SH 関連項目
+.PP
+lex(1), yacc(1), sed(1), awk(1).
+.PP
+John Levine, Tony Mason, and Doug Brown,
+.I Lex & Yacc,
+O'Reilly and Associates.  Be sure to get the 2nd edition.
+.PP
+M. E. Lesk and E. Schmidt,
+.I LEX \- Lexical Analyzer Generator
+.PP
+Alfred Aho, Ravi Sethi and Jeffrey Ullman,
+.I Compilers: Principles, Techniques and Tools,
+Addison-Wesley (1986).  Describes the pattern-matching techniques used by
+.I flex
+(deterministic finite automata).
+.SH 作者
+Vern Paxson, with the help of many ideas and much inspiration from
+Van Jacobson.  Original version by Jef Poskanzer.  The fast table
+representation is a partial implementation of a design done by Van
+Jacobson.  The implementation was done by Kevin Gong and Vern Paxson.
+.PP
+Thanks to the many
+.I flex
+beta-testers, feedbackers, and contributors, especially Francois Pinard,
+Casey Leedom,
+Robert Abramovitz,
+Stan Adermann, Terry Allen, David Barker-Plummer, John Basrai,
+Neal Becker, Nelson H.F. Beebe, benson@odi.com,
+Karl Berry, Peter A. Bigot, Simon Blanchard,
+Keith Bostic, Frederic Brehm, Ian Brockbank, Kin Cho, Nick Christopher,
+Brian Clapper, J.T. Conklin,
+Jason Coughlin, Bill Cox, Nick Cropper, Dave Curtis, Scott David
+Daniels, Chris G. Demetriou, Theo Deraadt,
+Mike Donahue, Chuck Doucette, Tom Epperly, Leo Eskin,
+Chris Faylor, Chris Flatters, Jon Forrest, Jeffrey Friedl,
+Joe Gayda, Kaveh R. Ghazi, Wolfgang Glunz,
+Eric Goldman, Christopher M. Gould, Ulrich Grepel, Peer Griebel,
+Jan Hajic, Charles Hemphill, NORO Hideo,
+Jarkko Hietaniemi, Scott Hofmann,
+Jeff Honig, Dana Hudes, Eric Hughes, John Interrante,
+Ceriel Jacobs, Michal Jaegermann, Sakari Jalovaara, Jeffrey R. Jones,
+Henry Juengst, Klaus Kaempf, Jonathan I. Kamens, Terrence O Kane,
+Amir Katz, ken@ken.hilco.com, Kevin B. Kenny,
+Steve Kirsch, Winfried Koenig, Marq Kole, Ronald Lamprecht,
+Greg Lee, Rohan Lenard, Craig Leres, John Levine, Steve Liddle,
+David Loffredo, Mike Long,
+Mohamed el Lozy, Brian Madsen, Malte, Joe Marshall,
+Bengt Martensson, Chris Metcalf,
+Luke Mewburn, Jim Meyering, R. Alexander Milowski, Erik Naggum,
+G.T. Nicol, Landon Noll, James Nordby, Marc Nozell,
+Richard Ohnemus, Karsten Pahnke,
+Sven Panne, Roland Pesch, Walter Pelissero, Gaumond
+Pierre, Esmond Pitt, Jef Poskanzer, Joe Rahmeh, Jarmo Raiha,
+Frederic Raimbault, Pat Rankin, Rick Richardson,
+Kevin Rodgers, Kai Uwe Rommel, Jim Roskind, Alberto Santini,
+Andreas Scherer, Darrell Schiebel, Raf Schietekat,
+Doug Schmidt, Philippe Schnoebelen, Andreas Schwab,
+Larry Schwimmer, Alex Siegel, Eckehard Stolz, Jan-Erik Strvmquist,
+Mike Stump, Paul Stuart, Dave Tallman, Ian Lance Taylor,
+Chris Thewalt, Richard M. Timoney, Jodi Tsai,
+Paul Tuinenga, Gary Weik, Frank Whaley, Gerhard Wilhelms, Kent Williams, Ken
+Yap, Ron Zellar, Nathan Zelle, David Zuhn,
+and those whose names have slipped my marginal
+mail-archiving skills but whose contributions are appreciated all the
+same.
+.PP
+Thanks to Keith Bostic, Jon Forrest, Noah Friedman,
+John Gilmore, Craig Leres, John Levine, Bob Mulcahy, G.T.
+Nicol, Francois Pinard, Rich Salz, and Richard Stallman for help with various
+distribution headaches.
+.PP
+Thanks to Esmond Pitt and Earle Horton for 8-bit character support; to
+Benson Margulies and Fred Burke for C++ support; to Kent Williams and Tom
+Epperly for C++ class support; to Ove Ewerlid for support of NUL's; and to
+Eric Hughes for support of multiple buffers.
+.PP
+This work was primarily done when I was with the Real Time Systems Group
+at the Lawrence Berkeley Laboratory in Berkeley, CA.  Many thanks to all there
+for the support I received.
+.PP
+Send comments to vern@ee.lbl.gov.

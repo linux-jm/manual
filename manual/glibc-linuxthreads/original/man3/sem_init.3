@@ -1,0 +1,198 @@
+.TH SEMAPHORES 3 LinuxThreads
+
+
+.SH NAME
+sem_init, sem_wait, sem_trywait, sem_post, sem_getvalue, sem_destroy \- operations on semaphores
+
+.SH SYNOPSIS
+.B #include <semaphore.h>
+
+.BI "int sem_init(sem_t *" sem ", int " pshared ", unsigned int " value ");"
+
+.BI "int sem_wait(sem_t * " sem ");"
+
+.BI "int sem_trywait(sem_t * " sem ");"
+
+.BI "int sem_post(sem_t * " sem ");"
+
+.BI "int sem_getvalue(sem_t * " sem ", int * " sval ");"
+
+.BI "int sem_destroy(sem_t * " sem ");"
+
+.SH DESCRIPTION
+This manual page documents POSIX 1003.1b semaphores, not to be
+confused with SystemV semaphores as described in 
+.BR "ipc" (5),
+.BR "semctl" (2)
+and 
+.BR "semop" (2).
+
+Semaphores are counters for resources shared between threads. The
+basic operations on semaphores are: increment the counter atomically,
+and wait until the counter is non-null and decrement it atomically.
+
+.B "sem_init"
+initializes the semaphore object pointed to by 
+.IR "sem" .
+The
+count associated with the semaphore is set initially to 
+.IR "value" .
+The
+.I "pshared"
+argument indicates whether the semaphore is local to the
+current process (
+.I "pshared"
+is zero) or is to be shared between several
+processes (
+.I "pshared"
+is not zero). LinuxThreads currently does not
+support process-shared semaphores, thus 
+.B "sem_init"
+always returns with
+error 
+.B "ENOSYS"
+if 
+.I "pshared"
+is not zero.
+
+.B "sem_wait"
+suspends the calling thread until the semaphore pointed to
+by 
+.I "sem"
+has non-zero count. It then atomically decreases the
+semaphore count.
+
+.B "sem_trywait"
+is a non-blocking variant of 
+.BR "sem_wait" .
+If the
+semaphore pointed to by 
+.I "sem"
+has non-zero count, the count is
+atomically decreased and 
+.B "sem_trywait"
+immediately returns 0.
+If the semaphore count is zero, 
+.B "sem_trywait"
+immediately returns with
+error 
+.BR "EAGAIN" .
+
+.B "sem_post"
+atomically increases the count of the semaphore pointed to
+by 
+.IR "sem" .
+This function never blocks and can safely be used in
+asynchronous signal handlers.
+
+.B "sem_getvalue"
+stores in the location pointed to by 
+.I "sval"
+the current
+count of the semaphore 
+.IR "sem" .
+
+.B "sem_destroy"
+destroys a semaphore object, freeing the resources it
+might hold. No threads should be waiting on the semaphore at the time
+.B "sem_destroy"
+is called. In the LinuxThreads implementation, no
+resources are associated with semaphore objects, thus 
+.B "sem_destroy"
+actually does nothing except checking that no thread is waiting on the
+semaphore.
+
+.SH CANCELLATION
+
+.B "sem_wait"
+is a cancellation point.
+
+.SH "ASYNC-SIGNAL SAFETY"
+
+On processors supporting atomic compare-and-swap (Intel 486, Pentium
+and later, Alpha, PowerPC, MIPS II, Motorola 68k), the 
+.B "sem_post"
+function is async-signal safe and can therefore be
+called from signal handlers. This is the only thread synchronization
+function provided by POSIX threads that is async-signal safe.
+
+On the Intel 386 and the Sparc, the current LinuxThreads
+implementation of 
+.B "sem_post"
+is not async-signal safe by lack of the
+required atomic operations.
+
+.SH "RETURN VALUE"
+
+The 
+.B "sem_wait"
+and 
+.B "sem_getvalue"
+functions always return 0.
+All other semaphore functions return 0 on success and -1 on error, in
+addition to writing an error code in 
+.BR "errno" .
+
+.SH ERRORS
+
+The 
+.B "sem_init"
+function sets 
+.B "errno"
+to the following codes on error:
+.RS
+.TP
+.B "EINVAL"
+.I "value"
+exceeds the maximal counter value 
+.B "SEM_VALUE_MAX"
+.TP
+.B "ENOSYS"
+.I "pshared"
+is not zero
+.RE
+
+The 
+.B "sem_trywait"
+function sets 
+.B "errno"
+to the following error code on error:
+.RS
+.TP
+.B "EAGAIN"
+the semaphore count is currently 0
+.RE
+
+The 
+.B "sem_post"
+function sets 
+.B "errno"
+to the following error code on error:
+.RS
+.TP
+.B "ERANGE"
+after incrementation, the semaphore value would exceed 
+.B "SEM_VALUE_MAX"
+(the semaphore count is left unchanged in this case)
+.RE
+
+The 
+.B "sem_destroy"
+function sets 
+.B "errno"
+to the following error code on error:
+.RS
+.TP
+.B "EBUSY"
+some threads are currently blocked waiting on the semaphore.
+.RE
+
+.SH AUTHOR
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.SH "SEE ALSO"
+.BR "pthread_mutex_init" (3),
+.BR "pthread_cond_init" (3),
+.BR "pthread_cancel" (3),
+.BR "ipc" (5).
+

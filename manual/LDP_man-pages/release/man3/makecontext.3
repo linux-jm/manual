@@ -1,0 +1,229 @@
+.\" Copyright (C) 2001 Andries Brouwer (aeb@cwi.nl)
+.\" and Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 2006-08-02, mtk, Added example program
+.\"
+.\" Japanese Version Copyright (c) 2001 NAKANO Takeo all rights reserved.
+.\" Translated Sat Dec 15 2001 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated 2008-12-24, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.15
+.\"
+.TH MAKECONTEXT 3 2009-03-31 "GNU" "Linux Programmer's Manual"
+.SH 名前
+makecontext, swapcontext \- ユーザコンテキストを操作する
+.SH 書式
+.B #include <ucontext.h>
+.sp
+.BI "void makecontext(ucontext_t *" ucp ", void (*" func )(),
+.BI "int " argc ", ...);"
+.sp
+.BI "int swapcontext(ucontext_t *" oucp ", ucontext_t *" ucp );
+.SH 説明
+System V 的な環境では、
+\fBmcontext_t\fP および \fBucontext_t\fP という 2 つの型と、
+.BR getcontext (2),
+.BR setcontext (2),
+.BR makecontext (),
+.BR swapcontext ()
+という 4 つの関数が
+.I <ucontext.h>
+で定義されており、あるプロセス内部で制御下にある複数のスレッド間で、
+ユーザレベルのコンテキスト切替えができるようになっている。
+.LP
+これらの型と、最初の 2 つの関数については、
+.BR getcontext (2)
+を参照のこと。
+.LP
+.BR makecontext ()
+関数は、ポインタ \fIucp\fP が指すコンテキストを変更する
+(\fIucp\fP は以前の
+.BR getcontext (2)
+呼び出しで得られたものである)。
+.BR makecontext ()
+を起動する前には、呼び出し者は、このコンテキスト用に
+新しいスタックを確保し、そのアドレスを \fIucp\->uc_stack\fP に代入し、
+さらに後継のコンテキストを定義し、そのアドレスを \fIucp\->uc_link\fP に
+代入しなければならない。
+
+このコンテキストが将来
+.RB ( setcontext (2)
+または
+.BR swapcontext ()
+によって)
+有効にされると、関数 \fIfunc\fP が呼ばれ、
+引き数として
+.I argc
+以降の整数
+.RI ( int )
+引き数の列が渡される。
+呼び出し者は
+.I argc
+にこれらの引き数の個数を指定しなければならない。
+この関数が戻ると、後継のコンテキストが有効になる。
+後継コンテキストのポインタが NULL の場合、そのスレッドが終了する。
+.LP
+.BR swapcontext ()
+関数は現在のコンテキストを
+ポインタ \fIoucp\fP が指す構造体に保存し、
+ポインタ \fIucp\fP が指すコンテキストを有効にする。
+.SH 返り値
+成功すると、
+.BR swapcontext ()
+は返らない
+(しかし後に \fIoucp\fP が有効になった場合には返ることがある。
+このときには
+.BR swapcontext ()
+は 0 を返すように見える。)
+失敗すると、
+.BR swapcontext ()
+は \-1 を返し、
+\fIerrno\fP をエラーに応じて設定する。
+.SH エラー
+.TP
+.B ENOMEM
+スタックに割り当てる空間が残っていない。
+.SH バージョン
+.BR makecontext ()
+と
+.BR swapcontext ()
+は、バージョン 2.1 以降の glibc で提供されている。
+.SH 準拠
+SUSv2, POSIX.1-2001.
+POSIX.1-2008 では、移植性の問題から
+.BR makecontext ()
+と
+.BR swapcontext ()
+の仕様が削除されている。
+代わりに、アプリケーションを POSIX スレッドを使って書き直すことが
+推奨されている。
+.SH 注意
+\fIucp\->uc_stack\fP の解釈は
+.BR sigaltstack (2)
+の場合と同じである。
+すなわちこの構造体には、
+スタックとして用いられるメモリ領域の開始アドレスと長さが含まれ、
+これはスタックが伸びる方向がどちらであるかには関係しない。
+したがって、ユーザプログラムはこの件については心配しなくてよい。
+
+.I int
+とポインタ型が同じ大きさであるアーキテクチャでは
+(x86-32 はその例であり、両方の型とも 32 ビットである)、
+.BR makecontext ()
+の
+.I argc
+以降の引き数としてポインタを渡してもうまく動くかもしれない。
+しかしながら、このようにすると、移植性は保証されず、
+標準に従えば動作は未定義であり、ポインタが
+.I int
+よりも大きいアーキテクチャでは正しく動作しないことだろう。
+それにも関わらず、バージョン 2.8 以降の glibc では、
+.BR makecontext (3)
+に変更が行われ、(x86-64 などの) いくつかの 64 ビットアーキテクチャで
+引き数としてポインタを渡すことができるようになっている。
+.SH 例
+.PP
+以下のサンプル・プログラムは、
+.BR getcontext (2),
+.BR makecontext (),
+.BR swapcontext ()
+の使用方法の例を示すものである。
+このプログラムを実行すると、以下のような出力が得られる:
+.in +4n
+.nf
+
+.RB "$" " ./a.out"
+main: swapcontext(&uctx_main, &uctx_func2)
+func2: started
+func2: swapcontext(&uctx_func2, &uctx_func1)
+func1: started
+func1: swapcontext(&uctx_func1, &uctx_func2)
+func2: returning
+func1: returning
+main: exiting
+.fi
+.in
+.SS プログラムのソース
+\&
+.nf
+#include <ucontext.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static ucontext_t uctx_main, uctx_func1, uctx_func2;
+
+#define handle_error(msg) \\
+    do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+static void
+func1(void)
+{
+    printf("func1: started\\n");
+    printf("func1: swapcontext(&uctx_func1, &uctx_func2)\\n");
+    if (swapcontext(&uctx_func1, &uctx_func2) == \-1)
+        handle_error("swapcontext");
+    printf("func1: returning\\n");
+}
+
+static void
+func2(void)
+{
+    printf("func2: started\\n");
+    printf("func2: swapcontext(&uctx_func2, &uctx_func1)\\n");
+    if (swapcontext(&uctx_func2, &uctx_func1) == \-1)
+        handle_error("swapcontext");
+    printf("func2: returning\\n");
+}
+
+int
+main(int argc, char *argv[])
+{
+    char func1_stack[16384];
+    char func2_stack[16384];
+
+    if (getcontext(&uctx_func1) == \-1)
+        handle_error("getcontext");
+    uctx_func1.uc_stack.ss_sp = func1_stack;
+    uctx_func1.uc_stack.ss_size = sizeof(func1_stack);
+    uctx_func1.uc_link = &uctx_main;
+    makecontext(&uctx_func1, func1, 0);
+
+    if (getcontext(&uctx_func2) == \-1)
+        handle_error("getcontext");
+    uctx_func2.uc_stack.ss_sp = func2_stack;
+    uctx_func2.uc_stack.ss_size = sizeof(func2_stack);
+    /* Successor context is f1(), unless argc > 1 */
+    uctx_func2.uc_link = (argc > 1) ? NULL : &uctx_func1;
+    makecontext(&uctx_func2, func2, 0);
+
+    printf("main: swapcontext(&uctx_main, &uctx_func2)\\n");
+    if (swapcontext(&uctx_main, &uctx_func2) == \-1)
+        handle_error("swapcontext");
+
+    printf("main: exiting\\n");
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+.BR getcontext (2),
+.BR sigaction (2),
+.BR sigaltstack (2),
+.BR sigprocmask (2),
+.BR sigsetjmp (3)

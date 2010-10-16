@@ -1,0 +1,363 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" This manpage is Copyright (C) 1992 Drew Eckhardt;
+.\" and Copyright (C) 1993 Michael Haardt, Ian Jackson.
+.\" and Copyright (C) 2005, 2008 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified 1993-07-21, Rik Faith <faith@cs.unc.edu>
+.\" Modified 1994-08-21, Michael Chastain <mec@shell.portal.com>:
+.\"   Fixed typoes.
+.\" Modified 1997-01-31, Eric S. Raymond <esr@thyrsus.com>
+.\" Modified 2002-09-28, aeb
+.\" 2009-01-12, mtk, reordered text in DESCRIPTION and added some
+.\"     details for dup2().
+.\" 2008-10-09, mtk: add description of dup3()
+.\"
+.\" Japanese Version Copyright (c) 1996 Takeshi Ueno
+.\"         all rights reserved.
+.\" Translated 1996-07-03, Takeshi Ueno <tueno@vio.co.jp>
+.\" Modified 1997-12-14, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified 2003-01-16, Akihiro Motoki <amotoki@dd.iij4u.or.jp>
+.\" Updated & Modified 2004-05-19, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2005-09-07 Akihiro MOTOKI
+.\" Updated 2008-02-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.77
+.\" Updated 2008-11-09, Akihiro MOTOKI, LDP v3.13
+.\"
+.TH DUP 2 2008-10-09 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O dup, dup2, dup3 \- duplicate a file descriptor
+.SH 名前
+dup, dup2, dup3 \- ファイル・ディスクリプタを複製する
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #include <unistd.h>
+.sp
+.BI "int dup(int " oldfd );
+.BI "int dup2(int " oldfd ", int " newfd );
+.sp
+.B #define _GNU_SOURCE
+.B #include <unistd.h>
+.sp
+.BI "int dup3(int " oldfd ", int " newfd ", int " flags );
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O These system calls create a copy of the file descriptor
+.\"O .IR oldfd .
+これらのシステムコールは、ファイル・ディスクリプタ
+.I oldfd
+の複製を作る。
+
+.\"O .BR dup ()
+.\"O uses the lowest-numbered unused descriptor for the new descriptor.
+.BR dup ()
+は最も小さい番号の未使用のディスクリプタを
+新しいディスクリプタとして使用する。
+
+.\"O .BR dup2 ()
+.\"O .RI "makes " newfd " be the copy of " oldfd ", closing " newfd
+.\"O first if necessary, but note the following:
+.BR dup2 ()
+は
+.I newfd
+を
+.I oldfd
+の複製として作成する。
+必要であれば最初に
+.I newfd
+をクローズする。
+以下の点に注意すること。
+.IP * 3
+.\"O If
+.\"O .I oldfd
+.\"O is not a valid file descriptor, then the call fails, and
+.\"O .I newfd
+.\"O is not closed.
+.I oldfd
+が有効なファイルディスクリプタでない場合、その呼び出しは失敗し、
+.I newfd
+はクローズされる。
+.IP *
+.\"O If
+.\"O .I oldfd
+.\"O is a valid file descriptor, and
+.\"O .I newfd
+.\"O has the same value as
+.\"O .IR oldfd ,
+.\"O then
+.\"O .BR dup2 ()
+.\"O does nothing, and returns
+.\"O .IR newfd .
+.I oldfd
+が有効なファイルディスクリプタで、
+.I newfd
+が
+.I oldfd
+と同じ値の場合、
+.BR dup2 ()
+は何もせず、
+.I newfd
+を返す。
+.PP
+.\"O After a successful return from one of these system calls,
+.\"O the old and new file descriptors may be used interchangeably.
+.\"O They refer to the same open file description (see
+.\"O .BR open (2))
+.\"O and thus share file offset and file status flags;
+.\"O for example, if the file offset is modified by using
+.\"O .BR lseek (2)
+.\"O on one of the descriptors, the offset is also changed for the other.
+これらのシステムコールのいずれかが成功を返した場合には、
+古いファイル・ディスクリプタと新しいファイル・ディスクリプタは
+互いに可換なものとして使うことができる。
+2つのファイル・ディスクリプタは同じファイル記述 (description)
+.RB ( open (2)
+参照) を参照しており、したがってファイルオフセットやファイル状態フラグが
+共有される。例えば、一方のディスクリプタに対して
+.BR lseek (2)
+を使ってファイルオフセットを変更した場合、もう一方のディスクリプタの
+オフセットも変化する。
+
+.\"O The two descriptors do not share file descriptor flags
+.\"O (the close-on-exec flag).
+.\"O The close-on-exec flag
+.\"O .RB ( FD_CLOEXEC ;
+.\"O see
+.\"O .BR fcntl (2))
+.\"O for the duplicate descriptor is off.
+2つのディスクリプタはファイル・ディスクリプタ・フラグ (close-on-exec flag)
+を共有しない。複製されたディスクリプタの
+close-on-exec flag
+.RB ( fcntl (2)
+参照) は off となる。
+
+.\"O .BR dup3 ()
+.\"O is the same as
+.\"O .BR dup2 (),
+.\"O except that:
+.BR dup3 ()
+は
+.BR dup2 ()
+と同じだが、以下の点が異なる。
+.IP * 3
+.\"O The caller can force the close-on-exec flag to be set
+.\"O for the new file descriptor by specifying
+.\"O .BR O_CLOEXEC
+.\"O in
+.\"O .IR flags .
+.\"O See the description of the same flag in
+.\"O .BR open (2)
+.\"O for reasons why this may be useful.
+呼び出し元が、新しいファイル・ディスクリプタに対して
+close-on-exec フラグを強制的に設定することができる。
+これを行うには、
+.I flags
+に
+.B O_CLOEXEC
+を指定する。
+このフラグが役に立つ理由については、
+.BR open (2)
+の
+.B O_CLOEXEC
+フラグの説明を参照のこと。
+.IP *
+.\" FIXME . To confirm with Al Viro that this was intended, and its rationale
+.\"O If
+.\"O .IR oldfd
+.\"O equals
+.\"O .IR newfd ,
+.\"O then
+.\"O .BR dup3 ()
+.\"O fails with the error
+.\"O .BR EINVAL .
+.I oldfd
+が
+.I newfd
+と同じ場合、
+.BR dup3 ()
+は
+.B EINVAL
+エラーで失敗する。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O On success, these system calls
+.\"O return the new descriptor.
+.\"O On error, \-1 is returned, and
+.\"O .I errno
+.\"O is set appropriately.
+成功すると、これらのシステムコールは新しいディスクリプタを返す。
+エラーの場合、\-1 を返し、
+.I errno
+を適切に設定する。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.\"O .B EBADF
+.\"O .I oldfd
+.\"O isn't an open file descriptor, or
+.\"O .I newfd
+.\"O is out of the allowed range for file descriptors.
+.B EBADF
+.I oldfd
+がオープンされたファイル・ディスクリプタでないか、
+.I newfd
+がファイル・ディスクリプタとして許される範囲から外れている。
+.TP
+.B EBUSY
+.\"O (Linux only) This may be returned by
+.\"O .BR dup2 ()
+.\"O or
+.\"O .BR dup3 ()
+.\"O during a race condition with
+.\"O .BR open (2)
+.\"O and
+.\"O .BR dup ().
+(Linux のみ)
+.BR open (2)
+や
+.BR dup ()
+との競合状態の場合に、
+.BR dup2 ()
+や
+.BR dup3 ()
+はこのエラーを返すかもしれない。
+.TP
+.B EINTR
+.\"O The
+.\"O .BR dup2 ()
+.\"O or
+.\"O .BR dup3 ()
+.\"O call was interrupted by a signal; see
+.\"O .BR signal (7).
+.BR dup2 ()
+や
+.BR dup3 ()
+の呼び出しがシグナルにより割り込まれた。
+.BR signal (7)
+参照。
+.TP
+.B EINVAL
+.\"O .RB ( dup3 ())
+.\"O .I flags
+.\"O contain an invalid value.
+.RB ( dup3 ())
+.I flags
+に無効な値が入っている。
+.\" FIXME . To confirm with Al Viro that this was intended, and its rationale
+.\"O Or,
+.\"O .I oldfd
+.\"O was equal to
+.\"O .IR newfd .
+もしくは、
+.I oldfd
+が
+.I newfd
+と同じであった。
+.TP
+.\"O .B EMFILE
+.\"O The process already has the maximum number of file
+.\"O descriptors open and tried to open a new one.
+.B EMFILE
+プロセスがすでにオープンできる最大数までファイル・ディスクリプタ
+を開いていて、さらに新しいものを開こうとした。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O .BR dup3 ()
+.\"O was added to Linux in version 2.6.27;
+.\"O glibc support is available starting with
+.\"O version 2.9.
+.BR dup3 ()
+はバージョン 2.6.27 で Linux に追加された。
+glibc によるサポートはバージョン 2.9 以降で利用できる。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+.BR dup (),
+.BR dup2 ():
+SVr4, 4.3BSD, POSIX.1-2001.
+
+.\"O .BR dup3 ()
+.\"O is Linux-specific.
+.BR dup3 ()
+は Linux 固有である。
+.\"O .\" SVr4 documents additional
+.\"O .\" EINTR and ENOLINK error conditions.  POSIX.1 adds EINTR.
+.\"O .\" The EBUSY return is Linux-specific.
+.\" SVr4 には他に EINTR, ENOLINK エラー状態の記述がある。
+.\" POSIX.1 には他に EINTR がある。
+.\" EBUSY が返されるのは Linux 独自のものである。
+.\"O .SH NOTES
+.SH 注意
+.\"O The error returned by
+.\"O .BR dup2 ()
+.\"O is different from that returned by
+.\"O .BR fcntl( "..., " F_DUPFD ", ..." )
+.\"O when
+.\"O .I newfd
+.\"O is out of range.
+.\"O On some systems
+.\"O .BR dup2 ()
+.\"O also sometimes returns
+.\"O .B EINVAL
+.\"O like
+.\"O .BR F_DUPFD .
+.I newfd
+が範囲を超えた時に返されるエラーは、
+.BR dup2 ()
+と
+.BR fcntl( "..., " F_DUPFD ", ..." )
+では異っている。
+.BR dup2 ()
+が
+.B F_DUPFD
+と同じように
+.B EINVAL
+を返すシステムもある。
+
+.\"O If
+.\"O .I newfd
+.\"O was open, any errors that would have been reported at
+.\"O .BR close 2()
+.\"O time are lost.
+.\"O A careful programmer will not use
+.\"O .BR dup2 ()
+.\"O or
+.\"O .BR dup3 ()
+.\"O without closing
+.\"O .I newfd
+.\"O first.
+.I newfd
+がオープンされていると、
+.BR close (2)
+した時に報告されるはずのエラーが失われてしまう。
+.BR dup2 ()
+や
+.BR dup3 ()
+を使う前に先ず
+.I newfd
+をクローズするようにした方がいいだろう。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR close (2),
+.BR fcntl (2),
+.BR open (2)

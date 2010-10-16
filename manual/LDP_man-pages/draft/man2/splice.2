@@ -1,0 +1,373 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" This manpage is Copyright (C) 2006 Jens Axboe
+.\" and Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2007  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2007-02-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2008-11-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.13
+.\" 
+.TH SPLICE 2 2009-09-15 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O splice \- splice data to/from a pipe
+splice \- パイプとの間でデータを継ぎ合わせる
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #define _GNU_SOURCE
+.B #include <fcntl.h>
+
+.BI "ssize_t splice(int " fd_in ", loff_t *" off_in ", int " fd_out ,
+.BI "               loff_t *" off_out ", size_t " len \
+", unsigned int " flags );
+.fi
+.\" Return type was long before glibc 2.7
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .BR splice ()
+.\"O moves data between two file descriptors
+.\"O without copying between kernel address space and user address space.
+.\"O It transfers up to
+.\"O .I len
+.\"O bytes of data from the file descriptor
+.\"O .I fd_in
+.\"O to the file descriptor
+.\"O .IR fd_out ,
+.\"O where one of the descriptors must refer to a pipe.
+.BR splice ()
+は、カーネルアドレス空間とユーザアドレス空間との間のコピーを伴わずに、
+2 つのファイルディスクリプタ間でデータの移動を行う。
+ファイルディスクリプタ
+.I fd_in
+からファイルディスクリプタ
+.I fd_out
+へ最大
+.I len
+バイトを転送する。
+2 つのファイルディスクリプタのうち一つは
+パイプを参照していなければならない。
+.PP
+.\"O If
+.\"O .I fd_in
+.\"O refers to a pipe, then
+.\"O .I off_in
+.\"O must be NULL.
+.I fd_in
+がパイプを参照している場合、
+.I off_in
+は NULL でなければならない。
+.\"O If
+.\"O .I fd_in
+.\"O does not refer to a pipe and
+.\"O .I off_in
+.\"O is NULL, then bytes are read from
+.\"O .I fd_in
+.\"O starting from the current file offset,
+.\"O and the current file offset is adjusted appropriately.
+.I fd_in
+がパイプを参照しておらず、
+.I off_in
+が NULL の場合、
+.I fd_in
+の現在のファイルオフセットから始まるバイトを読み出す。
+現在のファイルオフセットは適切に調整される。
+.\"O If
+.\"O .I fd_in
+.\"O does not refer to a pipe and
+.\"O .I off_in
+.\"O is not NULL, then
+.\"O .I off_in
+.\"O must point to a buffer which specifies the starting
+.\"O offset from which bytes will be read from
+.\"O .IR fd_in ;
+.\"O in this case, the current file offset of
+.\"O .I fd_in
+.\"O is not changed.
+.I fd_in
+がパイプを参照しておらず、
+.I off_in
+が NULL でない場合、
+.I off_in
+は
+.I fd_in
+からのデータ読み出しを開始する先頭オフセットを格納したバッファ
+へのポインタでなければならない。この場合、
+.I fd_in
+の現在のファイルオフセットは変更されない。
+.\"O Analogous statements apply for
+.\"O .I fd_out
+.\"O and
+.\"O .IR off_out .
+.I fd_out
+と
+.I off_out
+に関しても同様である。
+.PP
+.\"O The
+.\"O .I flags
+.\"O argument is a bit mask that is composed by ORing together
+.\"O zero or more of the following values:
+.I flags
+引き数には、以下の値の 0 個以上のビット単位の論理和を
+とったものを指定する:
+.TP 1.9i
+.B SPLICE_F_MOVE
+.\"O Attempt to move pages instead of copying.
+.\"O This is only a hint to the kernel:
+.\"O pages may still be copied if the kernel cannot move the
+.\"O pages from the pipe, or if
+.\"O the pipe buffers don't refer to full pages.
+ページのコピーでなく移動を試みる。
+これはカーネルに対するヒントでしかない。
+つまり、カーネルがパイプからページを移動できない場合や、
+パイプバッファがページ全部を参照していない場合は、
+ページのコピーが行われることもある。
+.\"O The initial implementation of this flag was buggy:
+.\"O therefore starting in Linux 2.6.21 it is a no-op
+.\"O (but is still permitted in a
+.\"O .BR splice ()
+.\"O call);
+.\"O in the future, a correct implementation may be restored.
+このフラグの最初の実装にはバグがあった。そのため、
+Linux 2.6.21 以降ではこのフラグの操作はできないようになっている
+(ただし、
+.BR splice ()
+コールでこのフラグを指定することは今も認められている)。
+将来、正しい実装が行われることだろう。
+.TP
+.B SPLICE_F_NONBLOCK
+.\"O Do not block on I/O.
+.\"O This makes the splice pipe operations nonblocking, but
+.\"O .BR splice ()
+.\"O may nevertheless block because the file descriptors that
+.\"O are spliced to/from may block (unless they have the
+.\"O .B O_NONBLOCK
+.\"O flag set).
+入出力時に停止 (block) しない。
+このフラグを指定すると、
+splice によるパイプ操作を非停止モード (nonblocking) で
+行おうとするが、その場合でも
+.BR splice ()
+は停止することもある。なぜなら、データのやり取りを行う
+ファイルディスクリプタは
+.RB ( O_NONBLOCK
+フラグをセットされていない場合) 停止する可能性があるからである。
+.TP
+.B SPLICE_F_MORE
+.\"O More data will be coming in a subsequent splice.
+.\"O This is a helpful hint when
+.\"O the
+.\"O .I fd_out
+.\"O refers to a socket (see also the description of
+.\"O .B MSG_MORE
+.\"O in
+.\"O .BR send (2),
+.\"O and the description of
+.\"O .B TCP_CORK
+.\"O in
+.\"O .BR tcp (7))
+この後の splice でさらに転送されるデータがあることを示す。
+このフラグは
+.I fd_out
+がソケットを参照している場合に有用なヒントとなる
+.RB ( send (2)
+の
+.B MSG_MORE
+や
+.BR tcp (7)
+の
+.B TCP_CORK
+の説明も参照)。
+.TP
+.B SPLICE_F_GIFT
+.\"O Unused for
+.\"O .BR splice ();
+.\"O see
+.\"O .BR vmsplice (2).
+.BR splice ()
+では使用しない。
+.BR vmsplice (2)
+参照。
+.\"O .SH RETURN VALUE
+.SH 返り値
+.\"O Upon successful completion,
+.\"O .BR splice ()
+.\"O returns the number of bytes
+.\"O spliced to or from the pipe.
+.\"O A return value of 0 means that there was no data to transfer,
+.\"O and it would not make sense to block, because there are no
+.\"O writers connected to the write end of the pipe referred to by
+.\"O .IR fd_in .
+成功して完了すると、
+.BR splice ()
+はパイプから出し入れしたバイト数を返す。
+返り値 0 はデータの転送が行わなかったことを示す。
+この場合、処理を停止 (block) しても無意味である。
+なぜなら、
+.I fd_in
+が参照するパイプの書き込み側に接続されている者がいないからである。
+.PP
+.\"O On error,
+.\"O .BR splice ()
+.\"O returns \-1 and
+.\"O .I errno
+.\"O is set to indicate the error.
+エラーの場合、
+.BR splice ()
+は \-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EBADF
+.\"O One or both file descriptors are not valid,
+.\"O or do not have proper read-write mode.
+ファイルディスクリプタの一方または両方が有効ではない、
+もしくは適切な read-write モードではない。
+.TP
+.B EINVAL
+.\"O Target file system doesn't support splicing;
+.\"O target file is opened in append mode;
+.\"O .\" The append-mode error is given since 2.6.27; in earlier kernels,
+.\"O .\" splice() in append mode was broken
+.\"O neither of the descriptors refers to a pipe; or
+.\"O offset given for nonseekable device.
+対象のファイルシステムが splice に対応していない、
+または対象のファイルが追記モードでオープンされている、
+.\" 追記モードでのエラーは 2.6.27 以降で発生する。
+.\" それより前のカーネルでは追記モードでの splice() は正しく動作しない。
+またはディスクリプタのどちらもパイプを参照していない、
+または seek できないデバイスに対してオフセットが指定された。
+.TP
+.B ENOMEM
+.\"O Out of memory.
+メモリ不足。
+.TP
+.B ESPIPE
+.\"O Either
+.\"O .I off_in
+.\"O or
+.\"O .I off_out
+.\"O was not NULL, but the corresponding file descriptor refers to a pipe.
+.I off_in
+か
+.I off_out
+のいずれかが NULL ではないが、対応するファイルディスクリプタが
+パイプを参照している。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O The
+.\"O .BR splice ()
+.\"O system call first appeared in Linux 2.6.17.
+.BR splice ()
+システムコールは Linux 2.6.17 で初めて登場した。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+.\"O This system call is Linux-specific.
+このシステムコールは Linux 固有である。
+.\"O .SH NOTES
+.SH 注意
+.\"O The three system calls
+.\"O .BR splice (),
+.\"O .BR vmsplice (2),
+.\"O and
+.\"O .BR tee (2),
+.\"O provide userspace programs with full control over an arbitrary
+.\"O kernel buffer, implemented within the kernel using the same type
+.\"O of buffer that is used for a pipe.
+3 つのシステムコール
+.RB ( splice (),
+.BR vmsplice (2),
+.BR tee (2))
+を使うと、ユーザ空間プログラムは任意のカーネルバッファに対する
+完全な制御ができる。カーネルバッファは、パイプに使用されているのと
+同種のバッファを使ってカーネル内に実装されている。
+.\"O In overview, these system calls perform the following tasks:
+大まかにいうと、これらのシステムコールは以下の仕事を行う:
+.TP 1.2i
+.BR splice ()
+.\"O moves data from the buffer to an arbitrary file descriptor, or vice versa,
+.\"O or from one buffer to another.
+バッファから任意のファイルディスクリプタや、その逆方向、
+もしくはあるバッファから別のバッファへの、データ移動を行う。
+.TP
+.BR tee (2)
+.\"O "copies" the data from one buffer to another.
+あるバッファから別のバッファへのデータ「コピー」を行う。
+.TP
+.BR vmsplice (2)
+.\"O "copies" data from user space into the buffer.
+ユーザ空間からバッファへのデータ「コピー」を行う。
+.PP
+.\"O Though we talk of copying, actual copies are generally avoided.
+.\"O The kernel does this by implementing a pipe buffer as a set
+.\"O of reference-counted pointers to pages of kernel memory.
+.\"O The kernel creates "copies" of pages in a buffer by creating new
+.\"O pointers (for the output buffer) referring to the pages,
+.\"O and increasing the reference counts for the pages:
+.\"O only pointers are copied, not the pages of the buffer.
+ここではコピーの話をしているが、実際のコピーは一般的に回避される。
+カーネルは、パイプ・バッファをカーネルメモリのページへのポインタ集合として
+実装し、ページへの参照回数を管理することで、これを実現している。
+カーネルは、対象となるページを参照する (出力バッファ用の) ポインタを
+新規に作成することでバッファ内のページの「コピー」を作成し、
+そのページの参照回数を増やす。つまり、ポインタだけがコピーされ、
+バッファのページはコピーされない。
+.\"
+.\" Linus: Now, imagine using the above in a media server, for example.
+.\" Let's say that a year or two has passed, so that the video drivers
+.\" have been updated to be able to do the splice thing, and what can
+.\" you do? You can:
+.\"
+.\" - splice from the (mpeg or whatever - let's just assume that the video
+.\"   input is either digital or does the encoding on its own - like they
+.\"   pretty much all do) video input into a pipe (remember: no copies - the
+.\"   video input will just DMA directly into memory, and splice will just
+.\"   set up the pages in the pipe buffer)
+.\" - tee that pipe to split it up
+.\" - splice one end to a file (ie "save the compressed stream to disk")
+.\" - splice the other end to a real-time video decoder window for your
+.\"   real-time viewing pleasure.
+.\"
+.\" Linus: Now, the advantage of splice()/tee() is that you can
+.\" do zero-copy movement of data, and unlike sendfile() you can
+.\" do it on _arbitrary_ data (and, as shown by "tee()", it's more
+.\" than just sending the data to somebody else: you can duplicate
+.\" the data and choose to forward it to two or more different
+.\" users - for things like logging etc.).
+.\"
+.\"O .SH EXAMPLE
+.SH 例
+.\"O See
+.\"O .BR tee (2).
+.BR tee (2)
+参照。
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR sendfile (2),
+.BR tee (2),
+.BR vmsplice (2),
+.BR feature_test_macros (7)

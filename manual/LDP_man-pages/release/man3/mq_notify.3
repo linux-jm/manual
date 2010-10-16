@@ -1,0 +1,289 @@
+'\" t
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI all rights reserved.
+.\" Translated 2006-07-31, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2010-04-18, Akihiro MOTOKI, LDP v3.24
+.\"
+.TH MQ_NOTIFY 3 2009-09-15 "Linux" "Linux Programmer's Manual"
+.SH 名前
+mq_notify \- メッセージ到着時に通知を行うよう登録する
+.SH 書式
+.nf
+.B #include <mqueue.h>
+.sp
+.BI "mqd_t mq_notify(mqd_t " mqdes ", const struct sigevent *" notification );
+.fi
+.sp
+\fI\-lrt\fP でリンクする。
+.SH 説明
+.BR mq_notify ()
+を使うと、ディスクリプタ
+.I mqdes
+で参照される空のメッセージキューに新しくメッセージが到着した時に
+非同期の通知 (notification) の配送が行われるように登録したり、
+その解除を行ったりできる。
+
+.I notification
+引き数は
+.I sigevent
+構造体へのポインタである。
+.I sigevent
+構造体は以下のような感じで定義されている:
+.in +4n
+.nf
+
+union sigval {          /* Data passed with notification */
+    int     sival_int;         /* Integer value */
+    void   *sival_ptr;         /* Pointer value */
+};
+
+struct sigevent {
+    int          sigev_notify; /* Notification method */
+    int          sigev_signo;  /* Notification signal */
+    union sigval sigev_value;  /* Data passed with
+                                  notification */
+    void       (*sigev_notify_function) (union sigval);
+                               /* Function for thread
+                                  notification */
+    void        *sigev_notify_attributes;
+                               /* Thread function attributes */
+};
+.fi
+.in
+.PP
+.I notification
+が NULL でないポインタであれば、
+.BR mq_notify ()
+はメッセージ通知を受け取るように呼び出し元のプロセスを登録する。
+.I notification
+が指す
+.I sigevent
+の
+.I sigev_notify
+フィールドは、どのような通知を行うのかを指定する。
+このフィールドは以下の値のいずれかを持つ。
+.TP
+.B SIGEV_NONE
+「空の (null)」の通知: 呼び出し元のプロセスを通知の宛先として登録するが、
+実際にはメッセージが到着した時に通知は送られない。
+.\" When is SIGEV_NONE useful?
+.TP
+.B SIGEV_SIGNAL
+.I sigev_signo
+で指定されたシグナルを送って、プロセスに通知する。
+.BR sigaction (2)
+の
+.B SA_SIGINFO
+フラグでシグナルハンドラを登録している場合、
+そのシグナルハンドラでシグナルが捕捉された場合には、
+シグナルハンドラの第二引き数として渡される
+.I siginfo_t
+構造体の各フィールドは以下のように設定される。
+.I si_code
+には
+.B SI_MESGQ
+が、
+.I si_signo
+にはシグナル番号が、
+.I si_value
+には
+.I notification\->sigev_value
+で指定した値が設定される。
+.\" I don't know of other implementations that set
+.\" si_pid and si_uid -- MTK
+.I si_pid
+にはメッセージを送信したプロセスの PID が、
+.I si_uid
+には送信プロセスの実ユーザ ID が設定される。
+.BR sigwaitinfo (2)
+を使ってシグナルを受信する場合も、同じ情報が得られる。
+.TP
+.B SIGEV_THREAD
+新しいスレッドの開始関数として
+.I notification\->sigev_thread_function
+を起動することで通知を行う。
+起動時の関数の引き数としては
+.I notification\->sigev_value
+だけが渡される。
+.I notification\->sigev_notify_attributes
+は、NULL 以外の場合、
+そのスレッドの属性を定義する
+.I pthread_attr_t
+構造体へのポインタとなっている必要がある
+.RB ( pthread_attr_init (3)
+参照)。
+.PP
+一つのメッセージキューから通知を受信するように登録できるプロセスは
+一つだけである。
+
+.I notification
+が NULL で、かつ呼び出し元のプロセスがこのメッセージキューからの
+通知を受信するに現在登録している場合、登録を削除する。
+これ以降、別のプロセスがこのメッセージキューから通知を受信するように
+登録できるようになる。
+
+メッセージ通知は、それまで空のキューに新しいメッセージが到着した
+場合にのみ行われる。
+.BR mq_notify ()
+が呼び出された時にそのキューが空でない場合、
+そのキューが空になり、その後新しいメッセージが到着した時に
+初めて通知が行われることになる。
+
+別のプロセスやスレッドが
+.BR mq_receive (3)
+を使って、空のキューからメッセージの読み出しを待っている場合、
+メッセージ通知の登録は全て無視される。
+メッセージは
+.BR mq_receive (3)
+を呼び出しているプロセスやスレッドに配送され、
+メッセージ通知の登録は効力を持ったままとなる。
+
+通知は一度だけ行われる。通知が送られた後は、通知要求の登録は削除され、
+別のプロセスがメッセージ通知を受信するように登録できるようになる。
+通知を受けたプロセスが次の通知も受信したい場合は、
+.BR mq_notify ()
+を使ってその後の通知も受けるように要求することができる。
+.BR mq_notify ()
+を再度呼び出すのは、読み出していないメッセージを全部読み出して
+キューが空になる前にすべきである
+(キューからのメッセージ読み出しをキューが空になった時に
+停止 (block) せずに行うには、キューを非停止モード (non-blocking mode)
+に設定しておくとよい)。
+.SH 返り値
+成功すると、
+.BR mq_notify ()
+は 0 を返す。エラーの場合、\-1 を返し、
+.I errno
+をエラーを示す値に設定する。
+.SH エラー
+.TP
+.B EBADF
+.I mqdes
+に指定されたディスクリプタが不正である。
+.TP
+.B EBUSY
+別のプロセスがすでに
+このメッセージキューに対する通知を受信するように登録している。
+.TP
+.B EINVAL
+.I notification\->sigev_notify
+が許可された値のいずれでもない。もしくは
+.I notification\->sigev_notify
+が
+.B SIGEV_SIGNAL
+だが
+.I notification\->sigev_signo
+が有効なシグナル番号ではない。
+.TP
+.B ENOMEM
+必要なメモリがなかった。
+.PP
+POSIX.1-2008 では、
+.I notifications
+が NULL で、呼び出し元のプロセスがキュー
+.I mqdes
+に関する通知を受信するように登録されていない場合、エラー
+.B EINVAL
+を生成するような実装を行っても「よい」ことになっている。
+.\" Linux の実装では EINVAL は生成されない
+.SH 準拠
+POSIX.1-2001.
+.SH 例
+以下のプログラムは、
+コマンドライン引き数で指定された名前のメッセージキューへの
+通知要求を登録し、通知はスレッドの作成によって行われる。
+そのスレッドは、そのキューからメッセージを一つ読み出してから、
+プロセスを終了する関数を実行する。
+.nf
+
+#include <pthread.h>
+#include <mqueue.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define handle_error(msg) \\
+    do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+static void                     /* スレッド開始関数 */
+tfunc(union sigval sv)
+{
+    struct mq_attr attr;
+    ssize_t nr;
+    void *buf;
+    mqd_t mqdes = *((mqd_t *) sv.sival_ptr);
+
+    /* 最大メッセージサイズを決定し、
+       メッセージ受信用のバッファを確保する */
+
+    if (mq_getattr(mqdes, &attr) == \-1)
+        handle_error("mq_getattr");
+    buf = malloc(attr.mq_msgsize);
+    if (buf == NULL)
+        handle_error("malloc");
+
+    nr = mq_receive(mqdes, buf, attr.mq_msgsize, NULL);
+    if (nr == \-1)
+        handle_error("mq_receive");
+
+    printf("Read %ld bytes from MQ\\n", (long) nr);
+    free(buf);
+    exit(EXIT_SUCCESS);         /* プロセスを終了する */
+}
+
+int
+main(int argc, char *argv[])
+{
+    mqd_t mqdes;
+    struct sigevent not;
+
+    if (argc != 2) {
+	fprintf(stderr, "Usage: %s <mq-name>\\n", argv[0]);
+	exit(EXIT_FAILURE);
+    }
+
+    mqdes = mq_open(argv[1], O_RDONLY);
+    if (mqdes == (mqd_t) \-1)
+        handle_error("mq_open");
+
+    not.sigev_notify = SIGEV_THREAD;
+    not.sigev_notify_function = tfunc;
+    not.sigev_notify_attributes = NULL;
+    not.sigev_value.sival_ptr = &mqdes;   /* スレッド関数に渡す引き数 */
+    if (mq_notify(mqdes, &not) == \-1)
+        handle_error("mq_notify");
+
+    pause();    /* プロセスはスレッド関数により終了される */
+}
+.fi
+.SH 関連項目
+.BR mq_close (3),
+.BR mq_getattr (3),
+.BR mq_open (3),
+.BR mq_receive (3),
+.BR mq_send (3),
+.BR mq_unlink (3),
+.BR mq_overview (7)

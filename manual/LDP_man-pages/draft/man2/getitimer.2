@@ -1,0 +1,390 @@
+.\" Copyright 7/93 by Darren Senn <sinster@scintilla.santa-clara.ca.us>
+.\" Based on a similar page Copyright 1992 by Rick Faith
+.\" May be freely distributed
+.\" Modified Tue Oct 22 00:22:35 EDT 1996 by Eric S. Raymond <esr@thyrsus.com>
+.\" 2005-04-06 mtk, Matthias Lang <matthias@corelatus.se>
+.\" 	Noted MAX_SEC_IN_JIFFIES ceiling
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-02-22, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2005-04-23, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-09-11, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2006-07-23, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2007-10-14, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2009-04-13, Akihiro MOTOKI, LDP v3.20
+.\"
+.\" WORD:	timer	タイマー
+.\" WORD:	jiffies	jiffy
+.\"
+.TH GETITIMER 2 2009-03-15 "Linux" "Linux Programmer's Manual"
+.SH 名前
+getitimer, setitimer \- インターバル・タイマーの値を取得または設定する
+.SH 書式
+.nf
+.B #include <sys/time.h>
+.sp
+.BI "int getitimer(int " which ", struct itimerval *" curr_value );
+.br
+.BI "int setitimer(int " which ", const struct itimerval *" new_value ,
+.BI "              struct itimerval *" old_value );
+.fi
+.SH 説明
+.\"O The system provides each process with three interval timers, each decrementing
+.\"O in a distinct time domain.
+.\"O When any timer expires, a signal is sent to the
+.\"O process, and the timer (potentially) restarts.
+システムは 1 個のプロセスにつき 3 個のインターバル・タイマーを提供する。
+それぞれのタイマーは別々の時間領域で減少する。
+どのタイマーも満了するとプロセスにシグナルが送られ、
+タイマーは (設定によっては) 再び開始される。
+.TP 1.5i
+.\"O .B ITIMER_REAL
+.\"O decrements in real time, and delivers
+.\"O .B SIGALRM
+.\"O upon expiration.
+.B ITIMER_REAL
+実時間 (real time) で減少し、満了すると
+.B SIGALRM
+が送られる。
+.TP
+.\"O .B ITIMER_VIRTUAL
+.\"O decrements only when the process is executing, and delivers
+.\"O .B SIGVTALRM
+.\"O upon expiration.
+.B ITIMER_VIRTUAL
+プロセスが実行されている間のみ減少し、満了すると
+.B SIGVTALRM
+が送られる。
+.TP
+.\"O .B ITIMER_PROF
+.\"O decrements both when the process executes and when the system is executing
+.\"O on behalf of the process.
+.\"O Coupled with
+.\"O .BR ITIMER_VIRTUAL ,
+.\"O this timer is usually used to profile the time spent by the
+.\"O application in user and kernel space.
+.\"O .B SIGPROF
+.\"O is delivered upon expiration.
+.B ITIMER_PROF
+プロセスが実行されていて、
+かつシステムがそのプロセスのために処理を行なっている間に減少する。
+多くの場合、このタイマーは
+.B ITIMER_VIRTUAL
+と組み合わされて、アプリケーションがカーネル空間とユーザー空間で
+どれだけの時間を過ごしたかをプロファイルするのに使用される。
+満了すると
+.B SIGPROF
+が送られる。
+.LP
+.\"O Timer values are defined by the following structures:
+タイマーの値は以下の構造体によって定義される:
+.PD 0
+.in +4n
+.nf
+
+struct itimerval {
+    struct timeval it_interval; /* next value */
+    struct timeval it_value;    /* current value */
+};
+
+struct timeval {
+    long tv_sec;                /* seconds */
+    long tv_usec;               /* microseconds */
+};
+.fi
+.in
+.PD
+.LP
+.\"O The function
+.\"O .BR getitimer ()
+.\"O fills the structure pointed to by
+.\"O .I curr_value
+.\"O with the current setting for the timer specified by
+.\"O .I which
+.\"O (one of
+.\"O .BR ITIMER_REAL ,
+.\"O .BR ITIMER_VIRTUAL ,
+.\"O or
+.\"O .BR ITIMER_PROF ).
+.BR getitimer ()
+関数は、
+.I which
+で指定されたタイマー
+.RB ( ITIMER_REAL ,
+.BR ITIMER_VIRTUAL ,
+.B ITIMER_PROF
+のどれか) の現在の設定を、
+.I curr_value
+で指定された構造体に格納する。
+.\"O The element
+.\"O .I it_value
+.\"O is set to the amount of time remaining on the timer, or zero if the timer
+.\"O is disabled.
+.\"O Similarly,
+.\"O .I it_interval
+.\"O is set to the reset value.
+.I it_value
+要素にはタイマーの残り時間が設定される。タイマーがオフの場合は
+ゼロが設定される。同様に
+.I it_interval
+には初期値が設定される。
+
+.\"O The function
+.\"O .BR setitimer ()
+.\"O sets the specified timer to the value in
+.\"O .IR new_value .
+.BR setitimer ()
+関数は指定されたタイマーに
+.I new_value
+の値を設定する。
+.\"O If
+.\"O .I old_value
+.\"O is non-NULL, the old value of the timer is stored there.
+.I old_value
+が NULL 以外の場合、タイマーの古い値が
+.I old_value
+に格納される。
+.LP
+.\"O Timers decrement from
+.\"O .I it_value
+.\"O to zero, generate a signal, and reset to
+.\"O .IR it_interval .
+タイマーは
+.I it_value
+からゼロへ向けて減っていき、シグナルを生成し、
+.I it_interval
+に初期化される。
+.\"O A timer which is set to zero
+.\"O .RI ( it_value
+.\"O is zero or the timer expires and
+.\"O .I it_interval
+.\"O is zero) stops.
+タイマーがゼロに設定された場合
+.RI ( it_value
+がゼロか、タイマーが満了した時に
+.I it_interval
+がゼロの場合) は停止する。
+.LP
+.\"O Both
+.\"O .I tv_sec
+.\"O and
+.\"O .I tv_usec
+.\"O are significant in determining the duration of a timer.
+タイマーの期間は
+.I tv_sec
+と
+.I tv_usec
+の両方により決定される。
+.LP
+.\"O Timers will never expire before the requested time,
+.\"O but may expire some (short) time afterwards, which depends
+.\"O on the system timer resolution and on the system load; see
+.\"O .BR time (7).
+.\"O (But see BUGS below.)
+.\"O Upon expiration, a signal will be generated and the timer reset.
+.\"O If the timer expires while the process is active (always true for
+.\"O .BR ITIMER_VIRTUAL )
+.\"O the signal will be delivered immediately when generated.
+.\"O Otherwise the
+.\"O delivery will be offset by a small time dependent on the system loading.
+要求した時間がくる前にタイマーが満了することはないが、
+逆にある (短い) 時間だけ満了が遅れることはある。
+どれだけ遅れるかはシステムの時間分解能とシステムの負荷に依存する
+.RB ( time (7)
+参照; 但し、バグの項も参照のこと)。
+タイマーが満了するとシグナルが生成され、タイマーは初期化される。
+プロセスがアクティブな時
+.RB ( ITIMER_VIRTUAL
+の場合には常にそうである) にタイマーが満了した場合、生成されたシグナルは
+すぐに配送される。それ以外の場合は、システムの負荷により少しの時間だけ
+遅れて配送される。
+.SH 返り値
+.\"O On success, zero is returned.
+.\"O On error, \-1 is returned, and
+.\"O .I errno
+.\"O is set appropriately.
+成功した場合はゼロが返る。エラーの場合は \-1 が返り、
+.I errno
+が適切に設定される。
+.SH エラー
+.TP
+.B EFAULT
+.\"O .IR new_value ,
+.\"O .IR old_value ,
+.\"O or
+.\"O .I curr_value
+.\"O is not valid a pointer.
+.IR new_value ,
+.IR old_value ,
+.I curr_value
+が有効なポインターでない。
+.TP
+.B EINVAL
+.\"O .I which
+.\"O is not one of
+.\"O .BR ITIMER_REAL ,
+.\"O .BR ITIMER_VIRTUAL ,
+.\"O or
+.\"O .BR ITIMER_PROF ;
+.\"O or (since Linux 2.6.22) one of the
+.\"O .I tv_usec
+.\"O fields in the structure pointed to by
+.\"O .I new_value
+.\"O contains a value outside the range 0 to 999999.
+.I which
+が
+.BR ITIMER_REAL ,
+.BR ITIMER_VIRTUAL ,
+.B ITIMER_PROF
+のどれでもない。
+または (Linux 2.6.22 以降で)
+.I new_value
+で指定された構造体の
+.I tv_usec
+フィールドの一つが 0 以上 999999 以下の範囲に入らない値である。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+.\"O POSIX.1-2001, SVr4, 4.4BSD (this call first appeared in 4.2BSD).
+POSIX.1-2001, SVr4, 4.4BSD (このコールは 4.2BSD で始めて現われた).
+.\"O POSIX.1-2008 marks
+.\"O .BR getitimer ()
+.\"O and
+.\"O .BR setitimer ()
+.\"O obsolete, recommending the use of the POSIX timers API
+.\"O .RB ( timer_gettime (2),
+.\"O .BR timer_settime (2),
+.\"O etc.) instead.
+POSIX.1-2008 では、
+.BR getitimer ()
+と
+.BR setitimer ()
+は廃止予定とされており、
+代わりに POSIX タイマー API
+.RB ( timer_gettime (2),
+.BR timer_settime (2)
+など) を使うことが推奨されている。
+.\"O .SH NOTES
+.SH 注意
+.\"O A child created via
+.\"O .BR fork (2)
+.\"O does not inherit its parent's interval timers.
+.\"O Interval timers are preserved across an
+.\"O .BR execve (2).
+.BR fork (2)
+で作成された子プロセスは、
+親プロセスのインターバル・タイマーを継承しない。
+.BR execve (2)
+の前後ではインターバル・タイマーは保存される。
+
+.\"O POSIX.1 leaves the
+.\"O interaction between
+.\"O .BR setitimer()
+.\"O and the three interfaces
+.\"O .BR alarm (2),
+.\"O .BR sleep (3),
+.\"O and
+.\"O .BR usleep (3)
+.\"O unspecified.
+POSIX.1 では、
+.BR setitimer ()
+と、
+.BR alarm (2),
+.BR sleep (3),
+.BR usleep (3)
+という 3 つのインタフェースとの相互の影響については規定していない。
+.\"O .SH BUGS
+.SH バグ
+.\"O The generation and delivery of a signal are distinct, and
+.\"O only one instance of each of the signals listed above may be pending
+.\"O for a process.
+.\"O Under very heavy loading, an
+.\"O .B ITIMER_REAL
+.\"O timer may expire before the signal from a previous expiration
+.\"O has been delivered.
+.\"O The second signal in such an event will be lost.
+シグナルの生成と配送は別個のものであり、
+前述のシグナルのそれぞれについて一つだけがプロセスのために
+待機する。
+非常に重い負荷の下では、
+.B ITIMER_REAL
+タイマーでは、時間切れにより生成された一つ前のシグナルが配送される前に、
+次の時間切れが起こる場合がある。
+そのような場合、 2 個めのイベントに対するシグナルは失われてしまう。
+
+.\"O On Linux kernels before 2.6.16, timer values are represented in jiffies.
+バージョン 2.6.16 より前の Linux カーネルでは、
+タイマーの値は jiffy で表現される。
+.\"O If a request is made set a timer with a value whose jiffies
+.\"O representation exceeds
+.\"O .B MAX_SEC_IN_JIFFIES
+.\"O (defined in
+.\"O .IR include/linux/jiffies.h ),
+.\"O then the timer is silently truncated to this ceiling value.
+.\"O On Linux/i386 (where, since Linux 2.6.13,
+.\"O the default jiffy is 0.004 seconds),
+.\"O this means that the ceiling value for a timer is
+.\"O approximately 99.42 days.
+要求が jiffy 表現で
+.RI ( include/linux/jiffies.h
+で定義されている)
+.B MAX_SEC_IN_JIFFIES
+を越える値をタイマーに設定しようとするものの場合、
+タイマーは暗黙にこの上限値に切り詰められる。
+Linux/i386 の場合 (Linux 2.6.13 以降では jiffy は 0.004 秒) の場合、
+これはタイマーの上限値がおよそ 99.42 日になることを意味する。
+.\"O Since Linux 2.6.16,
+.\"O the kernel uses a different internal representation for times,
+.\"O and this ceiling is removed.
+Linux 2.6.16 以降では、カーネルは時間に関する内部表現として
+異なる表現を使うようになっており、この上限はなくなった。
+
+.\"O On certain systems (including i386),
+.\"O Linux kernels before version 2.6.12 have a bug which will produce
+.\"O premature timer expirations of up to one jiffy under some circumstances.
+.\"O This bug is fixed in kernel 2.6.12.
+(i386 を含む) いくつかのシステムでは、
+バージョン 2.6.12 以前の Linux カーネルは
+ある種の状況では 1 jiffy 早くタイマーが終了してしまうというバグがあった。
+このバグはカーネル 2.6.12 で修正された。
+.\" 4 Jul 2005: It looks like this bug may remain in 2.4.x.
+.\"	http://lkml.org/lkml/2005/7/1/165
+
+.\"O POSIX.1-2001 says that
+.\"O .BR setitimer ()
+.\"O should fail if a
+.\"O .I tv_usec
+.\"O value is specified that is outside of the range 0 to 999999.
+.\"O However, in kernels up to and including 2.6.21,
+.\"O Linux does not give an error, but instead silently
+.\"O adjusts the corresponding seconds value for the timer.
+POSIX.1-2001 では
+.BR setitimer ()
+は
+.I tv_usec
+の値が 0 から 999999 の範囲外である場合には失敗するべきだとしている。
+しかし、2.6.21 以前のカーネルの Linux ではエラーにならず、
+対応する秒数の分だけそのタイマーの秒の値が暗黙に調整される。
+.\"O From kernel 2.6.22 onwards,
+.\"O this nonconformance has been repaired:
+.\"O an improper
+.\"O .I tv_usec
+.\"O value results in an
+.\"O .B EINVAL
+.\"O error.
+カーネル 2.6.22 以降では、この標準非準拠の動作は修正され、
+.I tv_usec
+の値が不適切な場合には
+.B EINVAL
+エラーとなる。
+.\" Bugzilla report 25 Apr 2006:
+.\" http://bugzilla.kernel.org/show_bug.cgi?id=6443
+.\" "setitimer() should reject noncanonical arguments"
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR gettimeofday (2),
+.BR sigaction (2),
+.BR signal (2),
+.BR timer_create (2),
+.BR timerfd_create (2),
+.BR time (7)

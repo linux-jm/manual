@@ -1,0 +1,258 @@
+.\" Copyright 2003,2004 Andi Kleen, SuSE Labs.
+.\" and Copyright 2007 Lee Schermerhorn, Hewlett Packard
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" 2006-02-03, mtk, substantial wording changes and other improvements
+.\" 2007-08-27, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+.\"     more precise specification of behavior.
+.\"
+.\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2006-08-14, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.39
+.\" Updated 2008-02-13, Akihiro MOTOKI, LDP v2.77
+.\" Updated 2008-08-06, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2008-08-21, Akihiro MOTOKI, LDP v3.07
+.\" Updated 2008-11-19, Akihiro MOTOKI, LDP v3.13
+.\"
+.TH GET_MEMPOLICY 2 2008-08-15 Linux "Linux Programmer's Manual"
+.SH 名前
+get_mempolicy \- プロセスの NUMA メモリのポリシーを取得する
+.SH 書式
+.nf
+.B "#include <numaif.h>"
+.sp
+.BI "int get_mempolicy(int *" mode ", unsigned long *" nodemask ,
+.BI "                  unsigned long " maxnode ", unsigned long " addr ,
+.BI "                  unsigned long " flags );
+.sp
+\fI\-lnuma\fP でリンクする。
+.fi
+.SH 説明
+.BR get_mempolicy ()
+は、呼び出し元プロセスもしくは指定されたメモリアドレスの
+NUMA ポリシーを
+.I flags
+の設定に従って取得する。
+
+NUMA (非対称メモリアクセス) マシンでは、CPU により
+メモリコントローラが異なり、距離も異なっている。
+メモリポリシーは、どのノードからメモリをそのプロセスに
+割り当てるかを定めるものである。
+
+.I flags
+に 0 が指定された場合、
+.RB ( set_mempolicy (2)
+で設定された)
+呼び出し元プロセスのデフォルトポリシーに関する情報を返す。
+返されたポリシー
+.RI [ mode
+と
+.IR nodemask ]
+を
+.BR set_mempolicy (2)
+に渡すことで、そのプロセスのポリシーを
+.BR get_mempolicy ()
+を呼び出した時点の状態に戻すことができる。
+
+.I flags
+に
+.B MPOL_F_MEMS_ALLOWED
+(Linux 2.6.24 以降で利用可能) を指定すると、
+.I mode
+引き数は無視され、
+そのプロセスがその後の
+.BR mbind (2)
+や
+.BR set_mempolicy (2)
+で
+.RI [ "モードフラグ"
+が指定されていない場合に ] 指定できるノード (メモリ) の集合が
+.I nodemask
+に返される。
+.B MPOL_F_MEMS_ALLOWED
+を、
+.B MPOL_F_ADDR
+や
+.B MPOL_F_NODE
+と同時に指定することはできない。
+
+.I flags
+に
+.B MPOL_F_ADDR
+が指定された場合、
+.I addr
+で指定されたメモリアドレスに適用されているポリシーに関する情報を返す。
+.BR mbind (2)
+や
+.BR numa (3)
+で説明されているヘルパー関数を使って、
+.I addr
+を含むメモリ領域に対するポリシーが設定されていた場合には、
+返されるポリシーはプロセスのデフォルトポリシーと違うことがある。
+
+.I mode
+引き数が NULL でない場合、
+.BR get_mempolicy ()
+は要求された NUMA ポリシーのモードと追加の
+.I "モードフラグ"
+を
+.I mode
+が指す場所に格納する。
+.I nodemask
+が NULL 以外の場合、そのポリシーに対応するノードマスクを
+この引き数が指す場所に格納する。
+.I maxnode
+には
+.I nodemask
+に格納できるノード ID の数、つまり最大ノード ID に 1 を足した値を指定する。
+.I maxnode
+で指定された値は常に
+.I sizeof(unsigned long)
+の倍数に切り上げられる。
+
+.I flags
+で
+.B MPOL_F_NODE
+と
+.B MPOL_F_ADDR
+の両方が指定された場合、
+.BR get_mempolicy ()
+はアドレス
+.I addr
+が割り当てられているノードのノード ID を
+.I mode
+が指す場所に入れて返す。
+指定されたアドレスにどのページもまだ割り当てられていない場合、
+.BR get_mempolicy ()
+は、あたかもそのプロセスがそのアドレスに対して読み込みアクセスを
+実行したかのようにページの割り当てを行い、ページが割り当てられた
+ノードの ID を返す。
+
+.I flags
+で
+.B MPOL_F_NODE
+は指定されたが、
+.B MPOL_F_ADDR
+は指定されていない場合で、かつ
+そのプロセスの現在のポリシーが
+.B MPOL_INTERLEAVE
+の場合、
+.BR get_mempolicy ()
+は、そのプロセスに対して割り当てられたカーネルの内部ページで
+次にインターリーブ用に使用されるノードのノード ID を、
+NULL でない
+.I mode
+引き数が指す場所に入れて返す。
+.\" Note:  code returns next interleave node via 'mode' argument -Lee Schermerhorn
+読み込みアクセス用として
+.B MAP_PRIVATE
+フラグ付きで
+.BR mmap (2)
+したプロセスメモリ領域や、
+任意のアクセス用として
+.B MAP_SHARED
+フラグ付きで
+.BR mmap (2)
+したメモリ領域の、メモリマップされたファイルに対するページも
+上記のプロセスに対して割り当てられたページに含まれる。
+
+他のフラグは予約されている。
+
+設定可能なポリシーの概要については
+.BR set_mempolicy (2)
+を参照。
+.SH 返り値
+成功すると、
+.BR get_mempolicy ()
+は 0 を返す。エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.SH エラー
+.TP
+.B EFAULT
+.\"motoki: Part of all of the memory は Part or all .. の間違い？
+.I nodemask
+と
+.I maxnode
+で指定されたメモリ領域の一部または全部が、
+呼び出し元がアクセス可能なアドレス空間外を指している。
+.TP
+.B EINVAL
+.I maxnode
+で指定された値がシステムがサポートするノード ID の数よりも少ない。
+または、
+.I flags
+に
+.B MPOL_F_NODE
+でも
+.B MPOL_F_ADDR
+でもない値が指定された。
+または、
+.I flags
+に
+.B MPOL_F_ADDR
+が指定されており、
+.I addr
+が NULL である。
+または、
+.I flags
+に
+.B MPOL_F_ADDR
+がされておらず、
+.I addr
+が NULL でない。
+または、
+.I flags
+に
+.B MPOL_F_NODE
+が指定されており、
+.B MPOL_F_ADDR
+が指定されておらず、
+プロセスの現在のポリシーが
+.B MPOL_INTERLEAVE
+でない。
+または、
+.I flags
+に
+.B MPOL_F_MEMS_ALLOWED
+が指定されており、さらに
+.B MPOL_F_ADDR
+か
+.B MPOL_F_NODE
+のいずれかが指定されている。
+(他にも
+.B EINVAL
+となる場合がある。)
+.SH バージョン
+.BR get_mempolicy ()
+システムコールはバージョン 2.6.7 で Linux カーネルに追加された。
+.SH 準拠
+このシステムコールは Linux 固有である。
+.SH 注意
+ライブラリによるサポートについては
+.BR numa (7)
+を参照。
+.SH 関連項目
+.BR getcpu (2),
+.BR mbind (2),
+.BR mmap (2),
+.BR set_mempolicy (2),
+.BR numa (3),
+.BR numa (7),
+.BR numactl (8)

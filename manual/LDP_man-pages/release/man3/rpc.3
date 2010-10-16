@@ -1,0 +1,1104 @@
+.\" This page was taken from the 4.4BSD-Lite CDROM (BSD license)
+.\"
+.\" @(#)rpc.3n	2.4 88/08/08 4.0 RPCSRC; from 1.19 88/06/24 SMI
+.\"
+.\" 2007-12-30, mtk, Convert function prototypes to modern C syntax
+.\"
+.\" Japanese Version Copyright (c) 1999 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated Tue Jan  4 20:48:23 JST 2000
+.\"         by HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated & Modified Sun Oct 21 01:07:09 JST 2001
+.\"         by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\"
+.TH RPC 3 2008-07-17 "" "Linux Programmer's Manual"
+.SH 名前
+rpc \- 遠隔手続き呼び出し(RPC)のためのライブラリ・ルーティン
+.SH 書式と説明
+これらのルーティンは C プログラムでネットワークを通して
+他のマシンにアクセスするプロシジャを作成することを可能にする。
+最初にクライアントはデータパケットをサーバに送るために
+プロシジャを呼び出す。
+サーバはパケットを受け取ると、配分ルーチンを呼び出して
+要求されたサービスに実行し、返答を送り返す。
+最後にプロシジャ・コールはクライアントへと戻る。
+.\" .LP
+.\" 今現在は rpc_secure.3 は入っていない -- MTK, 19 Sep 05
+.\" (DES 認証による) Secure RPC で使用されるルーティンについての説明は
+.\" .BR rpc_secure (3)
+.\" に存在する。 Secure RPC は DES 認証が利用可能な場合にのみ使用できる。
+.LP
+これらのルーティンを使用するには、ヘッダファイル
+.I "<rpc/rpc.h>"
+をインクルードすること。
+
+下記のプロトタイプでは次の型を使用している。
+.in +4n
+.nf
+
+typedef int \fIbool_t\fP;
+
+typedef bool_t (*\fIxdrproc_t\fP) (XDR *, void *,...);
+
+typedef bool_t (*\fIresultproc_t\fP) (caddr_t resp,
+                                struct sockaddr_in *raddr);
+.fi
+.in
+.LP
+型
+.IR AUTH ,
+.IR CLIENT ,
+.IR SVCXPRT ,
+.IR XDR
+の宣言についてはヘッダファイルを参照。
+.LP
+.nf
+.BI "void auth_destroy(AUTH *" auth );
+.fi
+.IP
+このマクロは
+.I auth
+に関連付けられた認証情報を破壊する。破壊は通常は私的なデータ構造の
+破棄を含んでいる。
+.BR auth_destroy ()
+を呼び出した後に
+.I auth
+を使用することは未定義である。
+.LP
+.nf
+.BI "AUTH *authnone_create(void);"
+.fi
+.IP
+各リモート・プロシジャ・コールで使用できない仮の認証情報として渡される
+RPC 認証ハンドルを作成して返す。
+これは RPC で使用されるデフォルトの認証である。
+.LP
+.nf
+.BI "AUTH *authunix_create(char *" host ", int " uid ", int " gid ,
+.BI "                      int " len ", int *" aup_gids );
+.fi
+.IP
+認証情報を含んだ RPC 認証ハンドルを作成して返す。
+.I host
+パラメーターは情報が作成されたマシンの名前である。
+.I uid
+はそのユーザのユーザ
+.SM ID
+、
+.I gid
+はそのユーザの現在のグループ
+.SM ID
+である。
+.I len
+と
+.I aup_gids
+はそのユーザが所属するグループの配列を参照している。
+他のユーザになりすますことは簡単である。
+.LP
+.nf
+.BI "AUTH *authunix_create_default(void);"
+.fi
+.IP
+適切なパラメーターで
+.BR authunix_create ()
+を呼び出す。
+.LP
+.nf
+.BI "int callrpc(char *" host ", unsigned long " prognum ,
+.BI "            unsigned long " versnum ", unsigned long " procnum ,
+.BI "            xdrproc_t " inproc ", char *" in ,
+.BI "            xdrproc_t " outproc ", char *" out );
+.fi
+.IP
+マシン
+.I host
+上で
+.IR prognum ,
+.IR versnum ,
+.I procnum
+に関連付けられたリモート・プロシジャを呼び出す。
+パラメーター
+.I in
+はプロシジャの引き数のアドレスであり
+.I out
+は結果を格納するアドレスである。
+.I inproc
+はプロシジャのパラメーターをエンコードするのに使用され、
+.I outproc
+は結果をデコードするのに使用される。
+このルーティンは成功した場合にはゼロを返す。失敗した場合には
+.B "enum clnt_stat"
+を整数にキャストした値を返す。
+.BR clnt_perrno ()
+ルーティンが失敗の状態をメッセージに変換するのに使用できる。
+.IP
+警告: このルーティンでリモート・プロシジャを呼び出すと通信には
+UDP/IP が使用される。この際の制限については
+.BR clntudp_create ()
+を参照すること。このルーティンを使用して認証や時間切れの制御を
+することはできない。
+.LP
+.nf
+.BI "enum clnt_stat clnt_broadcast(unsigned long " prognum ,
+.BI "                     unsigned long " versnum ", unsigned long " procnum ,
+.BI "                     xdrproc_t " inproc ", char *" in ,
+.BI "                     xdrproc_t " outproc ", char *" out ,
+.BI "                     resultproc_t " eachresult );
+.fi
+.IP
+.BR callrpc ()
+と同様であるが、メッセージがローカルのブロードキャスト・ネットワーク
+全体へとブロードキャストされる点が異っている。回答を受け取る度に
+このルーティンは以下の形式の
+.BR eachresult ()
+を呼び出す。
+.IP
+.in +4n
+.nf
+.BI "eachresult(char *" out ", struct sockaddr_in *" addr );
+.fi
+.in
+.IP
+ここで
+.I out
+は
+.BR clnt_broadcast ()
+に渡される
+.I out
+と同じであるが、リモート・プロシジャからの出力がデコードされている
+点のみが異っている。
+.I addr
+は結果を送って来たマシンのアドレスを指している。
+.BR eachresult ()
+がゼロを返した場合、
+.BR clnt_broadcast ()
+はさらなる回答を待つ。そうでなければ適切な状態で終了する。
+.IP
+警告: ブロードキャスト・ソケットはデータリンク層の最大転送単位に
+制限されている。イーサネットの場合、最大値は 1500 バイトである。
+.LP
+.nf
+.BI "enum clnt_stat clnt_call(CLIENT *" clnt ", unsigned long " procnum ,
+.BI "                    xdrproc_t " inproc ", char *" in ,
+.BI "                    xdrproc_t " outproc ", char *" out ,
+.BI "                    struct timeval " tout );
+.fi
+.IP
+このマクロはクライアント・ハンドル
+.I clnt
+に関連付けられた
+.I procnum
+リモート・プロシジャを呼び出す。
+クライアント・ハンドルは
+.BR clnt_create ()
+のような
+.SM RPC
+クライアント作成ルーティンによって得られる。
+パタメータ
+.I in
+はプロシジャの引き数のアドレスである。
+.I out
+はプロシジャの返り値を格納するアドレスである。
+.I inproc
+はプロシジャのパラメーターをエンコードするのに使用される。
+.I outproc
+はプロシジャの返り値をデコードするのに使用される。
+.I tout
+は結果が返されるのを待つ時間である。
+.LP
+.nf
+.BI "clnt_destroy(CLIENT *" clnt );
+.fi
+.IP
+このマクロはクライアントの RPC ハンドルを破壊する。破壊には通常は
+.I clnt
+自身も含めて私的なデータ構造体の破棄が含まれている。
+.BR clnt_destroy ()
+の呼び出しの後に
+.I clnt
+を使用することは未定義である。
+RPC ライブラリが関連するソケットをオープンした場合には、
+それも閉じられる。それ以外の場合にはソケットはオープンされたままである。
+.LP
+.nf
+.BI "CLIENT *clnt_create(char *" host ", unsigned long " prog ,
+.BI "                    unsigned long " vers ", char *" proto );
+.fi
+.IP
+一般的なクライアントの作成ルーティンである。
+.I host
+はサーバのあるリモートホストの名前を指定する。
+.I proto
+どのような通信プロトコルを使用するかを指定する。現在ここに
+使用できる値は \(lqudp\(rq と \(lqtcp\(rq である。
+デフォルトの時間切れが設定されるが、
+.BR clnt_control ()
+を使用して変更可能である。
+.IP
+警告:
+UDP を使用した場合には欠点がある。
+UDP に基づいた RPC メッセージは
+最大でも 8 KByte のエンコードデータしか保持する
+ことができないため、大きな引き数や巨大な結果を取るプロシジャに
+は使用することができない。
+.LP
+.nf
+.BI "bool_t clnt_control(CLIENT *" cl ", int " req ", char *" info );
+.fi
+.IP
+このマクロは各種クライアントについて情報を変更したり、取得したり
+するのに使用する。
+.I req
+は操作の種類を指定する。
+.I info
+は情報へのポインターである。
+UDP と TCP どちらの場合も使用可能な
+.I req
+の値と、その引き数の型、およびその内容は以下の通りである:
+.IP
+.in +4n
+.nf
+.ta +2.0i +2.0i +2.0i
+\fBCLSET_TIMEOUT\fP  \fIstruct timeval\fP // 時間切れを設定する
+\fBCLGET_TIMEOUT\fP  \fIstruct timeval\fP // 時間切れを取得する
+.fi
+.in
+.IP
+注意:
+.BR clnt_control ()
+を使用して時間切れを設定した場合にはそれ以後は
+.BR clnt_call ()
+に渡される時間切れパラメーターは全て無視される。
+.IP
+.in +4n
+.nf
+\fBCLGET_SERVER_ADDR\fP  \fIstruct sockaddr_in \fP // サーバアドレスを取得する
+.fi
+.in
+.IP
+以下の操作は UDP の場合にのみ有効である:
+.IP
+.in +4n
+.nf
+\fBCLSET_RETRY_TIMEOUT\fP  \fIstruct timeval\fP // 再送間隔を設定する
+\fBCLGET_RETRY_TIMEOUT\fP  \fIstruct timeval\fP // 再送間隔を取得する
+.fi
+.in
+.IP
+再送間隔は次に要求を再送する前に
+"UDP RPC" がサーバの回答を待つ時間である。
+.LP
+.nf
+.BI "clnt_freeres(CLIENT * " clnt ", xdrproc_t " outproc ", char *" out );
+.fi
+.IP
+このマクロは RPC 呼び出しの結果のデコードの際に
+RPC/XDR システムによって割当てられたデータを解放する。
+パラメーター
+.I out
+は結果のアドレスである。
+.I outproc
+は結果を記述している XDR ルーティンである。
+このルーティンは結果の解放に成功した場合には 1 を返す。
+失敗した場合にはゼロを返す。
+.LP
+.nf
+.BI "void clnt_geterr(CLIENT *" clnt ", struct rpc_err *" errp );
+.fi
+.IP
+このマクロはクライアント・ハンドルのエラー構造体を
+.I errp
+アドレスで指定された構造体へコピーする。
+.LP
+.nf
+.BI "void clnt_pcreateerror(char *" s );
+.fi
+.IP
+標準エラー出力に、なぜクライアント RPC ハンドルの作成が
+できなかったかについてのメッセージを表示する。
+メッセージの前に文字列
+.I s
+とコロン(:)が表示される。
+.BR clnt_create (),
+.BR clntraw_create (),
+.BR clnttcp_create (),
+.BR clntudp_create ()
+の呼び出しが失敗した時に使用すること。
+.LP
+.nf
+.BI "void clnt_perrno(enum clnt_stat " stat );
+.fi
+.IP
+標準エラー出力に
+.I stat
+によって指示されるエラー状態に対応するメッセージを表示する。
+.BR callrpc ()
+の後に使用すること。
+.LP
+.nf
+.BI "clnt_perror(CLIENT *" clnt ", char *" s );
+.fi
+.IP
+標準エラー出力に、なぜ RPC 呼び出しが失敗したかについてのメッセージを表示する。
+.I clnt
+はコールに使用したハンドルである。
+メッセージの前に文字列
+.I s
+とコロン(:)が表示される。
+.BR clnt_call ()
+が失敗した後に使用すること。
+.LP
+.nf
+.BI "char *clnt_spcreateerror(char *" s );
+.fi
+.IP
+.BR clnt_pcreateerror ()
+と同様であるが、標準エラー出力へ表示するかわりに文字列を返す点が異っている。
+.IP
+バグ: 静的な領域へのポインターを返すため、呼び出しごとに上書きされる。
+.LP
+.nf
+.BI "char *clnt_sperrno(enum clnt_stat " stat );
+.fi
+.IP
+.BR clnt_perrno ()
+と同じ引き数を取るが、なぜ
+RPC 呼び出しが失敗したかについてのメッセージを標準エラー出力に表示する
+かわりに、メッセージを格納している文字列へのポインターを返す。
+文字列は NEWLINE(改行) で終っている。
+.IP
+.BR clnt_sperrno ()
+はプログラムが標準エラー出力を持っていない場合(プログラムがサーバとし
+て走っている場合にはよくありえる)や、プログラマーがメッセージを
+.BR printf (3)
+で出力することを望まない場合や、メッセージの形式が
+.BR clnt_perrno ()
+がサポートするものとは異っている場合などに
+.BR clnt_perrno ()
+のかわりに使用される。
+注意:
+.BR clnt_sperror ()
+や
+.BR clnt_spcreaterror ()
+とは違って
+.BR clnt_sperrno ()
+は静的データへのポインターを返す。しかし呼び出しごとに上書きされることはない。
+.LP
+.nf
+.BI "char *clnt_sperror(CLIENT *" rpch ", char *" s );
+.fi
+.IP
+.BR clnt_perror ()
+と同様であるが、標準エラー出力に表示する代りに
+.RB ( clnt_sperrno ()
+のように) 文字列へのポインターを返す点が異っている。
+.IP
+バグ: 呼び出しごとに上書きされる静的データへのポインターを返す。
+.LP
+.nf
+.BI "CLIENT *clntraw_create(unsigned long " prognum \
+", unsigned long " versnum );
+.fi
+.IP
+このルーティンはリモート・プログラム
+.IR prognum 、
+バージョン
+.I versnum
+のための擬似 RPC クライアントを作成する。メッセージをサービスに渡すために使用する
+通信は実際にはそのプロセスのアドレス空間にあるバッファーである。
+それで、対応する RPC サーバが同じアドレス空間の中にいなければならない。
+.BR svcraw_create ()
+を参照すること。
+これにより RPC のシミュレーションや、カーネル・インターフェースに影響されずに
+応答時間などの RPC オーバヘッドの獲得ができる。
+失敗した場合にはこのルーティンは NULL を返す。
+.LP
+.nf
+.BI "CLIENT *clnttcp_create(struct sockaddr_in *" addr ,
+.BI "                unsigned long " prognum ", unsigned long " versnum ,
+.BI "                int *" sockp ", unsigned int " sendsz \
+", unsigned int " recvsz );
+.fi
+.IP
+このルーティンはリモート・プログラム
+.IR prognum 、
+バージョン
+.I versnum
+のための RPC クライアントを作成する。クライアントは通信に
+TCP/IP を使用する。リモート・プログラムはインターネット・アドレスの
+.I *addr
+にある。
+.\"The following inline font conversion is necessary for the hyphen indicator
+\fIaddr\->sin_port\fR がゼロならば、実際にリモート・プログラムが
+listen しているポートが設定される。(この情報のためにリモートの
+.B portmap
+サービスが利用される。) パラメーター
+.I sockp
+はソケットである。もしこれが
+.B RPC_ANYSOCK
+に設定されている場合は、このルーティンが新しいソケットをオープンして
+.I sockp
+に設定する。
+TCP に基づいた RPC はバッファされた I/O
+を使用するため、ユーザはパラメーター
+.I sendsz
+と
+.I recvsz
+を使用して送信バッファと受信バッファのサイズを指定することができる。
+ゼロを指定した場合には適切なデフォルトが選択される。
+このルーティンは失敗した場合は NULL を返す。
+.LP
+.nf
+.BI "CLIENT *clntudp_create(struct sockaddr_in *" addr ,
+.BI "                unsigned long " prognum ", unsigned long " versnum ,
+.BI "                struct timeval " wait ", int *" sockp );
+.fi
+.IP
+このルーティンはリモート・プログラム
+.IR prognum 、
+バージョン
+.I versnum
+のための RPC クライアントを作成する。クライアントは通信に
+UDP/IP を使用する。リモート・プログラムはインターネット・アドレスの
+.I *addr
+にある。
+\fIaddr\->sin_port\fR がゼロならば、実際にリモート・プログラムが
+listen しているポートが設定される。(この情報のためにリモートの
+.B portmap
+サービスが利用される。) パラメーター
+.I sockp
+はソケットである。もしこれが
+.B RPC_ANYSOCK
+に設定されている場合は、このルーティンが新しいソケットをオープンして
+.I sockp
+に設定する。
+UDP 通信は回答があるか、時間切れが起こるまで
+.B wait
+間隔で呼び出しメッセージを再送する。時間切れが起こるまでの合計時間は
+.BR clnt_call ()
+で指定する。
+.IP
+警告: UDP に基づいた
+RPC メッセージは最大でも 8 Kbyte までのエンコードされたデータしか
+保持できないため、この通信は大きな引き数や巨大な結果を取る
+プロシジャには使用できない。
+.LP
+.nf
+.BI "CLIENT *clntudp_bufcreate(struct sockaddr_in *" addr ,
+.BI "            unsigned long " prognum ", unsigned long " versnum ,
+.BI "            struct timeval " wait ", int *" sockp ,
+.BI "            unsigned int " sendsize ", unsigned int "recosize );
+.fi
+.IP
+このルーティンはリモート・プログラム
+.IR prognum 、
+バージョン
+.I versnum
+のための RPC クライアントを作成する。クライアントは通信に
+UDP/IP を使用する。リモート・プログラムはインターネット・アドレスの
+.I *addr
+にある。
+\fIaddr\->sin_port\fR がゼロならば、実際にリモート・プログラムが
+listen しているポートが設定される。(この情報のためにリモートの
+.B portmap
+サービスが利用される。) パラメーター
+.I sockp
+はソケットである。もしこれが
+.B RPC_ANYSOCK
+に設定されている場合は、このルーティンが新しいソケットをオープンして
+.I sockp
+に設定する。
+UDP 通信は回答があるか、時間切れが起こるまで
+.B wait
+間隔で呼び出しメッセージを再送する。時間切れが起こるまでの合計時間は
+.BR clnt_call ()
+で指定する。
+.IP
+これを使用すると UDP に基づいた RPC メッセージにおいて送信パケットや
+受信パケットの最大サイズを指定することが可能になる。
+.LP
+.nf
+.BI "void get_myaddress(struct sockaddr_in *" addr );
+.fi
+.IP
+このマシンの IP アドレスを
+.I *addr
+に格納する。
+.I /etc/hosts
+を扱うライブラリ・ルーティンは使用しない。ポート番号は常に
+.B htons(PMAPPORT)
+に設定される。
+.LP
+.nf
+.BI "struct pmaplist *pmap_getmaps(struct sockaddr_in *" addr );
+.fi
+.IP
+.B portmap
+サービスのためのユーザインターフェースであり、
+IP アドレス
+.I *addr
+にあるホストの現在の RPC プログラムからポート番号へのマッピングの一覧を返す。
+このルーティンが NULL を返す場合もある。
+.RB ` "rpcinfo \-p" '
+コマンドはこのルーティンを使用している。
+.LP
+.nf
+.BI "unsigned short pmap_getport(struct sockaddr_in *" addr ,
+.BI "                    unsigned long " prognum ", unsigned long " versnum ,
+.BI "                    unsigned int " protocol );
+.fi
+.IP
+.B portmap
+サービスのためのユーザ・インターフェースで、
+プログラム番号
+.IR prognum 、
+バージョン
+.IR versnum 、
+関連付けられた通信プロトコル
+.I protocol
+をサポートするサービスが待っているポート番号を返す。
+.I protocol
+の値はほとんどの場合 IPPROTO_UDP か IPPROTO_TCP である。
+返り値ゼロはマッピングが存在しないか、
+RPC システムがリモートの
+.B portmap
+サービスの参照に失敗したことを意味する。後者の場合は大域変数
+.I rpc_createerr
+が RPC 状態を保持している。
+.LP
+.nf
+.BI "enum clnt_stat pmap_rmtcall(struct sockaddr_in *" addr ,
+.BI "                    unsigned long " prognum ", unsigned long " versnum ,
+.BI "                    unsigned long " procnum ,
+.BI "                    xdrproc_t " inproc ", char *" in ,
+.BI "                    xdrproc_t " outproc ", char *" out ,
+.BI "                    struct timeval " tout ", unsigned long *" portp );
+.fi
+.IP
+.B portmap
+サービスのためのユーザ・インターフェースで、
+IP アドレス
+.I *addr
+のホストの
+.B portmap
+を参照して、
+RPC 呼び出しを生成し、そのホスト上のプロシジャを呼び出す。
+パラメーター
+.I *portp
+はプロシジャが成功した場合にはプログラムのポート番号に修正される。
+他のパラメーターの定義については
+.BR callrpc ()
+や
+.BR clnt_call ()
+で説明してある。
+このプロシジャは \(lqping\(rq のみに使用すべきである。
+.BR clnt_broadcast ()
+も参照すること。
+.LP
+.nf
+.BI "bool_t pmap_set(unsigned long " prognum ", unsigned long " versnum ,
+.BI "                unsigned int " protocol ", unsigned short " port );
+.fi
+.IP
+.B portmap
+サービスのためのユーザ・インターフェースで、
+.RI [ prognum , versnum , protocol\fR]
+の組み合わせと
+.I port
+との間のマッピングを、そのマシン上の
+.B portmap
+サービスに登録する。
+.I protocol
+はほとんどの場合
+.B IPPROTO_UDP
+か
+.B IPPROTO_TCP
+のどちらかである。
+このルーティンは成功した場合には 1 を返す。失敗した場合にはゼロを返す。
+.BR svc_register ()
+によって自動的に実行される。
+.LP
+.nf
+.BI "bool_t pmap_unset(unsigned long " prognum ", unsigned long " versnum );
+.fi
+.IP
+.B portmap
+サービスのためのユーザ・インターフェースで、
+.RI [ prognum , versnum , *\fR]
+の組み合わせと
+.B ports
+の間のマッピングをそのマシン上の
+.B portmap
+サービスから削除する。このルーティンは成功した場合は 1 を返す。
+失敗した場合には 0 を返す。
+.LP
+.nf
+.BI "int registerrpc(unsigned long " prognum ", unsigned long " versnum ,
+.BI "                unsigned long " procnum ", char *(*" procname ")(char *),"
+.BI "                xdrproc_t " inproc ", xdrproc_t " outproc );
+.fi
+.IP
+RPC サービスパッケージを使用して
+.I procname
+プロシジャを登録する。プログラム
+.IR prognum 、
+バージョン
+.IR versnum 、
+プロシジャ
+.I procnum
+への要求が届いた場合、
+.I procname
+がパラメーターへのポインターを持って呼び出される。
+.I progname
+は静的な結果へのポインターを返す必要がある。
+.I inproc
+はパラメーターをデコードするために使用される。
+.I outproc
+は結果をエンコードするために使用される。
+このルーティンは登録に成功した場合にはゼロを返す。
+失敗した場合には \-1 を返す。
+.IP
+警告: この形式で登録されたリモート・プロシジャは
+UDP/IP 通信を使用する。制限に関しては
+.BR svcudp_create ()
+を参照すること。
+.LP
+.nf
+.BI "struct rpc_createerr " rpc_createerr ;
+.fi
+.IP
+成功しなかった RPC クライアント生成ルーティンによって設定される大域変数。
+.BR clnt_pcreateerror ()
+ルーティンが理由を表示するために使用する。
+.LP
+.nf
+.BI "void svc_destroy(SVCXPRT *" xprt );
+.fi
+.IP
+このマクロは通信ハンドル
+.I xprt
+の RPC サービスを破壊する。破壊には通常、
+.I xprt
+を含めて、私的なデータ構造体の破棄が含まれている。
+このルーティンを呼び出した後に
+.I xprt
+を使用することは未定義である。
+.LP
+.nf
+.BI "fd_set " svc_fdset ;
+.fi
+.IP
+RPC サービス側のファイル・ディスクリプターのビットマスクを反映した大域変数。
+.BR select (2)
+システムコールのパラメーターのために利用できる。これは
+サービスの実装者が
+.BR svc_run ()
+を呼び出さなずに、独自の非同期イベント処理を用いる場合にのみ意味がある。
+この変数は読み込み専用で (そのまま
+.BR select (2)
+へ渡してはならない!)、
+.BR svc_getreqset ()
+呼び出しや生成ルーティンの後に変更されているかもしれない。
+.LP
+.nf
+.BI "int " svc_fds ;
+.fi
+.IP
+.B svc_fdset
+に似ているが、32 ディスクリプターに制限されている。
+このインターフェースは
+.B svc_fdset
+によって置き換えられた。
+.LP
+.nf
+.BI "svc_freeargs(SVCXPRT *" xprt ", xdrproc_t " inproc ", char *" in );
+.fi
+.IP
+このマクロはサービス・プロシジャが
+.BR svc_getargs ()
+を使用して引き数をデコードした時に
+RPC/XDR システムによって割り当てられたデータを解放する。
+このルーティンは解放に成功した場合には 1 を返す。
+失敗した場合にはゼロを返す。
+.LP
+.nf
+.BI "svc_getargs(SVCXPRT *" xprt ", xdrproc_t " inproc ", char *" in );
+.fi
+.IP
+このマクロは RPC サービス通信ハンドル
+.I xprt
+に関連付けられた RPC 要求の引き数をデコードする。パラメーター
+.I in
+は引き数の格納されたアドレスである。
+.I inproc
+は引き数をデコードするための XDR ルーティンである。
+このルーティンはデコードに成功した場合は 1 を返す。
+失敗した場合はゼロを返す。
+.LP
+.nf
+.BI "struct sockaddr_in *svc_getcaller(SVCXPRT *" xprt );
+.fi
+.IP
+RPC サービス通信ハンドル
+.I xprt
+に関連付けられたプロシジャの呼び出し元のネットワーク・アドレスを
+取得するための標準的な手段。
+.LP
+.nf
+.BI "void svc_getreqset(fd_set *" rdfds );
+.fi
+.IP
+このルーティンはサービスの実装者が
+.BR svc_run ()
+を呼び出さず、独自の非同期イベント処理を実装する場合にのみ意味がある。
+これは
+.BR select (2)
+システムコールが RPC ソケットに
+RPC 要求が到着したと返した場合にのみ呼び出される。
+.I rdfds
+は結果の読み込みファイル・ディスクリプターのビットマスクである。
+このルーティンは
+.I rdfds
+の値に関連付けられた全てのソケットのサービスが行なわれた時に
+返ってくる。
+.LP
+.nf
+.BI "void svc_getreq(int " rdfds );
+.fi
+.IP
+.BR svc_getreqset ()
+に似ているがディスクリプターの数が 32 に制限されている。
+このインターフェースは
+.BR svc_getreqset ()
+によって置き換えられた。
+.LP
+.nf
+.BI "bool_t svc_register(SVCXPRT *" xprt ", unsigned long " prognum ,
+.BI "                    unsigned long " versnum ,
+.BI "                    void (*" dispatch ")(svc_req *, SVCXPRT *),"
+.BI "                    unsigned long " protocol );
+.fi
+.IP
+.I prognum
+と
+.I versnum
+をサービス配分プロシジャ
+.I dispatch
+で関連付ける。
+.I protocol
+がゼロの場合、サービスは
+.B portmap
+サービスには登録されない。
+.I protocol
+がゼロ以外の場合、
+.RI [ prognum , versnum , protocol\fR]
+の組み合わせと \fIxprt\->xp_port\fR とのマッピングがローカルの
+.B portmap
+サービスに登録される。(一般的に
+.I protocol
+はゼロ、
+.BR IPPROTO_UDP 、
+.B IPPROTO_TCP
+のどれかである。)
+プロシジャ
+.I dispatch
+は以下の形式である:
+.in +4n
+.nf
+
+dispatch(struct svc_req *request, SVCXPRT *xprt);
+.fi
+.in
+.IP
+.BR svc_register ()
+ルーティンは成功した場合は 1 を返す。失敗した場合はゼロを返す。
+.LP
+.nf
+.B "void svc_run(void);"
+.fi
+.IP
+このルーティンは戻ってこない。これは
+.SM RPC
+要求の到着を待ち、どれかが届いた場合に
+.BR svc_getreq ()
+を使用して適切なサービス・プロシジャを呼び出す。
+このプロシジャは通常は
+.BR select (2)
+システムコールから返るのを待っている。
+.LP
+.nf
+.BI "bool_t svc_sendreply(SVCXPRT *" xprt ", xdrproc_t " outproc \
+", char *" out );
+.fi
+.IP
+RPC サービス配分ルーティンによってリモート・プロシジャ・コールの結果を
+返すために呼び出される。
+パラメーター
+.I xprt
+はその要求に関連付けられた通信ハンドルである。
+.I outproc
+は結果をエンコードするために使用する XDR ルーティンである。
+.I out
+は結果のアドレスである。このルーティンは成功した場合は 1 を返す。
+失敗した場合はゼロを返す。
+.LP
+.nf
+.BI "void svc_unregister(unsigned long " prognum ", unsigned long " versnum );
+.fi
+.IP
+配分ルーティンから
+.RI [ prognum , versnum ]
+および
+.RI [ prognum , versnum , *\fR]
+の組み合わせからポート番号へのマッピングを全て削除する。
+.LP
+.nf
+.BI "void svcerr_auth(SVCXPRT *" xprt ", enum auth_stat " why );
+.fi
+.IP
+認証エラーによりリモート・プロシジャ・コールの実行を拒否された
+場合にサービス配分ルーティンによって呼び出される。
+.LP
+.nf
+.BI "void svcerr_decode(SVCXPRT *" xprt );
+.fi
+.IP
+パラメータのデコードに失敗した場合に
+サービス配分ルーティンによって呼び出される。
+.BR svc_getargs ()
+も参照すること。
+.LP
+.nf
+.BI "void svcerr_noproc(SVCXPRT *" xprt );
+.fi
+.IP
+要求のあったプロシジャ番号が実装されていない場合に
+サービス配分ルーティンより呼び出される。
+.LP
+.nf
+.BI "void svcerr_noprog(SVCXPRT *" xprt );
+.fi
+.IP
+RPC パッケージに要求されたプログラムが登録されていない場合に呼び出される。
+サービスの実装には通常、このルーティンは必要ない。
+.LP
+.nf
+.BI "void svcerr_progvers(SVCXPRT *" xprt );
+.fi
+.IP
+RPC パッケージに要求されたバージョンのプログラムが登録されていない場合に
+呼び出される。サービスの実装には通常、このルーティンは必要ない。
+.LP
+.nf
+.BI "void svcerr_systemerr(SVCXPRT *" xprt );
+.fi
+.IP
+特定のプロトコルによってカバーされていなシステム・エラーが
+検出された場合にサービス配分ルーティンによって呼び出される。
+例えば、サービスがそれ以上、記憶装置を割り当てることができない場合には
+このルーティンが呼び出されるかもしれない。
+.LP
+.nf
+.BI "void svcerr_weakauth(SVCXPRT *" xprt );
+.fi
+.IP
+認証パラメータが足りないためにリモート・プロシジャ・コールの実行を
+拒否された場合にサービス配分ルーティンによって呼び出される。
+このルーティンは
+.B "svcerr_auth(xprt, AUTH_TOOWEAK)"
+を呼び出す。
+.LP
+.nf
+.BI "SVCXPRT *svcfd_create(int " fd ", unsigned int " sendsize ,
+.BI "                      unsigned int " recvsize );
+.fi
+.IP
+任意のオープンされたディスクリプター上にサービスを作成する。
+典型的に、ディスクリプターは
+TCP のようなストリーム・プロトコルで接続されたソケットである。
+.I sendsize
+と
+.I recvsize
+には送信バッファと受信バッファの大きさを指定する。もしゼロが指定された
+場合は適切なデフォルトが選択される。
+.LP
+.nf
+.BI "SVCXPRT *svcraw_create(void);"
+.fi
+.IP
+このルーティンは擬似 RPC サービス通信を生成して、そのポインターを返す。
+通信は実際にはそのプロセスのアドレス空間にあるバッファなので
+対応する RPC クライアントは同じアドレス空間にいる必要がある。
+.BR clntraw_create ()
+を参照すること。
+このルーティンで
+RPC のシミュレーションや、カーネル・インターフェースに影響されずに応答時間などの
+RPC オーバヘッドを取得ができる。このルーティンは失敗した場合は NULL を返す。
+.LP
+.nf
+.BI "SVCXPRT *svctcp_create(int " sock ", unsigned int " send_buf_size ,
+.BI "                       unsigned int " recv_buf_size );
+.fi
+.IP
+このルーティンは TCP/IP に基づく
+RPC サービス通信を作成し、それへのポインターを返す。
+通信はソケット
+.I sock
+に結びつけられる。
+.I sock
+は
+.B RPC_ANYSOCK
+でも良い。この場合は新しいソケットが作成される。
+もしソケットがローカルな TCP ポートに bind されていない場合は、
+このルーティンが適当なポートに bind する。
+補完された場合、\fIxprt\->xp_sock\fR には通信のソケット・
+ディスクリプターが、\fIxprt\->xp_port\fR には通信のポート番号が
+設定される。
+このルーティンは失敗した場合は NULL を返す。
+TCP に基づいた RPC はバッファされた I/O を使用するため、
+ユーザはバッファの大きさを指定できる。
+ゼロを指定した場合は適切なデフォルトが選択される。
+.LP
+.nf
+.BI "SVCXPRT *svcudp_bufcreate(int " sock ", unsigned int " sendsize ,
+.BI "                          unsigned int " recosize );
+.fi
+.IP
+このルーティンは UDP/IP に基づいた RPC サービス通信を作成し、
+そのポインターを返す。通信はソケット
+.I sock
+に関連付けられる。
+.I sock
+は
+.B RPC_ANYSOCK
+でも良い。この場合は新しいソケットが作成される。
+ソケットがローカルの UDP ポートに bind されていない場合には
+このルーティンは適当なポートに bind する。
+補完された場合、\fIxprt\->xp_sock\fR に通信のソケットの
+ディスクリプターが、\fIxprt\->xp_port\fR に通信のポート番号が
+設定される。このルーティンは失敗した場合には NULL を返す。
+.IP
+これによりユーザは UDP に基づいた RPC メッセージで
+使用できる送信パケットおよび受信パケットの最大サイズを指定できる。
+.LP
+.nf
+.BI "SVCXPRT *svcudp_create(int " sock );
+.fi
+.IP
+送信パケットと受信パケットのサイズを同じデフォルトの値 \fISZ\fP に指定した
+\fIsvcudp_bufcreate(sock,SZ,SZ)\fP と等価である。
+.LP
+.nf
+.BI "bool_t xdr_accepted_reply(XDR *" xdrs ", struct accepted_reply *" ar );
+.fi
+.IP
+RPC 応答メッセージをエンコードするのに使用する。このルーティンは
+RPC パッケージを用いずに
+RPC-形式のメッセージを作成しようとする場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_authunix_parms(XDR *" xdrs ", struct authunix_parms *" aupp );
+.fi
+.IP
+Unix 形式の証明書を記述するために使用する。このルーティンは
+RPC 認証パッケージを使用せずにこれらの証明書を作成しようとする場合に便利である。
+.LP
+.nf
+.BI "void xdr_callhdr(XDR *" xdrs ", struct rpc_msg *" chdr );
+.fi
+.IP
+RPC 呼び出しのヘッダー・メッセージを記述するために使用する。
+このルーティンは RPC パッケージを使用せずに
+RPC-形式のメッセージを作成しようとする場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_callmsg(XDR *" xdrs ", struct rpc_msg *" cmsg );
+.fi
+.IP
+RPC 呼び出しメッセージを記述するのに使用する。
+このルーティンは RPC パッケージを使用せずに
+RPC-形式のメッセージを作成しようとする場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_opaque_auth(XDR *" xdrs ", struct opaque_auth *" ap );
+.fi
+.IP
+PRC 認証情報メッセージを記述するために使用する。
+このルーティンは RPC パッケージを使用せずに
+RPC-形式のメッセージを作成しようとする場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_pmap(XDR *" xdrs ", struct pmap *" regs );
+.fi
+.IP
+各種の
+.B portmap
+プロシジャへのパラメーターを外部的に記述するために使用する。
+このルーティンは
+.B pmap
+インターフェースを使用せずに、これらのパラメーターを
+作成したい場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_pmaplist(XDR *" xdrs ", struct pmaplist **" rp );
+.fi
+.IP
+ポートのマッピングのリストを外部的に記述するために使用する。
+このルーティンは
+.B pmap
+インターフェースを使用せずに、これらのパラメーターを
+作成したい場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_rejected_reply(XDR *" xdrs ", struct rejected_reply *" rr );
+.fi
+.IP
+RPC 応答メッセージを記述するために使用する。このルーティンは
+RPC パッケージを使用せずに、
+RPC-形式のメッセージを作成したい場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_replymsg(XDR *" xdrs ", struct rpc_msg *" rmsg );
+.fi
+.IP
+RPC 応答メッセージを記述するために使用する。
+このルーティンは RPC パッケージを使用せずに、
+RPC 形式のメッセージを作成したい場合に便利である。
+.LP
+.nf
+.BI "void xprt_register(SVCXPRT *" xprt );
+.fi
+.IP
+RPC サービス通信ハンドルを生成した後に、それら自身を
+RPC サービス・パッケージに登録する必要がある。
+このルーティンは大域変数
+.I svc_fds
+を修正する。サービスの実装者は通常、このルーティンは必要ない。
+.LP
+.nf
+.BI "void xprt_unregister(SVCXPRT *" xprt );
+.fi
+.IP
+RPC サービス通信ハンドルを破壊する前に、それを
+RPC 通信パッケージから登録解除する必要がある。
+このルーティンは大域変数
+.I svc_fds
+を修正する。サービスの実装者は通常、このルーティンは必要ない。
+.SH 関連項目
+.\" 今現在は、この配布物 (LDP_man-pages) には rpc_secure.3 は入っていない
+.\" -- MTK, 19 Sep 05
+.\" .BR rpc_secure (3),
+.BR xdr (3)
+.br
+以下のマニュアル:
+.RS
+Remote Procedure Calls: Protocol Specification
+.br
+Remote Procedure Call Programming Guide
+.br
+rpcgen Programming Guide
+.br
+.RE
+.IR "RPC: Remote Procedure Call Protocol Specification" ,
+RFC\ 1050, Sun Microsystems, Inc.,
+USC-ISI.

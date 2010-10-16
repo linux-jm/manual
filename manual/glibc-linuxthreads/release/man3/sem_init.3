@@ -1,0 +1,239 @@
+.\"   Copyright (C) 1996-1999 Free Software Foundation, Inc.
+.\"
+.\"   Permission is granted to make and distribute verbatim copies of
+.\" this manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\"   Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\"   Permission is granted to copy and distribute translations of this
+.\" manual into another language, under the above conditions for modified
+.\" versions, except that this permission notice may be stated in a
+.\" translation approved by the Foundation.
+.\"
+.\" Copyright (C) 1996 Xavier Leroy.
+.\"
+.\" Japanese Version Copyright (C) 2002-2003 Suzuki Takashi
+.\"         all rights reserved.
+.\" Translated Fri Jan  3 23:23:30 JST 2003
+.\"         by Suzuki Takashi.
+.\"
+.\"WORD:    semaphore           セマフォ
+.\"WORD:    atomically          一息で
+.\"WORD:    semaphore object    セマフォオブジェクト
+.\"WORD:    atomic compare-and-swap 不可分の比較交換命令
+.\"WORD:    atomic operation    不可分命令
+.\"WORD:    wait on the semaphore   セマフォの獲得待ち
+.\"
+.\"
+.TH SEMAPHORES 3 LinuxThreads
+
+
+.SH "名前"
+sem_init, sem_wait, sem_trywait, sem_post, sem_getvalue, sem_destroy \- セマフォの操作
+
+.SH "書式"
+.B #include <semaphore.h>
+
+.BI "int sem_init(sem_t *" sem ", int " pshared ", unsigned int " value ");"
+
+.BI "int sem_wait(sem_t * " sem ");"
+
+.BI "int sem_trywait(sem_t * " sem ");"
+
+.BI "int sem_post(sem_t * " sem ");"
+
+.BI "int sem_getvalue(sem_t * " sem ", int * " sval ");"
+
+.BI "int sem_destroy(sem_t * " sem ");"
+
+.SH "説明"
+このマニュアルページは POSIX 1003.1b のセマフォについて記述しており、
+.BR "ipc" (5)
+や
+.BR "semctl" (2)
+、
+.BR "semop" (2)
+に記述されている SystemV セマフォと混同してはならない。
+
+セマフォはスレッド間で共有される資源を管理するためのカウンタである。
+セマフォに関する基本的な操作は次の 2 つである:
+カウンタを一息で 1 だけ増加させることと、
+カウンタが 0 でなくなるまで待ったあと一息で 1 だけ減少させることである。
+
+.B "sem_init"
+は
+.I "sem"
+で指定されるセマフォオブジェクトを初期化する。
+セマフォに結び付けられるカウントは
+.I "value"
+に初期化される。
+引数
+.I "pshared"
+はセマフォが現在のプロセスだけで有効 (
+.I "pshared"
+が 0) か複数のプロセスで共有される (
+.I "pshared"
+が非 0) かを指定する。LinuxThreads は現在のところ
+プロセス間共有セマフォはサポートしていない。
+そのため、
+.I "pshared"
+が 0 でない場合は、
+.B "sem_init"
+は常にエラー
+.B "ENOSYS"
+を返す。
+
+.B "sem_wait"
+は、
+.I "sem"
+で指定されるセマフォのカウントが非 0 になるまで
+呼び出しスレッドの実行を停止する。
+そしてセマフォカウントを一息で 1 だけ減少させる。
+
+.B "sem_trywait"
+はブロックをともなわない
+.B "sem_wait"
+である。
+.I "sem"
+で指定されるセマフォのカウントが非 0 の場合には
+一息でカウントが 1 だけ減少されて
+.B "sem_trywait"
+は直ちに 0 を返す。
+セマフォカウントが 0 の場合には
+.B "sem_trywait"
+は直ちにエラー
+.B "EAGAIN"
+を返す。
+
+.B "sem_post"
+は
+.I "sem"
+で指定されるセマフォのカウントを一息で 1 だけ増加させる。
+この関数は決してブロックすることはなく、
+非同期シグナルハンドラの中でも安全に使用することができる。
+
+.B "sem_getvalue"
+は
+.I "sval"
+で指し示される領域に
+セマフォ
+.I "sem"
+の現在のカウントを格納する。
+
+.B "sem_destroy"
+はセマフォオブジェクトを破壊し、
+セマフォオブジェクトが保持していた資源を解放する。
+.B "sem_destroy"
+が呼び出されるときにそのセマフォを獲得待ちしている
+スレッドがあってはならない。
+LinuxThreads の実装では、
+セマフォオブジェクトは何も資源を保持しないため、
+.B "sem_destroy"
+はそのスレッドを獲得待ちしているスレッドがないことを
+チェックする以外に何もしない。
+
+.SH "取り消し"
+
+.B "sem_wait"
+は取り消しポイントである。
+
+.SH "非同期シグナルの安全性"
+
+不可分の比較交換命令 (compare-and-swap) をサポートしている
+CPU (Intel 486 や Pentium およびその後継、
+Alpha 、 PowerPC 、 MIPS II 、 Motorola 68k) では、
+関数
+.B "sem_post"
+は非同期シグナルに対して安全であり、
+そのためシグナルハンドラから呼び出すことが可能である。
+.B "sem_post"
+は、非同期シグナルに対して安全な、
+POSIX スレッドで提供される唯一のスレッド同期関数である。
+
+Intel 386 と Sparc においては、
+現時点の LinuxThreads の実装では
+.B "sem_post"
+は非同期シグナルに対して安全でない。
+これは必要な不可分命令が存在しないからである。
+
+.SH "返り値"
+
+関数
+.B "sem_wait"
+および
+.B "sem_getvalue"
+は常に 0 を返す。
+他のセマフォ関数はすべて、
+成功すると 0 を返し、
+エラーならば -1 を返してエラーコードを
+.B "errno"
+に格納する。
+
+.SH "エラー"
+
+関数
+.B "sem_init"
+はエラーの場合に次のようなエラーコードを
+.B "errno"
+に格納する。
+.RS
+.TP
+.B "EINVAL"
+.I "value"
+がカウンタの最大値
+.B "SEM_VALUE_MAX"
+を超えている。
+.TP
+.B "ENOSYS"
+.I "pshared"
+が 0 でない。
+.RE
+
+関数
+.B "sem_trywait"
+はエラーの場合に次のようなエラーコードを
+.B "errno"
+に格納する。
+.RS
+.TP
+.B "EAGAIN"
+現時点のセマフォカウントが 0 である。
+.RE
+
+関数
+.B "sem_post"
+はエラーの場合に次のようなエラーコードを
+.B "errno"
+に格納する。
+.RS
+.TP
+.B "ERANGE"
+カウンタを増加すると、セマフォの値が
+.B "SEM_VALUE_MAX"
+を超えてしまう
+(この場合、セマフォカウントは変更されない) 。
+.RE
+
+関数
+.B "sem_destroy"
+はエラーの場合に次のようなエラーコードを
+.B "errno"
+に格納する:
+.RS
+.TP
+.B "EBUSY"
+指定したセマフォの獲得待ちでブロックされているスレッドがある。
+.RE
+
+.SH "著者"
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.SH "関連事項"
+.BR "pthread_mutex_init" (3),
+.BR "pthread_cond_init" (3),
+.BR "pthread_cancel" (3),
+.BR "ipc" (5).

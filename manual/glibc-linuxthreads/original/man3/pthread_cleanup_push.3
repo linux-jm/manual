@@ -1,0 +1,253 @@
+.TH PTHREAD_CLEANUP 3 LinuxThreads
+
+
+.SH NAME
+pthread_cleanup_push, pthread_cleanup_pop, pthread_cleanup_push_defer_np, pthread_cleanup_pop_restore_np \- install and remove cleanup handlers
+
+.SH SYNOPSIS
+.B #include <pthread.h>
+
+.BI "void pthread_cleanup_push(void (*" routine ") (void *), void *" arg ");"
+
+.BI "void pthread_cleanup_pop(int " execute ");"
+
+.BI "void pthread_cleanup_push_defer_np(void (*" routine ") (void *), void *" arg ");"
+
+.BI "void pthread_cleanup_pop_restore_np(int " execute ");"
+
+.SH DESCRIPTION
+
+Cleanup handlers are functions that get called when a thread
+terminates, either by calling 
+.BR "pthread_exit" (3)
+or because of
+cancellation. Cleanup handlers are installed and removed following a
+stack-like discipline.
+
+The purpose of cleanup handlers is to free the resources that a thread
+may hold at the time it terminates. In particular, if a thread
+exits or is cancelled while it owns a locked mutex, the mutex will
+remain locked forever and prevent other threads from executing
+normally. The best way to avoid this is, just before locking the
+mutex, to install a cleanup handler whose effect is to unlock the
+mutex. Cleanup handlers can be used similarly to free blocks allocated
+with 
+.BR "malloc" (3)
+or close file descriptors on thread termination.
+
+.B "pthread_cleanup_push"
+installs the 
+.I "routine"
+function with argument
+.I "arg"
+as a cleanup handler. From this point on to the matching
+.BR "pthread_cleanup_pop" ,
+the function 
+.I "routine"
+will be called with
+arguments 
+.I "arg"
+when the thread terminates, either through 
+.BR "pthread_exit" (3)
+or by cancellation. If several cleanup handlers are active at that
+point, they are called in LIFO order: the most recently installed
+handler is called first.
+
+.B "pthread_cleanup_pop"
+removes the most recently installed cleanup
+handler. If the 
+.I "execute"
+argument is not 0, it also executes the
+handler, by calling the 
+.I "routine"
+function with arguments 
+.IR "arg" .
+If
+the 
+.I "execute"
+argument is 0, the handler is only removed but not
+executed.
+
+Matching pairs of 
+.B "pthread_cleanup_push"
+and 
+.B "pthread_cleanup_pop"
+must occur in the same function, at the same level of block nesting.
+Actually, 
+.B "pthread_cleanup_push"
+and 
+.B "pthread_cleanup_pop"
+are macros,
+and the expansion of 
+.B "pthread_cleanup_push"
+introduces an open brace 
+.B "{"
+with the matching closing brace 
+.B "}"
+being introduced by the expansion
+of the matching 
+.BR "pthread_cleanup_pop" .
+
+.B "pthread_cleanup_push_defer_np"
+is a non-portable extension that
+combines 
+.B "pthread_cleanup_push"
+and 
+.BR "pthread_setcanceltype" (3).
+It pushes a cleanup handler just as 
+.B "pthread_cleanup_push"
+does, but
+also saves the current cancellation type and sets it to deferred
+cancellation. This ensures that the cleanup mechanism is effective
+even if the thread was initially in asynchronous cancellation mode.
+
+.B "pthread_cleanup_pop_restore_np"
+pops a cleanup handler introduced by
+.BR "pthread_cleanup_push_defer_np" ,
+and restores the cancellation type to
+its value at the time 
+.B "pthread_cleanup_push_defer_np"
+was called.
+
+.B "pthread_cleanup_push_defer_np"
+and 
+.B "pthread_cleanup_pop_restore_np"
+must occur in matching pairs, at the same level of block nesting.
+
+The following sequence
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_cleanup_push_defer_np(routine, arg);
+...
+pthread_cleanup_pop_defer_np(execute);
+.ft
+.LP
+.RE
+.fi
+
+is functionally equivalent to (but more compact and more efficient than)
+
+.RS
+.ft 3
+.nf
+.sp
+{ int oldtype;
+  pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &oldtype);
+  pthread_cleanup_push(routine, arg);
+  ...
+  pthread_cleanup_pop(execute);
+  pthread_setcanceltype(oldtype, NULL);
+}
+.ft
+.LP
+.RE
+.fi
+
+.SH "RETURN VALUE"
+
+None.
+
+.SH ERRORS
+
+None.
+
+.SH AUTHOR
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.SH "SEE ALSO"
+.BR "pthread_exit" (3),
+.BR "pthread_cancel" (3),
+.BR "pthread_setcanceltype" (3).
+
+.SH EXAMPLE
+
+Here is how to lock a mutex 
+.I "mut"
+in such a way that it will be
+unlocked if the thread is canceled while 
+.I "mut"
+is locked:
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_cleanup_push(pthread_mutex_unlock, (void *) &mut);
+pthread_mutex_lock(&mut);
+/* do some work */
+pthread_mutex_unlock(&mut);
+pthread_cleanup_pop(0);
+.ft
+.LP
+.RE
+.fi
+
+Equivalently, the last two lines can be replaced by
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_cleanup_pop(1);
+.ft
+.LP
+.RE
+.fi
+
+Notice that the code above is safe only in deferred cancellation mode
+(see 
+.BR "pthread_setcanceltype" (3)).
+In asynchronous cancellation mode,
+a cancellation can occur between 
+.B "pthread_cleanup_push"
+and
+.BR "pthread_mutex_lock" ,
+or between 
+.B "pthread_mutex_unlock"
+and
+.BR "pthread_cleanup_pop" ,
+resulting in both cases in the thread trying to
+unlock a mutex not locked by the current thread. This is the main
+reason why asynchronous cancellation is difficult to use.
+
+If the code above must also work in asynchronous cancellation mode,
+then it must switch to deferred mode for locking and unlocking the
+mutex:
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &oldtype);
+pthread_cleanup_push(pthread_mutex_unlock, (void *) &mut);
+pthread_mutex_lock(&mut);
+/* do some work */
+pthread_cleanup_pop(1);
+pthread_setcanceltype(oldtype, NULL);
+.ft
+.LP
+.RE
+.fi
+
+The code above can be rewritten in a more compact and more
+efficient way, using the non-portable functions
+.B "pthread_cleanup_push_defer_np"
+and 
+.BR "pthread_cleanup_pop_restore_np" :
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_cleanup_push_restore_np(pthread_mutex_unlock, (void *) &mut);
+pthread_mutex_lock(&mut);
+/* do some work */
+pthread_cleanup_pop_restore_np(1);
+.ft
+.LP
+.RE
+.fi
+

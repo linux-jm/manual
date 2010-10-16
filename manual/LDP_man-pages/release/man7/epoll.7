@@ -1,0 +1,570 @@
+.\"
+.\"  epoll by Davide Libenzi ( efficient event notification retrieval )
+.\"  Copyright (C) 2003  Davide Libenzi
+.\"
+.\"  This program is free software; you can redistribute it and/or modify
+.\"  it under the terms of the GNU General Public License as published by
+.\"  the Free Software Foundation; either version 2 of the License, or
+.\"  (at your option) any later version.
+.\"
+.\"  This program is distributed in the hope that it will be useful,
+.\"  but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"  GNU General Public License for more details.
+.\"
+.\"  You should have received a copy of the GNU General Public License
+.\"  along with this program; if not, write to the Free Software
+.\"  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+.\"
+.\"  Davide Libenzi <davidel@xmailserver.org>
+.\"
+.\" Japanese Version Copyright (c) 2004-2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Sat Jun 19 07:50:04 JST 2004
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2005-01-18, Yuichi SATO
+.\" Updated 2006-07-14, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"         Catch up to LDP v2.34. epoll.4 is renamed to epoll.7.
+.\" Updated 2007-09-07, Akihiro MOTOKI, LDP v2.64
+.\" Updated 2008-04-08, Akihiro MOTOKI, LDP v2.79
+.\" Updated 2009-02-23, Akihiro MOTOKI, LDP v3.19
+.\"
+.TH EPOLL 7 2009-02-01 "Linux" "Linux Programmer's Manual"
+.SH 名前
+epoll \- I/O イベント通知機能
+.SH 書式
+.B #include <sys/epoll.h>
+.SH 説明
+.B epoll
+は
+.BR poll (2)
+の一種であり、エッジトリガインタフェースと
+レベルトリガインタフェースのどちらとしても使用することができ、
+監視するファイルディスクリプタの数が多い場合にも使用できる。
+.B epoll
+インスタンスの作成や管理を行うために
+以下のシステムコールが提供されている:
+.IP * 3
+.B epoll
+インスタンスは
+.BR epoll_create (2)
+で作成される。
+.BR epoll_create (2)
+は作成した epoll インスタンスを参照するファイルディスクリプタを返す。
+(もっと新しい
+.BR epoll_create1 (2)
+では、
+.BR epoll_create (2)
+の機能が拡張されている)。
+.IP *
+特定のファイルディスクリプタに対する監視内容を
+.BR epoll_ctl (2)
+で登録する。
+.B epoll
+インスタンスに現在登録されているファイルディスクリプタの集合は
+.I epoll
+集合と呼ばれることもある。
+.IP *
+最後に
+.BR epoll_wait (2)
+で実際のイベント待ちを開始する。
+.SS レベルトリガとエッジトリガ
+.B epoll
+イベント配送 (distribution) インタフェースは、
+エッジトリガ (ET) としてもレベルトリガ (LT) としても動作させることができる。
+二つの配送機構の違いは、次のように説明できる。
+このようなシナリオが起こったとしよう:
+.IP 1. 3
+パイプの読み込み側を表すファイルディスクリプタ
+.RI ( rfd )
+が
+.B epoll
+インスタンスに登録される。
+.IP 2.
+パイプへ書き込むプログラムが 2 kB のデータをパイプの書き込み側へ書き込む。
+.IP 3.
+.BR epoll_wait (2)
+を呼び出すと、読み込み可能 (ready) なファイルディスクリプタとして
+.I rfd
+が返る。
+.IP 4.
+パイプから読み出すプログラムが、1 kB のデータを
+.I rfd
+から読み出す。
+.IP 5.
+.BR epoll_wait (2)
+の呼び出しが行われる。
+.PP
+.I rfd
+ファイルディスクリプタが
+.B EPOLLET
+フラグ (エッジトリガ) を使って
+.B epoll
+に追加されていると、
+利用可能なデータがファイル入力バッファにまだ存在するにもかかわらず
+ステップ
+.B 5
+の
+.BR epoll_wait (2)
+の呼び出しでハングする可能性がある。
+その一方で、リモートの接続先 (peer) は既に送られたデータに
+基づいて応答を期待しているかもしれない。
+このようなことが起こる理由は、エッジトリガイベント配送では、
+モニタしているファイルでイベントが起ったときにのみイベントが
+配送されるためである。
+したがって、ステップ
+.B 5
+では、呼び出し側は結果的に
+入力バッファ内にすで存在するデータを待つことになるかもしれない。
+上記の例では、
+.B 2
+で行われた書き込みによって
+.I rfd
+に関するイベントが生成され、
+.B 3
+でイベントが消費 (consume) される。
+.B 4
+で行われる読み込み操作では、全部のバッファデータを消費しないので、
+ステップ
+.B 5
+で行われる
+.BR epoll_wait (2)
+の呼び出しが
+無期限に停止 (block) するかもしれない。
+
+.B EPOLLET
+フラグを採用するアプリケーションでは、
+インタフェースはブロックしない (nonblocking) ファイルディスクリプタを
+使うべきである。
+これは、ブロックされる読み込みや書き込みによって、
+複数のファイルディスクリプタを扱うタスクが
+停止してしまうのを避けるためである。
+.B epoll
+をエッジトリガ
+.RB ( EPOLLET )
+インタフェースとして使うために提案される方法は以下の通りである。
+.RS
+.TP 4
+.B i
+ブロックしないファイルディスクリプタと共に使う。
+.TP
+.B ii
+.BR read (2)
+または
+.BR write (2)
+が
+.B EAGAIN
+を返した後でのみ、イベントを待つ。
+.RE
+.PP
+一方、レベルトリガインタフェースとして使う場合
+ (こちらがデフォルトである、
+.B EPOLLET
+が指定されなかった場合)、
+.B epoll
+は単に高速な
+.BR poll (2)
+であり、使い方が同じなので、
+.BR poll (2)
+が使われているところではどこでも使用することができる。
+
+エッジトリガを使った場合でも、複数のデータを受信すると複数の
+.B epoll
+イベントが生成されるので、
+呼び出し側には
+.B EPOLLONESHOT
+フラグを指定するオプションがある。
+このフラグは
+.B epoll
+に対して、
+.BR epoll_wait (2)
+によるイベントを受信した後で、関連するファイルディスクリプタを無効にさせる。
+.B EPOLLONESHOT
+フラグが指定された場合、
+.BR epoll_ctl (2)
+に
+.B EPOLL_CTL_MOD
+を指定してファイルディスクリプタを再度使用できるようにするのは、
+呼び出し側の責任である。
+.SS /proc インタフェース
+epoll が消費するカーネルメモリの量を制限するために、
+以下のインタフェースを使用することができる。
+.TP
+.\" Following was added in 2.6.28, but them removed in 2.6.29
+.\" .TP
+.\" .IR /proc/sys/fs/epoll/max_user_instances " (since Linux 2.6.28)"
+.\" This specifies an upper limit on the number of epoll instances
+.\" that can be created per real user ID.
+.TP
+.IR /proc/sys/fs/epoll/max_user_watches " (Linux 2.6.28 以降)"
+このファイルは、あるユーザがシステム上の全ての epoll インスタンスに
+登録できるファイルディスクリプタの総数の上限を規定する。
+この上限は実ユーザ ID 単位である。
+登録されたファイルディスクリプタ 1 つが消費するメモリ量は、
+32 ビットカーネルでおよそ 90 バイト、
+64 ビットカーネルでおよそ 160 バイトである。
+.\" 2.6.29 (in 2.6.28, the default was 1/32 of lowmem)
+現在のところ、
+.I max_user_watches
+のデフォルト値は、利用可能なメモリ下限の 1/25 (4%) であり、
+登録で消費されるメモリ量 (バイト単位) で割った値となる。
+.SS おすすめな使用例
+レベルトリガインタフェースとして使用するときの
+.B epoll
+の使い方は
+.BR poll (2)
+と同じである。
+しかしエッジトリガとして使う場合は、
+アプリケーションのイベントループでストール (stall) しないように、
+使い方をより明確にしておく必要がある。
+この例では、リスナはブロックしないソケットであり、
+.BR listen (2)
+が呼ばれている。
+関数
+.I do_use_fd()
+は、
+.BR read (2)
+または
+.BR write (2)
+によって
+.B EAGAIN
+が返されるまでは、新しい準備済みのファイルディスクリプタを使う。
+イベント駆動ステートマシンアプリケーションは、
+.B EAGAIN
+を受信した後、カレントの状態を記録しておくべきである。
+これにより、次の
+.I do_use_fd()
+呼び出しのときに、以前に停止したところから
+.BR read (2)
+または
+.BR write (2)
+を継続することができる。
+
+.in +4n
+.nf
+#define MAX_EVENTS 10
+struct epoll_event ev, events[MAX_EVENTS];
+int listen_sock, conn_sock, nfds, epollfd;
+
+/* Set up listening socket, \(aqlisten_sock\(aq (socket(),
+   bind(), listen()) */
+
+epollfd = epoll_create(10);
+if (epollfd == \-1) {
+    perror("epoll_create");
+    exit(EXIT_FAILURE);
+}
+
+ev.events = EPOLLIN;
+ev.data.fd = listen_sock;
+if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == \-1) {
+    perror("epoll_ctl: listen_sock");
+    exit(EXIT_FAILURE);
+}
+
+for (;;) {
+    nfds = epoll_wait(epollfd, events, MAX_EVENTS, \-1);
+    if (nfds == \-1) {
+        perror("epoll_pwait");
+        exit(EXIT_FAILURE);
+    }
+
+    for (n = 0; n < nfds; ++n) {
+        if (events[n].data.fd == listen_sock) {
+            conn_sock = accept(listen_sock,
+                            (struct sockaddr *) &local, &addrlen);
+            if (conn_sock == \-1) {
+                perror("accept");
+                exit(EXIT_FAILURE);
+            }
+            setnonblocking(conn_sock);
+            ev.events = EPOLLIN | EPOLLET;
+            ev.data.fd = conn_sock;
+            if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,
+                        &ev) == \-1) {
+                perror("epoll_ctl: conn_sock");
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            do_use_fd(events[n].data.fd);
+        }
+    }
+}
+.fi
+.in
+
+エッジトリガインタフェースとして使う場合、性能上の理由により、
+一度
+.RB ( EPOLLIN | EPOLLOUT )
+を指定してから
+.RB ( EPOLL_CTL_ADD
+で) ファイルディスクリプタを
+.B epoll
+インタフェースに追加することができる。
+これにより、
+.BR epoll_ctl (2)
+に
+.B EPOLL_CTL_MOD
+を指定して呼び出すことで
+.B EPOLLIN
+と
+.B EPOLLOUT
+の連続的な切り替えが避けられる。
+.SS 質問と解答
+.TP 4
+.B Q0
+.B epoll
+集合内の登録されたファイルディスクリプタを区別するには、
+何をキーとして使えばよいか？
+.TP
+.B A0
+キーはファイルディスクリプタ番号とオープンファイル記述 (open file
+description) の組である (オープンファイル記述は "open file handle" とも
+呼ばれ、オープンされたファイルのカーネルの内部表現である)。
+.TP
+.B Q1
+1 つの
+.B epoll
+インスタンスに同じファイルディスクリプタを 2 回登録するとどうなるか？
+.TP
+.B A1
+たぶん
+.B EEXIST
+を受け取るだろう。
+しかしながら、同じ
+.B epoll
+インスタンスに対して複製されたディスクリプタを追加することは可能である
+.RB ( dup (2),
+.BR dup2 (2),
+.BR fcntl (2)
+.B F_DUPFD
+など)。
+.\" But a descriptor duplicated by fork(2) can't be added to the
+.\" set, because the [file *, fd] pair is already in the epoll set.
+.\" That is a somewhat ugly inconsistency.  On the one hand, a child process
+.\" cannot add the duplicate file descriptor to the epoll set.  (In every
+.\" other case that I can think of, descriptors duplicated by fork have
+.\" similar semantics to descriptors duplicated by dup() and friends.)  On
+.\" the other hand, the very fact that the child has a duplicate of the
+.\" descriptor means that even if the parent closes its descriptor, then
+.\" epoll_wait() in the parent will continue to receive notifications for
+.\" that descriptor because of the duplicated descriptor in the child.
+.\"
+.\" See http://thread.gmane.org/gmane.linux.kernel/596462/
+.\" "epoll design problems with common fork/exec patterns"
+.\"
+.\" mtk, Feb 2008
+複製したファイルディスクリプタを異なる
+.I events
+マスクで登録すれば、イベントをフィルタリングするのに
+この機能は有用な手法である。
+.TP
+.B Q2
+2 つの
+.B epoll
+インスタンスが同じファイルディスクリプタを待ち受けることは可能か？
+もし可能であれば、イベントは両方の
+.B epoll
+ファイルディスクリプタに報告されるか？
+.TP
+.B A2
+イベントは両方に報告される。
+しかしながら、これを正しく扱うには注意深くプログラミングする必要が
+あるかもしれない。
+.TP
+.B Q3
+.B epoll
+ファイルディスクリプタ自身は poll/epoll/select が可能か？
+.TP
+.B A3
+可能である。
+.B epoll
+ファイルディスクリプタに処理待ちのイベントがある場合は、
+読み出し可能だと通知されることだろう。
+.TP
+.B Q4
+.B epoll
+ファイルディスクリプタを自身のファイルディスクリプタ集合に
+入れようとするとどうなるか？
+.TP
+.B A4
+.BR epoll_ctl (2)
+の呼び出しは
+.RB ( EINVAL
+で) 失敗するだろう。
+ただし
+.B epoll
+ファイルディスクリプタを他の
+.B epoll
+ファイルディスクリプタ集合の内部に追加することは可能である。
+.TP
+.B Q5
+.B epoll
+ファイルディスクリプタを Unix ドメインソケットで他のプロセスに送ることは可能か？
+.TP
+.B A5
+可能だが、これをすることに意味はない。
+なぜなら、受信側のプロセスが
+.B epoll
+集合内のファイルディスクリプタのコピーを持っていないからである。
+.TP
+.B Q6
+ファイルディスクリプタをクローズすると、そのファイルディスクリプタは全ての
+.B epoll
+集合から自動的に削除されるか？
+.TP
+.B A6
+削除されるが、以下の点に注意が必要である。
+ファイルディスクリプタはオープンファイル記述
+.RB ( open (2)
+参照) への参照である。
+ディスクリプタの複製を
+.BR dup (2),
+.BR dup2 (2),
+.BR fcntl (2)
+の
+.B F_DUPFD
+や
+.BR fork (2)
+経由で行う度に、同じオープンファイル記述を参照する新規のファイル
+ディスクリプタが生成される。
+オープンファイル記述自体は、自身を参照する全てのファイルディスクリプタ
+がクローズされるまで存在し続ける。
+ファイルディスクリプタが
+.B epoll
+集合から削除されるのは、対応するオープンファイル記述を参照している
+全てのファイルディスクリプタがクローズされた後である
+.RB ( epoll_ctl ()
+.B EPOLL_CTL_DEL
+を使ってそのディスクリプタを明示的に削除した場合にも削除される)。
+このことは、
+.B epoll
+集合に属しているあるファイルディスクリプタをクローズした後であっても、
+同じファイル記述を参照する他のファイルディスクリプタがオープンされている間は、
+クローズしたファイルディスクリプタ宛にイベントが報告される可能性があると
+いうことを意味する。
+.TP
+.B Q7
+2 つ以上のイベントが
+.BR epoll_wait (2)
+コールの間に発生した場合、それらはまとめて報告されるか、
+それとも別々に報告されるか？
+.TP
+.B A7
+まとめて報告されるだろう。
+.TP
+.B Q8
+ファイルディスクリプタに対する操作は、
+既に集められているがまだ報告されていないイベントに影響するか？
+.TP
+.B A8
+既存のファイルディスクリプタに対して 2 つの操作を行うことができる。
+この場合、削除には意味がない。
+変更すると、使用可能な I/O が再び読み込まれる。
+.TP
+.B Q9
+.B EPOLLET
+フラグ (エッジトリガ動作) を使っている場合、
+.B EAGAIN
+を受け取るまで、
+継続してファイルディスクリプタを読み書きする必要があるか？
+.TP
+.B A9
+.BR epoll_wait (2)
+からイベントを受け取ることは、
+そのファイルディスクリプタが要求された I/O 操作に対して準備済みである、
+ということをユーザに示すものである。
+次の (ブロックしない) read/write で
+.B EAGAIN
+を受け取るまではファイルディスクリプタは準備済みであると
+考えなければならない。
+そのファイルディスクリプタをいつどのように使うかは、
+全くユーザに任されてる。
+.sp
+パケット指向やトークン指向のファイル (例えば、データグラムソケット、
+canonical モードの端末) では、
+読み込み用 / 書き込み用の I/O 空間の末尾を検知する唯一の方法は
+.B EAGAIN
+になるまで read/write を行うことである。
+.sp
+ストリーム指向のファイル (例えば、パイプ、FIFO、ストリームソケット) では、
+読み込み用 / 書き込み用の I/O 空間が使い尽くされた状態は、
+対象となるファイルディスクリプタから読み込んだデータ量または
+書き込んだデータ量をチェックすることでも検知できる。
+例えば、ある特定の量のデータを読み込むために
+.BR read (2)
+を呼んだときに、
+.BR read (2)
+が返したバイト数がそれより少なかった場合、
+そのファイルディスクリプタの読み込み用 I/O 空間が
+使い尽くされたことが分かる。
+.BR write (2)
+を使って書き込みをするときも、同じことが言える
+(監視しているファイルディスクリプタが常にストリーム指向のファイルを
+参照していることを保証できない場合には、後者の手法の使用を避けること)。
+.SS ありがちな落とし穴と回避方法
+.TP
+.B o 飢餓 (starvation) (エッジトリガ)
+.PP
+大きな I/O 空間がある場合、
+その I/O 空間のデータを全て処理 (drain) しようとすると、
+他のファイルが処理されず、飢餓を発生させることがある
+(この問題は
+.B epoll
+に固有のものではない)。
+.PP
+この問題の解決法は、準備済み状態のリストを管理して、
+関連する data 構造体の中でファイルディスクリプタが
+利用可能であるとマークすることである。
+それによって、利用可能なすべてのファイルの中で
+どのファイルを処理する必要があるかを憶えることができ、
+しかも順番に処理 (round robin) することができる。
+既に利用可能であるファイルディスクリプタに対して
+それ以後に受け取るイベントを無視することもできる。
+.TP
+.B o イベントキャッシュを使っている場合
+.PP
+イベントキャッシュを使っている場合、
+または
+.BR epoll_wait (2)
+から返された全てのファイルディスクリプタを格納している場合、
+クローズされたことを動的にマークする
+(つまり前のイベントの処理によってマークされる) 方法を提供すべきである。
+.BR epoll_wait (2)
+から 100 個のイベントを受け取り、
+イベント #47 ではある条件でイベント #13 が閉じられると仮定する。
+イベント #13 の構造体を削除しファイルディスクリプタを
+.BR close (2)
+すると、イベントキャッシュはそのファイルディスクリプタを待つイベントが
+存在するといって、混乱が起きる。
+.PP
+この問題を解決する 1 つの方法は、イベント 47 の処理をしている間に、
+ファイルディスクリプタ 13 を削除して
+.BR close (2)
+するために
+.BR epoll_ctl ( EPOLL_CTL_DEL )
+を呼び出し、関連付けられた data 構造体を削除済みとマークして、
+クリーンアップリストにリンクすることである。
+バッチ処理の中でファイルディスクリプタ 13 についての
+他のイベントを見つけた場合、
+そのファイルディスクリプタが以前に削除されたものであると分かるので、
+混乱は起きない。
+.SH バージョン
+.B epoll
+API は Linux カーネル 2.5.44 に導入された。
+.\" インタフェースは Linux カーネル 2.5.66 で確定されるべきである。
+glibc でのサポートはバージョン 2.3.2 で追加された。
+.SH 準拠
+.B epoll
+API は Linux 固有である。
+他のシステムでも同様の機構が提供されている場合がある。
+例えば、FreeBSD の
+.I kqueue
+や Solaris の
+.I /dev/poll
+などである。
+.SH 関連項目
+.BR epoll_create (2),
+.BR epoll_create1 (2),
+.BR epoll_ctl (2),
+.BR epoll_wait (2)

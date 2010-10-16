@@ -1,0 +1,844 @@
+.\" Copyright (c) 1983, 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     $Id: recv.2,v 1.8 2001/08/15 18:00:48 hanataka Exp $
+.\"
+.\" Modified Sat Jul 24 00:22:20 1993 by Rik Faith <faith@cs.unc.edu>
+.\" Modified Tue Oct 22 17:45:19 1996 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified 1998,1999 by Andi Kleen
+.\" 2001-06-19 corrected SO_EE_OFFENDER, bug report by James Hawtin
+.\"
+.\" Japanese Version Copyright (c) 1996 Akira Yoshiyama
+.\"         all rights reserved.
+.\" Translated 1996-07-18, Akira Yoshiyama <yosshy@jedi.seg.kobe-u.ac.jp>
+.\" Modified 1997-12-14, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified 1999-08-14, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated & Modified 2000-10-12, HAYAKAWA Hitoshi <cz8cb01@linux.or.jp>
+.\"        and NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified 2001-02-09, NAKANO Takeo
+.\" Updated 2003-10-11, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-03-14, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2006-04-15, Akihiro MOTOKI, Catch up to LDP v2.29
+.\" Updated 2007-10-12, Akihiro MOTOKI, LDP v2.66
+.\" Updated 2008-08-06, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2009-04-13, Akihiro MOTOKI, LDP v3.20
+.\"
+.\"WORD:	ancillary data		補助データ
+.\"WORD:	ancillary message	補助メッセージ
+.\"WORD:	invalid			不正な
+.\"
+.TH RECV 2 2008-12-03 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O recv, recvfrom, recvmsg \- receive a message from a socket
+.SH 名前
+recv, recvfrom, recvmsg \- ソケットからメッセージを受け取る
+.\"O .SH SYNOPSIS
+.SH 書式
+.\" .B #include <sys/uio.h>
+.\" .br
+.nf
+.B #include <sys/types.h>
+.br
+.B #include <sys/socket.h>
+.sp
+.BI "ssize_t recv(int " sockfd ", void *" buf ", size_t " len ", int " flags );
+.sp
+.BI "ssize_t recvfrom(int " sockfd ", void *" buf ", size_t " len ", int " flags ,
+.BI "                 struct sockaddr *" src_addr ", socklen_t *" addrlen );
+.sp
+.BI "ssize_t recvmsg(int " sockfd ", struct msghdr *" msg ", int " flags );
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The
+.\"O .BR recvfrom ()
+.\"O and
+.\"O .BR recvmsg ()
+.\"O calls are used to receive messages from a socket, and may be used
+.\"O to receive data on a socket whether or not it is connection-oriented.
+.BR recvfrom ()
+と
+.BR recvmsg ()
+コールは、ソケットからメッセージを受け取るのに使用する。
+またソケットのデータ受信にも使うことができ、
+このときソケットは接続指向 (connection-oriened) であってもなくてもよい。
+.PP
+.\"O If
+.\"O .I src_addr
+.\"O is not NULL, and the underlying protocol provides the source address,
+.\"O this source address is filled in.
+.\"O When
+.\"O .I src_addr
+.\"O is NULL, nothing is filled in; in this case,
+.\"O .I addrlen
+.\"O is not used, and should also be NULL.
+.\"O .\" (Note: for datagram sockets in both the Unix and Internet domains,
+.\"O .\" .I src_addr
+.\"O .\" is filled in.
+.\"O .\" .I src_addr
+.\"O .\" is also filled in for stream sockets in the Unix domain, but is not
+.\"O .\" filled in for stream sockets in the Internet domain.)
+.\"O .\" [The above notes on AF_UNIX and AF_INET sockets apply as at
+.\"O .\" Kernel 2.4.18. (MTK, 22 Jul 02)]
+.I src_addr
+が NULL 以外で、下層のプロトコルから送信元アドレスが分かる場合、
+.I src_addr
+にはこの送信元アドレスが入れられる。
+.I src_addr
+が NULL の場合、
+.I src_addr
+には何も入らない。この場合、
+.I addrlen
+は使用されず、この引き数は NULL にしておくべきである。
+.\" (Unix ドメインとインターネットドメインのどちらのデータグラムソケットでも
+.\" .I src_addr
+.\" に送信元アドレスが入れられる。また、Unix ドメインのストリームソケットでも
+.\" 同様だが、インターネットドメインのストリームソケットでは
+.\" .I src_addr
+.\" にアドレスが入れられない。)
+.\" [上記の AF_UNIX と AF_INET ソケットに関する注記はカーネル 2.4.18 での
+.\" 動作と同じである。 (MTK, 22 Jul 02)]
+.\"O The argument
+.\"O .I addrlen
+.\"O is a value-result argument,
+.\"O which the caller should initialize before the call to
+.\"O the size of the buffer associated with
+.\"O .IR src_addr ,
+.\"O and modified on return to indicate the actual size of the source address.
+.\"O The returned address is truncated if the buffer provided is too small;
+.\"O in this case,
+.\"O .I addrlen
+.\"O will return a value greater than was supplied to the call.
+引き数
+.I addrlen
+は入出力両用の引き数である。呼び出し時には、呼び出し元が
+.I src_addr
+に割り当てたバッファの大きさで初期化しておくべきである。
+返ってくる時には、送信元アドレスの実際の大きさに変更される。
+渡されたバッファが小さ過ぎる場合には、返されるアドレスの末尾は
+切り詰められる。この場合には、
+.I addrlen
+では、呼び出し時に渡された値よりも大きな値が返される。
+.PP
+.\"O The
+.\"O .BR recv ()
+.\"O call is normally used only on a
+.\"O .I connected
+.\"O socket (see
+.\"O .BR connect (2))
+.\"O and is identical to
+.\"O .BR recvfrom ()
+.\"O with a NULL
+.\"O .I src_addr
+.\"O argument.
+.BR recv ()
+コールは通常
+.I 接続済みの (connected)
+ソケット
+.RB ( connect (2)
+を参照) についてのみ使用され、
+.I src_addr
+引き数に NULL を指定した
+.BR recvfrom ()
+と等価である。
+.PP
+.\"O All three routines return the length of the message on successful
+.\"O completion.
+.\"O If a message is too long to fit in the supplied buffer, excess
+.\"O bytes may be discarded depending on the type of socket the message is
+.\"O received from.
+これらの三つのルーチンはいずれも、成功した場合にはメッセージの長さを返す。
+メッセージが長過ぎて指定されたバッファに入り切らなかった場合には、
+メッセージを受信したソケットの種類によっては余分のバイトが捨てられる
+かもしれない。
+.PP
+.\"O If no messages are available at the socket, the receive calls wait for a
+.\"O message to arrive, unless the socket is nonblocking (see
+.\"O .BR fcntl (2)),
+.\"O in which case the value \-1 is returned and the external variable
+.\"O .I errno
+.\"O is set to
+.\"O .BR EAGAIN " or " EWOULDBLOCK .
+.\"O The receive calls normally return any data available, up to the requested
+.\"O amount, rather than waiting for receipt of the full amount requested.
+ソケットに受け取るメッセージが存在しなかった場合、
+受信用のコールはメッセージが到着するまで待つ。
+ただし、ソケットが非停止 (nonblocking)
+に設定されていた場合
+.RB ( fcntl (2)
+を参照) は \-1 を返し、外部変数
+.I errno
+に
+.B EAGAIN
+か
+.B EWOULDBLOCK
+を設定する。
+これらの受信用のコールは、受信したデータのサイズが要求したサイズに
+達するまで待つのではなく、何らかのデータを受信すると復帰する
+(受信されるデータの最大サイズは要求したサイズである)。
+.PP
+.\"O The
+.\"O .BR select (2)
+.\"O or
+.\"O .BR poll (2)
+.\"O call may be used to determine when more data arrives.
+.BR select (2)
+や
+.BR poll (2)
+コールを使って、次のデータがいつ届くかを判断できる。
+.PP
+.\"O The
+.\"O .I flags
+.\"O argument to a
+.\"O .BR recv ()
+.\"O call is formed by
+.\"O .IR OR 'ing
+.\"O one or more of the following values:
+.BR recv ()
+コールの
+.I flags
+引き数には、以下の値を 1つ以上、ビット単位の
+.I OR (論理和)
+を取ったものを指定する:
+.TP
+.\"O .BR MSG_CMSG_CLOEXEC " (" recvmsg "() only; since Linux 2.6.23)"
+.BR MSG_CMSG_CLOEXEC " (" recvmsg "() のみ; Linux 2.6.23)"
+.\"O Set the close-on-exec flag for the file descriptor received
+.\"O via a Unix domain file descriptor using the
+.\"O .B SCM_RIGHTS
+.\"O operation (described in
+.\"O .BR unix (7)).
+.\"O This flag is useful for the same reasons as the
+.\"O .B O_CLOEXEC
+.\"O flag of
+.\"O .BR open (2).
+.RB ( unix (7)
+で説明されている)
+.B SCM_RIGHTS
+操作を使って Unix ドメインのファイルディスクリプタ経由で受信した
+ファイルディスクリプタについて close-on-exec フラグをセットする。
+このフラグは、
+.BR open (2)
+の
+.B O_CLOEXEC
+フラグと同じ理由で有用である。
+.TP
+.\"O .BR MSG_DONTWAIT " (since Linux 2.2)"
+.BR MSG_DONTWAIT " (Linux 2.2 以降)"
+.\"O Enables nonblocking operation; if the operation would block,
+.\"O the call fails with the error
+.\"O .BR EAGAIN " or " EWOULDBLOCK
+.\"O (this can also be enabled using the
+.\"O .B O_NONBLOCK
+.\"O flag with the
+.\"O .B F_SETFL
+.\"O .BR fcntl (2)).
+非停止 (nonblocking) 操作を有効にする。
+操作が停止するような場合にエラー
+.B EAGAIN
+か
+.B EWOULDBLOCK
+で呼び出しが失敗する
+.RB ( fcntl (2)
+の
+.B F_SETFL
+で
+.B O_NONBLOCK
+フラグを指定することによっても有効にできる)。
+.TP
+.\"O .BR MSG_ERRQUEUE " (since Linux 2.2)"
+.BR MSG_ERRQUEUE " (Linux 2.2 以降)"
+.\"O This flag
+.\"O specifies that queued errors should be received from the socket error queue.
+.\"O The error is passed in
+.\"O an ancillary message with a type dependent on the protocol (for IPv4
+.\"O .BR IP_RECVERR ).
+.\"O The user should supply a buffer of sufficient size.
+.\"O See
+.\"O .BR cmsg (3)
+.\"O and
+.\"O .BR ip (7)
+.\"O for more information.
+このフラグを指定すると、
+キューに入れられたエラーをソケットのエラーキューから取りだせるようになる。
+このエラーは補助メッセージに組み込まれて渡され、
+この補助メッセージの種別はプロトコルに依存する
+(IPv4 の場合は
+.BR IP_RECVERR )。
+ユーザは十分なサイズのバッファを用意しなければならない。
+補助メッセージに関するより詳細な情報は
+.BR cmsg (3)
+および
+.BR ip (7)
+を参照のこと。
+.\"O The payload of the original packet that caused the error
+.\"O is passed as normal data via
+.\"O .IR msg_iovec .
+.\"O The original destination address of the datagram that caused the error
+.\"O is supplied via
+.\"O .IR msg_name .
+エラーの原因となったオリジナルパケットのペイロードは、
+.I msg_iovec
+経由で通常のデータとして渡される。
+エラーを起こしたデータグラムのオリジナルの宛先アドレスは、
+.I msg_name
+経由で参照できる。
+.IP
+.\"O For local errors, no address is passed (this can be checked with the
+.\"O .I cmsg_len
+.\"O member of the
+.\"O .IR cmsghdr ).
+.\"O For error receives, the
+.\"O .B MSG_ERRQUEUE
+.\"O is set in the
+.\"O .IR msghdr .
+.\"O After an error has been passed, the pending socket error
+.\"O is regenerated based on the next queued error and will be passed
+.\"O on the next socket operation.
+ローカルなエラーの場合はアドレスは渡されない
+(これは
+.I cmsghdr
+の
+.I cmsg_len
+メンバーでチェックできる)。
+受信エラーの場合は
+.B MSG_ERRQUIE
+が
+.I msghdr
+にセットされる。
+エラーが渡された後には、キューに入っている次のエラーに基いて、
+処理待ちのソケット・エラーが再生成され、次のソケット操作の際に渡される。
+
+.IP
+.\"O The error is supplied in a
+.\"O .I sock_extended_err
+.\"O structure:
+このエラーは
+.I sock_extended_err
+構造体で提供される:
+.in +4n
+.nf
+
+#define SO_EE_ORIGIN_NONE    0
+#define SO_EE_ORIGIN_LOCAL   1
+#define SO_EE_ORIGIN_ICMP    2
+#define SO_EE_ORIGIN_ICMP6   3
+
+struct sock_extended_err
+{
+    uint32_t ee_errno;   /* error number */
+    uint8_t  ee_origin;  /* where the error originated */
+    uint8_t  ee_type;    /* type */
+    uint8_t  ee_code;    /* code */
+    uint8_t  ee_pad;     /* padding */
+    uint32_t ee_info;    /* additional information */
+    uint32_t ee_data;    /* other data */
+    /* More data may follow */
+};
+
+struct sockaddr *SO_EE_OFFENDER(struct sock_extended_err *);
+.fi
+.in
+.IP
+.\"O .I ee_errno
+.\"O contains the
+.\"O .I errno
+.\"O number of the queued error.
+.I ee_errno
+にはキューに入れられたエラーの
+.I errno
+が入っている。
+.\"O .I ee_origin
+.\"O is the origin code of where the error originated.
+.I ee_origin
+にはエラーが発生した場所のオリジン・コード (origin code) が入っている。
+.\"O The other fields are protocol-specific.
+.\"O The macro
+.\"O .B SOCK_EE_OFFENDER
+.\"O returns a pointer to the address of the network object
+.\"O where the error originated from given a pointer to the ancillary message.
+.\"O If this address is not known, the
+.\"O .I sa_family
+.\"O member of the
+.\"O .I sockaddr
+.\"O contains
+.\"O .B AF_UNSPEC
+.\"O and the other fields of the
+.\"O .I sockaddr
+.\"O are undefined.
+.\"O The payload of the packet that caused the error is passed as normal data.
+他のフィールドはプロトコル依存である。
+.B SO_EE_OFFENDER
+マクロは、この補助的なメッセージを引き数に取って、
+エラーの発生したネットワークオブジェクトのアドレスへのポインタを返す。
+アドレスが不明の場合には、
+.I sockaddr
+の
+.I sa_family
+メンバーが
+.B AF_UNSPEC
+になっている。
+.I sockaddr
+の他のフィールドは不定である。
+エラーの発生したパケットのペイロードは通常のデータとして渡される。
+.IP
+.\"O For local errors, no address is passed (this
+.\"O can be checked with the
+.\"O .I cmsg_len
+.\"O member of the
+.\"O .IR cmsghdr ).
+.\"O For error receives,
+.\"O the
+.\"O .B MSG_ERRQUEUE
+.\"O is set in the
+.\"O .IR msghdr .
+.\"O After an error has been passed, the pending socket error
+.\"O is regenerated based on the next queued error and will be passed
+.\"O on the next socket operation.
+ローカルでのエラーの場合にはアドレスは渡されない (これは
+.I cmsghdr
+の
+.I cmsg_len
+メンバーでチェックできる)。
+エラーを受け取った場合、
+.B MSG_ERRQUEUE
+が
+.I msghdr
+に設定される。
+エラーが渡された後には、
+処理待ちになっていたソケット・エラーが、キューに入っている
+次のエラーに基づいて再生成され、次のソケット操作の際に渡される。
+.TP
+.B MSG_OOB
+.\"O This flag requests receipt of out-of-band data that would not be received
+.\"O in the normal data stream.
+.\"O Some protocols place expedited data
+.\"O at the head of the normal data queue, and thus this flag cannot
+.\"O be used with such protocols.
+このフラグは、通常のデータ・ストリームでは受信できない
+帯域外 (out-of-band) データの受信を要求する。
+プロトコルによっては、
+通常のデータ・キューの先頭に速達データを置くものがあるが、
+そのようなプロトコルではこのフラグは使用できない。
+.TP
+.B MSG_PEEK
+.\"O This flag causes the receive operation to
+.\"O return data from the beginning of the
+.\"O receive queue without removing that data from the queue.
+.\"O Thus, a
+.\"O subsequent receive call will return the same data.
+このフラグを指定すると、
+受信キューの最初のデータを返すとき、キューからデータを削除しない。
+したがって、この後でもう一度受信コールを呼び出すと、同じデータが返ることになる。
+.TP
+.\"O .BR MSG_TRUNC " (since Linux 2.2)"
+.BR MSG_TRUNC " (Linux 2.2 以降)"
+.\"O For raw
+.\"O .RB ( AF_PACKET ),
+.\"O Internet datagram (since Linux 2.4.27/2.6.8),
+.\"O and netlink (since Linux 2.6.22) sockets:
+.\"O return the real length of the packet or datagram,
+.\"O even when it was longer than the passed buffer.
+.\"O Not implemented for Unix domain
+.\"O .RB ( unix (7))
+.\"O sockets.
+raw ソケット
+.RB ( AF_PACKET )、
+Internet datagram  ソケット (Linux 2.4.27/2.6.8 以降)、
+netlink (Linux 2.6.22 以降) ソケットの場合、
+パケットやデータグラムの長さが渡したバッファよりも長かった場合にも、
+パケットやデータグラムの実際の長さを返す。
+Unix ドメインソケット
+.RB ( unix (7))
+ソケットについては実装されていない。
+
+.\"O For use with Internet stream sockets, see
+.\"O .BR tcp (7).
+Internet ストリームソケットでの利用については
+.BR tcp (7)
+を参照。
+.TP
+.\"O .BR MSG_WAITALL " (since Linux 2.2)"
+.BR MSG_WAITALL " (Linux 2.2 以降)"
+.\"O This flag requests that the operation block until the full request is
+.\"O satisfied.
+.\"O However, the call may still return less data than requested if
+.\"O a signal is caught, an error or disconnect occurs, or the next data to be
+.\"O received is of a different type than that returned.
+このフラグは、要求した量いっぱいのデータが到着するまで、
+操作を停止 (block) するよう要求する。
+但し、シグナルを受信したり、エラーや切断 (disconnect) が発生したり、
+次に受信されるデータが異なる型だったりした場合には、
+要求した量よりデータが少なくても返ることがある。
+.PP
+.\"O The
+.\"O .BR recvmsg ()
+.\"O call uses a
+.\"O .I msghdr
+.\"O structure to minimize the number of directly supplied arguments.
+.\"O This structure is defined as follows in
+.\"O .IR <sys/socket.h> :
+.BR recvmsg ()
+コールは、直接渡す引き数の数を減らすために
+.I msghdr
+構造体を使用する。この構造体は
+.I <sys/socket.h>
+で以下のように定義されている:
+.in +4n
+.nf
+
+struct iovec {                    /* Scatter/gather array items */
+    void  *iov_base;              /* Starting address */
+    size_t iov_len;               /* Number of bytes to transfer */
+};
+
+struct msghdr {
+    void         *msg_name;       /* optional address */
+    socklen_t     msg_namelen;    /* size of address */
+    struct iovec *msg_iov;        /* scatter/gather array */
+    size_t        msg_iovlen;     /* # elements in msg_iov */
+    void         *msg_control;    /* ancillary data, see below */
+    socklen_t     msg_controllen; /* ancillary data buffer len */
+    int           msg_flags;      /* flags on received message */
+};
+.fi
+.in
+.PP
+.\"O Here
+.\"O .I msg_name
+.\"O and
+.\"O .I msg_namelen
+.\"O specify the source address if the socket is unconnected;
+.\"O .I msg_name
+.\"O may be given as a null pointer if no names are desired or required.
+.I msg_name
+と
+.I msg_namelen
+は、ソケットが接続されていない場合に送信元のアドレスを指定する。
+名前が必要ない場合には
+.I msg_name
+に NULL ポインタを指定する。
+.\"O The fields
+.\"O .I msg_iov
+.\"O and
+.\"O .I msg_iovlen
+.\"O describe scatter-gather locations, as discussed in
+.\"O .BR readv (2).
+.I msg_iov
+と
+.I msg_iovlen
+フィールドは
+.BR readv (2)
+に記述されているような分解/結合用のベクトル (scatter-gather locations)
+を指定する。
+.\"O The field
+.\"O .IR msg_control ,
+.\"O which has length
+.\"O .IR msg_controllen ,
+.\"O points to a buffer for other protocol control-related messages or
+.\"O miscellaneous ancillary data.
+.\"O When
+.\"O .BR recvmsg ()
+.\"O is called,
+.\"O .I msg_controllen
+.\"O should contain the length of the available buffer in
+.\"O .IR msg_control ;
+.\"O upon return from a successful call it will contain the length
+.\"O of the control message sequence.
+.I msg_control
+フィールドは
+.I msg_controllen
+の長さを持ち、他のプロトコル制御メッセージや
+種々の補助データのためのバッファへのポインタである。
+.BR recvmsg ()
+を呼ぶ際には、
+.I msg_controllen
+に
+.I msg_control
+のバッファの長さを入れておく必要がある。
+コールが成功して返った場合、制御メッセージ列の長さが入っている。
+.PP
+.\"O The messages are of the form:
+メッセージの形式は以下の通り:
+.in +4n
+.nf
+
+struct cmsghdr {
+    socklen_t     cmsg_len;     /* data byte count, including hdr */
+    int           cmsg_level;   /* originating protocol */
+    int           cmsg_type;    /* protocol-specific type */
+/* followed by
+    unsigned char cmsg_data[]; */
+};
+.fi
+.in
+.PP
+.\"O Ancillary data should only be accessed by the macros defined in
+.\"O .BR cmsg (3).
+補助データは、
+.BR cmsg (3)
+に定義されたマクロ経由でのみアクセスすべきである。
+.PP
+.\"O As an example, Linux uses this auxiliary data mechanism to pass extended
+.\"O errors, IP options or file descriptors over Unix sockets.
+例をあげると、 Linux はこの補助データのメカニズムを、
+Unix ソケット上での拡張エラーや IP オプション、
+ファイル・ディスクリプタの受け渡しに利用している。
+.PP
+.\"O The
+.\"O .I msg_flags
+.\"O field in the msghdr is set on return of
+.\"O .BR recvmsg ().
+.\"O It can contain several flags:
+msghdr の
+.I msg_flags
+フィールドは
+.BR recvmsg ()
+からのリターン時に設定される。ここにはいくつかのフラグが入る。
+.TP
+.B MSG_EOR
+.\"O indicates end-of-record; the data returned completed a record (generally
+.\"O used with sockets of type
+.\"O .BR SOCK_SEQPACKET ).
+これはレコードの終り (end-of-record) を示し、
+返されたデータが完全なレコードであることを示す (一般的には
+.B SOCK_SEQPACKET
+型のソケットで使用される)。
+.TP
+.B MSG_TRUNC
+.\"O indicates that the trailing portion of a datagram was discarded because the
+.\"O datagram was larger than the buffer supplied.
+データグラムが与えられたバッファより大きかったために、
+データグラムのはみ出した部分が捨てられたことを示す。
+.TP
+.B MSG_CTRUNC
+.\"O indicates that some control data were discarded due to lack of space in the
+.\"O buffer for ancillary data.
+補助データのためのバッファが不足したために、
+制御データの一部が捨てられたことを示す。
+.TP
+.B MSG_OOB
+.\"O is returned to indicate that expedited or out-of-band data were received.
+速達データや帯域外データを受信したことを示す。
+.TP
+.B MSG_ERRQUEUE
+.\"O indicates that no data was received but an extended error from the socket
+.\"O error queue.
+データは受信しなかったが
+ソケットのエラー・キューから拡張エラーを受信したことを示す。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O These calls return the number of bytes received, or \-1
+.\"O if an error occurred.
+.\"O The return value will be 0 when the
+.\"O peer has performed an orderly shutdown.
+これらのコールは受信したバイト数を返す。
+エラーの場合は \-1 を返す。
+接続先が正しくシャットダウンを実行した場合は、返り値は 0 となる。
+.\"O .SH ERRORS
+.SH エラー
+.\"O These are some standard errors generated by the socket layer.
+.\"O Additional errors
+.\"O may be generated and returned from the underlying protocol modules;
+.\"O see their manual pages.
+これらはソケット層で発生する一般的なエラーである。
+他のエラーが下層のプロトコル・モジュールで生成され、
+返されるかもしれない。
+それらのマニュアルを参照すること。
+.TP
+.\"O .BR EAGAIN " or " EWOULDBLOCK
+.BR EAGAIN " または " EWOULDBLOCK
+.\" Actually EAGAIN on Linux
+.\"O The socket is marked nonblocking and the receive operation
+.\"O would block, or a receive timeout had been set and the timeout expired
+.\"O before data was received.
+ソケットが非停止 (nonblocking) に設定されていて
+受信操作が停止するような状況になったか、
+受信に時間切れ (timeout) が設定されていて
+データを受信する前に時間切れになった。
+.\"O POSIX.1-2001 allows either error to be returned for this case,
+.\"O and does not require these constants to have the same value,
+.\"O so a portable application should check for both possibilities.
+POSIX.1-2001 は、この場合にどちらのエラーを返すことも認めており、
+これら 2 つの定数が同じ値を持つことも求めていない。
+したがって、移植性が必要なアプリケーションでは、両方の可能性を
+確認すべきである。
+.TP
+.B EBADF
+.\"O The argument
+.\"O .I sockfd
+.\"O is an invalid descriptor.
+引き数
+.I sockfd
+が不正なディスクリプタである。
+.TP
+.B ECONNREFUSED
+.\"O A remote host refused to allow the network connection (typically
+.\"O because it is not running the requested service).
+リモートのホストでネットワーク接続が拒否された
+(よくある理由としては、要求したサービスが起動されていないなどがある)。
+.TP
+.B EFAULT
+.\"O The receive buffer pointer(s) point outside the process's
+.\"O address space.
+受信バッファへのポインタがプロセスのアドレス空間外を指している。
+.TP
+.B EINTR
+.\"O The receive was interrupted by delivery of a signal before
+.\"O any data were available; see
+.\"O .BR signal (7).
+データを受信する前に、シグナルが配送されて割り込まれた。
+.BR signal (7)
+参照。
+.TP
+.B EINVAL
+.\"O Invalid argument passed.
+不正な引き数が渡された。
+.\" e.g., msg_namelen < 0 for recvmsg() or addrlen < 0 for recvfrom()
+.TP
+.B ENOMEM
+.\"O Could not allocate memory for
+.\"O .BR recvmsg ().
+.BR recvmsg ()
+のためのメモリが確保できなかった。
+.TP
+.B ENOTCONN
+.\"O The socket is associated with a connection-oriented protocol
+.\"O and has not been connected (see
+.\"O .BR connect (2)
+.\"O and
+.\"O .BR accept (2)).
+ソケットに接続指向プロトコルが割り当てられており、
+まだ接続されていない
+.RB ( connect (2)
+と
+.BR accept (2)
+を参照のこと)。
+.TP
+.B ENOTSOCK
+.\"O The argument
+.\"O .I sockfd
+.\"O does not refer to a socket.
+引き数
+.I sockfd
+がソケットを参照していない。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+.\"O 4.4BSD (these function calls first appeared in 4.2BSD),
+.\"O POSIX.1-2001.
+4.4BSD (これらの関数は 4.2BSD で現われた), POSIX.1-2001。
+.LP
+.\"O POSIX.1-2001 only describes the
+.\"O .BR MSG_OOB ,
+.\"O .BR MSG_PEEK ,
+.\"O and
+.\"O .B MSG_WAITALL
+.\"O flags.
+POSIX.1-2001 では、
+.BR MSG_OOB ,
+.BR MSG_PEEK ,
+.B MSG_WAITALL
+フラグだけが記載されている。
+.\"O .SH NOTES
+.SH 注意
+.\"O The prototypes given above follow glibc2.
+.\"O The Single Unix Specification agrees, except that it has return values
+.\"O of type \fIssize_t\fP (while 4.x BSD and libc4 and libc5 all have \fIint\fP).
+.\"O The
+.\"O .I flags
+.\"O argument is \fIint\fP in 4.x BSD, but \fIunsigned int\fP in libc4 and libc5.
+.\"O The
+.\"O .I len
+.\"O argument is \fIint\fP in 4.x BSD, but \fIsize_t\fP in libc4 and libc5.
+.\"O The
+.\"O .I addrlen
+.\"O argument is \fIint\ *\fP in 4.x BSD, libc4 and libc5.
+.\"O The present  \fIsocklen_t\ *\fP was invented by POSIX.
+.\"O See also
+.\"O .BR accept (2).
+上記のプロトタイプは glibc2 にしたがっている。
+Single Unix Specification でも同様だが、
+返り値の型が \fIssize_t\fP となっている
+(一方で 4.x BSD や libc4 や libc5 は全て \fIint\fP を使用している)。
+.I flags
+引き数は 4.x BSD では \fIint\fP だが、libc4 と libc5 では \fIunsigned int\fP である。
+.I len
+引き数は 4.x BSD では \fIint\fP だが、 libc4 と libc5 では \fIsize_t\fP である。
+.I addrlen
+引き数は 4.x BSD, libc4, libc5 では \fIint\ *\fP である。
+現在の \fIsocklen_t\ *\fP は POSIX で発案された。
+.BR accept (2)
+も参照すること。
+
+.\"O According to POSIX.1-2001, the
+.\"O .I msg_controllen
+.\"O field of the
+.\"O .I msghdr
+.\"O structure should be typed as
+.\"O .IR socklen_t ,
+.\"O but glibc currently (2.4) types it as
+.\"O .IR size_t .
+POSIX.1-2001 では、構造体
+.I msghdr
+のフィールド
+.I msg_controllen
+は
+.I socklen_t
+型であるべきだとされているが、
+現在の glibc (glibc 2.4) では
+.I size_t
+型である。
+.\" glibc bug raised 12 Mar 2006
+.\" http://sourceware.org/bugzilla/show_bug.cgi?id=2448
+.\" The problem is an underlying kernel issue: the size of the
+.\" __kernel_size_t type used to type this field varies
+.\" across architectures, but socklen_t is always 32 bits.
+.\"O .SH EXAMPLE
+.SH 例
+.\"O An example of the use of
+.\"O .BR recvfrom ()
+.\"O is shown in
+.\"O .BR getaddrinfo (3).
+.BR recvfrom ()
+の利用例が
+.BR getaddrinfo (3)
+に記載されている。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR fcntl (2),
+.BR getsockopt (2),
+.BR read (2),
+.BR select (2),
+.BR shutdown (2),
+.BR socket (2),
+.BR cmsg (3),
+.BR sockatmark (3),
+.BR socket (7)

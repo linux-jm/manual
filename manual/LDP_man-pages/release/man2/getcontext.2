@@ -1,0 +1,176 @@
+.\" Copyright (C) 2001 Andries Brouwer (aeb@cwi.nl)
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2001 NAKANO Takeo all rights reserved.
+.\" Translated Sat Dec 15 2001 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated 2009-04-13, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.20
+.\"
+.TH GETCONTEXT 2 2009-03-15 "Linux" "Linux Programmer's Manual"
+.SH 名前
+getcontext, setcontext \- ユーザコンテキストを取得/設定する
+.SH 書式
+.B #include <ucontext.h>
+.sp
+.BI "int getcontext(ucontext_t *" ucp );
+.br
+.BI "int setcontext(const ucontext_t *" ucp );
+.SH 説明
+System V 的な環境では、
+\fImcontext_t\fP および \fIucontext_t\fP という 2 つの型と、
+.BR getcontext (),
+.BR setcontext (),
+.BR makecontext (3),
+.BR swapcontext (3)
+という 4 つの関数が
+.I <ucontext.h>
+で定義されており、あるプロセス内部で制御下にある複数のスレッド間で、
+ユーザレベルのコンテキスト切替えができるようになっている。
+.LP
+\fImcontext_t\fP 型はマシン依存で、外部からは隠蔽されている。
+\fIucontext_t\fP 型は構造体で、少なくとも以下の 4 つのフィールドを持つ。
+.in +4
+.nf
+
+typedef struct ucontext {
+    struct ucontext *uc_link;
+    sigset_t         uc_sigmask;
+    stack_t          uc_stack;
+    mcontext_t       uc_mcontext;
+    ...
+} ucontext_t;
+
+.fi
+.in
+\fIsigset_t\fP と \fIstack_t\fP は
+.I <signal.h>
+で定義されている。
+ここで \fIuc_link\fP は、
+現在のコンテキストが終了したとき、
+続いて切り替わるコンテキストへのポインタである
+(現在のコンテキストが
+.BR makecontext (3)
+で生成されたものの場合)。
+\fIuc_sigmask\fP はこのコンテキストでブロックされている
+シグナル群である
+.RB ( sigprocmask (2)
+を見よ)。
+\fIuc_stack\fP はこのコンテキストが用いているスタックである
+.RB ( signalstack (2)
+を見よ)。
+\fIuc_mcontext\fP は保存されているコンテキストの
+マシン特有の表現形式であり、
+ここには呼び出したスレッドのマシンレジスタが格納される。
+.LP
+.BR getcontext ()
+関数は、
+ポインタ \fIucp\fP が指す構造体を、
+現在アクティブなコンテキストに初期化する。
+.LP
+.BR setcontext ()
+関数は、ポインタ
+\fIucp\fP が指すユーザコンテキストをリストアする。
+呼び出しに成功すると返らない。
+このコンテキストは、以前に
+.BR getcontext ()
+または
+.BR makecontext (3)
+で得られたものか、
+あるいはシグナルの第三引数として与えられたものになる。
+.LP
+コンテキストが
+.BR getcontext ()
+の呼び出しによって得られていたものの場合は、
+プログラムはこの呼び出しから返った直後からのように実行を継続する。
+.LP
+コンテキストが
+.BR makecontext (3)
+の呼び出しによって得られていたものの場合は、
+プログラムの実行はその
+.BR makecontext (3)
+呼び出しの第二引数で指定された関数 \fIfunc\fP
+を呼び出すかたちで継続する。
+\fIfunc\fP から返ると、
+.BR makecontext (3)
+呼び出しの第一引数で指定されていた
+\fIucp\fP 構造体の \fIuc_link\fP メンバで継続する。
+このメンバが NULL だった場合は、そのスレッドは終了する。
+.LP
+コンテキストがシグナルハンドラの呼び出しによって得られていたものの場合は、
+古い標準によれば
+「プログラムの実行はシグナルによって割り込まれた命令の次の命令から継続される」。
+しかしこの文は SUSv2 で削除されたので、
+現在の判断は「結果は定義されていない」である。
+.SH 返り値
+成功すると、
+.BR getcontext ()
+は 0 を返し、
+.BR setcontext ()
+は返らない。
+失敗すると、両者とも \-1 を返し、\fIerrno\fP をエラーに応じて設定する。
+.SH エラー
+定義されていない。
+.SH 準拠
+SUSv2, POSIX.1-2001.
+POSIX.1-2008 では、移植性の問題から
+.BR getcontext ()
+の仕様が削除された。
+代わりに、アプリケーションを POSIX スレッドを使って書き直すことが
+推奨されている。
+.SH 注意
+このメカニズムの最古の実装は、
+.BR setjmp (3)/ longjmp (3)
+機構であった。
+これらにはシグナルコンテキストの取り扱いが定義されていなかったので、
+次の段階では
+.BR sigsetjmp (3)/ siglongjmp (3)
+のペアが現われた。
+現在の機構ではずっと細かな制御ができる。
+一方
+.BR getcontext ()
+から返ったとき、
+これが最初の呼び出しであったか、
+それとも
+.BR setcontext ()
+呼び出しからのものであるかを
+区別する容易な方法がなくなってしまった。
+ユーザは「しおり」機構を自分で作らなければならない。
+レジスタ変数は (レジスタはリストアされてしまうので) これをやってくれない。
+.LP
+シグナルが発生すると、
+現在のユーザコンテキストは保存され、
+シグナルハンドラ用のコンテキストがカーネルによって生成される。
+今後はハンドラに
+.BR longjmp (3)
+を使わせないこと:
+この関数のコンテキスト下での動作は定義されていない。
+代わりに
+.BR siglongjmp (3)
+か
+.BR setcontext ()
+を使うこと。
+.SH 関連項目
+.BR sigaction (2),
+.BR sigaltstack (2),
+.BR sigprocmask (2),
+.BR longjmp (3),
+.BR makecontext (3),
+.BR sigsetjmp (3)

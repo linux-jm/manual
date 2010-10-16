@@ -1,0 +1,825 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (C) Tom Bjorkholm, Markus Kuhn & David A. Wheeler 1996-1999
+.\" and Copyright (C) 2007 Carsten Emde <Carsten.Emde@osadl.org>
+.\" and Copyright (C) 2008 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
+.\" USA.
+.\"
+.\" 1996-04-01 Tom Bjorkholm <tomb@mydata.se>
+.\"            First version written
+.\" 1996-04-10 Markus Kuhn <mskuhn@cip.informatik.uni-erlangen.de>
+.\"            revision
+.\" 1999-08-18 David A. Wheeler <dwheeler@ida.org> added Note.
+.\" Modified, 25 Jun 2002, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Corrected description of queue placement by sched_setparam() and
+.\"		sched_setscheduler()
+.\"	A couple of grammar clean-ups
+.\" Modified 2004-05-27 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\" 2005-03-23, mtk, Added description of SCHED_BATCH.
+.\" 2007-07-10, Carsten Emde <Carsten.Emde@osadl.org>
+.\"     Add text on real-time features that are currently being
+.\"     added to the mainline kernel.
+.\" 2008-05-07, mtk; Rewrote and restructured various parts of the page to
+.\"     improve readability.
+.\"
+.\" Worth looking at: http://rt.wiki.kernel.org/index.php
+.\"
+.\" FIXME: 2.6.32 added SCHED_RESET_ON_FORK
+.\"
+.\" Japanese Version Copyright (c) 1996 Akira Yoshiyama
+.\"         all rights reserved.
+.\" Translated Thu Jul 11 01:42:52 JST 1996
+.\"         by Akira Yoshiyama <yosshy@jedi.seg.kobe-u.ac.jp>
+.\" Modified Sun Nov 21 19:36:18 JST 1999
+.\"         by HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated Wed Jan  1 JST 2003 by Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-02-24, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated & Modified 2005-10-10, Akihiro MOTOKI
+.\" Updated 2006-04-16, Akihiro MOTOKI, Catch up to LDP v2.28
+.\" Updated 2007-10-13, Akihiro MOTOKI, LDP v2.65
+.\" Updated 2008-08-13, Akihiro MOTOKI, LDP v3.05
+.\"
+.\"WORD:	privileges		特権
+.\"WORD:	resource limit		リソース制限
+.\"WORD:	scheduling policy	スケジューリング・ポリシー
+.\"
+.TH SCHED_SETSCHEDULER 2 2008-11-06 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O sched_setscheduler, sched_getscheduler \-
+.\"O set and get scheduling policy/parameters
+sched_setscheduler, sched_getscheduler \-
+スケジューリング・ポリシーとパラメータを設定/取得する
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #include <sched.h>
+.sp
+.BI "int sched_setscheduler(pid_t " pid ", int " policy ,
+.br
+.BI "                       const struct sched_param *" param );
+.sp
+.BI "int sched_getscheduler(pid_t " pid );
+.sp
+\fBstruct sched_param {
+    ...
+    int \fIsched_priority\fB;
+    ...
+};
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .BR sched_setscheduler ()
+.\"O sets both the scheduling policy and the associated parameters for the
+.\"O process whose ID is specified in \fIpid\fP.
+.\"O If \fIpid\fP equals zero, the
+.\"O scheduling policy and parameters of the calling process will be set.
+.\"O The interpretation of
+.\"O the argument \fIparam\fP depends on the selected policy.
+.\"O Currently, Linux supports the following "normal"
+.\"O (i.e., non-real-time) scheduling policies:
+.BR sched_setscheduler ()
+は \fIpid\fP で指定された ID を持つプロセスのスケジューリング・ポリシーや
+それに関連するパラメータを設定する。\fIpid\fP が 0 の場合は
+呼び出したプロセスのスケジューリング・ポリシーとパラメータが設定される。
+引き数 \fIparam\fP の解釈は選択されたポリシーによる。
+現在のところ、Linux では
+以下に示す「通常」(リアルタイムでない) スケジューリング・ポリシーが
+サポートされている。
+.TP 14
+.BR SCHED_OTHER
+.\"O the standard round-robin time-sharing policy;
+標準の、ラウンドロビンによる時分割型のスケジューリング・ポリシー。
+.\"O .\" In the 2.6 kernel sources, SCHED_OTHER is actually called
+.\"O .\" SCHED_NORMAL.
+.\" 2.6 カーネルソースでは、SCHED_OTHER は実際には
+.\" SCHED_NORMAL と呼ばれている。
+.TP
+.BR SCHED_BATCH
+.\"O for "batch" style execution of processes; and
+「バッチ」形式でのプロセスの実行用。
+.TP
+.BR SCHED_IDLE
+.\"O for running
+.\"O .I very
+.\"O low priority background jobs.
+「非常に」低い優先度で動作するバックグラウンド・ジョブ用。
+.PP
+.\"O The following "real-time" policies are also supported,
+.\"O for special time-critical applications that need precise control over
+.\"O the way in which runnable processes are selected for execution:
+どの実行可能プロセスを選択するかについて、より正確な制御を必要とする
+時間の制約が厳しい特別なアプリケーション用として、
+以下の「リアルタイム」ポリシーもサポートされている。
+.TP 14
+.BR SCHED_FIFO
+.\"O a first-in, first-out policy; and
+ファーストイン、ファーストアウト型のポリシー。
+.TP
+.BR SCHED_RR
+.\"O a round-robin policy.
+ラウンドロビン型のポリシー。
+.PP
+.\"O The semantics of each of these policies are detailed below.
+これらのポリシーのそれぞれの動作については以下で説明する。
+
+.\"O .BR sched_getscheduler ()
+.\"O queries the scheduling policy currently applied to the process
+.\"O identified by \fIpid\fP.
+.\"O If \fIpid\fP equals zero, the policy of the
+.\"O calling process will be retrieved.
+.BR sched_getscheduler ()
+は \fIpid\fP で識別されるプロセスに現在適用されている
+スケジューリング・ポリシーを尋ねる。\fIpid\fP が 0 ならば、呼び出した
+プロセス自身のスケジューリング・ポリシーが返される。
+.\"
+.\"O .SS Scheduling Policies
+.SS スケジューリング・ポリシー (scheduling policy)
+.\"O The scheduler is the kernel component that decides which runnable process
+.\"O will be executed by the CPU next.
+.\"O Each process has an associated scheduling policy and a \fIstatic\fP
+.\"O scheduling priority, \fIsched_priority\fP; these are the settings
+.\"O that are modified by
+.\"O .BR sched_setscheduler ().
+.\"O The scheduler makes it decisions based on knowledge of the scheduling
+.\"O policy and static priority of all processes on the system.
+スケジューラ (scheduler) とはカーネルの構成要素で、
+次に CPU で実行される実行可能なプロセスを決定するものである。
+各々のプロセスには、スケジューリング・ポリシーと
+「静的」なスケジューリング優先度 \fIsched_priority\fP が対応付けられ、
+これらの設定は
+.BR sched_setscheduler ()
+で変更できる。
+スケジューラは、システム上の全プロセスのスケジューリング・ポリシーと
+静的優先度に関する知識に基づいて決定を行う。
+
+.\"O For processes scheduled under one of the normal scheduling policies
+.\"O (\fBSCHED_OTHER\fP, \fBSCHED_IDLE\fP, \fBSCHED_BATCH\fP),
+.\"O \fIsched_priority\fP is not used in scheduling
+.\"O decisions (it must be specified as 0).
+通常のスケジューリング・ポリシー
+(\fBSCHED_OTHER\fP, \fBSCHED_IDLE\fP, \fBSCHED_BATCH\fP)
+の下でスケジューリングされるプロセスでは、
+\fIsched_priority\fP はスケジューリングの決定に使用されない
+(\fIsched_priority\fP には 0 を指定しなければならない)。
+
+.\"O Processes scheduled under one of the real-time policies
+.\"O (\fBSCHED_FIFO\fP, \fBSCHED_RR\fP) have a
+.\"O \fIsched_priority\fP value in the range 1 (low) to 99 (high).
+.\"O (As the numbers imply, real-time processes always have higher priority
+.\"O than normal processes.)
+リアルタイム・スケジューリング・ポリシー (\fBSCHED_FIFO\fP, \fBSCHED_RR\fP)
+の下でスケジューリングされるプロセスは、
+\fIsched_priority\fP の値は 1 (最低) から 99 (最高) の範囲となる
+(数字から分かるように、リアルタイム・プロセスは常に通常のプロセスよりも
+高い優先度を持つ)。
+.\"O Note well: POSIX.1-2001 only requires an implementation to support a
+.\"O minimum 32 distinct priority levels for the real-time policies,
+.\"O and some systems supply just this minimum.
+.\"O Portable programs should use
+.\"O .BR sched_get_priority_min (2)
+.\"O and
+.\"O .BR sched_get_priority_max (2)
+.\"O to find the range of priorities supported for a particular policy.
+ここで注意すべきなのは、POSIX.1-2001 が要求しているのは、
+リアルタイム・ポリシーの実装において最低 32 種類の異なる優先度レベルが
+サポートされることだけであり、いくつかのシステムではこの最低限の数の
+優先度しか提供されていない、ということである。
+移植性が必要なプログラムでは、
+.BR sched_get_priority_min (2)
+と
+.BR sched_get_priority_max (2)
+を使って、あるポリシーがサポートする優先度の範囲を調べるべきである。
+
+.\"O Conceptually, the scheduler maintains a list of runnable
+.\"O processes for each possible \fIsched_priority\fP value.
+.\"O In order to determine which process runs next, the scheduler looks for
+.\"O the nonempty list with the highest static priority and selects the
+.\"O process at the head of this list.
+概念としては、
+スケジューラはその \fIsched_priority\fP の値それぞれに対して
+実行可能なプロセスのリストを管理している。
+どのプロセスを次に実行するかを決定するために、
+スケジューラは静的優先度の最も高い空でないリストを探して、
+そのリストの先頭のプロセスを選択する。
+
+.\"O A process's scheduling policy determines
+.\"O where it will be inserted into the list of processes
+.\"O with equal static priority and how it will move inside this list.
+各プロセスのスケジューリング・ポリシーは、
+そのプロセスが同じ静的優先度を持つプロセスのリストの中のどこに挿入され、
+このリストの中をどのように移動するかを決定する。
+
+.\"O All scheduling is preemptive: if a process with a higher static
+.\"O priority becomes ready to run, the currently running process
+.\"O will be preempted and
+.\"O returned to the wait list for its static priority level.
+.\"O The scheduling policy only determines the
+.\"O ordering within the list of runnable processes with equal static
+.\"O priority.
+全てのスケジューリングはプリエンプティブ (preemptive) である:
+より高い優先度のプロセスが実行可能になると、現在実行中のプロセスは実行権を
+取り上げられ (preempted)、そのプロセスの静的優先度レベルの待ちリストに
+戻される。スケジューリング・ポリシーは同じ静的優先度を持つ実行可能な
+プロセスのリストの中で順番のみを決定する。
+.\"O .SS SCHED_FIFO: First In-First Out scheduling
+.SS SCHED_FIFO: ファーストイン・ファーストアウト・スケジューリング
+.\"O \fBSCHED_FIFO\fP can only be used with static priorities higher than
+.\"O 0, which means that when a \fBSCHED_FIFO\fP processes becomes runnable,
+.\"O it will always immediately preempt any currently running
+.\"O \fBSCHED_OTHER\fP, \fBSCHED_BATCH\fP, or \fBSCHED_IDLE\fP process.
+.\"O \fBSCHED_FIFO\fP is a simple scheduling
+.\"O algorithm without time slicing.
+.\"O For processes scheduled under the
+.\"O \fBSCHED_FIFO\fP policy, the following rules apply:
+\fBSCHED_FIFO\fP は 0 より大きな静的優先度でのみ使用できる。このポリシーでは、
+\fBSCHED_FIFO\fP プロセスが実行可能になった場合、
+そのポリシーが \fBSCHED_OTHER\fP、 \fBSCHED_BATCH\fP、 \fBSCHED_IDLE\fP の
+現在実行中のプロセスは直ちに実行権を取り上げられる。
+\fBSCHED_FIFO\fP は時分割のない単純なスケジューリング・アルゴリズムである。
+\fBSCHED_FIFO\fP ポリシーでスケジューリングされているプロセスには以下の
+ルールが適用される:
+.IP * 3
+.\"O A \fBSCHED_FIFO\fP process that has been preempted by another process of
+.\"O higher priority will stay at the head of the list for its priority and
+.\"O will resume execution as soon as all processes of higher priority are
+.\"O blocked again.
+より高い優先度の他のプロセスによって取って代わられた
+\fBSCHED_FIFO\fP プロセスはその優先度のリストの先頭に留まり続け、
+より高い優先度のプロセス全てが停止 (block) した場合に実行を再開する。
+.IP *
+.\"O When a \fBSCHED_FIFO\fP process becomes runnable, it
+.\"O will be inserted at the end of the list for its priority.
+\fBSCHED_FIFO\fP プロセスが実行可能になった時、その優先度のリストの最後
+に挿入される。
+.IP *
+.\"O A call to
+.\"O .BR sched_setscheduler ()
+.\"O or
+.\"O .BR sched_setparam (2)
+.\"O will put the
+.\"O \fBSCHED_FIFO\fP (or \fBSCHED_RR\fP) process identified by
+.\"O \fIpid\fP at the start of the list if it was runnable.
+.BR sched_setscheduler ()
+や
+.BR sched_setparam (2)
+は
+\fIpid\fP で指定された \fBSCHED_FIFO\fP (または \fBSCHED_RR\fP) プロセスが
+実行可能な場合、リストの最初に置く。
+.\"O As a consequence, it may preempt the currently running process if
+.\"O it has the same priority.
+.\"O (POSIX.1-2001 specifies that the process should go to the end
+.\"O of the list.)
+結果として、もし優先度が同じだった場合、
+現在実行中のプロセスに先んじるかもしれない。
+(POSIX.1-2001 ではプロセスはリストの最後に行くべきと規定されている。)
+.\" In 2.2.x and 2.4.x, the process is placed at the front of the queue
+.\" In 2.0.x, the Right Thing happened: the process went to the back -- MTK
+.IP *
+.\"O A process calling
+.\"O .BR sched_yield (2)
+.\"O will be put at the end of the list.
+.BR sched_yield (2)
+を呼び出したプロセスはリストの最後に置かれる。
+.PP
+.\"O No other events will move a process
+.\"O scheduled under the \fBSCHED_FIFO\fP policy in the wait list of
+.\"O runnable processes with equal static priority.
+その他のイベントによって \fBSCHED_FIFO\fP ポリシーで
+スケジューリングされるプロセスが同じ優先度の実行可能な
+プロセスの待ちリストの中を移動することはない。
+
+.\"O A \fBSCHED_FIFO\fP
+.\"O process runs until either it is blocked by an I/O request, it is
+.\"O preempted by a higher priority process, or it calls
+.\"O .BR sched_yield (2).
+\fBSCHED_FIFO\fP プロセスは I/O 要求によって停止するか、
+より高い優先度のプロセスによって置きかえられるか、
+.BR sched_yield (2)
+を呼び出すまで実行を続ける。
+.\"O .SS SCHED_RR: Round Robin scheduling
+.SS SCHED_RR: ラウンド・ロビン (round robin) ・スケジューリング
+.\"O \fBSCHED_RR\fP is a simple enhancement of \fBSCHED_FIFO\fP.
+.\"O Everything
+.\"O described above for \fBSCHED_FIFO\fP also applies to \fBSCHED_RR\fP,
+.\"O except that each process is only allowed to run for a maximum time
+.\"O quantum.
+.\"O If a \fBSCHED_RR\fP process has been running for a time
+.\"O period equal to or longer than the time quantum, it will be put at the
+.\"O end of the list for its priority.
+.\"O A \fBSCHED_RR\fP process that has
+.\"O been preempted by a higher priority process and subsequently resumes
+.\"O execution as a running process will complete the unexpired portion of
+.\"O its round robin time quantum.
+.\"O The length of the time quantum can be
+.\"O retrieved using
+.\"O .BR sched_rr_get_interval (2).
+\fBSCHED_RR\fP は \fBSCHED_FIFO\fP の単純な拡張である。
+上述された \fBSCHED_FIFO\fP に関する記述は全て \fBSCHED_RR\fP に
+適用できる。異なるのはそれぞれのプロセスは最大時間単位までしか実行できない
+ということである。\fBSCHED_RR\fP プロセスが時間単位と同じかそれより
+長い時間実行されると、その優先度のリストの最後に置かれる。
+より高い優先度のプロセスによって置きかえられ、その後実行を再開した
+\fBSCHED_RR\fP プロセスは、そのラウンド・ロビン時間単位を完全に使い切る
+まで実行される。その時間単位の長さは
+.BR sched_rr_get_interval (2)
+を使って取得できる。
+.\" On Linux 2.4, the length of the RR interval is influenced
+.\" by the process nice value -- MTK
+.\"
+.\"O .SS SCHED_OTHER: Default Linux time-sharing scheduling
+.SS SCHED_OTHER: Linux のデフォルトの時分割スケジューリング
+.\"O \fBSCHED_OTHER\fP can only be used at static priority 0.
+.\"O \fBSCHED_OTHER\fP is the standard Linux time-sharing scheduler that is
+.\"O intended for all processes that do not require the special
+.\"O real-time mechanisms.
+.\"O The process to run is chosen from the static
+.\"O priority 0 list based on a \fIdynamic\fP priority that is determined only
+.\"O inside this list.
+.\"O The dynamic priority is based on the nice value (set by
+.\"O .BR nice (2)
+.\"O or
+.\"O .BR setpriority (2))
+.\"O and increased for each time quantum the process is ready to run,
+.\"O but denied to run by the scheduler.
+.\"O This ensures fair progress among all \fBSCHED_OTHER\fP processes.
+\fBSCHED_OTHER\fP は静的優先度 0 でのみ使用できる。
+\fBSCHED_OTHER\fP は Linux 標準の時分割スケジューラで、
+特別なリアルタイム機構を必要としていない全てのプロセスで使用される。
+実行するプロセスは、静的優先度 0 のリストから、このリストの中だけで
+決定される「動的な」優先度 (dynamic priority) に基いて決定される。
+動的な優先度は
+.RB ( nice (2)
+や
+.BR setpriority (2)
+により設定される) nice 値に基づいて決定されるもので、
+単位時間毎に、プロセスが実行可能だが、スケジューラにより実行が拒否された
+場合にインクリメントされる。
+これにより、全ての \fBSCHED_OTHER\fP プロセスでの公平性が保証される。
+.\"
+.\"O .SS SCHED_BATCH: Scheduling batch processes
+.SS SCHED_BATCH: バッチプロセスのスケジューリング
+.\"O (Since Linux 2.6.16.)
+(Linux 2.6.16 以降)
+.\"O \fBSCHED_BATCH\fP can only be used at static priority 0.
+.\"O This policy is similar to \fBSCHED_OTHER\fP in that it schedules
+.\"O the process according to its dynamic priority
+.\"O (based on the nice value).
+.\"O The difference is that this policy
+.\"O will cause the scheduler to always assume
+.\"O that the process is CPU-intensive.
+.\"O Consequently, the scheduler will apply a small scheduling
+.\"O penalty with respect to wakeup behaviour,
+.\"O so that this process is mildly disfavored in scheduling decisions.
+\fBSCHED_BATCH\fP は静的優先度 0 でのみ使用できる。
+このポリシーは (nice 値に基づく) 動的な優先度にしたがってプロセスの
+スケジューリングが行われるという点で、\fBSCHED_OTHER\fP に似ている。
+異なるのは、このポリシーでは、プロセスが常に CPU に負荷のかかる (CPU-intensive)
+処理を行うと、スケジューラが仮定する点である。
+スケジューラはプロセスを呼び起こす毎にそのプロセスにスケジューリング上の
+ペナルティを少し課し、その結果、このプロセスはスケジューリングの決定で
+若干冷遇されるようになる。
+
+.\" The following paragraph is drawn largely from the text that
+.\" accompanied Ingo Molnar's patch for the implementation of
+.\" SCHED_BATCH.
+.\"O This policy is useful for workloads that are noninteractive,
+.\"O but do not want to lower their nice value,
+.\"O and for workloads that want a deterministic scheduling policy without
+.\"O interactivity causing extra preemptions (between the workload's tasks).
+このポリシーは、非対話的な処理だがその nice 値を下げたくない処理や、
+(処理のタスク間で) 余計なタスクの置き換えの原因とある対話的な処理なしで
+確定的な (deterministic) スケジューリング・ポリシーを適用したい処理に
+対して有効である。
+.\"
+.\"O .SS SCHED_IDLE: Scheduling very low priority jobs
+.SS SCHED_IDLE: 非常に優先度の低いジョブのスケジューリング
+.\"O (Since Linux 2.6.23.)
+(Linux 2.6.23 以降)
+.\"O \fBSCHED_IDLE\fP can only be used at static priority 0;
+.\"O the process nice value has no influence for this policy.
+\fBSCHED_IDLE\fP は静的優先度 0 でのみ使用できる。
+このポリシーではプロセスの nice 値はスケジューリングに影響を与えない。
+
+.\"O This policy is intended for running jobs at extremely low
+.\"O priority (lower even than a +19 nice value with the
+.\"O .B SCHED_OTHER
+.\"O or
+.\"O .B SCHED_BATCH
+.\"O policies).
+非常に低い優先度でのジョブの実行を目的としたものである
+(非常に低い優先度とは、ポリシー
+.B SCHED_OTHER
+か
+.B SCHED_BATCH
+での nice 値 +19 よりさらに低い優先度である)。
+.\"
+.\"O .SS Privileges and resource limits
+.SS 特権とリソース制限
+.\"O In Linux kernels before 2.6.12, only privileged
+.\"O .RB ( CAP_SYS_NICE )
+.\"O processes can set a nonzero static priority (i.e., set a real-time
+.\"O scheduling policy).
+.\"O The only change that an unprivileged process can make is to set the
+.\"O .B SCHED_OTHER
+.\"O policy, and this can only be done if the effective user ID of the caller of
+.\"O .BR sched_setscheduler ()
+.\"O matches the real or effective user ID of the target process
+.\"O (i.e., the process specified by
+.\"O .IR pid )
+.\"O whose policy is being changed.
+2.6.12 より前のバージョンの Linux カーネルでは、
+特権プロセス
+.RB ( CAP_SYS_NICE
+ケーパビリティを持つプロセス) だけが 0 以外の静的優先度を設定する
+(すなわち、リアルタイム・スケジューリング・ポリシーを設定する) ことができる。
+非特権プロセスができる変更は
+.B SCHED_OTHER
+ポリシーを設定することだけであり、さらにこの変更を行えるのは
+.BR sched_setscheduler ()
+の呼び出し元の実効ユーザ ID がポリシーの変更対象プロセス
+.RI ( pid
+で指定されたプロセス) の実ユーザ ID か実効ユーザ ID と
+一致する場合だけである。
+
+.\"O Since Linux 2.6.12, the
+.\"O .B RLIMIT_RTPRIO
+.\"O resource limit defines a ceiling on an unprivileged process's
+.\"O static priority for the
+.\"O .B SCHED_RR
+.\"O and
+.\"O .B SCHED_FIFO
+.\"O policies.
+Linux 2.6.12 以降では、リソース制限
+.B RLIMIT_RTPRIO
+が定義されており、
+スケジューリング・ポリシーが
+.B SCHED_RR
+と
+.B SCHED_FIFO
+の場合の、非特権プロセスの静的優先度の上限を定めている。
+.\"O The rules for changing scheduling policy and priority are as follows:
+スケジューリング・ポリシーと優先度を変更する際のルールは以下の通りである。
+.IP * 2
+.\"O If an unprivileged process has a nonzero
+.\"O .B RLIMIT_RTPRIO
+.\"O soft limit, then it can change its scheduling policy and priority,
+.\"O subject to the restriction that the priority cannot be set to a
+.\"O value higher than the maximum of its current priority and its
+.\"O .B RLIMIT_RTPRIO
+.\"O soft limit.
+非特権プロセスに 0 以外の
+.B RLIMIT_RTPRIO
+ソフト・リミットが設定されている場合、
+非特権プロセスはそのプロセスのスケジューリング・ポリシーと優先度を
+変更できるが、優先度を現在の自身の優先度と
+.B RLIMIT_RTPRIO
+ソフト・リミットの大きい方よりも高い値に設定できないという制限が課される。
+.IP *
+.\"O If the
+.\"O .B RLIMIT_RTPRIO
+.\"O soft limit is 0, then the only permitted changes are to lower the priority,
+.\"O or to switch to a non-real-time policy.
+.B RLIMIT_RTPRIO
+ソフト・リミットが 0 の場合、優先度を下げるか、
+リアルタイムでないポリシーへ切り替えるかの変更だけが許可される。
+.IP *
+.\"O Subject to the same rules,
+.\"O another unprivileged process can also make these changes,
+.\"O as long as the effective user ID of the process making the change
+.\"O matches the real or effective user ID of the target process.
+ある非特権プロセスが別のプロセスに対してこれらの変更を行う際にも、
+同じルールが適用される。変更を行えるのは、変更を行おうとするプロセス
+の実効ユーザ ID が変更対象のプロセスの実ユーザ ID か実効ユーザ ID と
+一致している場合に限られる。
+.IP *
+.\"O Special rules apply for the
+.\"O .BR SCHED_IDLE :
+.\"O an unprivileged process operating under this policy cannot
+.\"O change its policy, regardless of the value of its
+.\"O .BR RLIMIT_RTPRIO
+.\"O resource limit.
+.B SCHED_IDLE
+には特別なルールが適用され、
+このポリシーの下で動作する非特権プロセスは、リソース制限
+.B RLIMIT_RTPRIO
+の値にかかわらず自身のポリシーを変更することができない。
+.PP
+.\"O Privileged
+.\"O .RB ( CAP_SYS_NICE )
+.\"O processes ignore the
+.\"O .B RLIMIT_RTPRIO
+.\"O limit; as with older kernels,
+.\"O they can make arbitrary changes to scheduling policy and priority.
+特権プロセス
+.RB ( CAP_SYS_NICE
+ケーパビリティを持つプロセス) の場合、
+.B RLIMIT_RTPRIO
+の制限は無視される;
+古いカーネルと同じように、スケジューリング・ポリシーと優先度に対し
+任意の変更を行うことができる。
+.\"O See
+.\"O .BR getrlimit (2)
+.\"O for further information on
+.\"O .BR RLIMIT_RTPRIO .
+.B RLIMIT_RTPRIO
+に関するもっと詳しい情報は
+.BR getrlimit (2)
+を参照のこと。
+.\"O .SS Response time
+.SS 応答時間 (response time)
+.\"O A blocked high priority process waiting for the I/O has a certain
+.\"O response time before it is scheduled again.
+.\"O The device driver writer
+.\"O can greatly reduce this response time by using a "slow interrupt"
+.\"O interrupt handler.
+.\"O .\" as described in
+.\"O .\" .BR request_irq (9).
+I/O 待ちで停止したより高い優先度のプロセスは再びスケジューリングされる
+前にいくらかの応答時間がかかる。デバイス・ドライバーを書く場合には
+.\" .BR request_irq (9)
+.\" に記述されている
+"slow interrupt" 割り込みハンドラーを使用することで
+この応答時間を劇的に減少させることができる。
+.\"O .SS Miscellaneous
+.SS その他
+.\"O Child processes inherit the scheduling policy and parameters across a
+.\"O .BR fork (2).
+.\"O The scheduling policy and parameters are preserved across
+.\"O .BR execve (2).
+子プロセスは
+.BR fork (2)
+の際に親プロセスのスケジューリング・ポリシーとパラメータを継承する。
+.BR execve (2)
+の前後で、スケジューリング・ポリシーとパラメータは保持される。
+
+.\"O Memory locking is usually needed for real-time processes to avoid
+.\"O paging delays; this can be done with
+.\"O .BR mlock (2)
+.\"O or
+.\"O .BR mlockall (2).
+リアルタイム・プロセスは大抵、ページングの待ち時間を避けるために
+.BR mlock (2)
+や
+.BR mlockall (2)
+を使ってメモリ・ロックをしなければならない。
+
+.\"O Since a nonblocking infinite loop in a process scheduled under
+.\"O \fBSCHED_FIFO\fP or \fBSCHED_RR\fP will block all processes with lower
+.\"O priority forever, a software developer should always keep available on
+.\"O the console a shell scheduled under a higher static priority than the
+.\"O tested application.
+.\"O This will allow an emergency kill of tested
+.\"O real-time applications that do not block or terminate as expected.
+\fBSCHED_FIFO\fP や \fBSCHED_RR\fP でスケジューリングされる
+プロセスが停止せずに無限ループに陥ると、
+他の全てのより低い優先度のプロセスを永久に停止 (block) させてしまうので、
+ソフトウェア開発者はコンソールのシェルの静的優先度をテストする
+アプリケーションよりも常に高く保つべきである。
+これによって期待通りに停止したり終了したりしないリアルタイム・
+アプリケーションを緊急終了させることが可能になる。
+.\"O See also the description of the
+.\"O .BR RLIMIT_RTTIME
+.\"O resource limit in
+.\"O .BR getrlimit (2).
+.BR getrlimit (2)
+のリソース制限
+.B RLIMIT_RTTIME
+の説明も参照のこと。
+
+.\"O POSIX systems on which
+.\"O .BR sched_setscheduler ()
+.\"O and
+.\"O .BR sched_getscheduler ()
+.\"O are available define
+.\"O .B _POSIX_PRIORITY_SCHEDULING
+.\"O in \fI<unistd.h>\fP.
+POSIX システムでは \fI<unistd.h>\fP に
+.B _POSIX_PRIORITY_SCHEDULING
+が定義されている場合にのみ
+.BR sched_setscheduler ()
+と
+.BR sched_getscheduler ()
+が使用できる。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O On success,
+.\"O .BR sched_setscheduler ()
+.\"O returns zero.
+.\"O On success,
+.\"O .BR sched_getscheduler ()
+.\"O returns the policy for the process (a nonnegative integer).
+.\"O On error, \-1 is returned, and
+.\"O .I errno
+.\"O is set appropriately.
+成功した場合、
+.BR sched_setscheduler ()
+は 0 を返す。
+成功した場合、
+.BR sched_getscheduler ()
+は現在のそのプロセスのポリシー (非負の整数) を返す。
+エラーの場合、\-1 が返され、
+.I errno
+が適切に設定される。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EINVAL
+.\"O The scheduling \fIpolicy\fP is not one of the recognized policies,
+.\"O or \fIparam\fP does not make sense for the \fIpolicy\fP.
+スケジューリング・ポリシー \fIpolicy\fP が間違っているか、
+\fIparam\fP がそのポリシーでは意味をなさない。
+.TP
+.B EPERM
+.\"O The calling process does not have appropriate privileges.
+呼び出したプロセスが適切な特権を持っていない。
+.TP
+.B ESRCH
+.\"O The process whose ID is \fIpid\fP could not be found.
+IDが \fIpid\fP のプロセスが見つからない。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+.\"O POSIX.1-2001 (but see BUGS below).
+.\"O The \fBSCHED_BATCH\fP and \fBSCHED_IDLE\fP policies are Linux-specific.
+POSIX.1-2001 (但し、下記のバグの節も参照)。
+\fBSCHED_BATCH\fP と \fBSCHED_IDLE\fP ポリシーは Linux 固有である。
+.\"O .SH NOTES
+.SH 注意
+.\"O POSIX.1 does not detail the permissions that an unprivileged
+.\"O process requires in order to call
+.\"O .BR sched_setscheduler (),
+.\"O and details vary across systems.
+.\"O For example, the Solaris 7 manual page says that
+.\"O the real or effective user ID of the calling process must
+.\"O match the real user ID or the save set-user-ID of the target process.
+POSIX.1 は、非特権プロセスが
+.BR sched_setscheduler ()
+を呼び出すために必要な権限の詳細を規定しておらず、
+詳細はシステムにより異なる。
+例えば、Solaris 7 のマニュアルページでは、
+呼び出し元プロセスの実ユーザ ID または実効ユーザ ID が
+設定対象のプロセスの実ユーザ ID か保存 (save) set-user-ID と
+一致していなければならない、となっている。
+.PP
+.\"O Originally, Standard Linux was intended as a general-purpose operating
+.\"O system being able to handle background processes, interactive
+.\"O applications, and less demanding real-time applications (applications that
+.\"O need to usually meet timing deadlines).
+もともとは、標準の Linux は一般目的のオペレーティングシステムとして
+設計されており、バックグラウンド・プロセスや対話的アプリケーション、
+リアルタイム性の要求が厳しくないリアルタイム・アプリケーション
+(普通はタイミングの応答期限 (deadline) を満たす必要があるアプリケーション)
+を扱うことができた。
+.\"O Although the Linux kernel 2.6
+.\"O allowed for kernel preemption and the newly introduced O(1) scheduler
+.\"O ensures that the time needed to schedule is fixed and deterministic
+.\"O irrespective of the number of active tasks, true real-time computing
+.\"O was not possible up to kernel version 2.6.17.
+Linux カーネル 2.6 では、
+カーネルのプリエンプション (タスクの置き換え) が可能であり、
+新たに導入された O(1) スケジューラにより、
+アクティブなタスクの数に関わらずスケジューリングに必要な時間は
+固定で確定的 (deterministic) であることが保証されている。
+それにも関わらず、カーネル 2.6.17 までは
+真のリアルタイム・コンピューティングは実現できなかった。
+.\"O .SS Real-time features in the mainline Linux kernel
+.SS 本流の Linux カーネルでのリアルタイム機能
+.\" FIXME . Probably this text will need some minor tweaking
+.\" by about the time of 2.6.30; ask Carsten Emde about this then.
+.\"O From kernel version 2.6.18 onwards, however, Linux is gradually
+.\"O becoming equipped with real-time capabilities,
+.\"O most of which are derived from the former
+.\"O .I realtime-preempt
+.\"O patches developed by Ingo Molnar, Thomas Gleixner,
+.\"O Steven Rostedt, and others.
+.\"O Until the patches have been completely merged into the
+.\"O mainline kernel
+.\"O (this is expected to be around kernel version 2.6.30),
+.\"O they must be installed to achieve the best real-time performance.
+カーネル 2.6.18 から現在まで、
+Linux は徐々にリアルタイム機能を備えつつあるが、
+これらの機能のほとんどは、
+Ingo Molnar, Thomas Gleixner, Steven Rostedt らによって開発された、
+以前の
+.I realtime-preempt
+パッチからのものである。
+これらのパッチが本流のカーネルに完全にマージされるまでは
+(マージの完了はカーネル 2.6.30 あたりの予定)、
+最高のリアルタイム性能を達成するには realtime-preempt パッチを
+組み込まなければならない。
+.\"O These patches are named:
+これらのパッチは
+.in +4n
+.nf
+
+patch-\fIkernelversion\fP-rt\fIpatchversion\fP
+.fi
+.in
+.\"O .PP
+.\"O and can be downloaded from
+.\"O .IR http://www.kernel.org/pub/linux/kernel/projects/rt/ .
+という名前で、
+.I http://www.kernel.org/pub/linux/kernel/projects/rt/
+からダウンロードできる。
+
+.\"O Without the patches and prior to their full inclusion into the mainline
+.\"O kernel, the kernel configuration offers only the three preemption classes
+.\"O .BR CONFIG_PREEMPT_NONE ,
+.\"O .BR CONFIG_PREEMPT_VOLUNTARY ,
+.\"O and
+.\"O .B CONFIG_PREEMPT_DESKTOP
+.\"O which respectively provide no, some, and considerable
+.\"O reduction of the worst-case scheduling latency.
+このパッチが適用されず、かつパッチの内容の本流のカーネルへのマージが
+完了するまでは、カーネルの設定では
+.BR CONFIG_PREEMPT_NONE ,
+.BR CONFIG_PREEMPT_VOLUNTARY ,
+.B CONFIG_PREEMPT_DESKTOP
+の 3つのプリエンプション・クラス (preemption class) だけが提供される。
+これらのクラスでは、最悪の場合のスケジューリング遅延がそれぞれ
+全く減らない、いくらか減る、かなり減る。
+
+.\"O With the patches applied or after their full inclusion into the mainline
+.\"O kernel, the additional configuration item
+.\"O .B CONFIG_PREEMPT_RT
+.\"O becomes available.
+.\"O If this is selected, Linux is transformed into a regular
+.\"O real-time operating system.
+パッチが適用された場合、またはパッチの内容の本流のカーネルへのマージが
+完了した後では、上記に加えて設定項目として
+.B CONFIG_PREEMPT_RT
+が利用可能になる。この項目を選択すると、
+Linux は通常のリアルタイム・オペレーティングシステムに変身する。
+.\"O The FIFO and RR scheduling policies that can be selected using
+.\"O .BR sched_setscheduler ()
+.\"O are then used to run a process
+.\"O with true real-time priority and a minimum worst-case scheduling latency.
+この場合には、
+.BR sched_setscheduler ()
+で選択できる FIFO と RR のスケジューリング・ポリシーは、
+真のリアルタイム優先度を持つプロセスを最悪の場合のスケジューリング遅延が
+最小となる環境で動作させるために使われることになる。
+.\"O .SH BUGS
+.SH バグ
+.\"O POSIX says that on success,
+.\"O .BR sched_setscheduler ()
+.\"O should return the previous scheduling policy.
+.\"O Linux
+.\"O .BR sched_setscheduler ()
+.\"O does not conform to this requirement,
+.\"O since it always returns 0 on success.
+POSIX では、成功時に
+.BR sched_setscheduler ()
+は直前のスケジューリング・ポリシーを返すべきとされている。
+Linux の
+.BR sched_setscheduler ()
+はこの要求仕様に準拠しておらず、
+成功時には常に 0 を返す。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR getpriority (2),
+.BR mlock (2),
+.BR mlockall (2),
+.BR munlock (2),
+.BR munlockall (2),
+.BR nice (2),
+.BR sched_get_priority_max (2),
+.BR sched_get_priority_min (2),
+.BR sched_getaffinity (2),
+.BR sched_getparam (2),
+.BR sched_rr_get_interval (2),
+.BR sched_setaffinity (2),
+.BR sched_setparam (2),
+.BR sched_yield (2),
+.BR setpriority (2),
+.BR capabilities (7),
+.BR cpuset (7)
+.PP
+.I Programming for the real world \- POSIX.4
+by Bill O. Gallmeister, O'Reilly & Associates, Inc., ISBN 1-56592-074-0
+.PP
+.\"O The kernel source file
+.\"O .I Documentation/scheduler/sched-rt-group.txt
+.\"O (since kernel 2.6.25).
+カーネル・ソース内のファイル
+.I Documentation/scheduler/sched-rt-group.txt
+(カーネル 2.6.25 以降)

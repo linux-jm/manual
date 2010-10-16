@@ -1,0 +1,226 @@
+.\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\" $Id: cmsg.3,v 1.3 2001/01/14 05:30:39 hanataka Exp $
+.\"
+.\" Japanese Version Copyright (c) 1999 Shouichi Saito
+.\"	all rights reserved.
+.\" Translated Mon Jul 26 21:58:26 JST 1999
+.\"	by Shouichi Saito <ss236rx@ymg.urban.ne.jp>
+.\" Proofed Tue Aug 17 1999 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.TH CMSG 3 2008-11-20 "Linux" "Linux Programmer's Manual"
+.SH 名前
+CMSG_ALIGN, CMSG_SPACE, CMSG_NXTHDR, CMSG_FIRSTHDR \- 補助データにアクセスする。
+.SH 書式
+.B #include <sys/socket.h>
+.sp
+.BI "struct cmsghdr *CMSG_FIRSTHDR(struct msghdr *" msgh );
+.br
+.BI "struct cmsghdr *CMSG_NXTHDR(struct msghdr *" msgh ", struct cmsghdr *" cmsg );
+.br
+.BI "size_t CMSG_ALIGN(size_t " length );
+.br
+.BI "size_t CMSG_SPACE(size_t " length );
+.br
+.BI "size_t CMSG_LEN(size_t " length );
+.br
+.BI "unsigned char *CMSG_DATA(struct cmsghdr *" cmsg );
+.sp
+.nf
+struct cmsghdr {
+    socklen_t cmsg_len;    /* data byte count, including header */
+    int       cmsg_level;  /* originating protocol */
+    int       cmsg_type;   /* protocol-specific type */
+    /* followed by unsigned char cmsg_data[]; */
+};
+.fi
+.SH 説明
+これらのマクロは制御メッセージ
+(補助データ (ancillary data) とも呼ばれる) を作り、
+それにアクセスするために使われる。
+制御メッセージはソケットにのるデータではない。
+この制御情報は、到着したパケットへのインターフェイス、様々なあまり
+使われないヘッダーフィールド、エラー記述の拡張、ファイルデスクリ
+プタの集合や、Unixにおける信頼情報 (credential) を含んでいる。
+制御メッセージは、例えば IP オプションのような追加ヘッダーフィールドを
+送るのに使う事ができる。
+補助データは、
+.BR sendmsg (2)
+を呼び出して送り、
+.BR recvmsg (2)
+を呼び出して受け取る。
+詳細はそれらのマニュアルページを参照。
+.PP
+補助データは
+.I struct cmsghdr
+構造体のシーケンスに追加データが付加されたものである。
+このシーケンスにはこのマニュアルページに書かれている
+マクロを使ってアクセスすべきで、直接アクセスすべきではない。
+使用可能な制御メッセージのタイプについては、
+それぞれのプロトコルのマニュアルページを参照のこと。
+接続毎の最大補助用バッファサイズは
+.I /proc/sys/net/core/optmem_max
+を使って設定できる。
+.BR socket (7)
+を参照。
+.PP
+.BR CMSG_FIRSTHDR ()
+は、渡した
+.I msghdr
+に関連した補助データバッファ中の、最初の
+.I cmsghdr
+へのポインタを返す。
+.PP
+.BR CMSG_NXTHDR ()
+は、渡した
+.I cmsghdr
+の次にくる (有効な)
+.I cmsghdr
+を返す。
+バッファに十分な空きが無い場合、NULL を返す。
+.PP
+.BR CMSG_ALIGN ()
+に長さを与えると、必要なアラインメントを加味した長さを返してくる。
+これは定数式である。
+.PP
+.BR CMSG_SPACE ()
+は、与えたデータ長が占めるのに必要な補助要素 (ancillary element) の
+バイト数を返す。これは定数式である。
+.PP
+.BR CMSG_DATA ()
+は、
+.I cmsghdr
+のデータ部分へのポインタを返す。
+.PP
+.BR CMSG_LEN ()
+は、
+.I cmsghdr
+構造体の
+.I cmsg_len
+メンバにデータを格納する際に必要な値を返す。アラインメントも考慮に入れ
+られる。
+引数としてデータ長をとる。これは定数式である。
+.PP
+補助データを作るためには最初に
+.I msghdr
+のメンバー
+.I msg_controllen
+を、制御メッセージバッファの長さで初期化する。
+.BR CMSG_FIRSTHDR ()
+を
+.I msghdr
+に用いると最初の制御メッセージが得られ、
+.BR CMSG_NEXTHDR ()
+を使うと次の制御メッセージが得られる。
+それぞれの制御メッセージでは、
+.I cmsg_len
+を初期化する
+.RB ( CMSG_LEN ()
+を使う)。
+その他の
+.I cmsghdr
+ヘッダーフィールド、そしてデータ部分に対しても
+.BR CMSG_DATA ()
+を使って初期化をする。
+最後に
+.I msghdr
+の
+.I msg_controllen
+フィールドに、バッファ中の制御メッセージの長さの
+.BR CMSG_SPACE ()
+の合計がセットされる。
+.I msghdr
+についての詳細は
+.BR recvmsg (2)
+を参照。
+.PP
+制御メッセージバッファが全てのメッセージを納めるのには短すぎる場合、
+.I msghdr
+の
+.I msg_flags
+メンバーに
+.B MSG_CTRUNC
+フラグがセットされる。
+.SH 準拠
+この補助データモデルは、POSIX.1g draft, 4.4BSD-Lite, RFC\ 2292 に
+記述されている IPv6 advanced API, そして SUSv2
+に準拠している。
+.BR CMSG_ALIGN ()
+は Linux の拡張である。
+.SH 注意
+移植性のために、補助データへのアクセスには、
+ここで述べられているマクロを使うだけにすべきである。
+.BR CMSG_ALIGN ()
+は Linux での拡張であり、移植性を考えたプログラムでは使うべきではない。
+.PP
+Linux では
+.BR CMSG_LEN (),
+.BR CMSG_DATA (),
+.BR CMSG_ALIGN ()
+は定数式である (それらの引数が定数とみなされる)。
+このことは、大域変数のサイズを宣言するのに使える。
+しかし移植性はなくなるだろう。
+.SH 例
+次のコードは、受け取った補助バッファから
+.B IP_TTL
+オプションを探すものである。
+.PP
+.in +4n
+.nf
+struct msghdr msgh;
+struct cmsghdr *cmsg;
+int *ttlptr;
+int received_ttl;
+
+/* Receive auxiliary data in msgh */
+for (cmsg = CMSG_FIRSTHDR(&msgh); cmsg != NULL;
+        cmsg = CMSG_NXTHDR(&msgh,cmsg)) {
+    if (cmsg\->cmsg_level == IPPROTO_IP
+            && cmsg\->cmsg_type == IP_TTL) {
+        ttlptr = (int *) CMSG_DATA(cmsg);
+        received_ttl = *ttlptr;
+        break;
+    }
+}
+if (cmsg == NULL) {
+    /*
+     * Error: IP_TTL not enabled or small buffer
+     * or I/O error.
+     */
+}
+.fi
+.in
+.PP
+以下のコードは、
+.B SCM_RIGHTS
+を使い、ファイルデスクリプタの配列を Unix ソケットを通して送るものである。
+.PP
+.in +4n
+.nf
+struct msghdr msg = {0};
+struct cmsghdr *cmsg;
+int myfds[NUM_FD]; /* Contains the file descriptors to pass. */
+char buf[CMSG_SPACE(sizeof myfds)];  /* ancillary data buffer */
+int *fdptr;
+
+msg.msg_control = buf;
+msg.msg_controllen = sizeof buf;
+cmsg = CMSG_FIRSTHDR(&msg);
+cmsg\->cmsg_level = SOL_SOCKET;
+cmsg\->cmsg_type = SCM_RIGHTS;
+cmsg\->cmsg_len = CMSG_LEN(sizeof(int) * NUM_FD);
+/* Initialize the payload: */
+fdptr = (int *) CMSG_DATA(cmsg);
+memcpy(fdptr, myfds, NUM_FD * sizeof(int));
+/* Sum of the length of all control messages in the buffer: */
+msg.msg_controllen = cmsg\->cmsg_len;
+.fi
+.in
+.SH 関連項目
+.BR recvmsg (2),
+.BR sendmsg (2)
+.PP
+RFC\ 2292

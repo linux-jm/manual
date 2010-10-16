@@ -1,0 +1,225 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mpool.3	8.1 (Berkeley) 6/4/93
+.\"
+.\" Japanese Version Copyright (c) 1999 Shouichi Saito
+.\"	all rights reserved.
+.\" Translated Mon Jul 26 21:51:36 JST 1999
+.\"	by Shouichi Saito <ss236rx@ymg.urban.ne.jp>
+.\" Proofed Tue Aug 19 1999 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.\"WORD:        descriptor      デスクリプタ
+.TH MPOOL 3 1993-06-04 "" "Linux Programmer's Manual"
+.UC 7
+.SH 名前
+mpool \- 共有メモリバッファプール
+.SH 書式
+.nf
+.B #include <db.h>
+.B #include <mpool.h>
+.sp
+.BI "MPOOL *mpool_open(DBT *" key ", int " fd ", pgno_t " pagesize \
+", pgno_t " maxcache );
+.sp
+.BI "void mpool_filter(MPOOL *" mp ", void (*pgin)(void *, pgno_t, void *),"
+.BI "                  void (*" pgout ")(void *, pgno_t, void *),"
+.BI "                  void *" pgcookie );
+.sp
+.BI "void *mpool_new(MPOOL *" mp ", pgno_t *" pgnoaddr );
+.sp
+.BI "void *mpool_get(MPOOL *" mp ", pgno_t " pgno ", unsigned int " flags );
+.sp
+.BI "int mpool_put(MPOOL *" mp ", void *" pgaddr ", unsigned int " flags );
+.sp
+.BI "int mpool_sync(MPOOL *" mp );
+.sp
+.BI "int mpool_close(MPOOL *" mp );
+.fi
+.SH 説明
+.I mpool
+は、ファイルに対するページ指向のバッファ管理を実装した
+ライブラリインターフェイスである。
+.PP
+関数
+.BR mpool_open ()
+はメモリプールを初期化する。
+.I key
+引数はバイト文字列であり、バッファを共有したい複数プロセス間
+でのネゴシエーションに使われる。
+ファイルバッファが共有メモリにマップされると、
+同じキーを使うプロセスは全てバッファを共有する。
+.I key
+が NULL だと、バッファはプライベートなメモリに割り付けられる。
+.I fd
+引数はもとになるファイルのファイルデスクリプタである。
+このファイルデスクリプタはシーク可能でなくてはならない。
+.I key
+が NULL でなく、かつ既にマップされているファイルにマッチした場合、
+.I fd
+引数は無視される。
+.PP
+.I pagesize
+引数はバイト単位でのページサイズであり、ファイルはこのサイズに分割される。
+.I maxcache
+引数は基ファイルをキャッシュするときに用いる最大ページ数である。
+.\"NAKANO "at any one time" は「どんな瞬間においても (最大)」ですが、
+.\"NAKANO 省略可能でしょう。
+この値はファイルバッファを共有しているプロセスの数には関係ないが、
+ファイルを共有するプロセスが指定したうちの最大値が実際に用いられる。
+.PP
+関数
+.BR mpool_filter ()
+は透過的なページ入出力処理を可能にする。
+関数
+.I pgin
+が指定されていると、
+ファイルからメモリプールに読み込まれる度にこの関数が呼び出される。
+関数
+.I pgout
+が指定されていと、
+バッファからファイルに書き出される度にこの関数が呼び出される。
+どちらの関数も、
+.I pgcookie
+ポインタ、ページ数、読み書きされるページへのポインタを引数にとる。
+.PP
+関数
+.BR mpool_new ()
+は
+.I MPOOL
+ポインタとアドレスを引数にとる。
+新しいページが割り当て可能な場合、ページへのポインタが返され、
+ページ数が
+.I pgnoaddr
+アドレスに納められる。
+割り当てが不可能な場合は NULL が返され、 
+.I errno
+がセットされる。
+.PP
+関数
+.BR mpool_get ()
+は
+.I MPOOL
+ポインタとページ数を引数にとる。ページが存在していると、
+ページへのポインタが返される。
+存在していないと NULL が返され、 
+.I errno
+がセットされる。
+.I flags
+引き数は現在使用されていない。
+.PP
+関数
+.BR mpool_put ()
+は
+.I pgaddr
+が参照するページを解放する。
+.I pgaddr
+は以前に
+.BR mpool_get ()
+か
+.BR mpool_new ()
+が返したアドレスでなければならない。
+flag の値は以下の値のいずれかか、これらの論理和である。
+.TP
+.B MPOOL_DIRTY
+ページは変更されており、ファイルに書き出す必要がある。
+.PP
+.BR mpool_put ()
+は成功すると 0 を、エラーがあると \-1 を返す。
+.PP
+関数
+.BR mpool_sync ()
+は
+.I MPOOL
+ポインタの示すページのうち、
+変更されたものを全てファイルに書き出す。
+.BR mpool_sync ()
+は成功すると 0 を、エラーがあると \-1 を返す。
+.PP
+関数
+.BR mpool_close ()
+はメモリプールクッキーの示す割り当て済みのメモリを解放する。
+変更されたページはファイルに\fB書き出されない\fP。
+.I mpool_close ()
+は成功すると 0 を、エラーがあると \-1 を返す。
+.SH エラー
+関数
+.BR mpool_open ()
+は失敗するとライブラリルーチン
+.BR malloc (3)
+で指定されているエラーに応じた
+.I errno
+をセットする。
+.PP
+関数
+.BR mpool_get ()
+は失敗すると次のような
+.I errno
+をセットする。
+.TP 15
+.B EINVAL
+要求のあったレコードは存在しない。
+.PP
+関数
+.BR mpool_new ()
+と
+.BR mpool_get ()
+は失敗するとライブラリルーチン
+.BR read (2),
+.BR write (2),
+.BR malloc (3)
+で指定されているエラーに応じた
+.I errno
+をセットする。
+.PP
+関数
+.BR mpool_sync ()
+は失敗するとライブラリルーチン
+.BR write (2)
+で指定されているエラーに応じた
+.I errno
+をセットする。
+.PP
+関数
+.BR mpool_close ()
+は失敗するとライブラリルーチン
+.BR free (3)
+で指定されているエラーに応じた
+.I errno
+をセットする。
+.SH 準拠
+POSIX.1-2001 にはない。
+BSD 系に存在する。
+.SH 関連項目
+.BR btree (3),
+.BR dbopen (3),
+.BR hash (3),
+.BR recno (3)

@@ -1,0 +1,247 @@
+.\"   Copyright (C) 1996-1999 Free Software Foundation, Inc.
+.\"
+.\"   Permission is granted to make and distribute verbatim copies of
+.\" this manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\"   Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\"   Permission is granted to copy and distribute translations of this
+.\" manual into another language, under the above conditions for modified
+.\" versions, except that this permission notice may be stated in a
+.\" translation approved by the Foundation.
+.\"
+.\" Copyright (C) 1996 Xavier Leroy.
+.\"
+.\" Japanese Version Copyright (C) 2002-2003 Suzuki Takashi
+.\"         all rights reserved.
+.\" Translated Tue Dec 31 14:14:12 JST 2002
+.\"         by Suzuki Takashi.
+.\"
+.\"WORD:    terminate           終了
+.\"WORD:    cancellation        取り消し
+.\"WORD:    calling thread      呼び出しスレッド
+.\"WORD:    suspend             停止
+.\"WORD:    exit                終了
+.\"WORD:    join                合流
+.\"WORD:    thread descriptor   スレッドディスクリプタ
+.\"
+.\"
+.TH PTHREAD_JOIN 3 LinuxThreads
+
+.\"O .SH NAME
+.\"O pthread_join \- wait for termination of another thread
+.SH "名前"
+pthread_join \- 別のスレッドの終了を待つ
+
+.\"O .SH SYNOPSIS
+.SH "書式"
+.B #include <pthread.h>
+
+.BI "int pthread_join(pthread_t " th ", void **" thread_return ");"
+
+.\"O .SH DESCRIPTION
+.\"O .B "pthread_join"
+.\"O suspends the execution of the calling thread until the
+.\"O thread identified by 
+.\"O .I "th"
+.\"O terminates, either by calling 
+.\"O .BR "pthread_exit" (3)
+.\"O or by being cancelled.
+.SH "説明"
+.B "pthread_join"
+は、
+呼び出しスレッドの実行を停止し、
+.I "th"
+で指定したスレッドが
+.BR "pthread_exit" (3)
+を呼び出して終了するか、取り消しされて終了するのを待つ。
+
+.\"O If 
+.\"O .I "thread_return"
+.\"O is not 
+.\"O .BR "NULL" ,
+.\"O the return value of 
+.\"O .I "th"
+.\"O is stored
+.\"O in the location pointed to by 
+.\"O .IR "thread_return" .
+.\"O The return value of
+.\"O .I "th"
+.\"O is either the argument it gave to 
+.\"O .BR "pthread_exit" (3),
+.\"O or
+.\"O .B "PTHREAD_CANCELED"
+.\"O if 
+.\"O .I "th"
+.\"O was cancelled.
+.I "thread_return"
+が
+.B "NULL"
+でないときには、
+.I "th"
+の返り値が
+.I "thread_return"
+で指し示される領域に格納される。
+.I "th"
+の返り値は、
+.BR "pthread_exit" (3)
+に与えられた引数、または
+.BR "PTHREAD_CANCELED" (
+.I "th"
+が取り消しされた場合 ) である。
+
+.\"O The joined thread 
+.\"O .B "th"
+.\"O must be in the joinable state: it must not have
+.\"O been detached using 
+.\"O .BR "pthread_detach" (3)
+.\"O or the
+.\"O .B "PTHREAD_CREATE_DETACHED"
+.\"O attribute to 
+.\"O .BR "pthread_create" (3).
+合流 (join) されるスレッド
+.B "th"
+は、合流可能 (joinable) な状態でなければならない。
+すなわち、
+.BR "pthread_detach" (3)
+を使用してデタッチ (detach) されていたり、
+.BR "pthread_create" (3)
+で属性
+.B "PTHREAD_CREATE_DETACHED"
+を与えられていたりしてはならない。
+
+.\"O When a joinable thread terminates, its memory resources (thread
+.\"O descriptor and stack) are not deallocated until another thread
+.\"O performs 
+.\"O .B "pthread_join"
+.\"O on it. Therefore, 
+.\"O .B "pthread_join"
+.\"O must be
+.\"O called once for each joinable thread created to avoid memory leaks.
+合流可能なスレッドが終了しても、
+別のスレッドがそのスレッドに対して
+.B "pthread_join"
+を呼び出すまでは、
+そのメモリ資源 (スレッドディスクリプタとスタック) は解放されない。
+したがって、メモリリークを防ぐためには、
+合流可能なスレッドそれぞれに対して
+.B "pthread_join"
+を 1 回ずつ呼び出さなければならない。
+
+.\"O At most one thread can wait for the termination of a given
+.\"O thread. Calling 
+.\"O .B "pthread_join"
+.\"O on a thread 
+.\"O .I "th"
+.\"O on which another
+.\"O thread is already waiting for termination returns an error.
+あるスレッドの終了を待つことができるスレッドは高々 1 つである。
+すでに別のスレッドが終了を待っているスレッド
+.I "th"
+に対して
+.B "pthread_join"
+を呼び出した場合、エラーが返る。
+
+.\"O .SH CANCELLATION
+.SH "取り消し"
+
+.\"O .B "pthread_join"
+.\"O is a cancellation point. If a thread is canceled while
+.\"O suspended in 
+.\"O .BR "pthread_join" ,
+.\"O the thread execution resumes immediately
+.\"O and the cancellation is executed without waiting for the 
+.\"O .I "th"
+.\"O thread
+.\"O to terminate. If cancellation occurs during 
+.\"O .BR "pthread_join" ,
+.\"O the 
+.\"O .I "th"
+.\"O thread remains not joined.
+.B "pthread_join"
+は取り消しポイントである。
+スレッドが
+.B "pthread_join"
+で停止しているときに取り消しされると、
+直ちに実行が再開されて
+スレッド
+.I "th"
+が終了するのを待つことなく取り消しが実行される。
+取り消しが
+.B "pthread_join"
+で起こった場合には、
+スレッド
+.I "th"
+は合流されずに残ることになる。
+
+.\"O .SH "RETURN VALUE"
+.\"O On success, the return value of 
+.\"O .I "th"
+.\"O is stored in the location pointed
+.\"O to by 
+.\"O .IR "thread_return" ,
+.\"O and 0 is returned. On error, a non-zero error
+.\"O code is returned.
+.SH "返り値"
+成功すると、
+.I "th"
+の返り値が
+.IR "thread_return"
+で指し示された領域に格納され、0 が返る。
+エラーの場合、非 0 のエラーコードが返る。
+
+.\"O .SH ERRORS
+.\"O .TP
+.\"O .B "ESRCH"
+.\"O No thread could be found corresponding to that specified by 
+.\"O .IR "th" .
+.\"O .TP
+.\"O .B "EINVAL"
+.\"O The 
+.\"O .I "th"
+.\"O thread has been detached.
+.\"O .TP
+.\"O .B "EINVAL"
+.\"O Another thread is already waiting on termination of 
+.\"O .IR "th" .
+.\"O .TP
+.\"O .B "EDEADLK"
+.\"O The 
+.\"O .I "th"
+.\"O argument refers to the calling thread.
+.SH "エラー"
+.TP
+.B "ESRCH"
+.I "th"
+で指定された ID に対応するスレッドが見つからなかった。
+.TP
+.B "EINVAL"
+.I "th"
+で指定されたスレッドはすでにデタッチされている。
+.TP
+.B "EINVAL"
+すでに別のスレッドがスレッド
+.I "th"
+の終了を待っている。
+.TP
+.B "EDEADLK"
+引数
+.I "th"
+が呼び出しスレッドを指している。
+
+.\"O .SH AUTHOR
+.SH "著者"
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.\"O .SH "SEE ALSO"
+.SH "関連項目"
+.BR "pthread_exit" (3),
+.BR "pthread_detach" (3),
+.BR "pthread_create" (3),
+.BR "pthread_attr_setdetachstate" (3),
+.BR "pthread_cleanup_push" (3),
+.BR "pthread_key_create" (3).

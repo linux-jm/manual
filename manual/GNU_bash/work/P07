@@ -1,0 +1,484 @@
+.\"O .SH "JOB CONTROL"
+.SH ジョブ制御
+.\"O .I Job control
+.\"O refers to the ability to selectively stop (\fIsuspend\fP)
+.\"O the execution of processes and continue (\fIresume\fP)
+.\"O their execution at a later point.  A user typically employs
+.\"O this facility via an interactive interface supplied jointly
+.\"O by the system's terminal driver and
+.\"O .BR bash .
+.I ジョブ制御(job control)
+とは、プロセスの実行を選択的に停止(\fIサスペンド/suspend\fP)させ、後に
+再び実行を続けさせる(\fIリジューム/resume\fP)機能のことです。
+ユーザは通常、システムの端末ドライバと
+.BR bash
+を組み合わせて使い、対話的インタフェースを通してこの機能を利用します。
+.PP
+.\"O The shell associates a
+.\"O .I job
+.\"O with each pipeline.  It keeps a table of currently executing
+.\"O jobs, which may be listed with the
+.\"O .B jobs
+.\"O command.  When
+.\"O .B bash
+.\"O starts a job asynchronously (in the
+.\"O .IR background ),
+.\"O it prints a line that looks like:
+シェルはパイプラインごとに
+.I ジョブ(job)
+を構成します。シェルは現在実行中のジョブのテーブルを保存しています。
+このテーブルは
+.B jobs
+コマンドを使ってリスト表示させることができます。
+.B bash
+がジョブを非同期的に(
+.IR バックグラウンド
+で)起動したときには、
+.B bash
+は以下のような行を出力します:
+.RS
+.PP
+[1] 25647
+.RE
+.PP
+.\"O indicating that this job is job number 1 and that the process ID
+.\"O of the last process in the pipeline associated with this job is 25647.
+これは、このジョブのジョブ番号は 1 であり、このジョブを構成する
+パイプライン中の最後のプロセスの ID が 25647 であることを示しています。
+.\"O All of the processes in a single pipeline are members of the same job.
+.\"O .B Bash
+.\"O uses the
+.\"O .I job
+.\"O abstraction as the basis for job control.
+1 つのパイプラインに含まれる全てのプロセスは同じジョブのメンバーです。
+.B bash
+は、ジョブ制御の基礎として
+.I ジョブ
+という抽象化機構を使います。
+.PP
+.\"O To facilitate the implementation of the user interface to job
+.\"O control, the operating system maintains the notion of a \fIcurrent terminal
+.\"O process group ID\fP.  Members of this process group (processes whose
+.\"O process group ID is equal to the current terminal process group ID)
+.\"O receive keyboard-generated signals such as
+.\"O .SM
+.\"O .BR SIGINT .
+ジョブ制御のためのユーザインタフェースの実装を容易にするために
+オペレーティングシステムは
+\fI現在の端末プロセスのグループ ID(current terminal process group ID)\fP
+という情報を管理しています。このプロセスグループのメンバー(プロセスグ
+ループ ID が現在の端末プロセスのグループ ID と等しいプロセス)は、
+.SM
+.BR SIGINT
+のような、キーボードで生成されたシグナルを受け取ります。
+.\"O These processes are said to be in the
+.\"O .IR foreground .
+このようなプロセスは、
+.IR フォアグラウンド(foreground)
+にあると言われます。
+.\"O .I Background
+.\"O processes are those whose process group ID differs from the terminal's;
+.\"O such processes are immune to keyboard-generated signals.
+.I バックグラウンド(background)
+プロセスは、プロセスのグループ ID が端末のグループ ID と異なるプロセス
+です。このようなプロセスは、キーボードで生成したシグナルの影響を受けま
+せん。
+.\"O Only foreground processes are allowed to read from or write to the
+.\"O terminal.  Background processes which attempt to read from (write to) the
+.\"O terminal are sent a 
+.\"O .SM
+.\"O .B SIGTTIN (SIGTTOU)
+.\"O signal by the terminal driver, 
+.\"O which, unless caught, suspends the process.
+端末への読み書きが許されるのはフォアグラウンドプロセスだけです。バック
+グラウンドプロセスが端末からの読み込み(端末への書き込み)を行おうとする
+と、このプロセスには端末ドライバから
+.SM
+.B SIGTTIN (SIGTTOU)
+シグナルが送られます。このシグナルを捕捉していない場合には、プロセスは
+停止させられます。
+.PP
+.\"O If the operating system on which
+.\"O .B bash
+.\"O is running supports
+.\"O job control,
+.\"O .B bash
+.\"O contains facilities to use it.
+.B bash
+を動かしているオペレーティングシステムがジョブ制御をサポートしているな
+らば、ユーザは
+.B bash
+を使ってジョブ制御を行うことができます。
+.\"O Typing the
+.\"O .I suspend
+.\"O character (typically
+.\"O .BR ^Z ,
+.\"O Control-Z) while a process is running
+.\"O causes that process to be stopped and returns control to 
+.\"O .BR bash .
+プロセスの動作中に
+.I サスペンド
+文字(通常は
+.BR ^Z , 
+Control-Z)を打ち込むと、そのプロセスは停止しさせられ、
+.BR bash
+に制御が戻ります。
+.\"O Typing the
+.\"O .I "delayed suspend"
+.\"O character (typically
+.\"O .BR ^Y ,
+.\"O Control-Y) causes the process to be stopped when it
+.\"O attempts to read input from the terminal, and control to
+.\"O be returned to
+.\"O .BR bash .
+.I "遅延サスペンド(delayed suspend)"
+文字(通常は
+.BR ^Y , 
+Control-Y)を打ち込むと、そのプロセスは端末から入力を
+読み込もうとしたときに停止しさせられ、制御が
+.BR bash
+に戻ります。
+.\"O The user may then manipulate the state of this job, using the
+.\"O .B bg
+.\"O command to continue it in the background, the
+.\"O .B fg
+.\"O command to continue it in the foreground, or
+.\"O the
+.\"O .B kill
+.\"O command to kill it.  A \fB^Z\fP takes effect immediately,
+.\"O and has the additional side effect of causing pending output
+.\"O and typeahead to be discarded.
+その状態で、ユーザはこのジョブの状態を操作することができます。この時に
+使うのは、バックグラウンドで実行を継続するならば
+.B bg
+コマンド、フォアグラウンドで実行を継続するならば
+.B fg
+コマンド、プロセスを kill するなら
+.B kill
+コマンドです。\fB^Z\fP の効果は即座に現われるので、未出力の出力や先行
+入力した文字が破棄されるという副作用があります。
+.PP
+.\"O There are a number of ways to refer to a job in the shell.
+.\"O The character
+.\"O .B %
+.\"O introduces a job name.  Job number
+.\"O .I n
+.\"O may be referred to as
+.\"O .BR %n .
+シェル上でジョブを参照する方法は色々あります。文字
+.B %
+はジョブの名前を始めるのに使用します。ジョブ番号
+.I n
+は
+.BR %n
+として参照することができます。
+.\"O A job may also be referred to using a prefix of the name used to
+.\"O start it, or using a substring that appears in its command line.
+ジョブを参照するためには、ジョブを起動する時に使った名前の先頭部分やコ
+マンドライン中に現われる部分文字列を使うこともできます。
+.\"O For example,
+.\"O .B %ce
+.\"O refers to a stopped
+.\"O .B ce
+.\"O job.  If a prefix matches more than one job,
+.\"O .B bash
+.\"O reports an error.  Using
+.\"O .BR %?ce ,
+.\"O on the other hand, refers to any job containing the string
+.\"O .B ce
+.\"O in its command line.  If the substring matches more than one job,
+.\"O .B bash
+.\"O reports an error.  The symbols
+.\"O .B %%
+.\"O and
+.\"O .B %+
+.\"O refer to the shell's notion of the
+.\"O .IR "current job" ,
+.\"O which is the last job stopped while it was in
+.\"O the foreground or started in the background.
+例えば、
+.B %ce
+は停止しているジョブ
+.B ce
+を指します。先頭の部分がマッチするジョブが複数個ある場合には、
+.B bash
+はエラーを報告します。一方、
+.BR %?ce
+を用いると、文字列
+.B ce
+をコマンドライン中に含む任意のジョブを参照できます。部分文字列がマッチ
+するジョブが複数個ある場合には、
+.B bash
+はエラーを報告します。シンボル
+.B %%
+および
+.B %+
+は、シェルが覚えている
+.IR "カレントジョブ(current job)"
+を指します。これは、フォアグラウンドで起動されている時に停止されたか、
+バックグラウンドで起動された最後のジョブです。
+.\"O The 
+.\"O .I "previous job"
+.\"O may be referenced using
+.\"O .BR %\- .
+.\"O In output pertaining to jobs (e.g., the output of the
+.\"O .B jobs
+.\"O command), the current job is always flagged with a
+.\"O .BR + ,
+.\"O and the previous job with a
+.\"O .BR \- .
+.I "前のジョブ(previous job)"
+は
+.BR %\-
+を使って参照することができます。jobs コマンドの出力においては、
+カレントジョブには必ず
+.BR +
+というフラグが付き、前のジョブには
+.BR \-
+というフラグが付きます。
+.PP
+.\"O Simply naming a job can be used to bring it into the
+.\"O foreground:
+.\"O .B %1
+.\"O is a synonym for
+.\"O \fB``fg %1''\fP,
+.\"O bringing job 1 from the background into the foreground.
+.\"O Similarly,
+.\"O .B ``%1 &''
+.\"O resumes job 1 in the background, equivalent to
+.\"O \fB``bg %1''\fP.
+単にジョブを示すことで、そのジョブをフォアグラウンドに持ってくることが
+できます。つまり、
+.B %1
+は
+\fB``fg %1''\fP
+と同義であり、ジョブ 1 をバックグラウンドからフォアウグラウンドに
+持ってきます。同様に、
+.B ``%1 &''
+はジョブ 1 をバックグラウンドで実行再開させます。これは
+\fB``bg %1''\fP
+と同じ意味です。
+.PP
+.\"O The shell learns immediately whenever a job changes state.
+.\"O Normally,
+.\"O .B bash
+.\"O waits until it is about to print a prompt before reporting
+.\"O changes in a job's status so as to not interrupt
+.\"O any other output.  If the 
+.\"O .B \-b
+.\"O option to the
+.\"O .B set
+.\"O builtin command
+.\"O is enabled,
+.\"O .B bash
+.\"O reports such changes immediately.
+ジョブの状態が変わると、シェルはそれを即座に知ることができます。
+.B bash
+がジョブの状態変化を報告するのは通常、プロンプトを出力する直前です。
+これは他の出力を妨害しないためです。組み込みコマンド
+.B set
+で
+.B \-b
+オプションが指定されていると、
+.B bash
+はこのような変化を即座に報告します。
+.PP
+.\"O If an attempt to exit
+.\"O .B bash
+.\"O is made while jobs are stopped, the shell prints a warning message.  The
+.\"O .B jobs
+.\"O command may then be used to inspect their status.
+.\"O If a second attempt to exit is made without an intervening command,
+.\"O the shell does not print another warning, and the stopped
+.\"O jobs are terminated.
+ジョブを停止させたままで
+.B bash
+を終了(exit)させようとすると、シェルは警告メッセージを出力します。
+このような時には、
+.B jobs
+コマンドを使ってジョブの状態を調べることができます。
+間にコマンドを実行することなく
+.B bash
+を再び終了させようとすると、
+シェルは警告を繰り返さないで、停止されているジョブを終了させます。
+.\"O .SH PROMPTING
+.SH プロンプト
+.\"O When executing interactively, 
+.\"O .B bash
+.\"O displays the primary prompt
+.\"O .SM
+.\"O .B PS1
+.\"O when it is ready to read a command, and the secondary prompt
+.\"O .SM
+.\"O .B PS2
+.\"O when it needs more input to complete a command.
+対話的に動作している場合、
+.B bash
+はコマンドを読む込み準備ができた時にプライマリプロンプト
+.SM
+.B PS1
+を表示し、コマンドを完成させるためにまだ入力が必要な時に
+セカンダリプロンプト
+.SM
+.B PS2
+を表示します。
+.\"O .B Bash
+.\"O allows these prompt strings to be customized by inserting a number of
+.\"O backslash-escaped special characters that are decoded as follows:
+.B bash
+ではこれらのプロンプト文字列をカスタマイズできます。この際には
+バックスラッシュでエスケープされた各種特殊文字を挿入することができますが、
+これは以下のようにデコードされます:
+.RS
+.PD 0
+.TP
+.B \ea
+.\"O an ASCII bell character (07)
+ASCII のベル文字 (07)
+.TP
+.B \ed
+.\"O the date in "Weekday Month Date" format (e.g., "Tue May 26")
+"曜日 月 日" という形式の日付(例: "Tue May 26")
+.TP
+.B \ee
+.\"O an ASCII escape character (033)
+ASCII のエスケープ文字 (033)
+.TP
+.B \eh
+.\"O the hostname up to the first `.'
+ホスト名のうち最初の `.' までの部分
+.TP
+.B \eH
+.\"O the hostname
+ホスト名
+.TP
+.B \ej
+.\"O the number of jobs currently managed by the shell
+シェルによって現在、管理されているジョブの数
+.TP
+.B \el
+.\"O the basename of the shell's terminal device name
+シェルの端末デバイスのベースネーム(basename)
+.TP
+.B \en
+.\"O newline
+改行
+.TP
+.B \er
+.\"O carriage return
+復帰
+.TP
+.B \es
+.\"O the name of the shell, the basename of
+.\"O .B $0
+.\"O (the portion following the final slash)
+シェルの名前。つまり
+.B $0
+のベースネーム(最後のスラッシュ以降の部分)
+.TP
+.B \et
+.\"O the current time in 24-hour HH:MM:SS format
+24 時間の HH:MM:SS 形式の現在の時刻
+.TP
+.B \eT
+.\"O the current time in 12-hour HH:MM:SS format
+12 時間の HH:MM:SS 形式の現在の時刻
+.TP
+.B \e@
+.\"O the current time in 12-hour am/pm format
+12 時間の HH:MM am/pm 形式の現在の時刻
+.TP
+.B \eu
+.\"O the username of the current user
+現在のユーザのユーザ名
+.TP
+.B \ev
+.\"O the version of \fBbash\fP (e.g., 2.00)
+\fBbash\fP のバージョン (例: 2.00)
+.TP
+.B \eV
+.\"O the release of \fBbash\fP, version + patchlevel (e.g., 2.00.0)
+\fBbash\fP のリリース。バージョンにパッチレベルを加えたもの (例 : 2.00.0)
+.TP
+.B \ew
+.\"O the current working directory
+現在の作業ディレクトリ
+.TP
+.B \eW
+.\"O the basename of the current working directory
+現在の作業ディレクトリのベースネーム
+.TP
+.B \e!
+.\"O the history number of this command
+このコマンドの履歴番号
+.TP
+.B \e#
+.\"O the command number of this command
+このコマンドのコマンド番号
+.TP
+.B \e$
+.\"O if the effective UID is 0, a
+.\"O .BR # ,
+.\"O otherwise a
+.\"O .B $
+実効 UID が 0 の場合に
+.BR #
+、それ以外の場合は
+.B $
+.TP
+.B \e\fInnn\fP
+.\"O the character corresponding to the octal number \fInnn\fP
+8進数 \fInnn\fP に対応する文字
+.TP
+.B \e\e
+.\"O a backslash
+バックスラッシュ
+.TP
+.B \e[
+.\"O begin a sequence of non-printing characters, which could be used to
+.\"O embed a terminal control sequence into the prompt
+非表示文字のシーケンスを開始します。これを使って、プロンプト中に端末の
+制御シーケンスを埋め込むことができます。
+.TP
+.B \e]
+.\"O end a sequence of non-printing characters
+非表示文字のシーケンスを終了します。
+.PD
+.RE
+.PP
+.\"O The command number and the history number are usually different:
+コマンド番号と履歴番号は異なるのが普通です:
+.\"O the history number of a command is its position in the history
+.\"O list, which may include commands restored from the history file
+.\"O (see
+.\"O .SM
+.\"O .B HISTORY
+.\"O below), while the command number is the position in the sequence
+.\"O of commands executed during the current shell session.
+コマンドの履歴番号とは履歴リスト内での位置です。
+履歴リストは履歴ファイルから読み込むことができます。
+(後述の
+.SM
+.B 履歴
+を参照)
+一方コマンド番号は、現在のシェルのセッション中に実行された
+コマンドのシーケンスにおける位置です。
+.\"O After the string is decoded, it is expanded via
+.\"O parameter expansion, command substitution, arithmetic
+.\"O expansion, and quote removal, subject to the value of the
+.\"O .B promptvars
+.\"O shell option (see the description of the
+.\"O .B shopt
+.\"O command under
+.\"O .SM
+.\"O .B "SHELL BUILTIN COMMANDS"
+.\"O below).
+この文字列がデコードされた後、さらにパラメータ展開、コマンド置換、
+算術式展開、クォート削除が適用されます。展開はシェルオプション
+.B promptvars
+(後述の
+.SM
+.B シェルの組み込みコマンド
+の項にある
+.B shopt
+コマンドの説明を参照)の値に基づいて行われます。

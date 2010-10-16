@@ -1,0 +1,218 @@
+.\" Copyright (c) 2003 Andries Brouwer (aeb@cwi.nl)
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
+.\" USA.
+.\"
+.\" Japanese Version Copyright (c) 2004 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Sun Sep 12 05:05:19 JST 2004
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\"
+.TH WORDEXP 3 2008-07-14  "" "Linux Programmer's Manual"
+.SH 名前
+wordexp, wordfree \- posix シェルのように単語の展開を行う
+.SH 書式
+.B "#include <wordexp.h>"
+.sp
+.BI "int wordexp(const char *" s ", wordexp_t *" p ", int " flags );
+.sp
+.BI "void wordfree(wordexp_t *" p );
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR wordexp (),
+.BR wordfree ():
+_XOPEN_SOURCE
+.SH 説明
+関数
+.BR wordexp ()
+はシェルのように文字列
+.I s
+を展開し、
+.I p
+で指し示す構造体に結果を返す。
+データ型
+.I wordexp_t
+は少なくともフィールド
+.IR we_wordc ,
+.IR we_wordv ,
+.I we_offs
+を持つ構造体である。
+フィールド
+.I we_wordc
+は
+.I size_t
+であり、
+.I s
+を展開した結果に単語がいくつあるかを表す。
+フィールド
+.I we_wordv
+は
+.I char **
+であり、見つかった単語の配列を指し示す。
+.I size_t
+型のフィールド
+.I we_offs
+は、
+.I we_wordv
+配列にある初期要素のうちいくつが
+NULL で埋められるべきかを表すのに使われたりする
+.RI ( flags
+により決定される。下記を参照。)。
+.LP
+関数
+.BR wordfree ()
+は割り当てたメモリを再度解放する。
+より正確にいうと、この関数はその引き数を解放するのではなく、
+配列
+.I we_wordv
+とそれが指し示す文字列を解放する。
+.SS "文字列引き数"
+この展開はシェルによるコマンドのパラメータの展開
+.RB ( sh (1)
+を参照) と同じであるので、文字列
+.I s
+はシェルコマンドパラメータで不正とされる文字を含んではならない。
+特にエスケープされていない改行、|, &, ;, <, >, (, ), {, } 文字を
+コマンド置換やパラメータ置換の場面以外に含めてはならない。
+.LP
+引き数
+.I s
+にクォートしていないコメント文字 # で始まる単語が含まれている場合には、
+その単語とそれ以降の単語が無視されるか、
+それとも # がコメント文字として扱わないかは、規定されていない。
+.SS "展開"
+実行される展開は、以下の段階で構成される:
+チルダ展開 (~user を user のホームディレクトリに置き換える)、
+変数展開 ($FOO を環境変数 FOO の値に置き換える)、
+コマンド展開 ($(command) または \`command\` を command の出力で置き換える)、
+算術展開、フィールド分割、ワイルドカード展開、クォートの除去。
+.LP
+特殊なパラメータ ($@, $*, $#, $?, $\-, $$, $!, $0) の
+展開結果は規定されていない。
+.LP
+フィールド分割は環境変数 $IFS を用いて行われる。
+この環境変数が設定されていない場合、
+フィールド区切り文字はスペース・タブ・改行である。
+.SS "出力される配列"
+配列
+.I we_wordv
+は見つかった単語をを含み、最後に NULL が続く。
+.SS "flags 引き数"
+.I flags
+引き数は以下の値のビット包含的 OR である:
+.TP
+.B WRDE_APPEND
+見つかった単語を前回の呼び出し結果の配列に追加する。
+.TP
+.B WRDE_DOOFFS
+初期状態である
+.I we_offs
+個の NULL を配列
+.I we_wordv
+に挿入する (これらは返される
+.I we_wordc
+にはカウントされない)。
+.TP
+.B WRDE_NOCMD
+コマンド置換を行わない。
+.TP
+.B WRDE_REUSE
+引き数
+.I p
+は前回の
+.BR wordexp ()
+の呼び出し結果であり、
+.BR wordfree ()
+が (まだ) 呼び出されない。
+割り当てられた領域を再利用する。
+.TP
+.B WRDE_SHOWERR
+通常はコマンド置換のときに
+.I stderr
+が
+.I /dev/null
+にリダイレクトされる。
+このフラグは
+.I stderr
+をリダイレクトしないように指定する。
+.TP
+.B WRDE_UNDEF
+未定義のシェル変数を展開しようとした場合に、エラーとして扱う。
+.SH 返り値
+成功した場合は 0 が返される。
+エラーの場合は以下の 5 つの値のうちの 1 つが返される。
+.TP
+.B WRDE_BADCHAR
+改行または |, &, ;, <, >, (, ), {, } のうちの 1 つが不正に出現した。
+.TP
+.B WRDE_BADVAL
+未定義のシェル変数が参照され、かつ
+.B WRDE_UNDEF
+フラグでこれをエラーとして扱うように指示されている。
+.TP
+.B WRDE_CMDSUB
+コマンド置換が起こり、かつ
+.B WRDE_NOCMD
+フラグでこれをエラーとして扱うように指示されている。
+.TP
+.B WRDE_NOSPACE
+メモリが足りない。
+.TP
+.B WRDE_SYNTAX
+対応する括弧がない、クォートが合致しないといった、
+シェルの書式エラー。
+.SH バージョン
+.BR wordexp ()
+と
+.BR wordfree ()
+は、バージョン 2.1 以降の glibc で提供されている。
+.SH 準拠
+POSIX.1-2001.
+.SH 例
+以下のサンプルプログラムの出力はだいたい "ls [a-c]*.c" と同じになる。
+.LP
+.nf
+#include <stdio.h>
+#include <stdlib.h>
+#include <wordexp.h>
+
+int
+main(int argc, char **argv)
+{
+    wordexp_t p;
+    char **w;
+    int i;
+
+    wordexp("[a-c]*.c", &p, 0);
+    w = p.we_wordv;
+    for (i = 0; i < p.we_wordc; i++)
+        printf("%s\en", w[i]);
+    wordfree(&p);
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+.BR fnmatch (3),
+.BR glob (3)

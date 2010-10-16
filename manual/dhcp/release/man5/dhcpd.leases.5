@@ -1,0 +1,194 @@
+.\"	dhcpd.leases.5
+.\"
+.\" Copyright (c) 1997, 1998 The Internet Software Consortium.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.\" Japanese Version Copyright (c) 2001 NAKANO Takeo all rights reserved.
+.\" Translated Mon Dec 24 2001 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.TH dhcpd.leases 5
+.SH 名前
+dhcpd.leases \- DHCP クライアントへの貸し出しデータベース
+.SH 説明
+Internet Software Consortium DHCP サーバは、
+割り当てたアドレスの貸し出し記録を永続的なデータベースに保持しています。
+このデータベースはフリーフォームの ASCII ファイルで、
+一連の貸し出し宣言 (declaration) からなります。
+貸し出しが要求・更新・破棄されると、
+その新しい値がこの貸し出しファイルの末尾に記録されます。
+よって、ひとつの貸し出しに対して複数の宣言があった場合は、
+ファイルの後ろの方にあるものが現在のものになります。
+.PP
+最初に dhcpd がインストールされたときは、
+貸し出しデータベースは存在していません。
+しかし dhcpd は、貸し出しデータベースが存在していないと起動しません。
+この目的の初期データベースには、
+/var/state/dhcp/dhcpd.leases という空のファイルを作るだけでかまいません。
+.PP
+貸し出しデータベースが際限なく大きくなるのを防ぐため、
+このファイルは時々書き換えられます。
+まず一時的な貸し出しデータベースが作成され、
+現在わかっている貸し出し記録がすべてそこにダンプされます。
+次に、古い貸し出しデータベースが /var/state/dhcp/dhcpd.leases~
+という名前に変更されます。
+最後に、新たに書き出された貸し出しデータベースが適切な場所に移動されます。
+.PP
+古い貸し出しデータベースの名前が変更された後、
+新しいデータベースが適切な場所に移動される前には間隔があるので、
+この間に dhcpd プロセスが kill されたりシステムがクラッシュすると、
+/var/state/dhcp/dhcpd.leases が存在しなくなる危険性があります。
+この場合 dhcpd は起動しなくなり、手動での修復が必要になります。
+このとき新しい貸し出しファイルを\fB単純に作成してはいけません\fR。
+こうすると、古い割り当てはすべて失われ、混乱が生じることになります。
+そうではなく、/var/state/dhcp/dhcpd.leases~ を
+/var/state/dhcp/dhcpd.leases にリネーム、
+すなわち正しい古い貸し出しファイルを元に戻してから、
+dhcpd を起動してください。
+このようにすれば、正しい貸し出しファイルに復元できます。
+.SH フォーマット
+貸し出し宣言が保存されるフォーマットは、
+.BR dhcpd.conf (5)
+や
+.BR dhclient.conf (5)
+ファイルの読み込みに用いられるのと同じ再帰パーサによって解釈されます。
+.PP
+ \fBlease \fIip-address\fB { \fIstatements...\fB }\fR
+.PP
+各貸し出し宣言には、
+クライアントに貸し出されている IP アドレスがひとつ含まれます。
+括弧の内部の文は、貸し出しの有効期間と割り当て先とを定義します。
+.PP
+貸し出しの開始時刻と終了時刻は、
+それぞれ ``starts'' および ``end'' 文によって記録されます。
+.PP
+ \fB starts \fIdate\fB;\fR
+ \fB ends \fIdate\fB;\fR
+.PP
+日付は次のように指定されます。
+.PP
+ \fIweekday year\fB/\fImonth\fB/\fIday
+hour\fB:\fIminute\fB:\fIsecond\fR
+.PP
+曜日 (weekday) は、
+貸し出しの期限切れを人間にわかりやすくするために書かれています。
+番号 0 から 6 で指定され、0 が日曜日に対応しています。
+曜日は入力では無視されます。年 (year) は世紀の部分とともに指定され、
+よって通常は (ものすごく長い貸し出しでない限り)  4 桁になります。
+月 (month) は 1 から始まり、1 が 1 月に対応します。
+月内日 (day) も同じく 1 から始まります。
+時 (hour) は 0 から 23 の数値で、
+分 (minute) は 0 から 59 の数値で、
+秒 (second) も同じく 0 から 59 の数値で、それぞれ指定します。
+.PP
+貸し出し期間の両時刻はグリニッジ平均時 (GMT) で指定され、
+ローカルのタイムゾーンではありません。
+実はグリニッジは年内のある期間サマータイムになるので、
+貸し出しの時刻が常に壁時計時刻と同じになるところは、
+世界中のどこにも存在しません。
+Unix マシンでは、GMT での現時刻は
+\fBdate -u\fR と入力すればわかります。
+.PP
+貸し出しを要求したネットワークインターフェースの MAC アドレスは、
+\fBhardware\fR 文で記録されます。
+.PP
+ \fBhardware \fIhardware-type mac-address\fB;\fR
+.PP
+MAC アドレスは、コロンで区切られた 16 進のオクテットで指定されます。
+.PP
+クライアントがアドレス要求時にクライアント識別子を用いた場合は、
+そのクライアント識別子が \fBuid\fR 文で記録されます。
+.PP
+ \fBuid \fIclient-identifier\fB;\fR
+.PP
+クライアント識別子は 16 進のオクテットで指定されます。
+これはクライアントが ASCII 文字列を利用したか、
+あるいは新しい「ハードウェア形式/MAC アドレス」形式を利用したかによりません。
+.PP
+クライアントが
+(DHCP-DNS Interaction ドラフトのある版で指定されているように)
+\fIClient Hostname\fR オプションでホスト名を送ってきた場合には、
+そのホスト名は \fBclient-hostname\fR 文で記録されます。
+.PP
+ \fBclient-hostname "\fIhostname\fB";\fR
+.PP
+クライアントが (Windows 95 などでのように)
+\fIHostname\fR オプションで自分のホスト名を送ってきた場合には、
+そのホスト名は \fBhostname\fR 文で記録されます。
+.PP
+ \fBhostname "\fIhostname\fB";\fR
+.PP
+DHCP サーバは、ある貸し出しが
+(なんらかの意味で) 誤用された、と指定することがあります。
+割り当てを受けたクライアントがその割り当てを NAK した場合とか、
+サーバがあるアドレスを割り当てる際にそれが利用中であるかを調べたところ、
+実はそのアドレスがすでに使われていた場合などがこれに該当します。
+このような場合には \fBabandoned\fR 文が用いられ、
+その貸し出しは破棄し、再割り当てするな、ということを示します。
+.PP
+ \fBabandoned;\fR
+.PP
+破棄された貸し出しは、自動的に再生されます。
+クライアントが新しいアドレスを要求したときに、
+割り当てるべき新しいアドレスがなかった場合には、
+サーバは破棄されたアドレスがないかどうか調べ、
+もっとも前に破棄された貸し出しアドレスを割り当てます。
+貸し出しアドレスが衝突していないかを調べる際には、
+標準的なチェック機構が用いられます。
+従って破棄された貸し出しの IP アドレスがまだ利用されていた場合は,、
+そのアドレスは再び破棄されることになります。
+.PP
+クライアントが破棄されたアドレスを\fB要求\fRした場合は、
+サーバはそのアドレスが破棄された理由を、
+貸し出しファイルが壊れたためであるとみなし、
+またそのクライアントは貸し出しを調査したときに反応したマシンであり、
+そのためにそのアドレスが破棄扱いになったのだとみなします。
+この場合には、そのアドレスは直ちにそのクライアントに割り当てられます。
+.SH ファイル
+.B /var/state/dhcp/dhcpd.leases
+.SH 関連項目
+dhcpd(8), dhcp-options(5), dhcpd.conf(5), RFC2132, RFC2131.
+.SH 著者
+.BR dhcpd (8)
+は Ted Lemon <mellon@vix.com>
+が Vixie Labs との契約のもとに書きました。
+このプロジェクトの資金は、
+Internet Software Corporation によって提供されました。
+Internet Software Consortium の情報は
+.B http://www.isc.org/isc
+にあります。
+.SH 訳注
+ファイルの置き場所はインストールによって変わることがあります。
+ここではデフォルトの /var/state/dhcp を仮定してあります。

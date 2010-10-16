@@ -1,0 +1,363 @@
+.\" Copyright (c) 1993 Michael Haardt (michael@cantor.informatik.rwth-aachen.de),
+.\" Fri Apr  2 11:32:09 MET DST 1993
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
+.\" USA.
+.\"
+.\" Modified 1993-07-25 by Rik Faith (faith@cs.unc.edu)
+.\" Modified 1995-02-26 by Michael Haardt
+.\" Modified 1996-07-20 by Michael Haardt
+.\" Modified 1997-07-02 by Nicolas Lichtmaier <nick@debian.org>
+.\" Modified 2004-10-31 by aeb, following Gwenole Beauchesne
+.\"
+.\" Japanese Version Copyright (c) 1997 Kazuyuki Tanisako
+.\"         all rights reserved.
+.\" Translated 1998-02-16, Kazuyuki Tanisako <tanisako@osa.dec-j.co.jp>
+.\" Updated 2003-01-20, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-02-21, Akihiro MOTOKI
+.\" Updated 2005-10-06, Akihiro MOTOKI
+.\" Updated 2008-08-11, Akihiro MOTOKI, LDP v3.05
+.\"
+.TH UTMP 5 2008-10-10 "Linux" "Linux Programmer's Manual"
+.SH 名前
+utmp, wtmp \- ログイン記録
+.SH 書式
+.B #include <utmp.h>
+.SH 説明
+.I utmp
+ファイルを見ることで、現在誰がシステムを使っているかという情報
+が得られる。ただすべてのプログラムが utmp ファイルを
+更新しているわけではないので、実際にはそれ以上のユーザーが
+システムを使っている可能性がある。
+.PP
+.B 警告:
+(愚かにも) 多くのシステムプログラムがその整合性に依存しているので、
+.I utmp
+ファイルは "other" に分類されるユーザに対して
+書き込み可能にしてはならない。
+ファイルの所有者とグループオーナー以外のユーザに対して
+.I utmp
+ファイルを書き込み可能な状態にしておくと、
+システムのログファイルを偽造されたり、システムファイルの
+改ざんを受けるといったリスクを犯すことになる。
+.PP
+このファイルは
+.I utmp
+構造体の繰り返しで構成される。
+この構造体は
+.I <utmp.h>
+で以下のように定義されている
+(ここに記述してあるのは幾つかの大まかな定義のみで、
+詳細は libc のバージョンにより変わることに注意が必要である)。
+.in +4n
+.nf
+.sp
+/* Values for ut_type field, below */
+
+#define EMPTY         0 /* Record does not contain valid info
+                           (formerly known as UT_UNKNOWN on Linux) */
+#define RUN_LVL       1 /* Change in system run-level (see
+                           \fBinit\fP(8)) */
+#define BOOT_TIME     2 /* Time of system boot (in \fIut_tv\fP) */
+#define NEW_TIME      3 /* Time after system clock change
+                           (in \fIut_tv\fP) */
+#define OLD_TIME      4 /* Time before system clock change
+                           (in \fIut_tv\fP) */
+#define INIT_PROCESS  5 /* Process spawned by \fBinit\fP(8) */
+#define LOGIN_PROCESS 6 /* Session leader process for user login */
+#define USER_PROCESS  7 /* Normal process */
+#define DEAD_PROCESS  8 /* Terminated process */
+#define ACCOUNTING    9 /* Not implemented */
+
+#define UT_LINESIZE      32
+#define UT_NAMESIZE      32
+#define UT_HOSTSIZE     256
+
+struct exit_status {              /* Type for ut_exit, below */
+    short int e_termination;      /* Process termination status */
+    short int e_exit;             /* Process exit status */
+};
+
+struct utmp {
+    short   ut_type;              /* Type of record */
+    pid_t   ut_pid;               /* PID of login process */
+    char    ut_line[UT_LINESIZE]; /* Device name of tty \- "/dev/" */
+    char    ut_id[4];             /* Terminal name suffix,
+                                     or inittab(5) ID */
+    char    ut_user[UT_NAMESIZE]; /* Username */
+    char    ut_host[UT_HOSTSIZE]; /* Hostname for remote login, or
+                                     kernel version for run-level
+                                     messages */
+    struct  exit_status ut_exit;  /* Exit status of a process
+                                     marked as DEAD_PROCESS; not
+                                     used by Linux init(8) */
+    /* ut_session と ut_tv フィールドは、32ビットでコンパイルされた場合と
+       64ビットでコンパイルされた場合で同じサイズでなければならない。
+       こうすることで、32ビットと64ビットのアプリケーションで、
+       データファイルと共有メモリを共有することができるようになる。 */
+
+#if __WORDSIZE == 64 && defined __WORDSIZE_COMPAT32
+    int32_t ut_session;           /* Session ID (\fBgetsid\fP(2)),
+                                     used for windowing */
+    struct {
+        int32_t tv_sec;           /* Seconds */
+        int32_t tv_usec;          /* Microseconds */
+    } ut_tv;                      /* Time entry was made */
+#else
+     long   ut_session;           /* Session ID */
+     struct timeval ut_tv;        /* Time entry was made */
+#endif
+
+    int32_t ut_addr_v6[4];        /* Internet address of remote
+                                     host; IPv4 address uses
+                                     just ut_addr_v6[0] */
+    char __unused[20];            /* Reserved for future use */
+};
+
+/* Backwards compatibility hacks */
+#define ut_name ut_user
+#ifndef _NO_UT_TIME
+#define ut_time ut_tv.tv_sec
+#endif
+#define ut_xtime ut_tv.tv_sec
+#define ut_addr ut_addr_v6[0]
+.sp
+.fi
+.in
+この構造体からユーザーの使っている端末のスペシャルファイル名、
+ユーザーのログイン名、
+.RB ( time (2)
+形式での)ログイン時刻がわかる。文字列フィールドは、
+フィールドの長さより文字列が短い場合には、\fB\(aq\e0\(aq\fP によって終端される。
+.PP
+最初のエントリは
+.BR init (8)
+コマンドが
+.BR inittab (5)
+を処理することで作られる。
+あるエントリを処理する前に、
+.BR init (8)
+は \fIut_type\fP を \fBDEAD_PROCESS\fP に初期化する。
+レコードの
+\fIut_type\fP が \fBDEAD_PROCESS\fP と \fBRUN_LVL\fP のいずれでもなく、
+かつ PID が \fIut_pid\fP であるプロセスがいない場合は、\fIut_user\fP,
+\fIut_host\fP, \fIut_time\fP をヌルバイトでクリアして初期化を行う。
+必要な \fIut_id\fP を持つ空のレコードを見つけられなかった場合、
+.BR init (8)
+は新しいレコードを作る。inittab から \fIut_id\fP を設定し、
+\fIut_pid\fP および \fIut_time\fP を現在値に、
+\fIut_type\fP を \fBINIT_PROCESS\fP に設定する。
+.PP
+.BR mingetty (8)
+(または
+.BR agetty (8))
+は pid でエントリを特定し、
+\fIut_type\fP を \fBLOGIN_PROCESS\fP に変更し、
+\fIut_time\fP を更新し、\fIut_line\fPを設定した後、接続が確立されるのを待つ。
+.BR login (1)
+はユーザー認証が終了すると、
+\fIut_type\fP を \fBUSER_PROCESS\fP に変更し、
+\fIut_time\fP を更新し、\fIut_host\fP と \fIut_addr\fPを設定する。
+.BR mingetty (8)
+(または
+.BR agetty (8))
+と
+.BR login (1)
+により異なるが、
+\fIut_pid\fP の代わりに
+\fIut_line\fP を使ってレコードの特定が行われることもある
+(\fIut_pid\fP を使う方が望ましい) 。
+.PP
+.BR init (8)
+はプロセスの終了を検出した場合、
+\fIut_pid\fP をキーとして utmp のエントリを特定し、
+\fIut_type\fP を \fBDEAD_PROCESS\fP に設定し、
+\fIut_user\fP, \fIut_host\fP, \fIut_time\fP をヌルバイトでクリアする。
+.PP
+.BR xterm (1)
+コマンドや他の端末エミュレータは
+直接 \fBUSER_PROCESS\fP のレコードを作り、
+端末名のサフィックス文字列 (\fI/dev/[pt]ty\fP に続く文字列)
+を使って \fIut_id\fP の値を生成する。
+この id を持つエントリが \fBDEAD_PROCESS\fP であった場合には再利用し、
+それ以外の場合には新しいエントリが作られる。
+可能な場合にはプロセス終了時に \fBDEAD_PROCESS\fP と設定し、
+さらに \fIut_line\fP, \fIut_time\fP, \fIut_user\fP, \fIut_host\fP
+をヌルバイトでクリアすることが奨励されている。
+.PP
+.BR telnetd (8)
+は \fBLOGIN_PROCESS\fP を設定するだけでよく、
+残りの処理は通常通り
+.BR login (1)
+に任せればよい。
+telnet のセッションが終了した後、前述のように
+.BR telnetd (8)
+が utmp のエントリを初期化する。
+.PP
+\fIwtmp\fP ファイルには、すべてのログインとログアウトが記録される。
+そのフォーマットは、ログアウト済の端末でユーザー名がヌルとなること以外は
+\fIutmp\fP とまったく同じである。
+ユーザー名が \fBshutdown\fP もしくは \fBreboot\fP である
+端末名 \fB~\fP はシステムの停止 (shutdown) または再起動 (reboot)
+を意味する。またその端末名が \fB|\fP と \fB}\fP の対は
+.BR date (1)
+コマンドで変更した新／旧のシステム時刻を記録している。
+\fIwtmp\fP ファイルは
+.BR login (1),
+.BR init (8)
+やいくつかのバージョンの
+.BR getty (8)
+.RB ( mingetty (8)
+または
+.BR agetty (8))
+により管理されている。
+これらのプログラムはどれもファイルを新たに作成しないので、
+ファイルを削除することで情報の記録 (record-keeping) を止めることができる。
+.SH ファイル
+/var/run/utmp
+.br
+/var/log/wtmp
+.SH 準拠
+.PP
+POSIX.1 では、
+.I utmp
+構造体ではなく、
+.I utmpx
+構造体を規定している。
+.I utmpx
+構造体で規定されているのは、フィールド
+.IR ut_type ,
+.IR ut_pid ,
+.IR ut_line ,
+.IR ut_id ,
+.IR ut_user ,
+.IR ut_tv
+である。
+POSIX.1 では、フィールド
+.I ut_line
+と
+.I ut_user
+の長さは規定されていない。
+
+Linux では、
+.I utmpx
+構造体の定義は
+.I utmp
+構造体と同じである。
+.SS 過去のシステムとの比較
+Linux での utmp のエントリは v7/BSD や System V のいずれにも準拠しておらず、
+その両方が混在したものである。
+
+v7/BSD ではより少しの項目しかない;
+もっとも重要なことは、\fIut_type\fP が無いことである。
+そのため v7/BSD 系のプログラムでは (たとえば) 死んだ状態のエントリや
+ログイン状態のエントリまで表示されてしまうことになった。
+さらにセッション用のスロットを割り当てるための設定ファイルがない。
+BSD に設定ファイルがあるのは \fIut_id\fP がないからである。
+
+Linux (System V 系)では、設定ファイルを必要とせず
+セッション用のスロットを割り当てるので、一旦設定
+されてしまうとレコードの \fIut_id\fP は決して変更されない。
+\fIut_id\fP をクリアすると競合状態におちいり、
+utmp のエントリを壊したり、潜在的なセキュリティホールになる可能性がある。
+上述のフィールドを NULL バイトで埋めてクリアしておくのは、
+System V での取り決めでは必要とはされていないが、
+BSD での取り決めを前提としていて、かつ utmp を更新しない多くのプログラムが
+動作するようにするためである。
+Linux ではここまで記述してきたように、行内容の表示は BSD の慣例に従っている。
+.PP
+.\" mtk: What is the referrent of "them" in the following sentence?
+.\" System V では ut_type を目印にしたり、たとえば \fB"new time"\fP のような
+.\" 通知メッセージを記録するためのみに使っている。
+\fBUT_UNKNOWN\fP は Linux で作られたもののようである。
+System V には \fIut_host\fP も \fIut_addr_v6\fP も存在しない。
+.SH 注意
+.PP
+ファイルを削除することで utmp への記録を止められる
+他の様々なシステムとは違い、Linux では utmp ファイルを必ずおいて
+おく必要がある。
+.BR who (1)
+コマンドが機能しないようにしたい場合には、
+utmp ファイルの全ユーザーに対する読み取り許可を設定しないようにする。
+.PP
+ファイルのフォーマットはマシンに依存するので、ファイルが作られた
+マシンもしくは同一アーキテクチャのマシン上でのみ処理することを推奨する。
+.PP
+注意すべき点としては、
+\fIbiarch\fP なプラットフォーム、つまり 32ビットと 64ビットの両方の
+アプリケーションを実行できるシステム (x86-64, ppc64, s390x など) では、
+\fIut_tv\fP のサイズは 32ビットモードと 64ビットモードで同じである。
+\fIut_session\fP と \fIut_time\fP も、存在する場合には同様に同じサイズ
+である。これにより、32ビットアプリケーションと 64ビットアプリケーション
+の間でデータファイルと共有メモリを共有することが可能になる。
+そのためには、
+.I ut_session
+を
+.I int32_t
+型に、
+.I ut_tv
+を 2つの
+.I int32_t
+型のフィールド
+.IR tv_sec ,
+.I tv_usec
+を持つ構造体に変更すればよい
+\fIut_tv\fP は \fIstruct timeval\fP と同じサイズとは限らないので、
+.in +4n
+.nf
+.sp
+gettimeofday((struct timeval *) &ut.ut_tv, NULL);
+.fi
+.in
+
+のような呼び出しをするのではなく、
+以下のように各フィールドを設定する方法が推奨される:
+.in +4n
+.nf
+.sp
+struct utmp ut;
+struct timeval tv;
+
+gettimeofday(&tv, NULL);
+ut.ut_tv.tv_sec = tv.tv_sec;
+ut.ut_tv.tv_usec = tv.tv_usec;
+.fi
+.in
+.PP
+utmp 構造体は libc5 から libc6 で変更された。そのため昔の libc5 の構造体
+を使ったプログラムは
+.IR /var/run/utmp " や " /var/log/wtmp
+ファイルを壊してしまう。
+.SH バグ
+この man ページは libc5 に基づいて作られていて、
+最新のものでは違っているかもしれない。
+.SH 関連項目
+.BR ac (1),
+.BR date (1),
+.BR last (1),
+.BR login (1),
+.BR who (1),
+.BR getutent (3),
+.BR getutmp (3),
+.BR login (3),
+.BR logout (3),
+.BR logwtmp (3),
+.BR updwtmp (3),
+.BR init (8)

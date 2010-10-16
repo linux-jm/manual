@@ -1,0 +1,197 @@
+.\" Copyright (c) 2002 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2003 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated 2003-02-16, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated 2006-07-21, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.36
+.\" Updated 2008-08-07, Akihiro MOTOKI, LDP v3.05
+.\"
+.\"WORD:	pending		待機中である
+.\"
+.TH SIGWAITINFO 2 2008-10-04 "Linux" "Linux Programmer's Manual"
+.SH 名前
+sigwaitinfo, sigtimedwait \- キューに入れられたシグナルを同期して待つ
+.SH 書式
+.nf
+.B #include <signal.h>
+.sp
+.BI "int sigwaitinfo(const sigset_t *" set ", siginfo_t *" info ");"
+.sp
+.BI "int sigtimedwait(const sigset_t *" set ", siginfo_t *" info ", "
+.BI "                 const struct timespec *" timeout ");"
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR sigwaitinfo (),
+.BR sigtimedwait ():
+_POSIX_C_SOURCE\ >=\ 199309L
+.SH 説明
+.BR sigwaitinfo ()
+は
+.I set
+のうちのどれかのシグナルが配送されるまで、
+呼び出しスレッドの実行を一時停止する
+(呼び出しスレッドに対して
+.I set
+のうちのどれかのシグナルが既に待機中 (pending) である場合、
+.BR sigwaitinfo ()
+はそのシグナルの情報を返してすぐに戻る)。
+.PP
+.BR sigwaitinfo ()
+は配送されたシグナルを待機中のシグナルの集合から削除し、
+関数の結果としてシグナル番号を返す。
+.I info
+引き数が NULL でない場合、配送されたシグナルの情報が入った
+.I siginfo_t
+型
+.RB ( sigaction (2)
+を参照) の構造体を返す。
+.PP
+.BR sigwaitinfo ()
+で返されるシグナルは、通常の順番で配送される。
+詳細は
+.BR signal (7)
+を参照すること。
+.PP
+.BR sigtimedwait ()
+は、
+.BR sigwaitinfo ()
+と次の点を除いて全く同じように動作する。
+この関数にはもう 1 つの引き数
+.I timeout
+があり、スレッドが一時停止する時間の上限を定めることができる。
+この引き数の型は以下のとおりである:
+.sp
+.in +4n
+.nf
+struct timespec {
+    long    tv_sec;         /* 秒 */
+    long    tv_nsec;        /* ナノ秒 */
+}
+.fi
+.in
+.sp
+この構造体の 2 つのフィールドがともに 0 の場合、ポーリングが行われる:
+.BR sigtimedwait ()
+は、呼び出し側プロセスに対して
+待機しているシグナルの情報を返して戻るか、
+.I set
+のうちのどのシグナルも待機していない場合はエラーを返して戻る。
+.SH 返り値
+成功した場合、
+.BR sigwaitinfo ()
+と
+.BR sigtimedwait ()
+はシグナル番号 (すなわち 0 より大きい数) を返す。
+失敗した場合、2 つの関数は \-1 を返し、
+.I errno
+はエラーを表す値に設定される。
+.SH エラー
+.TP
+.B EAGAIN
+.I set
+のうちのどのシグナルも
+.BR sigtimedwait ()
+に指定された
+.I timeout
+の期間内に配送されなかった。
+.TP
+.B EINTR
+シグナル待ちがシグナルハンドラによって中断 (interrupt) された
+(このハンドラは
+.I set
+にあるシグナル以外のものである)。
+.BR signal (7)
+参照。
+.TP
+.B EINVAL
+.I timeout
+が不正である。
+.SH 準拠
+POSIX.1-2001.
+.SH 注意
+通常の使用法では、呼び出し側プロセスはこれらの関数より先に
+.BR sigprocmask (2)
+の呼び出すことにより
+.I set
+に含まれるシグナルをブロックし
+(そのためにこれらのシグナルがこの後に続く
+.BR sigwaitinfo ()
+や
+.BR sigtimedwait ()
+の呼び出しの間に配送された場合には、
+デフォルトの配置は行われず)、
+これらのシグナルに対するハンドラは設定しない。
+マルチスレッドプログラムでは、
+.BR sigwaitinfo ()
+や
+.BR sigtimedwait ()
+を呼び出したスレッド以外のスレッドにそのシグナルが配送されないように、
+全てのスレッドで該当シグナルをブロックすべきである。
+
+指定されたスレッドに対する処理待ちのシグナルの集合は、
+そのスレッド自体宛ての処理待ちのシグナル集合と、プロセス全体宛ての
+処理待ちのシグナル集合をあわせたものである
+.RB ( signal (7)
+参照)。
+
+一つのプロセス内の複数のスレッドが
+.BR sigwaitinfo ()
+や
+.BR sigtimedwait ()
+で同じシグナルを待って停止した場合、
+プロセス全体宛てのシグナルが配送されると、複数のスレッドのうち一つだけが
+実際にそのシグナルを受信することになる。
+どのスレッドがシグナルを受信するかは決まっていない。
+
+POSIX では
+.BR sigtimedwait ()
+の引き数
+.I timeout
+の値を NULL にした場合の意味を未定義としている。
+.BR sigwaitinfo ()
+を呼び出したのと同じ意味としてもよいことになっており、
+実際 Linux ではこのように動作する。
+
+Linux では、
+.BR sigwaitinfo ()
+は
+.BR sigtimedwait ()
+を用いて実装されたライブラリ関数である。
+.SH 関連項目
+.BR kill (2),
+.BR sigaction (2),
+.BR signal (2),
+.BR signalfd (2),
+.BR sigpending (2),
+.BR sigprocmask (2),
+.BR sigqueue (2),
+.BR sigsetops (3),
+.BR sigwait (3),
+.BR signal (7),
+.BR time (7)

@@ -1,0 +1,266 @@
+.\" Copyright (C) 2003, Michael Kerrisk (mtk.manpages@gmail.com)
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" 2003-12-10 Initial creation, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" 2004-10-28 aeb, corrected prototype, prot must be 0
+.\"
+.\" Japanese Version Copyright (c) 2004-2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Thu Jun 24 06:00:37 JST 2004
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified Mon Jan  3 02:50:11 JST 2005 by Yuichi SATO
+.\" Updated & Modified Mon Oct 10 01:15:38 JST 2005
+.\"         by Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH REMAP_FILE_PAGES 2 2008-04-22 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O remap_file_pages \- create a nonlinear file mapping
+remap_file_pages \- 非線形ファイルマッピングを作成する。
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #define _GNU_SOURCE
+.B #include <sys/mman.h>
+.sp
+.BI "int remap_file_pages(void *" addr ", size_t " size ", int " prot ,
+.BI "                     ssize_t " pgoff ", int " flags );
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The
+.\"O .BR remap_file_pages ()
+.\"O system call is used to create a nonlinear mapping, that is, a mapping
+.\"O in which the pages of the file are mapped into a nonsequential order
+.\"O in memory.
+.BR remap_file_pages ()
+システムコールは非線形なマッピング、
+つまりファイルのページがメモリ上で連続しない順番でマップされる
+マッピングを作成するために使われる。
+.\"O The advantage of using
+.\"O .BR remap_file_pages ()
+.\"O over using repeated calls to
+.\"O .BR mmap (2)
+.\"O is that the former approach does not require the kernel to create
+.\"O additional VMA (Virtual Memory Area) data structures.
+.BR remap_file_pages ()
+を使う方が
+.BR mmap (2)
+を繰り返して使うより優れている点は、
+前者の方法ではカーネルが VMA (Virtual Memory Area, 仮想メモリ領域)
+データ構造体を追加で作成する必要がないことである。
+
+.\"O To create a nonlinear mapping we perform the following steps:
+非線形マッピングを作成するためには、
+以下のようなステップを実行する:
+.TP 3
+1.
+.\"O Use
+.\"O .BR mmap (2)
+.\"O to create a mapping (which is initially linear).
+.BR mmap (2)
+を使い、マッピングを作成する (このマッピングは最初は線形である)。
+.\"O This mapping must be created with the
+.\"O .B MAP_SHARED
+.\"O flag.
+このマッピングは
+.B MAP_SHARED
+フラグを指定して作成されなければならない。
+.TP
+2.
+.\"O Use one or more calls to
+.\"O .BR remap_file_pages ()
+.\"O to rearrange the correspondence between the pages of the mapping
+.\"O and the pages of the file.
+.\"O It is possible to map the same page of a file
+.\"O into multiple locations within the mapped region.
+.BR remap_file_pages ()
+を 1 回以上呼び出して、
+マッピングのページとファイルのページの対応関係を再構成する。
+ファイルの同じページをマッピング領域の複数の場所に
+マップすることが可能である。
+.LP
+.\"O The
+.\"O .I pgoff
+.\"O and
+.\"O .I size
+.\"O arguments specify the region of the file that is to be relocated
+.\"O within the mapping:
+.I pgoff
+と
+.I size
+引き数は、マッピング内で再配置されるファイルの領域を指定する。
+.\"O .I pgoff
+.\"O is a file offset in units of the system page size;
+.I pgoff
+はファイルオフセットであり、単位はシステムのページサイズである。
+.\"O .I size
+.\"O is the length of the region in bytes.
+.I size
+は領域の長さであり、単位はバイトである。
+
+.\"O The
+.\"O .I addr
+.\"O argument serves two purposes.
+.I addr
+引き数は 2 つの目的で使われる。
+.\"O First, it identifies the mapping whose pages we want to rearrange.
+第 1 の目的は、この引き数によって再編成したいページの
+マッピングを識別することである。
+.\"O Thus,
+.\"O .I addr
+.\"O must be an address that falls within
+.\"O a region previously mapped by a call to
+.\"O .BR mmap (2).
+よって
+.I addr
+は
+.BR mmap (2)
+の呼び出しで過去にマップされた領域内のアドレスでなければならない。
+.\"O Second,
+.\"O .I addr
+.\"O specifies the address at which the file pages
+.\"O identified by
+.\"O .I pgoff
+.\"O and
+.\"O .I size
+.\"O will be placed.
+第 2 の目的は、
+.I pgoff
+と
+.I size
+で識別されるファイルページが置かれる予定のアドレスを、
+.I addr
+によって指定することである。
+
+.\"O The values specified in
+.\"O .I addr
+.\"O and
+.\"O .I size
+.\"O should be multiples of the system page size.
+.\"O If they are not, then the kernel rounds
+.\"O .I both
+.\"O values
+.\"O .I down
+.\"O to the nearest multiple of the page size.
+.\"O .\" This rounding is weird, and not consistent with the treatment of
+.\"O .\" the analogous arguments for munmap()/mprotect() and for mlock().
+.\"O .\" MTK, 14 Sep 2005
+.I addr
+と
+.I size
+に指定する値は、システムのページサイズの倍数とすべきである。
+それ以外の場合、カーネルは「両方」の値を
+最も近いページサイズの倍数へ「切り下げる」。
+.\" この丸め処理は風変わりで、munmap()/mprotect() や mlock() の
+.\" 同様の引き数の処理方法とも矛盾する。
+.\" MTK, 14 Sep 2005
+
+.\"O The
+.\"O .I prot
+.\"O argument must be specified as 0.
+.I prot
+引き数は 0 に指定されなければならない。
+
+.\"O The
+.\"O .I flags
+.\"O argument has the same meaning as for
+.\"O .BR mmap (2),
+.\"O but all flags other than
+.\"O .B MAP_NONBLOCK
+.\"O are ignored.
+.I flags
+引き数は
+.BR mmap (2)
+のものと同じ意味であるが、
+.B MAP_NONBLOCK
+以外の全てのフラグは無視される。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O On success,
+.\"O .BR remap_file_pages ()
+.\"O returns 0.
+.\"O On error, \-1 is returned, and
+.\"O .I errno
+.\"O is set appropriately.
+成功した場合、
+.BR remap_file_pages ()
+は 0 を返す。
+エラーの場合、\-1 が返され、
+.I errno
+が適切に設定される。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EINVAL
+.\"O .I addr
+.\"O does not refer to a valid mapping
+.\"O created with the
+.\"O .B MAP_SHARED
+.\"O flag.
+.I addr
+が
+.B MAP_SHARED
+フラグを指定して作成された有効なマッピングを参照していない。
+.TP
+.B EINVAL
+.\"O .IR addr ,
+.\"O .IR size ,
+.\"O .IR prot ,
+.\"O or
+.\"O .I pgoff
+.\"O is invalid.
+.IR addr ,
+.IR size ,
+.IR prot ,
+.I pgoff
+のいずれかが不正である。
+.\"O .\" And possibly others from vma->vm_ops->populate()
+.\"Osato:
+.\"Osato: others が何を指すのかよく分からない。
+.\"Osato:
+.\" または vma->vm_ops->populate() からの他のエラーかもしれない。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O The
+.\"O .BR remap_file_pages ()
+.\"O system call appeared in Linux 2.5.46;
+.\"O glibc support was added in version 2.3.3.
+.BR remap_file_pages ()
+システムコールは Linux 2.5.46 で登場した。
+glibc でのサポートは glibc バージョン 2.3.3 で追加された。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+.\"O The
+.\"O .BR remap_file_pages ()
+.\"O system call is Linux-specific.
+.BR remap_file_pages ()
+システムコールは Linux 固有のものである。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR getpagesize (2),
+.BR mmap (2),
+.BR mmap2 (2),
+.BR mprotect (2),
+.BR mremap (2),
+.BR msync (2),
+.BR feature_test_macros (7)

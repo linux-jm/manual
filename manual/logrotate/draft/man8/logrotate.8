@@ -1,0 +1,711 @@
+.\" Though there is no copyright information in original man page,
+.\" this man page are distributed under GPL ver.2
+.\"
+.\" Japanese version copyright (c) 2005 Tatsuo SEKINE <tsekine@sdri.co.jp>
+.\"     all rights reserved.
+.\"
+.\" Translated on Fri Jul 15 22:24:36 EST 2005
+.\"     by Tatsuo "tatz" SEKINE <tsekine@sdri.co.jp>
+.\"
+.\"WORD: rotate			ローテート
+.\"WORD: state file		状態ファイル
+.\"WORD: global option		全体オプション
+.\"WORD: local option		個別オプション
+.\"WORD: parameter		パラメータ
+.\"WORD: directive		指示子
+.\"
+.TH LOGROTATE 8 "Wed Nov 5 2002" "Red Hat Linux" "System Administrator's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O logrotate \- rotates, compresses, and mails system logs
+logrotate \- システムログのローテーション、圧縮、メール送信
+.\"O .SH SYNOPSIS
+.SH 書式
+\fBlogrotate\fR [-dv] [-f|--force] [-s|--state \fIfile\fR] \fIconfig_file\fR+
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O \fBlogrotate\fR is designed to ease administration of systems that generate
+.\"O large numbers of log files.  It allows automatic rotation, compression, 
+.\"O removal, and mailing of log files.  Each log file may be handled daily,
+.\"O weekly, monthly, or when it grows too large.
+\fBlogrotate\fR は、沢山のログファイルを生成するシステムにおいて、
+その管理を容易にするように設計されている。
+ログファイルのローテーション、圧縮、削除、メール送信を
+自動的に行うことができる。
+各ログファイルを日ごと、週ごと、月ごとで処理することができ、
+またファイルが大きくなり過ぎたときにも処理することができる。
+.P
+.\"O Normally, \fBlogrotate\fR is run as a daily cron job.  It will not modify
+.\"O a log multiple times in one day unless the criterium for that log is
+.\"O based on the log's size and \fBlogrotate\fR is being run multiple times
+.\"O each day, or unless the \fB-f\fR or \fB-force\fR option is used. 
+通常、\fBlogrotate\fR は日ごとの cron ジョブの一つとして実行される。
+ログファイルを 1 日のうちに複数回修正することはない。
+但し、サイズを基準としてログを処理していて \fBlogrotate\fR が
+1 日に複数実行される場合と、
+\fB-f\fR か \fB\-\-force\fR オプションが使用された場合は例外である。
+.P
+.\"O Any number of config files may be given on the command line. Later config
+.\"O files may override the options given in earlier files, so the order
+.\"O in which the \fBlogrotate\fR config files are listed in is important.
+.\"O Normally, a single config file which includes any other config files
+.\"O which are needed should be used.  See below for more information on how
+.\"O to use the \fIinclude\fR directive to accomplish this.  If a directory
+.\"O is given on the command line, every file in that directory is used as
+.\"O a config file.
+コマンドラインでは、任意の数の設定ファイルを指定することができる。
+先に指定された設定ファイルで与えられたオプションは、後に指定されたファイル
+で上書きされてしまうので、\fBlogrotate\fR 設定ファイルを並べる順番は
+重要である。
+普通は単一の設定ファイルを使い、そこで他に必要な設定ファイル全てを読み込む
+べきである。
+そうするために、\fInclude\fR 指示子をどのように使用するかについては後述する。
+コマンドラインでディレクトリが指定された場合には、そのディレクトリにある
+全てのファイルが設定ファイルとして使用される。
+.P
+.\"O If no command line arguments are given, \fBlogrotate\fR will print
+.\"O version and copyright information, along with a short usage summary.  If
+.\"O any errors occur while rotating logs, \fBlogrotate\fR will exit with
+.\"O non-zero status.
+コマンドライン引き数が何も指定されなかった場合には、
+使用方法のバージョン情報、著作権情報、簡単な使用方法を表示する。
+ログのローテーション中に何らかのエラーが発生した場合には、
+\fBlogrotate\fR は 0 以外のステータス値で終了する。
+.\"O 
+.\"O .SH OPTIONS
+.SH オプション
+.TP
+\fB-v\fR
+.\"O Turn on verbose mode.
+詳細表示 (verbose) モードを有効にする。
+.\"O 
+.TP
+\fB-d\fR
+.\"O Turns on debug mode and implies \fB-v\fR.  In debug mode, no changes will
+.\"O be made to the logs or to the \fBlogrotate\fR state file.
+デバッグモードを有効にする。
+これは  \fB-v\fR も含む。
+デバッグモードでは、ログファイルや \fBlogrotate\fR 状態ファイルに対して
+何の変更もしない。
+.\"O 
+.TP
+\fB-f, -\-force\fR
+.\"O Tells \fBlogrotate\fR to force the rotation, even if it doesn't think
+.\"O this is necessary.  Sometimes this is useful after adding new entries to
+.\"O \fBlogrotate\fR, or if old log files have been removed by hand, as the
+.\"O new files will be created, and logging will continue correctly.
+たとえローテーションの必要がないと思われるときでも、\fBlogrotate\fR に
+ローテーションを強制させる。
+もし手動でログファイルを削除したときに、新たなファイルが作成されてログ出力
+が正常に続く場合、また \fBlogrotate\fR に新たなエントリを加えたときに、
+これは便利である。
+.\"O 
+.TP
+.\"O \fB-m, -\-mail <command>\fR
+.BI "\-m, \-\-mail <" command >
+.\"O Tells \fBlogrotate\fR which command to use when mailing logs. This
+.\"O command should accept two arguments: 1) the subject of the message, and
+.\"O 2) the recipient. The command must then read a message on standard input
+.\"O and mail it to the recipient. The default mail command is \fB/bin/mail
+.\"O -s\fR.
+ログをメールするときに使用するコマンド \fIcommand\fR を指定する。
+この \fIcommand\fR は次の二つの引数を受け付けなければならない。
+1 つ目はメッセージの subject、2 つ目は受信者である。
+そして \fIcommand\fR は標準入力からメッセージを読み込み、受信者に
+それをメールしなければならない。
+デフォルトのメールコマンドは \fB/bin/mail -s\fR である。
+.\"O 
+.TP
+\fB-s, -\-state <statefile>\fR
+.\"O Tells \fBlogrotate\fR to use an alternate state file.  This is useful
+.\"O if logrotate is being run as a different user for various sets of
+.\"O log files.  The default state file is \fI/var/lib/logrotate/status\fR.
+代わりの"状態ファイル"を指定する。
+様々なログファイル群のために、異なるユーザーとして
+logrotate を実行する場合に便利である。
+デフォルトの状態ファイルは \fI/var/lib/logrotate/status\fR である。
+.\"O 
+.TP
+\fB-\-usage\fR
+.\"O Prints a short usage message.
+使用方法の短い要約を表示する。
+.\"O 
+.\"O .SH CONFIGURATION FILE
+.SH 設定ファイル
+.\"O 
+.\"O \fBlogrotate\fR reads everything about the log files it should be handling
+.\"O from the series of configuration files specified on the command line.  Each
+.\"O configuration file can set global options (local definitions override
+.\"O global ones, and later definitions override earlier ones) and specify
+.\"O logfiles to rotate. A simple configuration file looks like this:
+\fBlogrotate\fR は取り扱うべきログファイルについての全てを、
+コマンドラインで指定された一連の設定ファイルから読み込む。
+各設定ファイルでは全体オプション
+(個別での定義は全体オプションを上書きし、
+後から定義したものが以前のものを上書きする) の設定と、
+ローテートするログファイルの指定ができる。
+簡単な設定ファイルは以下のようなものである。
+
+.nf
+.ta +8n
+.\"O # sample logrotate configuration file
+# logrotate 設定ファイルのサンプル
+compress
+
+/var/log/messages {
+    rotate 5
+    weekly
+    postrotate
+	/sbin/killall -HUP syslogd
+    endscript
+}
+
+"/var/log/httpd/access.log" /var/log/httpd/error.log {
+    rotate 5
+    mail www@my.org
+    size=100k
+    sharedscripts
+    postrotate
+	/sbin/killall -HUP httpd
+    endscript
+}
+
+/var/log/news/* {
+    monthly
+    rotate 2
+    olddir /var/log/news/old
+    missingok
+    postrotate
+	kill -HUP `cat /var/run/inn.pid`
+    endscript
+    nocompress
+}
+.fi
+
+.PP
+.\"O The first few lines set global options; in the example, logs are
+.\"O compressed after they are rotated.  Note that comments may appear
+.\"O anywhere in the config file as long as the first non-whitespace
+.\"O character on the line is a #.
+最初の数行は全体オプションを設定している。
+この例では、ログはローテートされた後に圧縮される。
+なお、その行での最初の非空白文字が # であれば、設定ファイルのどこにでも
+コメントを置くことができる。
+
+.\"O The next section of the config files defined how to handle the log file
+.\"O \fI/var/log/messages\fR. The log will go through five weekly rotations before
+.\"O being removed. After the log file has been rotated (but before the old
+.\"O version of the log has been compressed), the command 
+.\"O \fI/sbin/killall -HUP syslogd\fR will be executed.
+設定ファイルの次のセクションは、ログファイル \fI/var/log/messages\fR
+をどのように処理するかを定義している。
+このログファイルは、5 回の週ごとのローテーション後に削除される。
+ログファイルがローテートされた後 (ただし、古いログが
+圧縮される前) に、コマンド \fI/sbin/killall -HUP syslogd\fR
+が実行される。
+
+.\"O The next section defines the parameters for both
+.\"O \fI/var/log/httpd/access.log\fR and \fI/var/log/httpd/error.log\fR.
+.\"O They are rotated whenever is grows over 100k is size, and the old logs
+.\"O files are mailed (uncompressed) to www@my.org after going through 5
+.\"O rotations, rather then being removed. The \fBsharedscripts\fR means that
+.\"O the \fBpostrotate\fR script will only be run once(after the old
+.\"O logs have been compressed), not once for each
+.\"O log which is rotated. Note that the double quotes around the first filename
+.\"O at the beginning of this section allows logrotate to rotate logs with
+.\"O spaces in the name. Normal shell quoting rules apply, with ', ", and \\
+.\"O characters supported.
+その次のセクションは、
+\fI/var/log/httpd/access.log\fR と \fI/var/log/httpd/error.log\fR
+の両方のためのパラメータを定義している。
+これらはサイズが 100k を越えた時にローテートされ、古いログファイルは
+削除される代わりに、5 回のローテーションの後に (伸長された上で)
+www@my.org 宛にメールされる。
+\fBsharedscripts\fR は、\fBpostrotate\fR スクリプトが 1 回だけ
+(古いログが圧縮された後に) 実行されることを意味する。
+各ログファイルがローテートされるごとに 1 回ずつ実行されるのではない。
+なお、このセクションの先頭にある最初のファイル名の周りにある
+ダブルクォート(")は、名前に空白のあるログファイルのローテートを
+可能にする。
+普通のシェルのクォーティング規則が ', ", \\ に適用される。
+
+.\"O The last section defines the parameters for all of the files in
+.\"O \fI/var/log/news\fR. Each file is rotated on a monthly basis.  This is
+.\"O considered a single rotation directive and if errors occur for more then
+.\"O one file, the log files are not compressed.
+最後のセクションは \fI/var/log/news\fR にある全てのファイルに対しての
+パラメータを定義している。
+各ファイルは月ごとにローテートされる。
+これは単一のローテーション指定と見なされ、複数のファイルで
+エラーが発生した場合にはログファイルは圧縮されない。
+
+.\"O Please use wildcards with caution.  If you specify *, \fBlogrotate\fR will
+.\"O rotate all files, including previously rotated ones.  A way around this
+.\"O is to use the \fBolddir\fR directive or a more exact wildcard (such as *.log).
+ワイルドカードの使用には注意して欲しい。
+* が指定された場合、\fBlogrotate\fR は以前にローテートされたログを含めた
+全てのファイルをローテートする。
+これの回避方法は \fBolddir\fR 指示子を使用するか、または
+(*.log のような) もっと細かいワイルドカードを使用することである。
+
+.\"O Here is more information on the directives which may be included in
+.\"O a \fBlogrotate\fR configuration file:
+以下、\fBlogrotate\fR 設定ファイルで指定できる指示子についての
+詳細である。
+.\"O 
+.TP
+\fBcompress\fR
+.\"O Old versions of log files are compressed with \fBgzip\fR by default. See also
+.\"O \fBnocompress\fR. 
+古いバージョンのログファイルを \fBgzip\fR (デフォルト) で圧縮する。
+\fBnocompress\fR も参照のこと。
+.\"O 
+.TP
+\fBcompresscmd\fR
+.\"O Specifies which command to use to compress log files.  The default is
+.\"O \fBgzip\fR.  See also \fBcompress\fR.
+ログファイルの圧縮に用いるコマンドを指定する。
+デフォルトは \fBgzip\fR である。
+\fBcompress\fR も参照のこと。
+.\"O 
+.TP
+\fBuncompresscmd\fR
+.\"O Specifies which command to use to uncompress log files.  The default is
+.\"O \fBgunzip\fR.
+ログファイルの伸長に用いるコマンドを指定する。
+デフォルトは \fBgunzip\fR である。
+.\"O 
+.TP
+\fBcompressext\fR
+.\"O Specifies which extension to use on compressed logfiles, if compression
+.\"O is enabled.  The default follows that of the configured compression
+.\"O command.
+圧縮が有効な場合に、圧縮されたログファイルに使用される拡張子を指定する。
+デフォルトは、デフォルトの圧縮コマンドに従う。
+.\"O 
+.TP
+\fBcompressoptions\fR
+.\"O Command line options may be passed to the compression program, if one is
+.\"O in use.  The default, for \fBgzip\fR, is "-9" (maximum compression).
+圧縮が有効な場合に、圧縮プログラムに渡されるコマンドラインオプション。
+デフォルトは \fBgzip\fR のための "-9" (最大圧縮) である。
+.\"O 
+.TP
+\fBcopy\fR
+.\"O Make a copy of the log file, but don't change the original at all.
+.\"O This option can be used, for instance, to make a snapshot of the current
+.\"O log file, or when some other utility needs to truncate or pare the file.
+.\"O When this option is used, the \fBcreate\fR option will have no effect,
+.\"O as the old log file stays in place.
+ログファイルのコピーを作るが、元のファイルをいっさい変更しない。
+このオプションは、例えばその時点でのログファイルのスナップショットを
+作成する場合、すなわち、ある他のユーティリティがファイルを丸めたり
+削除したりする必要がある場合に使用することができる。
+このオプションが使用されたときは、古いログファイルがそのままにされるので
+\fBcreate\fR オプションは効果がない。
+.\"O 
+.TP
+\fBcopytruncate\fR
+.\"O Truncate the original log file in place after creating a copy,
+.\"O instead of moving the old log file and optionally creating a new one,
+.\"O It can be used when some program can not be told to close its logfile
+.\"O and thus might continue writing (appending) to the previous log file forever.
+コピーを作成した後、古いログファイルを移動して新しいファイルを作成する
+(create オプション) のではなく、その代わりに元のファイルをその場で
+切り詰める (truncate)。
+ログファイルを閉じるようにと伝えられないプログラムでは、
+以前のログファイルに永遠に書き続ける (追加し続ける) おそれがあるので、
+そのような時にこのオプションを使うことができる。
+
+.\"O Note that there is a very small time slice between copying the file and
+.\"O truncating it, so some logging data might be lost.
+.\"O When this option is used, the \fBcreate\fR option will have no effect,
+.\"O as the old log file stays in place.
+ファイルのコピーと切り詰めの間においてわずかな時間差があるために、
+ログデータが失われる可能性があることに注意せよ。
+このオプションが使用されたときは、古いログファイルがそのままにされるので
+\fBcreate\fR オプションは効果がない。
+.\"O 
+.TP
+\fBcreate \fImode\fR \fIowner\fR \fIgroup\fR
+.\"O Immediately after rotation (before the \fBpostrotate\fR script is run)
+.\"O the log file is created (with the same name as the log file just rotated).
+.\"O \fImode\fR specifies the mode for the log file in octal (the same
+.\"O as \fBchmod(2)\fR), \fIowner\fR specifies the user name who will own the
+.\"O log file, and \fIgroup\fR specifies the group the log file will belong
+.\"O to. Any of the log file attributes may be omitted, in which case those
+.\"O attributes for the new file will use the same values as the original log
+.\"O file for the omitted attributes. This option can be disabled using the
+.\"O \fBnocreate\fR option.
+ローテーション直後 (\fBpostrotate\fR スクリプト実行前) に、
+ログファイルを (そのローテートされたのと同じ同じログファイル名で)
+作成する。
+\fImode\fR にはログファイルのモードを (\fBchmod(2)\fR と同じ) 8 進数で、
+\fIowner\fR にはログファイルの所有者の名前を、
+\fIgroup\fR にはログファイルが属するグループのをそれぞれ指定する。
+ログファイルの属性はどれも省略が可能で
+(訳注: ただし設定方法から明らかなように、mode だけ、owner だけ省略のような
+結果として指定順が変わってしまうような省略はできない)、
+その場合には元のログファイルのと同じ値が新しいファイルの属性として使用される。
+このオプションは \fBnocreate\fR オプションを使えば無効にできる。
+.\"O 
+.TP
+\fBdaily\fR
+.\"O Log files are rotated every day.
+ログファイルは毎日ローテートされる。
+.\"O 
+.TP
+\fBdateext\fR
+.\"O Archive old versions of log files adding a daily extension like YYYYMMDD
+.\"O instead of simply adding a number.
+古いバージョンのログファイルに、単に数字を付加する代わりに YYYYMMDD
+のような日ごとの拡張子を付加する。
+.\"O 
+.TP
+\fBdelaycompress\fR
+.\"O Postpone compression of the previous log file to the next rotation cycle.
+.\"O This has only effect when used in combination with \fBcompress\fR.
+.\"O It can be used when some program can not be told to close its logfile
+.\"O and thus might continue writing to the previous log file for some time.
+以前のログファイルの圧縮を、その次のローテーションまで繰り下げる。
+これは \fBcompress\fR と共に用いた場合にのみ意味を持つ。
+ログファイルを閉じるようにと伝えられないプログラムでは、
+たまに以前のログファイルに書いてしまうので、
+そのような時にこのオプションを使うことができる。
+.\"O 
+.TP
+\fBextension \fIext\fR
+.\"O Log files are given the final extension \fIext\fR after rotation. If 
+.\"O compression is used, the compression extension (normally \fB.gz\fR)
+.\"O appears after \fIext\fR.
+ログファイルには、ローテーション後に指定された拡張子 \fIext\fR が最後に
+付加される。
+圧縮される場合には、圧縮による拡張子 (普通は \fB.gz\fR) が
+\fIext\fR の後に付加される。
+.\"O 
+.TP
+\fBifempty\fR
+.\"O Rotate the log file even if it is empty, overiding the \fBnotifempty\fR
+.\"O option (ifempty is the default).
+ファイルが空であってもローテートする。
+これは \fBnotifempty\fR オプションを上書きする
+(ifempty がデフォルトである)。
+.\"O 
+.TP
+\fBinclude \fIfile_or_directory\fR
+.\"O Reads the file given as an argument as if it was included inline
+.\"O where the \fBinclude\fR directive appears. If a directory is given,
+.\"O most of the files in that directory are read in alphabetic order
+.\"O before processing of the including file continues. The only files
+.\"O which are ignored are files which are not regular files (such as
+.\"O directories and named pipes) and files whose names end with one of
+.\"O the taboo extensions, as specified by the \fBtabooext\fR directive.
+.\"O The \fBinclude\fR directive may not appear inside of a log file
+.\"O definition.
+\fBinclude\fR 指示子があるところに、そこにファイルの内容がインライン展開
+されるかのように、引数で与えられたファイルを読み込む。
+もしディレクトリが指定された場合、ファイル展開処理を継続する前に、その
+ディレクトリにあるほとんど全てのファイルがアルファベット順に読み込まれる。
+無視されるファイルは、通常のファイルではないファイル (ディレクトリや
+名前付きパイプなど)、およびファイル名が \fBtabooext\fR 指示子で
+指定されるタブーな拡張子で終わるものである。
+\fBinclude\fR 指示子は、ログファイル定義内で指定してはいけない。
+.\"O 
+.TP
+\fBmail \fIaddress\fR
+.\"O When a log is rotated out-of-existence, it is mailed to \fIaddress\fR. If
+.\"O no mail should be generated by a particular log, the \fBnomail\fR directive
+.\"O may be used.
+ログがローテートされて消されるとき、そのログを \fIaddress\fR にメールする。
+特定のログではメールを生成したくなければ、\fBnomail\fR 指示子が使用できる。
+.\"O 
+.TP
+\fBmailfirst\fR
+.\"O When using the \fBmail\fR command, mail the just-rotated file,
+.\"O instead of the about-to-expire file.
+\fBmail\fR コマンド使用時に、消されるファイルではなく、最初にローテート
+されたファイルをメールする。
+.\"O 
+.TP
+\fBmaillast\fR
+.\"O When using the \fBmail\fR command, mail the about-to-expire file,
+.\"O instead of the just-rotated file (this is the default).
+\fBmail\fR コマンド使用時に、最初にローテートされたファイルではなく、
+消されるファイルをメールする (これがデフォルト動作である)。
+.\"O 
+.TP
+\fBmaxage\fR \fIcount\fR
+.\"O Remove rotated logs older than <count> days. The age is only checked
+.\"O if the logfile is to be rotated. The files are mailed to the
+.\"O configured address if \fBmaillast\fR and \fBmail\fR are configured.
+<count> 日よりも古い、ローテート済みのログを削除する。
+ファイルがローテートされるときにのみ、その寿命がチェックされる。
+\fBmaillast\fR と \fBmail\fR が設定されていれば、ファイルは
+メールされる。
+.\"O 
+.TP
+\fBmissingok\fR
+.\"O If the log file is missing, go on to the next one without issuing an error
+.\"O message. See also \fBnomissingok\fR.
+もしログファイルが無い場合、エラーメッセージなしに次へと処理を続ける。
+\fBnomissingok\fR も参照のこと。
+.\"O 
+.TP
+\fBmonthly\fR
+.\"O Log files are rotated the first time \fBlogrotate\fR is run in a month 
+.\"O (this is normally on the first day of the month).
+その月で最初に \fBlogrotate\fI が実行されたとき
+(普通は月の最初の日) にログファイルがローテートされる。
+.\"O 
+.TP
+\fBnocompress\fR
+.\"O Old versions of log files are not compressed with \fBgzip\fR. See also
+.\"O \fBcompress\fR. 
+古いログファイルを \fBgzip\fR で圧縮しない。
+\fBcompress\fR も参照のこと。
+.\"O 
+.TP
+\fBnocopy\fR
+.\"O Do not copy the original log file and leave it in place.
+.\"O (this overrides the \fBcopy\fR option).
+元のログファイルをコピーせず、その場にそのままにする
+(これは \fBcopy\fR オプションを上書きする)。
+.\"O 
+.TP
+\fBnocopytruncate\fR
+.\"O Do not truncate the original log file in place after creating a copy
+.\"O (this overrides the \fBcopytruncate\fR option).
+コピー作成後に、ログファイルを切り詰めない
+(これは \fBcopytruncate\fR オプションを上書きする)。
+.\"O 
+.TP
+\fBnocreate\fR
+.\"O New log files are not created (this overrides the \fBcreate\fR option).
+新しいログファイルを作成しない
+(これは \fBcreate\fR オプションを上書きする)。
+.\"O 
+.TP
+\fBnodelaycompress\fR
+.\"O Do not postpone compression of the previous log file to the next rotation cycle
+.\"O (this overrides the \fBdelaycompress\fR option).
+圧縮の繰り下げ
+(以前のログファイルの圧縮を、その次のローテーションまで繰り下げる)
+をしない
+(これは \fBdelaycompress\fR オプションを上書きする)。
+.\"O 
+.TP
+\fBnomail\fR
+.\"O Don't mail old log files to any address.
+古いログファイルをいかなるアドレスにもメールしない。
+.\"O 
+.TP
+\fBnomissingok\fR
+.\"O If a log file does not exist, issue an error. This is the default.
+ログファイルが存在しない場合に、エラーにする。
+これはデフォルトである。
+.\"O 
+.TP
+\fBnoolddir\fR
+.\"O Logs are rotated in the same directory the log normally resides in (this 
+.\"O overrides the \fBolddir\fR option).
+ログが普通に存在するディレクトリと同じところで、ログをローテートする。
+(これは \fBolddir\fR オプションを上書きする)。
+.\"O 
+.TP
+\fBnosharedscripts\fR
+.\"O Run \fBprerotate\fR and \fBpostrotate\fR scripts for every log file which
+.\"O is rotated (this is the default, and overrides the \fBsharedscripts\fR
+.\"O option).
+ローテートされる各ログファイルに対して \fBprerotate\fR および
+\fBpostrotate\fR スクリプトを実行する
+(これがデフォルトで、\fBsharedscripts\fR オプションを上書きする)。
+.\"O 
+.TP
+\fBnotifempty\fR
+.\"O Do not rotate the log if it is empty (this overrides the \fBifempty\fR option).
+ログファイルが空であった場合にローテートしない
+(これは \fBifempty\fR オプションを上書きする)。
+.\"O 
+.TP
+\fBolddir \fIdirectory\fR
+.\"O Logs are moved into \fIdirectory\fR for rotation. The \fIdirectory\fR
+.\"O must be on the same physical device as the log file being rotated,
+.\"O and is assumed to be relative to the directory holding the log file
+.\"O unless an absolute path name is specified. When this option is used all
+.\"O old versions of the log end up in \fIdirectory\fR.  This option may be
+.\"O overriden by the \fBnoolddir\fR option.
+ローテーションのためにログを \fIdirecroty\fR に移動する。
+\fIdirecroty\fR はローテートされるログファイルと同じ物理デバイス上に
+なければならず、絶対パスで指定されていない場合にはログファイルのある
+ディレクトリからの相対パスであると見なされる。
+このオプションが使用された場合、古いログは全て \fIdireactory\fR 以下に
+収まる。
+このオプションは \fBnoolddir\fR オプションで上書きすることができる。
+.\"O 
+.TP
+\fBpostrotate\fR/\fBendscript\fR
+.\"O The lines between \fBpostrotate\fR and \fBendscript\fR (both of which
+.\"O must appear on lines by themselves) are executed after the log file is
+.\"O rotated. These directives may only appear inside of a log file definition.
+.\"O See \fBprerotate\fR as well.
+\fBpostrotate\fR と \fBendscript\fR
+(これらは両方とも、それ単独で行に存在しなければならない)
+の間にある行がログファイルのローテート後に実行される。
+これらの指示子はログファイル定義内になければならない。
+\fBprerotate\fR も参照のこと。
+.\"O 
+.TP
+\fBprerotate\fR/\fBendscript\fR
+.\"O The lines between \fBprerotate\fR and \fBendscript\fR (both of which
+.\"O must appear on lines by themselves) are executed before the log file is
+.\"O rotated and only if the log will actually be rotated. These directives
+.\"O may only appear inside of a log file definition.  See \fBpostrotate\fR
+.\"O as well.
+\fBprerotate\fR と \fBendscript\fR
+(これらは両方とも、それ単独で行に存在しなければならない)
+の間にある行がログファイルのローテート前、ログファイルが実際に
+ローテートされる場合にのみに実行される。
+これらの指示子はログファイル定義内になければならない。
+\fBprerotate\fR も参照のこと。
+.\"O 
+.TP
+\fBfirstaction\fR/\fBendscript\fR
+.\"O The lines between \fBfirstaction\fR and \fBendscript\fR (both of which
+.\"O must appear on lines by themselves) are executed once before all log
+.\"O files that match the wildcarded pattern are rotated, before prerotate script
+.\"O is run and only if at least one log will actually be rotated. These directives
+.\"O may only appear inside of a log file definition. See \fBlastaction\fR as well.
+\fBfirstaction\fR と \fBendscript\fR
+(これらは両方とも、それ単独で行に存在しなければならない)
+の間にある行が、ワイルドカードパターンにマッチする全てのログファイルに対して
+1 回だけ実行される。
+これは実際にローテートされるファイルが少なくとも一つある場合にのみ、
+prerotate スクリプトの実行前に実行される。
+これらの指示子はログファイル定義内になければならない。
+\fBlastaction\fR も参照のこと。
+.\"O 
+.\"O .TP
+.\"O \fBlastaction\fR/\fBendscript\fR
+.\"O The lines between \fBlastaction\fR and \fBendscript\fR (both of which
+.\"O must appear on lines by themselves) are executed once after all log
+.\"O files that match the wildcarded pattern are rotated, after postrotate script
+.\"O is run and only if at least one log is rotated. These directives may only
+.\"O appear inside of a log file definition. See \fBfirstaction\fR as well.
+ \fBlastaction\fR と \fBendscript\fR
+(これらは両方とも、それ単独で行に存在しなければならない)
+の間にある行が、ワイルドカードパターンにマッチする全てのログファイルに対して
+1 回だけ実行される。
+これはローテートされたファイルが少なくとも一つある場合にのみ、
+postrotate スクリプトの実行後に実行される。
+これらの指示子はログファイル定義内になければならない。
+\fBfirstaction\fR も参照のこと。
+.\"O 
+.TP
+\fBrotate \fIcount\fR
+.\"O Log files are rotated <count> times before being removed or mailed to the
+.\"O address specified in a \fBmail\fR directive. If \fIcount\fR is 0, old versions
+.\"O are removed rather then rotated.
+削除される前、または \fBmail\fR 指示子で指定されるアドレスへと
+メールする前に、ログファイルを \fIcount\fR 回ローテートする。
+\fIcount\fR が 0 の場合、古いファイルはローテート無しに削除される。
+.\"O 
+.TP
+\fBsize \fIsize\fR
+.\"O Log files are rotated when they grow bigger then \fIsize\fR bytes. If
+.\"O \fIsize\fR is followed by \fIM\fR, the size if assumed to be in megabytes.
+.\"O If the \fIk\fR is used, the size is in kilobytes. So \fBsize 100\fR,
+.\"O \fIsize 100k\fR, and \fIsize 100M\fR are all valid.
+ログファイルが \fIsize\fR バイト以上になったときにローテートする。
+\fIsize\fR の後ろに \fIM\fR を付けた場合はメガバイト単位と、
+ \fIk\fR を付けた場合にはキロバイト単位と、それぞれ見なされる。
+よって、\fBsize 100\fR, \fIsize 100k\fR, \fIsize 100M\fR
+のいずれも指定可能である。
+.\"O 
+.TP
+\fBsharedscripts\fR
+.\"O Normally, \fBprescript\fR and \fBpostscript\fR scripts are run for each
+.\"O log which is rotated, meaning that a single script may be run multiple
+.\"O times for log file entries which match multiple files (such as the 
+.\"O /var/log/news/* example). If \fBsharedscript\fR is specified, the scripts
+.\"O are only run once, no matter how many logs match the wildcarded pattern.
+.\"O However, if none of the logs in the pattern require rotating, the scripts
+.\"O will not be run at all. This option overrides the \fBnosharedscripts\fR
+.\"O option and implies \fBcreate\fR option.
+通常、\fBprescript\fR 及び \fBpostscript\fR スクリプトは
+ローテートされる各ログファイルごとに実行され、
+これは (例にある /var/log/news/* のように) 複数のファイルにマッチする
+ログファイルエントリに対して一つのスクリプトが複数回実行されることを
+意味する。
+\fBsharedscript\fR が指定された場合、ワイルドカードパターンに
+どれだけログファイルがマッチしたかに関係なく、スクリプトは 1 回だけ
+実行される。
+しかし、パターンにあるログファイルがどれもローテーションを必要と
+していない場合には、スクリプトは全く実行されない。
+このオプションは \fBnosharedscripts\fR オプションを上書きし、また
+\fBcreate\fR オプションを含む。
+.\"O 
+.TP
+\fBstart \fIcount\fR
+.\"O This is the number to use as the base for rotation. For example, if
+.\"O you specify 0, the logs will be created with a .0 extension as they are
+.\"O rotated from the original log files.  If you specify 9, log files will
+.\"O be created with a .9, skipping 0-8.  Files will still be rotated the
+.\"O number of times specified with the \fBcount\fR directive.
+ローテーションの最初に用いられる数字を指定する。
+例えば 0 を指定した場合、元のログファイルからローテートされた
+ファイルは .0 という拡張子を付けて作成される。
+もし 9 を指定したのなら、0-8 を飛ばして .9 を付けたログファイルが
+作成される。
+この値に関係なく、ファイルは \fBcount\fR 指示子で指定された回数だけ
+ローテートされる。
+.\"O 
+.TP
+\fBtabooext\fR [+] \fIlist\fR
+.\"O The current taboo extension list is changed (see the \fBinclude\fR directive
+.\"O for information on the taboo extensions). If a + precedes the list of
+.\"O extensions, the current taboo extension list is augmented, otherwise it
+.\"O is replaced. At startup, the taboo extension list 
+.\"O contains .rpmorig, .rpmsave, ,v, .swp, .rpmnew, and ~.
+現在のタブーな拡張子のリストを変更する
+(タブーな拡張子については \fBinclude\fR 指示子を参照のこと)。
+拡張子のリストの前に + を指定した場合には、現在のタブーな拡張子のリスト
+に追加されるが、そうでなければ指定したものに置き換えられる。
+起動時、タブーな拡張子のリストは .rpmorig, .rpmsave, ,v, .swp, .rpmnew, ~
+からなる。
+.\"O 
+.TP
+\fBweekly\fR
+.\"O Log files are rotated if the current weekday is less then the weekday
+.\"O of the last rotation or if more then a week has passed since the last
+.\"O rotation. This is normally the same as rotating logs on the first day
+.\"O of the week, but it works better if \fIlogrotate\fR is not run every
+.\"O night.
+その時点での曜日が最後のローテーションの曜日より小さいか、または
+最後のローテーションから 1 週間以上経過していればログファイルを
+ローテートする。
+普通は週の最初の日にログをローテートすることと同じであるが、
+\fIlogrotate\fR を毎晩動作させなくてもちゃんと動作する。
+.\"O 
+.\"O .SH FILES
+.SH ファイル
+.PD 0
+.TP 27
+\fI/var/lib/logrotate.status\fR
+.\"O Default state file.
+デフォルトの状態ファイル。
+.TP 27
+\fI/etc/logrotate.conf\fR
+.\"O Configuration options.
+設定オプション。
+
+.\"O .SH SEE ALSO
+.SH 関連項目
+.IR gzip (1)
+
+.\"O .SH AUTHORS
+.SH 著者
+.nf
+Erik Troan <ewt@redhat.com>
+.nf
+Preston Brown <pbrown@redhat.com>
+.fi

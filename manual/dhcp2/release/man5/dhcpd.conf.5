@@ -1,0 +1,833 @@
+.\"	dhcpd.conf.5
+.\"
+.\" Copyright (c) 1995, 1996, 1997, 1998, 1998, 1999
+.\" The Internet Software Consortium.    All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.\" Japanese Version Copyright (c) 2001 NAKANO Takeo all rights reserved.
+.\" Translated Sun Sep 9 2001 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.TH dhcpd.conf 5
+.SH 名前
+dhcpd.conf \- dhcpd の設定ファイル
+.SH 説明
+dhcpd.conf は、Internet Software Consortium DHCP サーバ
+.I dhcpd
+の設定情報が書かれたファイルです。
+.PP
+dhcpd.conf ファイルは自由形式の ASCII テキストファイルです。
+dhcpd に組み込まれた再帰下降型のパーザによって解釈されます。
+このファイルには、整形の目的で余分なタブや改行を入れてもかまいません。
+このファイルでは、キーワードの大文字小文字は区別されません。
+コメントはファイルのどこにでも入れられます (クォートの内部を除く)。
+コメントは # 文字で始まり、行末で終わります。
+.PP
+このファイルは基本的には文 (statement) のリストからなります。
+文は大きく二つのカテゴリに分けられます。パラメータ文と宣言文です。
+.PP
+パラメータ文は、
+なにかをどの様に行うか (例えば提供するリースの長さ)、
+なにかを行うかどうか
+(例えば素性のわからないクライアントにもアドレスを与えるかどうか)、
+クライアントにどの様なパラメータを与えるか
+(例えばゲートウェイとして 220.177.244.7)、
+などを決めます。
+.PP
+宣言文は、
+ネットワークのトポロジーを記述したり、
+ネットワークのクライアントを記述したり、
+クライアントに割り当て可能なアドレスを決めたり、
+ひとまとまりのパラメータを宣言文のグループに与えたりするために用います。
+パラメータ文や宣言文のグループにおいては、
+ある宣言文が依存するパラメータ文は、
+その宣言文よりも前に指定しなければなりません。
+.PP
+ネットワークトポロジーに関する宣言には
+\fIshared-network\fR 文と \fIsubnet\fR 文があります。
+サブネットにあるクライアントがアドレスを動的に割り当ててもらう場合は、
+\fIsubnet\fR 宣言の内部に \fIrange\fR 宣言文も必要になります。
+静的にアドレスが割り当てられたクライアントや、
+素性のわかっているクライアントにのみアドレスを提供するような設定では、
+このようなクライアントに対して \fIhost\fR 宣言文が必要です。
+特にサブネットに関連付けられていない宣言グループに
+何らかのパラメータを与えたい場合は、
+\fIgroup\fR 宣言文が使えます。
+.PP
+サービスを受けるサブネットや、dhcp サーバが接続するサブネットには、
+すべて \fIsubnet\fR 宣言が必要となります。これによって dhcpd は、
+あるアドレスがそのサブネットにあることを認識するのです。
+\fIsubnet\fR 宣言は、
+そのサブネットに動的割り当てを受けるアドレスがなくても必要です。
+.PP
+場合によっては、一つの物理的なネットワークに上で
+2 つ以上の IP サブネットが動作することがあります。
+例えば、組織のルールで 8 ビットのサブネットマスクを使っているとしましょう。
+このときある部門で、
+一つの物理イーサネットネットワークに接続するノードが 254 を越えてしまったら、
+新しい物理ネットワークが追加できるまでは、
+そのイーサネットで 8 ビットのサブネットを 2 つ走らせなければならないでしょう。
+このような場合には、
+これらの 2 つのネットワークに対する \fIsubnet\fR 宣言は、
+\fIshared-network\fR (共有ネットワーク) 宣言で囲うことができます。
+.PP
+サイトによっては、
+ある部門のクライアントが 2 つ以上のサブネットに接続されていることもあるでしょう。
+このときこれらのクライアントに共通のパラメータを与え、
+かつ同じサブネットにいる別の部門のクライアントには
+違うパラメータを与えたいとしましょう。
+\fIhost\fR 宣言によって明示的に宣言するクライアントでは、
+これらを \fIgroup\fR 宣言によって囲って、
+その部門に共通のパラメータを与えることができます。
+アドレスが動的に割り当てられるクライアントでは、
+今のところネットワークトポロジーによる他には、
+グループ単位でのパラメータ割り当てを行う方法はありません。
+.PP
+あるクライアントがブートする場合、
+そのブートパラメータを決定するには、
+まずそのクライアントの \fIhost\fR 宣言が (存在すれば) 参照されます。
+次にその \fIhost\fR 宣言を囲っている
+\fIgroup\fR 宣言が (存在すれば) 参照されます。
+その次にはブートするクライアントが所属するサブネットの
+\fIsubnet\fR 宣言が参照され、
+さらにそのサブネットを囲っている
+\fIshared-network\fR 宣言が (存在すれば) 参照されます。
+最後に、すべての宣言の外部に置かれている、
+トップレベルのパラメータが参照されます。
+.PP
+dhcpd がクライアントに対応する \fIhost\fR 宣言を探すときには、
+まずそのクライアントがブートしようとしているサブネット (または共有ネットワーク)
+にマッチする \fIfixed-address\fR パラメータを含む \fIhost\fR 宣言を探します。
+そのようなエントリがなければ、
+\fIfixed-address\fR パラメータが含まれないエントリを探します。
+そのようなエントリもなければ、
+たとえそのクライアントのエントリが別のサブネットや共有ネットワークにあっても、
+dhcpd はそのクライアントのエントリが
+dhcpd.conf ファイルには存在しないかのように動作します。
+.SH 例
+.PP
+よくある dhcpd.conf ファイルの例を示します:
+.nf
+
+.I global parameters...
+
+shared-network ISC-BIGGIE {
+  \fIshared-network-specific parameters...\fR
+  subnet 204.254.239.0 netmask 255.255.255.224 {
+    \fIsubnet-specific parameters...\fR
+    range 204.254.239.10 204.254.239.30;
+  }
+  subnet 204.254.239.32 netmask 255.255.255.224 {
+    \fIsubnet-specific parameters...\fR
+    range 204.254.239.42 204.254.239.62;
+  }
+}
+
+subnet 204.254.239.64 netmask 255.255.255.224 {
+  \fIsubnet-specific parameters...\fR
+  range 204.254.239.74 204.254.239.94;
+}
+
+group {
+  \fIgroup-specific parameters...\fR
+  host zappo.test.isc.org {
+    \fIhost-specific parameters...\fR
+  }
+  host beppo.test.isc.org {
+    \fIhost-specific parameters...\fR
+  }
+  host harpo.test.isc.org {
+    \fIhost-specific parameters...\fR
+  }
+}
+
+.ce 1
+Figure 1
+
+.fi
+.PP
+ファイルの先頭にはグローバルなパラメータのための
+場所があることにお気づきになったかと思います。
+ここでは組織のドメイン名、ネームサーバのアドレス
+(組織全体に共通のものがあれば) などを指定します。
+従って、例えば次のようになるでしょう。
+.nf
+
+	option domain-name "isc.org";
+	option domain-name-servers ns1.isc.org, ns2.isc.org;
+
+.ce 1
+Figure 2
+.fi
+.PP
+Figure 2 にあるとおり、パラメータに与えるホストのアドレスは、
+数値形式の IP アドレスではなくドメイン名で与えてもかまいません。
+与えられたホスト名が 1 つ以上の IP アドレスに解決される
+(例えばホストがイーサネットインターフェースを 2 つ持っているなど)
+場合には、クライアントにはすべてのアドレスが渡されます。
+.PP
+Figure 1 からわかるとおり、shared-network 文も
+subnet 文もパラメータを取ることができます。
+ここで共有ネットワーク \fIISC-BIGGIE\fR は部門 (例えば経理部門)
+全体をサポートしているとしましょう。
+経理部門には自前のドメインがあるとすると、
+shared-network 専用のパラメータとして以下を与えるべきでしょう。
+.nf
+
+	option domain-name "accounting.isc.org";
+.fi
+.PP
+すると shared-network 宣言の内部にある subnet 宣言では、
+domain-name オプションは単なる "isc.org" ではなく "accounting.isc.org"
+になります。
+.PP
+Figure 1 のように subnet に固有のパラメータを与えたいのは、
+当然ながら、サブネットはそれぞれ違ったルータを必要とするからです。
+したがって最初のサブネットには、
+例えば以下のような文が置かれることになるでしょう。
+.nf
+
+	option routers 204.254.239.1;
+.fi
+.PP
+ここではアドレスは数値で指定されています。
+これは必須ではありません。
+もしルータの各インターフェースが別々のドメイン名を持っているなら、
+そのインターフェースの指定には、数値でなくドメイン名を用いても全くかまいません。
+しかしながら、多くの場合ルータの IP アドレスそれぞれには
+一つの同じドメイン名がつけられているでしょうから、
+ここでその名前を用いるのは適切ではないでしょう。
+.PP
+Figure 1 では、\fIgroup\fR 文も使われており、
+3 つのホスト (zappo, beppo, harpo) に共通のパラメータをあたえています。
+おわかりのように、これらのホストはすべて test.isc.org ドメインに属しています。
+したがってこれらのホストには、
+グループ固有のパラメータとしてドメイン名を上書きするかたちで
+与えるのが良いでしょう。
+.nf
+
+	option domain-name "test.isc.org";
+.fi
+.PP
+また、所属するドメイン名から想像できるように、
+これらはおそらくテスト用のマシンでしょう。
+DHCP 貸し出し機構をテストする場合には、
+貸し出しの期限をデフォルトよりは少々短くしておくのが良いでしょう。
+.nf
+
+	max-lease-time 120;
+	default-lease-time 120;
+.fi
+.PP
+これまでのところで、\fIoption\fR キーワードによって始まるパラメータと、
+そうでないパラメータとがあることにお気づきになったでしょうか。
+\fIoption\fR キーワードで始まるパラメータは、
+実際の DHCP オプションに関連したものです。
+そうでないものは、
+DHCP サーバの動作を制御するもの (例えば dhcpd が提供する貸し出しの期限など) か、
+DHCP プロトコルでは提供されていないクライアント用のパラメータ
+(例えばサーバ名やファイル名) です。
+.PP
+Figure 1 では、各ホストは「ホスト固有のパラメータ」を持っていました。
+これらには例えば、\fIhostname\fR オプション、
+取得するするファイル (\fIfilename\fR パラメータ)、
+ファイルを取得するホスト (\fInext-server\fR パラメータ)
+などが含まれます。
+一般的には、パラメータを指定できる場所にはどんなパラメータでも指定でき、
+そのパラメータは置かれた場所のスコープにしたがって適用されます。
+.PP
+NCD の X 端末がたくさんあるようなサイトを想像してください。
+これらの端末にはさまざまなモデルがあるので、
+それぞれのモデルに対して別々のブートファイルを指定したいとします。
+これを行う一つの方法は、
+各端末に host 宣言をさせ、それらをモデルごとに group 化することです。
+.nf
+
+group {
+  filename "Xncd19r";
+  next-server ncd-booter;
+
+  host ncd1 { hardware ethernet 0:c0:c3:49:2b:57; }
+  host ncd4 { hardware ethernet 0:c0:c3:80:fc:32; }
+  host ncd8 { hardware ethernet 0:c0:c3:22:46:81; }
+}
+
+group {
+  filename "Xncd19c";
+  next-server ncd-booter;
+
+  host ncd2 { hardware ethernet 0:c0:c3:88:2d:81; }
+  host ncd3 { hardware ethernet 0:c0:c3:00:14:11; }
+}
+
+group {
+  filename "XncdHMX";
+  next-server ncd-booter;
+
+  host ncd1 { hardware ethernet 0:c0:c3:11:90:23; }
+  host ncd4 { hardware ethernet 0:c0:c3:91:a7:8; }
+  host ncd8 { hardware ethernet 0:c0:c3:cc:a:8f; }
+}
+.fi
+.SH リファレンス: 宣言文
+.PP
+.I shared-network
+.B 文
+.PP
+.nf
+ \fBshared-network\fR \fIname\fR \fB{\fR
+   [ \fIparameters\fR ]
+   [ \fIdeclarations\fR ]
+ \fB}\fR
+.fi
+.PP
+\fIshared-network\fR 文は、複数の IP サブネットが実際には
+一つの物理ネットワークを共有していることを DHCP サーバに伝えるために用います。
+共有ネットワーク内にあるサブネットは、
+\fIshared-network\fR 文の内部で宣言するようにすべきです。
+\fIshared-network\fR 文の内部で指定されたパラメータは、
+それらのサブネットでブートしたクライアントによって用いられます
+(ただしそのパラメータがサブネットやホストレベルで上書きされた場合を除く)。
+共有ネットワークに属するサブネットに動的割り当て可能なアドレスがあると、
+これらのアドレスは共有ネットワーク用の場所に共通にプールされ、
+必要に応じてクライアントに提供されます。
+あるクライアントが、(共有ネットワークに属する)
+どのサブネットからブートさせるべきかを識別する方法はありません。
+.PP
+.I name
+には共通ネットワークの名前を指定しておきましょう。
+この名前はデバッグメッセージの出力時に用いられるので、
+その共通ネットワークの認識に役立ちます。
+名前にはドメイン名として有効な書式 (ただしドメイン名としては用いられない)
+が使えます。
+あるいはクォートすればどんな名前でも使えます。
+.PP
+.I subnet
+.B 文
+.PP
+.nf
+ \fBsubnet\fR \fIsubnet-number\fR \fBnetmask\fR \fInetmask\fR \fB{\fR
+   [ \fIparameters\fR ]
+   [ \fIdeclarations\fR ]
+ \fB}\fR
+.fi
+.PP
+\fIsubnet\fR 文は、
+ある IP アドレスが特定のサブネットに属しているかどうか判断するための情報を
+dhcpd に与えるために用います。
+またサブネット固有のパラメータを指定したり、
+そのサブネットでブートしたクライアントに
+動的割り当て可能なアドレスを指定するためにも利用されます。
+後者のようなアドレスは \fIrange\fR 宣言で指定されます。
+.PP
+.I subnet-number
+には IP アドレスか、
+あるいは宣言するサブネットの IP 番号に解決されるドメイン名を与えます。
+.I netmask
+には IP アドレスか、
+あるいは宣言するサブネットのサブネットマスクに解決されるドメイン名を与えます。
+サブネット番号とネットマスクとを与えると、
+ある与えられた IP 番号が
+そのサブネットに属しているかどうかを判断できるようになります。
+.PP
+ネットマスクはすべての subnet 宣言に必要ですが、
+あるサイトの内部で用いているサブネットマスクに複数の種類がある場合は、
+subnet-mask オプション文を各 subnet 宣言の内部で用いて、
+適切なサブネットマスクを設定することもしておくべきです。
+なぜかというと、subnet-mask オプション文は、
+subnet 文で宣言されたサブネットマスクより優先されるからです。
+.PP
+.I range
+.B 文
+.PP
+.nf
+ \fBrange\fR [ \fBdynamic-bootp\fR ] \fIlow-address\fR [ \fIhigh-address\fR]\fB;\fR
+.fi
+.PP
+動的に割り当てられるアドレスを含むサブネットでは、
+少なくとも \fIrange\fR 文を一つ指定しなければなりません。
+range 文には IP アドレスの範囲の最小値・最大値を与えます。
+その範囲に入る IP アドレスのすべては、
+\fIrange\fR 文が宣言されたサブネットの中に入っている必要があります。
+指定した範囲のアドレスを DHCP クライアントと
+BOOTP クライアントの両方に割り当てて良い場合は、
+\fIdynamic-bootp\fR フラグを指定します。
+アドレス 1 つだけを割り当てる場合は、
+\fIhigh-address\fR は省略できます。
+.PP
+.I host
+.B 文
+.PP
+.nf
+ \fBhost\fR \fIhostname\fR {
+   [ \fIparameters\fR ]
+   [ \fIdeclarations\fR ]
+ \fB}\fR
+.fi
+.PP
+サービス対象となる BOOTP クライアントには、それぞれ
+.B host
+が最低ひとつづつ必要になります。
+DHCP クライアントに対しても
+.B host
+文は指定できますが、
+素性のわからないホストにはブートを許可しないような設定でなければ、
+指定しなくてもかまいません。
+.PP
+ある DHCP クライアントや BOOTP クライアントを、
+複数のサブネットにおいて固定アドレスでブートさせたい場合には、
+.I fixed-address
+パラメータに複数のアドレスを指定するか、
+あるいは
+.B host
+文を複数指定します。
+.PP
+クライアント固有のブートパラメータを、
+接続されたネットワークによって代えなければならない場合には、
+.B host
+文を複数用いるべきです。
+.PP
+可能な場合にはクライアントを固定アドレスでブートさせたいが、
+それができなければ動的なアドレスを割り当てたい、という場合には、
+.B host
+文の内部では
+.B fixed-address
+文を指定しないようにします。
+.PP
+\fIhost\fR 宣言を実際の DHCP クライアントや
+BOOTP クライアントにマッチさせる際には、
+\fIhost\fR 宣言の内部で指定された
+\fIdhcp-client-identifier\fR オプションが、
+クライアントが渡してきた識別子とマッチするかを確認します。
+もし \fIhost\fR 宣言の内部に \fIdhcp-client-identifier\fR がなかったり、
+クライアントがこの識別子を渡してこなかった場合には、
+\fIhost\fR 宣言の内部で指定された
+\fIhardware\fR パラメータが、
+クライアントが渡してきたハードウェアアドレスとマッチするかを確認します。
+BOOTP クライアントは通常
+\fIdhcp-client-identifier\fR を渡さないので、
+BOOTP プロトコルでブートさせるクライアントに対しては、
+必ずハードウェアアドレスを用いなければなりません。
+.PP
+.I group
+.B 文
+.PP
+.nf
+ \fBgroup\fR {
+   [ \fIparameters\fR ]
+   [ \fIdeclarations\fR ]
+ \fB}\fR
+.fi
+.PP
+.B group
+文は、なんらかのパラメータを宣言のグループに適用するために用います。
+ホスト、共有ネットワーク、サブネット等をまとめたり、
+あるいは他のグループをまとめることもできます。
+.SH リファレンス: ALLOW と DENY
+.PP
+.I allow
+文と
+.I deny
+文を使うと、
+いろいろな要求に対する dhcpd の振る舞いを制御できます。
+.PP
+.PP
+.I unknown-clients
+.B キーワード
+.PP
+ \fBallow unknown-clients;\fR
+ \fBdeny unknown-clients;\fR
+.PP
+.\fBunkown-clients\fR フラグは、
+素性のわからない (unkown な) クライアントに動的にアドレスを割り当てるかどうかを
+dhcpd に指示します。
+デフォルトでは unkown なクライアントへの動的アドレス割り当ては
+\fBallow\fR (許可) されています。
+.PP
+.I bootp
+.B キーワード
+.PP
+ \fBallow bootp;\fR
+ \fBdeny bootp;\fR
+.PP
+\fBbootp\fR フラグは、
+bootp クエリ (問い合わせ) に答えるかどうかを
+dhcpd に指示します。
+デフォルトでは bootp クエリは
+\fBallow\fR (許可) されています。
+.PP
+.I booting
+.B キーワード
+.PP
+ \fBallow booting;\fR
+ \fBdeny booting;\fR
+.PP
+\fBbooting\fR フラグは、
+特定のクライアントからのクエリに答えるかどうかを
+dhcpd に指示します。
+このキーワードは、host 宣言の内部に置かれた場合にのみ意味を持ちます。
+デフォルトでは booting は
+\fBallow\fR (許可) されています。
+しかしこれを特定のクライアントに対して無効にすると、
+そのクライアントはこの DHCP サーバからはアドレスを取得できなくなります。
+.SH リファレンス: パラメータ
+.PP
+.I default-lease-time
+.B 文
+.PP
+ \fBdefault-lease-time\fR \fItime\fR\fB;\fR
+.PP
+.I time
+は秒単位の時間で、
+貸し出しを要求しているクライアントが特に期限を求めなければ、
+この時間が貸し出し時間になります。
+.PP
+.I max-lease-time
+.B 文
+.PP
+ \fBmax-lease-time\fR \fItime\fR\fB;\fR
+.PP
+.I time
+は秒単位の時間で、
+貸し出しを要求しているクライアントが期限を求めた場合に、
+割り当て可能な最大の貸出時間です。
+.PP
+.I hardware
+.B 文
+.PP
+ \fBhardware\fR \fIhardware-type\fR \fIhardware-address\fR\fB;\fR
+.PP
+BOOTP クライアントが認識されるためには、
+.I host
+文の内部で
+.I hardware
+指定によってそのネットワークハードウェアアドレスが
+指定されていなければなりません。
+.I hardware-type
+は物理ハードウェアインターフェースの形式名です。
+現在のところは
+.B ethernet
+と
+.B token-ring
+だけが認識されます
+.RB ( fddi
+などのハードウェア型も認識されると良いのでしょうが)。
+.I hardware-address
+は 16 進オクテット (0 から ff までの数値) のセットで、
+区切りはコロンです。
+.I hardware
+文は DHCP クライアントにも用いることができます。
+.PP
+.I filename
+.B 文
+.PP
+ \fBfilename\fR \fB"\fR\fIfilename\fR\fB";\fR
+.PP
+.B filename
+文はクライアントにロードさせる初期ブートファイルの指定に使います。
+.I filename
+はクライアントが使うであろうファイル転送プロトコルで
+認識されるファイル名でなければなりません。
+.PP
+.I server-name
+.B 文
+.PP
+ \fBserver-name\fR \fB"\fR\fIname\fR\fB";\fR
+.PP
+.B server-name
+文はクライアントに接続中のサーバの名前を伝えるために用います。
+.I name
+はクライアントに渡される名前です。
+.PP
+.I next-server
+.B 文
+.PP
+ \fBnext-server\fR \fIserver-name\fR\fB;\fR
+.PP
+.B next-server
+文は初期ブートファイル
+.RI ( filename
+文で指定したもの) をロードするサーバのホストアドレスを指定するために使います。
+.I server-name
+は数値の IP アドレスかドメイン名です。
+接続してきたクライアントに対して与えるべき
+.B next-server
+パラメータがなければ、DHCP サーバの IP アドレスが用いられます。
+.PP
+.I fixed-address
+.B 文
+.PP
+ \fBfixed-address\fR \fIaddress\fR [\fB,\fR \fIaddress\fR ... ]\fB;\fR
+.PP
+.B fixed-address
+文は、あるクライアントに対して一つまたは複数の
+IP アドレスを割り当てるために用います。
+.I host
+宣言の内部でのみ用いられます。
+複数のアドレスが指定された場合には、
+そのクライアントがブートするネットワークに所属するアドレスが割り当てられます。
+クライアントがブートするネットワークに属するアドレスが
+.B fixed-address
+文にない場合は、そのクライアントはその
+.B fixed-address
+文が含まれる
+.I host
+宣言にマッチしないことになります。各
+.I address
+は IP アドレスか、
+一つ (または複数) の IP アドレスに解決されるドメイン名です。
+.PP
+.I dynamic-bootp-lease-cutoff
+.B 文
+.PP
+ \fBdynamic-bootp-lease-cutoff\fR \fIdate\fR\fB;\fR
+.PP
+.I dynamic-bootp-lease-cutoff
+文は、動的に割り当てた
+BOOTP クライアントへのすべての貸し出しを終了させる時刻を設定します。
+BOOTP クライアントは貸し出しを更新する機構を持たず、
+また貸し出しがいつ期限切れになるかを知らないので、
+デフォルトでは dhcpd は BOOTP クライアントへは無期限の貸し出しを行います。
+しかし、ある場合には BOOTP の貸し出し停止に意味があるかもしれません。
+例えば学期の最後や、夜中のある時間になると施設が閉まって、
+すべてのマシンが電源停止になるような場合などです。
+.PP
+.I date
+は割り当てられた BOOTP 貸し出しのすべてが終了する時刻です。
+date は以下の書式で指定します。
+.PP
+.ce 1
+W YYYY/MM/DD HH:MM:SS
+.PP
+W は曜日を数値で指定したもので、0 (日曜日) から 6 (土曜日) までです。
+YYYY は年で、世紀の桁も指定します。
+MM は月を数値で指定したもので、 1 から 12 マデです。
+DD は月内日を数値で指定したもので、 1 から数えます。
+HH は時間で、0 から 23 までです。
+次の MM は分で、SS は秒です。
+時刻は常に協定世界時 (UTC) で指定します (地方時ではありません)。
+.PP
+.I dynamic-bootp-lease-length
+.B 文
+.PP
+ \fBdynamic-bootp-lease-length\fR \fIlength\fR\fB;\fR
+.PP
+.B dynamic-bootp-lease-length
+文は BOOTP クライアントへの動的割り当ての貸し出し期間の設定に用います。
+サイトによっては、一度アドレスを貸し出したクライアントから
+一定の間 BOOTP や DHCP での再割り当て要求がなければ、
+そのアドレスはもう使われない、とみなすことが可能かもしれません。
+貸出機関は
+.I length
+に秒単位で指定します。
+その期間のうちにクライアントが BOOTP を用いて再ブートすると、
+貸し出し期間も
+.I length
+にリセットされます。
+したがって頻繁にブートする BOOTP クライアントは、
+割り当てられたアドレスをずっと保持し続けます。
+言うまでもありませんが、このパラメータは細心の注意を払って決めてください。
+.PP
+.I get-lease-hostnames
+.B 文
+.PP
+ \fBget-lease-hostnames\fR \fIflag\fR\fB;\fR
+.PP
+.B get-lease-hostnames
+文は、貸し出し用にプールされている
+IP アドレスのドメイン名を引き、
+そのアドレスを DHCP
+.I hostname
+オプションに用いるかどうかを dhcpd に伝えるために用います。
+.I flag
+が真ならば、現在のスコープにあるすべてのアドレスに対して
+この名前引きが実行されます。
+デフォルトでは
+.I flag
+は偽で、名前引きは行われません。
+.PP
+.I use-host-decl-names
+.B 文
+.PP
+ \fBuse-host-decl-names\fR \fIflag\fR\fB;\fR
+.PP
+.I use-host-decl-names
+パラメータがその置かれたスコープで真 (true) だと、
+そのスコープに置かれたすべての host 宣言において、
+宣言に使われた名前がホスト名としてクライアントに渡されます。
+したがって例えば、
+.PP
+.nf
+    group {
+      use-host-decl-names on;
+
+      host joe {
+	hardware ethernet 08:00:2b:4c:29:32;
+	fixed-address joe.fugue.com;
+      }
+    }
+
+は次と全く同じになります。
+
+      host joe {
+	hardware ethernet 08:00:2b:4c:29:32;
+	fixed-address joe.fugue.com;
+        option host-name "joe";
+      }
+.fi
+.PP
+host 宣言の内部に置かれた
+.I option host-name
+文は、宣言に用いられた名前よりも優先されます。
+.PP
+.\"HERE GOES
+.I authoritative
+.B 文
+.PP
+ \fBauthoritative;\fR
+.PP
+ \fBnot authoritative;\fR
+.PP
+通常 DHCP サーバは、あるネットワークセグメントの設定情報は
+正しくかつ信頼できるとみなしています。
+よってクライアントがあるネットワークセグメントの IP アドレスを要求したとき、
+サーバがそれがそのセグメントでは正しくないことを知っていると、
+サーバは DHCPNAK メッセージを返します。
+するとクライアントはその IP アドレスを忘れ、
+新しいアドレスを取得しようとします。
+.PP
+DHCP サーバがネットワーク管理者ではない人間によって設定され、
+よってこのレベルの権威を持たせたくない場合には、
+設定ファイルの適切なスコープに "not authoritative"
+という文を入れておくと良いでしょう。
+.PP
+通常は、
+.B not authoritative
+をファイルのトップレベルに書いておけば十分です。
+しかし、あるネットワークに対しては権威を持たせ、
+別のネットワークに対しては持たせないように DHCP サーバを設定したい場合には、
+ネットワークセグメント単位で authority を宣言するほうが良いでしょう。
+.PP
+authority が意味を持つスコープは、物理ネットワークセグメントの単位です。
+すなわち shared-network 文か、
+shared-network 文の内部にはない subnet 文です。
+共有ネットワークに属しているサブネットの一部のみに対して
+サーバに権威を持たせても意味はありません。
+また一部の host 宣言に対してのみサーバに権威を持たせても、
+同じく意味はありません。
+.PP
+.I use-lease-addr-for-default-route
+.B 文
+.PP
+ \fBuse-lease-addr-for-default-route\fR \fIflag\fR\fB;\fR
+.PP
+.B use-lease-addr-for-default-route
+パラメータがその置かれたスコープで真だと、
+routers オプションで指定した値を送る (あるいは値を全く送らない)
+代わりに、割り当てようとしている IP アドレスをクライアントに送ります。
+こうすると Win95 マシンはすべての IP アドレスを ARP するようになり、
+使っているルータが proxy ARP に設定されている場合には役に立ちます。
+.PP
+use-lease-addr-for-default-route が有効になっていて、
+option routes 文も同じスコープにある場合には、
+routes オプションが優先されます。
+この理由は、この機能を使いたい局面では、
+たくさんある Windows 95 マシンすべてにはこの機能を有効にし、
+その他数台のマシンではこれを無効にしたくなるだろうからです。
+不幸にして状況が逆の場合は、
+このフラグは用いないほうがたぶん良いでしょう。
+.PP
+.I always-reply-rfc1048
+.B 文
+.PP
+ \fBalways-reply-rfc1048\fR \fIflag\fR\fB;\fR
+.PP
+BOOTP クライアントの中には、受信には RFC1048 形式のものを期待するのに、
+送信では RFC1048 を守らないものがあります。
+あるクライアントがこの問題を抱えている場合には、
+そのクライアントは設定したオプションを取得せず、
+また BOOTREQUEST するたびに
+サーバのログに "(non-rfc1048)" というメッセージが現れます。
+.PP
+このようなクライアントに rfc1048 オプションを送信したい場合は、
+そのクライアントの host 宣言に
+.B always-reply-rfc1048
+を設定します。すると DHCP サーバは
+RFC-1048 形式のベンダーオプションフィールドを用いて応答します。
+このフラグはどのスコープにも設定でき、
+そのスコープでカバーされるすべてのクライアントに適用されます。
+.PP
+.I server-identifier
+.B 文
+.PP
+ \fBserver-identifier \fIhostname\fR\fB;\fR
+.PP
+.B server-identifier
+文は、それが置かれたスコープ内において、
+DHCP サーバ識別子オプションで送られる値を定義するために用います。
+指定する値は DHCP サーバの IP アドレスでなければならず、
+そのスコープにおいてサービスを受けるすべてのクライアントから
+到達可能でなければなりません。
+.PP
+server-identifier 文の使用は勧められません。
+唯一の利用局面は、デフォルトで送られる値が間違っている場合に、
+その値を別のものに変更する場合だけです。
+デフォルトの値は、要求が到達した物理ネットワークインターフェースに
+関連付けられた最初の IP アドレスです。
+.PP
+.I server-identifier
+文が必要になるのは、物理インターフェースに複数の IP アドレスがついていて、
+デフォルトで送られるアドレスが、
+サービスを受ける一部または全部のクライアントにとって適切ではない場合です。
+他にあり得る例としては、
+DHCP サーバの IP アドレスを一貫させるために IP エイリアスが定義されており、
+クライアントがサーバいん接続する際にはこの
+IP アドレスを用いるのが望ましい場合があります。
+.PP
+.SH リファレンス: オプション文
+.PP
+DHCP オプション文はマニュアルページ
+.BR dhcp-options (5)
+で説明されています。
+.SH 関連項目
+dhcpd.conf(5), dhcpd.leases(5), RFC2132, RFC2131.
+.SH 著者
+.BR dhcpd (8)
+は Ted Lemon <mellon@vix.com>
+が Vixie Labs との契約のもとに書きました。
+このプロジェクトの資金は、
+Internet Software Corporation によって提供されました。
+Internet Software Consortium の情報は
+.B http://www.isc.org/isc
+にあります。

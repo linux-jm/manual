@@ -1,0 +1,156 @@
+.TH GENCAT 1 "15 August 1994"
+.SH NAME
+gencat \- generate a message catalog from a set of message files
+.SH SYNOPSIS
+.B gencat [-new] [-lang C|C++|ANSIC] catfile msgfile [-h <header-file>]
+.SH DESCRIPTION
+.B gencat
+is the software used to compile message files into message
+catalogs.  It can also be used to generate a header file from the message files
+which can then be included in the original source code.  The benefit of including this
+.B gencat
+generated header file is that it allows the programmer to use
+descriptive names to refer to messages and message sets instead of hard to remember
+integer numbers.  However its chief purpose is in compiling message files into
+message catalogs.  The command line switches it understands are detailed below:
+
+.TP
+.I -new
+Erase the messageg catalog and start a new one.
+The default behavior is to update the catalog with the
+specified message file(s).  This will instead cause the old
+one to be deleted and a whole new one started.
+.TP
+.I -lang <l>
+This governs the form of the include file.
+Currently supported is C, C++ and ANSIC.  The latter two are
+identical in output.  This argument is position dependent,
+you can switch the language back and forth in between
+include files if you care to.
+.TP
+.I -h <hfile>
+Output identifiers to the specified header files.
+This creates a header file with all of the appropriate
+#define's in it.  Without this it would be up to you to
+ensure that you keep your code in sync with the catalog file.
+The header file is created from all of the previous message files
+on the command line, so the order of the command line is
+important.  This means that if you just put it at the end of
+the command line, all the defines will go in one file
+
+.B gencat foo.m bar.m zap.m -h all.h
+
+If you prefer to keep your dependencies down you can specify
+one after each message file, and each .h file will receive
+only the identifiers from the previous message file
+
+.B gencat foo.m -h foo.h bar.m -h bar.h zap.m -h zap.h
+
+As an added bonus, if you run the following sequence:
+
+.B gencat foo.m -h foo.h
+
+the file foo.h will NOT be modified the second time.
+.B gencat
+checks to see if the contents have changed before modifying
+things.  This means that you won't get spurious rebuilds of
+your source every time you change a message.  You can thus use
+a Makefile rule such as:
+
+ MSGSRC = foo.m bar.m
+ GENFLAGS = -lang C
+ GENCAT = gencat
+ MSGFILES = messages/English
+
+ $(MSGFILES): $(MSGSRC)
+       @for i in $?; do cmd="$(GENCAT) $(GENFLAGS) $@ $$i -h `basename $$i .m`.H"; echo $$cmd; $$cmd; done
+
+ foo.o:  foo.h
+
+The for-loop isn't too pretty, but it works.  For each .m
+file that has changed we run
+.B gencat
+on it.  foo.o depends on
+the result of that
+.B gencat
+(foo.h) but foo.h won't actually
+be modified unless we changed the order (or added new members)
+to foo.m.
+
+
+.PP
+The
+.B gencat
+software has two purposes and is usually used in 2 passes. 
+The first use is to generate the header files from the message files so
+that the software can use descriptive names when referring to
+sets and messages.
+
+The following command will accomplish this:
+
+.RS
+.B gencat -new /dev/null foobar.m -h foobar-nls.h
+.RE
+
+The
+.B gencat
+software will take the foobar.m message file and produce a
+header file called foobar-nls.h which can the be included in the
+software.  The -new and /dev/null flags indicate that
+.B gencat
+should also
+generate a new message catalog but send the resultant catalog to the bit
+bucket.  (The
+.B gencat
+software doesn't work without these two entries).
+
+If you want to generate multiple header files for multiple message
+files, you have to use the following command:
+
+.B gencat -new /dev/null aaa.m -h aaa-nls.h bbb.m -h bbb-nls.m ....
+
+This will generate a header file for each message file.  For each
+message set that your software accesses, you will need to include the
+corresponding header file.  If you would like to compile just one
+solitary header file for all your message sets, the following command
+can be used:
+
+.B gencat -new /dev/null aaa.m bbb.m ccc.m -h foobar-nls.m
+
+The other use for the
+.B gencat
+software is in generating message catalogs
+from the message files.  To generate a new message catalog, the
+following command can be used:
+
+.RS
+.B gencat -new foobar.cat foobar.m
+.RE
+
+This will take the foobar.m message file and compile it into a message
+catalog called foobar.cat.  To compile multiple message sets into one
+catalog, the following command can be used:
+
+.B gencat -new foobar.cat foobar1.m foobar2.m foobar3.m ...
+
+The usual way for compiling message catalogs is via a Makefile.  In this
+case, it is often easier to define a variable (say, MESSAGEFILES) to
+contain the list of message files which need to be compiled into a
+catalog.  eg, in the above example we would have a line within the
+Makefile reading:
+
+.B MESSAGEFILES = foobar1.m foobar2.m foobar3.m ....
+
+Then to compile these files into a catalog, we use the following line
+within the Makefile:
+
+.RS
+.B gencat -new foobar.cat $(MESSAGEFILES)
+.RE
+
+.SH SEE ALSO
+.BR xtract(1),
+.BR setlocale(3),
+.BR catopen(3),
+.BR catgets(3),
+.BR catclose(3)

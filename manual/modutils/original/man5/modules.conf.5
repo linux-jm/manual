@@ -1,0 +1,700 @@
+.\"/* Copyright 1999 Bjorn Ekwall <bj0rn@blox.se>
+.\" This program is distributed according to the Gnu General Public License.
+.\" See the file COPYING in the base distribution directory
+.\"
+.TH MODULES.CONF 5 "07 December 1999"
+.UC 4
+.SH NAME
+modules.conf \- configuration file for loading kernel modules
+.hy 0
+.SH DESCRIPTION
+The behavior of
+.B modprobe(8)
+(and
+.B depmod(8)
+)
+can be modified by the (optional) configuration file
+.B /etc/modules.conf.
+.PP
+The configuration file consists of a set of lines.
+.br
+All empty lines, and all text on a line after a '#', will be ignored.
+.br
+Lines may be continued by ending the line with a '\\'.
+.br
+The remaining lines should all conform to one of the following formats:
+.nf
+
+  [add] above module module_list
+  alias alias_name result
+  [add] below module module_list
+  define VARIABLE WORD
+  depfile=A_PATH
+  else
+  elseif EXPRESSION
+  endif
+  if EXPRESSION
+  include PATH_TO_CONFIG_FILE
+  insmod_opt=GENERIC_OPTIONS_TO_INSMOD
+  install module command ...
+  keep
+  [add] options module MODULE_SPECIFIC_OPTIONS
+  path=A_PATH
+  path[TAG]=A_PATH
+  generic_stringfile=A_PATH
+  pcimapfile=A_PATH
+  isapnpmapfile=A_PATH
+  usbmapfile=A_PATH
+  parportmapfile=A_PATH
+  ieee1394mapfile=A_PATH
+  pnpbiosmapfile=A_PATH
+  [add] probe name module_list
+  [add] probeall name module_list
+  prune filename
+  post-install module command ...
+  post-remove module command ...
+  pre-install module command ...
+  pre-remove module command ...
+  remove module command ...
+  persistdir directory_name
+.fi
+.PP
+All arguments to a directive will be processed to handle
+shell meta-characters,
+which means that "shell tricks" like wild-cards
+and commands enclosed in back-quotes can be used:
+.nf
+
+  path[misc]=/lib/modules/1.1.5?/local
+  path[net]=/lib/modules/`uname \-r`/net
+
+.fi
+.B DANGER:
+Applying shell expansion to user supplied input is a major security
+risk.  Modutils code only does meta expansion via shell commands for
+trusted data.  Basically this means only for data in the config file.
+Even that assumes that the user cannot run modprobe as root while
+supplying their own config file.  Programs (including the kernel) that
+invoke modutils programs as root with user supplied input must pass
+exactly one user supplied parameter and must set safe mode or risk
+creating local root exploits.  See
+.I modprobe
+for details on safe mode.
+.PP
+Directives may be repeated multiple times.
+Note that some directives can have an optional prefix:
+.I add.
+When this prefix is used, the new module_list will be
+.B added
+to the previous module_list instead of replacing it.
+.SH SEMANTICS
+.B A_PATH
+is the fully qualified path to the target.
+It is possible to use shell meta-characters in
+.B A_PATH
+including command output, such as
+.I \`uname \-r\`
+and
+.I \`kernelversion\`.
+.br
+These two commands are also understood internally in these utilities
+as meaning the version number of the current kernel and the current
+kernel version respectively (e.g.: 2.2.3 and 2.2).
+.PP
+.B WORD
+is a sequence if non-white characters.
+If ' " or ` is found in the string, all characters up to the
+matching ' " or ` will also be included, even whitespace.
+Every
+.B WORD
+will then be expanded w.r.t. meta-characters.
+If the expanded result gives more than one word then only
+the first word of the result will be used.
+.PP
+EXPRESSION below can be:
+.TP
+.I "WORD compare_op WORD"
+where compare_op is one of ==, !=, <, <=, >= or >.
+The string values of the WORDs are compared.
+.TP
+.I "\-n WORD compare_op WORD"
+where compare_op is one of ==, !=, <, <=, >= or >.
+The numeric values of the WORDs are compared.
+.TP
+.I WORD
+If the expansion of WORD fails, or if the
+expansion is "0" (zero), "false" or "" (empty)
+then the expansion has the value FALSE.
+Otherwise the expansion has the value TRUE
+.TP
+.I "\-f FILENAME"
+Test if the file FILENAME exists.
+.TP
+.I \-k
+Test if "autoclean" is enabled (i.e. called from the kernel).
+.TP
+.I "! EXPRESSION"
+A negated expression is also an expression.
+.SH SYNTAX
+This is a description of the legal directives.
+.TP
+.I "define VARIABLE WORD"
+Do a
+.I putenv("VARIABLE=WORD").
+Variables can be created and modified by this directive.
+The variables will be available in the environment, which makes them
+usable for all commands executed in the current session.
+.TP
+.I "depfile=A_PATH"
+This is the path to the dependency file that will be created by
+.B depmod
+and used by
+.B modprobe
+to find the modules and their dependent modules.
+Normally the default value should be used, see below.
+.TP
+.I "if EXPRESSION"
+If the expression is evaluated to be
+.B TRUE
+then all directives up to the matching
+.I "else, elseif"
+or
+.I endif
+are processed.  Otherwise they are ignored.
+.I if
+directives may be nested up to an internal maximum of 20.
+.br
+Note: please avoid having any
+.B path
+directives conditionally processed.
+Since
+.B modprobe
+has enough built-in "smarts", a conditionally processed
+.B path
+directive will gain you nothing but confusion.  Really.
+.TP
+.I "else"
+If the previous matching
+.I if
+or
+.I elseif
+directive evaluated its expression to be
+.B FALSE
+then the directives enclosed by the (optional)
+.I else
+directive and its matching
+.I endif
+directive will be processed.
+.TP
+.I "elseif EXPRESSION"
+If the previous matching
+.I if
+or
+.I elseif
+directives evaluated their expression to be
+.B FALSE
+and if the expression for this directive evaluates to
+.B TRUE
+then the directives up to the next matching
+.I "elseif, else"
+or
+.I endif
+directive will be processed.
+.TP
+.I "endif"
+This directive ends the chain of matching
+.I "if, elseif"
+or
+.I else
+directive(s) controlling the conditional processing of configuration
+file directives.
+.nf
+
+  if EXPRESSION
+      any config lines
+  elseif EXPRESSION
+      any config lines
+  else
+      any config lines
+  endif
+
+.fi
+The
+.I else
+and
+.I elseif
+directives are optional.
+.TP
+.I "include PATH_TO_CONFIG_FILE"
+To handle different platforms or configurations with a
+single configuration file can be quite complex.
+With the use of the
+.I include
+directive, conditionally processed by
+.I if
+directives, this is now easier to handle.
+.TP
+.I "insmod_opt=GENERIC_OPTIONS_TO_INSMOD"
+If insmod should need some special options, not specified elsewhere,
+this directive makes it possible to add such an option,
+to be used for every invocation.
+The standard default options to insmod does normally not have to
+be modified unless some special situation needs to be handled.
+.TP
+.I "keep"
+If this word is found on a line
+.B before
+any lines that contain the
+.B path
+descriptions, the default set of paths will be saved, and thus added to.
+Otherwise the normal behavior is that the default set will be
+.B replaced
+by the set of paths in the configuration file.
+.TP
+.I "path=A_PATH"
+.TP
+.I "path[TAG]=A_PATH"
+The
+.B A_PATH
+argument specifies an additional directory to search for modules.
+The
+.B path
+directive can carry an optional tag.
+This tells us a little more about the purpose of the modules in
+this directory and allows some automated operations by
+.B modprobe.
+The tag is appended to the "path" keyword enclosed in square brackets.
+If the tag is missing, the tag "misc" is assumed.
+.br
+One very useful tag is
+.B boot,
+which can be used to mark all directories containing modules
+that should be loaded at boot-time.
+.br
+Note that you must specify the
+.B keep
+directive to prevent any
+.B path
+directives from over-riding the default paths.
+.TP
+.I "generic_stringfile=A_PATH"
+This is the path to the generic_string file that will be created by
+.B depmod
+and used by install scripts that need string information from modules.
+Normally the default value should be used, see below.
+.I "pcimapfile=A_PATH"
+This is the path to the pcimap file that will be created by
+.B depmod
+and used by install scripts to find the module that supports a pci device.
+Normally the default value should be used, see below.
+.TP
+.I "isapnpmapfile=A_PATH"
+This is the path to the isapnpmap file that will be created by
+.B depmod
+and used by install scripts to find the module that supports an ISA PNP device.
+Normally the default value should be used, see below.
+.TP
+.I "usbmapfile=A_PATH"
+This is the path to the usbmap file that will be created by
+.B depmod
+and used by install scripts to find the module that supports an USB device.
+Normally the default value should be used, see below.
+.TP
+.I "parportmapfile=A_PATH"
+This is the path to the parportmap file that will be created by
+.B depmod
+and used by install scripts to find the module that supports an parport device.
+Normally the default value should be used, see below.
+.TP
+.I "ieee1394mapfile=A_PATH"
+This is the path to the ieee1394map file that will be created by
+.B depmod
+and used by install scripts to find the module that supports an ieee1394 device.
+Normally the default value should be used, see below.
+.TP
+.I "pnpbiosmapfile=A_PATH"
+This is the path to the pnpbiosmap file that will be created by
+.B depmod
+and used by install scripts to find the module that supports an pnpbios device.
+Normally the default value should be used, see below.
+.TP
+.I "alias alias_name result"
+The "alias" directive can be used to give alias names to modules.
+A line in /etc/modules.conf that looks like this:
+.nf
+
+  alias iso9660 isofs
+
+.fi
+makes it possible to write
+.B "modprobe iso9660"
+although there is no object file for such a module available.
+.br
+Note that the line:
+.nf
+
+  alias some_module off
+
+.fi
+will make modprobe ignore requests to load that module.
+Another special alias is:
+.nf
+
+  alias some_module null
+
+.fi
+which will make requests for some_module always succeed, but no
+module will actually be installed.
+This can be used as a base for stacks created via the
+.I above
+and
+.I below
+directives.
+.br
+.nf
+
+.fi
+.ne 7
+It is possible to have a large number of levels of
+.I alias
+directives, since all aliases will be recursively expanded
+in order to find the physical module actually referred to.  There is an
+arbitrary limit of 1000 on alias depth to detect loops like:
+.nf
+
+  alias a b
+  alias b a
+
+.fi
+.br
+If the final result of an
+.I alias
+mapping does not match the name of any module then modprobe applies
+probe and probeall mappings to the result.  If those do not succeed
+then the module is not found.  This makes constructs like this give
+sensible results (from devfs).
+.br
+.nf
+
+  alias           /dev/sg*        /dev/sg
+  probeall        /dev/sg         scsi-hosts sg
+
+.fi
+.ne 7
+It is legal for an alias to map module A to module B and for module
+A to exist at the same time but this construct is ambiguous and is
+.B not
+recommended.  For historical reasons, the kernel sound system has a
+module called sound.o but the sound developers also want an alias from
+sound to the module for the user's sound card, e.g. "alias\ sound\ sb".
+In an attempt to support this requirement but still maintain the
+defined behavior where options can be applied to aliases, modprobe
+bypasses alias expansion when processing a module name if the name was
+obtained via modules.dep, otherwise aliases are expanded.  This is not
+guaranteed to give the expected behavior on all combinations of
+aliases and real modules, you should avoid using an alias with the same
+name as a real module.
+.TP
+.I "[add] probe name module_list"
+.TP
+.I "[add] probeall name module_list"
+These directives can only be used when
+.I name
+is the name of the module requested on the command line of
+.B modprobe.
+The effect is that when a request for
+.I name
+is made, the modules in module_list will be tried, in the specified order.
+The difference between the directives is that
+.I probe
+will continue until the first successful module insertion, while
+.I probeall
+will continue until the end of the list.
+The exit status reflects whether any module has been successfully
+installed or not.
+The optional
+.I add
+prefix adds the new list to the previous list instead of replacing it.
+.TP
+.I "prune filename"
+The top level module directory for a kernel install contains files
+which are not modules.  These include modules.dep,
+modules.generic_string, modules.pcimap, modules.isapnpmap,
+modules.usbmap, modules.parportmap, modules.ieee1394map,
+modules.pnpbiosmap, the build symlink to the kernel source tree and any
+other files that the install process wants to save from a kernel build.
+To prevent
+.B depmod
+issuing warnings about "not an ELF file", these non-module files should
+appear in the prune list.
+.B depmod
+has a built in prune list which cannot be removed because it lists
+files which will exist for any kernel build.  If you add your own files
+to the top level modules directory, add a
+.I prune
+statement for each
+.IR filename .
+.B Note:
+The prune list is only used when scanning the top directory of a
+.IR path ,
+and only if the directory contains at least one subdirectory from the
+standard list of subdirectory names, i.e. it appears to be a top level
+directory built from a kernel install.  The
+.I prune
+list has no effect on subdirectories of a
+.IR path .
+.TP
+.I "[add] options [-k] module [MODULE_SPECIFIC_OPTIONS]"
+All module names, including aliased names, can have their own
+.I options
+directives.
+Options specified for an alias have higher priority than the options
+specified for more "basic" names. This rule is used to resolve
+conflicting
+.I options
+directives.
+Options given on the command line have the highest priority.
+If there is
+.I -k
+before the module name, then the module won't be autocleaned even if
+.B modprobe
+has been invoked with the
+.I -k
+autoclean option.
+The optional
+.I add
+prefix adds the new list to the previous list instead of replacing it.
+If the result of an
+.I alias
+is not a real module then any
+.I options
+that were constructed from the
+.I alias
+chain are discarded before invoking probe[all].
+If any of the
+.I MODULE_SPECIFIC_OPTIONS
+contain characters that are special to the shell (e.g. space, comma,
+parentheses) then the option must be enclosed in '"..."'.
+The '' delimit the option in modules.conf, the "" delimit the option
+when it is passed to the shell.  For example,
+.br
+.nf
+
+  abc='"def,ghi jkl (xyz)"'
+
+.fi
+.ne 7
+.TP
+.I "[add] above module module_list"
+This directive makes it possible for one module to "pull in"
+another set of modules on top of itself in a module stack,
+as seen in the output of the
+.B lsmod(8)
+command.
+The
+.I above
+directive is useful for those circumstances when the dependencies
+are more complex than what can be described in the
+.B modules.dep
+dependency file.
+This is an optimized case of the
+.I post-install
+and
+.I pre-remove
+directives.
+Note that failure of installing the module will not influence the
+exit status of
+.B modprobe.
+The optional
+.I add
+prefix adds the new list to the previous list instead of replacing it.
+.TP
+.I "[add] below module module_list"
+This directive makes it possible for one module to "push"
+another set of modules below itself in a module stack,
+as seen in the output of the
+.B lsmod(8)
+command.
+The
+.I below
+directive is useful for those circumstances when the dependencies
+are more complex than what can be described in the
+.B modules.dep
+dependency file.
+This is an optimized case of the
+.I pre-install
+and
+.I post-remove
+directives.
+Note that failure of installing the module will not influence the
+exit status of
+.B modprobe.
+The optional
+.I add
+prefix adds the new list to the previous list instead of replacing it.
+.PP
+The following directives are useful for (optionally) executing specific
+commands when loading and unloading a module.  Note that even aliased
+module names can have these directives,
+which will be executed in the proper order together with any
+directives for the unaliased module name.
+.TP
+.I "pre-install module command"
+Execute
+.I command
+before installing the specified module.
+See the
+.I below
+directive as well.
+.TP
+.I "install module command"
+Execute
+.I command
+instead of the default
+.B insmod
+when installing the specified module.
+.TP
+.I "post-install module command"
+Execute
+.I command
+after installing the specified module.
+See the
+.I above
+directive as well.
+.TP
+.I "pre-remove module command"
+Execute
+.I command
+before removing the specified module.
+See the
+.I above
+directive as well.
+.TP
+.I "remove module command"
+Execute
+.I command
+instead of the default (built-in)
+.B rmmod
+when removing the specified module.
+.TP
+.I "post-remove module command"
+Execute
+.I command
+after removing the specified module.
+See the
+.I below
+directive as well.
+.TP
+.I "persistdir\fR=directory_name\fI"
+When
+.B rmmod
+removes a module that contains persistent module parameters, it stores
+the (possibly) modified parameters underneath
+.IR directory_name .
+When
+.B modprobe
+loads a module that contains persistent module parameters, it looks
+under
+.I directory_name
+for any previous values for those parameters.
+You must set
+.I persistdir
+to the name of a directory that is readable when modules are loaded and
+is writable when modules are unloaded, the default value is
+/var/lib/modules/persist.
+Many Linux distributions load their modules before mounting
+filesystems, this can cause problems for persistent data.
+If /var is a separate partition and it is mounted after modules are
+loaded then
+.B insmod
+has nowhere to read persistent data from.
+You have two choices when /var is on a separate partition.
+.IP "" 8
+1)\ Specify
+.I persistdir
+pointing at a directory in the root partition, say
+/lib/modules/persist.  This assumes that the root partition is writable
+when
+.B rmmod
+runs.
+.IP "" 8
+2)\ Load any filesystem related modules first, mount the /var partition
+then load the rest of the modules.  This assumes that the filesystem
+modules have no persistent data.
+.PP
+.SH DEFAULT CONFIGURATION
+If the configuration file '/etc/modules.conf' is missing,
+or if any directive is not overridden,
+the following defaults are assumed:
+.PP
+  depfile=/lib/modules/`uname \-r`/modules.dep
+  generic_stringfile=/lib/modules/`uname \-r`/modules.generic_string
+  pcimapfile=/lib/modules/`uname \-r`/modules.pcimap
+  isapnpmapfile=/lib/modules/`uname \-r`/modules.isapnpmap
+  usbmapfile=/lib/modules/`uname \-r`/modules.usbmap
+  parportmapfile=/lib/modules/`uname \-r`/modules.parportmap
+  ieee1394mapfile=/lib/modules/`uname \-r`/modules.ieee1394map
+  pnpbiosmapfile=/lib/modules/`uname \-r`/modules.pnpbiosmap
+
+  path[boot]=/lib/modules/boot
+  path[toplevel]=/lib/modules/`uname \-r`
+  path[toplevel]=/lib/modules/`kernelversion`
+  path[toplevel]=/lib/modules/default
+  path[toplevel]=/lib/modules
+
+  persistdir=/var/lib/modules/persist
+.PP
+There are also a set of default
+.I alias
+and
+.I options
+directives.
+Since this set is continuously extended, no list will be given here.
+The (current) default set can be viewed by using the
+.B "modprobe \-c"
+command with an empty
+.B /etc/modules.conf
+file.
+.PP
+All
+.I options
+directives specify the options needed for
+a module, as in:
+.nf
+
+  modprobe de620 bnc=1
+
+.fi
+These options will be overridden by any options given
+in the
+.B /etc/modules.conf
+file, and on the
+.B modprobe
+command line.
+.PP
+Remember that it is possible to have an
+.I options
+directive for aliased module names as well
+as for the non-aliased name.
+This is useful for e.g. the dummy module:
+.nf
+
+  alias dummy0 dummy
+  options dummy0 \-o dummy0
+
+.fi
+.PP
+.SH ALTERNATIVE CONFIGURATION FILE
+For historical reasons, if /etc/modules.conf does not exist, modutils
+will read /etc/conf.modules instead.
+However the use of this historical name is deprecated and it should be
+replaced with /etc/modules.conf.
+This version of modutils issues a warning message if /etc/conf.modules
+exists, later versions will give an error message and refuse to load
+modules.
+.SH SEE ALSO
+depmod(8), modprobe(8), insmod(8)
+.SH AUTHOR
+.nf
+Bjorn Ekwall <bj0rn@blox.se>
+Keith Owens <kaos@ocs.com.au>

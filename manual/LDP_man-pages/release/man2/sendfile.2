@@ -1,0 +1,190 @@
+.\" This man page is Copyright (C) 1998 Pawel Krawczyk.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\" $Id: sendfile.2,v 1.5 1999/05/18 11:54:11 freitag Exp $
+.\" 2000-11-19 bert hubert <ahu@ds9a.nl>: in_fd cannot be socket
+.\"
+.\" 2004-12-17, mtk
+.\"	updated description of in_fd and out_fd for 2.6
+.\"	Various wording and formatting changes
+.\"
+.\" 2005-03-31 Martin Pool <mbp@sourcefrog.net> mmap() improvements
+.\"
+.\" Japanese Version Copyright (c) 1999 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1999-06-26, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2001-02-16, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2003-09-08, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-03-14, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-04-17, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2010-04-18, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.24
+.\"
+.\"WORD:	descriptor		ディスクリプタ
+.\"WORD:	socket			ソケット
+.\"WORD:	lock			ロック
+.\"
+.TH SENDFILE 2 2010-02-15 "Linux" "Linux Programmer's Manual"
+.SH 名前
+sendfile \- ファイル・ディスクリプタ間でデータを転送する
+.SH 書式
+.B #include <sys/sendfile.h>
+.sp
+.BI "ssize_t sendfile(int" " out_fd" ", int" " in_fd" ", off_t *" \
+                      offset ", size_t" " count" );
+.\" 以下は、あまりにも汚い。 glibc バージョンについてのコメントは
+.\" 「ヘッダ」ではなく、「注意」に書いておく。
+.\"
+.\" .B #include <features.h>
+.\" .br
+.\" .B #if (__GLIBC__==2 && __GLIBC_MINOR__>=1) || __GLIBC__>2
+.\" .br
+.\" .B #include <sys/sendfile.h>
+.\" .br
+.\" #else
+.\" .br
+.\" .B #include <sys/types.h>
+.\" .br
+.\" .B /* No system prototype before glibc 2.1. */
+.\" .br
+.\" .BI "ssize_t sendfile(int" " out_fd" ", int" " in_fd" ", off_t *" \
+.\"                       offset ", size_t" " count" )
+.\" .br
+.\" .B #endif
+.\"
+.SH 説明
+.BR sendfile ()
+は、あるファイル・ディスクリプタから別の
+ファイル・ディスクリプタへのデータのコピーを行う。
+このコピーはカーネル内で行われるので、
+.BR sendfile ()
+は、
+.BR read (2)
+と
+.BR write (2)
+を組み合わせるよりも効率がよい。
+.BR read (2)
+や
+.BR write (2)
+ではユーザ空間との間でデータの転送が必要となるからである。
+
+.I in_fd
+は読み込みのためにオープンされたファイル・ディスクリプタ、
+.I out_fd
+は書き込みのためにオープンされたディスクリプタでなければならない。
+
+.I offset
+が NULL でない場合、
+.I offset
+は
+.BR sendfile ()
+が
+.I in_fd
+のどこからデータを読み始めるかを示すファイル・オフセットを保持する変数への
+ポインタである。
+.BR sendfile ()
+は復帰する時、この変数に最後に読み込んだバイトの
+次のバイトのオフセットを書き込む。
+.I offset
+が NULL でない場合、
+.BR sendfile ()
+は
+.I in_fd
+のファイル・オフセットの現在値を変更しない。
+NULL の場合は、ファイル・オフセットの現在値を
+.I in_fd
+から読み込んだバイト数を反映した位置に調整する。
+
+.I offset
+が NULL の場合、データは
+.I in_fd
+の現在のファイル・オフセットから読み出され、
+ファイル・オフセットはこの呼び出しで更新される。
+
+.I count
+は、ファイル・ディスクリプタ間でコピーするバイト数である。
+
+今のところ (Linux 2.6.9 では)、
+.I in_fd
+は
+.BR mmap (2)
+風の操作ができるファイルを指していなければならない
+(ソケットを指してはならない)。また、
+.I out_fd
+はソケットを指していなければならない。
+
+.BR sendfile ()
+が
+.B EINVAL
+や
+.B ENOSYS
+で失敗するような場合は、
+アプリケーションは
+.BR read (2)/ write (2)
+に戻すことを考えてもよいかもしれない。
+.SH 返り値
+転送に成功した場合、
+.I out_fd
+に書き込まれたバイト数を返す。エラーの場合、\-1 を返し、
+.I errno
+に適切な値を設定する。
+.SH エラー
+.TP
+.B EAGAIN
+.B O_NONBLOCK
+を用いて非ブロック I/O が選択されたが、書き込みがブロックされた。
+.TP
+.B EBADF
+入力ファイルが読み込みのためにオープンされていないか、
+出力ファイルが書き込みのためにオープンされていない。
+.TP
+.B EFAULT
+アドレスがおかしい。
+.TP
+.B EINVAL
+ディスクリプタが有効でないか、ロックされている。もしくは
+.BR mmap (2)
+風の操作が
+.I in_fd
+では利用できない。
+.TP
+.B EIO
+.I in_fd
+から読み込んでいるうちに予期しないエラーが起こった。
+.TP
+.B ENOMEM
+.I in_fd
+から読み込むための十分なメモリがない。
+.SH バージョン
+.B sendfile
+は Linux 2.2 の新しい機能である。
+インクルードファイル
+.I <sys/sendfile.h>
+は glibc 2.1 から存在している。
+.SH 準拠
+POSIX.1-2001 や他の標準では規定されていない。
+
+他の Unix システムでは、異なった方式やプロトタイプで
+.BR sendfile ()
+を実装している。移植性を考慮したプログラムでは使用すべきではない。
+.SH 注意
+.BR sendfile ()
+を使って TCP ソケットにファイルを送ろうとしていて、
+ファイルの内容の前にヘッダ・データを付け加える必要がある場合は、
+パケット数を最小にして性能を上げるために
+.BR tcp (7)
+に記述されている
+.B TCP_CORK
+オプションを使うといいだろう。
+
+Linux 2.4 とそれ以前のバージョンでは、
+.I out_fd
+は通常のファイルを参照でき、
+.BR sendfile ()
+はそのファイルのオフセットの現在値を変更していた。
+.SH 関連項目
+.BR mmap (2),
+.BR open (2),
+.BR socket (2),
+.BR splice (2)

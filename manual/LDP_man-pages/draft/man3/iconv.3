@@ -1,0 +1,219 @@
+.\" Copyright (c) Bruno Haible <haible@clisp.cons.org>
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" References consulted:
+.\"   GNU glibc-2 source code and manual
+.\"   OpenGroup's Single Unix specification
+.\"	http://www.UNIX-systems.org/online.html
+.\" 2000-06-30 correction by Yuichi SATO <sato@complex.eng.hokudai.ac.jp>
+.\" 2000-11-15 aeb, fixed prototype
+.\"
+.\" Japanese Version Copyright (c) 2000 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated 2000-07-11, Yuichi SATO <sato@complex.eng.hokudai.ac.jp>
+.\" Updated 2008-09-14, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.09
+.\"
+.\"WORD:	conversion	変換
+.\"WORD:	descriptor	ディスクリプター
+.\"WORD:	sequence	文字列
+.\"WORD:	
+.\"
+.TH ICONV 3 2008-09-08 "GNU" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O iconv \- perform character set conversion
+iconv \- 文字セット変換を行う
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #include <iconv.h>
+.sp
+.BI "size_t iconv(iconv_t " cd ,
+.BI "             char **" inbuf ", size_t *" inbytesleft ,
+.BI "             char **" outbuf ", size_t *" outbytesleft );
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The argument \fIcd\fP must be a conversion descriptor created using the
+.\"O function
+.\"O .BR iconv_open (3).
+引き数 \fIcd\fP は、関数
+.BR iconv_open (3)
+を使って生成される
+変換ディスクリプターでなければならない。
+.PP
+.\"O The main case is when \fIinbuf\fP is not NULL and \fI*inbuf\fP is not NULL.
+.\"O In this case, the
+.\"O .BR iconv ()
+.\"O function converts the multibyte sequence
+.\"O starting at \fI*inbuf\fP to a multibyte sequence starting at \fI*outbuf\fP.
+.\"O At most \fI*inbytesleft\fP bytes, starting at \fI*inbuf\fP, will be read.
+.\"O At most \fI*outbytesleft\fP bytes, starting at \fI*outbuf\fP, will be written.
+主に使われるのは、
+「\fIinbuf\fP が NULL でなく、かつ \fI*inbuf\fP が NULL でない」
+という場合である。
+この場合、
+.BR iconv ()
+関数は、
+\fI*inbuf\fP で始まるマルチバイト文字列を
+\fI*outbuf\fP で始まるマルチバイト文字列に変換する。
+\fI*inbuf\fP を先頭として最大 \fI*inbytesleft\fP バイトが読み込まれ、
+\fI*outbuf\fP を先頭として最大 \fI*outbytesleft\fP バイトが書き出される。
+.PP
+.\"O The
+.\"O .BR iconv ()
+.\"O function converts one multibyte character at a time, and for
+.\"O each character conversion it increments \fI*inbuf\fP and decrements
+.\"O \fI*inbytesleft\fP by the number of converted input bytes, it increments
+.\"O \fI*outbuf\fP and decrements \fI*outbytesptr\fP by the number of converted
+.\"O output bytes, and it updates the conversion state contained in \fIcd\fP.
+.\"O If the character encoding of the input is stateful, the
+.\"O .BR iconv ()
+.\"O function can also convert a sequence of input bytes
+.\"O to an update to the conversion state without producing any output bytes;
+.\"O such input is called a \fIshift sequence\fP.
+.\"O The conversion can stop for four reasons:
+.BR iconv ()
+関数は 1 度に 1 つのマルチバイト文字を変換する。
+そして、各文字変換毎に、変換された入力バイトの数だけ
+\fI*inbuf\fP を増加させ、\fI*inbytesleft\fP を減少させる。
+また、変換された出力バイトの数だけ
+\fI*outbuf\fP を増加させ、\fI*outbytesleft\fP を減少させる。
+さらに、\fIcd\fP に含まれる変換状態を更新する。
+入力の文字エンコーディングがが状態を持つ場合、
+.BR iconv ()
+関数は入力バイトの列に対して変換にも対応しており、
+バイト出力を伴わずに変換状態を更新することができる。
+変換は、次の 4 つの場合に停止する。
+.PP
+.\"O 1. An invalid multibyte sequence is encountered in the input.
+.\"O In this case
+.\"O it sets \fIerrno\fP to \fBEILSEQ\fP and returns
+.\"O .IR (size_t)\ \-1 .
+.\"O \fI*inbuf\fP
+.\"O is left pointing to the beginning of the invalid multibyte sequence.
+1. 入力に無効なマルチバイト文字列があった場合。
+この場合、関数は \fIerrno\fP を \fBEILSEQ\fP に設定し、
+.I (size_t)\ \-1
+を返す。
+\fI*inbuf\fP は、無効なマルチバイト文字列の先頭を指したままになる。
+.PP
+.\"O 2. The input byte sequence has been entirely converted,
+.\"O that is, \fI*inbytesleft\fP has gone down to 0.
+.\"O In this case
+.\"O .BR iconv ()
+.\"O returns the number of
+.\"O nonreversible conversions performed during this call.
+2. 入力バイト文字列が完全に変換され、\fI*inbytesleft\fP が 0 になった場合。
+この場合、
+.BR iconv ()
+は、呼出しの間に非可逆変換が行われた回数を返す。
+.PP
+.\"O 3. An incomplete multibyte sequence is encountered in the input, and the
+.\"O input byte sequence terminates after it.
+.\"O In this case it sets \fIerrno\fP to
+.\"O \fBEINVAL\fP and returns
+.\"O .IR (size_t)\ \-1 .
+.\"O \fI*inbuf\fP is left pointing to the
+.\"O beginning of the incomplete multibyte sequence.
+3. 入力に不完全なマルチバイト文字列があり、
+入力バイト文字列がその後で終了している場合。
+この場合、関数は、\fIerrno\fP を \fBEINVAL\fP に設定し、
+.I (size_t)\ \-1
+を返す。
+\fI*inbuf\fP は、不完全なマルチバイト文字列の先頭を指したままにされる。
+.PP
+.\"O 4. The output buffer has no more room for the next converted character.
+.\"O In this case it sets \fIerrno\fP to \fBE2BIG\fP and returns
+.\"O .IR (size_t)\ \-1 .
+4. 出力バッファーに次の変換された文字列のための空きがない場合。
+この場合、\fIerrno\fP が \fBE2BIG\fP に設定され、
+.I (size_t)\ \-1
+が返される。
+.PP
+.\"O A different case is when \fIinbuf\fP is NULL or \fI*inbuf\fP is NULL, but
+.\"O \fIoutbuf\fP is not NULL and \fI*outbuf\fP is not NULL.
+.\"O In this case, the
+.\"O .BR iconv ()
+.\"O function attempts to set \fIcd\fP's conversion state to the
+.\"O initial state and store a corresponding shift sequence at \fI*outbuf\fP.
+.\"O At most \fI*outbytesleft\fP bytes, starting at \fI*outbuf\fP, will be written.
+.\"O If the output buffer has no more room for this reset sequence, it sets
+.\"O \fIerrno\fP to \fBE2BIG\fP and returns
+.\"O .IR (size_t)\ \-1 .
+.\"O Otherwise it increments
+.\"O \fI*outbuf\fP and decrements \fI*outbytesptr\fP by the number of bytes
+.\"O written.
+別のケースとしては、
+「\fIinbuf\fP が NULL、または \fI*inbuf\fP が NULL である。
+しかし、\fIoutbuf\fP が NULL でなく、かつ \fI*outbuf\fP が NULL でない」
+という場合がある。
+この場合、
+.BR iconv ()
+関数は、\fIcd\fP の変換状態を初期状態にして、
+対応するシフト文字列を \fI*outbuf\fP に保存しようとする。
+最大 \fI*outbytesleft\fP バイトが、\fI*outbuf\fP を始めとして書き出される。
+このリセットされた文字列に対して、出力バッファーに空きがない場合、
+この関数は \fIerrno\fP を \fBE2BIG\fP に設定し、
+.I (size_t)\ \-1
+を返す。
+それ以外の場合、この関数は、書き込まれたバイトの数だけ
+\fI*outbuf\fP を増加させ、\fI*outbytesleft\fP を減少させる。
+.PP
+.\"O A third state is when \fIinbuf\fP is NULL or \fI*inbuf\fP is NULL, and
+.\"O \fIoutbuf\fP is NULL or \fI*outbuf\fP is NULL.
+.\"O In this case, the
+.\"O .BR iconv ()
+.\"O function sets \fIcd\fP's conversion state to the initial state.
+3 番目のケースしては、
+「\fIinbuf\fP が NULL、または \fI*inbuf\fP が NULL である。
+かつ、\fIoutbuf\fP が NULL、または \fI*outbuf\fP が NULL である」
+という場合がある。
+この場合、
+.BR iconv ()
+関数は、\fIcd\fP の変換状態を初期状態にする。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O The
+.\"O .BR iconv ()
+.\"O function returns the number of characters converted in a
+.\"O nonreversible way during this call; reversible conversions are not counted.
+.\"O In case of error, it sets \fIerrno\fP and returns
+.\"O .IR (size_t)\ \-1 .
+.BR iconv ()
+関数は、呼出しの間に非可逆な方法で変換された文字数を返す。
+つまり、可逆変換はカウントされない。
+エラーの場合、この関数は \fIerrno\fP を設定し、
+.I (size_t)\ \-1
+を返す。
+.\"O .SH ERRORS
+.SH エラー
+.\"O The following errors can occur, among others:
+他のいろいろなエラーのうちから、以下のエラーが起こりうる。
+.TP
+.B E2BIG
+.\"O There is not sufficient room at \fI*outbuf\fP.
+\fI*outbuf\fP に十分な空きがない。
+.TP
+.B EILSEQ
+.\"O An invalid multibyte sequence has been encountered in the input.
+入力に無効なマルチバイト文字列があった。
+.TP
+.B EINVAL
+.\"O An incomplete multibyte sequence has been encountered in the input.
+入力に不完全なマルチバイト文字列があった。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O This function is available in glibc since version 2.1.
+この関数はバージョン 2.1 以降の glibc で利用可能である。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+POSIX.1-2001.
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR iconv_close (3),
+.BR iconv_open (3)

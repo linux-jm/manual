@@ -1,0 +1,170 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (c) 1995 Michael Chastain (mec@shell.portal.com), 15 April 1995.
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
+.\" USA.
+.\"
+.\" Modified 1997-01-31 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified 1997-07-30 by Paul Slootman <paul@wurtel.demon.nl>
+.\" Modified 2004-05-27 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-12-17, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated and Modified 2001-06-12,Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated and Modified 2004-12-28, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated 2006-07-16, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.34
+.\"
+.\"WORD:	kernel			カーネル
+.\"WORD:	algorithm		アルゴリズム
+.\"WORD:	update			更新
+.\"WORD:	parameter		パラメーター
+.\"WORD:	field			フィールド
+.\"WORD:	super user		スーパー・ユーザー
+.\"WORD:	timer			タイマー
+.\"WORD:	interrupt		割り込み
+.\"WORD:	memory			メモリ
+.\"
+.TH ADJTIMEX 2 2004-05-27 "Linux" "Linux Programmer's Manual"
+.SH 名前
+adjtimex \- カーネルの時計を調整する
+.SH 書式
+.B #include <sys/timex.h>
+.sp
+.BI "int adjtimex(struct timex *" "buf" );
+.SH 説明
+Linux は David L. Mill の時計調節アルゴリズムを使用している
+(RFC\ 1305 を参照)。
+システムコール
+.BR adjtimex ()
+はこのアルゴリズムの調節のパラメーターを読み取ったり、設定したりする。
+この関数は
+.I timex
+構造体へのポインターを受け取り、その値でカーネルのパラメーターを更新して、
+同じ構造体に現在のカーネルの値を返す。
+この構造体は以下のように宣言される:
+.PP
+.in +4n
+.nf
+struct timex {
+    int modes;           /* mode selector */
+    long offset;         /* time offset (usec) */
+    long freq;           /* frequency offset (scaled ppm) */
+.\" FIXME -- what is the scaling unit?  2^16 ?
+    long maxerror;       /* maximum error (usec) */
+    long esterror;       /* estimated error (usec) */
+    int status;          /* clock command/status */
+    long constant;       /* pll time constant */
+    long precision;      /* clock precision (usec) (read-only) */
+    long tolerance;      /* clock frequency tolerance (ppm)
+                            (read-only) */
+    struct timeval time; /* current time (read-only) */
+    long tick;           /* usecs between clock ticks */
+};
+.fi
+.in
+.PP
+.I modes
+フィールドは (必要に応じて) どのパラメーターを設定するか決定する。
+それは以下のビット値の 0 個以上の
+.RI "ビット " OR
+からなる:
+.PP
+.in +4n
+.nf
+#define ADJ_OFFSET            0x0001 /* time offset */
+#define ADJ_FREQUENCY         0x0002 /* frequency offset */
+#define ADJ_MAXERROR          0x0004 /* maximum time error */
+#define ADJ_ESTERROR          0x0008 /* estimated time error */
+#define ADJ_STATUS            0x0010 /* clock status */
+#define ADJ_TIMECONST         0x0020 /* pll time constant */
+#define ADJ_TICK              0x4000 /* tick value */
+#define ADJ_OFFSET_SINGLESHOT 0x8001 /* old-fashioned adjtime() */
+.fi
+.in
+.PP
+通常のユーザーは
+.I mode
+の値は 0 に制限されている。
+スーパー・ユーザーのみが全てのパラメーターを設定できる。
+.br
+.ne 12v
+.SH 返り値
+成功した場合、
+.BR adjtimex ()
+は
+クロックの状態を返す:
+.PP
+.in +4n
+.nf
+#define TIME_OK  0 /* clock synchronized */
+#define TIME_INS 1 /* insert leap second */
+#define TIME_DEL 2 /* delete leap second */
+#define TIME_OOP 3 /* leap second in progress */
+#define TIME_BAD 4 /* clock not synchronized */
+.fi
+.in
+.PP
+失敗した場合は
+.BR adjtimex ()
+は \-1 を返し、
+.I errno
+が設定される。
+.SH エラー
+.TP
+.B EFAULT
+.I buf
+が書き込み可能なメモリを指していない。
+.TP
+.B EINVAL
+.I buf.offset
+へ \-131071 〜 +131071 の範囲以外の値を設定しようとしたか、
+.I buf.status
+に上記以外の値を設定しようとしたか、
+.I buf.tick
+に
+.RB 900000/ HZ
+〜
+.RB 1100000/ HZ
+の範囲以外の値を設定しようとした。
+ここで
+.B HZ
+はシステムのタイマー割り込みの周期である。
+.TP
+.B EPERM
+.I buf.mode
+が 0 でなく、かつ呼び出し元が十分な特権を持っていない。
+Linux では
+.B CAP_SYS_TIME
+ケーパビリティが必要である。
+.SH 準拠
+.BR adjtimex ()
+は Linux 特有であり、
+移植を意図したプログラムで使用すべきではない。
+システムクロックを調整する方法で、
+移植性があるが自由度は劣る方法については
+.BR adjtime (3)
+を参照のこと。
+.SH 関連項目
+.BR settimeofday (2),
+.BR adjtime (3),
+.BR capabilities (7),
+.BR time (7)

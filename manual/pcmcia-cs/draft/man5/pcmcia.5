@@ -1,0 +1,392 @@
+.\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
+.\" pcmcia.5 1.27 2000/10/16 16:37:38
+.\"
+.\" Japanese Version Copyright (c) 2000 KOJIMA Mitsuhiro and NAKANO Takeo
+.\" all rights reserved.
+.\" Translated Sun May 14 2000 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" based on the draft by KOJIMA Mitsuhiro <isle@st.rim.or.jp>
+.\" Updated Mon 12 Mar 2001 by NAKANO Takeo
+.\"
+.TH PCMCIA 5 "2000/10/16 16:37:38" "pcmcia-cs"
+.\"O .SH NAME
+.\"O /etc/pcmcia/config \- PCMCIA card configuration database
+.SH 名前
+/etc/pcmcia/config \- PCMCIA カードの設定データベース
+.\"O 
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The PCMCIA card configuration file is read by \fIcardmgr\fR(8)
+.\"O at startup time.  It defines what resources are available for use by
+.\"O Card Services, describes how to load and initialize device drivers,
+.\"O and describes specific PCMCIA cards.
+PCMCIA カード設定ファイルは
+.BR cardmgr (8)
+が起動時に読み込む。
+この設定ファイルは、カードサービスが利用できる
+IO ポート・メモリ・IRQ といったリソースを定義し、
+デバイスドライバのロードや初期化の方法を指定し、
+それぞれの PCMCIA カードの詳細について記述する。
+.\"O 
+.\"O .SH Resource descriptions
+.SH リソースの記述
+.\"O There are three kinds of resource entries: \fBinclude\fR,
+.\"O \fBexclude\fR, and \fBreserve\fR. Including a resource enables Card
+.\"O Services to allocate that resource for client drivers.  Part of a
+.\"O resource that is under Card Services control can be excluded if a
+.\"O specific device in the system uses that resource.  And, a resource can
+.\"O be reserved, so that it will only be assigned to a client if that
+.\"O client specifically asks for that resource, or no other suitable
+.\"O resources are available.
+リソースのエントリには 3 つの種類がある。
+.BR include ,
+.BR exclude ,
+.B reserve
+である。
+include したリソースは、
+カードサービスがクライアントとなる各種ドライバに割り当てる。
+カードサービスの制御下にあるリソースは exclude することもできる。
+例えばシステムの特定のデバイスがそのリソースを使うような場合である。
+リソースは reserve することもできる。
+この場合は、そのリソースを特に使いたいと要求するクライアントが現われるか、
+あるいは他に割り当て可能なリソースが無くなるまで、
+そのリソースは割り当てない。
+.PP
+.\"O There are three resource types: \fBport\fR, \fBmemory\fR, and
+.\"O \fBirq\fR. By default, Card Services assumes that it can use any
+.\"O interrupt that is not bound by another device driver.  However, it
+.\"O makes no assumptions about IO port and address ranges, because some
+.\"O Linux drivers do not register their resource usage.  So, port and
+.\"O memory ranges must be explicitly made available for use by PCMCIA
+.\"O devices.
+リソースのタイプには 3 つの種類がある。
+.BR port ,
+.BR memory ,
+.B irq
+である。
+デフォルトでは、カードサービスは他のデバイスドライバが使っていない
+irq を自由に使えるものと仮定する。
+しかし、カードサービスは I/O ポートとアドレスの範囲に関しては
+なんの仮定も行わない。 Linux のドライバの中には
+リソースの利用状況を登録しない物があるからである。
+そのため、
+IO ポートとメモリの範囲については、
+PCMCIA デバイスが使って良い部分を明示的に指定しなければならない。
+.PP
+.\"O So, here is a portion of a config file:
+これらをまとめると、設定ファイルの内容は以下のようになる:
+.sp
+.RS
+.nf
+include port 0x300-0x3ff, memory 0xd0000-0xdffff
+reserve irq 3
+exclude irq 4, port 0x3f8-0x3ff
+.RE
+.fi
+.sp
+.\"O This says that Card Services can allocate ports in the range 0x300 to
+.\"O 0x3ff, and memory in the range 0xd0000 to 0xdffff.  It should not use
+.\"O irq 4 or ports 0x3f8-0x3ff (even if they seem to be available).  And
+.\"O irq 3 should only be allocated if a client specifically asks for it.
+この例では、カードサービスは I/O ポートの 0x300 から
+0x3ff と、メモリの 0xd0000  から 0xdffff までを割り当てて良いことになる。
+exclude 指定をした irq 4 と I/O ポートの 0x3f8 から 0x3ff は、
+利用可能であっても使わない。
+reserve 指定した irq 3 は、
+特にその割り込みをクライアントが必要とした場合に限って利用する。
+.PP
+.\"O Card Services will never allocate resources already allocated by
+.\"O another kernel device driver.  The
+.\"O .BR include / exclude / reserve
+.\"O mechanism just provides a way of controlling what resources it will
+.\"O try to use, to accomodate devices that are not registered with the
+.\"O Linux resource manager.
+カードサービスは、他のカーネルデバイスドライバに割り当てられている
+リソースは決して利用しない。
+.BR include / exclude / reserve
+メカニズムは、カードサービスが使おうと試みるリソースを指定するもので、
+Linux のリソースマネージャーに登録されないデバイスと
+うまく共存するための仕組みなのである。
+.\"kojima [註 釈：かってリソースの指定は /etc/pcmcia/config の最初に
+.\"kojima ありましたが、現在のバージョンでは /etc/pcmcia/config.opts
+.\"kojima と して独立しています。/etc/pcmcia/config は新しくサポート
+.\"kojima されたカードが増えるたびに書きかえられ ま す が、/etc/pcm-
+.\"kojima cia/config.opts は書きかわらないので、システムに依存する記
+.\"kojima 述は *.opts ファイルにまとめるようになりました。]
+.\"O 
+.\"O .SH Device driver descriptions
+.SH デバイスドライバの記述
+.\"O All Card Services client drivers are identified by a 32-character tag.
+.\"O \fBDevice\fR entries in the config file describe client drivers.  The only
+.\"O required field is the device tag.  Additional fields can specify
+.\"O kernel modules that need to be loaded to make the device available,
+.\"O and a script to be executed to enable and disable instances of
+.\"O a device.  When an instance of a driver is assigned to a socket, it
+.\"O gives cardmgr a device name by which this device will be known by the
+.\"O system (for example, \fIeth0\fR for a net device, or \fIcua1\fR for a
+.\"O modem).  This name will be passed to the configuration script.  For
+.\"O example:
+カードサービスの全てのクライアントドライバは、
+32 文字のタグによって識別される。
+設定ファイル中の
+.B device
+エントリがクライアントドライバを記述する。
+必須のフィールドは識別用のタグのみで、
+その他のフィールドには、
+そのデバイスを利用するためにロードすべきカーネルモジュールや
+デバイスの実体を有効/無効するために実行するスクリプトを指定する。
+ドライバの実体がソケットに割り当てられると、
+ドライバは cardmgr にシステムから見たそのデバイスの名称
+(ネットワークデバイスならば
+.IR eth0 、
+モデムならば
+.I cua1
+など)
+を通知する。
+この名称は設定用スクリプトに渡される。例えば:
+.sp
+.RS
+.nf
+device "pcnet_cs"
+  class "network"
+  module "net/8390" opts "ei_debug=4", "pcnet_cs"
+.RE
+.fi
+.sp
+.\"O This says that the \fBpcnet_cs\fR device requires two loadable modules.
+.\"O The first one is located in the \fInet\fR module subdirectory and will
+.\"O be loaded with a specific parameter setting.  The second module should
+.\"O be in the \fIpcmcia\fR module subdirectory.  The device is in the
+.\"O network class, so the \fInetwork\fR script in the configuration
+.\"O directory will be used to start or stop the device.
+という指定では、
+.B pcnet_cs
+デバイスは 2 つのローダブルモジュールが必要であることを示している。
+1 つめのモジュール (8390) はモジュールディレクトリの
+.I net
+サブディレクトリにあり、指定したパラメータ
+.I ei_debug=4
+と共にロードされる。
+2 つめのモジュール (de650_cs) は
+.I pcmcia
+サブディレクトリにある。
+このデバイス (pcnet_cs) は
+.I network
+というクラスに属し、デバイスの起動と終了には、
+設定ファイルと同じディレクトリにある
+.I network スクリプト (/etc/pcmcia/network) が利用される。
+.PP
+.\"O It is also possible to specify default options for a particular kernel
+.\"O module, outside of a device driver declaration.  This is convenient
+.\"O for keeping local configuration options in a file separate from the
+.\"O main card configuration file.  For example:
+デバイスドライバ宣言の外部で、
+特定のカーネルモジュールのデフォルトのオプションを指定することもできる。
+これはローカルな設定オプションを
+メインのカード設定ファイルから分離するのに便利である。
+.\"kojima 各デバイスの設定用スクリプトはデバイスの初期化と終了の際に
+.\"kojima 起動されますが、それ以外にも、サスペンド時にそのデバイスが
+.\"kojima 現在使用中かどうかを確認したり、レジュームの際にデバイスを
+.\"kojima 再設定したりするのにも使われます。 cardmgr は設定用スク リ
+.\"kojima プトをいくつかの引数を指定して起動します。引数として指定さ
+.\"kojima れるのは「取るべき動作」と「デバイス名」で、可能ならば「デ
+.\"kojima バイス番号(major/minor)」も指定します。
+.sp
+.RS
+.nf
+module "pcnet_cs" opts "mem_speed=600"
+.RE
+.fi
+.sp
+.\"O 
+.\"O .SH Card descriptions
+.SH カードの記述
+.\"O Card declarations map PCMCIA cards to their client drivers.  A card
+.\"O declaration consists of a descriptive name, a method for identifying
+.\"O the card when it is inserted, and driver bindings.  There are six
+.\"O identification methods: the \fBversion\fR method matches a card using
+.\"O its VERSION_1 id strings, the \fBmanfid\fR method matches a card using
+.\"O its MANFID tuple codes, the \fBpci\fR method matches a CardBus card
+.\"O using its PCI device ID's, the \fBtuple\fR method matches a card using
+.\"O any string embedded in any arbitrary CIS tuple, the \fBfunction\fR
+.\"O method matches a card using its function ID, and the \fBanonymous\fR
+.\"O method matches any card that does not have a CIS.  This last method
+.\"O is only intended to be used for old-style Type I memory cards.  For
+.\"O example:
+card 宣言は、PCMCIA カードとそのクライアントドライバとを
+結びつけるものである。
+card 宣言は、カードの名称・カードが挿入された際の識別方法・
+利用するドライバ、の 3 つの部分からなる。
+カードを識別するには 6 つのメソッド (方法) がある。
+.B version
+メソッドはカード識別に VERSION_1 id 文字列を用いる。
+.B manfid
+メソッドはカードの MANFID タプルコードを用いる。
+.B pci
+メソッドは CardBus カードの PCI デバイス ID を用いる。
+.B tuple
+メソッドはカードの任意の CIS タプルに埋めこまれた文字列を用いる。
+.B function
+メソッドはカードの function ID を用いる。
+.B anonymous
+メソッドは CIS を持たないカードにマッチする
+(これは旧式のタイプ I メモリカードに用いる物である)。
+以下にいくつか例を示す。
+.sp
+.RS
+.nf
+card "Linksys Ethernet Card"
+  tuple 0x40, 0x0009, "E-CARD PC Ethernet Card"
+  bind "pcnet_cs"
+.RE
+.fi
+.sp
+.\"O This card is identified by a string at offset 0x0009 in tuple 0x40,
+.\"O and will be bound to the \fBpcnet_cs\fR driver (which must be already
+.\"O declared in a \fBdriver\fR declaration).
+このカードは 0x40 タプルのオフセット 0x0009 から始まる
+文字列 "E-CARD PC Ethernet Card" によって識別され、
+.B pcnet_cs
+ドライバにバインドされる
+(ドライバはあらかじめ
+.B driver
+宣言で定義されていなければならない)。
+.sp
+.RS
+.nf
+card "Connectware LANdingGear Adapter"
+  manfid 0x0057, 0x1004
+  bind "pcnet_cs"
+.RE
+.fi
+.sp
+.\"O This card is identified by its MANFID tuple contents.  The \fBpci\fR
+.\"O method has the same form, with \fBpci\fR replacing \fBmanfid\fR.
+このカードは MANFID タプルの内容によって識別される。
+.B pci
+メソッドも同じ形式で、
+.B manfid
+の代わりに
+.B pci
+と書く。
+.sp
+.RS
+.nf
+card "D-Link DE-650 Ethernet Card"
+  version "D-Link", "DE-650"
+  bind "pcnet_cs"
+.RE
+.fi
+.sp
+.\"O This card will be identified using its VERSION_1 tuple, and will also
+.\"O be bound to the \fBpcnet_cs\fR driver.
+このカードは VERISON_1 タプルによって識別され、
+.B pcnet_cs
+ドライバにバインドされる。
+.sp
+.RS
+.nf
+card "Serial port device"
+  function serial_port
+  bind "serial_cs"
+.RE
+.fi
+.sp
+.\"O This binds the \fBserial_cs\fR driver to any card with a CIS function
+.\"O ID of 0x02, which corresponds to a serial port card.  The function ID
+.\"O can either be a number, or one of the following predefined functions:
+.\"O \fBmemory_card\fR, \fBserial_port\fR, \fBparallel_port\fR,
+.\"O \fBfixed_disk\fR, \fBvideo_adapter\fR, \fBnetwork_adapter\fR, and
+.\"O \fBaims_card\fR.
+これは CIS function ID が 0x02 (シリアルポートカードに対応)
+のあらゆるカードを
+.B serial_cs
+ドライバにバインドする。
+function ID は数字でも良いし、定義済みの function である
+.BR memory_card ,
+.BR serial_port ,
+.BR parallel_port ,
+.BR fixed_disk ,
+.BR video_adapter ,
+.BR network_adapter ,
+.BR aims_card
+のいずれかでもかまわない。
+.PP
+.\"O Finally, the configuration file can specify that Card Services should
+.\"O use a replacement for the configuration information found on a card.
+.\"O This can be useful if a card's configuration information is
+.\"O particularly incomplete or inaccurate.  The new information is read
+.\"O from a file as in this example:
+最後に、カードで見付かった設定情報とは異なるものを
+カードサービスに用いさせるような指定も設定ファイルでは可能である。
+カードの設定情報が特に不完全・不正確である場合にこれを使えることもある。
+新しい設定はファイルから読み込む。例を示す:
+.sp
+.RS
+.nf
+card "Evil broken card"
+  manfid 0x1234, 0x5678
+  cis "fixup.cis"
+  bind "serial_cs"
+.RE
+.fi
+.sp
+.\"O 
+.\"O .SH Memory region definitions 
+.SH メモリ領域定義
+.\"O Memory region definitions are used to associate a particular type of
+.\"O memory device with a Memory Technology Driver, or "MTD".  An MTD is
+.\"O used to service memory accesses in a device-independent fashion.  When
+.\"O a card is identified, Card Services will attempt to load MTD's for all
+.\"O its memory regions.
+メモリ領域定義は、特定の形式のメモリデバイスを
+Memory Technology Driver (MTD) に関連付けするために用いられる。
+MTD はメモリアクセスを、デバイス独立なやり方で提供する。
+カードがこの種のメモリデバイスであると識別されると、
+カードサービスはそのメモリ領域全てに対して MTD を読み込もうとする。
+.PP
+.\"O A memory region definition begins with the \fBregion\fR keyword and a
+.\"O descriptive string.  This is followed by an identification method:
+.\"O either \fBdefault\fR to identify an MTD to be used for any otherwise
+.\"O unclassified region, or \fBjedec\fR to identify a region based on its
+.\"O JEDEC identification codes.  Thus, for example,
+メモリ領域定義は
+.B region
+キーワードと識別文字列から始まる。
+次に識別メソッドである
+.BR default " か " jedec
+が来る。
+.B default
+は他に分類されなかったすべての領域で使う MTD を指定し、
+.B jedec
+はメモリ領域を JEDEC の識別コードによって識別する。
+例えば
+.sp
+.RS
+.nf
+region "Intel Series 2 Flash"
+  jedec 0x89 0xa2
+  mtd "iflash2_mtd"
+.RE
+.fi
+.sp
+.\"O specifies that the \fBiflash2_mtd\fR driver will be loaded based on a
+.\"O JEDEC match.
+は、 JEDEC がマッチすれば
+.B iflash_mtd
+ドライバがロードされることを示している。
+.\"O 
+.\"O .SH BUGS
+.SH バグ 
+.\"O The \fBreserve\fR keyword has not actually been implemented in a
+.\"O useful way for this version of Card Services.
+今のところ
+.B reserve
+キーワードの実装はこのバージョンのカードサービスにはあまり便利でない。
+.\"O .SH AUTHOR
+.SH 著者
+David Hinds \- dahinds@users.sourceforge.net
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.\"O cardmgr(8).
+.BR cardmgr (8)
+

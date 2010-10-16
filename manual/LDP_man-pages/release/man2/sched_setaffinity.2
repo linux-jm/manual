@@ -1,0 +1,266 @@
+.\" man2/sched_setaffinity.2 - sched_setaffinity and sched_getaffinity man page
+.\"
+.\" Copyright (C) 2002 Robert Love
+.\" and Copyright (C) 2006 Michael Kerrisk
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
+.\" USA.
+.\"
+.\" 2002-11-19 Robert Love <rml@tech9.net> - initial version
+.\" 2004-04-20 mtk - fixed description of return value
+.\" 2004-04-22 aeb - added glibc prototype history
+.\" 2005-05-03 mtk - noted that sched_setaffinity may cause thread
+.\"	migration and that CPU affinity is a per-thread attribute.
+.\" 2006-02-03 mtk -- Major rewrite
+.\" 2008-11-12, mtk, removed CPU_*() macro descriptions to a
+.\" separate CPU_SET(3) page.
+.\"
+.\" Japanese Version Copyright (c) 2003, 2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated 2003-01-23, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2003-09-23, Yuichi SATO
+.\" Updated & Modified 2005-01-03, Yuichi SATO
+.\" Updated & Modified 2005-09-13, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated & Modified 2006-07-14, Akihiro MOTOKI, LDP v2.34
+.\" Updated & Modified 2008-12-24, Akihiro MOTOKI, LDP v3.14
+.\"
+.\"WORD:	affinity		親和度
+.\"WORD:	most significant bit	最上位ビット
+.\"WORD:	least significant bit	最下位ビット
+.\"WORD:	capability		権限
+.\"
+.TH SCHED_SETAFFINITY 2 2008-11-14 "Linux" "Linux Programmer's Manual"
+.SH 名前
+sched_setaffinity, sched_getaffinity \- \
+プロセスの CPU affinity マスクを設定・取得する
+.SH 書式
+.nf
+.B #define _GNU_SOURCE
+.B #include <sched.h>
+.sp
+.BI "int sched_setaffinity(pid_t " pid ", size_t " cpusetsize ,
+.BI "                      cpu_set_t *" mask );
+.sp
+.BI "int sched_getaffinity(pid_t " pid ", size_t " cpusetsize ,
+.BI "                      cpu_set_t *" mask );
+.fi
+.SH 説明
+プロセスの CPU affinity (親和度) マスクは、そのプロセスが
+実行を許可されている CPU の集合を決定する。
+マルチプロセッサ・システムでは、CPU affinity マスクを設定することで
+性能上のメリットを得られる可能性がある。
+例えば、特定のプロセスを一つの CPU に括り付け
+(すなわち、そのプロセスの affinity マスクを一つの CPU に設定し)、
+他の全てのプロセスの affinity マスクからその CPU を除外することで、
+確実にそのプロセスの実行速度を最大にすることができる。
+また、あるプロセスの実行を一つの CPU に限定することで、
+一つの CPU での実行を停止してから別の CPU で実行を再開するときに発生する
+キャッシュ無効化 (cache invalidation) による性能面の劣化を避けることもできる。
+
+CPU affinity マスクは「CPU の集合」を表す
+.I cpu_set_t
+構造体で表現され、
+.I cpu_set_t
+へのポインタ
+.I mask
+で指定される。
+CPU 集合を操作するためのマクロ群については
+.BR CPU_SET (3)
+で記載されている。
+
+.BR sched_setaffinity ()
+は、プロセスID が
+.I pid
+のプロセスの CPU affinity マスクを
+.I mask
+で指定された値に設定する。
+.I pid
+が 0 の場合、呼び出し元プロセスが使われる。
+.I cpusetsize
+引き数には
+.I mask
+が指すデータの長さ (バイト単位) である。
+通常は、この引き数には
+.I "sizeof(cpu_set_t)"
+を指定すればよい。
+
+.I pid
+で指定されたプロセスが
+.I mask
+で指定された CPU のいずれかで現在実行されていない場合、
+そのプロセスは
+.I mask
+で指定された CPU のいずれかに移動される。
+
+.BR sched_getaffinity ()
+は、
+プロセスID が
+.I pid
+のプロセスの affinity マスクを
+.I mask
+が指す
+.I cpu_set_t
+構造体に書き込む。
+.I cpusetsize
+引き数には
+.I mask
+の (バイト単位の) 大きさを指定する。
+
+関数
+.BR sched_getaffinity ()
+は長さ
+.I len
+のポインタ
+.I mask
+にプロセス
+.I pid
+の affinity マスクを書き込む。
+.I pid
+が 0 の場合、呼び出し元のプロセスのマスクが返される。
+.SH 返り値
+成功した場合、
+.BR sched_setaffinity ()
+と
+.BR sched_getaffinity ()
+は 0 を返す。
+エラーの場合は \-1 を返し、
+.I errno
+を適切に設定する。
+.SH エラー
+.TP
+.B EFAULT
+指定されたメモリ番地が不正である。
+.TP
+.B EINVAL
+システム上に現在実際に存在し、かつ
+"cpuset" 機構が課す制限においてそのプロセスに対して許可されている
+プロセッサが、
+affinity ビットマスク
+.I mask
+に含まれていない。
+"cpuset" 機構については
+.BR cpuset (7)
+を参照。
+.TP
+.B EINVAL
+.RB ( sched_getaffinity ()
+と、カーネル 2.6.9 以前の
+.BR sched_setaffinity ())
+.I cpusetsize
+がカーネルで使われている affinity マスクのサイズより小さい。
+.TP
+.B EPERM
+.RB ( sched_setaffinity ())
+呼び出し元のプロセスに適切な特権がなかった。
+呼び出し元は、実効ユーザ ID が
+.I pid
+で識別されるプロセスのユーザ ID または実効ユーザ ID と同じであるか、
+.B CAP_SYS_NICE
+ケーパビリティ (capability) を持たなければならない。
+.TP
+.B ESRCH
+プロセス ID \fIpid\fP のプロセスが見つからなかった。
+.SH バージョン
+CPU affinity システムコールは Linux kernel 2.5.8 で導入された。
+これらのシステムコールのラッパー関数は glibc 2.3 で導入された。
+最初は、glibc のインタフェースには
+.I "unsigned int"
+型の
+.I cpusetsize
+引き数が入っていた。
+glibc 2.3.3 では
+.I cpusetsize
+引き数が削除されたが、glibc 2.3.4 で
+.I size_t
+型で復活した。
+.SH 準拠
+これらのシステムコールは Linux 固有である。
+.SH 注意
+.BR sched_setaffinity ()
+を呼び出した後は、プロセスが実際に実行される CPU の集合は、
+.I mask
+引き数で指定された集合と、システム上に実際に存在する CPU の集合の
+共通集合 (AND) となる。
+"cpuset" 機構が使用されている場合には、プロセスが動作する CPU 集合
+に対してシステムはさらに制限を加えるかもしれない
+("cpuset" 機構については
+.BR cpuset (7)
+を参照)。
+プロセスが動作する実際の CPU 集合に対する制限はカーネルにより
+暗黙のうちに適用される。
+
+.BR sched_setscheduler (2)
+には Linux におけるスケジューリング機構についての説明がある。
+.PP
+実際には affinity マスクはスレッド単位の属性で、スレッドグループの
+各スレッド単位に独立して調整することができる。
+.BR gettid (2)
+コールからの返り値をこのコールの
+.I pid
+引き数として渡すことができる。
+.I pid
+に 0 を指定すると呼び出し元のスレッドの属性が設定され、
+.BR getpid (2)
+コールからの返り値を
+.I pid
+に指定するとスレッドグループのメインスレッドの属性が設定される
+(POSIX スレッド API を使用している場合、
+.BR sched_setaffinity ()
+の代わりに
+.BR pthread_setaffinity_np (3)
+を使用すること)。
+
+.BR fork (2)
+経由で生成された子プロセスは親プロセスの CPU affinity マスクを継承する。
+affinity マスクは
+.BR execve (2)
+の前後で保存される。
+
+このマニュアルページでは CPU affinity コールの glibc インタフェースを
+説明している。実際のシステムコール・インタフェースは少し違っており、
+実際の実装では CPU 集合は簡単なビットマスクであるという実状を反映し、
+.I mask
+の型が
+.IR "unsigned long *"
+となっている。
+成功時には、生の
+.BR sched_getaffinity ()
+システムコール自身は
+.I cpumask_t
+データ型の (バイト単位の) 大きさを返す。
+.I cpumask_t
+はカーネル内部で CPU 集合のビットマスクを表現するのに
+使われているデータ型である。
+.SH 関連項目
+.BR clone (2),
+.BR getcpu (2),
+.BR getpriority (2),
+.BR gettid (2),
+.BR nice (2),
+.BR sched_get_priority_max (2),
+.BR sched_get_priority_min (2),
+.BR sched_getscheduler (2),
+.BR sched_setscheduler (2),
+.BR setpriority (2),
+.BR pthread_setaffinity_np (3),
+.BR CPU_SET (3),
+.BR sched_getcpu (3),
+.BR capabilities (7),
+.BR cpuset (7)

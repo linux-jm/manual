@@ -1,0 +1,232 @@
+'\" t
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI all rights reserved.
+.\" Translated 2006-04-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH MQ_OPEN 3 2009-02-20 "Linux" "Linux Programmer's Manual"
+.SH 名前
+mq_open \- メッセージキューをオープンする
+.SH 書式
+.nf
+.BR "#include <fcntl.h>" "           /* For O_* constants */"
+.BR "#include <sys/stat.h>" "        /* For mode constants */"
+.B #include <mqueue.h>
+.sp
+.BI "mqd_t mq_open(const char *" name ", int " oflag );
+.BI "mqd_t mq_open(const char *" name ", int " oflag ", mode_t " mode ,
+.BI "              struct mq_attr *" attr );
+.fi
+.sp
+\fI\-lrt\fP でリンクする。
+.SH 説明
+.BR mq_open ()
+は、新しい POSIX メッセージキューを作成するか、既存のキューを
+オープンする。キューは
+.I name
+で識別される。
+.I name
+の構成の詳細については
+.B mq_overview (7)
+を参照。
+
+.I oflag
+引き数には、関数呼び出しの操作を制御するフラグを指定する
+(oflag の値の定義は
+.I <fcntl.h>
+のインクルードにより得られる)。
+.I oflag
+には、以下のうちいずれか一つを必ず指定しなければならない。
+.TP
+.B O_RDONLY
+メッセージの受信専用としてキューをオープンする。
+.TP
+.B O_WRONLY
+メッセージの送信専用としてキューをオープンする。
+.TP
+.B O_RDWR
+メッセージの送受信両用としてキューをオープンする。
+.PP
+0 個以上の下記のフラグを、ビット単位の OR (論理和) で
+.I oflag
+に追加で指定できる。
+.TP
+.B O_NONBLOCK
+非停止 (nonblocking) モードでキューをオープンする。
+.BR mq_receive (3)
+と
+.BR mq_send (3)
+は、通常は停止 (block) する状況において、エラー
+.B EAGAIN
+で失敗するようになる。
+.TP
+.B O_CREAT
+存在しない場合、メッセージキューを作成する。
+メッセージキューの所有者 (ユーザ ID) とグループ所有権 (グループ ID) は、
+それぞれ呼び出し元プロセスの実効ユーザ ID と実効グループ ID に設定される。
+.\" 実際は、Linux ではファイルシステム ID が使用される。
+.TP
+.B O_EXCL
+.B O_CREAT
+が
+.I oflag
+に指定され、かつ指定された名前
+.I name
+を持つキューがすでに存在する場合、エラー
+.B EEXIST
+で失敗する。
+.PP
+.I oflag
+に
+.B O_CREAT
+を指定する場合、追加で 2つの引き数を与える必要がある。
+.I mode
+引き数は、新しいキューに適用される許可設定 (permission) を、
+.BR open (2)
+と同じように指定する
+(許可ビットのシンボル定義は
+.I <sys/stat.h>
+のインクルードにより得られる)。
+許可設定はプロセスの umask でマスクされる。
+.I attr
+引き数は、キューの属性を指定する。詳細は、
+.BR mq_getattr (3)
+を参照。
+.I attr
+が NULL の場合、キューは実装で定義されたデフォルト属性で作成される。
+.SH 返り値
+成功すると、
+.BR mq_open ()
+はメッセージキュー記述子 (message queue descriptor) を返す。
+メッセージキュー記述子は他のメッセージキュー関連の関数で使用される。
+エラーの場合、
+.BR mq_open ()
+は
+.I "(mqd_t)\ \-1"
+を返し、
+.I errno
+にエラーを示す値を設定する。
+.SH エラー
+.TP
+.B EACCES
+キューは存在するが、呼び出し元が指定されたモードでそのキュー
+をオープンする許可を持たない。
+.TP
+.B EACCES
+.I name
+にスラッシュが 2 個以上含まれていた。
+.\" Note that this isn't consistent with the same case for sem_open()
+.TP
+.B EEXIST
+.I oflag
+に
+.B O_CREAT
+と
+.B O_EXCL
+の両方が指定されたが、指定された名前
+.I name
+を持つキューがすでに存在する。
+.TP
+.B EINVAL
+.I oflag
+に
+.B O_CREAT
+が指定され、かつ
+.I attr
+が NULL 以外だが、
+.I attr\->mq_maxmsg
+か
+.I attr\->mq_msqsize
+が不正であった。
+これらのフィールドは両方とも 0 より大きくなければならない。
+プロセスが特権を持たない
+.RB ( CAP_SYS_RESOURCE
+ケーパビリティを持たない) 場合、
+.I attr\->mq_maxmsg
+と
+.I attr\->mq_msgsize
+は、それぞれ上限
+.IR msg_max 、
+.I msgsize_max
+以下でなければならない。
+また、特権プロセスの場合でも、
+.I attr\->mq_maxmsg
+は
+.B HARD_MAX
+上限を超えることはできない。
+(これらの上限に関する詳細は
+.BR mq_overview (7)
+を参照。)
+.TP
+.B EMFILE
+そのプロセスがオープンしているファイルとメッセージキューの数が
+プロセス毎の上限に達している。
+.TP
+.B ENAMETOOLONG
+.I name
+が長すぎる。
+.TP
+.B ENFILE
+システム全体でオープンしているファイルとメッセージキューの合計数が
+システム上限に達している。
+.TP
+.B ENOENT
+.B O_CREAT
+フラグが
+.I oflag
+に指定されなかったが、指定された名前
+.I name
+を持つキューが存在しない。
+.TP
+.B ENOENT
+.I name
+が "/" だけで、その後ろに他の文字が続いていなかった。
+.\" Note that this isn't consistent with the same case for sem_open()
+.TP
+.B ENOMEM
+十分なメモリがない。
+.TP
+.B ENOSPC
+新しいメッセージキューを作成するのに十分な空間がない。
+このエラーはおそらく
+.I queues_max
+上限に抵触したため起こったのだろう。
+.BR mq_overview (7)
+を参照。
+.SH 準拠
+POSIX.1-2001.
+.SH バグ
+2.6.14 より前のカーネルには、
+プロセスの umask が
+.I mode
+で指定された許可設定に適用されなかった。
+.SH 関連項目
+.BR mq_close (3),
+.BR mq_getattr (3),
+.BR mq_notify (3),
+.BR mq_receive (3),
+.BR mq_send (3),
+.BR mq_unlink (3),
+.BR mq_overview (7)

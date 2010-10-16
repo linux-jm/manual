@@ -1,0 +1,393 @@
+.\"   Copyright (C) 1996-1999 Free Software Foundation, Inc.
+.\"
+.\"   Permission is granted to make and distribute verbatim copies of
+.\" this manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\"   Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\"   Permission is granted to copy and distribute translations of this
+.\" manual into another language, under the above conditions for modified
+.\" versions, except that this permission notice may be stated in a
+.\" translation approved by the Foundation.
+.\"
+.\" Copyright (C) 1996 Xavier Leroy.
+.\"
+.\" Japanese Version Copyright (C) 2002-2003 Suzuki Takashi
+.\"         all rights reserved.
+.\" Translated Tue Dec 31 23:11:09 JST 2002
+.\"         by Suzuki Takashi.
+.\"
+.\"WORD:    thread-specific data    スレッド固有データ
+.\"WORD:    thread-specific key スレッド固有キー
+.\"WORD:    destructor function デストラクタ関数
+.\"
+.\"
+.TH PTHREAD_SPECIFIC 3 LinuxThreads
+
+.\"O .SH NAME
+.SH "名前"
+.\"O pthread_key_create, pthread_key_delete, pthread_setspecific, pthread_getspecific \- management of thread-specific data
+pthread_key_create, pthread_key_delete, pthread_setspecific, pthread_getspecific \- スレッド固有データの管理
+
+.\"O .SH SYNOPSIS
+.SH "書式"
+.B #include <pthread.h>
+
+.BI "int pthread_key_create(pthread_key_t *" key ", void (*" destr_function ") (void *));"
+
+.BI "int pthread_key_delete(pthread_key_t " key ");"
+
+.BI "int pthread_setspecific(pthread_key_t " key ", const void *" pointer ");"
+
+.BI "void * pthread_getspecific(pthread_key_t " key ");"
+
+.\"O .SH DESCRIPTION
+.SH "説明"
+
+.\"O Programs often need global or static variables that have different
+.\"O values in different threads. Since threads share one memory space,
+.\"O this cannot be achieved with regular variables. Thread-specific data
+.\"O is the POSIX threads answer to this need.
+プログラムではスレッドごとに値の異なる
+グローバル変数や静的変数がしばしば必要となる。
+複数のスレッドは 1 つのメモリ空間を共有するため、
+通常の変数ではこれを実現することができない。
+スレッド固有データは、
+この必要性への POSIX スレッドの答えである。
+
+.\"O Each thread possesses a private memory block, the thread-specific data
+.\"O area, or TSD area for short. This area is indexed by TSD keys. The TSD
+.\"O area associates values of type 
+.\"O .B "void *"
+.\"O to TSD keys. TSD keys are
+.\"O common to all threads, but the value associated with a given TSD key
+.\"O can be different in each thread.
+それぞれのスレッドはスレッド固有データ (thread-specific data) 領域、
+略して TSD 領域という
+プライベートなメモリブロックを保有している。
+この領域は TSD キーをインデックスとして管理される。
+TSD 領域では
+.B "void *"
+型の値を TSD キーに結び付ける。
+TSD キーはすべてのスレッドに共通であるが、
+TSD キーに結び付けられる値はスレッドごとに異なるように
+することができる。
+
+.\"O For concreteness, the TSD areas can be viewed as arrays of 
+.\"O .B "void *"
+.\"O pointers, TSD keys as integer indices into these arrays, and the value
+.\"O of a TSD key as the value of the corresponding array element in the
+.\"O calling thread.
+具体的にいえば、 TSD 領域は
+.B "void *"
+型のポインタの配列として、
+TSD キーはこの配列に対する整数値のインデックスとして、
+TSD キーに結び付けられる値は呼び出しスレッドの対応する配列要素として見える。
+
+.\"O When a thread is created, its TSD area initially associates 
+.\"O .B "NULL"
+.\"O with all keys.
+スレッドが生成されると、TSD 領域はすべてのキーに対する値が
+.B "NULL"
+になるよう初期化される。
+
+.\"O .B "pthread_key_create"
+.\"O allocates a new TSD key. The key is stored in the
+.\"O location pointed to by 
+.\"O .IR "key" .
+.\"O There is a limit of 
+.\"O .B "PTHREAD_KEYS_MAX"
+.\"O on the number of keys allocated at a given time. The value initially
+.\"O associated with the returned key is 
+.\"O .B "NULL"
+.\"O in all currently executing
+.\"O threads.
+.B "pthread_key_create"
+は新しい TSD キーを確保する。
+キーは
+.I "key"
+で指し示される領域に格納される。
+ある時点で確保できるキーの数には制限があり、
+その最大値は
+.B "PTHREAD_KEYS_MAX"
+である。
+返されたキーに結び付けられる初期値は、
+その時点で実行されているスレッドすべてにおいて
+.B "NULL"
+である。
+
+.\"O The 
+.\"O .I "destr_function"
+.\"O argument, if not 
+.\"O .BR "NULL" ,
+.\"O specifies a destructor
+.\"O function associated with the key. When a thread terminates via
+.\"O .B "pthread_exit"
+.\"O or by cancellation, 
+.\"O .I "destr_function"
+.\"O is called with
+.\"O arguments the value associated with the key in that thread. The
+.\"O .I "destr_function"
+.\"O is not called if that value is 
+.\"O .BR "NULL" .
+.\"O The order in
+.\"O which destructor functions are called at thread termination time is
+.\"O unspecified.
+引数
+.I "destr_function"
+に
+.B "NULL"
+以外の値を指定することで、
+そのキーに対応するデストラクタ関数を登録することができる。
+スレッドが
+.B "pthread_exit"
+やキャンセルによって終了すると、
+そのスレッド中でキーに結び付けられた値を引数として関数
+.I "destr_function"
+が呼び出される。
+値が
+.B "NULL"
+の場合には関数
+.I "destr_function"
+は呼び出されない。
+スレッド終了時にデストラクタ関数が呼び出される順序は不定である。
+
+.\"O Before the destructor function is called, the 
+.\"O .B "NULL"
+.\"O value is
+.\"O associated with the key in the current thread.  A destructor function
+.\"O might, however, re-associate non-
+.\"O .B "NULL"
+.\"O values to that key or some
+.\"O other key.  To deal with this, if after all the destructors have been
+.\"O called for all non-
+.\"O .B "NULL"
+.\"O values, there are still some non-
+.\"O .B "NULL"
+.\"O values with associated destructors, then the process is repeated.  The
+.\"O LinuxThreads implementation stops the process after
+.\"O .B "PTHREAD_DESTRUCTOR_ITERATIONS"
+.\"O iterations, even if some non-
+.\"O .B "NULL"
+.\"O values with associated descriptors remain.  Other implementations may
+.\"O loop indefinitely.
+デストラクタ関数が呼び出される前に、
+現在のスレッドにおいてキーに結び付けられる値は
+.B "NULL"
+になる。
+しかし、デストラクタ関数は
+.B "NULL"
+以外の値をそのキーやほかのキーに結び付けるかもしれない。
+これを処理するため、
+すべての非
+.B "NULL"
+の値に対するデストラクタ関数をすべて呼び出したあとに
+デストラクタ関数のある非
+.B "NULL"
+の値がまだ残っている場合には、
+デストラクタ関数の呼び出し処理は繰り返される。
+LinuxThreads の実装では、
+.B "PTHREAD_DESTRUCTOR_ITERATIONS"
+回繰り返すと、たとえデストラクタ関数のある非
+.B "NULL"
+の値が残っていても、
+処理は中止される。LinuxThreads 以外の実装では無限ループに陥るかもしれない。
+
+.\"O .B "pthread_key_delete"
+.\"O deallocates a TSD key. It does not check whether
+.\"O non-
+.\"O .B "NULL"
+.\"O values are associated with that key in the currently
+.\"O executing threads, nor call the destructor function associated with
+.\"O the key.
+.B "pthread_key_delete"
+は TSD キーを解放する。
+その時点で実行中のスレッドでキーに非
+.B "NULL"
+の値が結び付けられているかどうかをチェックしたり、
+キーに対応するデストラクタ関数を呼び出したりはしない。
+
+.\"O .B "pthread_setspecific"
+.\"O changes the value associated with 
+.\"O .I "key"
+.\"O in the
+.\"O calling thread, storing the given 
+.\"O .I "pointer"
+.\"O instead.
+.B "pthread_setspecific"
+は呼び出しスレッドで
+.I "key"
+に結び付けられる値を、与えられた
+.I "pointer"
+に変更する。
+
+.\"O .B "pthread_getspecific"
+.\"O returns the value currently associated with
+.\"O .I "key"
+.\"O in the calling thread.
+.B "pthread_getspecific"
+は呼び出しスレッドでその時点で
+.I "key"
+に結び付けられている値を返す。
+
+.\"O .SH "RETURN VALUE"
+.SH "返り値"
+
+.\"O .BR "pthread_key_create" ,
+.\"O .BR "pthread_key_delete" ,
+.\"O and 
+.\"O .B "pthread_setspecific"
+.\"O return 0 on success and a non-zero error code on failure. If
+.\"O successful, 
+.\"O .B "pthread_key_create"
+.\"O stores the newly allocated key in the
+.\"O location pointed to by its 
+.\"O .I "key"
+.\"O argument.
+.B "pthread_key_create"
+および
+.B "pthread_key_delete"
+、
+.B "pthread_setspecific"
+は成功すると 0 を、失敗すると非 0 のエラーコードを返す。
+成功の場合、
+.B "pthread_key_create"
+は新しく確保されたキーを
+引数
+.I "key"
+で指し示される領域に格納する。
+
+.\"O .B "pthread_getspecific"
+.\"O returns the value associated with 
+.\"O .I "key"
+.\"O on
+.\"O success, and 
+.\"O .B "NULL"
+.\"O on error.
+.B "pthread_getspecific"
+は、成功するとキー
+.I "key"
+に結び付けられた値を、
+エラーの場合には
+.B "NULL"
+を返す。
+
+.\"O .SH ERRORS
+.\"O .B "pthread_key_create"
+.\"O returns the following error code on error:
+.\"O .RS
+.\"O .TP
+.\"O .B "EAGAIN"
+.\"O .B "PTHREAD_KEYS_MAX"
+.\"O keys are already allocated
+.\"O .RE
+.SH "エラー"
+.B "pthread_key_create"
+はエラーの場合に次のようなエラーコードを返す:
+.RS
+.TP
+.B "EAGAIN"
+.B "PTHREAD_KEYS_MAX"
+だけのキーがすでに確保されている。
+.RE
+
+.\"O .B "pthread_key_delete"
+.\"O and 
+.\"O .B "pthread_setspecific"
+.\"O return the following
+.\"O error code on error:
+.\"O .RS
+.\"O .TP
+.\"O .B "EINVAL"
+.\"O .I "key"
+.\"O is not a valid, allocated TSD key
+.\"O .RE
+.B "pthread_key_delete"
+および 
+.B "pthread_setspecific"
+はエラーの場合に次のようなエラーコードを返す:
+.RS
+.TP
+.B "EINVAL"
+.I "key"
+は有効な、確保された TSD キーではない。
+.RE
+
+.\"O .B "pthread_getspecific"
+.\"O returns 
+.\"O .B "NULL"
+.\"O if 
+.\"O .I "key"
+.\"O is not a valid,
+.\"O allocated TSD key.
+.B "pthread_getspecific"
+は、
+.I "key"
+が有効な、確保された TSD キーでない場合には
+.B "NULL"
+を返す。
+
+.\"O .SH AUTHOR
+.SH "著者"
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.\"O .SH "SEE ALSO"
+.SH "関連項目"
+pthread_create(3), pthread_exit(3), pthread_testcancel(3).
+
+.\"O .SH EXAMPLE
+.SH "例"
+
+.\"O The following code fragment allocates a thread-specific array of 100
+.\"O characters, with automatic reclaimation at thread exit:
+次のコードでは、100 バイトのスレッド固有の配列を確保し、
+スレッドの終了とともに自動で解放する:
+
+.RS
+.ft 3
+.nf
+.sp
+.\"O /* Key for the thread-specific buffer */
+/* スレッド固有バッファのキー */
+static pthread_key_t buffer_key;
+
+.\"O /* Once-only initialisation of the key */
+/* 1 回限りのキーの初期化 */
+static pthread_once_t buffer_key_once = PTHREAD_ONCE_INIT;
+
+.\"O /* Allocate the thread-specific buffer */
+/* スレッド固有のバッファを確保する */
+void buffer_alloc(void)
+{
+  pthread_once(&buffer_key_once, buffer_key_alloc);
+  pthread_setspecific(buffer_key, malloc(100));
+}
+
+.\"O /* Return the thread-specific buffer */
+/* スレッド固有のバッファを返す */
+char * get_buffer(void)
+{
+  return (char *) pthread_getspecific(buffer_key);
+}
+
+.\"O /* Allocate the key */
+/* キーを確保する */
+static void buffer_key_alloc()
+{
+  pthread_key_create(&buffer_key, buffer_destroy);
+}
+
+.\"O /* Free the thread-specific buffer */
+/* スレッド固有のバッファを解放する */
+static void buffer_destroy(void * buf)
+{
+  free(buf);
+}
+.ft
+.LP
+.RE
+.fi

@@ -1,0 +1,446 @@
+.\" Copyright 1993 Giorgio Ciucci <giorgio@crcc.it>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified Tue Oct 22 16:40:11 1996 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified Mon Jul 10 21:09:59 2000 by aeb
+.\" Modified 1 Jun 2002, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Language clean-ups.
+.\"	Enhanced and corrected information on msg_qbytes, MSGMNB and MSGMAX
+.\"	Added note on restart behavior of msgsnd() and msgrcv()
+.\"	Formatting clean-ups (argument and field names marked as .I
+.\"		instead of .B)
+.\" Modified, 27 May 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on capability requirements
+.\" Modified, 11 Nov 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Language and formatting clean-ups
+.\"	Added notes on /proc files
+.\" FIXME . Add example programs to this page.
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-02-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified 2000-09-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2002-11-26, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-03-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2006-03-05, Akihiro MOTOKI, LDP v2.25
+.\" Updated 2008-08-09, Akihiro MOTOKI, LDP v3.05
+.\"
+.\"WORD:	message			メッセージ
+.\"WORD:	operation		操作
+.\"WORD:	queue			キュー
+.\"WORD:	process			プロセス
+.\"WORD:	catch			捕獲(catch)
+.\"WORD:	signal			シグナル
+.\"WORD:	suspend			停止(suspend)
+.\"WORD:	sleep			停止(sleep)
+.\"WORD:	block			停止(block)
+.\"WORD:	process-ID		プロセスID
+.\"WORD:	type			型
+.\"WORD:	policy			方針
+.\"WORD:	super-user		スーパー・ユーザー
+.\"WORD:	current time		現在時刻
+.\"WORD:	implement		実装
+.\"
+.TH MSGOP 2 2008-04-23 "Linux" "Linux Programmer's Manual"
+.SH 名前
+msgrcv, msgsnd \- メッセージ操作
+.SH 書式
+.nf
+.B #include <sys/types.h>
+.B #include <sys/ipc.h>
+.B #include <sys/msg.h>
+.sp
+.BI "int msgsnd(int " msqid ", const void *" msgp ", size_t " msgsz \
+", int " msgflg );
+.sp
+.BI "ssize_t msgrcv(int " msqid ", void *" msgp ", size_t " msgsz \
+", long " msgtyp ,
+.BI "               int " msgflg );
+.fi
+.SH 説明
+システムコール
+.BR msgsnd ()
+と
+.BR msgrcv ()
+はそれぞれ、メッセージ・キューへのメッセージの送信と、
+メッセージの受信に使用される。呼び出し元プロセスは、
+メッセージを送信するためにはメッセージ・キューに対する書き込み許可を、
+メッセージを受信するためには読み出し許可を持っていなければならない。
+.PP
+呼び出し元プロセスは以下に示す構造体を用意し、この構造体への
+ポインタを
+.msgp
+引き数として渡す。
+.in +4n
+.nf
+
+struct msgbuf {
+    long mtype;       /* message type, must be > 0 */
+    char mtext[1];    /* message data */
+};
+.fi
+.in
+.PP
+.I mtext
+フィールドは配列 (または他の構造体) で、その大きさは
+非負の整数である
+.I msgsz
+で指定される。
+長さ 0 のメッセージ (つまり
+.I mtext
+フィールドがないメッセージ) も認められている。
+.B mtype
+フィールドは厳密に正の整数でなければならない。
+この値は、メッセージを受信するプロセスでメッセージを選択するために
+使用される (下記の
+.BR msgrcv ()
+の説明を参照のこと)。
+.SS msgsnd()
+.BR msgsnd ()
+システムコールは
+.I msgp
+引き数で指定されたメッセージのコピーを
+.I msqid
+で指定された識別子を持つメッセージ・キューへ追加する。
+.PP
+キューに十分な空き容量がある場合、
+.BR msgsnd ()
+は直ちに成功する。
+(キューの容量は、メッセージ・キューのデータ構造体の
+.I msg_bytes
+フィールドで定義される。
+キュー作成時にこのフィールドは
+.B MSGMNB
+に初期化されるが、この制限は
+.BR msgctl (2)
+を使って変更できる。)
+キューに十分な空き容量がない場合、
+デフォルトでは
+.BR msgsnd ()
+は空き容量ができるまで停止 (block) する。
+.I msgflg
+に
+.B IPC_NOWAIT
+が指定された場合は、エラー
+.B EAGAIN
+で失敗する。
+
+停止している
+.BR msgsnd ()
+は以下の場合にも失敗する。
+.IP * 2
+キューが削除された。
+この場合、
+.I errno
+は
+.B EIDRM
+に設定される。
+.IP *
+シグナルが捕捉された。
+この場合、
+.I errno
+は
+.BR EINTR
+に設定される。
+.BR signal (7)
+参照。
+.RB ( msgsnd ()
+は、たとえシグナルハンドラの設定時に
+.B SA_RESTART
+を指定していたとしても、シグナルハンドラによって割り込まれた後で
+自動的に再スタートすることは決してない。)
+.PP
+正常に終了した場合、メッセージ・キューのデータ構造体は以下のように
+更新される:
+.IP
+.I msg_lspid
+には呼び出し元プロセスのプロセス ID が設定される。
+.IP
+.I msg_qnum
+は 1 増加する。
+.IP
+.I msg_stime
+には現在時刻が設定される。
+.SS msgrcv()
+.BR msgrcv ()
+システムコールは
+.I msqid
+で指定されたキューからメッセージを削除し、
+.I msgp
+で指定されたバッファにそのメッセージを格納する。
+.PP
+.I msgsz
+引き数には
+.I msgp
+引き数で指定された構造体の
+.I mtext
+メンバーの最大のバイト数を指定する。
+メッセージのテキストの長さが
+.I msgsz
+より大きい場合の動作は、
+.I msgflg
+に
+.B MSG_NOERROR
+が指定されているかどうかで決まる。
+.B MSG_NOERROR
+が指定されていれば、メッセージのテキストは切り詰められる
+(切り捨てられた部分は失われる)。
+.B MSG_NOERROR
+が指定されていなければ、メッセージはキューから削除されず、
+システムコールは \-1 を返して失敗し、
+.I errno
+に
+.B E2BIG
+が設定される。
+.PP
+.I msgtyp
+引き数には要求するメッセージの型を指定する。
+型は以下のように指定する:
+.IP * 2
+.I msgtyp
+が 0 ならば、キューの最初にあるメッセージが読み込まれる。
+.IP *
+.I msgtyp
+が 0 より大きい場合、
+.I msgflg
+に
+.B MSG_EXCEPT
+が指定されていなければ、
+.I msgtyp
+型のキューの最初のメッセージが読み込まれる。
+.B MSG_EXCEPT
+が指定された場合は、
+.I msgtyp
+型以外のキューの最初のメッセージが読み込まれる。
+.IP *
+.I msgtyp
+が 0 より小さければ、
+.I msgtyp
+の絶対値以下で最も小さい型を持つキューの最初のメッセージが読み込まれる。
+.PP
+.I msgflg
+引き数には、以下のフラグを任意の数だけ (0個も可)、これらの OR で指定する:
+.TP
+.B IPC_NOWAIT
+キューに要求された型のメッセージがない場合には直ちに返る。
+システムコールは失敗し、
+.I errno
+には
+.B ENOMSG
+が設定される。
+.TP
+.B MSG_EXCEPT
+0 より大きな
+.I msgtyp
+と一緒に使用して、
+.I msgtyp
+以外のキューの最初のメッセージを読み込む。
+.TP
+.B MSG_NOERROR
+.I msgsz
+バイトよりも長かった場合はメッセージのテキストを切り詰める。
+.PP
+要求された型のメッセージが存在せず、
+.I msgflg
+に
+.B IPC_NOWAIT
+が指定されていなかった場合、呼び出し元プロセスは
+以下のいずれかの状況になるまで停止 (block) される:
+.IP * 2
+要求している型のメッセージがキューへ入れられた。
+.IP *
+メッセージ・キューがシステムから削除された。
+この場合、システムコールは失敗し、
+.I errno
+に
+.B EIDRM
+が設定される。
+.IP *
+呼び出し元プロセスがシグナルを捕獲した。
+この場合、システムコールは失敗し、
+.I errno
+に
+.B EINTR
+が設定される。
+.RB ( msgrcv ()
+は、たとえシグナルハンドラの設定時に
+.B SA_RESTART
+を指定していたとしても、シグナルハンドラによって割り込まれた後で
+自動的に再スタートすることは決してない。)
+.PP
+実行に成功した場合、メッセージ・キューのデータ構造体は以下のように
+更新される:
+.IP
+.I msg_lrpid
+には呼び出し元プロセスのプロセス ID が設定される。
+.IP
+.I msg_qnum
+は 1 減算される。
+.IP
+.I msg_rtime
+には現在の時刻が設定される。
+.SH 返り値
+失敗した場合は、どちらの関数も \-1 を返し、エラーを
+.I errno
+に表示する。成功した場合、
+.BR msgsnd ()
+は 0 を返し、
+.BR msgrcv ()
+は
+.I mtext
+配列に実際にコピーしたバイト数を返す。
+.SH エラー
+.BR msgsnd ()
+が失敗した場合、
+.B errno
+に以下の値のいずれかが設定される:
+.TP
+.B EACCES
+呼び出し元プロセスにはメッセージ・キューに対する書き込み許可がなく、
+.B CAP_IPC_OWNER
+ケーパビリティもない。
+.TP
+.B EAGAIN
+.I msg_qbytes
+がキューの制限を超えていたため、メッセージを送ることができず、かつ
+.I msgflg
+に
+.B IPC_NOWAIT
+が指定されていた。
+.TP
+.B EFAULT
+.I msgp
+が指しているアドレスがアクセス可能でない。
+.TP
+.B EIDRM
+メッセージ・キューが削除された。
+.TP
+.B EINTR
+メッセージ・キューが要求した条件を満たすまで停止している時に、
+プロセスがシグナルを捕獲した。
+.TP
+.B EINVAL
+.I msqid
+が不適切な値であるか、
+.I mtype
+が正の値でないか、
+.I msgsz
+が不適切な値 (0 以下か、システムで決まる値
+.B MSGMAX
+よりも大きい値) である。
+.TP
+.B ENOMEM
+.I msgp
+が指すメッセージのコピーを作成するのに十分なメモリがシステムに存在しない。
+.PP
+.BR msgrcv ()
+が失敗した場合には
+.I errno
+に以下の値のいずれかが設定される:
+.TP
+.B E2BIG
+メッセージのテキストの長さが
+.I msgsz
+よりも大きく、
+.I msgflg
+に
+.B MSG_NOERROR
+が設定されていなかった。
+.TP
+.B EACCES
+呼び出し元プロセスにはメッセージ・キューに対する読み込み許可がなく、
+.B CAP_IPC_OWNER
+ケーパビリティもない。
+.TP
+.B EAGAIN
+キューにはメッセージがなく、
+.I msgflg
+に
+.B IPC_NOWAIT
+が指定された。
+.TP
+.B EFAULT
+.I msgp
+が指しているアドレスがアクセス可能でない。
+.TP
+.B EIDRM
+メッセージを受信するためにプロセスが停止している間に、
+メッセージ・キューが削除された。
+.TP
+.B EINTR
+メッセージを受けるためにプロセスが停止している間に、
+プロセスがシグナルを捕獲した。
+.BR signal (7)
+参照。
+.TP
+.B EINVAL
+.I msgqid
+が不正か、
+.I msgsz
+が 0 より小さい。
+.TP
+.B ENOMSG
+.I msgflg
+に
+.B IPC_NOWAIT
+が設定されており、
+メッセージ・キューに要求された型のメッセージが存在しなかった。
+.SH 準拠
+SVr4, POSIX.1-2001.
+.SH 注意
+.I msgp
+引き数は、 libc4, libc5, glibc 2.0, glibc 2.1 では
+\fIstruct msgbuf *\fP と宣言されている。glibc 2.2 以降では、
+SUSv2 と SUSv3 の要求通り、\fIvoid *\fP と宣言されている。
+
+以下は
+.B msgsnd
+システムコールに影響するシステム制限である:
+.TP
+.B MSGMAX
+メッセージのテキストの最大サイズ: 8192 バイト
+(Linux では、この制限値は
+.I /proc/sys/kernel/msgmax
+経由で読み出したり変更したりできる)。
+.TP
+.B MSGMNB
+バイト単位でのメッセージ・キューのデフォルトの最大サイズ : 16384 バイト。
+(Linux では、この制限値は
+.I /proc/sys/kernel/msgmnb
+経由で読み出したり変更したりできる)。
+スーパーユーザーは
+.BR msgctl (2)
+システムコールでメッセージ・キューのサイズを
+.B MSGMNB
+よりも大きい値に増やすことができる。
+.PP
+現在の実装では、システム全体のメッセージ・ヘッダーの最大数
+.RB ( MSGTQL )
+と、システム全体のメッセージ・プールの最大バイト数
+.RB ( MSGPOOL )
+に関して実装依存の制限はない。
+.SH 関連項目
+.BR msgctl (2),
+.BR msgget (2),
+.BR capabilities (7),
+.BR mq_overview (7),
+.BR svipc (7)

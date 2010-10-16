@@ -1,0 +1,243 @@
+.\" This man page is Copyright (C) 1998 Alan Cox.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\" $Id: ddp.7,v 1.6 1999/12/06 00:13:56 nakano Exp $
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Translated Mon 6 Dec 1999 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.TH DDP  7 2008-11-20 "Linux" "Linux Programmer's Manual"
+.SH 名前
+ddp \- Linux での AppleTalk プロトコルの実装
+.SH 書式
+.B #include <sys/socket.h>
+.br
+.B #include <netatalk/at.h>
+.sp
+.IB ddp_socket " = socket(AF_APPLETALK, SOCK_DGRAM, 0);"
+.br
+.IB raw_socket " = socket(AF_APPLETALK, SOCK_RAW, " protocol ");"
+.SH 説明
+Linux は
+.I "Inside Appletalk"
+に記述されている Appletalk プロトコルを実装している。
+カーネルにあるのは DDP 層と AARP だけである。これらは
+.B netatalk
+プロトコルライブラリを通して利用されるように設計されている。
+このページは DDP 層を直接利用したいユーザーのために、
+インターフェースを記述したものである。
+.PP
+Appletalk とユーザープログラムとの通信には、
+BSD 互換のソケットインターフェースを利用する。
+ソケットに関するより詳しい情報は
+.BR socket (7)
+を見よ。
+.PP
+Appletalk ソケットは、
+ソケットファミリーの引数に
+.B AF_APPLETALK
+を指定して
+.BR socket (2)
+関数を呼び出すことによって生成される。指定できるソケットタイプは、
+.B ddp
+ソケットをオープンする場合には
+.BR SOCK_DGRAM 、
+.B raw
+ソケットをオープンする場合には
+.B SOCK_RAW
+である。
+.I protocol
+は送受信される Appletalk プロトコルである。
+ソケットタイプに
+.B SOCK_RAW
+を指定した場合は、プロトコルに
+.B ATPROTO_DDP
+を指定しなければならない。
+.PP
+raw ソケットは実効ユーザー ID が 0 のプロセスか、
+.B CAT_NEW_RAW
+権限を持ったプロセスでないとオープンできない。
+.SS アドレスのフォーマット
+Appletalk ソケットアドレスはネットワーク番号・ノード番号・ポート番号の
+組み合わせで定義される。
+.PP
+.in +4n
+.nf
+struct at_addr {
+    unsigned short s_net;
+    unsigned char  s_node;
+};
+
+struct sockaddr_atalk {
+    sa_family_t    sat_family;    /* address family */
+    unsigned char  sat_port;      /* port */
+    struct at_addr sat_addr;      /* net/node */
+};
+.fi
+.in
+.PP
+.I sat_family
+は常に
+.B AF_APPLETALK
+に設定する。
+.I sat_port
+はポートを与える。ポート番号が 129 以下のポートは
+「予約ポート (reserved port)」 と呼ばれる。実効ユーザー ID が 0 のプロセスか、
+.B CAP_NET_BIND_SERVICE
+権限を持つプロセスだけが、このようなソケットを
+.BR bind (2)
+できる。
+.I sat_addr
+はホストアドレスである。
+.I struct at_addr
+のメンバー
+.I s_net
+にはホストのネットワークをネットワークバイトオーダーで与える。値
+.B AT_ANYNET
+はワイルドカードで、「このネットワーク」も暗黙のうちに含まれる。
+.I struct at_addr
+のメンバー
+.I s_node
+にはホストのノード番号を与える。値
+.B AT_ANYNODE
+はワイルドカードで、「このノード」も暗黙のうちに含まれる。値
+.B ATADDR_BCAST
+はローカルなブロードキャストアドレスである。
+.\" FIXME this doesn't make sense [johnl]
+.SS ソケットオプション
+プロトコル固有のソケットオプションはない。
+.SS /proc インタフェース
+Appletalk のグローバルパラメータのいくつかは、
+.I /proc
+インタフェースを通して設定することができる。
+これらのパラメータには、
+.I /proc/sys/net/atalk/
+ディレクトリ内のファイルの読み書きでアクセスできる。
+.TP
+.I aarp-expiry-time
+AARP キャッシュエントリを破棄するまでのタイムインターバル (秒単位)。
+.TP
+.I aarp-resolve-time
+AARP キャッシュエントリが解決されるまでのタイムインターバル (秒単位)。
+.TP
+.I aarp-retransmit-limit
+AARP クエリーの最大再送信回数。この回数を越えると、
+そのノードは dead であるとみなされる。
+.TP
+.I aarp-tick-time
+タイマー動作する AARP のタイマーレート (秒単位)
+.PP
+デフォルトの値で仕様にマッチしているので、
+変更する必要は全くないはずである。
+.SS ioctl
+.BR socket (7)
+に記述されているすべての ioctl が
+DDP にも適用される。
+.\" FIXME Add a section about multicasting
+.SH エラー
+.\" FIXME document all errors. We should really fix the kernels to
+.\" give more uniform error returns (ENOMEM vs ENOBUFS, EPERM vs
+.\" EACCES etc.)
+.TP
+.B EACCES
+ユーザが行おうとした操作に必要な権限を持っていない。
+broadcast フラグをセットせずにブロードキャストアドレスへ送信を行おうとした、
+実効ユーザー ID が 0 でなく、
+.B CAP_NET_BIND_SERVICE
+権限のないプロセスで特権ポートをバインドしようとした、などが考えられる。
+.TP
+.B EADDRINUSE
+既に使用されているアドレスにバインドしようとした。
+.TP
+.B EADDRNOTAVAIL
+存在しないインターフェースが要求された。または
+要求されたソースアドレスがローカルなものでない。
+.TP
+.B EAGAIN
+非ブロッキングソケットに対してブロックする操作を行った。
+.TP
+.B EALREADY
+非ブロッキングソケットに対する接続操作が既に実行中である。
+.TP
+.B ECONNABORTED
+.BR accept (2)
+の途中で接続がクローズされた。
+.TP
+.B EHOSTUNREACH
+行き先アドレスにマッチするエントリがルーティングテーブルにない。
+.TP
+.B EINVAL
+渡した引数が不正。
+.TP
+.B EISCONN
+接続済みのソケットに対して
+.BR connect (2)
+が呼ばれた。
+.TP
+.B EMSGSIZE
+データグラムが DDP MTU より大きい。
+.TP
+.B ENODEV
+ネットワークデバイスがない。あるいは IP を送ることができない。
+.TP
+.B ENOENT
+パケットが到着していないソケットに対して
+.B SIOCGSTAMP
+が呼ばれた。
+.TP
+.BR ENOMEM " と " ENOBUFS
+メモリが足りない。
+.TP
+.B ENOPKG
+カーネルのサブシステムが設定されていない。
+.TP
+.BR ENOPROTOOPT " と " EOPNOTSUPP
+渡したソケットオプションが不正。
+.TP
+.B ENOTCONN
+行おうとした操作は接続済みのソケットに対してのみ定義されているものだが、
+そのソケットは接続されていなかった。
+.TP
+.B EPERM
+高い優先度に設定したり、設定を変更したり、
+指定したプロセスやグループにシグナルを送るのに必要な権限を
+ユーザが持っていない。
+.TP
+.B EPIPE
+接続が先方によって、通常以外のやり方でクローズまたはシャットダウンされた。
+.TP
+.B ESOCKTNOSUPPORT
+ソケットが設定されていない。または未知のソケットタイプが要求された。
+.SH バージョン
+Appletalk は Linux 2.0 以降でサポートされている。
+.I /proc
+インタフェースは Linux 2.2 以降に存在する。
+.SH 注意
+.B SO_BROADCAST
+オプションを用いる時には慎重の上にも慎重になってほしい。
+Linux ではこれに特権を必要としない。
+不注意にブロードキャストアドレスに送信を行うと、
+ネットワークの状態が簡単に変更されてしまう。
+.SS 移植性
+基本的な Appletalk ソケットインターフェースは
+BSD 由来のシステムにおける
+.B netatalk
+と互換性がある。多くの BSD システムでは、
+ブロードキャストフレームを送信しようとしたときの
+.B SO_BROADCAST
+のチェックに失敗する。これは互換性の問題となるかもしれない。
+.PP
+raw ソケットモードは Linux 独特のもので、もう一方の実装である CAP
+パッケージや、 Appletalk モニタツールをより簡単に実装できるようになる。
+.SH バグ
+エラーの値がまったく首尾一貫していない。
+.PP
+ルーティングテーブル・デバイス・ AARP テーブル・その他のデバイスを
+設定するために用いられる ioctl がまだ記述されていない。
+.SH 関連項目
+.BR recvmsg (2),
+.BR sendmsg (2),
+.BR capabilities (7),
+.BR socket (7)

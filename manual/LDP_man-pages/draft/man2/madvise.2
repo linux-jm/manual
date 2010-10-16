@@ -1,0 +1,373 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (C) 2001 David Gez <davidge@jazzfree.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Based on comments from mm/filemap.c. Last modified on 10-06-2001
+.\" Modified, 25 Feb 2002, Michael Kerrisk, <mtk.manpages@gmail.com>
+.\"    Added notes on MADV_DONTNEED
+.\" FIXME
+.\" 2.6.32 added MADV_HWPOISON, MADV_MERGEABLE, and MADV_UNMERGEABLE
+.\" 2.6.33 added MADV_SOFT_OFFLINE
+.\"
+.\" Japanese Version Copyright (c) 2001 NAKANO Takeo all rights reserved.
+.\" Translated Thu Aug 16 2001 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated Tue 8 Oct 2002 by NAKANO Takeo
+.\" Updated 2007-01-08, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.43
+.\"
+.TH MADVISE 2 2008-04-22 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O madvise \- give advice about use of memory
+.SH 名前
+madvise \- メモリ利用に関するアドバイスを与える
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #include <sys/mman.h>
+.sp
+.BI "int madvise(void *" addr ", size_t " length ", int " advice );
+.sp
+.in -4n
+.\"O Feature Test Macro Requirements for glibc (see
+.\"O .BR feature_test_macros (7)):
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR madvise ():
+_BSD_SOURCE
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The
+.\"O .BR madvise ()
+.\"O system call advises the kernel about how to handle paging input/output in
+.\"O the address range beginning at address
+.\"O .I addr
+.\"O and with size
+.\"O .I length
+.\"O bytes.
+.\"O It allows an application to tell the kernel how it expects to use
+.\"O some mapped or shared memory areas, so that the kernel can choose
+.\"O appropriate read-ahead and caching techniques.
+.\"O This call does not influence the semantics of the application
+.\"O (except in the case of
+.\"O .BR MADV_DONTNEED ),
+.\"O but
+.\"O may influence its performance.
+.\"O The kernel is free to ignore the advice.
+.BR madvise ()
+システムコールは、アドレス
+.I addr
+からはじまる
+.I length
+バイトのメモリブロックのページング入出力をどう扱えば良いか、
+カーネルにアドバイスする。
+これを用いると、
+アプリケーションからカーネルに、
+マップされたメモリや共有メモリをどのように扱ってほしいか伝えることができ、
+カーネルはそれに応じて先読みやキャッシュなどの適切な手法を選択できる。
+このコールはアプリケーションの動作そのものには影響しない
+.RB ( MADV_DONTNEED
+の場合は別) が、
+性能には影響しうる。
+なおこのアドバイスを受け入れるかどうかはカーネルに任される。
+.LP
+.\"O The advice is indicated in the
+.\"O .I advice
+.\"O argument which can be
+アドバイスは引き数
+.I advice
+によって与える。以下のいずれかを指定できる。
+.TP
+.B MADV_NORMAL
+.\"O No special treatment.
+.\"O This is the default.
+特別な扱いは行わない。これがデフォルトである。
+.TP
+.B MADV_RANDOM
+.\"O Expect page references in random order.
+.\"O (Hence, read ahead may be less useful than normally.)
+ページ参照はランダムな順序で行われそうだ。
+(したがって、先読みはあまり効果がなさそうだ。)
+.TP
+.B MADV_SEQUENTIAL
+.\"O Expect page references in sequential order.
+.\"O (Hence, pages in the given range can be aggressively read ahead,
+.\"O and may be freed soon after they are accessed.)
+ページ参照はシーケンシャルな順序で行われそうだ。
+(したがって与えた範囲のページは積極的に先読みしておくと良いだろう。
+またアクセスが終わったら速やかに解放して良い。)
+.TP
+.B MADV_WILLNEED
+.\"O Expect access in the near future.
+.\"O (Hence, it might be a good idea to read some pages ahead.)
+近い将来にアクセスされそうだ。
+(したがってこれらのページを今のうちに先読みしておくといいだろう。)
+.TP
+.B MADV_DONTNEED
+.\"O Do not expect access in the near future.
+.\"O (For the time being, the application is finished with the given range,
+.\"O so the kernel can free resources associated with it.)
+しばらくアクセスはなさそうだ。
+(現時点でアプリケーションは与えた範囲の処理を終えている。
+したがってカーネルはこれに関連するリソースを解放して良い。)
+.\"O Subsequent accesses of pages in this range will succeed, but will result
+.\"O either in reloading of the memory contents from the underlying mapped file
+.\"O (see
+.\"O .BR mmap (2))
+.\"O or zero-fill-on-demand pages for mappings
+.\"O without an underlying file.
+これ以降この範囲のページへのアクセスがあると、
+成功はするが、メモリの内容をマップ元のファイルからロードし直すことになる
+.RB ( mmap (2)
+を見よ) か、
+または元ファイルがないマップページでは
+アクセスがあったときに 0 埋めが行われることになる。
+.TP
+.\"O .BR MADV_REMOVE " (Since Linux 2.6.16)"
+.BR MADV_REMOVE " (Linux 2.6.16 以降)"
+.\"O Free up a given range of pages
+.\"O and its associated backing store.
+.\"O Currently,
+.\"O .\" 2.6.18-rc5
+.\"O only shmfs/tmpfs supports this; other file systems return with the
+.\"O error
+.\"O .BR ENOSYS .
+指定された範囲のページと関連するバッキングストアを解放する。
+現在のところ、
+.\" 2.6.18-rc5
+shmfs/tmpfs だけがこれに対応している。
+他のファイルシステムでは
+.B ENOSYS
+が返される。
+.\" Databases want to use this feature to drop a section of their
+.\" bufferpool (shared memory segments) - without writing back to
+.\" disk/swap space. This feature is also useful for supporting
+.\" hot-plug memory on UML.
+.TP
+.\"O .BR MADV_DONTFORK " (Since Linux 2.6.16)"
+.BR MADV_DONTFORK " (Linux 2.6.16 以降)"
+.\" See http://lwn.net/Articles/171941/
+.\"O Do not make the pages in this range available to the child after a
+.\"O .BR fork (2).
+.\"O This is useful to prevent copy-on-write semantics from changing
+.\"O the physical location of a page(s) if the parent writes to it after a
+.\"O .BR fork (2).
+.\"O (Such page relocations cause problems for hardware that
+.\"O DMAs into the page(s).)
+.BR fork (2)
+が行われた後、指定された範囲のページを子プロセスが利用できないようにする。
+この機能は、書き込み時コピー (copy-on-write) 方式で、
+.BR fork (2)
+の後で親プロセスがページに書き込みを行った場合に
+ページの物理位置が変化しないようにするのに有効である
+(ページの再配置はハードウェアがそのページに DMA 転送を行うような場合に
+問題を起こすことがある)。
+.\" [PATCH] madvise MADV_DONTFORK/MADV_DOFORK
+.\" Currently, copy-on-write may change the physical address of
+.\" a page even if the user requested that the page is pinned in
+.\" memory (either by mlock or by get_user_pages). This happens
+.\" if the process forks meanwhile, and the parent writes to that
+.\" page.  As a result, the page is orphaned: in case of
+.\" get_user_pages, the application will never see any data hardware
+.\" DMA's into this page after the COW.  In case of mlock'd memory,
+.\" the parent is not getting the realtime/security benefits of mlock.
+.\"
+.\" In particular, this affects the Infiniband modules which do DMA from
+.\" and into user pages all the time.
+.\"
+.\" This patch adds madvise options to control whether memory range is
+.\" inherited across fork. Useful e.g. for when hardware is doing DMA
+.\" from/into these pages.  Could also be useful to an application
+.\" wanting to speed up its forks by cutting large areas out of
+.\" consideration.
+.\"
+.\" SEE ALSO: http://lwn.net/Articles/171941/
+.\" "Tweaks to madvise() and posix_fadvise()", 14 Feb 2006
+.TP
+.\"O .BR MADV_DOFORK " (Since Linux 2.6.16)"
+.BR MADV_DOFORK " (Linux 2.6.16 以降)"
+.\"O Undo the effect of
+.\"O .BR MADV_DONTFORK ,
+.\"O restoring the default behavior, whereby a mapping is inherited across
+.\"O .BR fork (2).
+.B MADV_DONTFORK
+の影響を取り消し、デフォルトの動作に戻す。
+つまり、
+.BR fork (2)
+の前後でマッピングは継承されるようになる。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O On success
+.\"O .BR madvise ()
+.\"O returns zero.
+.\"O On error, it returns \-1 and
+.\"O .I errno
+.\"O is set appropriately.
+.BR madvise ()
+は成功すると 0 を返す。
+エラーが起こると \-1 を返し、
+.I errno
+を適切な値に設定する。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EAGAIN
+.\"O A kernel resource was temporarily unavailable.
+何らかのカーネルリソースが一時的に利用できなかった。
+.TP
+.B EBADF
+.\"O The map exists, but the area maps something that isn't a file.
+指定したマップは存在するが、ファイルではないところをマップしている。
+.TP
+.B EINVAL
+.\"O The value
+.\"O .I len
+.\"O is negative,
+.\" .I len
+.\" is zero,
+.\"O .I addr
+.\"O is not page-aligned,
+.\"O .I advice
+.\"O is not a valid value, or the application is attempting
+.\"O to release locked or shared pages (with
+.\"O .BR MADV_DONTNEED ).
+.I len
+の値が負、
+.I addr
+がページ境界でない、
+.I advice
+が正しい値でない、
+アプリケーションがロックされたページや共有ページを
+.RB ( MADV_DONTNEED
+で) 解放しようとしている、など。
+.TP
+.B EIO
+.\"O (for
+.\"O .BR MADV_WILLNEED )
+.\"O Paging in this area would exceed the process's
+.\"O maximum resident set size.
+.RB ( MADV_WILLNEED
+の場合) この範囲のページングを行うと、
+プロセスの RSS (resident set size) の最大値を越えてしまう。
+.\"nakano RSS は訳語がありましたっけ?
+.TP
+.B ENOMEM
+.\"O (for
+.\"O .BR MADV_WILLNEED )
+.\"O Not enough memory: paging in failed.
+.RB ( MADV_WILLNEED
+の場合) メモリが足りず、ページングに失敗した。
+.TP
+.B ENOMEM
+.\"O Addresses in the specified range are not currently
+.\"O mapped, or are outside the address space of the process.
+指定した範囲のアドレスが、現在マップされていない。
+あるいはプロセスのアドレス空間の内部にない。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+POSIX.1b.
+.\"O POSIX.1-2001 describes
+.\"O .BR posix_madvise (3)
+.\"O .\" FIXME . Write a posix_fadvise(3) page.
+.\"O with constants
+.\"O .BR POSIX_MADV_NORMAL ,
+.\"O etc.,
+.\"O with a behavior close to that described here.
+.\"O There is a similar
+.\"O .BR posix_fadvise (2)
+.\"O for file access.
+POSIX.1-2001 では、
+.BR posix_madvise (3)
+.\" FIXME . Write a posix_fadvise(3) page.
+を
+.B POSIX_MADV_NORMAL
+などの定数とともに記述していた
+(それぞれの振る舞いはここで述べたものに近い)。
+ファイルアクセスに対しても
+.BR posix_fadvise (2)
+という類似の関数が存在する。
+
+.\"O .BR MADV_REMOVE ,
+.\"O .BR MADV_DONTFORK ,
+.\"O and
+.\"O .B MADV_DOFORK
+.\"O are Linux-specific.
+.BR MADV_REMOVE ,
+.BR MADV_DONTFORK ,
+.B MADV_DOFORK
+は Linux 固有である。
+.\"O .SH NOTES
+.\"O .SS "Linux Notes"
+.SH 注意
+.SS "Linux での注意"
+.\"O .LP
+.\"O The current Linux implementation (2.4.0) views this system call
+.\"O more as a command than as advice and hence may return an error
+.\"O when it cannot do what it usually would do in response to this
+.\"O advice.
+.\"O (See the ERRORS description above.)
+.\"O This is nonstandard behavior.
+現在の Linux の実装 (2.4.0) では、
+このシステムコールをアドバイスというよりは命令と見ている。
+したがってこのアドバイスに対して通常行われる動作が不可能な場合は、
+エラーを返すことがある (上記の エラー の記述を参照)。
+この振舞いは標準とは異なる。
+.LP
+.\"O The Linux implementation requires that the address
+.\"O .I addr
+.\"O be page-aligned, and allows
+.\"O .I length
+.\"O to be zero.
+.\"O If there are some parts of the specified address range
+.\"O that are not mapped, the Linux version of
+.\"O .BR madvise ()
+.\"O ignores them and applies the call to the rest (but returns
+.\"O .B ENOMEM
+.\"O from the system call, as it should).
+Linux の実装では
+.I addr
+のアドレスはページ境界の値でなければならない。また
+.I length
+は 0 であっても構わない。
+また Linux 版の
+.BR madvise ()
+では、指定されたアドレス範囲にマップされていない部分があると、
+これらを無視して残りの部分にアドバイスを適用する
+(しかしシステムコールに対してはちゃんと
+.B ENOMEM
+を返す)。
+.\"O .\" .SH HISTORY
+.\" .SH 歴史
+.\"O .\" The
+.\"O .\" .BR madvise ()
+.\"O .\" function first appeared in 4.4BSD.
+.\" .BR madvise ()
+.\" 関数は 4.4BSD で最初に登場した。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR getrlimit (2),
+.BR mincore (2),
+.BR mmap (2),
+.BR mprotect (2),
+.BR msync (2),
+.BR munmap (2)

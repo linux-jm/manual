@@ -1,0 +1,99 @@
+.\" Copyright (c) 1995 Bjorn Ekwall <bj0rn@blox.se>
+.\" This program is distributed according to the Gnu General Public License.
+.\" See the file COPYING in the kernel source directory /linux
+.\"
+.\" Translated Sun Aug 15 10:59:35 JST 1999
+.\"         by FUJIWARA Teruyoshi <fujiwara@linux.or.jp>
+.\" Updated & Modified Wed 11 Nov 2000
+.\"         by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.TH KERNELD 8 "May 14, 1995" Linux "Linux Extensions"
+.SH 名前
+kerneld \- ユーザ空間でカーネルの動作を実行する (モジュールのオンデマンドロードなど)
+.SH 警告
+.B kerneld
+は Linux カーネル 2.1.90 の時点で obsolete となり、
+kmod カーネルスレッドと cron エントリによって置き換えられた。
+2.0 カーネルを使っているのでなければ、
+kerneld は使おうなどとも思わないほうがよい。
+.SH 書式
+.B kerneld
+[ debug ] [ keep ] [ delay=<seconds> ] [ type=<message number> ]
+.SH 説明
+.B kerneld
+は未使用モジュールを自動削除するほか、
+専用の IPC メッセージキューを経由してカーネルからのリクエストに応答し、
+カーネルの特定のタスクをユーザ空間で実行する。
+ユーザ空間からこのキューへのアクセスは、
+以下の操作でキューをオープンすることによって行える:
+.sp
+.nf
+	qid = msgget(IPC_PRIVATE, 0600 | IPC_KERNELD);
+.fi
+.sp
+各タスクはメッセージタイプを使ってリクエストする。
+これは <linux/kerneld.h> で指定されている。
+.PP
+kerneld メッセージの構造体は以下の通り。
+.sp
+.nf
+	struct kerneld_msg {
+		long mtype;
+		long id;
+		char text[1];
+	};
+.fi
+.sp
+ここで id フィールドは kerneld
+ からカーネルへの応答メッセージの数として使われる。
+id フィールドが 0 ならば、kerneld からの応答はないということである。
+.br
+(なお、要求側の pid をプロトコルヘッダに入れる、
+新しい構造体が提案されている。)
+
+応答が求められた場合には、kerneld の動作の終了ステータスが
+id フィールドに格納される。
+
+text フィールドは、特定の kerneld 動作に
+カーネルから渡されたパラメータを保持するために使われる。
+.PP
+オプションを以下に示す:
+.TP 8
+debug
+デバッグ機能を有効にすると、タスクを実行する度に
+kerneld の現在のステータスを見ることができるようになる。
+デバッグ機能や他の全てのパラメータの制御は
+kdstat ユーティリティで行える。
+.TP 8
+keep
+keep オプションを指定すると kerneld
+はアンロード中のモジュールに対する全てのリクエストを無視する。
+このオプションは、(何らかの理由で)
+モジュールがアンロードされることが全く起こらないシステムでは
+役立つかもしれない。
+このオプションは、毎分 (あるいは <delay> 秒ごとに)
+実行される未使用のモジュールの自動削除も禁止する。
+.TP 8
+delay=<seconds>
+delay オプションは未使用モジュールの削除に関する
+kerneld のタイムアウト時間を変更する。
+デフォルトの 60 秒から任意の時間に変更できる。
+.TP 8
+type=<message type>
+デフォルトのタイプは -255 である。これは、kerneld がタイプの値が 255
+以下である全てのメッセージを監視するという意味である。
+正の数を指定すると、kerneld は指定されたタイプのメッセージだけを監視する。
+.PP
+kerneld はエラーメッセージを syslog の
+LOG_DAEMON ファシリティに送る。
+.SH 関連項目
+.BR insmod (8),
+.BR rmmod (8),
+.BR modprobe (8),
+.BR depmod (8),
+.BR syslogd (8)
+.SH 履歴
+kerneld のアイディアは Jacques Gelinas <jack@solucorp.qc.ca>
+との議論から思い付いた。
+
+

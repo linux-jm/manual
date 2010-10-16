@@ -1,0 +1,181 @@
+.\" Copyright (C) 2008, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2008  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2008-08-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.05
+.\" 
+.\"WORD:	accounting	アカウンティング
+.\"
+.TH ACCT 5 2008-06-15 "Linux" "Linux Programmer's Manual"
+.SH 名前
+acct \- プロセス・アカウンティング・ファイル
+.SH 書式
+.B #include <sys/acct.h>
+.SH 説明
+カーネルがプロセス・アカウンティングのオプション
+.RB ( CONFIG_BSD_PROCESS_ACCT )
+を有効にして作成されていると、以下のように
+.BR acct (2)
+を呼び出すとプロセス・アカウンティングが開始される。
+
+.in +4n
+ acct("/var/log/pacct");
+.in
+
+プロセス・アカウンティングが有効になっていると、カーネルは
+システム上の各プロセスが終了するたびにアカウンティングファイルに
+レコードを書き込む。
+このレコードは、終了したプロセスに関する情報を保持するもので、
+.I <sys/acct.h>
+で以下のように定義されている。
+
+.in +4n
+.nf
+#define ACCT_COMM 16
+
+typedef u_int16_t comp_t;
+
+struct acct {
+    char ac_flag;           /* Accounting flags */
+    u_int16_t ac_uid;       /* Accounting user ID */
+    u_int16_t ac_gid;       /* Accounting group ID */
+    u_int16_t ac_tty;       /* Controlling terminal */
+    u_int32_t ac_btime;     /* Process creation time
+                               (seconds since the Epoch) */
+    comp_t    ac_utime;     /* User CPU time */
+    comp_t    ac_stime;     /* System CPU time */
+    comp_t    ac_etime;     /* Elapsed time */
+    comp_t    ac_mem;       /* Average memory usage (kB) */
+    comp_t    ac_io;        /* Characters transferred (unused) */
+    comp_t    ac_rw;        /* Blocks read or written (unused) */
+    comp_t    ac_minflt;    /* Minor page faults */
+    comp_t    ac_majflt;    /* Major page faults */
+    comp_t    ac_swaps;     /* Number of swaps (unused) */
+    u_int32_t ac_exitcode;  /* Process termination status
+                               (see wait(2)) */
+    char      ac_comm[ACCT_COMM+1];
+                            /* Command name (basename of last
+                               executed command; null-terminated) */
+    char      ac_pad[\fIX\fP];    /* padding bytes */
+};
+
+enum {          /* Bits that may be set in ac_flag field */
+    AFORK = 0x01,           /* Has executed fork, but no exec */
+    ASU   = 0x02,           /* Used superuser privileges */
+    ACORE = 0x08,           /* Dumped core */
+    AXSIG = 0x10            /* Killed by a signal */
+};
+.fi
+.in
+.PP
+データ型
+.I comp_t
+は浮動小数点値で、3 ビット幅の基数が 8 の指数部と 13 ビット幅の仮数部から
+構成される。
+.I comp_t
+型の値
+.I c
+は以下のようにして (long 型の) 整数に変換できる。
+.nf
+
+    v = (c & 0x1fff) << (((c >> 13) & 0x7) * 3);
+.fi
+.PP
+フィールド
+.IR ac_utime ,
+.IR ac_stime ,
+.I ac_etime
+は "clock ticks" 単位で計測した時間である。
+これらの値を
+.I sysconf(_SC_CLK_TCK)
+で割ると、秒に変換できる。
+.SS バージョン 3 のアカウンティングファイルのフォーマット
+カーネル 2.6.8 以降では、
+別のバージョンのアカウンティングファイルを生成することができ、
+これを使うにはカーネル構築時に
+.B CONFIG_BSD_PROCESS_ACCT_V3
+オプションが有効になっている必要がある。
+このオプションが設定されると、アカウンティングファイルに書き込まれる
+レコードにフィールドが追加される。
+また、フィールド
+.I c_uid
+と
+.I ac_gid
+の幅が 16 ビットから 32 ビットに拡張される
+(これは Linux 2.4 以降で UID と GID のサイズが増えているのに
+対応したものである)。
+このレコードは以下のように定義されている。
+
+.in +4n
+.nf
+struct acct_v3 {
+    char      ac_flag;      /* Flags */
+    char      ac_version;   /* Always set to ACCT_VERSION (3) */
+    u_int16_t ac_tty;       /* Controlling terminal */
+    u_int32_t ac_exitcode;  /* Process termination status */
+    u_int32_t ac_uid;       /* Real user ID */
+    u_int32_t ac_gid;       /* Real group ID */
+    u_int32_t ac_pid;       /* Process ID */
+    u_int32_t ac_ppid;      /* Parent process ID */
+    u_int32_t ac_btime;     /* Process creation time */
+    float     ac_etime;     /* Elapsed time */
+    comp_t    ac_utime;     /* User CPU time */
+    comp_t    ac_stime;     /* System time */
+    comp_t    ac_mem;       /* Average memory usage (kB) */
+    comp_t    ac_io;        /* Characters transferred (unused) */
+    comp_t    ac_rw;        /* Blocks read or written
+                               (unused) */
+    comp_t    ac_minflt;    /* Minor page faults */
+    comp_t    ac_majflt;    /* Major page faults */
+    comp_t    ac_swaps;     /* Number of swaps (unused) */
+    char      ac_comm[ACCT_COMM]; /* Command name */
+};
+
+.fi
+.in
+.SH バージョン
+.I acct_v3
+構造体はバージョン 2.6 以降の glibc で定義されている。
+.SH 準拠
+プロセスアカウンティングは BSD 由来である。
+この機能はほとんどのシステムに存在するが、標準化されておらず、
+その詳細はシステムによりいくらか異なる。
+.SH 注意
+アカウンティングファイルのレコードは、プロセスの終了時刻の順序となる。
+
+バージョン 2.6.9 以前のカーネルでは、
+NPTL スレッドライブラリを使って作成されたスレッドでは
+スレッド毎に別々のアカウンティングレコードが書き込まれていた。
+Linux 2.6.10 以降では、プロセス内の最後のスレッドが終了すると、
+プロセス全体についてのアカウンティングレコードが一つだけ書き込まれる。
+
+.I proc/sys/kernel/acct
+ファイル
+.RB ( proc (5)
+で説明されている) は、ディスク容量の残りが少なくなった際の
+プロセス・アカウンティングの動作を制御する設定を保持している。
+.SH 関連項目
+.BR lastcomm (1),
+.BR acct (2),
+.BR accton (8),
+.BR sa (8)

@@ -1,0 +1,144 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (c) 1992 Drew Eckhardt (drew@cs.colorado.edu), March 28, 1992
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified by Michael Haardt <michael@moria.de>
+.\" Modified 1993-07-21 by Rik Faith <faith@cs.unc.edu>
+.\" Modified 1994-08-21 by Michael Chastain <mec@shell.portal.com>
+.\" Modified 1996-06-13 by aeb
+.\" Modified 1996-11-06 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified 1997-08-21 by Joseph S. Myers <jsm28@cam.ac.uk>
+.\" Modified 2004-06-23 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Japanese Version Copyright (c) 1996 Yosiaki Yanagihara
+.\"         all rights reserved.
+.\" Translated Mon Jun 24 14:29:55 JST 1996
+.\"         by Yosiaki Yanagihara <yosiaki@bsd2.kbnes.nec.co.jp>
+.\" Modified Sat Dec 13 23:29:07 JST 1997
+.\"         by HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated & Modified Fri 6 Apr 2001
+.\"         by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified Thu Dec 23 10:04:20 JST 2004
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\"
+.TH CHROOT 2 2008-06-23 "Linux" "Linux Programmer's Manual"
+.SH 名前
+chroot \- ルート・ディレクトリを変更する
+.SH 書式
+.B #include <unistd.h>
+.sp
+.BI "int chroot(const char *" path );
+.SH 説明
+.BR chroot ()
+は、呼び出し元プロセスのルート・ディレクトリを
+.I path
+で指定されたディレクトリに変更する。
+このディレクトリ以下が \fI/\fP から始まるパス名として使われる。
+このルート・ディレクトリは呼び出し元のプロセスの全ての子プロセスに受け継がれる。
+.PP
+特権プロセス (Linux では、
+.B CAP_SYS_CHROOT
+ケーパビリティを持つプロセス) のみが
+.BR chroot ()
+を呼び出すことができる。
+.PP
+このコールはパス名解決の過程で構成要素を変更するのみで、
+その他には何も行わない。
+.PP
+このコールは現在の作業ディレクトリ
+(working directory) を変更しない。
+そのため、このコールの後に \(aq\fI.\fP\(aq が \(aq\fI/\fP\(aq を
+根とするツリーの外になる場合がある。
+特に、スーパー・ユーザーは以下のようにすることで
+"chroot jail" から逃げ出せてしまう。
+.nf
+
+    mkdir foo; chroot foo; cd ..
+.fi
+
+このコールはオープンファイルディスクリプタをクローズしないので、
+このようなファイルディスクリプタは chroot ツリーの外にある
+ファイルにアクセスできる。
+.SH 返り値
+成功すると 0 を返す。
+失敗すると \-1 を返し、
+.I errno
+に適切な値を設定する。
+.SH エラー
+ファイルシステムによっては他のエラーが返される事がある。
+一般的なエラーを以下に挙げる:
+.TP
+.B EACCES
+パス名の途中のどこかに検索許可 (search permission) がない。
+.RB ( path_resolution (7)
+も参照すること。)
+.\" パス名の最後の構成要素にも検索許可が必要である。
+.\" おそらく、それがディレクトリであることを保証するためなのか?
+.TP
+.B EFAULT
+.I path
+が割り当てられたアドレス空間外を指している。
+.TP
+.B EIO
+I/O エラーが発生した。
+.TP
+.B ELOOP
+.I path
+を解決する際に遭遇したシンボリック・リンクが多過ぎる。
+.TP
+.B ENAMETOOLONG
+.I path
+が長過ぎる。
+.TP
+.B ENOENT
+ファイルが存在しない。
+.TP
+.B ENOMEM
+カーネルに十分なメモリがない。
+.TP
+.B ENOTDIR
+.I path
+の内容がディレクトリではない。
+.TP
+.B EPERM
+呼び出し側に十分な特権がない。
+.SH 準拠
+SVr4, 4.4BSD, SUSv2 (但し、SUSv2 では過去の名残とされている)。
+この関数は POSIX.1-2001 にはない。
+.\" SVr4 には他に EINTR, ENOLINK, EMULTIHOP エラー状態についての記述がある。
+.\" X/OPEN には EIO, ENOMEM, EFAULT エラー状態の記述はない。
+.SH 注意
+.BR fork (2)
+で作成された子プロセスは、
+親プロセスのルート・ディレクトリを継承する。
+.BR execve (2)
+の場合も、ルート・ディレクトリは変更されない。
+
+FreeBSD にはより強力な
+.BR jail ()
+システムコールがある。
+.\" FIXME . eventually say something about containers,
+.\" virtual servers, etc.?
+.SH 関連項目
+.BR chdir (2),
+.BR path_resolution (7)

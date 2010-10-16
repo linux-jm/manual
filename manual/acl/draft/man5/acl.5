@@ -1,0 +1,788 @@
+.\" Access Control Lists manual pages
+.\"
+.\" (C) 2002 Andreas Gruenbacher, <a.gruenbacher@bestbits.at>
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Japanese Version Copyright (c) 2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Tue Apr  5 04:59:02 JST 2005
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\"
+.Dd March 23, 2002
+.Dt ACL 5
+.Os "Linux ACL"
+.\"O .Sh NAME
+.Sh 名前
+.Nm acl
+.\"O .Nd Access Control Lists
+.Nd アクセス制御リスト (Access Control Lists)
+.\"O .Sh DESCRIPTION
+.Sh 説明
+.\"O This manual page describes POSIX Access Control Lists, which are used to
+.\"O define more fine-grained discretionary access rights for files and
+.\"O directories.
+この man ページは POSIX アクセス制御リストについて説明している。
+ACL はファイルとディレクトリに対して、
+より洗練された任意アクセス権 (discretionary access right) を
+定義するのに使われる。
+.\"O .Sh ACL TYPES
+.Sh ACL タイプ
+.\"O Every object can be thought of as having associated with it an ACL that
+.\"O governs the discretionary access to that object; this ACL is referred to
+.\"O as an access ACL. In addition, a directory may have an associated ACL
+.\"O that governs the initial access ACL for objects created within that
+.\"O directory; this ACL is referred to as a default ACL.
+全てのオブジェクトは、そのオブジェクトに対する任意のアクセスを決定する
+ACL に関連付けられていると考えることができる。
+この ACL はアクセス AC と呼ばれる。
+これに加えて、ディレクトリに関連付けられた ACL がある。
+この ACL はディレクトリ内で作成されたオブジェクトの
+最初のアクセス ACL を決定する。
+この ACL はデフォルト ACL と呼ばれる。
+.\"O .Sh ACL ENTRIES
+.Sh ACL エントリ
+.\"O An ACL consists of a set of ACL entries. An ACL entry specifies the
+.\"O access permissions on the associated object for an individual user or a
+.\"O group of users as a combination of read, write and search/execute
+.\"O permissions.
+ACL は ACL エントリの集合で構成される。
+ACL エントリは、それが関連付けられたオブジェクトの
+アクセス許可 (permission) を指定する。
+アクセス許可は、個々のユーザまたはユーザのグループに対する
+読み出し・書き込み・検索／実行の許可の組み合わせである。
+.Pp
+.\"O An ACL entry contains an entry tag type, an optional entry tag
+.\"O qualifier, and a set of permissions.
+.\"O We use the term qualifier to denote the entry tag qualifier of an ACL entry.
+ACL エントリには、エントリタグ型・
+オプションとしてのエントリタグ修飾子 (qualifier)・許可の集合が含まれる。
+ここでは、修飾子という単語を ACL エントリのエントリタグ修飾子を表すのに使う。
+.Pp
+.\"O The qualifier denotes the identifier of a user or a group, for entries
+.\"O with tag types of ACL_USER or ACL_GROUP, respectively. Entries with tag
+.\"O types other than ACL_USER or ACL_GROUP have no defined qualifiers.
+修飾子は、ACL_USER または ACL_GROUP というタグ型のエントリに対して、
+それぞれユーザまたはグループの識別子を表す。
+ACL_USER と ACL_GROUP 以外のタグ型のエントリは、
+定義された修飾子を持たない。
+.Pp
+.\"O The following entry tag types are defined:
+以下のエントリタグ型が定義されている:
+.Bl -tag -offset indent -width ACL_GROUP_OBJ.
+.It ACL_USER_OBJ
+.\"O The ACL_USER_OBJ entry denotes access rights for the file owner.
+ACL_USER_OBJ エントリはファイル所有者に対するアクセス権を表す。
+.It ACL_USER
+.\"O ACL_USER entries denote access rights for users identified by
+.\"O the entry's qualifier.
+ACL_USER エントリはエントリの修飾子で識別されるユーザに対するアクセス権を表す。
+.It ACL_GROUP_OBJ
+.\"O The ACL_GROUP_OBJ entry denotes access rights for the file group.
+ACL_GROUP_OBJ エントリはファイルグループに対するアクセス権を表す。
+.It ACL_GROUP
+.\"O ACL_GROUP entries denote access rights for groups identified by
+.\"O the entry's qualifier.
+ACL_GROUP エントリはエントリの修飾子で識別される
+グループに対するアクセス権を表す。
+.It ACL_MASK
+.\"O The ACL_MASK entry denotes the maximum access rights that can be granted
+.\"O by entries of type ACL_USER, ACL_GROUP_OBJ, or ACL_GROUP.
+ACL_MASK エントリは ACL_USER, ACL_GROUP_OBJ, ACL_GROUP 型のエントリで
+許可される最大のアクセス権を表す。
+.It ACL_OTHER
+.\"O The ACL_OTHER entry denotes access rights for processes
+.\"O that do not match any other entry in the ACL.
+ACL_OTHER エントリは ACL における他のどのエントリともマッチしない
+プロセスのアクセス権を表す。
+.El
+.Pp
+.\"O When an access check is performed, the ACL_USER_OBJ and ACL_USER entries
+.\"O are tested against the effective user ID. The effective group ID, as
+.\"O well as all supplementary group IDs are tested against the ACL_GROUP_OBJ
+.\"O and ACL_GROUP entries.
+アクセスチェックが実行される場合、実効 (effective) ユーザ ID に対して
+ACL_USER_OBJ と ACL_USER エントリがテストされる。
+実効グループ ID は、全ての補助 (supplementary) グループ ID と同様に、
+ACL_GROUP_OBJ と ACL_GROUP エントリに対してテストされる。
+.\"O .Sh VALID ACLs
+.Sh 有効な ACL
+.\"O A valid ACL contains exactly one entry with each of the ACL_USER_OBJ,
+.\"O ACL_GROUP_OBJ, and ACL_OTHER tag types. Entries with ACL_USER and
+.\"O ACL_GROUP tag types may appear zero or more times in an ACL. An ACL that
+.\"O contains entries of ACL_USER or ACL_GROUP tag types must contain
+.\"O exactly one entry of the ACL_MASK tag type. If an ACL contains no
+.\"O entries of ACL_USER or ACL_GROUP tag types, the ACL_MASK entry is
+.\"O optional.
+有効な ACL には ACL_USER_OBJ, ACL_GROUP_OBJ, ACL_OTHER タグ型のうち
+何れか 1 つだけのエントリが含まれる。
+ACL_USER と ACL_GROUP タグ型のエントリは、
+0 回以上 ACL に出現することができる。
+ACL_USER または ACL_GROUP タグ型のエントリを含む ACL は、
+ACL_MASK タグ型のエントリを 1 つだけ含まなければならない。
+ACL_USER または ACL_GROUP タグ型のエントリが ACL に含まれない場合、
+ACL_MASK エントリはオプションである。
+.Pp
+.\"O All user ID qualifiers must be unique among all entries of
+.\"O ACL_USER tag type, and all group IDs must be unique among all entries of
+.\"O ACL_GROUP tag type.
+全てのユーザ ID 修飾子は、ACL_USER タグ型の全てのエントリにおいて
+一意でなければならない。
+また全てのグループ ID 修飾子は、ACL_GROUP タグ型の全てのエントリにおいて
+一意でなければならない。
+.\"O .\"minimal vs. extended ACLs
+.\"最小の ACL vs. 拡張された ACL
+.Pp
+.\"O The
+.\"O .Fn acl_get_file
+.\"O function returns an ACL with zero ACL entries as the default ACL of a
+.\"O directory, if the directory is not associated with a default ACL. The
+.Fn acl_get_file
+関数は、ディレクトリにデフォルト ACL が関連付けられていない場合、
+ディレクトリのデフォルト ACL として、
+ACL エントリが 1 つも含まれない ACL を返す。
+.\"O .Fn acl_set_file
+.\"O function also accepts an ACL with zero ACL entries as a valid default ACL for
+.\"O directories, denoting that the directory shall not be associated with a
+.\"O default ACL. This is equivalent to using the
+.\"O .Fn acl_delete_def_file
+.\"O function.
+.Fn acl_set_file
+関数も、ACL エントリが 1 つも含まない ACL を、
+ディレクトリに対する有効なデフォルト ACL として受け付ける。
+このような ACL はディレクトリに
+デフォルト ACL を関連付けないことを表す。
+これは
+.Fn acl_delete_def_file
+関数を使うのと等価である。
+.\"O .Sh CORRESPONDENCE BETWEEN ACL ENTRIES AND FILE PERMISSION BITS
+.Sh ACL エントリとファイル許可ビットの対応
+.\"O The permissions defined by ACLs are a superset of the permissions
+.\"O specified by the file permission bits. The permissions defined for
+.\"O the file owner correspond to the permissions of the ACL_USER_OBJ entry.
+ACL で定義される許可は、ファイル許可ビットで指定される許可の
+上位集合 (superset) である。
+ファイル所有者に対して定義される許可は、
+ACL_USER_OBJ エントリの許可に対応する。
+.\"O The permissions defined for the file group correspond to the permissions
+.\"O of the ACL_GROUP_OBJ entry, if the ACL has no ACL_MASK entry. If the ACL
+.\"O has an ACL_MASK entry, then the permissions defined for the file group
+.\"O correspond to the permissions of the ACL_MASK entry. The permissions
+.\"O defined for the other class correspond to the permissions of the
+.\"O ACL_OTHER_OBJ entry.
+ACL に ACL_MASK エントリがない場合、ファイルグループに対して定義される許可は、
+ACL_GROUP_OBJ エントリの許可に対応する。
+ACL に ACL_MASK エントリがある場合、ファイルグループに対して定義される許可は、
+ACL_MASK エントリの許可に対応する。
+他のクラスに対して定義される許可は、
+ACL_OTHER_OBJ エントリの許可に対応する。
+.Pp
+ファイル許可ビットを変更すると、関連付けられた ACL エントリが変更される。
+ACL エントリの許可を変更すると、ファイル許可ビットが変更される。
+.\"O .Sh OBJECT CREATION AND DEFAULT ACLs
+.Sh オブジェクトの作成とデフォルト ACL
+.\"O The access ACL of a file object is initialized when the object is
+.\"O created with any of the
+.\"O .Fn creat ,
+.\"O .Fn mkdir ,
+.\"O .Fn mknod ,
+.\"O .Fn mkfifo ,
+.\"O or
+.\"O .Fn open
+.\"O functions. If a default ACL is associated with a directory, the
+.\"O .Va mode
+.\"O parameter to the functions creating file objects and the default ACL of
+.\"O the directory are used to determine the ACL of the new object:
+ファイルオブジェクトのアクセス ACL は、
+.Fn creat ,
+.Fn mkdir ,
+.Fn mknod ,
+.Fn mkfifo ,
+.Fn open
+関数のいずれかでオブジェクトが作られたときに初期化される。
+デフォルト ACL がディレクトリと関連付けられている場合、
+ファイルオブジェクトを作成する関数の
+.Va mode
+引き数とディレクトリのデフォルト ACL を使って、
+新しいオブジェクトの ACL が決定される:
+.Bl -enum
+.It
+.\"O The new object inherits the default ACL of the containing directory
+.\"O as its access ACL.
+新しいオブジェクトは、それが含まれるディレクトリのデフォルト ACL を
+アクセス ACL として継承する。
+.It
+.\"O The access ACL entries corresponding to the file permission bits are
+.\"O modified so that they contain no permissions that are not
+.\"O contained in the permissions specified by the
+.\"O .Va mode
+.\"O parameter.
+ファイル許可ビットに対応するアクセス ACL エントリが修正され、
+.Va mode
+引き数で指定されていない許可ビットを含まないようにされる。
+.El
+.Pp
+.\"O If no default ACL is associated with a directory, the
+.\"O .Va mode
+.\"O parameter to the functions creating file objects and the file creation
+.\"O mask (see
+.\"O .Xr umask 2 )
+.\"O are used to determine the ACL of the new object:
+ディレクトリにデフォルト ACL が関連付けられていない場合、
+ファイルオブジェクトを作成する関数の
+.Va mode
+引き数とファイル作成マスク
+.Xr ( umask 2
+を参照) を使って、新しいオブジェクトの ACL が決定される:
+.Bl -enum
+.It
+.\"O The new object is assigned an access ACL containing entries of tag types
+.\"O ACL_USER_OBJ, ACL_GROUP_OBJ, and ACL_OTHER. The permissions of these
+.\"O entries are set to the permissions specified by the file creation mask.
+新しいオブジェクトには、タグ型 ACL_USER_OBJ, ACL_GROUP_OBJ, ACL_OTHER の
+エントリを含むアクセス ACL が割り当てられる。
+これらのエントリの許可は、ファイル作成マスクで指定された許可に設定される。
+.It
+.\"O The access ACL entries corresponding to the file permission bits are
+.\"O modified so that they contain no permissions that are not
+.\"O contained in the permissions specified by the
+.\"O .Va mode
+.\"O parameter.
+ファイル許可ビットに対応するアクセス ACL エントリが修正され、
+.Va mode
+引き数で指定されていない許可ビットを含まないようにされる。
+.El
+.\"O .Sh ACCESS CHECK ALGORITHM
+.Sh アクセスチェックアルゴリズム
+.\"O A process may request read, write, or execute/search access to a file object
+.\"O protected by an ACL. The access check algorithm determines whether access to
+.\"O the object will be granted.
+プロセスは、ACL で保護されたファイルオブジェクトに対して、
+読み出し・書き込み・実行／検索を要求することができる。
+アクセスチェックアルゴリズムは
+オブジェクトへのアクセスを許可するか否かを決定する。
+.Bl -enum
+.It
+.Sy If
+.\"O the effective user ID of the process matches the user ID of the file object owner,
+プロセスの実効ユーザ ID がファイルオブジェクト所有者のユーザ ID と一致する。
+.Sy then
+.Pp
+.in +4
+.Bd -filled
+.Sy if
+.\"O the ACL_USER_OBJ entry contains the requested permissions, access is granted,
+要求された許可が ACL_USER_OBJ エントリに含まれるならば、アクセスは許可される。
+.Pp
+.Sy else
+.\"O access is denied.
+アクセスは拒否される。
+.in -4
+.Ed
+.It
+.Sy "else if"
+.\"O the effective user ID of the process matches the qualifier of any entry
+.\"O of type ACL_USER,
+プロセスの実効ユーザ ID が ACL_USER 型の何れかのエントリの修飾子と一致する。
+.Sy then
+.Pp
+.in +4
+.Bd -filled
+.Sy if
+.\"O the matching ACL_USER entry and the ACL_MASK entry contain the requested
+.\"O permissions, access is granted,
+一致した ACL_USER エントリと ACL_MASK エントリに
+要求された許可が含まれるならば、アクセスは許可される。
+.Pp
+.Sy else
+.\"O access is denied.
+アクセスは拒否される。
+.in -4
+.Ed
+.It
+.Sy else if
+.\"O the effective group ID or any of the supplementary group IDs of the process
+.\"O match the file group or the qualifier of any entry of type ACL_GROUP, 
+プロセスの実効グループ ID または何れかの補助グループ ID が、
+ファイルグループまたは ACL_GROUP 型の何れかのエントリの修飾子と一致する。
+.Sy then
+.Pp
+.in +4
+.Bd -filled
+.Sy if
+.\"O the ACL contains an ACL_MASK entry,
+ACL が ACL_MASK エントリを含む。
+.Sy then
+.in +4
+.Bd -filled
+.Sy if
+.\"O the ACL_MASK entry and any of the matching ACL_GROUP_OBJ or ACL_GROUP entries
+.\"O contain
+.\"O the requested permissions, access is granted,
+ACL_MASK エントリおよび一致する ACL_GROUP_OBJ または ACL_GROUP エントリの
+何れかに、要求された許可が含まれるならば、アクセスは許可される。
+.Pp
+.Sy else
+.\"O access is denied.
+アクセスは拒否される。
+.Pp
+.in -4
+.Ed
+.Sy else
+.\"O (note that there can be no ACL_GROUP entries without an ACL_MASK entry)
+(ACL_MASK エントリを含まない ACL_GROUP エントリは存在しない点に注意すること)
+.in +4
+.Bd -filled
+.Sy if
+.\"O the ACL_GROUP_OBJ entry contains the requested permissions,
+.\"O access is granted,
+ACL_GROUP_OBJ エントリが要求された許可を含むならば、アクセスは許可される。
+.Ed
+.Pp
+.Sy else
+.\"O access is denied.
+アクセスは拒否される。
+.Pp
+.in -4
+.Ed
+.in -4
+.\"O .Ed
+.It
+.Sy else if
+.\"O the ACL_OTHER entry contains the requested permissions, access is granted.
+ACL_OTHER エントリが要求された許可を含むならば、アクセスは許可される。
+.It
+.Sy else
+.\"O access is denied.
+アクセスは拒否される。
+.El
+.\".It
+.\"O .\"Checking whether the requested access modes are granted by the matched entry.
+.\"要求されたアクセスモードが、一致したエントリで許可されるかをチェックする。
+.\".El
+.\"O .Sh ACL TEXT FORMS
+.Sh ACL テキスト形式
+.\"O A long and a short text form for representing ACLs is defined. In both forms, ACL entries are represented as three colon separated fields: an ACL entry tag type, an ACL entry qualifier, and the discretionary access permissions. The first field contains one of the following entry tag type keywords:
+ACL を表現するために長いテキスト形式と短いテキスト形式が定義されている。
+両方の形式において、ACL エントリはコロン区切られた 3 つのフィールド、
+ACL エントリタグ型・ACL エントリ修飾子・任意のアクセス許可で表現される。
+1 番目のフィールドは以下のエントリタグ型キーワードの何れかを含む:
+.Bl -tag -offset indent -width group.
+.It Li user
+.\"O A
+.\"O .Li user
+.\"O ACL entry specifies the access granted to either the file owner (entry tag
+.\"O type ACL_USER_OBJ) or a specified user (entry tag type ACL_USER).
+.Li user
+ACL エントリは、ファイル所有者 (エントリタグ型 ACL_USER_OBJ) と
+指定されたユーザ (エントリタグ型 ACL_USER) に対して
+許可されるアクセスを指定する。
+.It Li group
+.\"O A
+.\"O .Li group
+.\"O ACL entry specifies the access granted to either the file group (entry tag
+.\"O type ACL_GROUP_OBJ) or a specified group (entry tag type ACL_GROUP).
+.Li group
+ACL エントリは、ファイルグループ (エントリタグ型 ACL_GROUP_OBJ) と
+指定されたグループ (エントリタグ型 ACL_GROUP) に対して
+許可されるアクセスを指定する。
+.It Li mask
+.\"O A
+.\"O .Li mask
+.\"O ACL entry specifies the maximum access which can be granted by any ACL
+.\"O entry except the
+.\"O .Li user
+.\"O entry for the file owner and the
+.\"O .Li other
+.\"O entry (entry tag type ACL_MASK).
+.Li mask
+ACL エントリは、ファイル所有者に対する
+.Li user
+エントリと
+.Li other
+エントリを除く、
+全ての ACL (エントリタグ型 ACL_MASK) に対して許可されるアクセスのうち
+最大のものを指定する。
+.It Li other
+.\"O An other ACL entry specifies the access granted to any process that does
+.\"O not match any
+.\"O .Li user
+.\"O or
+.\"O .Li group
+.\"O ACL entries (entry tag type ACL_OTHER).
+.Li other
+ACL エントリは、どの
+.Li user
+ACL エントリにも
+.Li group
+ACL エントリにもマッチしない (エントリタグ型 ACL_OTHER) の
+プロセスに対して許可されるアクセスを指定する。
+.El
+.Pp
+.\"O The second field contains the user or group identifier of the user or
+.\"O group associated with the ACL entry for entries of entry tag type ACL_USER
+.\"O or ACL_GROUP, and is empty for all other entries. A user identifier can
+.\"O be a user name or a user ID number in decimal form. A group identifier can
+.\"O be a group name or a group ID number in decimal form.
+2 番目のフィールドは、
+エントリタグ型 ACL_USER または ACL_GROUP のエントリの場合、
+ACL エントリに関連付けられているユーザまたはグループ識別子を含む。
+その他のエントリの場合、このフィールドは空になる。
+ユーザ識別子はユーザ名でも 10 進数のユーザ ID 番号でもよい。
+グループ識別子はグループ名でも 10 進数のグループ ID 番号でもよい。
+.Pp
+.\"O The third field contains the discretionary access permissions. The read,
+.\"O write and search/execute permissions are represented by the
+.\"O .Li r ,
+.\"O .Li w ,
+.\"O and
+.\"O .Li x
+.\"O characters, in this order. Each of these characters is replaced by the
+.\"O .Li \-
+.\"O character to denote that a permission is absent in the ACL entry.
+3 番目のフィールドは任意のアクセス許可を保持する。
+書き出し・読み込み・検索／実行の許可は、
+.Li r ,
+.Li w ,
+.Li x
+という文字でこの順番で表される。
+ACL エントリにこれらの許可がない場合、各文字は
+.Li \-
+文字で置き換えられる。
+.\"O When converting from the text form to the internal representation,
+.\"O permissions that are absent need not be specified.
+テキスト形式から内部表現に変換する場合、
+保持していない許可は指定する必要がない。
+.Pp
+.\"O White space is permitted at the beginning and end of each ACL entry, and
+.\"O immediately before and after a field separator (the colon character).
+各 ACL エントリの始めと終わり、そして
+フィールド区切り文字 (コロン文字) の直前と直後には、
+空白を入れることができる。
+.\"O .Ss LONG TEXT FORM
+.Ss 長いテキスト形式
+.\"O The long text form contains one ACL entry per line. In addition, a
+.\"O number sign
+.\"O .No ( Li # )
+.\"O may start a comment that extends until the end of the line. If an
+.\"O ACL_USER, ACL_GROUP_OBJ or ACL_GROUP ACL entry contains permissions that
+.\"O are not also contained in the ACL_MASK entry, the entry is followed by a
+.\"O number sign, the string \(lqeffective:\(rq, and the effective access
+.\"O permissions defined by that entry. This is an example of the long text
+.\"O form:
+長いテキスト形式では、1 行に 1 つの ACL エントリを保持する。
+さらにナンバー記号
+.No ( Li # )
+でコメントを開始することが可能で、行の終りまでがコメントになる。
+ACL_MASK エントリに含まれない許可が
+ACL_USER, ACL_GROUP_OBJ, ACL_GROUP ACL エントリに含まれる場合、
+そのエントリの後にはナンバー記号と文字列 \(lqeffective:\(rq と
+そのエントリで定義される実効アクセス許可が続く。
+以下は長いテキスト形式の例である:
+.Bd -literal -offset indent
+user::rw-
+user:lisa:rw-         #effective:r--
+group::r--
+group:toolies:rw-     #effective:r--
+mask::r--
+other::r--
+.Ed
+.\"O .Ss SHORT TEXT FORM
+.Ss 短いテキスト形式
+.\"O The short text form is a sequence of ACL entries separated by commas,
+.\"O and is used for input. Comments are not supported. Entry tag type
+.\"O keywords may either appear in their full unabbreviated form, or in their
+.\"O single letter abbreviated form. The abbreviation for
+.\"O .Li user
+.\"O is
+.\"O .Li u ,
+.\"O the abbreviation for
+.\"O .Li group
+.\"O is
+.\"O .Li g ,
+.\"O the abbreviation for
+.\"O .Li mask
+.\"O is
+.\"O .Li m ,
+.\"O and the abbreviation for
+.\"O .Li other
+.\"O is
+.\"O .Li o .
+短いテキスト形式は、コンマで区切られた ACL エントリの並びであり、
+入力として使われる。
+コメントはサポートされていない。
+エントリタグ型キーワードは省略されない完全な形式でも
+1 文字の省略形でも指定できる。
+.Li user
+の省略形は
+.Li u ,
+.Li group
+の省略形は
+.Li g ,
+.Li mask
+の省略形は
+.Li m ,
+.Li other
+の省略形は
+.Li o
+である。
+.\"O The permissions may contain at most one each of the following characters
+.\"O in any order:
+.\"O .Li r ,
+.\"O .Li w ,
+.\"O .Li x .
+許可には、
+.Li r ,
+.Li w ,
+.Li x 
+という文字のうち 1 つ以上を、任意の順番で含めることができる。
+.\"O These are examples of the short text form:
+以下は短いテキスト形式の例である:
+.Bd -literal -offset indent
+u::rw-,u:lisa:rw-,g::r--,g:toolies:rw-,m::r--,o::r--
+g:toolies:rw,u:lisa:rw,u::wr,g::r,o::r,m::r
+.Ed
+.\"O .Sh RATIONALE
+.Sh 理論的根拠
+.\"O IEEE 1003.1e draft 17 defines Access Control Lists that include entries
+.\"O of tag type ACL_MASK, and defines a mapping between file permission bits
+.\"O that is not constant. The standard working group defined this relatively
+.\"O complex interface in order to ensure that applications that are compliant
+.\"O with IEEE 1003.1 (\(lqPOSIX.1\(rq) will still function as expected on
+.\"O systems with ACLs. The IEEE 1003.1e draft 17 contains the rationale for
+.\"O choosing this interface in section B.23. 
+IEEE 1003.1e draft 17 は、
+タグ型 ACL_MASK のエントリを含むアクセス制御リストを定義しており、
+画一的ではないファイル許可ビット間の対応付けを定義している。
+標準化作業グループは、IEEE 1003.1 (\(lqPOSIX.1\(rq) と互換性のない
+アプリケーションが ACL を持つシステム上でも機能することを保証するために、
+比較的複雑なインタフェースを定義した。
+IEEE 1003.1e draft 17 には、このインタフェースを選択する理論的根拠が
+セクション B.23 に書かれている。
+.\"O .Sh CHANGES TO THE FILE UTILITIES
+.Sh ファイルユーティリティの変更
+.\"O On a system that supports ACLs, the file utilities
+.\"O .Xr ls 1 ,
+.\"O .Xr cp 1 ,
+.\"O and
+.\"O .Xr mv 1
+.\"O change their behavior in the following way:
+ACL をサポートするシステムでは、ファイルユーティリティ
+.Xr ls 1 ,
+.Xr cp 1 ,
+.Xr mv 1
+は自身の動作を以下のように変更する:
+.Bl -bullet
+.It
+.\"O For files that have a default ACL or an access ACL that contains more than
+.\"O the three required ACL entries, the
+.\"O .Xr ls 1
+.\"O utility in the long form produced by
+.\"O .Ic "ls \-l"
+.\"O displays a plus sign
+.\"O .No ( Li + )
+.\"O after the permission string.
+.\"Osato: 
+.\"Osato: 少し意訳気味に訳しています。
+.\"Osato: 
+デフォルト ACL を持つファイル、または必要とされる 3 つ以上の ACL エントリを
+保持するアクセス ACL を持つファイルに対して、
+.Xr ls 1
+ユーティリティを長い形式
+.Ic "ls \-l"
+で実行すると、
+プラス記号
+.No ( Li + )
+が許可文字列の後に表示される。
+.It
+.\"O If the
+.\"O .Fl p
+.\"O flag is specified, the
+.\"O .Xr cp 1
+.\"O utility also preserves ACLs.
+.Fl p
+フラグが指定された場合、
+.Xr cp 1
+ユーティリティは ACL も保存する。
+.\"O If this is not possible, a warning is produced.
+保存できない場合は警告が出される。
+.It
+.\"O   The
+.\"O .Xr mv 1
+.\"O utility always preserves ACLs. If this is not possible, a warning is produced.
+.Xr mv 1
+ユーティリティは常に ACL を保存する。
+保存できない場合は警告が出される。
+.El
+.Pp
+.\"O The effect of the
+.\"O .Xr chmod 1
+.\"O utility, and of the
+.\"O .Xr chmod 2
+.\"O system call, on the access ACL is described in
+.\"O .Sx "CORRESPONDENCE BETWEEN ACL ENTRIES AND FILE PERMISSION BITS" .
+.Xr chmod 1
+ユーティリティと
+.Xr chmod 2
+システムコールのアクセス ACL に対する影響については、
+.Sx "「ACL エントリとファイル許可ビットの対応」
+で説明されている。
+.\"O .Sh STANDARDS
+.Sh 準拠
+.\"O The IEEE 1003.1e draft 17 (\(lqPOSIX.1e\(rq) document describes several
+.\"O security extensions to the IEEE 1003.1 standard. While the work on
+.\"O 1003.1e has been abandoned, many UNIX style systems implement parts of
+.\"O POSIX.1e draft 17, or of earlier drafts.
+IEEE 1003.1e draft 17 (\(lqPOSIX.1e\(rq) は、
+IEEE 1003.1 標準に対するいくつかのセキュリティ拡張について記述している。
+1003.1e での作業は放棄されたが、多くの UNIX 系システムは
+POSIX.1e draft 17 またはそれ以前のドラフトの一部を実装している。
+.Pp
+.\"O Linux Access Control Lists implement the full set of functions and
+.\"O utilities defined for Access Control Lists in POSIX.1e, and several
+.\"O extensions.  The implementation is fully compliant with POSIX.1e draft
+.\"O 17; extensions are marked as such.
+Linux アクセス制御リストは、
+POSIX.1e のアクセス制御リストで定義されている全ての関数セットと
+いくつかの拡張を実装している。
+この実装は POSIX.1e draft 17 に完全に準拠する。
+拡張にはその旨が記されている。
+.\"O The Access Control List manipulation functions are defined in
+.\"O the ACL library (libacl, \-lacl). The POSIX compliant interfaces are
+.\"O declared in the
+.\"O .Li <sys/acl.h>
+.\"O header.  Linux-specific extensions to these functions are declared in the
+.\"O .Li <acl/libacl.h>
+.\"O header.
+アクセス制御リストの操作関数は、
+ACL ライブラリ (libacl, \-lacl) で定義されている。
+POSIX 互換のインタフェースは
+.Li <sys/acl.h>
+ヘッダで宣言されている。
+これらの関数に対する Linux 固有の拡張は、
+.Li <acl/libacl.h>
+ヘッダで宣言されている。
+.\"O .Sh SEE ALSO
+.Sh 関連項目
+.Xr chmod 1 ,
+.Xr creat 2 ,
+.Xr getfacl 1 ,
+.Xr ls 1 ,
+.Xr mkdir 2 ,
+.Xr mkfifo 2 ,
+.Xr mknod 2 ,
+.Xr open 2 ,
+.Xr setfacl 1 ,
+.Xr stat 2 ,
+.Xr umask 1
+.Ss POSIX 1003.1e DRAFT 17
+.Xr "http://www.guug.de/~winni/posix.1e/download.html"
+.\"O .Ss POSIX 1003.1e FUNCTIONS BY CATEGORY
+.Ss カテゴリによる POSIX 1003.1e 関数の分類
+.Bl -tag -width "MMM"
+.\"O .It Sy ACL storage management
+.It Sy ACL ストレージの管理
+.Xr acl_dup 3 ,
+.Xr acl_free 3 ,
+.Xr acl_init 3
+.\"O .It Sy ACL entry manipulation
+.It Sy ACL エントリの操作
+.Xr acl_copy_entry 3 ,
+.Xr acl_create_entry 3 ,
+.Xr acl_delete_entry 3 ,
+.Xr acl_get_entry 3 ,
+.Xr acl_valid 3
+.Pp
+.Xr acl_add_perm 3 ,
+.Xr acl_calc_mask 3 ,
+.Xr acl_clear_perms 3 ,
+.Xr acl_delete_perm 3 ,
+.Xr acl_get_permset 3 ,
+.Xr acl_set_permset 3
+.Pp
+.Xr acl_get_qualifier 3 ,
+.Xr acl_get_tag_type 3 ,
+.Xr acl_set_qualifier 3 ,
+.Xr acl_set_tag_type 3
+.\"O .It Sy ACL manipulation on an object
+.It Sy オブジェクトの ACL の操作
+.Xr acl_delete_def_file 3 ,
+.Xr acl_get_fd 3 ,
+.Xr acl_get_file 3 ,
+.Xr acl_set_fd 3 ,
+.Xr acl_set_file 3
+.\"O .It Sy ACL format translation
+.It Sy ACL 形式の変換
+.Xr acl_copy_entry 3 ,
+.Xr acl_copy_ext 3 ,
+.Xr acl_from_text 3 ,
+.Xr acl_to_text 3 ,
+.Xr acl_size 3
+.El
+.\"O .Ss POSIX 1003.1e FUNCTIONS BY AVAILABILITY
+.Ss 有効性による POSIX 1003.1e 関数の分類
+.\"O The first group of functions is supported on most systems with POSIX-like
+.\"O access control lists, while the second group is supported on fewer systems.
+.\"O For applications that will be ported the second group is best avoided.
+最初の関数のグループは POSIX ライクなアクセス制御リストを持つ
+大部分のシステムでサポートされている。
+一方、2 番目の関数のグループをサポートしているシステムは少ない。
+移植を予定するアプリケーションでは、2 番目のグループを避けた方が良い。
+.Pp
+.Xr acl_delete_def_file 3 ,
+.Xr acl_dup 3 ,
+.Xr acl_free 3 ,
+.Xr acl_from_text 3 ,
+.Xr acl_get_fd 3 ,
+.Xr acl_get_file 3 ,
+.Xr acl_init 3 ,
+.Xr acl_set_fd 3 ,
+.Xr acl_set_file 3 ,
+.Xr acl_to_text 3 ,
+.Xr acl_valid 3
+.Pp
+.Xr acl_add_perm 3 ,
+.Xr acl_calc_mask 3 ,
+.Xr acl_clear_perms 3 ,
+.Xr acl_copy_entry 3 ,
+.Xr acl_copy_ext 3 ,
+.Xr acl_copy_int 3 ,
+.Xr acl_create_entry 3 ,
+.Xr acl_delete_entry 3 ,
+.Xr acl_delete_perm 3 ,
+.Xr acl_get_entry 3 ,
+.Xr acl_get_permset 3 ,
+.Xr acl_get_qualifier 3 ,
+.Xr acl_get_tag_type 3 ,
+.Xr acl_set_permset 3 ,
+.Xr acl_set_qualifier 3 ,
+.Xr acl_set_tag_type 3 ,
+.Xr acl_size 3
+.\"O .Ss LINUX EXTENSIONS
+.Ss LINUX 拡張
+.\"O These non-portable extensions are available on Linux systems.
+これらの移植性のない拡張は、Linux システムでのみ有効である。
+.Pp
+.Xr acl_check 3 ,
+.Xr acl_cmp 3 ,
+.Xr acl_entries 3 ,
+.Xr acl_equiv_mode 3 ,
+.Xr acl_error 3 ,
+.Xr acl_extended_fd 3 ,
+.Xr acl_extended_file 3 ,
+.Xr acl_from_mode 3 ,
+.Xr acl_get_perm 3 ,
+.Xr acl_to_any_text 3
+.\"O .Sh AUTHOR
+.Sh 著者
+Andreas Gruenbacher, <a.gruenbacher@bestbits.at>

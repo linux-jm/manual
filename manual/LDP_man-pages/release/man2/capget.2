@@ -1,0 +1,251 @@
+.\" written by Andrew Morgan <morgan@kernel.org>
+.\" may be distributed as per GPL
+.\" Modified by David A. Wheeler <dwheeler@ida.org>
+.\" Modified 2004-05-27, mtk
+.\" Modified 2004-06-21, aeb
+.\" Modified 2008-04-28, morgan of kernel.org
+.\"     Update in line with addition of file capabilities and
+.\"     64-bit capability sets in kernel 2.6.2[45].
+.\" Modified 2009-01-26, andi kleen
+.\"
+.\" Japanese Version Copyright (c) 1999 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1999-12-26, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated & Modified 2005-02-03, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2006-01-31, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated & Modified 2006-07-23, Akihiro MOTOKI, LDP v2.36
+.\" Updated & Modified 2008-08-11, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2009-02-24, Akihiro MOTOKI, LDP v3.19
+.\"
+.\"WORD:	capability		ケーパビリティ
+.\"WORD:	effective capability	実効ケーパビリティ
+.\"WORD:	inheritable capabilit	継承可能ケーパビリティ
+.\"WORD:	permitted capabily	許可ケーパビリティ
+.\"
+.TH CAPGET 2 2009-01-26 "Linux" "Linux Programmer's Manual"
+.SH 名前
+capget, capset \- スレッドのケーパビリティを設定/取得する
+.SH 書式
+.B #undef _POSIX_SOURCE
+.br
+.B #include <sys/capability.h>
+.sp
+.BI "int capget(cap_user_header_t " hdrp ", cap_user_data_t " datap );
+.sp
+.BI "int capset(cap_user_header_t " hdrp ", const cap_user_data_t " datap );
+.SH 説明
+Linux 2.2 で、スーパーユーザー (root) の権限は、個別のケーパビリティ
+(capabilities) へと分割され、その集合として表現されるようになった。
+各スレッドは「実効ケーパビリティ (effective capability) の集合」を持ち、
+それによって現在どの操作が実行可能かを識別できる。
+また、各スレッドは、
+「継承可能ケーパビリティ (inheritable capability) の集合」と
+「許可ケーパビリティ (permitted capability) の集合」を持つ。
+「継承可能ケーパビリティの集合」は
+.BR execve (2)
+を通じて渡すことができるケーパビリティの集合であり、
+「許可ケーパビリティ (permitted capability) の集合」は
+実効ケーパビリティや継承可能ケーパビリティとして有効にできる
+ケーパビリティを規定するものである。
+.PP
+この二つの関数はスレッドのケーパビリティを取得したり設定したりするための
+生のカーネルインターフェースである。
+これらのシステムコールは Linux 特有であるというだけでなく、
+カーネル API は変更されるかもしれず、これらの
+関数の使用法 (特に
+.I cap_user_*_t
+型という書式) はカーネルのリビジョン毎に拡張されるかもしれないが、
+以前のプログラムはそのまま動作する。
+.sp
+移植性のあるインターフェースは
+.BR cap_set_proc (3)
+と
+.BR cap_get_proc (3)
+である。
+可能ならばアプリケーションはこれらの関数を使用すべきである。
+アプリケーションに Linux 拡張を使用したい場合には、より簡単に
+使えるインターフェースである
+.BR capsetp (3)
+と
+.BR capgetp (3)
+を使用すべきである。
+.SS 現在の詳細
+現在のカーネルの詳細について注意を述べておく。
+構造体は以下のように定義される。
+.sp
+.nf
+.in +4n
+#define _LINUX_CAPABILITY_VERSION_1  0x19980330
+#define _LINUX_CAPABILITY_U32S_1     1
+
+#define _LINUX_CAPABILITY_VERSION_2  0x20071026
+#define _LINUX_CAPABILITY_U32S_2     2
+
+typedef struct __user_cap_header_struct {
+   __u32 version;
+   int pid;
+} *cap_user_header_t;
+
+typedef struct __user_cap_data_struct {
+   __u32 effective;
+   __u32 permitted;
+   __u32 inheritable;
+} *cap_user_data_t;
+.fi
+.in -4n
+.sp
+.I effective, permitted, inheritable
+は、
+.BR capability (7)
+で定義されるケーパビリティのビットマスクである。
+.I CAP_*
+はビット番号を表すインデックス値であり、
+ビットフィールドに OR を行う前に
+.I CAP_*
+の値の分だけビットシフトを行う必要がある。
+typedef の方はポインタなので、
+このシステムコールに渡す構造体を定義するには、
+.I struct __user_cap_header_struct
+と
+.I struct __user_cap_data_struct
+という名前を使用しなければならない。
+
+カーネル 2.6.25 より前では、バージョン
+.B _LINUX_CAPABILITY_VERSION_1
+の 32 ビットケーパビリティが推奨である。
+カーネル 2.6.25 以降では、バージョン
+.B _LINUX_CAPABILITY_VERSION_2
+の 64 ビットケーパビリティが推奨である。
+64 ビットケーパビリティでは
+.IR datap [0]
+と
+.IR datap [1]
+が使用されるのに対し、
+32 ビットケーパビリティでは
+.IR datap [0]
+だけが使用される。
+.sp
+これらのシステムコールの挙動に影響があるもう一つの変更点は、
+ファイルケーパビリティ (file capabilities) のカーネルによるサポート
+(VFS ケーパビリティのサポート) である。
+VFS ケーパビリティのサポートは現在のところコンパイル時のオプションである
+(カーネル 2.6.24 で追加された)。
+.sp
+.BR capget ()
+では、
+.I hdrp->pid
+のフィールド値にケーパビリティを知りたいプロセスのプロセス ID を
+指定することで、任意のプロセスのケーパビリティを調べることができる。
+.SS VFS ケーパビリティがサポートされている場合
+VFS ケーパビリティのサポートでは、特権実行ファイルにケーパビリティを
+追加するためのファイル属性メソッドが作成された。
+この特権モデルの導入により、あるプロセスにより別のプロセスのケーパビリティ
+を非同期に設定する機能のカーネルによるサポートは廃止される。
+つまり、VFS サポートでは、
+.BR capset ()
+を呼び出す際に
+.I hdrp->pid
+の値として許されるのは 0 と
+.BR getpid (2)
+が返す値だけとなる (どちらの値でも等価である)。
+.SS VFS ケーパビリティがサポートされていない場合
+カーネルが VFS ケーパビリティをサポートしていない場合、
+.I hdrp
+の
+.I pid
+フィールドが 0 以外であれば、
+.BR capset ()
+の操作対象は
+.I pid
+で指定されたスレッドのケーパビリティになる。
+.I pid
+が 0 の場合は呼び出し元のスレッドのケーパビリティが操作対象となる。
+.I pid
+がシングルスレッド・プロセスを参照している場合、
+.I pid
+は以前から使われているプロセスID を使って指定できる。
+マルチスレッド・プロセス内のあるスレッドを対象にする場合は、
+.BR gettid (2)
+が返すスレッドID を用いて指定する必要がある。
+また、
+.BR capset ()
+では \-1 や \-1 より小さな値を指定することもできる。
+\-1 は呼び出し元と
+.BR init (8)
+を除く全てのスレッドを対象として変更を行うことを、
+\-1 より小さな値は ID が \-\fIpid\fP のプロセスグループの全メンバ
+を対象として変更を行うことを意味する。
+
+このデータの詳細は
+.BR capabilities (7)
+を参照すること。
+.SH 返り値
+成功した場合には 0 を返す。エラーの場合には \-1 を返し、
+.I errno
+を適切に設定する。
+
+.I hdrp
+のフィールド
+.I version
+にサポートされていない値が指定された場合、
+呼び出しはエラー
+.B EINVAL
+で失敗し、
+.I version
+にカーネル推奨の
+.B _LINUX_CAPABILITY_VERSION_?
+を設定する。
+このようにして、現在の推奨ケーパビリティ・リビジョンが何かを
+調べることができる。
+.SH エラー
+.TP
+.B EFAULT
+不正なメモリアドレス。
+.I hdrp
+は NULL であってはならない。
+.I datap
+に NULL を指定してよいのは、ユーザがカーネルがサポートしている
+推奨のケーパビリティ・バージョンを判定しようとしているときだけである。
+.TP
+.B EINVAL
+引き数のどれかが無効である。
+.TP
+.B EPERM
+「許可ケーパビリティセット」にケーパビリティを追加しようとしているか、
+もしくは「許可ケーパビリティセット」に含まれないケーパビリティを
+「実効ケーパビリティセット」や「継承可能ケーパビリティセット」に
+セットしようとしている。
+.TP
+.B EPERM
+呼び出し元が自分以外のスレッドのケーパビリティを
+.BR capset ()
+を使って修正しようとしたが、十分な特権がなかった。
+VFS ケーパビリティをサポートしているカーネルでは、
+この操作が許可されることは決してない。
+VFS ケーパビリティをサポートしていないカーネルでは、
+.B CAP_SETPCAP
+ケーパビリティが必要である。
+(バージョン 2.6.11 より前のカーネルには、
+このケーパビリティを持たないスレッドが
+.I pid
+フィールドに 0 でない値 (つまり、0 の代わりに
+.BR getpid (2)
+が返す値) を指定して自分自身のケーパビリティを変更しようとした場合にも、
+このエラーが発生するというバグがあった。)
+.TP
+.B ESRCH
+そのようなスレッドが存在しない。
+.SH 準拠
+これらのシステムコールは Linux 独自である。
+.SH 備考
+ケーパビリティを設定したり取得したりする機能のための移植性ある
+インターフェースは
+.I libcap
+ライブラリによって提供される。
+このライブラリは以下から入手できる:
+.br
+http://www.kernel.org/pub/linux/libs/security/linux-privs
+.SH 関連項目
+.BR clone (2),
+.BR gettid (2),
+.BR capabilities (7)

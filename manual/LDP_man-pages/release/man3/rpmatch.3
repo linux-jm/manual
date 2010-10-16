@@ -1,0 +1,145 @@
+.\" Copyright (C) 2006 Justin Pryzby <pryzbyj@justinpryzby.com>
+.\"
+.\" Permission is hereby granted, free of charge, to any person obtaining
+.\" a copy of this software and associated documentation files (the
+.\" "Software"), to deal in the Software without restriction, including
+.\" without limitation the rights to use, copy, modify, merge, publish,
+.\" distribute, sublicense, and/or sell copies of the Software, and to
+.\" permit persons to whom the Software is furnished to do so, subject to
+.\" the following conditions:
+.\"
+.\" The above copyright notice and this permission notice shall be
+.\" included in all copies or substantial portions of the Software.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+.\" EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+.\" IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+.\" CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+.\" TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+.\" SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+.\"
+.\" References:
+.\"   glibc manual and source
+.\"
+.\" 2006-05-19, mtk, various edits and example program
+.\"
+.\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI all rights reserved.
+.\" Translated 2006-07-31, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH RPMATCH 3 2007-07-26 "GNU" "Linux Programmer's Manual"
+.SH 名前
+rpmatch \- 質問への応答が肯定か否定かを判定する
+.SH 書式
+.nf
+.B #include <stdlib.h>
+
+.BI "int rpmatch(const char *" response );
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR rpmatch ():
+_SVID_SOURCE
+.SH 説明
+.BR  rpmatch ()
+は yes/no の質問に対するユーザからの応答を処理する。
+国際化 (I18N) に対応している。
+
+.I response
+にはユーザからの応答を格納した NULL 終端文字列が入っている必要がある。
+たいていは、
+.BR fgets (3)
+や
+.BR getline (3)
+で取り込んだものであろう。
+
+プログラムが
+.BR setlocale (3)
+を呼び出して環境変数の変更を有効にした場合、
+環境変数 \fBLANG\fP, \fBLC_MESSAGES\fP, \fBLC_ALL\fP が
+ユーザの言語設定として考慮される。
+
+ロケールに関わらず、\fB^[Yy]\fP にマッチする応答は常に肯定だと解釈され、
+\fB^[Nn]\fP にマッチする応答は常に否定だと解釈される。
+.SH 返り値
+.I response
+を検査した後、
+.BR rpmatch ()
+は否定的な応答 ("no") と認識した場合は 0 を返し、
+肯定的な応答 ("yes") と認識した場合は 1 を返す。
+.I response
+の値を解釈できなかった場合は \-1 を返す。
+.SH エラー
+返り値 \-1 が返った場合、入力が不正であったか、他の何らかのエラーが
+あったことを意味する。返り値が 0 以外かどうかを確認するだけでは
+十分ではない。
+
+.BR rpmatch ()
+は、
+.BR regcomp (3)
+や
+.BR regexec (3)
+が失敗する理由のどれかで失敗することがある。
+エラーの原因を
+.I errno
+や他の何かで知ることはできないが、
+.I errno
+は正規表現エンジンの失敗の原因を示している
+(但し、このケースと
+.I response
+の値を認識できずに失敗した場合を区別することはできない)。
+.SH 準拠
+.BR rpmatch ()
+はどの標準でも必須となっていないが、
+Linux 以外にも利用できるシステムもいくつかは存在する。
+.\" 少なくとも AIX 5.1 と FreeBSD 6.0 では利用できる。
+.SH バグ
+.BR rpmatch ()
+の実装は
+.I response
+の最初の 1 文字だけを見ているようである。その結果、
+"nyes" は 0 を返し、
+"ynever; not in a million years" は 1 を返すことになる。
+入力文字列をもっと厳密に解釈した方がよいだろう。
+例えば、
+.RB ( regex (7)
+で説明されている拡張正規表現を使って)
+.BR ^([yY]|yes|YES)$ " や " ^([nN]|no|NO)$
+で解釈するなど。
+.SH 例
+以下のプログラムは、コマンドライン引き数で
+指定された文字列を
+.BR rpmatch ()
+に渡した場合の結果を表示する。
+.nf
+
+#define _SVID_SOURCE
+#include <locale.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
+int
+main(int argc, char *argv[])
+{
+    if (argc != 2 || strcmp(argv[1], "\-\-help") == 0) {
+        fprintf(stderr, "%s response\\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    setlocale(LC_ALL, "");
+    printf("rpmatch() returns: %d\\n", rpmatch(argv[1]));
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+.BR fgets (3),
+.BR getline (3),
+.BR nl_langinfo (3),
+.BR regcomp (3),
+.BR setlocale (3)

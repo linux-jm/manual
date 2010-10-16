@@ -1,0 +1,163 @@
+.\"
+.TH proc_dir_entry 9 "July 1997" "Linux 2.0.30" "/proc Functions"
+.LO 9
+.hlm 0
+.na
+.SH NAME
+proc_dir_entry, proc_register, proc_register_dynamic, proc_unregister \- register entries in the /proc filesystem.
+.SH SYNOPSIS
+.B #include <linux/proc_fs.h>
+.TP
+.BI "int\ proc_register(\%struct\ proc_dir_entry\ *\ " "parent" ", struct\ proc_dir_entry\ *\ " "child");
+.TP
+.BI "int\ proc_unregister(\%struct\ proc_dir_entry\ *\ " "parent" ", int\ " "inode");
+.TP
+.BI "int\ proc_register_dynamic(\%struct\ proc_dir_entry\ *\ " "parent" ", struct\ proc_dir_entry\ *\ " "child");
+.ad
+.SH DESCRIPTION
+The
+.B proc_register
+functions add file or directory entries to the /proc file system.  They
+associate processing routines with each node of the /proc tree.
+The structure
+.B proc_dir_entry
+is defined as
+.nf
+
+.B
+struct proc_dir_entry {
+.B
+        unsigned short low_ino;
+.B
+        unsigned short namelen;
+.B
+        const char *name;
+.B
+        mode_t mode;
+.B
+        nlink_t nlink;
+.B
+        uid_t uid;
+.B
+        gid_t gid;
+.B
+        unsigned long size;
+.B
+        struct inode_operations * ops;
+.B
+        int (*get_info)(char *buffer, char **start,
+.B
+                off_t offset, int length, int unused);
+.B
+        void (*fill_inode)(struct inode *);
+.B
+        struct proc_dir_entry *next, *parent, *subdir;
+.B
+        void *data;
+.B
+};
+.fi
+
+.IP low_ino 8
+The inode number of this directory entry.  For
+.B proc_register
+this  number should be unique within the /proc filesystem, values are
+defined in
+.IR <linux/proc_fs.h> .
+For
+.B proc_register_dynamic
+the inode number is dynamically assigned.
+.IP namelen
+The length of the name, excluding the trailing null.
+.IP name
+The name of this node.
+.IP mode
+.ne 3
+The node's type and permissions.  Drawn from
+.IR <linux/stat.h> .
+.IP nlink
+Number of links to the node.  Initialise to 2 if mode includes
+S_IFDIR, 1 otherwise.
+.IP uid
+The uid that owns the node, normally 0.
+.IP gid
+The gid that owns the node. normally 0.
+.IP size
+Sets the size of the node, the value will appear as the inode size in
+listings and be returned by
+.BR stat .
+Unless you really need a size, set this to zero.
+.IP ops
+Defines the set of inode operations to perform for your /proc node.
+For a directory node, use
+.I &proc_dir_inode_operations
+unless you have special requirements.  For a leaf node, set to NULL
+unless you have special requirements.
+.IP get_info
+If defined, this proc is called when the node is read.  Should be NULL
+for directory nodes.
+.B NOTE:
+If you need to return large amounts of data, the proc must return the
+data in chunks and reposition itself on the next call, using the
+.I offset
+variable.  See
+.I ip_masq_procinfo
+for example code with large output.
+.IP fill_inode
+Dynamically fill in the inode characteristics during directory
+operations.  Not normally required and set to NULL.  See
+proc_pid_fill_inode for example code.
+.IP "next, parent, subdir
+Maintained by /proc routines.  Initial value is irrelevant, set to NULL.
+.IP data
+An opaque pointer which can be used by proc handlers to pass local data
+around.  Set to whatever you like when calling
+.BR proc_register ,
+normally NULL.  This pointer is copied into the inode u.ip_generic
+field (by proc_get_inode) so it is available to any proc routines that
+are passed an inode.
+.PP
+.B proc_register
+adds the
+.B child
+as a node under the
+.BR parent .
+.PP
+.B proc_register_dynamic
+dynamically assigns an inode number then adds the
+.B child
+as a node under the
+.BR parent .
+.PP
+.B proc_unregister
+scans the inode list under the
+.B parent
+for the specified
+.B inode
+number and removes the matching entry.
+.SH "RETURN VALUE"
+.PP
+.ne 2
+.B proc_register
+always returns 0.
+.PP
+.B proc_register_dynamic
+.ne 2
+returns 0 for success or
+.B -EAGAIN
+if there are no free dynamic inode numbers.
+.PP
+.B proc_unregister
+.ne 2
+returns 0 for success or
+.B -EINVAL
+if the node was not found.
+.SH "SEE ALSO"
+.na
+.BR proc_net_register "(9), " proc_net_unregister "(9), " proc_scsi_register "(9), " proc_scsi_unregister "(9), " stat "(2)."
+.ad
+.SH AUTHOR
+Keith Owens <kaos@ocs.com.au>
+.SH BUGS
+The uniqueness of /proc inode numbers is assumed, not enforced.  It is
+possible to add two nodes with the same inode number.

@@ -1,0 +1,245 @@
+.\" Copyright (c) 2008, Linux Foundation, written by Michael Kerrisk
+.\" <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2008  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2008-08-21, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.04
+.\" 
+.TH CLOCK_NANOSLEEP 2 2008-07-09 "Linux" "Linux Programmer's Manual"
+.SH 名前
+clock_nanosleep \- 指定したクロックでの高精度な実行停止 (sleep)
+.SH 書式
+.B #include <time.h>
+.nf
+.sp
+.BI "int clock_nanosleep(clockid_t " clock_id ", int " flags ,
+.BI "                    const struct timespec *" request ,
+.BI "                    struct timespec *" remain );
+.fi
+.sp
+\fI\-lrt\fP でリンクする。
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR clock_nanosleep ():
+_XOPEN_SOURCE\ >=\ 600
+.SH 説明
+.BR clock_nanosleep ()
+を使うと、
+.BR nanosleep (2)
+同様、ナノ秒の精度で指定された期間だけ呼び出したスレッドの実行を
+停止することができる。
+.BR nanosleep (2)
+と違うのは、呼び出し側が停止期間をどのクロックに対して計測するのかを選択
+できる点と、停止期間を絶対値でも相対値でも指定できる点である。
+
+このシステムコールに渡したり、このシステムコールが返したりする時間の値は
+.I timespec
+構造体を使って指定される。この構造体の定義は以下の通りである。
+.sp
+.in +4n
+.nf
+struct timespec {
+    time_t tv_sec;        /* seconds */
+    long   tv_nsec;       /* nanoseconds [0 .. 999999999] */
+};
+.fi
+.in
+
+.I clock_id
+引き数で、停止期間をどのクロックに対して計測するかを指定する。
+この引き数には以下の値のいずれか一つを指定できる。
+.TP 17
+.BR CLOCK_REALTIME
+システム全体で使われる実時間クロック。
+このクロックは変更可能である。
+.TP
+.BR CLOCK_MONOTONIC
+過去のある時点からの時間を計測する、単調増加のクロック。
+起点となる時点はシステム起動後には変更されない。
+このクロックは変更することができない。
+.\" Linux では、このクロックは起動からの時間を計測する。
+.TP
+.BR CLOCK_PROCESS_CPUTIME_ID
+そのプロセスの全スレッドで消費される CPU 時間を計測するプロセス単位の
+クロック。このクロックは設定可能である。
+.\" There is some trickery between glibc and the kernel
+.\" to deal with the CLOCK_PROCESS_CPUTIME_ID case.
+.PP
+これらのクロックの詳細については
+.BR clock_getres (2)
+を参照。
+
+.I flags
+が 0 の場合、
+.I request
+に指定された値は
+.I clock_id
+で指定されたクロックの現在の値からの相対的な期間と解釈される。
+
+.I flags
+が
+.B TIMER_ABSTIME
+の場合、
+.I request
+は指定されたクロックで計測される絶対時刻と解釈される。
+.I request
+が指定されたクロックの現在の値以下の場合、
+.BR clock_nanosleep ()
+は、呼び出したスレッドの停止を行わず、すぐに返る。
+
+.BR clock_nanosleep ()
+は、少なくとも
+.I request
+で指定された時間が経過するまで、呼び出したスレッドの実行を停止する。
+シグナルハンドラが呼び出されたり、そのプロセスを終了させるような
+シグナルが配送されたりした場合にも、スレッドの実行停止は終了する。
+
+呼び出しがシグナルハンドラによって割り込まれた場合、
+.BR clock_nanosleep ()
+は \-1 を返し、
+.I errno
+に
+.B EINTR
+を設定する。それに加えて、
+.I remain
+が NULL でなく、かつ
+.I flags
+が
+.B TIMER_ABSTIME
+でない場合には、
+.I remain
+に残りの停止時間が返される。
+この値を使って
+.BR clock_nanosleep ()
+を再度呼び出すことで、(相対的な期間の) 停止を完了することができる。
+.SH 返り値
+要求された期間の停止に成功すると、
+.BR clock_nanosleep ()
+は 0 を返す。
+シグナルハンドラで割り込まれたり、エラーが発生したりした場合、
+正のエラー番号を返す。
+.SH エラー
+.TP
+.B EFAULT
+.I request
+や
+.I remain
+に無効なアドレスが指定された。
+.TP
+.B EINTR
+停止がシグナルハンドラにより割り込まれた。
+.TP
+.B EINVAL
+.I tv_nsec
+フィールドの値が 0 から 999999999 の範囲でないか、
+.I tv_sec
+の値が負であった。
+.TP
+.B EINVAL
+.I clock_id
+が無効であった
+.RB ( CLOCK_THREAD_CPUTIME_ID
+が
+.I clock_id
+として有効な値ではない)。
+.SH バージョン
+.BR clock_nanosleep ()
+システムコールは Linux 2.6 で初めて登場した。
+glibc ではバージョン 2.1 以降でサポートされている。
+.SH 準拠
+POSIX.1-2001.
+.SH 注意
+.I request
+で指定された停止期間が、時間の計測に使用されるクロック
+.RB ( time (7)
+参照) の精度の倍数ちょうどでない場合、停止期間は一番近い次の倍数に
+切り上げられる。さらに、停止が完了した後に、CPU が呼び出したスレッドを
+もう一度実行できるようになるまでには、遅延が入る可能性がある。
+
+絶対値指定のタイマを使うのは、
+.BR nanosleep (2)
+に書かれている類のタイマのずれの問題を防止するのに役立つ
+(この種の問題は、シグナルに割り込まれた際に相対指定の停止を
+繰り返し再開しようとするプログラムでは、かえって悪化する)。
+これらの問題を回避して相対指定の停止を実行するには、
+希望するクロックで
+.BR clock_gettime (2)
+を呼び出し、その返り値の時刻値に希望する期間を加算してから、
+.B TIMER_ABSTIME
+フラグを指定して
+.BR clock_nanosleep ()
+を呼び出す。
+
+.BR sigaction (2)
+で
+.BR SA_RESTART
+フラグが指定されているかに関わらず、
+シグナルハンドラにより割り込まれた後に
+.BR clock_nanosleep ()
+が再開されることは決してない。
+
+.I flags
+が
+.B TIMER_ABSTIME
+の場合、
+.I remain
+引き数は使用されず、不要である
+(絶対値での停止では、同じ
+.I request
+引き数を使って再度呼び出すことができる)。
+
+POSIX.1 の規定では、
+.BR clock_nanosleep ()
+はシグナルの処理方法やシグナルマスクに影響を与えない、とされている。
+
+POSIX.1 の規定では、
+.BR clock_settime (2)
+で
+.B CLOCK_REALTIME
+クロックの値を変更した後は、絶対値指定の
+.BR clock_nanosleep ()
+で停止しているスレッドを起動させる時刻の判定は、
+新しいクロック値を使って行われる、とされている。
+新しいクロック値において停止期間の終了時刻が過去になってしまった場合には、
+.BR clock_nanosleep ()
+はすぐに返ることになる。
+
+POSIX.1 の規定では、
+.BR clock_settime (2)
+で
+.B CLOCK_REALTIME
+クロックの値を変更しても、相対値指定の
+.BR clock_nanosleep ()
+で停止しているスレッドには影響を与えない、とされている。
+.SH 関連項目
+.BR clock_getres (2),
+.BR nanosleep (2),
+.BR timer_create (2),
+.BR sleep (3),
+.BR usleep (3),
+.BR time (7)

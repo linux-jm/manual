@@ -1,0 +1,222 @@
+'\" t
+.\"
+.\" Japanese Version Copyright (c) 2001 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Tue Mar 13 01:35:34 JST 2001
+.\"         by Yuichi SATO <sato@complex.eng.hokudai.ac.jp>
+.\" Updated & Modified Sat Sep  8 17:49:44 JST 2001
+.\"         by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated & Modified Mon Oct  8 21:37:26 JST 2001
+.\"         by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\"
+.\"WORD:	clear text	平文	
+.\"WORD:	manufacturer	製造メーカ
+.\"
+.TH PAPD 8 "06 Mar 2001" "netatalk 1.5"
+.SH 名前
+papd \- AppleTalk プリントサーバデーモン
+.SH 書式
+.B /usr/sbin/papd
+[
+.B -d
+] [
+.B -f
+.I configfile
+] [
+.B -p
+.I printcap
+]
+.SH 説明
+.B papd
+は AppleTalk プリンタデーモンである。
+このデーモンは、
+AppleTalk クライアント (通常は Macintosh コンピュータ) から
+プリンタアクセスプロトコル (Printer Access Protocol, PAP) を使って
+印刷ジョブを受け付ける。
+.B papd
+はネットワークからジョブを受け取ると、
+そのジョブを直接
+.BR lpd (8)
+のスプールディレクトリにスプールし、
+.B lpd
+を起動する。
+すると
+.B lpd
+は、対応する適切なスプールディレクトリがあるかどうかを再検査する。
+実際の印刷とスプールは、
+.B lpd
+が全て処理する。
+.B papd
+は印刷ジョブを外部プログラムにパイプで渡して処理させることができる。
+使っている lpd のくせによる互換性の問題を避けるには、
+この方法を用いると良い。
+.LP
+通常
+.B papd
+は、システムの init スクリプトからブート時に起動される。
+初めに設定ファイル
+.B /etc/netatalk/papd.conf
+を読み込む。
+このファイルは
+.B /etc/printcap
+と同じフォーマットである。
+詳細は
+.BR printcap (5)
+を参照すること。
+エントリの名前は
+.B NBP
+で登録されている。
+以下のオプションがサポートされている:
+.LP
+.TS
+c c l l
+cfB l l l .
+名前	タイプ	デフォルト	説明
+.sp .5
+pd	str	`.ppd'	PPD ファイルのパス名
+pr	str	`lp'	LPD プリンタ名 (または、印刷コマンドへのパイプ)
+op	str	`operator'	LPD スプーリングのオペレータ名
+ca	str	NULL	CAP 形式認証に使うファイルのパス名
+sp	bool	false	PSSP 形式認証
+am	str	NULL	認証に使う UAM (ユーザー認証モジュール)
+pa	str	NULL	プリンタの AppleTalk アドレス?
+.TE
+.LP
+設定ファイルが指定されない場合、
+ホスト名が NBP 名として使われ、全てのオプションがデフォルトの値になる。
+.SH オプション
+.TP
+.B -d
+fork しない。または端末から切り離さない。
+デバッグ情報を標準エラーに書き出す。
+.HP
+.B -f
+.I configfile
+.br
+設定情報として
+.B /etc/netatalk/papd.conf
+ではなく
+.I configfile
+を読み込む。
+.HP
+.B -p
+.I printcap
+.br
+LPD 設定情報として
+.B /etc/printcap
+ではなく
+.I printcap
+を読み込む。
+.SH 例
+以下の papd 設定ファイルは 3 つのプリントスプーラを設定する。
+1 番目のスプーラは NBP 名が
+.B Mac Printer Spooler
+で、/usr/share/lib/ppd にある PPD ファイルを使う。
+さらに、ユーザー mcs がスプールされる全てのジョブの所有者になる。
+2 番目のスプーラは
+.B HP Printer
+という名前で、全てのオプションがデフォルトである。
+3 番目のスプーラは
+.B HP 8100
+という名前である。
+このスプーラは印刷ジョブを行うために lpr を使う。
+PSSP 認証印刷が CAP 形式認証印刷と同様に有効にされている。
+\&'am' オプションが指定されているので、
+どちらの認証法でも guest と平文の認証が使える。
+使用される PPD は /etc/atalk/ppds/hp8100.ppd である。
+.sp
+.RS
+.nf
+Mac Printer Spooler:\\ 
+	:pr=ps:\\
+	:pd=/usr/share/lib/ppd/HPLJ_4M.PPD:\\
+	:op=mcs:
+
+HP Printer:\\ 
+	:
+
+HP 8100:\\
+	:pr=|/usr/bin/lpr -Plp:\\
+	:sp:\\
+	:ca=/tmp/print:\\
+	:am=uams_guest.so,uams_pam.so:\\
+	:pd=/etc/atalk/ppds/hp8100.ppd:
+.fi
+.RE
+.SH 注意
+PSSP (Print Server Security Protocol) はプリントサーバーに
+PostScript プリンタの問い合わせをさせる認証プロトコルである。
+PSSP を使うにはクライアント Mac 上に LaserWriter 8.6.1 以降が必要である。
+印刷を行う前に、ユーザー名とパスワードを入力するプロンプトが出る。
+PSSP を初めて有効にしたときは、
+各クライアント上のプリンタを再設定する必要があるかもしれない。
+これによりクライアントは印刷に認証が必要とされることを理解することができる。
+プリンタ毎に PSSP を有効にすることができる。
+PSSP は以下で説明する CAP 形式認証より堅牢なので、
+プリンタの認証にはこちらを使うと良い。
+.LP
+CAP 形式認証は、Mac クライアントでの印刷の認証で使われる
+CAP (Columbia APpletalk) パッケージの方法を用いて、
+ユーザー名を取得する。
+この方法では、印刷をする前に
+ユーザーがファイル共有にログインしている必要がある。
+.B afpd
+はユーザー名をクライアントの Appletalke アドレスにちなんだ
+テンポラリファイルに記録し、
+ユーザーが接続を切ると、このファイルを削除する。
+.B papd
+は接続してきているマシンの Appletalk アドレスと
+同じ名前のファイルからユーザー名を取得する。
+CAP 形式認証はどの Mac クライアントに対しても動作するだろう。
+あるプリンタに対して CAP と PSSP がともに有効になっている場合、
+最初に CAP が試みられ、(失敗した場合は) 次に PSSP を試みる。
+.LP
+
+('am' オプションで指定されて) 認証に使われる
+UAM (ユーザー認証モジュール) の一覧は全てのプリンタに適用される。
+各プリンタ毎に別の認証法を定義することはできない。
+UAM のリストを複数回指定することもできるが、
+最後の設定のみが使われる。
+現在のところ、プリンタの認証法としては
+uams_guest.so, uams_passwd.so, uams_pam.so のみがサポートされている。
+guest による方法では、有効なユーザー名が必要であるが、パスワードは必要ない。
+passwd と pam による方法では、
+有効なユーザー名と正しいパスワードの両方が必要である。
+.SH ファイル
+.TP 16
+.B /etc/netatalk/papd.conf
+デフォルトの設定ファイル。
+.TP 16
+.B /etc/printcap
+プリンタ機能のデータベース。
+.TP 16
+.B .ppd
+PostScript プリンタ記述ファイル。
+.B papd
+は、設定情報や印刷を行っているクライアントからのフォント要求を、
+設定された PPD ファイルに基づいて答える。
+このようなファイルは、Adobe, Inc のサイト
+ftp.adobe.com の /pub/adobe/printerdrivers/mac/all/ppdfiles/ から
+匿名 ftp (ftp://ftp.adobe.com//pub/adobe/printerdrivers/mac/all/ppdfiles/) によって、
+あるいはプリンタの製造メーカからも入手できる。
+PPD ファイルが設定されていない場合、
+.B papd
+はデフォルトの返答をする。
+これは、クライアントに非常に大きなジョブを送信させる可能性がある。
+.SH 関連項目
+.BR lpr (1),
+.BR lprm (1),
+.\" .BR pap (4),
+.BR printcap (5),
+.BR lpc (8),
+.BR lpd (8).
+.SH 警告
+.I papd
+は、クライアントから送られる
+ハイビットセット (フル 8 ビット) の文字を受け付ける。
+しかし、(Apple Computer の LaserWriter ファミリーを含む)
+PostScript プリンタの中には、
+デフォルトではシリアルインターフェース上から
+7 ビット文字しか受け付けないものがある。
+この場合は、プリンタがフル 8 ビットを受け付けるように
+プリンタを設定する必要がある。

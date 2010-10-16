@@ -1,0 +1,285 @@
+.\" Copyright (C) 2001 Andries Brouwer (aeb@cwi.nl)
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2001 NAKANO Takeo all rights reserved.
+.\" Translated Sat Dec 15 2001 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated 2009-04-13, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.20
+.\"
+.TH GETCONTEXT 2 2009-03-15 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O getcontext, setcontext \- get or set the user context
+.SH 名前
+getcontext, setcontext \- ユーザコンテキストを取得/設定する
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #include <ucontext.h>
+.sp
+.BI "int getcontext(ucontext_t *" ucp );
+.br
+.BI "int setcontext(const ucontext_t *" ucp );
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O In a System V-like environment, one has the two types
+.\"O \fImcontext_t\fP and \fIucontext_t\fP defined in
+.\"O .I <ucontext.h>
+.\"O and the four functions
+.\"O .BR getcontext (),
+.\"O .BR setcontext (),
+.\"O .BR makecontext (3)
+.\"O and
+.\"O .BR swapcontext (3)
+.\"O that allow user-level context switching between multiple
+.\"O threads of control within a process.
+System V 的な環境では、
+\fImcontext_t\fP および \fIucontext_t\fP という 2 つの型と、
+.BR getcontext (),
+.BR setcontext (),
+.BR makecontext (3),
+.BR swapcontext (3)
+という 4 つの関数が
+.I <ucontext.h>
+で定義されており、あるプロセス内部で制御下にある複数のスレッド間で、
+ユーザレベルのコンテキスト切替えができるようになっている。
+.LP
+.\"O The \fImcontext_t\fP type is machine-dependent and opaque.
+.\"O The \fIucontext_t\fP type is a structure that has at least
+.\"O the following fields:
+\fImcontext_t\fP 型はマシン依存で、外部からは隠蔽されている。
+\fIucontext_t\fP 型は構造体で、少なくとも以下の 4 つのフィールドを持つ。
+.in +4
+.nf
+
+typedef struct ucontext {
+    struct ucontext *uc_link;
+    sigset_t         uc_sigmask;
+    stack_t          uc_stack;
+    mcontext_t       uc_mcontext;
+    ...
+} ucontext_t;
+
+.fi
+.in
+.\"O with \fIsigset_t\fP and \fIstack_t\fP defined in
+.\"O .IR <signal.h> .
+.\"O Here \fIuc_link\fP points to the context that will be resumed
+.\"O when the current context terminates (in case the current context
+.\"O was created using
+.\"O .BR makecontext (3)),
+.\"O \fIuc_sigmask\fP is the
+.\"O set of signals blocked in this context (see
+.\"O .BR sigprocmask (2)),
+.\"O \fIuc_stack\fP is the stack used by this context (see
+.\"O .BR sigaltstack (2)),
+.\"O and \fIuc_mcontext\fP is the
+.\"O machine-specific representation of the saved context,
+.\"O that includes the calling thread's machine registers.
+\fIsigset_t\fP と \fIstack_t\fP は
+.I <signal.h>
+で定義されている。
+ここで \fIuc_link\fP は、
+現在のコンテキストが終了したとき、
+続いて切り替わるコンテキストへのポインタである
+(現在のコンテキストが
+.BR makecontext (3)
+で生成されたものの場合)。
+\fIuc_sigmask\fP はこのコンテキストでブロックされている
+シグナル群である
+.RB ( sigprocmask (2)
+を見よ)。
+\fIuc_stack\fP はこのコンテキストが用いているスタックである
+.RB ( signalstack (2)
+を見よ)。
+\fIuc_mcontext\fP は保存されているコンテキストの
+マシン特有の表現形式であり、
+ここには呼び出したスレッドのマシンレジスタが格納される。
+.LP
+.\"O The function
+.\"O .BR getcontext ()
+.\"O initializes the structure
+.\"O pointed at by \fIucp\fP to the currently active context.
+.BR getcontext ()
+関数は、
+ポインタ \fIucp\fP が指す構造体を、
+現在アクティブなコンテキストに初期化する。
+.LP
+.\"O The function
+.\"O .BR setcontext ()
+.\"O restores the user context
+.\"O pointed at by \fIucp\fP.
+.\"O A successful call does not return.
+.\"O The context should have been obtained by a call of
+.\"O .BR getcontext (),
+.\"O or
+.\"O .BR makecontext (3),
+.\"O or passed as third argument to a signal
+.\"O handler.
+.BR setcontext ()
+関数は、ポインタ
+\fIucp\fP が指すユーザコンテキストをリストアする。
+呼び出しに成功すると返らない。
+このコンテキストは、以前に
+.BR getcontext ()
+または
+.BR makecontext (3)
+で得られたものか、
+あるいはシグナルの第三引数として与えられたものになる。
+.LP
+.\"O If the context was obtained by a call of
+.\"O .BR getcontext (),
+.\"O program execution continues as if this call just returned.
+コンテキストが
+.BR getcontext ()
+の呼び出しによって得られていたものの場合は、
+プログラムはこの呼び出しから返った直後からのように実行を継続する。
+.LP
+.\"O If the context was obtained by a call of
+.\"O .BR makecontext 3(),
+.\"O program execution continues by a call to the function \fIfunc\fP
+.\"O specified as the second argument of that call to
+.\"O .BR makecontext (3).
+.\"O When the function \fIfunc\fP returns, we continue with the
+.\"O \fIuc_link\fP member of the structure \fIucp\fP specified as the
+.\"O first argument of that call to
+.\"O .BR makecontext (3).
+.\"O When this member is NULL, the thread exits.
+コンテキストが
+.BR makecontext (3)
+の呼び出しによって得られていたものの場合は、
+プログラムの実行はその
+.BR makecontext (3)
+呼び出しの第二引数で指定された関数 \fIfunc\fP
+を呼び出すかたちで継続する。
+\fIfunc\fP から返ると、
+.BR makecontext (3)
+呼び出しの第一引数で指定されていた
+\fIucp\fP 構造体の \fIuc_link\fP メンバで継続する。
+このメンバが NULL だった場合は、そのスレッドは終了する。
+.LP
+.\"O If the context was obtained by a call to a signal handler,
+.\"O then old standard text says that "program execution continues with the
+.\"O program instruction following the instruction interrupted
+.\"O by the signal".
+.\"O However, this sentence was removed in SUSv2,
+.\"O and the present verdict is "the result is unspecified".
+コンテキストがシグナルハンドラの呼び出しによって得られていたものの場合は、
+古い標準によれば
+「プログラムの実行はシグナルによって割り込まれた命令の次の命令から継続される」。
+しかしこの文は SUSv2 で削除されたので、
+現在の判断は「結果は定義されていない」である。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O When successful,
+.\"O .BR getcontext ()
+.\"O returns 0 and
+.\"O .BR setcontext ()
+.\"O does not return.
+.\"O On error, both return \-1 and set \fIerrno\fP
+.\"O appropriately.
+成功すると、
+.BR getcontext ()
+は 0 を返し、
+.BR setcontext ()
+は返らない。
+失敗すると、両者とも \-1 を返し、\fIerrno\fP をエラーに応じて設定する。
+.\"O .SH ERRORS
+.SH エラー
+.\"O None defined.
+定義されていない。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+SUSv2, POSIX.1-2001.
+.\"O POSIX.1-2008 removes the specification of
+.\"O .BR getcontext (),
+.\"O citing portability issues, and
+.\"O recommending that applications be rewritten to use POSIX threads instead.
+POSIX.1-2008 では、移植性の問題から
+.BR getcontext ()
+の仕様が削除された。
+代わりに、アプリケーションを POSIX スレッドを使って書き直すことが
+推奨されている。
+.\"O .SH NOTES
+.SH 注意
+.\"O The earliest incarnation of this mechanism was the
+.\"O .BR setjmp (3)/ longjmp (3)
+.\"O mechanism.
+.\"O Since that does not define
+.\"O the handling of the signal context, the next stage was the
+.\"O .BR sigsetjmp (3)/ siglongjmp (3)
+.\"O pair.
+.\"O The present mechanism gives much more control.
+.\"O On the other hand,
+.\"O there is no easy way to detect whether a return from
+.\"O .BR getcontext ()
+.\"O is from the first call, or via a
+.\"O .BR setcontext ()
+.\"O call.
+.\"O The user has to invent her own bookkeeping device, and a register
+.\"O variable won't do since registers are restored.
+このメカニズムの最古の実装は、
+.BR setjmp (3)/ longjmp (3)
+機構であった。
+これらにはシグナルコンテキストの取り扱いが定義されていなかったので、
+次の段階では
+.BR sigsetjmp (3)/ siglongjmp (3)
+のペアが現われた。
+現在の機構ではずっと細かな制御ができる。
+一方
+.BR getcontext ()
+から返ったとき、
+これが最初の呼び出しであったか、
+それとも
+.BR setcontext ()
+呼び出しからのものであるかを
+区別する容易な方法がなくなってしまった。
+ユーザは「しおり」機構を自分で作らなければならない。
+レジスタ変数は (レジスタはリストアされてしまうので) これをやってくれない。
+.LP
+.\"O When a signal occurs, the current user context is saved and
+.\"O a new context is created by the kernel for the signal handler.
+.\"O Do not leave the handler using
+.\"O .BR longjmp (3):
+.\"O it is undefined what would happen with contexts.
+.\"O Use
+.\"O .BR siglongjmp (3)
+.\"O or
+.\"O .BR setcontext ()
+.\"O instead.
+シグナルが発生すると、
+現在のユーザコンテキストは保存され、
+シグナルハンドラ用のコンテキストがカーネルによって生成される。
+今後はハンドラに
+.BR longjmp (3)
+を使わせないこと:
+この関数のコンテキスト下での動作は定義されていない。
+代わりに
+.BR siglongjmp (3)
+か
+.BR setcontext ()
+を使うこと。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR sigaction (2),
+.BR sigaltstack (2),
+.BR sigprocmask (2),
+.BR longjmp (3),
+.BR makecontext (3),
+.BR sigsetjmp (3)

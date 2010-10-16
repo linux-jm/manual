@@ -1,0 +1,449 @@
+.\"
+.\"  epoll by Davide Libenzi ( efficient event notification retrieval )
+.\"  Copyright (C) 2003  Davide Libenzi
+.\"
+.\"  This program is free software; you can redistribute it and/or modify
+.\"  it under the terms of the GNU General Public License as published by
+.\"  the Free Software Foundation; either version 2 of the License, or
+.\"  (at your option) any later version.
+.\"
+.\"  This program is distributed in the hope that it will be useful,
+.\"  but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"  GNU General Public License for more details.
+.\"
+.\"  You should have received a copy of the GNU General Public License
+.\"  along with this program; if not, write to the Free Software
+.\"  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+.\"
+.\"  Davide Libenzi <davidel@xmailserver.org>
+.\"
+.\" Japanese Version Copyright (c) 2004-2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated 2004-06-15, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2004-12-29, Yuichi SATO
+.\" Updated & Modified 2005-04-20, Yuichi SATO
+.\" Updated & Modified 2005-09-06, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2006-07-19, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.36
+.\" Updated 2009-02-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.19
+.\"
+.TH EPOLL_CTL 2 2009-01-17 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O epoll_ctl \- control interface for an epoll descriptor
+epoll_ctl \- epoll ディスクリプタのインタフェースを操作する
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #include <sys/epoll.h>
+.sp
+.BI "int epoll_ctl(int " epfd ", int " op ", int " fd \
+", struct epoll_event *" event );
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O This system call performs control operations on the epoll instance
+.\"O referred to by the file descriptor
+.\"O .IR epfd .
+.\"O It requests that the operation
+.\"O .I op
+.\"O be performed for the target file descriptor,
+.\"O .IR fd .
+このシステムコールは、ファイルディスクリプタ
+.I epfd
+が参照する epoll インスタンスに対する操作を行う。
+対象のファイルディスクリプタ
+.I fd
+に対して、操作
+.I op
+の実行が要求される。
+
+.\"O Valid values for the
+.\"O .I op
+.\"O argument are :
+.I op
+引き数に指定できる有効な値は以下の通りである。
+.TP
+.B EPOLL_CTL_ADD
+.\"O Register the target file descriptor
+.\"O .I fd
+.\"O on the
+.\"O .B epoll
+.\"O instance referred to by the file descriptor
+.\"O .I epfd
+.\"O and associate the event
+.\"O .I event
+.\"O with the internal file linked to
+.\"O .IR fd .
+対象のファイルディスクリプタ
+.I fd
+をファイルディスクリプタ
+.I epfd
+が参照する
+.B epoll
+インスタンスに登録し、イベント
+.I event
+を
+.I fd
+に結び付けられた内部ファイルに関連付ける。
+.TP
+.B EPOLL_CTL_MOD
+.\"O Change the event
+.\"O .I event
+.\"O associated with the target file descriptor
+.\"O .IR fd .
+イベント
+.I event
+を対象のファイルディスクリプタ
+.I fd
+に関連付けるように変更する。
+.TP
+.B EPOLL_CTL_DEL
+.\"O Remove (deregister) the target file descriptor
+.\"O .I fd
+.\"O from the
+.\"O .B epoll
+.\"O instance referred to by
+.\"O .IR epfd .
+.\"O The
+.\"O .I event
+.\"O is ignored and can be NULL (but see BUGS below).
+対象のファイルディスクリプタ
+.I fd
+を
+.I epfd
+が参照する
+.B epoll
+インスタンスから削除する。
+.I event
+引き数は無視されるので、NULL にすることもできる
+(但し、下記の「バグ」を参照)。
+.PP
+.\"O The
+.\"O .I event
+.\"O argument describes the object linked to the file descriptor
+.\"O .IR fd .
+.I event
+引き数は、ファイルディスクリプタ
+.I fd
+にリンクされたオブジェクトを表す。
+.\"O The
+.\"O .I struct epoll_event
+.\"O is defined as :
+.I struct epoll_event
+は以下のように定義される:
+.sp
+.in +4n
+.nf
+typedef union epoll_data {
+    void        *ptr;
+    int          fd;
+    __uint32_t   u32;
+    __uint64_t   u64;
+} epoll_data_t;
+
+.\"O struct epoll_event {
+.\"O     __uint32_t   events;      /* Epoll events */
+.\"O     epoll_data_t data;        /* User data variable */
+.\"O };
+struct epoll_event {
+    __uint32_t   events;      /* epoll イベント */
+    epoll_data_t data;        /* ユーザデータ変数 */
+};
+.fi
+.in
+
+.\"O The
+.\"O .I events
+.\"O member is a bit set composed using the following available event
+.\"O types:
+.I events
+メンバは、以下のような使用可能なイベントタイプを使って構成された
+ビットセットである。
+.TP
+.B EPOLLIN
+.\"O The associated file is available for
+.\"O .BR read (2)
+.\"O operations.
+関連付けられたファイルに対して、
+.BR read (2)
+操作が可能である。
+.TP
+.B EPOLLOUT
+.\"O The associated file is available for
+.\"O .BR write (2)
+.\"O operations.
+関連付けられたファイルに対して、
+.BR write (2)
+操作が可能である。
+.TP
+.\"O .BR EPOLLRDHUP " (since Linux 2.6.17)"
+.BR EPOLLRDHUP" (Linux 2.6.17 以降)"
+.\"O Stream socket peer closed connection,
+.\"O or shut down writing half of connection.
+.\"O (This flag is especially useful for writing simple code to detect
+.\"O peer shutdown when using Edge Triggered monitoring.)
+ストリームソケットの他端が、コネクションの close 、
+またはコネクションの書き込み側の shutdown を行った。
+(このフラグを使うと、エッジトリガの監視を行う場合に、
+通信のもう一端が閉じられたことを検知するコードを
+非常に簡潔に書くことができる。)
+.TP
+.B EPOLLPRI
+.\"O There is urgent data available for
+.\"O .BR read (2)
+.\"O operations.
+.BR read (2)
+操作が可能な緊急 (urgent) データがある。
+.TP
+.B EPOLLERR
+.\"O Error condition happened on the associated file descriptor.
+関連付けられたファイルディスクリプタにエラー条件が起こった。
+.\"O .BR epoll_wait (2)
+.\"O will always wait for this event; it is not necessary to set it in
+.\"O .IR events .
+.BR epoll_wait (2)
+は常にこのイベントを待つので、
+.I events
+に設定する必要はない。
+.TP
+.B EPOLLHUP
+.\"O Hang up happened on the associated file descriptor.
+関連付けられたファイルディスクリプタにハングアップが起こった。
+.\"O .BR epoll_wait (2)
+.\"O will always wait for this event; it is not necessary to set it in
+.\"O .IR events .
+.BR epoll_wait (2)
+は常にこのイベントを待つので、
+.I events
+に設定する必要はない。
+.TP
+.B EPOLLET
+.\"O Sets the Edge Triggered behavior for the associated file descriptor.
+関連付けられたファイルディスクリプタに
+エッジトリガ動作 (Edge Triggered behavior) を設定する。
+.\"O The default behavior for
+.\"O .B epoll
+.\"O is Level Triggered.
+.\"O See
+.\"O .BR epoll (7)
+.\"O for more detailed information about Edge and Level Triggered event
+.\"O distribution architectures.
+.\"O
+.\"Osato: 最後の 2 行にある Edge and Level ... architectures を
+.\"Osato: どこで切ってよいか分からない。
+.\"Omotoki: 今の分割場所でいいんではないでしょうか。
+.\"O
+.B epoll
+のデフォルトの動作は、レベルトリガ (Level Triggered) である。
+エッジトリガとレベルトリガによるイベント分配機構
+(event distribution architectures) についての詳細な情報は、
+.BR epoll (7)
+を参照すること。
+.TP
+.\"O .BR EPOLLONESHOT " (since Linux 2.6.2)"
+.BR EPOLLONESHOT " (Linux 2.6.2 以降)"
+.\"O Sets the one-shot behavior for the associated file descriptor.
+.\"O This means that after an event is pulled out with
+.\"O .BR epoll_wait (2)
+.\"O the associated file descriptor is internally disabled and no other events
+.\"O will be reported by the
+.\"O .B epoll
+.\"O interface.
+.\"O The user must call
+.\"O .BR epoll_ctl ()
+.\"O with
+.\"O .B EPOLL_CTL_MOD
+.\"O to rearm the file descriptor with a new event mask.
+関連付けられたファイルディスクリプタに
+一撃動作 (One-Shot  behavior) を設定する。
+これはイベントが
+.BR epoll_wait (2)
+によって引き出された後、
+関連付けられたファイルディスクリプタが内部的に破棄され、
+.B epoll
+インタフェースによってイベントが報告されなくなることを意味する。
+新しいイベントマスクでファイルディスクリプタを再度有効にするためには、
+.BR epoll_ctl ()
+に
+.B EPOLL_CTL_MOD
+を指定して呼び出さなければならない。
+.\"O Valid values for the
+.\"O .I op
+.\"O argument are :
+.I op
+引き数に指定できる有効な値は、以下の通り:
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O When successful,
+.\"O .BR epoll_ctl ()
+.\"O returns zero.
+.\"O When an error occurs,
+.\"O .BR epoll_ctl ()
+.\"O returns \-1 and
+.\"O .I errno
+.\"O is set appropriately.
+成功した場合、
+.BR epoll_ctl ()
+は 0 を返す。
+エラーが起こった場合、
+.BR epoll_ctl ()
+は \-1 を返し、
+.I errno
+を適切に設定する。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EBADF
+.\"O .I epfd
+.\"O or
+.\"O .I fd
+.\"O is not a valid file descriptor.
+.I epfd
+か
+.I fd
+が有効なファイルディスクリプタでない。
+.TP
+.B EEXIST
+.\"O .I op
+.\"O was
+.\"O .BR EPOLL_CTL_ADD ,
+.\"O and the supplied file descriptor
+.\"O .I fd
+.\"O is already registered with this epoll instance.
+.I op
+が
+.B EPOLL_CTL_ADD
+であり、かつ与えられたファイルディスクリプタ
+.I fd
+がこの epoll インスタンスに既に登録されている。
+.TP
+.B EINVAL
+.\"O .I epfd
+.\"O is not an
+.\"O .B epoll
+.\"O file descriptor,
+.\"O or
+.\"O .I fd
+.\"O is the same as
+.\"O .IR epfd ,
+.\"O or the requested operation
+.\"O .I op
+.\"O is not supported by this interface.
+.I epfd
+が
+.B epoll
+ファイルディスクリプタでない。
+または
+.I fd
+が
+.I epfd
+と同一である。
+または要求された操作
+.I op
+がこのインタフェースでサポートされていない。
+.TP
+.B ENOENT
+.\"O .I op
+.\"O was
+.\"O .B EPOLL_CTL_MOD
+.\"O or
+.\"O .BR EPOLL_CTL_DEL ,
+.\"O and
+.\"O .I fd
+.\"O is not registered with this epoll instance.
+.I op
+が
+.B EPOLL_CTL_MOD
+または
+.B EPOLL_CTL_DEL
+で、かつ
+.I fd
+がこの epoll インスタンスに登録されていない。
+.TP
+.B ENOMEM
+.\"O There was insufficient memory to handle the requested
+.\"O .I op
+.\"O control operation.
+要求された
+.I op
+制御操作を扱うのに十分なメモリがない。
+.TP
+.B ENOSPC
+.\"O The limit imposed by
+.\"O .I /proc/sys/fs/epoll/max_user_watches
+.\"O was encountered while trying to register
+.\"O .RB ( EPOLL_CTL_ADD )
+.\"O a new file descriptor on an epoll instance.
+.\"O See
+.\"O .BR epoll (7)
+.\"O for further details.
+epoll インスタンスに新しいファイルディスクリプタを登録
+.RB ( EPOLL_CTL_ADD )
+しようとした際に、
+.I /proc/sys/fs/epoll/max_user_watches
+で決まる上限に達した。
+詳細は
+.BR epoll (7)
+を参照。
+.TP
+.B EPERM
+.\"O The target file
+.\"O .I fd
+.\"O does not support
+.\"O .BR epoll .
+対象ファイル
+.I fd
+が
+.B epoll
+をサポートしていない。
+.\"O .SH CONFORMING TO
+.SH 準拠
+.\"O .BR epoll_ctl ()
+.\"O is Linux-specific, and was introduced in kernel 2.5.44.
+.BR epoll_ctl ()
+は Linux 独自であり、カーネル 2.5.44 で導入された。
+.\"O .\" The interface should be finalized by Linux kernel 2.5.66.
+.\" インタフェースは Linux カーネル 2.5.66 で確定されるべきである。
+.\"O .SH NOTES
+.SH 備考
+.\"O The
+.\"O .B epoll
+.\"O interface supports all file descriptors that support
+.\"O .BR poll (2).
+.B epoll
+インタフェースは、
+.BR poll (2)
+に対応している全てのファイルディスクリプタに対応している。
+.\"O .SH BUGS
+.SH バグ
+.\"O In kernel versions before 2.6.9, the
+.\"O .B EPOLL_CTL_DEL
+.\"O operation required a non-NULL pointer in
+.\"O .IR event ,
+.\"O even though this argument is ignored.
+.\"O Since Linux 2.6.9,
+.\"O .I event
+.\"O can be specified as NULL
+.\"O when using
+.\"O .BR EPOLL_CTL_DEL .
+Linux 2.6.9 より前では、
+.B EPOLL_CTL_DEL
+操作の際、引き数
+.I event
+に (たとえ無視される場合であっても) NULL でないポインタを渡す必要があった。
+カーネル 2.6.9 以降では、
+.B EPOLL_CTL_DEL
+を使う際に
+.I event
+に NULL を指定できるようになっている。
+.\"O Applications that need to be portable to kernels before 2.6.9
+.\"O should specify a non-NULL pointer in
+.\"O .IR event .
+2.6.9 より前のカーネルへの移植性が必要なアプリケーションでは、
+.I event
+に NULL でないポインタを指定すべきである。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR epoll_create (2),
+.BR epoll_wait (2),
+.BR poll (2),
+.BR epoll (7)

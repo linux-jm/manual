@@ -1,0 +1,256 @@
+'\" t
+.\" Copyright (c) 2005 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2005 Akihiro MOTOKI all rights reserved.
+.\" Translated 2005-12-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH SIGVEC 3 2007-07-26 "Linux" "Linux Programmer's Manual"
+.SH 名前
+sigvec, sigblock, sigsetmask, siggetmask, sigmask \- BSD 版シグナル API
+.SH 書式
+.B #include <signal.h>
+.sp
+.BI "int sigvec(int " sig ", struct sigvec *" vec ", struct sigvec *" ovec );
+.sp
+.BI "int sigmask(int " signum );
+.sp
+.BI "int sigblock(int " mask );
+.sp
+.BI "int sigsetmask(int " mask );
+.sp
+.B int siggetmask(void);
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+上記の全ての関数:
+_BSD_SOURCE
+.SH 説明
+これらの関数は、昔ながらの BSD 版シグナル API を使用しているプログラム
+に対して互換性のあるインタフェースを glibc で提供するものである。
+この API は過去のものであり、新しいアプリケーションでは
+POSIX シグナル API
+.RB ( sigaction (2),
+.BR sigprocmask (2)
+など) を使用すべきである。
+
+関数
+.BR sigvec ()
+は、(POSIX の
+.BR sigaction (2)
+と同様に) シグナル
+.I sig
+の動作の設定・取得を行う。
+.I vec
+は、NULL 以外の場合、
+.I sig
+の新しい動作を定義した
+.I sigvec
+構造体へのポインタである。
+.I ovec
+は、NULL 以外の場合、
+.I sig
+の変更前の動作を返すために使用される
+.I sigvec
+構造体へのポインタである。
+.I sig
+の動作を変更せずに現在の動作を取得するためには、
+.I vec
+に NULL を指定し、
+.I ovec
+に NULL でないポインタを指定すればよい。
+
+.B SIGKILL
+と
+.B SIGSTOP
+の動作は変更できない。
+
+.I sigvec
+構造体は以下の通りである:
+.in +4n
+.nf
+
+struct sigvec {
+    void (*sv_handler)();  /* Signal disposition */
+    int    sv_mask;        /* Signals to be blocked in handler */
+    int    sv_flags;       /* Flags */
+};
+
+.fi
+.in
+.I sv_handler
+フィールドはシグナルの動作を指定するもので、
+シグナルハンドラ関数のアドレスか、
+.B SIG_DFL
+と
+.B SIG_IGN
+のいずれかを指定できる。
+.B SIG_DFL
+はシグナルに適用されるデフォルトの動作を意味し、
+.B SIG_IGN
+はシグナルを無視することを意味する。
+
+.I sv_handler
+にシグナルハンドラのアドレスを指定した場合、
+.I sv_mask
+はハンドラが実行中にブロックされるべきシグナルのマスクを指定する。
+また、ハンドラを起動したシグナル自身はデフォルトでブロックされる。
+.B SIGKILL
+か
+.B SIGSTOP
+をブロックしようとした場合には、黙って無視される。
+
+.I sv_handler
+にシグナルハンドラのアドレスを指定した場合、
+.I sv_flags
+フィールドはハンドラが呼ばれた際の挙動を制御するフラグを指定する。
+このフィールドには、0 か、以下のフラグを 1個以上指定できる:
+.TP
+.B SV_INTERRUPT
+シグナルハンドラが停止中のシステムコールを中断した場合、
+ハンドラから復帰しても、システムコールは再開されず、
+エラー
+.B EINTR
+で失敗する。
+このフラグを指定しなかった場合、システムコールは
+デフォルトで再開される。
+.TP
+.B SV_RESETHAND
+シグナルハンドラを呼び出す前にシグナルの動作を
+デフォルトにリセットする。
+このフラグを指定しなかった場合、もう一度
+.BR sigvec ()
+を呼び出して明示的に削除されるか、プロセスが
+.BR execve (2)
+を実行するまで、ハンドラは設定されたままとなる。
+.TP
+.B SV_ONSTACK
+代替シグナルスタック上でシグナルハンドラを実行する
+(歴史的に、BSD では代替シグナルスタックは廃止された関数
+.BR sigstack ()
+を使って設定する。POSIX では、代わりに
+.BR sigaltstack (2)
+を使用する)。
+.PP
+関数
+.BR sigmask ()
+は
+.I signum
+に対する「シグナルマスク」を構成して返す。
+例えば、以下のようなコードを使うと、
+.BR sigvec ()
+に渡す
+.I vec.sv_mask
+を初期化できる。
+.nf
+
+    vec.sv_mask = sigmask(SIGQUIT) | sigpause(SIGABRT);
+                /* Block SIGQUIT and SIGABRT during
+                   handler execution */
+.fi
+.PP
+.BR sigblock ()
+関数は、
+.I mask
+にあるシグナルをプロセスのシグナルマスクに追加し
+(POSIX の
+.I sigprocmask(SIG_BLOCK)
+と同様)、変更前のプロセスのシグナルマスクを返す。
+.B SIGKILL
+や
+.B SIGSTOP
+をブロックしようとした場合には、黙って無視される。
+.PP
+.BR sigsetmask ()
+関数はプロセスのシグナルマスクを
+.I mask
+で指定された値に設定し (POSIX の
+.I sigprocmask(SIG_SETMASK)
+と同様)、変更前のプロセスのシグナルマスクを返す。
+.PP
+.BR siggetmask ()
+関数はプロセスの現在のシグナルマスクを返す。この関数は
+.I sigblock(0)
+と等価である。
+.SH 返り値
+.BR sigvec ()
+関数は成功すると 0 を返す。エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値をセットする。
+
+.BR sigblock ()
+と
+.BR sigsetmask ()
+は変更前のシグナルマスクを返す。
+
+.BR sigmask ()
+関数は
+.I signum
+のシグナルマスクを返す。
+.SH エラー
+.BR sigaction (2)
+と
+.BR sigprocmask (2)
+の「エラー」の節を参照。
+.SH 準拠
+これらの関数のうち
+.BR siggetmask ()
+以外の全ては 4.3BSD にあった。
+.BR siggetmask ()
+の出自ははっきりしない。
+これらの関数は廃止予定であり、新しいプログラムでは使用しないこと。
+.SH 注意
+4.3BSD では、信頼性のあるシグナル処理機構を提供する
+.RI ( vec.sv_mask
+を 0 で
+.BR sigvec ()
+を呼び出したときと同様)。
+System V が提供する処理機構は信頼性のないものである。
+POSIX.1-2001 では、
+.BR signal ()
+のこの点は規定しないままとなっている。
+さらなる詳細については
+.BR signal (2)
+を参照。
+
+BSD と System V のどちらのシステムでも
+シグナルを待つために、
+.BR sigpause (3)
+という名前の関数が提供されているが、
+この関数の引き数は両方のシステムで異なる。
+詳細は
+.BR sigpause (3)
+を参照。
+.SH 関連項目
+.BR kill (2),
+.BR pause (2),
+.BR sigaction (2),
+.BR signal (2),
+.BR sigprocmask (2),
+.BR raise (3),
+.BR sigpause (3),
+.BR sigset (3),
+.BR signal (7)

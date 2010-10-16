@@ -1,0 +1,746 @@
+'\" t
+.\" Don't change the first line, it tells man that tbl is needed.
+.\" This man page is Copyright (c) 1998 by Andi Kleen. Subject to the GPL.
+.\" Based on the original comments from Alexey Kuznetsov
+.\" $Id: netlink.7,v 1.8 2000/06/22 13:23:00 ak Exp $
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Translated 1999-12-06 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated 2001-04-04 by Yuichi SATO <ysato@h4.dion.ne.jp>, catch up to LDP v1.35
+.\" Updated 2006-06-23 by Yuichi SATO <ysato444@yahoo.co.jp>, catch up to LDP v2.29
+.\"
+.\"WORD		payload		ペイロード
+.\"WORD		capability	権限
+.\"
+.TH NETLINK  7 2008-11-11 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O netlink \- Communication between kernel and userspace (AF_NETLINK)
+netlink \- カーネルとユーザー空間の通信 (AF_NETLINK)
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #include <asm/types.h>
+.B #include <sys/socket.h>
+.B #include <linux/netlink.h>
+
+.BI "netlink_socket = socket(AF_NETLINK, " socket_type ", " netlink_family );
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O Netlink is used to transfer information between kernel and
+.\"O userspace processes.
+.\"O It consists of a standard sockets-based interface for userspace
+.\"O processes and an internal kernel API for kernel modules.
+.\"O The internal kernel interface is not documented in this manual page.
+.\"O There is also an obsolete netlink interface
+.\"O via netlink character devices; this interface is not documented here
+.\"O and is only provided for backwards compatibility.
+netlink はカーネルモジュールとユーザー空間のプロセス間で
+情報をやりとりするために用いられる。
+netlink は、ユーザープロセスに対しては
+標準的なソケットベースのインターフェースを、
+カーネルモジュールにはカーネルの内部 API を提供する。
+カーネル内部のインターフェースについてはこの man ページでは記述しない。
+また、netlink キャラクタデバイスを用いた
+obsolete な netlink インターフェースもあるが、これもこの文書では解説しない。
+これは単に過去互換性のために用意されているものにすぎない。
+
+.\"O Netlink is a datagram-oriented service.
+.\"O Both
+.\"O .B SOCK_RAW
+.\"O and
+.\"O .B SOCK_DGRAM
+.\"O are valid values for
+.\"O .IR socket_type .
+.\"O However, the netlink protocol does not distinguish between datagram
+.\"O and raw sockets.
+netlink はデータグラム指向のサービスである。
+.I socket_type
+には
+.B SOCK_RAW
+と
+.B SOCK_DGRAM
+の両方とも指定可能である。
+しかし netlink プロトコルはデータグラムと raw ソケットの区別をしない。
+
+.\"O .I netlink_family
+.\"O selects the kernel module or netlink group to communicate with.
+.\"O The currently assigned netlink families are:
+.I netlink_family
+は、通信するカーネルモジュールや netlink グループの選択に用いる。
+現在割り当てられている netlink ファミリーは以下の通り。
+.TP
+.B NETLINK_ROUTE
+.\"O Receives routing and link updates and may be used to modify the routing
+.\"O tables (both IPv4 and IPv6), IP addresses, link parameters,
+.\"O neighbor setups, queueing disciplines, traffic classes and
+.\"O packet classifiers (see
+.\"O .BR rtnetlink (7)).
+ルーティングとリンクの更新を受信する。
+(IPv4 と IPv6 両方の) ルーティングテーブル・
+IP アドレス・リンクパラメータ・近傍設定 (neighbor setup)・
+キューイングルール (queueing dicipline)・トラフィッククラス・
+パケットのクラス分類の修正に用いることができるだろう
+.RB ( rtnetlink (7)
+を見よ)。
+.TP
+.B NETLINK_W1
+.\"O Messages from 1-wire subsystem.
+単線 (1-wire) のサブシステムからのメッセージ。
+.TP
+.B NETLINK_USERSOCK
+.\"O Reserved for user-mode socket protocols.
+ユーザーモードソケットプロトコルのために予約されている。
+.TP
+.B NETLINK_FIREWALL
+.\"O Transport IPv4 packets from netfilter to userspace.
+.\"O Used by
+.\"O .I ip_queue
+.\"O kernel module.
+IPv4 パケットを netfilter からユーザー空間へ転送する。
+.I ip_queue
+カーネルモジュールで使用される。
+.TP
+.B NETLINK_INET_DIAG
+.\" FIXME More details on NETLINK_INET_DIAG needed.
+.\"O INET socket monitoring.
+INET ソケットをモニタリングする。
+.TP
+.B NETLINK_NFLOG
+Netfilter/iptables ULOG.
+.TP
+.B NETLINK_XFRM
+.\" FIXME More details on NETLINK_XFRM needed.
+IPsec.
+.TP
+.B NETLINK_SELINUX
+.\"O SELinux event notifications.
+SELinux のイベント通知。
+.TP
+.B NETLINK_ISCSI
+.\" FIXME More details on NETLINK_ISCSI needed.
+Open-iSCSI.
+.TP
+.B NETLINK_AUDIT
+.\" FIXME More details on NETLINK_AUDIT needed.
+.\"O Auditing.
+監査 (audit) を行う。
+.TP
+.B NETLINK_FIB_LOOKUP
+.\" FIXME More details on NETLINK_FIB_LOOKUP needed.
+.\"O Access to FIB lookup from userspace.
+ユーザー空間から FIB ルックアップにアクセスする。
+.TP
+.B NETLINK_CONNECTOR
+.\"O Kernel connector.
+.\"O See
+.\"O .I Documentation/connector/*
+.\"O in the kernel source for further information.
+カーネルコネクタ。
+より詳しい情報はカーネルソースの
+.I Documentation/connector/*
+を参照すること。
+.TP
+.B NETLINK_NETFILTER
+.\" FIXME More details on NETLINK_NETFILTER needed.
+.\"O Netfilter subsystem.
+netfilter サブシステム。
+.TP
+.B NETLINK_IP6_FW
+.\"O Transport IPv6 packets from netfilter to userspace.
+.\"O Used by
+.\"O .I ip6_queue
+.\"O kernel module.
+IPv6 パケットを netfilter からユーザー空間へ転送する。
+.I ip6_queue
+カーネルモジュールで使用される。
+.TP
+.B NETLINK_DNRTMSG
+.\"O DECnet routing messages.
+DECnet ルーティングメッセージ。
+.TP
+.B NETLINK_KOBJECT_UEVENT
+.\" FIXME More details on NETLINK_KOBJECT_UEVENT needed.
+.\"O Kernel messages to userspace.
+ユーザー空間へのカーネルメッセージ
+.TP
+.B NETLINK_GENERIC
+.\"O Generic netlink family for simplified netlink usage.
+netlink を簡単に使用するための一般的な netlink ファミリー。
+.PP
+.\"O Netlink messages consist of a byte stream with one or multiple
+.\"O .I nlmsghdr
+.\"O headers and associated payload.
+netlink メッセージはバイトストリームからなり、
+一つ以上の
+.I nlmsghdr
+ヘッダと、それに対応するペイロード (payload) が含まれる。
+.\"O The byte stream should only be accessed with the standard
+.\"O .B NLMSG_*
+.\"O macros.
+.\"O See
+.\"O .BR netlink (3)
+.\"O for further information.
+バイトストリームには、標準の
+.B NLMSG_*
+マクロによってのみアクセスすべきである。
+より詳しい情報は
+.BR netlink (3)
+を見よ。
+
+.\"O In multipart messages (multiple
+.\"O .I nlmsghdr
+.\"O headers with associated payload in one byte stream) the first and all
+.\"O following headers have the
+.\"O .B NLM_F_MULTI
+.\"O flag set, except for the last header which has the type
+.\"O .BR NLMSG_DONE .
+マルチパートメッセージ (一つ以上の
+.I nlmsghdr
+ヘッダと、それに対応するペイロードが
+一つバイトストリームに含まれる) においては、
+先頭のヘッダ・後続のヘッダには
+.B NLM_F_MULTI
+フラグがセットされる。ただし最後のヘッダだけは例外で、
+.B NLMSG_DONE
+タイプとなる。
+
+.\"O After each
+.\"O .I nlmsghdr
+.\"O the payload follows.
+それぞれの
+.B nlmsghdr
+の後にはペイロードが続く。
+
+.in +4n
+.nf
+struct nlmsghdr {
+.\"O     __u32 nlmsg_len;    /* Length of message including header. */
+.\"O     __u16 nlmsg_type;   /* Type of message content. */
+.\"O     __u16 nlmsg_flags;  /* Additional flags. */
+.\"O     __u32 nlmsg_seq;    /* Sequence number. */
+.\"O     __u32 nlmsg_pid;    /* PID of the sending process. */
+    __u32 nlmsg_len;    /* ヘッダを含むメッセージの長さ */
+    __u16 nlmsg_type;   /* メッセージの内容のタイプ */
+    __u16 nlmsg_flags;  /* 追加フラグ */
+    __u32 nlmsg_seq;    /* シーケンス番号 */
+    __u32 nlmsg_pid;    /* 送信プロセスの PID */
+};
+.fi
+.in
+
+.\"O .I nlmsg_type
+.\"O can be one of the standard message types:
+.\"O .B NLMSG_NOOP
+.\"O message is to be ignored,
+.\"O .B NLMSG_ERROR
+.\"O message signals an error and the payload contains an
+.\"O .I nlmsgerr
+.\"O structure,
+.\"O .B NLMSG_DONE
+.\"O message terminates a multipart message.
+.I nlmsg_type
+は標準のメッセージタイプのどれか一つである:
+.B NLMSG_NOOP
+メッセージは無視される。
+.B NLMSG_ERROR
+メッセージはエラーを示し、ペイロードには
+.I nlmsgerr
+構造体が入る。
+.B NLMSG_DONE
+メッセージはマルチパートメッセージの終了を伝える。
+
+.in +4n
+.nf
+struct nlmsgerr {
+.\"O     int error;        /* Negative errno or 0 for acknowledgements */
+.\"O     struct nlmsghdr msg;  /* Message header that caused the error */
+    int error;        /* 負または 0 の errno は応答を表す */
+    struct nlmsghdr msg;  /* エラーを起こしたメッセージのヘッダ */
+};
+.fi
+.in
+
+.\"O A netlink family usually specifies more message types, see the
+.\"O appropriate manual pages for that, for example,
+.\"O .BR rtnetlink (7)
+.\"O for
+.\"O .BR NETLINK_ROUTE .
+ある netlink ファミリーで指定できるメッセージタイプは、
+通常もっと多い。これらに関しては適切な man ページを見てほしい。
+たとえば
+.B NETLINK_ROUTE
+に関しては
+.BR rtnetlink (7)
+に書いてある。
+
+.\"O Standard flag bits in
+.\"O .I nlmsg_flags
+.I nlmsg_flags
+の標準フラグビット
+.br
+---------------------------------
+.TS
+tab(:);
+lB l.
+.\"O NLM_F_REQUEST:Must be set on all request messages.
+.\"O NLM_F_MULTI:T{
+.\"O The message is part of a multipart message terminated by
+.\"O .BR NLMSG_DONE .
+.\"O T}
+.\"O NLM_F_ACK:Request for an acknowledgment on success.
+.\"O NLM_F_ECHO:Echo this request.
+NLM_F_REQUEST:要求メッセージ全てでセットされなければならない。
+NLM_F_MULTI:T{
+このメッセージはマルチパートメッセージの一部である。
+マルチパートメッセージは
+.B NLMSG_DONE
+で終端する。
+T}
+NLM_F_ACK:成功した場合の応答を要求する。
+NLM_F_ECHO:この要求をエコーする。
+.TE
+
+.\"O Additional flag bits for GET requests
+GET 要求における追加フラグビット
+.br
+-------------------------------------
+.TS
+tab(:);
+lB l.
+.\"O NLM_F_ROOT:Return the complete table instead of a single entry.
+.\"O NLM_F_MATCH:T{
+.\"O Return all entries matching criteria passed in message content.
+.\"O Not implemented yet.
+.\"O T}
+.\" FIXME NLM_F_ATOMIC is not used any more?
+.\"O NLM_F_ATOMIC:Return an atomic snapshot of the table.
+.\"O NLM_F_DUMP:Convenience macro; equivalent to (NLM_F_ROOT|NLM_F_MATCH).
+NLM_F_ROOT:単一のエントリではなくテーブル全体を返す。
+NLM_F_MATCH:T{
+メッセージの内容で渡された基準 (criteria) にマッチする
+全てのエントリを返す。
+まだ実装されていない。
+T}
+NLM_F_ATOMIC:テーブルのアトミックなスナップショットを返す。
+NLM_F_DUMP:便利なマクロ。(NLM_F_ROOT|NLM_F_MATCH) と同じ。
+.TE
+
+.\"O Note that
+.\"O .B NLM_F_ATOMIC
+.\"O requires the
+.\"O .B CAP_NET_ADMIN
+.\"O capability or an effective UID of 0.
+.B NLM_F_ATOMIC
+を使う場合は、
+.B CAP_NET_ADMIN
+権限を持つか実効ユーザー ID が 0 でなければならない点に注意すること。
+
+.\"O Additional flag bits for NEW requests
+NEW 要求における追加フラグビット
+.br
+-------------------------------------
+.TS
+tab(:);
+lB l.
+.\"O NLM_F_REPLACE:Replace existing matching object.
+.\"O NLM_F_EXCL:Don't replace if the object already exists.
+.\"O NLM_F_CREATE:Create object if it doesn't already exist.
+.\"O NLM_F_APPEND:Add to the end of the object list.
+NLM_F_REPLACE:現存のオブジェクトを置換する。
+NLM_F_EXCL:すでにオブジェクトがあったら置換しない。
+NLM_F_CREATE:まだオブジェクトがなければ作成する。
+NLM_F_APPEND:オブジェクトリストの最後に追加する。
+.TE
+
+.\"O .I nlmsg_seq
+.\"O and
+.\"O .I nlmsg_pid
+.\"O are used to track messages.
+.I nlmsg_seq
+と
+.I nlmsg_pid
+はメッセージの追跡に使用される。
+.\"O .I nlmsg_pid
+.\"O shows the origin of the message.
+.I nlmsg_pid
+はメッセージの送信元を表す。
+.\"O Note that there isn't a 1:1 relationship between
+.\"O .I nlmsg_pid
+.\"O and the PID of the process if the message originated from a netlink
+.\"O socket.
+メッセージが netlink ソケットで送信されている場合、
+.I nlmsg_pid
+とプロセスの PID は 1:1 の関係ではない点に注意すること。
+.\"O See the
+.\"O .B ADDRESS FORMATS
+.\"O section for further information.
+より詳しい情報は、
+.RB 「 アドレスのフォーマット 」
+のセクションを参照すること。
+
+.\"O Both
+.\"O .I nlmsg_seq
+.\"O and
+.\"O .I nlmsg_pid
+.\"O .\" FIXME Explain more about nlmsg_seq and nlmsg_pid.
+.\"O are opaque to netlink core.
+.I nlmsg_seq
+と
+.I nlmsg_pid
+は netlink のコアには見えない (opaque)。
+
+.\"O Netlink is not a reliable protocol.
+netlink は信頼性の高いプロトコルではない。
+.\"O It tries its best to deliver a message to its destination(s),
+.\"O but may drop messages when an out-of-memory condition or
+.\"O other error occurs.
+.\"O For reliable transfer the sender can request an
+.\"O acknowledgement from the receiver by setting the
+.\"O .B NLM_F_ACK
+.\"O flag.
+.\"O An acknowledgment is an
+.\"O .B NLMSG_ERROR
+.\"O packet with the error field set to 0.
+netlink はメッセージを行き先に届けるために最善を尽くすが、
+メモリが足りなかったりエラーが起こったりすると
+メッセージを取りこぼすこともある。
+信頼性の高い転送を行いたいときは、
+送信者は受信者に応答を要求することもできる。
+これには
+.B NLM_F_ACK
+フラグをセットする。
+応答は
+.B NLMSG_ERROR
+パケットのエラーフィールドを 0 にしたものになる。
+.\"O The application must generate acknowledgements for
+.\"O received messages itself.
+.\"O The kernel tries to send an
+.\"O .B NLMSG_ERROR
+.\"O message for every failed packet.
+アプリケーションは自分自身のメッセージを受けたときには、
+応答を生成しなければならない。
+カーネルは失敗したパケットに対して、
+.B NLMSG_ERROR
+メッセージを送ろうとする。
+.\"O A user process should follow this convention too.
+ユーザープロセスはこの慣習にも従う必要がある。
+
+.\"O However, reliable transmissions from kernel to user are impossible
+.\"O in any case.
+しかし、どのような場合でもカーネルからユーザーへの
+信頼性の高い転送は不可能である。
+.\"O The kernel can't send a netlink message if the socket buffer is full:
+.\"O the message will be dropped and the kernel and the userspace process will
+.\"O no longer have the same view of kernel state.
+ソケットバッファが満杯の場合、カーネルは netlink メッセージを送信できない。
+メッセージは取りこぼされて、カーネルとユーザー空間プロセスは、
+カーネルの状態についての同じビューを持つことができなくなる。
+.\"O It is up to the application to detect when this happens (via the
+.\"O .B ENOBUFS
+.\"O error returned by
+.\"O .BR recvmsg (2))
+.\"O and resynchronize.
+これが起こったこと
+.RB ( recvmsg (2)
+によって
+.B ENOBUFS
+エラーが返される) を検知して再び同期させるのは、
+アプリケーションの責任である。
+.\"O .SS Address Formats
+.SS アドレスのフォーマット
+.\"O The
+.\"O .I sockaddr_nl
+.\"O structure describes a netlink client in user space or in the kernel.
+.\"O A
+.\"O .I sockaddr_nl
+.\"O can be either unicast (only sent to one peer) or sent to
+.\"O netlink multicast groups
+.\"O .RI ( nl_groups
+.\"O not equal 0).
+.I sockaddr_nl
+構造体はユーザー空間やカーネル空間で netlink クライアントを記述する。
+.I sockaddr_nl
+はユニキャスト (単一の接続先にだけ送られる) にもできるし、
+netlink マルチキャストグループ
+.RI ( nl_groups
+が 0 でない場合) にも送ることができる。
+
+.in +4n
+.nf
+struct sockaddr_nl {
+.\"O     sa_family_t     nl_family;  /* AF_NETLINK */
+.\"O     unsigned short  nl_pad;     /* Zero. */
+.\"O     pid_t           nl_pid;     /* Process ID. */
+.\"O     __u32           nl_groups;  /* Multicast groups mask. */
+    sa_family_t     nl_family;  /* AF_NETLINK */
+    unsigned short  nl_pad;     /* 0 である */
+    pid_t           nl_pid;     /* プロセス ID */
+    __u32           nl_groups;  /* マルチキャストグループマスク */
+};
+.fi
+.in
+
+.\"O .I nl_pid
+.\"O is the unicast address of netlink socket.
+.\"O It's always 0 if the destination is in the kernel.
+.I nl_pid
+は netlink ソケットのユニキャストアドレスである。
+行き先がカーネルの場合は、常に 0 である。
+.\"O For a userspace process,
+.\"O .I nl_pid
+.\"O is usually the PID of the process owning the destination socket.
+ユーザー空間プロセスの場合、通常は
+.I nl_pid
+は行き先のソケットを所有しているプロセスの PID である。
+.\"O However,
+.\"O .I nl_pid
+.\"O identifies a netlink socket, not a process.
+ただし、
+.I nl_pid
+はプロセスではなく netlink ソケットを同定する。
+.\"O If a process owns several netlink
+.\"O sockets, then
+.\"O .I nl_pid
+.\"O can only be equal to the process ID for at most one socket.
+プロセスが複数の netlink ソケットを所有する場合、
+.I nl_pid
+は最大でも一つのソケットのプロセス ID としか等しくならない。
+.\"O There are two ways to assign
+.\"O .I nl_pid
+.\"O to a netlink socket.
+.I nl_pid
+を netlink ソケットに割り当てる方法は 2 つある。
+.\"O If the application sets
+.\"O .I nl_pid
+.\"O before calling
+.\"O .BR bind (2),
+.\"O then it is up to the application to make sure that
+.\"O .I nl_pid
+.\"O is unique.
+アプリケーションが
+.BR bind (2)
+を呼ぶ前に
+.I nl_pid
+を設定する場合、
+.I nl_pid
+が一意であることを確認するのはアプリケーションの責任となる。
+.\"O If the application sets it to 0, the kernel takes care of assigning it.
+アプリケーションが
+.I nl_pid
+を 0 に設定した場合、カーネルがこの値を割り当てる。
+.\"O The kernel assigns the process ID to the first netlink socket the process
+.\"O opens and assigns a unique
+.\"O .I nl_pid
+.\"O to every netlink socket that the process subsequently creates.
+カーネルはプロセスが最初にオープンした
+netlink ソケットに対してプロセス ID を割り当て、
+それ以降にプロセスが作成した全ての netlink ソケットにも一意な
+.I nl_pid
+を割り当てる。
+
+.\"O .I nl_groups
+.\"O is a bit mask with every bit representing a netlink group number.
+.I nl_groups
+はビットマスクで、すべてのビットが netlink グループ番号を表す。
+.\"O Each netlink family has a set of 32 multicast groups.
+それぞれの netlink ファミリーは 32 のマルチキャストグループのセットを持つ。
+.\"O When
+.\"O .BR bind (2)
+.\"O is called on the socket, the
+.\"O .I nl_groups
+.\"O field in the
+.\"O .I sockaddr_nl
+.\"O should be set to a bit mask of the groups which it wishes to listen to.
+それぞれの netlink ファミリーは 32 のマルチキャストグループの
+セットを持つ。
+.BR bind (2)
+がソケットに対して呼ばれると、
+.I sockaddr_nl
+の
+.I nl_groups
+フィールドには listen したいグループのビットマスクがセットされる。
+.\"O The default value for this field is zero which means that no multicasts
+.\"O will be received.
+.\"O A socket may multicast messages to any of the multicast groups by setting
+.\"O .I nl_groups
+.\"O to a bit mask of the groups it wishes to send to when it calls
+.\"O .BR sendmsg (2)
+.\"O or does a
+.\"O .BR connect (2).
+デフォルトの値は 0 で、マルチキャストを一切受信しない。
+.BR sendmsg (2)
+や
+.BR connect (2)
+によって、あるソケットからメッセージをマルチキャストしたいときは、
+.I nl_groups
+に送信したいグループのビットマスクをセットすればよい。
+.\"O Only processes with an effective UID of 0 or the
+.\"O .B CAP_NET_ADMIN
+.\"O capability may send or listen to a netlink multicast group.
+実効ユーザー ID が 0 か、
+.B CAP_NET_ADMIN
+権限を持つユーザーのみが netlink マルチキャストグループに
+送信したり、これを listen したりすることができる。
+.\"O Any replies to a message received for a multicast group should be
+.\"O sent back to the sending PID and the multicast group.
+マルチキャストグループ向けメッセージを受信した場合、これ対する応答は
+送り主の PID とマルチキャストグループとに送り返すべきである。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O The socket interface to netlink is a new feature of Linux 2.2.
+netlink へのソケットインターフェースは Linux 2.2 の新機能である。
+
+.\"O Linux 2.0 supported a more primitive device based netlink interface
+.\"O (which is still available as a compatibility option).
+.\"O This obsolete interface is not described here.
+Linux 2.0 は、もっと原始的なデバイスベースの netlink インターフェースを
+サポートしていた (これも互換性のために今でも使用できる)。
+古いインターフェースに関してはここでは記述しない。
+
+.\"O NETLINK_SELINUX appeared in Linux 2.6.4.
+NETLINK_SELINUX は Linux 2.6.4 で登場した。
+
+.\"O NETLINK_AUDIT appeared in Linux 2.6.6.
+NETLINK_AUDIT は Linux 2.6.6 で登場した。
+
+.\"O NETLINK_KOBJECT_UEVENT appeared in Linux 2.6.10.
+NETLINK_KOBJECT_UEVENT は Linux 2.6.10 で登場した。
+
+.\"O NETLINK_W1 and NETLINK_FIB_LOOKUP appeared in Linux 2.6.13.
+NETLINK_W1, NETLINK_FIB_LOOKUP は Linux 2.6.13 で登場した。
+
+.\"O NETLINK_INET_DIAG, NETLINK_CONNECTOR and NETLINK_NETFILTER appeared in
+.\"O Linux 2.6.14.
+NETLINK_INET_DIAG, NETLINK_CONNECTOR, NETLINK_NETFILTER は
+Linux 2.6.14 で登場した。
+
+.\"O NETLINK_GENERIC and NETLINK_ISCSI appeared in Linux 2.6.15.
+NETLINK_GENERIC, NETLINK_ISCSI は Linux 2.6.15 で登場した。
+.\"O .SH NOTES
+.SH 注意
+.\"O It is often better to use netlink via
+.\"O .I libnetlink
+.\"O or
+.\"O .I libnl
+.\"O than via the low-level kernel interface.
+低レベルのカーネルインターフェースより、
+.I libnetlink
+または
+.I libnl
+を通して netlink を利用するほうが良いことが多い。
+.\"O .SH BUGS
+.\"O This manual page is not complete.
+.SH バグ
+この man ページは完成していない。
+.\"O .SH EXAMPLE
+.SH 例
+.\"O The following example creates a
+.\"O .B NETLINK_ROUTE
+.\"O netlink socket which will listen to the
+.\"O .B RTMGRP_LINK
+.\"O (network interface create/delete/up/down events) and
+.\"O .B RTMGRP_IPV4_IFADDR
+.\"O (IPv4 addresses add/delete events) multicast groups.
+以下の例では、
+.B RTMGRP_LINK
+(ネットワークインターフェースの create/delete/up/down イベント) と
+.B RTMGRP_IPV4_IFADDR
+(IPv4 アドレスの add/delete イベント) マルチキャストグループを listen する
+.B NETLINK_ROUTE
+netlink を作成している。
+
+.in +4n
+.nf
+struct sockaddr_nl sa;
+
+memset(&sa, 0, sizeof(sa));
+sa.nl_family = AF_NETLINK;
+sa.nl_groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR;
+
+fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+bind(fd, (struct sockaddr *) &sa, sizeof(sa));
+.fi
+.in
+
+.\"O The next example demonstrates how to send a netlink message to the
+.\"O kernel (pid 0).
+.\"O Note that application must take care of message sequence numbers
+.\"O in order to reliably track acknowledgements.
+次の例では、netlink メッセージをカーネル (pid 0) に送る方法を示している。
+応答を追跡する際の信頼性を高めるために、アプリケーションが
+メッセージのシーケンス番号を正しく処理しなければならない点に注意すること。
+
+.in +4n
+.nf
+.\"O struct nlmsghdr *nh;    /* The nlmsghdr with payload to send. */
+struct nlmsghdr *nh;    /* 送信する nlmsghdr とペイロード */
+struct sockaddr_nl sa;
+struct iovec iov = { (void *) nh, nh\->nlmsg_len };
+struct msghdr msg;
+
+msg = { (void *)&sa, sizeof(sa), &iov, 1, NULL, 0, 0 };
+memset(&sa, 0, sizeof(sa));
+sa.nl_family = AF_NETLINK;
+nh\->nlmsg_pid = 0;
+nh\->nlmsg_seq = ++sequence_number;
+.\"O /* Request an ack from kernel by setting NLM_F_ACK. */
+/* NLM_F_ACK を設定することで、カーネルに応答を要求する */
+nh\->nlmsg_flags |= NLM_F_ACK;
+
+sendmsg(fd, &msg, 0);
+.fi
+.in
+
+.\"O And the last example is about reading netlink message.
+最後は、netlink メッセージの読み込みの例である。
+
+.in +4n
+.nf
+int len;
+char buf[4096];
+struct iovec iov = { buf, sizeof(buf) };
+struct sockaddr_nl sa;
+struct msghdr msg;
+struct nlmsghdr *nh;
+
+msg = { (void *)&sa, sizeof(sa), &iov, 1, NULL, 0, 0 };
+len = recvmsg(fd, &msg, 0);
+
+for (nh = (struct nlmsghdr *) buf; NLMSG_OK (nh, len);
+     nh = NLMSG_NEXT (nh, len)) {
+.\"O     /* The end of multipart message. */
+    /* マルチパートメッセージの終わり */
+    if (nh\->nlmsg_type == NLMSG_DONE)
+        return;
+
+    if (nh\->nlmsg_type == NLMSG_ERROR)
+.\"O         /* Do some error handling. */
+        /* 何らかのエラー処理を行う */
+    ...
+
+.\"O     /* Continue with parsing payload. */
+    /* ペイロードの解析を続ける */
+    ...
+}
+.fi
+.in
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR cmsg (3),
+.BR netlink (3),
+.BR capabilities (7),
+.BR rtnetlink (7)
+.PP
+.\"O ftp://ftp.inr.ac.ru/ip-routing/iproute2*
+.\"O for information about libnetlink.
+libnetlink に関する情報は
+ftp://ftp.inr.ac.ru/ip-routing/iproute2*
+
+.\"O http://people.suug.ch/~tgr/libnl/
+.\"O for information about libnl.
+libnl に関する情報は
+http://people.suug.ch/~tgr/libnl/
+
+RFC 3549 "Linux Netlink as an IP Services Protocol"

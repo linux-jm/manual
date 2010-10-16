@@ -1,0 +1,305 @@
+.\" cytune.8 -- 
+.\" Created: Sat Mar  4 17:44:53 1995 by faith@cs.unc.edu
+.\" Update: Sat Mar  4 18:22:24 1995 by faith@cs.unc.edu
+.\" Update: Sun Mar  5 06:40:12 1995 by njs@scifi.emi.net
+.\" Copyright 1995 Rickard E. Faith (faith@cs.unc.edu)
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" "
+.\" Japanese Version Copyright (c) 1997 Koso Fukuba
+.\"         all rights reserved.
+.\" Translated Mon Jan 27 12:00:00 JST 1997
+.\"         by Koso Fukuba <koso@ga2.so-net.or.jp>
+.\" Updated & Modified Fri May  6 23:31:41 JST 2005
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\"
+.TH CYTUNE 8 " 4 Mar 1995" "" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O cytune \- Tune Cyclades driver parameters
+cytune \- Cyclades ドライバーパラメータのチューニング
+.\"O .SH SYNOPSIS
+.SH 書式
+.BI "cytune [-q [-i " interval "]] ([-s " value "]|[-S " value "]) [-g|G] "
+.BI ([-t " timeout" ]|[-T " timeout" ]) " tty" " [" tty " ...]"
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .B cytune
+.\"O queries and modifies the interruption threshold for the Cyclades driver.
+.B cytune
+は、Cyclades ドライバーの割り込み発生の閾値の表示と変更を行う。
+.\"O Each serial line on a Cyclades card has a 12-byte FIFO for input (and
+.\"O another 12-byte FIFO for output).  The "threshold" specifies how many input
+.\"O characters must be present in the FIFO before an interruption is raised.
+Cyclades カード上の各シリアルラインは、入力データ用に 12 バイトの 
+FIFO を持っている (出力用には、別の 12 バイトの FIFO を持っている)。
+閾値には、割り込みを発生させるまで FIFO 中に蓄えるデータのバイト数を指定する。
+.\"O When a Cyclades tty is opened, this threshold is set to a default value
+.\"O based on baud rate:
+Cyclades の tty がオープンされると、この閾値は、
+以下のようにボーレートによって定められたデフォルト値に設定される:
+.sp
+.RS
+.\"O     Baud        Threshold
+ボーレート        閾値
+.sp 
+50-4800            10
+.br
+9600                8
+.br
+19200               4
+.br
+38400               2
+.br
+57600-150000        1
+.RE
+.PP
+.\"O If the threshold is set too low, the large number of interruptions can load
+.\"O the machine and decrease overall system throughput.  If the threshold is set too high, the
+.\"O FIFO buffer can overflow, and characters will be lost.  Slower machines,
+.\"O however, may not be able to deal with the interrupt load, and will require
+.\"O that the threshold be adjusted upwards.
+閾値が低すぎると、割り込み回数が増大し、マシンの負荷が高くなるため、
+システムの全体的なスループットが低下する。
+閾値が高すぎると、FIFO バッファがオーバーフローしやすくなり、
+データが失われることになる。
+また、遅いマシンでは、割り込みの負荷に耐え切れないかも知れないため、
+閾値を高めに調整する必要がある。
+.PP
+.\"O If the cyclades driver was compiled with 
+.\"O .B ENABLE_MONITORING
+.\"O defined, the cytune command can be used with the
+.\"O .B \-q
+.\"O option to report interrupts over the monitoring interval and 
+.\"O characters transferred over the monitoring interval.  It will also report 
+.\"O the state of the FIFO.  The maximum number of characters in the FIFO when 
+.\"O an interrupt occurred, the instantaneous count of characters in the FIFO,
+.\"O and how many characters are now in the FIFO are reported.  This output might 
+.\"O look like this:
+Cyclades ドライバーが、
+.B ENABLE_MONITORING
+付きでコンパイルされている場合には、cytune コマンドに
+.B \-q
+オプションを指定して、モニタリング周期中に転送されたデータ数と
+モニタリング周期中の割り込み回数をレポートさせることができる。
+また、FIFO の状態もレポートされる。
+割り込み発生時の FIFO 中の最大データ数、FIFO 中のデータ数の瞬時値、
+現在の FIFO 中のデータ数がレポートされる。
+この出力は、次のようになる:
+.sp
+.RS
+/dev/cubC0: 830 ints, 9130 chars; fifo: 11 threshold, 11 max, 11 now
+.br
+   166.259866 interrupts/second, 1828.858521 characters/second
+.RE
+.PP
+.\"O This output indicates that for this monitoring period, the interrupts were 
+.\"O always being handled within one character time, because
+.\"O .B max
+.\"O never rose above 
+.\"O .BR threshold .
+この結果をみると、このモニタリングサイクルの間、
+.B max
+の値が決して上記の\fB閾値 (threshold)\fR の値を越えることがないため、
+割り込みは常に所定の時間内に処理されていることがわかる。
+.\"O This is good, and you can probably run this way, provided that a large 
+.\"O number of samples come out this way.  You will lose characters if you 
+.\"O overrun the FIFO, as the Cyclades hardware does not seem to support 
+.\"O the RTS RS-232 signal line for hardware flow control from the 
+.\"O DCE to the DTE.
+この例を見るかぎりでは処理はうまく行なわれている。
+より長い時間サンプリングしてみて大丈夫なようならば、この設定で問題ないだろう。
+Cyclades のハードウェアは、DCE から DTE へのハードウェアフロー制御のための
+RS-232C の RTS ラインをサポートしているようには見えないので、
+FIFO がオーバーランすると、データが失われてしまう。
+.PP
+.\"O In query mode
+.\"O .B cytune
+.\"O will produce a summary report when ended with 
+.\"O a SIGINT or when the threshold or timeout is changed.
+問い合わせモードで起動すると、
+.B cytune
+は、SIGINT で終了させるか、閾値を超えるか、
+タイムアウトが発生するまでのサマリーを出力する。
+.PP
+.\"O There may be a responsiveness vs. throughput tradeoff.  The Cyclades card, 
+.\"O at the higher speeds, is capable of putting a very high interrupt load on the
+.\"O system.  This will reduce the amount of CPU time available for other tasks
+.\"O on your system.  However, the time it takes to respond to a single character
+.\"O may be increased if you increase the threshold.  This might be noticed by
+.\"O monitoring
+.\"O .BR ping (8)
+.\"O times on a SLIP link controlled by a Cyclades card.  If your SLIP link is
+.\"O generally used for interactive work such as
+.\"O .BR telnet (1),
+.\"O you may want to leave the threshold low, so that characters are responded
+.\"O to as quickly as possible.  If your SLIP link is generally used for file
+.\"O transfer, WWW, and the like, setting the FIFO to a high value is likely to
+.\"O reduce the load on your system while not significantly affecting
+.\"O throughput.  Alternatively, see the
+.\"O .B \-t
+.\"O or 
+.\"O .B \-T
+.\"O options to adjust the time that the cyclades waits before flushing its 
+.\"O buffer.  Units are 5ms.
+応答性とスループットはトレードオフの関係にある。
+Cyclades のカードは、高速時 (高速の接続で FIFO の閾値を小さくした時) には、
+とても割り込み負荷が高くなる。
+このため、システム上で他のタスクで使用できる CPU 時間が少なくなる。
+一方、閾値を大きくすると、1 文字当たりの応答にかかる時間が増大する。
+このことは、Cyclades のカードを使って SLIP 接続しているホストに対して
+.BR ping (8)
+を実行してみればわかる。
+SLIP を通常、
+.BR telnet (1)
+のような対話的な作業に使用する場合は、出来るだけ早いレスポンスを得るために、
+閾値を低くしたくなる。
+SLIP をファイル転送や WWW などに使用する場合は、
+スループットに (悪) 影響が出ず、システムの負荷を抑えるために、
+FIFO の設定を大きな値にする方が良い。
+これとは別に、
+.B \-t
+あるいは
+.B \-T
+オプションを使うと、cyclades がバッファをフラッシュするまでの待ち時間
+を調整できる。単位は、5ms である。
+.PP
+.\"O If you are running a mouse on a Cyclades port, it is likely that you would
+.\"O want to maintain the threshold and timeout at a low value.
+Cyclades のポートにマウスをつないでいる場合は、閾値とタイムアウト値を
+低い値にしたくなる。
+.PP
+.\"O .SH OPTIONS
+.SH オプション
+.TP
+.BI \-s " value"
+.\"O Set the current threshold to
+.\"O .I value
+.\"O characters.  Note that if the
+.\"O .I tty
+.\"O is not being held open by another process, the threshold will be reset on
+.\"O the next open.  Only values between 1 and 12, inclusive, are permitted.
+現在の閾値を
+.I value
+文字に設定する。
+.I tty
+が、他のプロセスによってオープンされていなければ、閾値は次回のオープン
+時にリセットされる。指定する値は、1 〜 12 の範囲内でなくてはならない。
+.TP
+.BI \-t " value"
+.\"O Set the current flush timeout to
+.\"O .I value
+.\"O units.  Note that if the
+.\"O .I tty
+.\"O is not being held open by another process, the threshold will be reset on
+.\"O the next open.  Only values between 0 and 255, inclusive, are permitted.
+現在のバッファフラッシュのタイムアウト時間を
+.I value
+に設定する。
+.I tty
+が、他のプロセスによってオープンされていなければ、
+タイムアウト時間は次回のオープン時にリセットされる。
+指定する値は、0 〜 255 の範囲内でなくてはならない。
+.\"O Setting
+.\"O .I value
+.\"O to zero forces the default, currently 0x20 (160ms), but soon to be 0x02
+.\"O (10ms).  Units are 5 ms.
+.I value
+に 0 を指定すると、デフォルト値 (現在は 0x20 (160ms)) が使用されるが、
+すぐに 0x02 (10ms) になる。設定単位は、5 ms である。
+.TP
+.B \-g
+.\"O Get the current threshold and timeout.
+現在の閾値とタイムアウト値を表示する。
+.TP
+.BI \-T " value"
+.\"O Set the default flush timeout to
+.\"O .I value
+.\"O units.  When the
+.\"O .I tty
+.\"O is next opened, this value will be used instead of the default.  If
+.\"O .I value
+.\"O is zero, then the the value will default to 0x20 (160ms), soon to be 0x02
+.\"O (10ms).
+デフォルトのバッファフラッシュタイムアウト値を
+.I value
+にする。
+.I tty
+の次回オープン時に、この値がデフォルト値の代わりに使用される。
+.I value
+に 0 を指定すると、デフォルト値 0x20 (160) となるが、
+すぐに 0x02 (10ms) となる。
+.TP
+.B \-G
+.\"O Get the default threshold and flush timeout values.
+デフォルトの閾値とバッファフラッシュタイムアウト値を表示する。
+.TP
+.B \-q
+.\"O Gather statistics about the
+.\"O .IR tty .
+.\"O The results are only valid if the Cyclades driver has been compiled with
+.\"O .B ENABLE_MONITORING
+.\"O defined.  This is probably not the default.
+.I tty
+に関する統計情報を表示する。
+この結果は、Cyclades ドライバーが
+.B ENABLE_MONITORING
+付きでコンパイルされている場合にのみ有効である。
+おそらく、デフォルトでは、
+.B ENABLE_MONITORING
+は付いていない。
+.TP
+.BI \-i " interval"
+.\"O Statistics will be gathered every
+.\"O .I interval
+.\"O seconds.
+統計情報を収集する周期を
+.I interval
+秒に設定する。
+.\"O .SH BUGS
+.SH バグ
+.\"O If you run two copies of
+.\"O .B cytune
+.\"O at the same time to report statistics about the same port,
+.\"O the 'ints', 'chars', and 'max' value will be reset 
+.\"O and not reported correctly.
+.\"O .B cytune
+.\"O should prevent this, but does not.
+同じポートの統計情報を取得するために、同時に 2 つの
+.B cytune
+を実行すると、
+\&'ints', 'chars', 'max' の値はリセットされ、正しい結果を得ることができない。
+.B cytune
+は、これを避けるべきだが、そうなっていない。
+.\"O .\" .SH AUTHOR
+.\"O .\" Nick Simicich (njs@scifi.emi.net), with modifications by
+.\"O .\" Rik Faith (faith@cs.unc.edu)
+.\" .SH 著者
+.\" Nick Simicich (njs@scifi.emi.net).
+.\" Rik Faith (faith@cs.unc.edu) が修正を行った。
+.\"O .SH FILES
+.SH ファイル
+.I /dev/ttyC[0-8]
+.br
+.I /dev/cubC[0-8]
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR setserial (8)

@@ -1,0 +1,220 @@
+.\" -*- nroff -*-
+.\" Copyright 1995 Yggdrasil Computing, Incorporated.
+.\" written by Adam J. Richter (adam@yggdrasil.com),
+.\" with typesetting help from Daniel Quinlan (quinlan@yggdrasil.com).
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
+.\" USA.
+.\"
+.\" Japanese Version Copyright (c) 1998 NAKANO Takeo all rights reserved.
+.\" Translated Sat May 23 1998 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified Tue Sep 14 1999 by NAKANO Takeo 
+.\"
+.TH DLOPEN 3 "16 May 1995" "Linux" "Linux Programmer's Manual"
+.SH 名前
+dlclose, dlerror, dlopen, dlsym \- ダイナミックリンクを行うローダへのプログラミングインターフェース
+.SH 書式
+.B #include <dlfcn.h>
+.sp
+.BI "void *dlopen (const char *" "filename" ", int " flag ");
+.br
+.BI "const char *dlerror(void);"
+.br
+.BI "void *dlsym(void *"handle ", char *"symbol ");"
+.br
+.BI "int dladdr(void *"address ", Dl_info *"dlip ");"
+.br
+.BI "int dlclose (void *"handle ");
+.sp
+特殊なシンボル:
+.BR "_init" ", " "_fini" ". "
+.SH 説明
+.B dlopen
+は null 終端文字列
+.I filename
+で指定された名前のファイルをダイナミックライブラリとしてロードし、
+そのダイナミックライブラリへ
+の非透過 (opaque) な「ハンドル」を返す。
+.\"?? opaque ハンドル?
+.I filename
+が絶対パス ("/" で始まるパス) で\fIない\fP場合には、ファイル
+は以下の場所から検索される。
+.RS
+.PP
+ユーザーの \fBLD_LIBRARY\fP 環境変数で指定された、コロン区切りのディ
+レクトリリスト。
+.PP
+\fI/etc/ld.so.cache\fP 中にあるライブラリのリスト。
+.PP
+\fI/usr/lib\fP、 次いで \fI/lib\fP。
+.RE
+.PP
+.I filename
+が NULL ポインタである場合は、
+返されるハンドルはメインプログラムのものになる。
+.PP
+オープンされたライブラリ中での外部参照は、
+そのライブラリの依存リストにあるライブラリか、すでに
+.B RTLD_GLOBAL
+フラグと共にオープンされているライブラリを用いて解決される。
+実行ファイルが "-rdynamic" フラグとともにリンクされている場合は、
+実行ファイル中のグローバルシンボルも、
+ダイナミックにロードされるライブラリへの参照解決に用いられる。
+.PP
+.I flag
+は以下のいずれかでなければならない:
+.B RTLD_LAZY
+はダイナミックライブラリのコードが実行される際に
+未定義シンボルを順次解決していくことを示し、
+.B RTLD_NOW
+は
+.B dlopen
+の処理の最後ですべての未定義シンボルを解決し、これができない場合には 
+dlopen が失敗となることを示す。さらに
+.B RTLD_GLOBAL
+を
+.I flag
+に OR 演算させることもできる。この場合には、ライブラリで定義されている
+外部シンボルが、引き続いてロードされる他のライブラリでも有効になる。
+.PP
+ライブラリが
+.B _init
+という名前のルーチンをエクスポートしていれば、 dlopen が終了する前にそ
+のコードが実行される。同じライブラリが
+.B dlopen()
+によって二度ロードされた場合には、同じファイルハンドルが返される。
+dl ライブラリはダイナミックファイルハンドルのリンク数を保持している。
+したがってダイナミックライブラリは
+.B dlclose
+が
+.B dlopen
+と同じ回数だけ呼び出されなければアンロードされない。
+.PP
+.B dlopen
+は、何らかの理由で失敗すると NULL を返す。
+dl ルーチン (dlopen, dlsym, dlclose) のいずれかで
+最も近い過去に生じたエラーは、
+.B dlerror()
+によって人間に可読な形で表示させることができる。
+.B dlerror
+は初期化された時点、あるいは最後に呼び出された時点からエラーが起こって
+いなければ NULL を返す。 (
+.B dlerror()
+を 2 回続けて呼び出すと、 2 度目のコールでは必ず NULL が返る。)
+.PP
+.B dlsym
+は dlopen によって返されたダイナミックライブラリの「ハンドル」と、 
+ヌル文字で終端された文字列のシンボル名を引き数に取り、
+そのシンボルがロードされているアドレスを返す。
+シンボルが見つからない場合には、
+.B dlsym
+は NULL を返す。しかし
+.B dlsym
+のエラーを調べるには、
+.B dlerror
+の結果を変数に保存し、
+それが NULL でないかどうかをチェックするのが正しいやり方である。
+シンボルの値が実際に NULL である場合もあり得るからである。また
+.B dlerror
+の結果を変数に保存しておくことも必要なことである。なぜならもう一度
+.B dlerror
+を呼び出すと、返り値は NULL となってしまうからである。
+.PP
+.B dladdr
+は、
+.I address
+で指定されたメモリ位置を所有している共有ライブラリに関する情報を返す。
+.B dladdr
+は成功するとゼロを、失敗すると非ゼロの値を返す。
+.PP
+.B dlclose
+はダイナミックライブラリのハンドル
+.I handle
+の参照カウントを 1 減らす。参照カウントが 0 になり、他でロードされてい
+るライブラリによってシンボルが使われていなければ、そのダイナミックライ
+ブラリはアンロードされる。そのダイナミックライブラリによって
+.B _fini
+という名前のルーチンがエクスポートされている場合には、
+ライブラリをアンロードする直前にそのルーチンが呼び出される。
+.SH 例
+.B math ライブラリをロードし、2.0 の余弦を表示する。
+.RS
+.nf
+.if t .ft CW
+#include <dlfcn.h>
+
+int main(int argc, char **argv) {
+    void *handle = dlopen ("/lib/libm.so", RTLD_LAZY);
+    double (*cosine)(double) = dlsym(handle, "cos");
+    printf ("%f\\n", (*cosine)(2.0));
+    dlclose(handle);
+}
+.if t .ft P
+.fi
+.PP
+このプログラムを "foo.c" に書いたとすると、以下のコマンドでプログラム
+をビルドすることができる。
+.RS
+.LP
+gcc -rdynamic -o foo foo.c -ldl
+.RE
+.RE
+.LP
+.B 同じことをしているが、すべての段階でエラーチェックを行っている:
+.RS
+.nf
+.if t .ft CW
+#include <stdio.h>
+#include <dlfcn.h>
+
+int main(int argc, char **argv) {
+    void *handle;
+    double (*cosine)(double);
+    char *error;
+
+    handle = dlopen ("/lib/libm.so", RTLD_LAZY);
+    if (!handle) {
+        fputs (dlerror(), stderr);
+        exit(1);
+    }
+
+    cosine = dlsym(handle, "cos");
+    if ((error = dlerror()) != NULL)  {
+        fputs(error, stderr);
+        exit(1);
+    }
+
+    printf ("%f\\n", (*cosine)(2.0));
+    dlclose(handle);
+}
+.if t .ft P
+.fi
+.RE
+.SH 謝辞
+dlopen インターフェースの標準は Solaris をもとにしている。
+Linux の dlopen の実装は、当初 Eric Youngdale によってなされた。
+このとき Mitch D'Souza, David Engel, Hongjiu Lu, Andreas Schwab らの
+助力があった。
+このマニュアルページは Adam Richter が書いた。
+.SH 関連項目
+.BR ld (1),
+.BR ld.so (8),
+.BR ldconfig (8),
+.BR ldd (1)

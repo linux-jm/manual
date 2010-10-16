@@ -1,0 +1,170 @@
+.\" Copyright 1992 Rickard E. Faith (faith@cs.unc.edu)
+.\" May be distributed under the GNU General Public License
+.\"
+.\" Japanese Version Copyright (c) 1997 NAKANO Takeo all rights reserved.
+.\" Translated Thu Sep 1 1997 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified Thu 7 Oct 1999 by NAKANO Takeo 
+.\" Updated & Modified Wed 14 Jun 2000 by NAKANO Takeo 
+.\" 
+.TH SHUTDOWN 8 "2 March 2000" "Linux 2.0" "Linux Programmer's Manual"
+.SH 名前
+shutdown \- システムを閉じて終了させる
+.SH 書式
+.nf
+.BR "shutdown [ \-h | \-r ] [ \-fqs ] [ now | " hh:ss " | " +mins " ] [ " message " ]"
+.BR "reboot [ \-h | \-r ] [ \-fqs ] [ now | " hh:ss " | " +mins " ] [ " message " ]"
+.BR "fastboot [ \-h | \-r ] [ \-fqs ] [ now | " hh:ss " | " +mins " ] [ " message " ]"
+.BR "halt [ \-h | \-r ] [ \-fqs ] [ now | " hh:ss " | " +mins " ] [ " message " ]"
+.BR "fasthalt [ \-h | \-r ] [ \-fqs ] [ now | " hh:ss " | " +mins " ] [ " message " ]"
+.fi
+.SH 説明
+.\" " for emacs hilit19
+.B shutdown
+はシステムの電源停止やリブートの準備をする。いつ停止するかを、時刻また
+は現在からの待ち時間で指定できる。すべてのユーザーに、シャットダウンの
+警告メッセージが送られる。コマンドラインでメッセージが指定されなかった
+場合には、
+.B shutdown
+は送信するメッセージを尋ねてくる。ただし
+.B \-q
+オプションをセットした場合には尋ねない。
+
+.B halt
+は
+.B "shutdown -h -q now"
+と同じ。
+
+.B fasthalt
+は
+.B "shutdown -h -q -f now"
+と同じ。
+
+.B reboot
+は
+.B "shutdown -r -q now"
+と同じ。
+
+.B fastboot
+は
+.B "shutdown -r -q -f now"
+と同じ。
+
+何も指定されなかった場合、デフォルトの待ち時間は 2 分になる。
+
+シャットダウンの 5 分前に (あるいはシャットダウンが 5 分以内に行われる
+場合には直ちに)、
+.I /etc/nologin
+ファイルが作成され、「システムがダウンするのでログインはできない」旨の
+メッセージが書き込まれる。
+.BR login (1)
+プログラムはこれ以降、スーパーユーザー以外のログインを許可しない。また
+このとき、すべてのユーザーにメッセージが送信される。
+
+シャットダウンの時間になると、
+.B shutdown
+はすべてのユーザーに通知を出し、
+以降
+.BR getty (8)
+プロセスを再生成 (spawn) しないように
+.BR init (8)
+に伝える。
+その後
+.I /var/log/wtmp
+ファイルにシャットダウンの時間を書き込み、
+他のすべてのプロセスを kill し、
+.BR sync (2)
+を実行してすべてのディスクをアンマウントし、再び
+.BR sync (2)
+を実行、少し待ってシステムを終了させるかリブートさせる。
+
+全てのディスクのアンマウントに先立ち、
+.B SIGQUIT
+シグナルが
+.B init
+プロセスに送られ、これによって
+.BR shutdown (8)
+が起動される。こうすれば、
+.B init
+の古い inode が unlink された場合でもクリーンにアンマウントを行うことができる。
+カレントのプロセス ID (PID) が 1 の場合は、
+.BR shutdown (8)
+は永久に停止する。
+.SH オプション
+.TP
+.B \-h
+システムを停止 (halt) する。リブートしない。
+このオプションはシステムの電源を落とすときに用いられる。
+.TP
+.B \-r
+システムをリブートする。
+.TP
+.B \-f
+高速指定。システムがリブートするとき、
+ファイルシステムをチェックしないようにする。
+具体的には
+.I /fastboot
+を作成する。このファイルは
+.I /etc/rc
+によって検知（および消去）されるようになっていなければならない。
+.TP
+.B \-q
+メッセージ抑制。このオプションが指定されるとデフォルトのブロードキャス
+トメッセージが用いられる。メッセージの入力を求めるプロンプトをユーザー
+に出さない。
+.TP
+.B \-s
+シングルユーザーモードでリブートする。
+具体的には
+.I /etc/singleboot
+を作成する。このファイルは
+.BR simpleinit (8)
+によって検知（および消去）されるようになっていなければならない。
+.SH ファイル
+.nf
+.I /etc/rc
+.I /fastboot
+.I /etc/singleboot
+.I /etc/nologin
+.I /var/log/wtmp
+.I /etc/shutdown.conf
+.fi
+.SH 設定
+設定ファイル \fI/etc/shutdown.conf\fP を用いれば
+マシンを停止するときの動作を決定することができる。
+現在サポートされているファイル形式は非常に単純なものである。
+第一行には空白で区切った二つの文字列を記述する。
+最初の文字列は \fBHALT_ACTION\fP とし、第二の文字列には
+停止時の動作を指定する。以下のオプションが適用できる。
+.TP
+.B halt
+単にシステムを停止する。デフォルトの動作である。
+他のオプションが失敗した場合にもこの動作が行われる。
+.TP
+.B power_off
+カーネルの電源断機能を利用しようとする。
+APM (Advanced Power Management) 機能のあるマシンでのみ利用できる。
+.TP
+.I programname
+電源を切るために動作させるコマンドを指定する。
+最初の文字は "/" でなければならない。
+このコマンドはルートファイルシステムだけで (かつリードオンリーで)、
+さらにデーモンがない状態で動作する必要がある。
+.SH 関連項目
+.BR umount (8),
+.BR login (1),
+.BR reboot (2),
+.BR simpleinit (8),
+.BR init (8)
+.SH バグ
+BSD 版の
+.BR shutdown
+と異なり、ユーザーはシャットダウンの通知を一度または二度しか受け取らない。
+BSD 版ではこの通知は何度も、しかも「黙示のとき」が近づくにつれ、
+ますます頻繁に発送される。
+これを仕様であるとみなしている人もいるかもしれない。
+.SH 著者
+このページは、
+Peter Orbaek (poe@daimi.aau.dk)
+によって書かれた
+.B shutdown
+の解説である。

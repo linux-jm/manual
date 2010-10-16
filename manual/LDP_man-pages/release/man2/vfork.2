@@ -1,0 +1,216 @@
+.\" Copyright (c) 1999 Andries Brouwer (aeb@cwi.nl), 1 Nov 1999
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" 1999-11-10: Merged text taken from the page contributed by
+.\" Reed H. Petty (rhp@draper.net)
+.\"
+.\" Japanese Version Copyright (c) 1999 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1999-12-04, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2007-01-09, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.43
+.\" Updated 2008-11-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.13
+.\"
+.TH VFORK 2 2009-06-21 "Linux" "Linux Programmer's Manual"
+.SH 名前
+vfork \- 子プロセスを生成し親プロセスを停止させる
+.SH 書式
+.B #include <sys/types.h>
+.br
+.B #include <unistd.h>
+.sp
+.B pid_t vfork(void);
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR vfork ():
+_BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500
+.SH 説明
+.SS 規格の説明
+(POSIX.1 より引用)
+.BR vfork ()
+関数は
+.BR fork (2)
+と同じ働きをするが、
+.BR vfork ()
+で作成されたプロセスが
+.BR vfork ()
+からの返り値を格納している
+.I pid_t
+型の変数以外を変更したり、
+.BR vfork ()
+を呼び出している関数から return したり、
+.BR _exit (2)
+や
+.BR exec (3)
+族の関数をコールする前に他の関数をコールした場合の動作が
+未定義であるという点が異なる。
+.SS "LINUX での説明"
+.BR vfork ()
+は
+.BR fork (2)
+と全く同じように呼び出したプロセスの子プロセスを生成する。
+詳しい説明と返り値、エラーについては
+.BR fork (2)
+を参照すること。
+.PP
+.BR vfork ()
+は
+.BR clone (2)
+の特殊な場合である。
+親プロセスのページテーブルのコピーを行わずに新しいプロセスを
+作成するために使用する。これは性能に敏感なアプリケーションにおいて
+子プロセスを生成してすぐに
+.BR execve (2)
+する場合に有用かもしれない。
+.PP
+.BR vfork ()
+は
+.BR fork (2)
+と違い、子プロセスが終了するか、
+.BR execve (2)
+をコールするまで親プロセスを停止 (suspend) させる。
+子プロセスの終了は、
+.BR _exit (2)
+の呼び出しによる通常終了、
+致命的なシグナルの配送後の異常終了の二つのケースがある。
+この時点までは、子プロセスはスタックを含む全てのメモリを
+親プロセスと共有する。
+子プロセスは現在の関数から return してはならず、
+.BR exit (3)
+もコールしてはならないが、
+.BR _exit (2)
+ならばコールしてもよい。
+.PP
+シグナルハンドラは継承されるが、共有はされない。
+親プロセスへのシグナルは、子プロセスが親プロセスのメモリを
+解放した後 (すなわち、子プロセスが終了するか
+.BR execve (2)
+を呼んだ後) に到着する。
+.SS 歴史的な説明
+Linux において
+.BR fork (2)
+は書き込み時コピー (copy-on-write) ページを使用して実装されている。
+そのため
+.BR fork (2)
+を使用することによって被る損害は親プロセスのページ・テーブルを
+複製するために必要な時間とメモリだけである。
+しかしながら、忌しき昔には
+.BR fork (2)
+は呼び出したプロセスのデータ空間の全てのコピーしていたが、
+これはしばしば不必要であった。なぜなら、たいていはすぐ後に
+.BR exec (3)
+を実行していたからである。
+この場合の効率を上げるために BSD は
+.BR vfork ()
+システムコールを導入して親プロセスのアドレス空間を完全にコピー
+するかわりに、
+.BR execve (2)
+をコールするか exit が起きるまで親プロセスのメモリと制御スレッド
+を借りるようにした。
+親プロセスは子プロセスがその資源を使用している間は停止された。
+.BR vfork ()
+は使いにくいものであった: 例えば、親プロセスの変数を変更しな
+いようにするためにはどの変数がレジスタに保持されているかを知らな
+ければならなかった。
+.SH 準拠
+4.3BSD, POSIX.1-2001.
+POSIX.1-2008 では、
+.BR vfork ()
+の規定が削除されている。
+.BR vfork ()
+コールは他のオペレーティング・システムの同名のコールと
+ちょっと似ているかもしれない。規格が
+.BR vfork ()
+に要求していることは、
+.BR fork (2)
+に要求していることよりは弱い。したがって、
+両者を同じものとして実装しても、規格に準拠していることになる。
+特にプログラマーは、子プロセスが終了するか
+.BR execve (2)
+を呼び出すまで親プロセスが停止していることや、メモリを共有するこ
+とによる特殊な動作をあてにすべきではない。
+.\" In AIXv3.1 vfork is equivalent to fork.
+.SH 注意
+.SS Linux での注意
+.BR pthread_atfork (3)
+を使って設定された fork ハンドラは
+NPTL スレッドライブラリコールを採用したマルチスレッドプログラムでは
+呼び出されない。一方、LinuxThreads スレッドライブラリを使った
+プログラムでは、fork ハンドラは呼び出される。
+(Linux のスレッドライブラリの説明は
+.BR pthreads (7)
+を参照。)
+.SS 歴史
+.BR vfork ()
+システムコールは 3.0BSD に現われた。
+.\" In the release notes for 4.2BSD Sam Leffler wrote: `vfork: Is still
+.\" present, but definitely on its way out'.
+4.4BSD において
+.BR fork (2)
+の同義語となったが、NetBSD では再び導入された。
+http://www.netbsd.org/Documentation/kernel/vfork.html を参照。
+Linux では 2.2.0-pre6 あたりまでは
+.BR fork (2)
+と等価であった。(i386 では) 2.2.0-pre9 から (他のアーキテクチャでは
+少し遅れて) 独立したシステムコールとなった。
+glibc でのサポートは glibc-2.0.112 で追加された。
+.SH バグ
+Linux がこの過去の亡霊を復活させたことは、むしろ不幸と言うべきである。
+BSD のマニュアルには、
+「このシステムコールは妥当なシステム共有機構が実装された場合には
+削除される。ユーザは
+.BR vfork ()
+のメモリ共有機能に依存するべきではない。何故ならば、このシステムコール
+が削除された場合には、それは
+.BR fork (2)
+の同義語とされるからである。」と書かれている。
+
+シグナルの扱いの詳細は不明瞭でシステムごとに異っている。
+BSD のマニュアルには、
+「デッドロック状態になる可能性があるので
+.BR vfork ()
+の途中の子プロセスに
+.B SIGTTOU
+や
+.B SIGTTIN
+シグナルを送信してはならない;
+さらに出力や
+.I ioctl
+は許されるが、入力を試みた場合には結果はファイル終端 (EOF) になる。」
+と書かれている。
+.\"
+.\" As far as I can tell, the following is not true in 2.6.19:
+.\" 現在のところ (Linux 2.3.25)、
+.\" .BR strace (1)
+.\" は
+.\" .BR vfork ()
+.\" を追跡することができず、カーネルパッチが必要である。
+.SH 関連項目
+.BR clone (2),
+.BR execve (2),
+.BR fork (2),
+.BR unshare (2),
+.BR wait (2)

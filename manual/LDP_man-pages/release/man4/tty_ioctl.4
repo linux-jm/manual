@@ -1,0 +1,506 @@
+.\" Copyright 2002 Walter Harms <walter.harms@informatik.uni-oldenburg.de>
+.\" and Andries Brouwer <aeb@cwi.nl>.
+.\" Distributed under GPL.
+.\"
+.\" Japanese Version Copyright (c) 2004 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Sat Oct 16 06:08:24 JST 2004
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\"
+.TH TTY_IOCTL 4 2008-10-29 "Linux" "Linux Programmer's Manual"
+.SH 名前
+tty_ioctl \- 端末とシリアルラインの ioctl (入出力制御)
+.SH 書式
+.B "#include <termios.h>"
+.sp
+.BI "int ioctl(int " fd ", int " cmd ", ...);"
+.SH 説明
+端末とシリアルポートについての
+.BR ioctl ()
+コールは、多くのコマンド引き数を受け付ける。
+多くがいろいろな型の 3 番目の引き数を必要とする。
+ここでは \fIargp\fP または \fIarg\fP と呼ぶ。
+.LP
+.I ioctl
+を使用すると移植性のないプログラムになる。
+可能な場合は、
+.BR termios (3)
+に記述されている POSIX インタフェースを使うこと。
+.SS 端末属性の取得と設定
+.TP
+.BI "TCGETS	struct termios *" argp
+.I "tcgetattr(fd, argp)"
+と同じ。
+.br
+現在のシリアルポートの設定を取得する。
+.TP
+.BI "TCSETS	const struct termios *" argp
+.I "tcsetattr(fd, TCSANOW, argp)"
+と同じ。
+.br
+現在のシリアルポートの設定を変更する。
+.TP
+.BI "TCSETSW	const struct termios *" argp
+.I "tcsetattr(fd, TCSADRAIN, argp)"
+と同じ。
+.br
+排出 (drain) を行うための出力バッファの使用を許可し、
+現在のシリアルポートの設定を変更する。
+.TP
+.BI "TCSETSF	const struct termios *" argp
+.I "tcsetattr(fd, TCSAFLUSH, argp)"
+と同じ。
+.br
+排出 (drain) を行うための出力バッファの使用を許可し、
+処理していない入力を破棄して、
+現在のシリアルポートの設定を変更する。
+.LP
+以下の 4 つの ioctl は
+.BR TCGETS ,
+.BR TCSETS ,
+.BR TCSETSW ,
+.B TCSETSF
+と似ている。
+ただし、
+.I "struct termios *"
+の代わりに
+.I "struct termio *"
+を取る。
+.TP
+.BI "TCGETA	struct termio *" argp
+.TP
+.BI "TCSETA	const struct termio *" argp
+.TP
+.BI "TCSETAW	const struct termio *" argp
+.TP
+.BI "TCSETAF	const struct termio *" argp
+.SS "termios 構造体のロック"
+端末の
+.I termios
+構造体はロックすることが可能である。
+このロック自体は
+.I termios
+構造体であり、
+0 でないビットまたはフィールドはロックされた値を示す。
+.TP
+.BI "TIOCGLCKTRMIOS	struct termios *" argp
+端末の
+.I termios
+構造体のロック状態を取得する。
+.TP
+.BI "TIOCSLCKTRMIOS	const struct termios *" argp
+端末の
+.I termios
+構造体のロック状態を設定する。
+root のみ (より正確には、
+.B CAP_SYS_ADMIN
+ケーパビリティを持つプロセス) がこれを実行できる。
+.SS ウィンドウサイズの取得と設定
+ウィンドウサイズはカーネル内に保持されるが、
+カーネルによって使用されない
+(仮想コンソールの場合は例外であり、新しいフォントを読み込んだ場合など、
+仮想端末のサイズが変更された場合、カーネルはウィンドウサイズを更新する)。
+
+以下の定数と構造体は
+.I <sys/ioctl.h>
+で定義されている。
+.TP
+.BI "TIOCGWINSZ	struct winsize *" argp
+ウィンドウサイズを取得する。
+.TP
+.BI "TIOCSWINSZ	const struct winsize *" argp
+ウィンドウサイズを設定する。
+.LP
+これらの ioctl で使用される構造体は、以下のように定義される。
+
+.in +4n
+.nf
+struct winsize {
+    unsigned short ws_row;
+    unsigned short ws_col;
+    unsigned short ws_xpixel;   /* 未使用 */
+    unsigned short ws_ypixel;   /* 未使用 */
+};
+.fi
+.in
+
+ウィンドウサイズが変更された場合、
+フォアグラウンドプロセスグループに
+.B SIGWINCH
+シグナルが送られる。
+.SS "break の送信"
+.TP
+.BI "TCSBRK	int " arg
+.I "tcsendbreak(fd, arg)"
+と同じ。
+.br
+端末が非同期シリアルデータ転送を使用しており、
+.I arg
+が 0 の場合、0.25 から 0.5 秒の間に
+break (0 のビット列のストリーム) が送信される。
+端末が非同期シリアルデータ転送を使用している場合、
+break が送信されるか、この関数は何もせずに返る。
+.I arg
+が 0 以外の場合、何が起こるか分からない。
+
+(SVr4, UnixWare, Solaris, Linux は、
+.I "tcsendbreak(fd,arg)"
+の
+.I arg
+が 0 以外の場合、
+.I "tcdrain(fd)"
+のように扱う。
+SunOS は
+.I arg
+を倍数として扱い、ビットのストリームを
+.I arg
+回送信する。
+.I arg
+が 0 の場合も同じ。
+DG/UX と AIX は、(0 以外の場合)
+.I arg
+をミリ秒単位の時間間隔として扱う。
+HP-UX は
+.I arg
+を無視する。)
+.TP
+.BI "TCSBRKP	int " arg
+いわゆる「POSIX 版」の
+.B TCSBRK
+である。
+これは 0 以外の
+.I arg
+を 1/10 秒単位の時間間隔として扱う。
+またドライバが break をサポートしていない場合は、何もしない。
+.TP
+.B "TIOCSBRK	void"
+break をオンにする。
+つまり 0 のビット列の送信を開始する。
+.TP
+.B "TIOCCBRK	void"
+break をオフにする。
+つまり 0 のビット列の送信を停止する。
+.SS ソフトウェアフロー制御
+.TP
+.BI "TCXONC	int " arg
+.I "tcflow(fd, arg)"
+と同じ。
+.br
+.BR tcflow (3)
+の引き数
+.BR TCOOFF ,
+.BR TCOON ,
+.BR TCIOFF ,
+.B TCION
+を参照すること。
+.SS "バッファのカウントと書き出し (flush)"
+.TP
+.BI "FIONREAD	int *" argp
+入力バッファにあるバイト数を取得する。
+.TP
+.BI "TIOCINQ	int *" argp
+.B FIONREAD
+と同じ。
+.TP
+.BI "TIOCOUTQ	int *" argp
+出力バッファにあるバイト数を取得する。
+.TP
+.BI "TCFLSH	int " arg
+.I "tcflush(fd, arg)"
+と同じ。
+.br
+.BR tcflush (3)
+の引き数
+.BR TCIFLUSH ,
+.BR TCOFLUSH ,
+.B TCIOFLUSH
+を参照すること。
+.SS 入力の偽装
+.TP
+.BI "TIOCSTI	const char *" argp
+指定されたバイトを入力キューに挿入する。
+.SS コンソール出力のリダイレクト
+.TP
+.B "TIOCCONS	void"
+.I /dev/console
+または
+.I /dev/tty0
+に送られる出力を、指定された端末リダイレクトする。
+指定された端末が疑似端末 (pseudo-terminal) のマスタの場合、
+出力はスレーブに送られる。
+バージョン 2.6.10 より前の Linux では、出力がまだリダイレクトされて
+いなければ、誰でもリダイレクトを行うことができる。
+バージョン 2.6.10 以降では、root
+.RB ( CAP_SYS_ADMIN
+ケーパビリティを持つプロセス) だけがリダイレクトを行うことができる。
+出力がすでにリダイレクトされている場合は
+.B EBUSY
+が返されるが、
+.I /dev/console
+か
+.I /dev/tty0
+を指している
+.I fd
+に対してこの ioctl を使用することで、リダイレクトを止めることができる。
+.SS "端末の制御"
+.TP
+.BI "TIOCSCTTY	int " arg
+指定された端末を呼び出し元のプロセスの制御端末にする。
+呼び出し元のプロセスはセッションリーダでなければならず、
+かつ既に制御端末を持っていてはならない。
+この端末が既に他のセッショングループの制御端末である場合、
+ioctl は
+.B EPERM
+で失敗する。ただし呼び出したユーザが root で
+(より正確には
+.B CAP_SYS_ADMIN
+ケーパビリティを持っていて)、かつ
+.I arg
+が 1 である場合を除く。
+この場合、端末は盗まれ (stolen)、
+この端末を制御端末としていた全てのプロセスは端末を失う。
+.TP
+.B TIOCNOTTY	void
+指定された端末が呼び出し元のプロセスの制御端末である場合、
+この制御端末を放棄する。
+プロセスがセッションリーダの場合、
+フォアグラウンドプロセスグループに
+.B SIGHUP
+と
+.B SIGCONT
+を送り、カレントセッションの全てのプロセスは制御端末を失う。
+.SS "グループ ID とセッション ID の処理"
+.TP
+.BI "TIOCGPGRP	pid_t *" argp
+成功した場合、
+.I "*argp = tcgetpgrp(fd)"
+と同じ。
+.br
+この端末上のフォアグラウンドプロセスのプロセスグループ ID を取得する。
+.TP
+.BI "TIOCSPGRP	const pid_t *" argp
+.I "tcsetpgrp(fd, *argp)"
+と同じ。
+.br
+この端末のフォアグラウンドプロセスのグループ ID を設定する。
+.TP
+.BI "TIOCGSID	pid_t *" argp
+指定された端末のセッション ID を取得する。
+端末がマスタ疑似端末または制御端末でない場合は、
+.B ENOTTY
+で失敗する。
+奇妙だ。
+.SS 排他モード
+.TP
+.B "TIOCEXCL	void"
+端末を排他モードにする。
+端末に対して、これ以降の
+.BR open (2)
+操作を禁止する。
+(root 以外の場合、つまり
+.B CAP_SYS_ADMIN
+ケーパビリティを持たないプロセスの場合、これ以降の
+.BR open (2)
+は
+.B EBUSY
+で失敗する。)
+.TP
+.B "TIOCNXCL	void"
+排他モードを無効にする。
+.SS "ライン制御 (line discipline)"
+.TP
+.BI "TIOCGETD	int *" argp
+端末のライン制御の情報を取得する。
+.TP
+.BI "TIOCSETD	const int *" argp
+端末のライン制御の情報を設定する。
+.SS "疑似端末の ioctl"
+.TP
+.BI "TIOCPKT	const int *" argp
+パケットモードを有効
+.RI (* argp
+が 0 以外の場合) または無効にする。
+疑似端末のマスタ側にのみ適用できる (それ以外の場合は
+.B ENOTTY
+を返す)。
+パケットモードでは、その後に実行される
+.BR read (2)
+は、値が 0 以外の 1 つの制御バイトを含むパケットか、
+値が 0 の 1 バイト (\(aq\\0\(aq) に疑似端末のスレーブ側で書き込まれた
+データが続くパケットを返す。
+最初のバイトが
+.B TIOCPKT_DATA
+(0) でない場合、以下のビットの 1 つ以上を OR したものである:
+
+.nf
+TIOCPKT_FLUSHREAD   端末の読み込みキューがフラッシュ (flush) される。
+TIOCPKT_FLUSHWRITE  端末の書き出しキューがフラッシュされる。
+TIOCPKT_STOP        端末への出力が停止される。
+TIOCPKT_START       端末への出力が再開される。
+TIOCPKT_DOSTOP      開始文字と終了文字が \fB^S\fP/\fB^Q\fP である。
+TIOCPKT_NOSTOP      開始文字と終了文字が \fB^S\fP/\fB^Q\fP でない。
+.fi
+
+このモードが使われている場合、
+制御状態情報の存在がマスタ側から読み込めるかは、
+例外的な条件で
+.BR select (2)
+を使うことにより知ることができる。
+
+このモードは
+.BR rlogin (1)
+と
+.BR rlogind (8)
+で使われ、リモートエコーのリモートログインと
+ローカルでの \fB^S\fP/\fB^Q\fP フロー制御のリモートログインを実装している。
+
+BSD の ioctl である
+.BR TIOCSTOP ,
+.BR TIOCSTART ,
+.BR TIOCUCNTL ,
+.B TIOCREMOTE
+は、Linux では実装されていない。
+.SS モデム制御
+.TP
+.BI "TIOCMGET	int *" argp
+モデムビット列の状態を取得する。
+.TP
+.BI "TIOCMSET	const int *" argp
+モデムビット列の状態を設定する。
+.TP
+.BI "TIOCMBIC	const int *" argp
+指定されたモデムビット列をクリアする。
+.TP
+.BI "TIOCMBIS	const int *" argp
+指定されたモデムビット列を設定する。
+.LP
+これらの 4 つの ioctl で使われるビットは以下の通り:
+
+.nf
+TIOCM_LE        DSR (data set ready/line enable)
+TIOCM_DTR       DTR (data terminal ready)
+TIOCM_RTS       RTS (request to send)
+TIOCM_ST        Secondary TXD (transmit)
+TIOCM_SR        Secondary RXD (receive)
+TIOCM_CTS       CTS (clear to send)
+TIOCM_CAR       DCD (data carrier detect)
+TIOCM_CD         TIOCM_CAR を参照。
+TIOCM_RNG       RNG (ring)
+TIOCM_RI         TIOCM_RNG を参照。
+TIOCM_DSR       DSR (data set ready)
+.fi
+.SS "回線をローカルとしてマークする"
+.TP
+.BI "TIOCGSOFTCAR	int *" argp
+("ソフトウェアキャリアフラグの取得")
+.I termios
+構造体の c_cflag フィールドの
+.B CLOCAL
+フラグの状態を取得する。
+.TP
+.BI "TIOCSSOFTCAR	const int *" argp
+("ソフトウェアキャリアフラグの設定")
+.RI * argp
+が 0 以外の場合、
+.I termios
+構造体の
+.B CLOCAL
+フラグを設定する。
+0 の場合はクリアする。
+.LP
+ラインの
+.B CLOCAL
+フラグがオフの場合、
+ハードウェアキャリア検出 (hardware carrier detect, DCD) シグナルが重要であり、
+.B O_NONBLOCK
+フラグが指定されない限り、対応する端末の
+.BR open (2)
+は DCD が示されるまでブロックされる。
+.B CLOCAL
+が設定されている場合、
+ラインは常に DCD が示されているかのように動作する。
+ソフトウェアキャリアフラグは、ローカルデバイスでは通常はオンになっており、
+モデムのラインではオフになっている。
+.SS "Linux 固有の ioctl"
+.B TIOCLINUX
+ioctl については、
+.BR console_ioctl (4)
+を参照すること。
+.SS カーネルデバッギング
+.B "#include <linux/tty.h>"
+.TP
+.BI "TIOCTTYGSTRUCT	struct tty_struct *" argp
+.I fd
+に対応する
+.I tty_struct
+を取得する。
+.\" .SS "シリアル情報"
+.\" .BR "#include <linux/serial.h>"
+.\" .sp
+.\" .TP
+.\" .BI "TIOCGSERIAL	struct serial_struct *" argp
+.\" シリアル情報を取得する。
+.\" .TP
+.\" .BI "TIOCSSERIAL	const struct serial_struct *" argp
+.\" シリアル情報を設定する。
+.SH 返り値
+.BR ioctl ()
+システムコールは、成功した場合は 0 を返す。
+エラーの場合は \-1 を返し、
+.I errno
+を適切に設定する。
+.SH エラー
+.TP
+.B EINVAL
+不正なコマンド引き数である。
+.TP
+.B ENOIOCTLCMD
+不明なコマンドである。
+.TP
+.B ENOTTY
+.I fd
+が不適切である。
+.TP
+.B EPERM
+権限が不足している。
+.SH 例
+シリアルポートの DTR の状態をチェックする。
+
+.nf
+#include <termios.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+
+int
+main(void)
+{
+    int fd, serial;
+
+    fd = open("/dev/ttyS0", O_RDONLY);
+    ioctl(fd, TIOCMGET, &serial);
+    if (serial & TIOCM_DTR)
+        puts("TIOCM_DTR が設定されていない。");
+    else
+        puts("TIOCM_DTR が設定されている。");
+    close(fd);
+}
+.fi
+.SH 関連項目
+.BR ioctl (2),
+.BR termios (3),
+.BR console_ioctl (4),
+.BR pty (7)
+.\"
+.\" FIONBIO			const int *
+.\" FIONCLEX			void
+.\" FIOCLEX			void
+.\" FIOASYNC			const int *
+.\" serial.c より:
+.\" TIOCSERCONFIG		void
+.\" TIOCSERGWILD		int *
+.\" TIOCSERSWILD		const int *
+.\" TIOCSERGSTRUCT		struct async_struct *
+.\" TIOCSERGETLSR		int *
+.\" TIOCSERGETMULTI		struct serial_multiport_struct *
+.\" TIOCSERSETMULTI		const struct serial_multiport_struct *
+.\" TIOCGSERIAL, TIOCSSERIAL (上記を参照)

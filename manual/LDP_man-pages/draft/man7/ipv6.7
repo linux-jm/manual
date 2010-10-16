@@ -1,0 +1,592 @@
+.\" This man page is Copyright (C) 2000 Andi Kleen <ak@muc.de>.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\" $Id: ipv6.7,v 1.4 2001/08/15 18:01:06 hanataka Exp $
+.\"
+.\" Japanese Version Copyright (c) 2001 NAKANO Takeo all rights reserved.
+.\" Translated Sun 18 Feb 2001 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated Wed  4 Apr 2001 by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated Sat Dec 17 09:31:21 JST 2005 by Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated 2007-05-28, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.50
+.\" Updated 2008-08-07, Akihiro MOTOKI, LDP v3.05
+.\"
+.\"WORD:	flow identifier		フロー指定子
+.\"WORD:	control message		制御メッセージ
+.\"WORD:	incoming 〜		受信 (パケット、データグラム)
+.\"WORD:	outgoing 〜		送信 (パケット、データグラム)
+.\"WORD:	asynchronous error	非同期エラー
+.\"
+.TH IPV6 7 2009-02-28 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O ipv6, AF_INET6 \- Linux IPv6 protocol implementation
+.SH 名前
+ipv6, AF_INET6 \- Linux の IPv6 プロトコル実装
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #include <sys/socket.h>
+.br
+.B #include <netinet/in.h>
+.sp
+.IB tcp6_socket " = socket(AF_INET6, SOCK_STREAM, 0);"
+.br
+.IB raw6_socket " = socket(AF_INET6, SOCK_RAW, " protocol ");"
+.br
+.IB udp6_socket " = socket(AF_INET6, SOCK_DGRAM, " protocol ");"
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O Linux 2.2 optionally implements the Internet Protocol, version 6.
+.\"O This man page contains a description of the IPv6 basic API as
+.\"O implemented by the Linux kernel and glibc 2.1.
+.\"O The interface
+.\"O is based on the BSD sockets interface; see
+.\"O .BR socket (7).
+Linux 2.2 では、Internet Protocol, version 6 を
+オプションとして実装している。
+この man ページでは、Linux カーネルと glibc 2.1 での実装に基づいて、
+IPv6 の基本的な API を解説する。
+インターフェースは BSD ソケットインターフェースをもとにしている。
+.BR socket (7)
+を参照。
+.PP
+.\"O The IPv6 API aims to be mostly compatible with the
+.\"O IPv4 API (see
+.\"O .BR ip (7)).
+.\"O Only differences are described in this man page.
+IPv6 API は、
+IPv4 API
+.RB ( ip (7)
+参照) とほぼ互換になることを目指している。
+この man ページでは相違点のみを解説する。
+.PP
+.\"O To bind an
+.\"O .B AF_INET6
+.\"O socket to any process, the local address should be copied from the
+.\"O .I in6addr_any
+.\"O variable which has
+.\"O .I in6_addr
+.\"O type.
+.\"O In static initializations,
+.\"O .B IN6ADDR_ANY_INIT
+.\"O may also be used, which expands to a constant expression.
+.\"O Both of them are in network byte order.
+.B AF_INET6
+ソケットを何らかのプロセスにバインドするには、
+ローカルアドレスを
+.I in6_addr
+型の変数
+.I in6addr_any
+からコピーしてくる必要がある。
+static な初期値
+.B IN6ADDR_ANY_INIT
+も用いることができ、これは定数式に展開される。
+これらの両者はネットワークバイトオーダーである。
+.PP
+.\"O The IPv6 loopback address (::1) is available in the global
+.\"O .I in6addr_loopback
+.\"O variable.
+.\"O For initializations,
+.\"O .B IN6ADDR_LOOPBACK_INIT
+.\"O should be used.
+IPv6 のループバックアドレス (::1) は global 変数
+.I in6addr_loopback
+から取得できる。初期化には
+.B IN6ADDR_LOOPBACK_INIT
+を用いるべきである。
+.PP
+.\"O IPv4 connections can be handled with the v6 API by using the
+.\"O v4-mapped-on-v6 address type;
+.\"O thus a program only needs to support this API type to
+.\"O support both protocols.
+.\"O This is handled transparently by the address
+.\"O handling functions in the C library.
+v4-mapped-on-v6 アドレス型を用いることで、
+IPv4 接続も v6 API で扱うことができる。
+こうすれば、プログラムは v6 の API をサポートするだけで、
+両方のプロトコルをサポートできる。
+v4-mapped-on-v6 アドレス型は C ライブラリ内部のアドレスを
+扱う関数によって透過的に処理される。
+.PP
+.\"O IPv4 and IPv6 share the local port space.
+.\"O When you get an IPv4 connection
+.\"O or packet to a IPv6 socket, its source address will be mapped
+.\"O to v6 and it will be mapped to v6.
+IPv4 と IPv6 はローカルポート空間を共有する。
+IPv4 の接続 (またはパケット) を IPv6 ソケットが取得すると、
+発信元アドレスが v6 にマップされ、その接続 (パケット) も v6 にマップされる。
+.\"nakano: 最後の it がなにを指すのかわからん。
+.\"O
+.\"O .SS Address Format
+.SS アドレスのフォーマット
+.in +4n
+.nf
+struct sockaddr_in6 {
+    sa_family_t     sin6_family;   /* AF_INET6 */
+    in_port_t       sin6_port;     /* port number */
+    uint32_t        sin6_flowinfo; /* IPv6 flow information */
+    struct in6_addr sin6_addr;     /* IPv6 address */
+    uint32_t        sin6_scope_id; /* Scope ID (new in 2.4) */
+};
+
+struct in6_addr {
+    unsigned char   s6_addr[16];   /* IPv6 address */
+};
+.fi
+.in
+.sp
+.\"O .I sin6_family
+.\"O is always set to
+.\"O .BR AF_INET6 ;
+.\"O .I sin6_port
+.\"O is the protocol port (see
+.\"O .I sin_port
+.\"O in
+.\"O .BR ip (7));
+.\"O .I sin6_flowinfo
+.\"O is the IPv6 flow identifier;
+.\"O .I sin6_addr
+.\"O is the 128bit IPv6 address.
+.\"O .I sin6_scope_id
+.\"O is an ID depending on the scope of the address.
+.\"O It is new in Linux 2.4.
+.\"O Linux only supports it for link scope addresses, in that case
+.\"O .I sin6_scope_id
+.\"O contains the interface index (see
+.\"O .BR netdevice (7))
+.I sin6_family
+は常に
+.B AF_INET6
+に設定される。
+.I sin6_port
+はプロトコルポートである
+.RB ( ip (7)
+の
+.I sin_port
+を参照)。
+.I sin6_flowinfo
+は IPv6 のフロー指定子 (flow identifier) である。
+.I sin6_addr
+は 128 ビットの IPv6 アドレスである。
+.I sin6_scope_id
+はアドレスのスコープに依存した ID である
+(これは Linux 2.4 で導入された)。
+Linux の場合は、これはリンクスコープアドレスでしかサポートされない。
+この場合
+.I sin6_scope_id
+にはインターフェースのインデックスが含まれることになる
+.RB ( netdevice (7)
+を参照)。
+.PP
+.\"O IPv6 supports several address types: unicast to address a single
+.\"O host, multicast to address a group of hosts,
+.\"O anycast to address the nearest member of a group of hosts
+.\"O (not implemented in Linux), IPv4-on-IPv6 to
+.\"O address a IPv4 host, and other reserved address types.
+IPv6 は何種類かのアドレスタイプをサポートしている。
+単一のホストをアドレスするための unicast、
+ホストのグループをアドレスするための multicast、
+ホストのグループ中で最も近くにいるものをアドレスするための anycast
+(これは Linux では実装されていない)、
+IPv4 ホストをアドレスするための IPv4-on-IPv6。
+他にも予約済みのアドレスタイプがある。
+.PP
+.\"O The address notation for IPv6 is a group of 16 2-digit hexadecimal
+.\"O numbers, separated with a \(aq:\(aq.
+.\"O \&"::" stands for a string of 0 bits.
+.\"O Special addresses are ::1 for loopback and ::FFFF:<IPv4 address>
+.\"O for IPv4-mapped-on-IPv6.
+IPv6 でのアドレス表記は 2 桁の 16 進数 16 個からなり、
+\(aq:\(aq は区切り文字はで、"::" は 0 ビットの文字列を表す。
+特殊なアドレスとして、ループバックを表す ::1、
+IPv4-mapped-on-IPv6 を表す ::FFFF::<IPv4 アドレス> がある。
+.PP
+.\"O The port space of IPv6 is shared with IPv4.
+IPv6 のポート空間は IPv4 と共有されている。
+.\"O .SS "Socket Options"
+.SS ソケットオプション
+.\"O IPv6 supports some protocol-specific socket options that can be set with
+.\"O .BR setsockopt (2)
+.\"O and read with
+.\"O .BR getsockopt (2).
+.\"O The socket option level for IPv6 is
+.\"O .BR IPPROTO_IPV6 .
+.\"O A boolean integer flag is zero when it is false, otherwise true.
+IPv6 はプロトコル固有のソケットオプションをいくつかサポートしている。
+これらは
+.BR setsockopt (2)
+で設定でき、
+.BR getsockopt (2)
+で取得できる。
+IPv6 のソケットオプションレベルは
+.B IPPROTO_IPV6
+である。
+ブール整数のフラグは、0 が偽であり、それ以外は真である。
+.TP
+.B IPV6_ADDRFORM
+.\"O Turn an
+.\"O .B AF_INET6
+.\"O socket into a socket of a different address family.
+.\"O Only
+.\"O .B AF_INET
+.\"O is currently supported for that.
+.\"O It is only allowed for IPv6 sockets
+.\"O that are connected and bound to a v4-mapped-on-v6 address.
+.\"O The argument is a pointer to an integer containing
+.\"O .BR AF_INET .
+.\"O This is useful to pass v4-mapped sockets as file descriptors to
+.\"O programs that  don't know how to deal with the IPv6 API.
+.B AF_INET6
+ソケットを別のアドレスファミリーのソケットに変える。
+現在は
+.B AF_INET
+のみが変更先のアドレスファミリーとしてサポートされている。
+これが許可されるのは、IPv6 が接続され、
+v4-mapped-on-v6 アドレスにバインドされた場合に限られる。
+引き数は
+.B AF_INET
+が入っている整数へのポインタである。
+v4-mapped ソケットを、IPv6 API を扱えないプログラムに対して
+ファイルディスクリプターとして渡す場合に便利。
+.TP
+.B IPV6_ADD_MEMBERSHIP, IPV6_DROP_MEMBERSHIP
+.\"O Control membership in multicast groups.
+.\"O Argument is a pointer to a
+.\"O .I struct ipv6_mreq
+.\"O structure.
+multicast グループのメンバーを制御する。
+引き数は
+.I struct ipv6_mreq
+構造体へのポインタ。
+.\"O .\" FIXME IPV6_CHECKSUM is not documented, and probably should be
+.\"O .\" FIXME IPV6_JOIN_ANYCAST is not documented, and probably should be
+.\"O .\" FIXME IPV6_LEAVE_ANYCAST is not documented, and probably should be
+.\" FIXME IPV6_CHECKSUM は記述されていないが、記述すべきだろう。
+.\" FIXME IPV6_JOIN_ANYCAST は記述されていないが、記述すべきだろう。
+.\" FIXME IPV6_LEAVE_ANYCAST は記述されていないが、記述すべきだろう。
+.\"O .\" FIXME IPV6_RECVPKTINFO is not documented, and probably should be
+.\"O .\" FIXME IPV6_2292PKTINFO is not documented, and probably should be
+.\"O .\" FIXME there are probably many other IPV6_* socket options that
+.\"O .\" should be documented
+.\" FIXME IPV6_RECVPKTINFO は記述されていないが、記述すべきだろう。
+.\" FIXME IPV6_2292PKTINFO は記述されていないが、記述すべきだろう。
+.\" FIXME 他にも多くの記述すべき IPV6_* ソケットオプションがあるだろう。
+.TP
+.B IPV6_MTU
+.\"O Set the MTU to be used for the socket.
+.\"O The MTU is limited by the device
+.\"O MTU or the path mtu when path mtu discovery is enabled.
+.\"O Argument is a pointer to integer.
+そのソケットに対して用いる MTU の値を設定する。
+MTU の大きさは、
+そのデバイスの MTU または (Path MTU Discovery
+が可能なら) その経路の MTU の大きさ以下でなければならない。
+引き数は整数へのポインタ。
+.TP
+.B IPV6_MTU_DISCOVER
+.\"O Control path mtu discovery on the socket.
+.\"O See
+.\"O .B IP_MTU_DISCOVER
+.\"O in
+.\"O .BR ip (7)
+.\"O for details.
+そのソケットでの Path MTU Discovery を制御する。
+詳細は
+.BR ip (7)
+の
+.B IP_MTU_DISCOVER
+を参照。
+.TP
+.B IPV6_MULTICAST_HOPS
+.\"O Set the multicast hop limit for the socket.
+.\"O Argument is a pointer to an
+.\"O integer.
+.\"O \-1 in the value means use the route default, otherwise it should be
+.\"O between 0 and 255.
+そのソケットでの multicast の hop 数の上限値を設定する。
+引き数は整数へのポインタである。
+\-1 を指定すると経路のデフォルトを用いることを意味する。
+それ以外の場合は 0 から 255 の範囲を指定する。
+.TP
+.B IPV6_MULTICAST_IF
+.\"O Set the device for outgoing multicast packets on the socket.
+.\"O This is only allowed
+.\"O for
+.\"O .B SOCK_DGRAM
+.\"O and
+.\"O .B SOCK_RAW
+.\"O socket.
+.\"O The argument is a pointer to an interface index (see
+.\"O .BR netdevice (7))
+.\"O in an integer.
+そのソケットでの、送信 multicast パケットに用いるデバイスを設定する。
+これは
+.B SOCK_DGRAM
+および
+.B SOCK_RAW
+各ソケットでのみ許される。
+引き数はインターフェースのインデックスの整数値
+.RB ( netdevice (7)
+を参照) へのポインタである。
+.TP
+.B IPV6_MULTICAST_LOOP
+.\"O Control whether the socket sees multicast packets that it has send itself.
+.\"O Argument is a pointer to boolean.
+ソケットが、自分自身の送信した
+multicast パケットを監視するかどうかを制御する。
+引き数はブール値へのポインタ。
+.TP
+.B IPV6_PKTINFO
+.\"O Set delivery of the
+.\"O .B IPV6_PKTINFO
+.\"O control message on incoming datagrams.
+.\"O Only allowed for
+.\"O .B SOCK_DGRAM
+.\"O or
+.\"O .B SOCK_RAW
+.\"O sockets.
+.\"O Argument is a pointer to a boolean value in an integer.
+データグラムの到着時における
+.B IPV6_PKTINFO
+制御メッセージを配送するかどうかを設定する。
+.B SOCK_DGRAM
+ソケットまたは
+.B SOCK_RAW
+ソケットに対してのみ許可される。
+引き数はブール値の入った整数。
+.TP
+.nh
+.B IPV6_RTHDR, IPV6_AUTHHDR, IPV6_DSTOPS, IPV6_HOPOPTS, IPV6_FLOWINFO, IPV6_HOPLIMIT
+.hy
+.\"O Set delivery of control messages for incoming datagrams containing
+.\"O extension headers from the received packet.
+受信パケットのデータグラムに拡張ヘッダが含まれている場合の、
+制御メッセージの配送を設定する。
+.\"O .B IPV6_RTHDR
+.\"O delivers the routing header,
+.BR IPV6_RTHDR :
+routing ヘッダを配送するかどうか。
+.\"O .B IPV6_AUTHHDR
+.\"O delivers the authentication header,
+.BR IPV6_AUTHHDR :
+authentication ヘッダを配送するかどうか。
+.\"O .B IPV6_DSTOPTS
+.\"O delivers the destination options,
+.BR IPV6_DSTOPTS :
+destination オプションを配送するかどうか。
+.\"O .B IPV6_HOPOPTS
+.\"O delivers the hop options,
+.BR IPV6_HOPOPTS :
+hop オプションを配送するかどうか。
+.\"O .B IPV6_FLOWINFO
+.\"O delivers an integer containing the flow ID,
+.BR IPV6_FLOWINFO :
+flow ID を含む整数を配送するかどうか。
+.\"O .B IPV6_HOPLIMIT
+.\"O delivers an integer containing the hop count of the packet.
+.BR IPV6_HOPLIMIT :
+パケットの hop カウントを含む整数を配送するかどうか。
+.\"O The control messages have the same type as the socket option.
+.\"O All these header options can also be set for outgoing packets
+.\"O by putting the appropriate control message into the control buffer of
+.\"O .BR sendmsg (2).
+.\"O Only allowed for
+.\"O .B SOCK_DGRAM
+.\"O or
+.\"O .B SOCK_RAW
+.\"O sockets.
+.\"O Argument is a pointer to a boolean value.
+制御メッセージはソケットオプションのものと同じタイプを持つ。
+これらのすべてのヘッダオプションは、
+適切な制御メッセージを
+.BR sendmsg (2)
+の制御バッファーに書きこめば、
+送信パケットにでも設定できる。
+.B SOCK_DGRAM
+ソケットまたは
+.B SOCK_RAW
+ソケットでのみ許される。引き数はブール値へのポインタ。
+.TP
+.B IPV6_RECVERR
+.\"O Control receiving of asynchronous error options.
+.\"O See
+.\"O .B IP_RECVERR
+.\"O in
+.\"O .BR ip (7)
+.\"O for details.
+.\"O Argument is a pointer to boolean.
+非同期エラー (asynchronous error) オプションの受信を制御する。
+詳細は
+.BR ip (7)
+の
+.B IP_RECVERR
+を参照。
+引き数はブール値へのポインタ。
+.TP
+.B IPV6_ROUTER_ALERT
+.\"O Pass forwarded packets containing a router alert hop-by-hop option to
+.\"O this socket.
+.\"O Only allowed for SOCK_RAW sockets.
+.\"O The tapped packets are not forwarded by the kernel, it is the
+.\"O user's responsibility to send them out again.
+このソケットで、router alert hop-by-hop オプションの付いた転送パケットを
+通すかどうかを制御する。
+.B SOCK_RAW
+ソケットでのみ許可される。
+tap されたパケットはカーネルによっては転送されない。そうしたパケットを
+再度送信するのはユーザーの責任である。
+.\"O Argument is a pointer to an integer.
+.\"O A positive integer indicates a router alert option value to intercept.
+.\"O Packets carrying a router alert option with a value field containing
+.\"O this integer will be delivered to the socket.
+.\"O A negative integer disables delivery of packets with router alert options
+.\"O to this socket.
+引き数は整数 (integer) へのポインタ。
+正の整数は傍受を行う router alert オプション値を示す。
+オプション値がこの整数である router alert オプションの付いたパケットは
+ソケットに配送される。負の整数を指定すると、このソケットへの
+router alert オプションの付いたパケットの配送が行われない。
+.\" FLOWLABEL_MGR, FLOWINFO_SEND
+.TP
+.B IPV6_UNICAST_HOPS
+.\"O Set the unicast hop limit for the socket.
+.\"O Argument is a pointer to an integer.
+.\"O \-1 in the value means use the route default,
+.\"O otherwise it should be between 0 and 255.
+そのソケットでの unicast の hop 数の上限値を設定する。
+引き数は整数へのポインタである。
+\-1 を指定すると経路のデフォルトを用いることを意味する。
+それ以外の場合は 0 から 255 の範囲を指定する。
+.TP
+.\"O .BR IPV6_V6ONLY " (since Linux 2.4.21 and 2.6)"
+.BR IPV6_V6ONLY " (Linux 2.4.21 以降および 2.6 以降)"
+.\" See RFC 3493
+.\"O If this flag is set to true (nonzero), then the socket is restricted
+.\"O to sending and receiving IPv6 packets only.
+.\"O In this case, an IPv4 and an IPv6 application can bind
+.\"O to a single port at the same time.
+このフラグを真 (0 以外) に設定すると、そのソケットは IPv6 パケットだけを
+送受信するように制限される。
+この場合、IPv4 アプリケーションと IPv6 アプリケーションが同時に
+一つのポートをバインドできる。
+
+.\"O If this flag is set to false (zero),
+.\"O then the socket can be used to send and receive packets
+.\"O to and from an IPv6 address or an IPv4-mapped IPv6 address.
+このフラグを偽 (0) に設定すると、そのソケットはパケットの送受信に
+IPv6 アドレスと IPv4-mapped IPv6 アドレスの両方を使用できる。
+
+.\"O The argument is a pointer to a boolean value in an integer.
+引き数はブール値の入った整数へのポインタである。
+
+.\"O The default value for this flag is defined by the contents of the file
+.\"O .IR /proc/sys/net/ipv6/bindv6only .
+.\"O The default value for that file is 0 (false).
+このフラグのデフォルト値はファイル
+.I /proc/sys/net/ipv6/bindv6only
+の内容により定義される。
+このファイルのデフォルト値は 0 (偽) である。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O The older
+.\"O .I libinet6
+.\"O libc5 based IPv6 API implementation for Linux is not described here
+.\"O and may vary in details.
+IPv6 API を libc5 ベースで Linux 向けに実装した、以前の
+.I libinet6
+についてはここでは記述していない。
+おそらく細かいところには相違点があるだろう。
+.PP
+.\"O Linux 2.4 will break binary compatibility for the
+.\"O .I sockaddr_in6
+.\"O for 64-bit
+.\"O hosts by changing the alignment of
+.\"O .I in6_addr
+.\"O and adding an additional
+.\"O .I sin6_scope_id
+.\"O field.
+.\"O The kernel interfaces stay compatible, but a program including
+.\"O .I sockaddr_in6
+.\"O or
+.\"O .I in6_addr
+.\"O into other structures may not be.
+.\"O This is not
+.\"O a problem for 32bit hosts like i386.
+Linux 2.4 では 64 ビットのホストに対して
+.I sockaddr_in6
+のバイナリ互換性が保たれていない。
+.I in6_addr
+のアラインメントが変更され、また
+.I sin6_scope_id
+フィールドが新たに追加されたからである。
+カーネルインターフェースの互換性は保たれているが、
+.I sockaddr_in6
+や
+.I in6_addr
+を他の構造体に含んでいるようなプログラムでは
+保たれないかもしれない。
+これは i386 のような 32 ビットのホストでは問題にならない。
+.PP
+.\"O The
+.\"O .I sin6_flowinfo
+.\"O field is new in Linux 2.4.
+.\"O It is transparently passed/read by the kernel
+.\"O when the passed address length contains it.
+.\"O Some programs that pass a longer address buffer and then
+.\"O check the outgoing address length may break.
+.I sin6_flowinfo
+フィールドは Linux 2.4 で登場した。
+これが渡されたアドレス長に含まれていると、
+カーネルに透過的に渡され、読まれる。
+.\"nakano ここわからないです...
+より長いアドレスバッファを渡し、
+そして送信アドレスの長さをチェックするようなプログラムは
+うまく動かないかもしれない。
+.\"O .SH "NOTES"
+.SH 注意
+.\"O The
+.\"O .I sockaddr_in6
+.\"O structure is bigger than the generic
+.\"O .IR sockaddr .
+.\"O Programs that assume that all address types can be stored safely in a
+.\"O .I struct sockaddr
+.\"O need to be changed to use
+.\"O .I struct sockaddr_storage
+.\"O for that instead.
+.I sockaddr_in6
+構造体はジェネリックな
+.I sockaddr
+よりも大きい。
+すべてのアドレスタイプが
+.I struct sockaddr
+の中に安全に納められると仮定しているプログラムは、代わりに
+.I struct sockaddr_storage
+を用いるように変更する必要がある。
+.\"O .SH BUGS
+.SH バグ
+.\"O The IPv6 extended API as in RFC\ 2292 is currently only partly
+.\"O implemented;
+.\"O although the 2.2 kernel has near complete support for receiving options,
+.\"O the macros for generating IPv6 options are missing in glibc 2.1.
+IPv6 拡張 API は、現在まだ RFC\ 2292 を完全には実装していない。
+2.2 カーネルは受信オプションをほぼ完全にサポートサポートしているが、
+glibc2.1 には IPv6 オプションを生成するマクロが存在していない。
+.PP
+.\"O IPSec support for EH and AH headers is missing.
+EH および AH ヘッダ での IPSec のサポートは存在しない。
+.PP
+.\"O Flow label management is not complete and not documented here.
+フローラベル管理はまだ完全でなく、ここにも記述されていない。
+.PP
+.\"O This man page is not complete.
+この man ページはまだ完成していない。
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR cmsg (3),
+.BR ip (7)
+.LP
+RFC\ 2553: IPv6 BASIC API.
+.\"O Linux tries to be compliant to this.
+Linux はこの RFC に準拠するようにしている。
+.LP
+RFC\ 2460: IPv6 specification.

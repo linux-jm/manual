@@ -1,0 +1,812 @@
+.\" Copyright 2003,2004 Andi Kleen, SuSE Labs.
+.\" and Copyright 2007 Lee Schermerhorn, Hewlett Packard
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" 2006-02-03, mtk, substantial wording changes and other improvements
+.\" 2007-08-27, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+.\"	more precise specification of behavior.
+.\"
+.\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2006-07-25, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.36
+.\" Updated 2008-08-21, Akihiro MOTOKI, LDP v3.07
+.\" Updated 2008-09-19, Akihiro MOTOKI, LDP v3.08
+.\"
+.TH MBIND 2 2008-08-15 Linux "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O mbind \- Set memory policy for a memory range
+mbind \- メモリ領域に対してメモリポリシーを設定する
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B "#include <numaif.h>"
+.sp
+.BI "int mbind(void *" addr ", unsigned long " len  ", int " mode ,
+.BI "          unsigned long *" nodemask  ", unsigned long " maxnode ,
+.BI "          unsigned " flags );
+.sp
+.\"O Link with \fI\-lnuma\fP.
+\fI\-lnuma\fP でリンクする。
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .BR mbind ()
+.\"O sets the NUMA memory policy,
+.\"O which consists of a policy mode and zero or more nodes,
+.\"O for the memory range starting with
+.\"O .I addr
+.\"O and continuing for
+.\"O .I len
+.\"O bytes.
+.BR mbind ()
+は、
+.I addr
+から始まる長さ
+.I len
+バイトの範囲のメモリに NUMA メモリポリシーを設定する。
+NUMA ポリシーはポリシーモードと 0 個以上のノードから構成される。
+.\"O The memory policy defines from which node memory is allocated.
+メモリポリシーはどのノードからメモリを割り当てるかを決定する。
+
+.\"O If the memory range specified by the
+.\"O .IR addr " and " len
+.\"O arguments includes an "anonymous" region of memory\(emthat is
+.\"O a region of memory created using the
+.\"O .BR mmap (2)
+.\"O system call with the
+.\"O .BR MAP_ANONYMOUS \(emor
+.\"O a memory mapped file, mapped using the
+.\"O .BR mmap (2)
+.\"O system call with the
+.\"O .B MAP_PRIVATE
+.\"O flag, pages will only be allocated according to the specified
+.\"O policy when the application writes [stores] to the page.
+.I addr
+と
+.I len
+で指定されたメモリ範囲に、
+メモリの「無名」領域 \(em
+.B MAP_ANONYMOUS
+付きの
+.BR mmap (2)
+システムコールを使って作成されたメモリ領域 \(em や
+.B MAP_PRIVATE
+付きの
+.BR mmap (2)
+を使ってマップされたメモリマップ・ファイルが含まれている場合、
+ページが指定されたポリシーに基づいて割り当てられるのは、アプリケーション
+がそのページへの書き込み (データの格納) を行った時だけである。
+.\"O For anonymous regions, an initial read access will use a shared
+.\"O page in the kernel containing all zeros.
+.\"O For a file mapped with
+.\"O .BR MAP_PRIVATE ,
+.\"O an initial read access will allocate pages according to the
+.\"O process policy of the process that causes the page to be allocated.
+.\"O This may not be the process that called
+.\"O .BR mbind ().
+無名領域の場合、最初の読み出しアクセスの際には
+カーネル内の全データが 0 である共有ページが使用される。
+.B MAP_PRIVATE
+でマップされたファイルの場合、最初の読み出しアクセスがあると、
+ページ割り当てが発生するきっかけとなったプロセスのデフォルトポリシー
+にしたがってページの割り当てが行われる。
+ページ割り当てのきっかけとなったプロセスは、
+.BR mbind ()
+を呼び出したプロセスと同じとは限らない。
+
+.\"O The specified policy will be ignored for any
+.\"O .B MAP_SHARED
+.\"O mappings in the specified memory range.
+.\"O Rather the pages will be allocated according to the process policy
+.\"O of the process that caused the page to be allocated.
+.\"O Again, this may not be the process that called
+.\"O .BR mbind ().
+指定されたメモリ範囲内にある
+.B MAP_SHARED
+のマッピングでは指定されたポリシーは無視され、
+ページ割り当てが発生するきっかけとなったプロセスのデフォルトポリシーに
+したがってページの割り当てが行われることになる。
+繰り返しになるが、ページ割り当てのきっかけとなったプロセスは、
+.BR mbind ()
+を呼び出したプロセスと同じとは限らない。
+
+.\"O If the specified memory range includes a shared memory region
+.\"O created using the
+.\"O .BR shmget (2)
+.\"O system call and attached using the
+.\"O .BR shmat (2)
+.\"O system call,
+.\"O pages allocated for the anonymous or shared memory region will
+.\"O be allocated according to the policy specified, regardless which
+.\"O process attached to the shared memory segment causes the allocation.
+.\"Omotoki: 訳に少しだけ自信がない。
+指定されたメモリ範囲に、
+.BR shmget (2)
+システムコールを使って作成されたり、
+.BR shmat (2)
+システムコールを使って付加 (attach) されたりした共有メモリ領域が
+含まれる場合、無名メモリ領域や共有メモリ領域に対するページ割り当ては、
+共有メモリセグメントへポリシーの設定を行ったプロセスがページ割り当て
+のきっかけとなったかに関わらず、指定されたポリシーにしたがって割り当て
+が行われる。
+.\"O If, however, the shared memory region was created with the
+.\"O .B SHM_HUGETLB
+.\"O flag,
+.\"O the huge pages will be allocated according to the policy specified
+.\"O only if the page allocation is caused by the process that calls
+.\"O .BR mbind ()
+.\"O for that region.
+しかしながら、共有メモリ領域が
+.B SHM_HUGETLB
+フラグを指定して作成された場合には、ヒュージページ (huge page) の割り当てが
+指定されたポリシーにしたがって行われるのは、その領域に対して
+.BR mbind ()
+を呼び出したプロセスがページ割り当てのきっかけとなった場合のみである。
+
+.\"O By default,
+.\"O .BR mbind ()
+.\"O only has an effect for new allocations; if the pages inside
+.\"O the range have been already touched before setting the policy,
+.\"O then the policy has no effect.
+デフォルトでは、
+.BR mbind ()
+は新規のメモリ割り当てに対してのみ効果を持つ。
+ポリシーが設定される前にすでに使用されている範囲内のページに対しては、
+ポリシーは影響しない。
+.\"O This default behavior may be overridden by the
+.\"O .B MPOL_MF_MOVE
+.\"O and
+.\"O .B MPOL_MF_MOVE_ALL
+.\"O flags described below.
+このデフォルトの動作は、以下で説明するフラグ
+.B MPOL_MF_MOVE
+や
+.B MPOL_MF_MOVE_ALL
+により上書きされる可能性がある。
+
+.\"O The
+.\"O .I mode
+.\"O argument must specify one of
+.\"O .BR MPOL_DEFAULT ,
+.\"O .BR MPOL_BIND ,
+.\"O .B MPOL_INTERLEAVE
+.\"O or
+.\"O .BR MPOL_PREFERRED .
+.\"O All policy modes except
+.\"O .B MPOL_DEFAULT
+.\"O require the caller to specify via the
+.\"O .I nodemask
+.\"O argument,
+.\"O the node or nodes to which the mode applies.
+.I mode
+引き数には、
+.BR MPOL_DEFAULT ,
+.BR MPOL_BIND ,
+.BR MPOL_INTERLEAVE ,
+.B MPOL_PREFERRED
+のいずれか一つを指定しなければならない。
+.B MPOL_DEFAULT
+以外のポリシーモードの場合、呼び出し元は
+.I nodemask
+引き数でそのポリシーモードを適用するノードを指定する必要がある。
+
+.\"O The
+.\"O .I mode
+.\"O argument may also include an optional
+.\"O .IR "mode flag ".
+.\"O The supported
+.\"O .I "mode flags"
+.\"O are:
+.I mode
+引き数には、追加で
+.I "モードフラグ"
+を含めることもできる。
+サポートされている
+.I "モードフラグ"
+は以下の通りである。
+.TP
+.\"O .BR MPOL_F_STATIC_NODES " (since Linux-2.6.26)"
+.BR MPOL_F_STATIC_NODES " (Linux-2.6.26 以降)"
+.\"O A nonempty
+.\"O .I nodemask
+.\"O specifies physical node ids.
+.\"O Linux does not remap the
+.\"O .I nodemask
+.\"O when the process moves to a different cpuset context,
+.\"O nor when the set of nodes allowed by the process's
+.\"O current cpuset context changes.
+空でない
+.I nodemask
+は、物理ノード ID である。
+Linux では、そのプロセスが異なる CPU 集合コンテキスト (cpuset context)
+に移動した場合でも、そのプロセスの現在の CPU 集合コンテキストで
+許可されているノード集合が変化した場合でも、
+.I nodemask
+をマッピングし直すことはない。
+.TP
+.\"O .BR MPOL_F_RELATIVE_NODES " (since Linux-2.6.26)"
+.BR MPOL_F_RELATIVE_NODES " (Linux-2.6.26 以降)"
+.\"O A nonempty
+.\"O .I nodemask
+.\"O specifies node ids that are relative to the set of
+.\"O node ids allowed  by the process's current cpuset.
+空でない
+.I nodemask
+は、そのプロセスの現在の CPU 集合で許可されているノード ID 集合
+における相対的なノード ID である。
+.PP
+.\"O .I nodemask
+.\"O points to a bitmask of nodes containing up to
+.\"O .I maxnode
+.\"O bits.
+.\"O The bit mask size is rounded to the next multiple of
+.\"O .IR "sizeof(unsigned long)" ,
+.\"O but the kernel will only use bits up to
+.\"O .IR maxnode .
+.I nodemask
+は、最大で
+.I maxnode
+ビットから構成されるノードのビットマスクを指す。
+ビットマスクの大きさは、直近の
+.I sizeof(unsigned long)
+の倍数に切り上げられるが、カーネルが使用するのは
+.I maxnode
+個までのビットだけである。
+.\"O A NULL value of
+.\"O .I nodemask
+.\"O or a
+.\"O .I maxnode
+.\"O value of zero specifies the empty set of nodes.
+.\"O If the value of
+.\"O .I maxnode
+.\"O is zero,
+.\"O the
+.\"O .I nodemask
+.\"O argument is ignored.
+NULL 値の
+.I nodemask
+もしくは値が 0 の
+.I maxnode
+はノードの空集合を表す。
+.I maxnode
+の値が 0 の場合、
+.I nodemask
+引き数は無視される。
+.\"O Where a
+.\"O .I nodemask
+.\"O is required, it must contain at least one node that is on-line,
+.\"O allowed by the process's current cpuset context
+.\"O [unless the
+.\"O .B MPOL_F_STATIC_NODES
+.\"O mode flag is specified],
+.\"O and contains memory.
+.I nodemask
+が必須の場面では、
+.I nodemask
+に、オンラインで、そのプロセスの現在の CPU 集合コンテキストで
+許可されており
+.RB ( MPOL_F_STATIC_NODES
+モードフラグが指定されていない場合)、メモリがあるノードが
+少なくとも一つ入っていなければならない。
+
+.\"O The
+.\"O .B MPOL_DEFAULT
+.\"O mode requests that any nondefault policy be removed,
+.\"O restoring default behavior.
+モード
+.B MPOL_DEFAULT
+はデフォルトではないプロセスのメモリポリシーを削除し、
+デフォルトの動作に戻すことを指定するものである。
+.\"O When applied to a range of memory via
+.\"O .BR mbind (),
+.\"O this means to use the process policy,
+.\"O which may have been set with
+.\"O .BR set_mempolicy (2).
+.BR mbind ()
+経由で、あるメモリ領域に対して
+.B MPOL_DEFAULT
+が適用された場合、プロセスのデフォルトポリシーを使用することを意味する。
+プロセスのデフォルトポリシーは、
+.BR set_mempolicy (2)
+で変更されているかもしれない。
+.\"O If the mode of the process policy is also
+.\"O .BR MPOL_DEFAULT ,
+.\"O the system-wide default policy will be used.
+プロセスのポリシーのモードも
+.B MPOL_DEFAULT
+の場合、システム全体のデフォルトポリシーが使用される。
+.\"O The system-wide default policy allocates
+.\"O pages on the node of the CPU that triggers the allocation.
+.\"O For
+.\"O .BR MPOL_DEFAULT ,
+.\"O the
+.\"O .I nodemask
+.\"O and
+.\"O .I maxnode
+.\"O arguments must be specify the empty set of nodes.
+システム全体のデフォルトポリシーでは、割り当てのきっかけとなった
+CPU のノードからページの割り当てを行う。
+.B MPOL_DEFAULT
+では、引き数
+.I nodemask
+と
+.I maxnode
+にノードの空集合を指定しなければならない。
+
+.\"O The
+.\"O .B MPOL_BIND
+.\"O mode specifies a strict policy that restricts memory allocation to
+.\"O the nodes specified in
+.\"O .IR nodemask .
+.\"O If
+.\"O .I nodemask
+.\"O specifies more than one node, page allocations will come from
+.\"O the node with the lowest numeric node ID first, until that node
+.\"O contains no free memory.
+.\"O Allocations will then come from the node with the next highest
+.\"O node ID specified in
+.\"O .I nodemask
+.\"O and so forth, until none of the specified nodes contain free memory.
+.\"O Pages will not be allocated from any node not specified in the
+.\"O .IR nodemask .
+.B MPOL_BIND
+は厳しいポリシーで、メモリ割り当ては
+.I nodemask
+に指定されたノードに限定される。
+他のノードへの割り当ては行われない。
+.I nodemask
+に 2 個以上のノードが指定された場合、ページの割り当ては
+ノード ID が数字として最小のノードから開始され、
+そのノードに空きメモリがなくなるまでそのノードから
+ページ割り当てが行われる。そのノードに空きメモリがなくなったら、
+.\"motoki: the next highest は the next lowest の間違い？
+次に小さなノード ID を持つノードからページ割り当てが行われる。
+これを、
+.I nodemask
+で指定された全てのノードで空きメモリがなくなるまで繰り返す。
+.I nodemask
+で指定された以外のノードからはページの割り当ては行われない。
+
+.\"O The
+.\"O .B MPOL_INTERLEAVE
+.\"O mode specifies that page allocations be interleaved across the
+.\"O set of nodes specified in
+.\"O .IR nodemask .
+.\"O This optimizes for bandwidth instead of latency
+.\"O by spreading out pages and memory accesses to those pages across
+.\"O multiple nodes.
+.\"O To be effective the memory area should be fairly large,
+.\"O at least 1MB or bigger with a fairly uniform access pattern.
+.\"O Accesses to a single page of the area will still be limited to
+.\"O the memory bandwidth of a single node.
+.B MPOL_INTERLEAVE
+は、メモリ割り当てが
+.I nodemask
+に指定されたノード間で交互に行われることを指定するものである。
+このポリシーでは、複数のノードにページを広げて配置し、これらのページへの
+メモリアクセスを分散することで、遅延ではなく、帯域を最適化する。
+効果を得るには、メモリ領域をある程度大きくすべきであり、
+メモリアクセスのパターンがかなり均一な場合でも
+少なくとも 1MB 以上にすべきである。
+このモードでも、一つのページへのアクセスに関しては
+一つのノードのメモリ帯域が上限となることは変わりない。
+
+.\"O .B MPOL_PREFERRED
+.\"O sets the preferred node for allocation.
+.\"O The kernel will try to allocate pages from this
+.\"O node first and fall back to other nodes if the
+.\"O preferred nodes is low on free memory.
+.\"O If
+.\"O .I nodemask
+.\"O specifies more than one node ID, the first node in the
+.\"O mask will be selected as the preferred node.
+.\"O If the
+.\"O .I nodemask
+.\"O and
+.\"O .I maxnode
+.\"O arguments specify the empty set, then the memory is allocated on
+.\"O the node of the CPU that triggered the allocation.
+.\"O This is the only way to specify "local allocation" for a
+.\"O range of memory via
+.\"O .BR mbind ().
+.B MPOL_PREFERRED
+は、割り当て時に優先されるノードを設定する。
+カーネルはまず優先ノードにページ割り当てを行おうとし、
+優先ノードに空きメモリが少ない場合に他のノードに割り当てを行う。
+.I nodemask
+に複数のノード ID が指定された場合は、
+.I nodemask
+内の最初のノードが優先ノードとして選択される。
+引き数
+.IR nodemask ,
+.I maxnode
+で空集合が指定された場合は、割り当てのきっかけとなった CPU のノードに
+メモリ割り当てが行われる。
+.BR mbind (2)
+で、あるメモリ領域に対して「ローカルからの割り当て (local allocation)」を
+指定する方法はこれしかない。
+
+.\"O If
+.\"O .B MPOL_MF_STRICT
+.\"O is passed in
+.\"O .I flags
+.\"O and
+.\"O .I policy
+.\"O is not
+.\"O .BR MPOL_DEFAULT ,
+.\"O then the call will fail with the error
+.\"O .B EIO
+.\"O if the existing pages in the memory range don't follow the policy.
+.I flags
+に
+.B MPOL_MF_STRICT
+が
+指定され、
+.I policy
+が
+.B MPOL_DEFAULT
+でない場合、
+指定されたポリシーに従っていないメモリ領域にページが存在すると、
+.BR mbind ()
+はエラー
+.B EIO
+で失敗する。
+.\" According to the kernel code, the following is not true
+.\" --Lee Schermerhorn
+.\" .\"O In 2.6.16 or later the kernel will also try to move pages
+.\" .\"O to the requested node with this flag.
+.\" 2.6.16 以降のカーネルでは、このフラグで要求されたノードに
+.\" ページを移動しようとする。
+
+.\"O If
+.\"O .B MPOL_MF_MOVE
+.\"O is specified in
+.\"O .IR flags ,
+.\"O then the kernel will attempt to move all the existing pages
+.\"O in the memory range so that they follow the policy.
+.\"O Pages that are shared with other processes will not be moved.
+.\"O If
+.\"O .B MPOL_MF_STRICT
+.\"O is also specified, then the call will fail with the error
+.\"O .B EIO
+.\"O if some pages could not be moved.
+.I flags
+に
+.B MPOL_MF_MOVE
+が指定されると、カーネルはそのメモリ領域内の既存の全てのページを移動し、
+指定されたポリシーに従うようにしようとする。
+他のプロセスと共有されているページは移動されない。
+.B MPOL_MF_STRICT
+も指定された場合、移動できなかったページがあると、
+.BR mbind ()
+はエラー
+.B EIO
+で失敗する。
+
+.\"O If
+.\"O .B MPOL_MF_MOVE_ALL
+.\"O is passed in
+.\"O .IR flags ,
+.\"O then the kernel will attempt to move all existing pages in the memory range
+.\"O regardless of whether other processes use the pages.
+.\"O The calling process must be privileged
+.\"O .RB ( CAP_SYS_NICE )
+.\"O to use this flag.
+.\"O If
+.\"O .B MPOL_MF_STRICT
+.\"O is also specified, then the call will fail with the error
+.\"O .B EIO
+.\"O if some pages could not be moved.
+.I flags
+に
+.B MPOL_MF_MOVE_ALL
+が指定されると、カーネルはそのメモリ領域内の既存の全てのページを、
+他のプロセスがページを使用しているかどうかに関わらず移動する。
+このフラグを使用するには、呼び出し元のプロセスは特権
+.RB ( CAP_SYS_NICE )
+を持っていなければならない。
+.B MPOL_MF_STRICT
+も指定された場合、移動できなかったページがあると、
+.BR mbind ()
+はエラー
+.B EIO
+で失敗する。
+.\" ---------------------------------------------------------------
+.\"O .SH RETURN VALUE
+.SH 返り値
+.\"O On success,
+.\"O .BR mbind ()
+.\"O returns 0;
+.\"O on error, \-1 is returned and
+.\"O .I errno
+.\"O is set to indicate the error.
+成功すると、
+.BR mbind ()
+は 0 を返す。エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.\" ---------------------------------------------------------------
+.\"O .SH ERRORS
+.SH エラー
+.\"  I think I got all of the error returns.  --Lee Schermerhorn
+.TP
+.B EFAULT
+.\"O Part or all of the memory range specified by
+.\"O .I nodemask
+.\"O and
+.\"O .I maxnode
+.\"O points outside your accessible address space.
+.\"O Or, there was an unmapped hole in the specified memory range.
+.I nodemask
+と
+.I maxnode
+で指定されたメモリ領域の一部または全部が、
+呼び出し元がアクセス可能なアドレス空間外を指している。
+もしくは指定されたメモリ領域にマップされていない部分 (unmapped hole)
+があった、
+.TP
+.B EINVAL
+.\"O An invalid value was specified for
+.\"O .I flags
+.\"O or
+.\"O .IR mode ;
+.I flags
+や
+.I mode
+に不正な値が指定された。
+.\"O or
+.\"O .I addr + len
+.\"O was less than
+.\"O .IR addr ;
+.I addr + len
+が
+.I addr
+より小さい。
+.\"O or
+.\"O .I addr
+.\"O is not a multiple of the system page size.
+.\"O Or,
+.\"O .I mode
+.\"O is
+.\"O .B MPOL_DEFAULT
+.\"O and
+.\"O .I nodemask
+.\"O specified a nonempty set;
+.I addr
+がシステムのページサイズの倍数になっていない。
+または
+.I mode
+が
+.B MPOL_DEFAULT
+で
+.I nodemask
+に空でない集合が指定された。
+.\"O or
+.\"O .I mode
+.\"O is
+.\"O .B MPOL_BIND
+.\"O or
+.\"O .B MPOL_INTERLEAVE
+.\"O and
+.\"O .I nodemask
+.\"O is empty.
+.I mode
+が
+.B MPOL_BIND
+か
+.B MPOL_INTERLEAVE
+で
+.I nodemask
+が空であった。
+.\"O Or,
+.\"O .I maxnode
+.\"O exceeds a kernel-imposed limit.
+.I maxnode
+がカーネルに適用された上限を超えている。
+.\" As at 2.6.23, this limit is "a page worth of bits", e.g.,
+.\" 8 * 4096 bits, assuming a 4kB page size.
+.\"O Or,
+.\"O .I nodemask
+.\"O specifies one or more node IDs that are
+.\"O greater than the maximum supported node ID.
+.I nodemask
+に、サポートされている最大ノード ID より大きいノードが指定された。
+.\"O Or, none of the node IDs specified by
+.\"O .I nodemask
+.\"O are on-line and allowed by the process's current cpuset context,
+.\"O or none of the specified nodes contain memory.
+.I nodemask
+に、オンラインで、かつそのプロセスの現在の CPU 集合コンテキストで
+許可されているノードが一つも含まれていないか、
+メモリを含むノードが一つも指定されていない。
+.\"O Or, the
+.\"O .I mode
+.\"O argument specified both
+.\"O .B MPOL_F_STATIC_NODES
+.\"O and
+.\"O .BR MPOL_F_RELATIVE_NODES .
+.I mode
+引き数に
+.B MPOL_F_STATIC_NODES
+と
+.B MPOL_F_RELATIVE_NODES
+の両方が指定された。
+.TP
+.B EIO
+.\"O .B MPOL_MF_STRICT
+.\"O was specified and an existing page was already on a node
+.\"O that does not follow the policy;
+.B MPOL_MF_STRICT
+が指定されたが、このポリシーに従っていないノードに
+すでにページが存在していた。
+.\"O or
+.\"O .B MPOL_MF_MOVE
+.\"O or
+.\"O .B MPOL_MF_MOVE_ALL
+.\"O was specified and the kernel was unable to move all existing
+.\"O pages in the range.
+もしくは
+.B MPOL_MF_MOVE
+か
+.B MPOL_MF_MOVE_ALL
+が指定されたが、カーネルが指定された領域内の既存の全てのページを
+移動することができなかった。
+.TP
+.B ENOMEM
+.\"O Insufficient kernel memory was available.
+利用可能なカーネルメモリが十分なかった。
+.TP
+.B EPERM
+.\"O The
+.\"O .I flags
+.\"O argument included the
+.\"O .B MPOL_MF_MOVE_ALL
+.\"O flag and the caller does not have the
+.\"O .B CAP_SYS_NICE
+.\"O privilege.
+.I flags
+引き数に
+.B MPOL_MF_MOVE_ALL
+フラグが含まれているが、呼び出し元が
+.B CAP_SYS_NICE
+特権を持たない。
+.\" ---------------------------------------------------------------
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O The
+.\"O .BR mbind ()
+.\"O system call was added to the Linux kernel in version 2.6.7.
+.BR mbind ()
+システムコールはバージョン 2.6.7 で Linux カーネルに追加された。
+.\"O .SH CONFORMING TO
+.SH 準拠
+.\"O This system call is Linux-specific.
+このシステムコールは Linux 独自である。
+.\"O .SH NOTES
+.SH 注意
+.\"O For information on library support, see
+.\"O .BR numa (7).
+ライブラリによるサポートについては
+.BR numa (7)
+を参照。
+
+.\"O NUMA policy is not supported on a memory mapped file range
+.\"O that was mapped with the
+.\"O .B MAP_SHARED
+.\"O flag.
+NUMA ポリシーは、
+.B MAP_SHARED
+フラグが指定されてマップされたメモリマップ・ファイルの領域では
+サポートされていない。
+
+.\"O The
+.\"O .B MPOL_DEFAULT
+.\"O mode can have different effects for
+.\"O .BR mbind ()
+.\"O and
+.\"O .BR set_mempolicy (2).
+.B MPOL_DEFAULT
+モードは、
+.BR mbind ()
+と
+.BR set_mempolicy (2)
+で異なる効果を持つことができる。
+.\"O When
+.\"O .B MPOL_DEFAULT
+.\"O is specified for
+.\"O .BR set_mempolicy (2),
+.\"O the process's policy reverts to system default policy
+.\"O or local allocation.
+.BR set_mempolicy (2)
+で
+.B MPOL_DEFAULT
+が指定された場合、そのプロセスのポリシーはシステムの
+デフォルトポリシー、すなわちローカルからの割り当て、に戻る。
+.\"O When
+.\"O .B MPOL_DEFAULT
+.\"O is specified for a range of memory using
+.\"O .BR mbind (),
+.\"O any pages subsequently allocated for that range will use
+.\"O the process's policy, as set by
+.\"O .BR set_mempolicy (2).
+.BR mbind ()
+を使ってメモリのある領域に
+.B MPOL_DEFAULT
+が指定された場合、その範囲に対してそれ以降に行われるページの割り当てでは、
+.BR set_mempolicy (2)
+で設定したのと同じように、そのプロセスのポリシーが適用される。
+.\"O This effectively removes the explicit policy from the
+.\"O specified range, "falling back" to a possibly nondefault
+.\"O policy.
+.\"0motoki: possibly nondefault policy は default policy の間違い？
+これにより、特定のメモリ領域についてだけ明示的なポリシーを削除し、
+デフォルトのポリシーに「戻す」ことができる。
+.\"O To select explicit "local allocation" for a memory range,
+.\"O specify a
+.\"O .I mode
+.\"O of
+.\"O .B MPOL_PREFERRED
+.\"O with an empty set of nodes.
+.\"O This method will work for
+.\"O .BR set_mempolicy (2),
+.\"O as well.
+あるメモリ領域に対して「ローカルからの割り当て」を明示的に設定するには、
+.I mode
+に
+.B MPOL_PREFERRED
+を指定し、
+.I nodemask
+に空集合のノードを指定すればよい。
+この方法は
+.BR set_mempolicy (2)
+でも通用する。
+
+.\"O Support for huge page policy was added with 2.6.16.
+.\"O For interleave policy to be effective on huge page mappings the
+.\"O policied memory needs to be tens of megabytes or larger.
+2.6.16 でヒュージページ・ポリシーへの対応が追加された。
+インターリーブ・ポリシーがヒュージページのマッピングで効果を持つには、
+ポリシーが適用されるメモリが数十メガバイト以上である必要がある。
+
+.\"O .B MPOL_MF_STRICT
+.\"O is ignored on huge page mappings.
+.B MPOL_MF_STRICT
+はヒュージページのマッピングでは無視される。
+
+.\"O .B MPOL_MF_MOVE
+.\"O and
+.\"O .B MPOL_MF_MOVE_ALL
+.\"O are only available on Linux 2.6.16 and later.
+.B MPOL_MF_MOVE
+と
+.B MPOL_MF_MOVE_ALL
+は Linux 2.6.16 以降でのみ利用可能である。
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR get_mempolicy (2),
+.BR getcpu (2),
+.BR mmap (2),
+.BR set_mempolicy (2),
+.BR shmat (2),
+.BR shmget (2),
+.BR numa (3),
+.BR cpuset (7),
+.BR numa (7),
+.BR numactl (8)

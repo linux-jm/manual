@@ -1,0 +1,274 @@
+.\" Copyright (c) 1998 Thorsten Kukuk (kukuk@vt.uni-paderborn.de)
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
+.\" USA.
+.\"
+.\" This manual page based on the GNU C Library info pages.
+.\" FIXME ? The use of quotes on this page is inconsistent with the
+.\" rest of man-pages.
+.\"
+.\" Japanese Version Copyright (c) 1998 NAKANO Takeo all rights reserved.
+.\" Translated Wed Apr 29 1998 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified Sat Aug 21 1999
+.\"       by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated Fri Oct 12 JST 2001 by Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.\" WORD:	lookup		閲覧(する)
+.\"
+.TH NSSWITCH.CONF 5 1999-01-17 "Linux" "Linux Programmer's Manual"
+.SH 名前
+nsswitch.conf \- システムデータベースとネームサービススイッチの設定ファイル
+.SH 説明
+C ライブラリの機能の中には、ローカルな環境で正しく動作させるには設定が
+必要なものが多数存在する。伝統的にこれはファイル (例えば \fI/etc/passwd\fP) を
+用いることで実現されてきた。しかし他のネームサービス (Network
+Information Service (NIS) や Domain Name Service (DNS)) が一般的になり、
+これらが C ライブラリに取り込まれるようになっていった。ただし通常、検
+索の順序は固定されていた。
+.LP
+NYS をサポートした Linux libc5 や GNU C Linrary 2.x (libc.so.6) では、
+この問題はより見通し良く解決できるようになっている。これらは Sun
+Microsystems が Solaris 2 の C ライブラリで用いた方法にならっている。
+以下ではこの仕組みを "Name Service Switch" (NSS) と呼ぶ。データベース
+の情報源と、それらを閲覧する順序を指定したのが
+.I /etc/nsswitch.conf
+ファイルである。
+.LP
+NSS(ネームサービススィッチ) では以下のデータベースを扱うことができる。
+.TP
+.B aliases
+.BR sendmail (8)
+で用いられるメールエイリアス。
+現在は無視される。
+.TP
+.B ethers
+イーサーネット番号。
+.TP
+.B group
+ユーザーのグループ。
+.BR getgrent (3)
+関数によって用いられる。
+.TP
+.B hosts
+ホスト名とホスト番号。
+.BR gethostbyname (3)
+などの関数によって用いられる。
+.TP
+.B netgroup
+ネットワークワイドに用いられるホストやユーザーのリスト。アクセス制限に
+利用される。 glibc 2.1 以前の C ライブラリは、 NIS 上でだけ
+netgroup をサポートしている。
+.TP
+.B networks
+ネットワーク名と番号。
+.BR getnetent (3)
+関数によって用いられる。
+.TP
+.B passwd
+ユーザーパスワード。
+.BR getpwent (3)
+関数によって用いられる。
+.TP
+.B protocols
+ネットワークプロトコル。
+.BR getprotoent (3)
+関数によって用いられる。
+.TP
+.B publickey
+NIS+ と NFS によって用いられる secure_rpc の公開鍵と秘密鍵。
+.TP
+.B rpc
+リモートプロシジャーコール (remote procedure call) の名前と番号。
+.BR getrpcbyname (3)
+などの関数によって用いられる。
+.TP
+.B services
+ネットワークサービス。
+.BR getservent (3)
+関数によって用いられる。
+.TP
+.B shadow
+シャドウユーザーパスワード。
+.BR getspnam (3)
+によって用いられる。
+.LP
+.I /etc/nsswitch.conf
+ファイルの一例を以下に示す (ここに示す内容は
+.I /etc/nsswitch.conf
+ファイルがない場合のデフォルトと同じである)。
+.sp 1n
+.PD 0
+.TP 16
+passwd:
+compat
+.TP
+group:
+compat
+.TP
+shadow:
+compat
+.sp 1n
+.TP
+hosts:
+dns [!UNAVAIL=return] files
+.TP
+networks:
+nis [NOTFOUND=return] files
+.TP
+ethers:
+nis [NOTFOUND=return] files
+.TP
+protocols:
+nis [NOTFOUND=return] files
+.TP
+rpc:
+nis [NOTFOUND=return] files
+.TP
+services:
+nis [NOTFOUND=return] files
+.PD
+.LP
+最初のカラムはデータベース名である。
+行の残りでは閲覧プロセスの動作を指定している。
+それぞれのデータベースに対して、閲覧方法は独立に設定できる。
+.LP
+各々のデータベースの設定には以下の 2 種類の内容を指定することができる。
+.PD 0
+.TP
+* サービスの指定。 `files', `db', `nis' など。
+.TP
+* 閲覧結果に対するリアクション。 `[NOTFOUND=return]' など。
+.PD
+.LP
+NYS 機能を組み込んだ libc5 では、指定できるサービスは `files'、 `nis'、
+`nisplus' のいずれかである。 hosts に対しては `dns' も指定できる。また
+passwd と group に対しては `compat' も指定できる。 shadow には
+`compat' の指定はできない。
+.LP
+glibc では、利用しようとするサービス SERVICE それぞれに対し
+て
+.BI /lib/libnss_SERVICE.so. X
+というファイルが必要になる。標準的なインストールでは `files'、 `db'、
+`nis'、 `nisplus' が利用できるようになっていることが多い。 hosts に対
+しては `dns' も指定でき、 passwd、 group、 shadow に対しては `compat'
+も指定できる。
+これらのサービスは libc5+NYS の環境では利用できない。
+バージョン番号
+.I X
+は、 glibc 2.0 用なら 1、 glibc 2.1 用なら 2 である。
+.LP
+二つめの指定方法は閲覧プロセスをより詳細に制御するためのものである。ア
+クション指定 (action item) はサービス名の間に、角かっこ [] で括られて
+記述される。一般的な書式は以下の通り。
+.LP
+`[' ( `!'? STATUS `=' ACTION )+ `]'
+.LP
+ここでそれぞれ
+.sp 1n
+.PD 0
+.TP
+STATUS => success | notfound | unavail | tryagain
+.TP
+ACTION => return | continue
+.PD
+である。
+.LP
+キーワードの大文字小文字は区別されない。 STATUS の値は特定の機能に対し
+て閲覧を行った結果である。それぞれの意味は以下の通り。
+.TP
+.B success
+エラーは起こらず、必要なエントリが返された。この結果に対するデフォルト
+のアクションは `return' である。
+.TP
+.B notfound
+閲覧プロセスは機能しているが、必要な値が見つからなかった。デフォルトの
+アクションは `continue'。
+.TP
+.B unavail
+サービスが（永続的に）利用できない。必要なファイルが存在しない、DNS の
+場合にはサーバに対する問い合わせが許可されていない、などがありうる。
+デフォルトのアクションは `continue'。
+.TP
+.B tryagain
+サービスが一時的に利用できない。ファイルがロックされている、サーバの接
+続数がリミットを越えていて現在利用できない、などが考えられる。デフォル
+トのアクションは `continue'。
+.SS +/\- 書式との関係 (compat モード)
+NYS 機能を組み込んでいない libc5 は、ネームサービススイッチの機能を持っ
+ていない。しかしある程度のポリシー制御は行うことができる。
+.I /etc/passwd
+では +user や +@netgroup (NIS の passwd マップから指定したユーザを取り込
+む)、 \-user や \-@netgroup (指定したユーザを除外する)、 + (NIS の
+passwd マップから、除外されたユーザ以外の全てのエントリを取り込む) な
+どを指定することができる。
+ほとんどの場合は
+.I /etc/passwd
+の最後に + を付けて NIS のすべてを取り込んでいるだけなので、
+ネームサービススイッチを用いて
+(`passwd: files nis') のようにすればより高速な動作が期待でき、
+また
+.IR /etc/passwd ", " /etc/group ", " /etc/shadow
+に + だけのエントリを書かなくてすむ。
+より細かな制御を行いたい場合は、 NSS の `compat' サービスを用いれば
++/\- 書式をフルに用いることができる。デフォルトではソースは `nis' になっ
+ているが、これは擬似データベース
+.BR passwd_compat , group_compat , shadow_compat
+などに `nisplus' を指定することで上書きできる。
+これらの擬似データベースは GNU C ライブラリでしか利用できない。
+.SH ファイル
+SERVICE という名前のサービスは libnss_SERVICE.so.1 という名前の共有オ
+ブジェクトライブラリで実装されている。これは /lib に置かれる。
+.TP 25
+.PD 0
+.I /etc/nsswitch.conf
+設定ファイル。
+.TP
+.BI /lib/libnss_compat.so. X
+glibc2 に対して `compat' ソースを実装したもの。
+.TP
+.BI /lib/libnss_db.so. X
+glibc2 に対して `db' ソースを実装したもの。
+.TP
+.BI /lib/libnss_dns.so. X
+glibc2 に対して `dns' ソースを実装したもの。
+.TP
+.BI /lib/libnss_files.so. X
+glibc2 に対して `files' ソースを実装したもの。
+.TP
+.BI /lib/libnss_hesoid.so. X
+glibc2 に対して `hesoid' ソースを実装したもの。
+.TP
+.BI /lib/libnss_nis.so. X
+glibc2 に対して `nis' ソースを実装したもの。
+.TP
+.BI /lib/libnss_nisplus.so. X
+glibc2 に対して `nisplus' ソースを実装したもの。
+.TP
+.I /lib/libnss_nisplus.so.2
+glibc 2.1 に対して `nisplus' ソースを実装したもの。
+.PD
+.SH 注意
+.I nsswitch.conf
+を利用するそれぞれのプロセスでは、ファイルは一度しか読み込まれない。
+もし nsswitch.conf があとで書き換えられても、
+そのプロセスは古い設定のままで動作を継続する。
+.LP
+Solaris では NSS サービスを用いたプログラムをスタティックにリンクする
+ことはできない。 Linux では問題なくスタティックリンクできる。

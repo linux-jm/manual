@@ -1,0 +1,1988 @@
+.\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\"
+.\" 2.4 Updates by Nivedita Singhvi 4/20/02 <nivedita@us.ibm.com>.
+.\" Modified, 2004-11-11, Michael Kerrisk and Andries Brouwer
+.\"	Updated details of interaction of TCP_CORK and TCP_NODELAY.
+.\"
+.\" 2008-11-21, mtk, many, many updates.
+.\"     The descriptions of /proc files and socket options should now
+.\"     be more or less up to date and complete as at Linux 2.6.27
+.\"     (other than the remaining FIXMEs in the page source below).
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Translated 1999-12-06, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated 2002-11-15, NAKANO Takeo
+.\" Updated 2005-02-21, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-09-07, Akihiro MOTOKI
+.\" Updated 2005-12-26, Akihiro MOTOKI
+.\" Updated 2006-07-19, Akihiro MOTOKI, LDP v2.36
+.\" Updated 2008-08-07, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2008-12-31, Akihiro MOTOKI, LDP v3.15
+.\" Updated 2009-03-01, Akihiro MOTOKI, LDP v3.19
+.\"
+.\"WORD         full duplex connection  全二重通信
+.\"WORD         listening state         接続待ち受け状態
+.\"WORD         denial of service attack	DoS 攻撃
+.\"WORD         urgent data             緊急データ
+.\"
+.TH TCP  7 2009-09-30 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O tcp \- TCP protocol
+.SH 名前
+tcp \- TCP プロトコル
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #include <sys/socket.h>
+.br
+.B #include <netinet/in.h>
+.br
+.B #include <netinet/tcp.h>
+.sp
+.B tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O This is an implementation of the TCP protocol defined in
+.\"O RFC\ 793, RFC\ 1122 and RFC\ 2001 with the NewReno and SACK
+.\"O extensions.
+.\"O It provides a reliable, stream-oriented,
+.\"O full-duplex connection between two sockets on top of
+.\"O .BR ip (7),
+.\"O for both v4 and v6 versions.
+.\"O TCP guarantees that the data arrives in order and
+.\"O retransmits lost packets.
+.\"O It generates and checks a per-packet checksum to catch
+.\"O transmission errors.
+.\"O TCP does not preserve record boundaries.
+これは RFC\ 793, RFC\ 1122, RFC\ 2001 で定義されている TCP プロトコルを
+NewReno 拡張と SACK 拡張を含めて実装したものである。
+TCP は、
+.BR ip (7)
+上の二つのソケット間に、信頼性の高い、ストリーム指向の全二重
+(full-duplex) 通信を提供する。
+v4 と v6 の両方のバージョンの
+.BR ip (7)
+に対応している。
+TCP は、データが順序を守って到着すること、途中で失われたパケットが
+再送されることを保証する。また、パケット単位にチェックサムを
+生成、検査することで、転送エラーを検知する。
+TCP はレコード境界 (record boundary) を保存しない。
+
+.\"O A newly created TCP socket has no remote or local address and is not
+.\"O fully specified.
+.\"O To create an outgoing TCP connection use
+.\"O .BR connect (2)
+.\"O to establish a connection to another TCP socket.
+.\"O To receive new incoming connections, first
+.\"O .BR bind (2)
+.\"O the socket to a local address and port and then call
+.\"O .BR listen (2)
+.\"O to put the socket into the listening state.
+.\"O After that a new socket for each incoming connection can be accepted using
+.\"O .BR accept (2).
+.\"O A socket which has had
+.\"O .BR accept (2)
+.\"O or
+.\"O .BR connect (2)
+.\"O successfully called on it is fully specified and may transmit data.
+.\"O Data cannot be transmitted on listening or not yet connected sockets.
+新しく生成されたばかりの TCP ソケットは、
+リモートアドレスかローカルアドレスがなく、
+したがって詳細が完全に指定された状態ではない。
+外部への TCP 接続を生成するには、
+.BR connect (2)
+を用いてもう一方の TCP ソケットへの接続を確立する。
+外部からの新たな接続を受けるには、まず
+.BR bind (2)
+でソケットをローカルなアドレスとポートに結びつけ、次に
+.BR listen (2)
+を呼んでソケットを接続待ち受け状態にする。
+その後、到着した接続要求に対して
+.BR accept (2)
+を用い、ソケットを新しく生成する。
+.BR accept (2)
+または
+.BR connect (2)
+のコールが成功したソケットは、詳細が完全に指定された状態となり、
+データのやりとりが可能となる。接続待ち受け状態の (listening) ソケットや、
+接続 (connect) されていないソケットを通してデータをやりとりすることはできない。
+
+.\"O Linux supports RFC\ 1323 TCP high performance
+.\"O extensions.
+.\"O These include Protection Against Wrapped
+.\"O Sequence Numbers (PAWS), Window Scaling and Timestamps.
+.\"O Window scaling allows the use
+.\"O of large (> 64K) TCP windows in order to support links with high
+.\"O latency or bandwidth.
+.\"O To make use of them, the send and receive buffer sizes must be increased.
+.\"O They can be set globally with the
+.\"O .I /proc/sys/net/ipv4/tcp_wmem
+.\"O and
+.\"O .I /proc/sys/net/ipv4/tcp_rmem
+.\"O files, or on individual sockets by using the
+.\"O .B SO_SNDBUF
+.\"O and
+.\"O .B SO_RCVBUF
+.\"O socket options with the
+.\"O .BR setsockopt (2)
+.\"O call.
+Linux は RFC\ 1323 の TCP high performance 拡張をサポートしている。
+これには、Protection Against Wrapped Sequence Numbers (PAWS)、
+ウィンドウスケーリング、タイムスタンプなどが含まれている。
+ウィンドウスケーリングを利用すると、遅延または帯域の大きな接続で、
+(64K 以上の) 巨大な TCP ウィンドウを用いることが可能となる。
+これを用いるには、送受信のバッファサイズを大きくしなければならない。
+システム全体に対するバッファサイズの変更は、ファイル
+.I /proc/sys/net/ipv4/tcp_wmem
+と
+.I /proc/sys/net/ipv4/tcp_rmem
+を用いて行うことができる。
+また、個々のソケットのみを大きくしたい場合には、
+.B SO_SNDBUF
+や
+.B SO_RCVBUF
+ソケットオプションを用いて
+.BR setsockopt (2)
+コールを用いて設定すればよい。
+
+.\"O The maximum sizes for socket buffers declared via the
+.\"O .B SO_SNDBUF
+.\"O and
+.\"O .B SO_RCVBUF
+.\"O mechanisms are limited by the values in the
+.\"O .I /proc/sys/net/core/rmem_max
+.\"O and
+.\"O .I /proc/sys/net/core/wmem_max
+.\"O files.
+.B SO_SNDBUF
+や
+.B SO_RCVBUF
+のメカニズムで宣言されるソケットバッファの最大サイズは、ファイル
+.I /proc/sys/net/core/rmem_max
+や
+.I /proc/sys/net/core/wmem_max
+で指定されたシステムとしての制限値を超えることはできない。
+.\"O Note that TCP actually allocates twice the size of
+.\"O the buffer requested in the
+.\"O .BR setsockopt (2)
+.\"O call, and so a succeeding
+.\"O .BR getsockopt (2)
+.\"O call will not return the same size of buffer as requested in the
+.\"O .BR setsockopt (2)
+.\"O call.
+TCP は実際には
+.BR setsockopt (2)
+コールが要求したバッファサイズの二倍を割り当てる。
+そのため、この後で
+.BR getsockopt (2)
+コールを行うと、
+.BR setsockopt (2)
+で要求したバッファサイズとは異なる値が返る。
+.\"O TCP uses the extra space for administrative purposes and internal
+.\"O kernel structures, and the
+.\"O .I /proc
+.\"O file values reflect the
+.\"O larger sizes compared to the actual TCP windows.
+TCP はこの余分な空間を、管理目的やカーネル内部の構造体に用いている。
+.I /proc
+ファイルの値は、これらを反映し、実際の TCP ウィンドウよりも大きな値となる。
+.\"O On individual connections, the socket buffer size must be set prior to the
+.\"O .BR listen (2)
+.\"O or
+.\"O .BR connect (2)
+.\"O calls in order to have it take effect.
+.\"O See
+.\"O .BR socket (7)
+.\"O for more information.
+各接続におけるソケットのバッファサイズ変更を有効にするには、
+.BR listen (2)
+や
+.BR connect (2)
+コールの前に設定しなければならない。
+より詳しい情報は
+.BR socket (7)
+を見よ。
+.PP
+.\"O TCP supports urgent data.
+.\"O Urgent data is used to signal the
+.\"O receiver that some important message is part of the data
+.\"O stream and that it should be processed as soon as possible.
+.\"O To send urgent data specify the
+.\"O .B MSG_OOB
+.\"O option to
+.\"O .BR send (2).
+TCP は緊急データ (urgent data) をサポートしている。緊急データは
+何らかの重要なメッセージがデータストリームに含まれていること、
+そのデータをできるだけ早く処理すべきこと、を受信者に伝えるために用いられる。
+緊急データを送るには、
+.BR send (2)
+に
+.B MSG_OOB
+オプションを指定する。
+.\"O When urgent data is received, the kernel sends a
+.\"O .B SIGURG
+.\"O signal to the process or process group that has been set as the
+.\"O socket "owner" using the
+.\"O .B SIOCSPGRP
+.\"O or
+.\"O .B FIOSETOWN
+.\"O ioctls (or the POSIX.1-2001-specified
+.\"O .BR fcntl (2)
+.\"O .B F_SETOWN
+.\"O operation).
+.\"O When the
+.\"O .B SO_OOBINLINE
+.\"O socket option is enabled, urgent data is put into the normal
+.\"O data stream (a program can test for its location using the
+.\"O .B SIOCATMARK
+.\"O ioctl described below),
+.\"O otherwise it can be only received when the
+.\"O .B MSG_OOB
+.\"O flag is set for
+.\"O .BR recv (2)
+.\"O or
+.\"O .BR recvmsg (2).
+緊急データを受信すると、カーネルは
+.B SIGURG
+シグナルを送信する。送信先は
+.B SIOCSPGRP
+や
+.B FIOSETOWN
+ioctl (や POSIX.1-2001 で規定されている
+.BR fcntl (2)
+.B F_SETOWN
+操作) を用いてそのソケットの「所有者」として設定された
+プロセスかプロセスグループである。
+.B SO_OOBINLINE
+ソケットオプションが有効になっていると、緊急データは
+通常のデータストリームの中に混ぜて送られる (プログラムは下記の
+.B SIOCATMARK
+ioctl を使って緊急データの場所を調べることができる)。
+無効になっている場合には、
+.BR recv (2)
+や
+.BR recvmsg (2)
+で
+.B MSG_OOB
+フラグがセットされているときにのみ、緊急データを受信できる。
+
+.\"O Linux 2.4 introduced a number of changes for improved
+.\"O throughput and scaling, as well as enhanced functionality.
+.\"O Some of these features include support for zero-copy
+.\"O .BR sendfile (2),
+.\"O Explicit Congestion Notification, new
+.\"O management of TIME_WAIT sockets, keep-alive socket options
+.\"O and support for Duplicate SACK extensions.
+Linux 2.4 では多くの変更がなされ、
+スループットとスケーリングが向上し、機能も高まった。
+これらの機能には、ゼロコピー
+.BR sendfile (2)、
+Explicit Congestion Notification、
+TIME_WAIT ソケットの新しい管理法、
+keep-alive ソケットオプション、
+Duplicate SACK 拡張のサポートなどがある。
+.\"O .SS Address Formats
+.SS アドレスのフォーマット
+.\"O TCP is built on top of IP (see
+.\"O .BR ip (7)).
+.\"O The address formats defined by
+.\"O .BR ip (7)
+.\"O apply to TCP.
+.\"O TCP only supports point-to-point
+.\"O communication; broadcasting and multicasting are not
+.\"O supported.
+TCP は IP の上層に構築されている
+.RB ( ip (7)
+を参照)。
+.BR ip (7)
+に定義されているアドレスフォーマットは TCP にも適用される。
+TCP は point-to-point の通信だけをサポートする。
+ブロードキャストやマルチキャストはサポートしない。
+.\"O .SS /proc interfaces
+.SS /proc インタフェース
+.\"O System-wide TCP parameter settings can be accessed by files in the directory
+.\"O .IR /proc/sys/net/ipv4/ .
+.\"O In addition, most IP
+.\"O .I /proc
+.\"O interfaces also apply to TCP; see
+.\"O .BR ip (7).
+システム全体に対する TCP パラメータの設定には、
+.I /proc/sys/net/ipv4/
+ディレクトリ内のファイルによりアクセスできる。
+さらに、IP に関連する
+.I /proc
+インタフェースのほとんどは TCP についても適用される。
+.BR ip (7)
+を参照のこと。
+.\"O .I Boolean
+.\"O take an integer value, with a nonzero value ("true") meaning that
+.\"O the corresponding option is enabled, and a zero value ("false")
+.\"O meaning that the option is disabled.
+.I Boolean
+は整数値で、
+0 以外の値 ("true") は対応するオプションが有効、
+0 値 ("false") は無効、であることを意味する。
+.TP
+.\"O .IR tcp_abc " (Integer; default: 0; since Linux 2.6.15)"
+.IR tcp_abc " (Integer; default: 0; Linux 2.6.15 以降)"
+.\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
+.\"O Control the Appropriate Byte Count (ABC), defined in RFC 3465.
+.\"O ABC is a way of increasing the congestion window
+.\"O .RI ( cwnd )
+.\"O more slowly in response to partial acknowledgments.
+RFC 3465 で定義されている Appropriate Byte Count (ABC) を制御する。
+ABC は、部分的な ACK に応じた輻輳ウィンドウ
+.RI ( cwnd )
+の増加をより緩やかにする方法である。
+.\"O Possible values are:
+以下の値を指定できる。
+.RS
+.IP 0 3
+.\"O increase
+.\"O .I cwnd
+.\"O once per acknowledgment (no ABC)
+ACK を受信する毎に
+.I cwnd
+を増やす (ABC なし)。
+.IP 1
+.\"O increase
+.\"O .I cwnd
+.\"O once per acknowledgment of full sized segment
+フルサイズのセグメントの ACK を受信する毎に
+.I cwnd
+を増やす。
+.IP 2
+.\"O allow increase
+.\"O .I cwnd
+.\"O by two if acknowledgment is
+.\"O of two segments to compensate for delayed acknowledgments.
+ACK が遅延 ACK (delayed acknowledgment) を相殺するための 2 セグメントに
+対する ACK の場合に、
+.I cwnd
+を 2 増やすことができる。
+.RE
+.TP
+.\"O .IR tcp_abort_on_overflow " (Boolean; default: disabled; since Linux 2.4)"
+.IR tcp_abort_on_overflow " (Boolean; default: disabled; Linux 2.4 以降)"
+.\" Since 2.3.41
+.\"O Enable resetting connections if the listening service is too
+.\"O slow and unable to keep up and accept them.
+.\"O It means that if overflow occurred due
+.\"O to a burst, the connection will recover.
+.\"O Enable this option
+.\"O .I only
+.\"O if you are really sure that the listening daemon
+.\"O cannot be tuned to accept connections faster.
+.\"O Enabling this option can harm the clients of your server.
+接続を待ち受けているサービスが遅すぎて、受信についていけない場合に、
+接続をリセットできるようにする。
+これを用いると、バーストによってオーバーフローが起こったときに、
+接続を回復できるようになる。このオプションを用いるのは、
+受信デーモンを高速化できない場合に「限定する」こと。
+このオプションを用いると、そのサーバに接続しているクライアント
+にとっては害になることがある。
+.TP
+.\"O .IR tcp_adv_win_scale " (integer; default: 2; since Linux 2.4)"
+.IR tcp_adv_win_scale " (integer; default: 2; Linux 2.4 以降)"
+.\" Since 2.4.0-test7
+.\"O Count buffering overhead as
+.\"O .IR "bytes/2^tcp_adv_win_scale" ,
+.\"O if
+.\"O .I tcp_adv_win_scale
+.\"O is greater than 0; or
+.\"O .IR "bytes-bytes/2^(\-tcp_adv_win_scale)" ,
+.\"O if
+.\"O .I tcp_adv_win_scale
+.\"O is less than or equal to zero.
+バッファリングのオーバーヘッドの計算方法を、
+.I tcp_adv_win_scale
+が正の場合は
+.I "bytes/2^tcp_adv_win_scale"
+に、
+.I tcp_adv_win_scale
+が負か 0 の場合は
+.I "bytes-bytes/2^(\-tcp_adv_win_scale)"
+とする。
+
+.\"O The socket receive buffer space is shared between the
+.\"O application and kernel.
+.\"O TCP maintains part of the buffer as
+.\"O the TCP window, this is the size of the receive window
+.\"O advertised to the other end.
+.\"O The rest of the space is used
+.\"O as the "application" buffer, used to isolate the network
+.\"O from scheduling and application latencies.
+.\"O The
+.\"O .I tcp_adv_win_scale
+.\"O default value of 2 implies that the space
+.\"O used for the application buffer is one fourth that of the total.
+ソケットの受信バッファ空間はアプリケーションとカーネルで共有される。
+TCP はバッファの一部を TCP ウィンドウとして管理し、
+これを受信ウィンドウとして接続の他端に通知する。
+空間の残りは「アプリケーション」バッファとして用いられ、
+スケジューリングやアプリケーションの遅延からネットワークを隔離する。
+.I tcp_adv_win_scale
+のデフォルト値は 2 であり、
+この場合アプリケーションバッファは全体の 1/4 になる。
+.TP
+.\"O .IR tcp_allowed_congestion_control " (String; default: see text; since Linux 2.4.20)"
+.IR tcp_allowed_congestion_control " (String; default: see text; Linux 2.4.20 以降)"
+.\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
+.\"O Show/set the congestion control algorithm choices available to unprivileged
+.\"O processes (see the description of the
+.\"O .B TCP_CONGESTION
+.\"O socket option).
+.\"O The list is a subset of those listed in
+.\"O .IR tcp_available_congestion_control .
+非特権プロセスで利用できる輻輳制御アルゴリズムの選択肢を表示/設定する
+.RB ( TCP_CONGESTION
+ソケットオプションの説明を参照のこと)。
+このリストは
+.I tcp_available_congestion_control
+で表示されるリストの部分集合となる。
+.\" FIXME How are the items in this delimited? Null bytes, spaces, commas?
+.\"O The default value for this list is "reno" plus the default setting of
+.\"O .IR tcp_congestion_control .
+このリストのデフォルト値は、"reno" と
+.I tcp_congestion_control
+のデフォルト設定をあわせたものとなる。
+.TP
+.\"O .IR tcp_available_congestion_control " (String; read-only; since Linux 2.4.20)"
+.IR tcp_available_congestion_control " (String; read-only; Linux 2.4.20 以降)"
+.\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
+.\"O Show a list of the congestion-control algorithms
+.\"O that are registered.
+登録されている輻輳制御アルゴリズムのリストを表示する。
+.\" FIXME How are the items in this delimited? Null bytes, spaces, commas?
+.\"O This list is a limiting set for the list in
+.\"O .IR tcp_allowed_congestion_control .
+.\"O More congestion-control algorithms may be available as modules,
+.\"O but not loaded.
+このリストに載っているものだけが、
+.I tcp_allowed_congestion_control
+に表示される。
+他の輻輳制御アルゴリズムがモジュールとして利用可能だが、
+モジュールがロードされていないこともある。
+.TP
+.\"O .IR tcp_app_win  " (integer; default: 31; since Linux 2.4)"
+.IR tcp_app_win  " (integer; default: 31; Linux 2.4 以降)"
+.\" Since 2.4.0-test7
+.\"O This variable defines how many
+.\"O bytes of the TCP window are reserved for buffering overhead.
+この変数は、TCP ウィンドウの何バイト分を
+バッファリングのオーバーヘッド用に予約するかを指定する。
+
+.\"O A maximum of (\fIwindow/2^tcp_app_win\fP, mss) bytes in the window
+.\"O are reserved for the application buffer.
+.\"O A value of 0 implies that no amount is reserved.
+そのウィンドウの \fIwindow/2^tcp_app_win\fP と mss の大きいほう (バイト単位)
+がアプリケーションバッファとして予約される。
+0 を指定すると一切予約領域を取らない。
+.\"
+.\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
+.TP
+.\"O .IR tcp_base_mss " (Integer; default: 512; since Linux 2.6.17)"
+.IR tcp_base_mss " (Integer; default: 512; Linux 2.6.17 以降)"
+.\"O The initial value of
+.\"O .I search_low
+.\"O to be used by the packetization layer Path MTU discovery (MTU probing).
+.\"O If MTU probing is enabled,
+.\"O this is the initial MSS used by the connection.
+パケット化レイヤの Path MTU discovery (MTU probing) で、
+.I search_low
+の初期値と使用される値。
+MTU probing が有効な場合、この値はその接続の MSS の初期値となる。
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+.TP
+.\"O .IR tcp_bic " (Boolean; default: disabled; Linux 2.4.27/2.6.6 to 2.6.13)"
+.IR tcp_bic " (Boolean; default: disabled; Linux 2.4.27/2.6.6 から 2.6.13 まで)"
+.\"O Enable BIC TCP congestion control algorithm.
+.\"O BIC-TCP is a sender-side only change that ensures a linear RTT
+.\"O fairness under large windows while offering both scalability and
+.\"O bounded TCP-friendliness.
+.\"O The protocol combines two schemes
+.\"O called additive increase and binary search increase.
+.\"O When the congestion window is large, additive increase with a large
+.\"O increment ensures linear RTT fairness as well as good scalability.
+.\"O Under small congestion windows, binary search
+.\"O increase provides TCP friendliness.
+BIC TCP 輻輳制御アルゴリズムを有効にする。
+BIC-TCP は送信側のみの変更で、
+スケーラビリティと TCP 親和性 (friendliness) の両方を提供しつつ、
+大きなウィンドウの下での線形な RTT 公平性を保証するものである。
+このプロトコルでは additive increase (追加的な増加) と
+binary search increase (二分探索増加) といわれる二つの仕組みを
+組み合わせている。輻輳ウィンドウが大きいときは、増分の大きい
+additive increase により、スケーラビリティを確保しながら
+線形な RTT 公平性を保証する。
+輻輳ウィンドウが小さいときには binary search increase により
+TCP 親和性を達成している。
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+.TP
+.\"O .IR tcp_bic_low_window " (integer; default: 14; Linux 2.4.27/2.6.6 to 2.6.13)"
+.IR tcp_bic_low_window " (integer; default: 14; Linux 2.4.27/2.6.6 以降 2.6.13 まで)"
+.\"O Set the threshold window (in packets) where BIC TCP starts to
+.\"O adjust the congestion window.
+.\"O Below this threshold BIC TCP behaves the same as the default TCP Reno.
+BIC TCP が輻輳ウィンドウの調整を開始する閾値ウィンドウ (パケット単位)
+を設定する。この閾値を下回る場合、BIC TCP はデフォルトの TCP Reno と
+同じ動作をする。
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+.TP
+.\"O .IR tcp_bic_fast_convergence " (Boolean; default: enabled; Linux 2.4.27/2.6.6 to 2.6.13)"
+.IR tcp_bic_fast_convergence " (Boolean; default: enabled; Linux 2.4.27/2.6.6 以降 2.6.13 まで)"
+.\"O Force BIC TCP to more quickly respond to changes in congestion window.
+.\"O Allows two flows sharing the same connection to converge more rapidly.
+BIC TCP が輻輳ウィンドウの変化により速く反応するようにする。
+同じコネクションを共有する二つのフローが一つにまとまるのを
+より速く行うようにする。
+.TP
+.\"O .IR tcp_congestion_control " (String; default: see text; since Linux 2.4.13)"
+.IR tcp_congestion_control " (String; default: 説明参照; Linux 2.4.13 以降)"
+.\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
+.\"O Set the default congestion-control algorithm to be used for new connections.
+.\"O The algorithm "reno" is always available,
+.\"O but additional choices may be available depending on kernel configuration.
+.\"O The default value for this file is set as part of kernel configuration.
+新規の接続で使用されるデフォルトの輻輳制御アルゴリズムを設定する。
+"reno" アルゴリズムは常に利用可能だが、
+カーネル設定次第では別の選択肢が利用できることもある。
+このファイルのデフォルト値はカーネル設定の一つとして設定される。
+.TP
+.\"O .IR tcp_dma_copybreak " (integer; default: 4096; since Linux 2.6.24)"
+.IR tcp_dma_copybreak " (integer; default: 4096; Linux 2.6.24 以降)"
+.\"O Lower limit, in bytes, of the size of socket reads that will be
+.\"O offloaded to a DMA copy engine, if one is present in the system
+.\"O and the kernel was configured with the
+.\"O .B CONFIG_NET_DMA
+.\"O option.
+システムに DMA コピーエンジンが存在し、カーネルで
+.B CONFIG_NET_DMA
+オプションが有効になっている場合に、
+DMA コピーエンジンにオフロードされるソケットの読み込みサイズの下限値
+(バイト単位)。
+.TP
+.\"O .IR tcp_dsack " (Boolean; default: enabled; since Linux 2.4)"
+.IR tcp_dsack " (Boolean; default: enabled; Linux 2.4 以降)"
+.\" Since 2.4.0-test7
+.\"O Enable RFC\ 2883 TCP Duplicate SACK support.
+RFC\ 2883 の TCP Duplicate SACK のサポートを有効にする。
+.TP
+.\"O .IR tcp_ecn " (Boolean; default: disabled; since Linux 2.4)"
+.IR tcp_ecn " (Boolean; default: disabled; Linux 2.4 以降)"
+.\" Since 2.4.0-test7
+.\"O Enable RFC\ 2884 Explicit Congestion Notification.
+.\"O When enabled, connectivity to some
+.\"O destinations could be affected due to older, misbehaving
+.\"O routers along the path causing connections to be dropped.
+RFC\ 2884 の Explicit Congestion Notification を有効にする。
+これを有効にすると、間違った振舞いをする古いルータが
+経路の途中にあるような接続先に対して影響が生じ、
+場合によっては接続が落ちるかもしれない。
+.TP
+.\"O .IR tcp_fack " (Boolean; default: enabled; since Linux 2.2)"
+.IR tcp_fack " (Boolean; default: enabled; Linux 2.2 以降)"
+.\" Since 2.1.92
+.\"O Enable TCP Forward Acknowledgement support.
+TCP Forward Acknowledgement のサポートを有効にする。
+.TP
+.\"O .IR tcp_fin_timeout " (integer; default: 60; since Linux 2.2)"
+.IR tcp_fin_timeout " (integer; default: 60; Linux 2.2 以降)"
+.\" Since 2.1.53
+.\"O This specifies how many seconds to wait for a final FIN packet before the
+.\"O socket is forcibly closed.
+.\"O This is strictly a violation of the TCP specification,
+.\"O but required to prevent denial-of-service attacks.
+.\"O In Linux 2.2, the default value was 180.
+ソケットを強制的にクローズする前に、
+最後の FIN パケットを待つ時間を秒単位で指定する。
+これは厳密には TCP の仕様を満たしていないが、
+DoS 攻撃 (denial of service attack) から身を守るために必要である。
+Linux 2.2 ではデフォルト値は 180 であった。
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+.TP
+.\"O .IR tcp_frto " (integer; default: 0; since Linux 2.4.21/2.6)"
+.IR tcp_frto " (integer; default: 0; Linux 2.4.21/2.6 以降)"
+.\" Since 2.4.21/2.5.43
+.\"O Enable F-RTO, an enhanced recovery algorithm for TCP retransmission
+.\"O timeouts (RTOs).
+.\"O It is particularly beneficial in wireless environments
+.\"O where packet loss is typically due to random radio interference
+.\"O rather than intermediate router congestion.
+.\"O See RFC 4138 for more details.
+F-RTO を有効にする。F-RTO は TCP 再送タイムアウト (RTO) からの
+復旧性能を向上させたアルゴリズムである。
+この機能は無線環境で特に効果を発揮する。
+無線環境では、通常は、中間ルータの輻輳ではなくランダムな無線の干渉
+によりパケットロスが発生する。
+詳細は RFC\ 4138 を参照。
+
+.\"O This file can have one of the following values:
+このファイルは以下のいずれかの値を取ることができる。
+.RS
+.IP 0 3
+.\"O Disabled.
+F-RTO を無効にする。
+.IP 1
+.\"O The basic version F-RTO algorithm is enabled.
+基本版の F-RTO アルゴリズムを有効にする。
+.IP 2
+.\"O Enable SACK-enhanced F-RTO if flow uses SACK.
+.\"O The basic version can be used also when
+.\"O SACK is in use though in that case scenario(s) exists where F-RTO
+.\"O interacts badly with the packet counting of the SACK-enabled TCP flow.
+そのフローで SACK を使用する場合、SACK 拡張版の F-RTO を有効にする。
+基本版の F-RTO も SACK が使用されている場合にも使用できるが、
+基本版の場合には F-RTO が SACK が有効になった TCP フローでの
+パケット数計測と、相性が悪く相互干渉が起こる場面が存在する。
+.RE
+.IP
+.\"O Before Linux 2.6.22, this parameter was a Boolean value,
+.\"O supporting just values 0 and 1 above.
+Linu 2.6.22 より前では、このパラメータはブール値であり、
+上記の 0 と 1 のみをサポートしていた。
+.TP
+.\"O .IR tcp_frto_response " (integer; default: 0; since Linux 2.6.22)"
+.IR tcp_frto_response " (integer; default: 0; Linux 2.6.22 以降)"
+.\"O When F-RTO has detected that a TCP retransmission timeout was spurious
+.\"O (i.e, the timeout would have been avoided had TCP set a
+.\"O longer retransmission timeout),
+.\"O TCP has several options concerning what to do next.
+.\"O Possible values are:
+F-RTO が TCP 再送タイムアウトが偽物だと検出した場合
+(つまり、TCP がもっと長い再送タイムアウトを設定していれば
+タイムアウトが避けられた場合)、
+次にどうするかに関して選択肢がいくつかある。
+以下の値を選択できる。
+.RS
+.IP 0 3
+.\"O Rate halving based; a smooth and conservative response,
+.\"O results in halved congestion window
+.\"O .RI ( cwnd )
+.\"O and slow-start threshold
+.\"O .RI ( ssthresh )
+.\"O after one RTT.
+レートを元の半分にする。
+滑らかで、保守的な反応を行い、RTT 1回分の時間後に
+輻輳ウィンドウ
+.RI ( cwnd )
+とスロースタートの閾値
+.RI ( ssthresh )
+が半分になる。
+.IP 1
+.\"O Very conservative response; not recommended because even
+.\"O though being valid, it interacts poorly with the rest of Linux TCP; halves
+.\"O .I cwnd
+.\"O and
+.\"O .I ssthresh
+.\"O immediately.
+非常に保守的な反応。このオプションの使用は推奨されない。
+反応が正しかった場合であっても、Linux TCP の他の部分と
+うまく連携できないからである。
+.I cwnd
+と
+.I ssthresh
+は直ちに半分にされる。
+.IP 2
+.\"O Aggressive response; undoes congestion-control measures
+.\"O that are now known to be unnecessary
+.\"O (ignoring the possibility of a lost retransmission that would require
+.\"O TCP to be more cautious);
+.\"O .I cwnd
+.\"O and
+.\"O .I ssthresh
+.\"O are restored to the values prior to timeout.
+.\"O motoki: 括弧内 (ignoring 〜) の部分の意味を今一つ理解できていません。
+積極的な反応。
+不要と判明した輻輳制御の測定情報を取り消す
+(TCP がもっと注意深く扱うべき再送が失われる可能性を無視する)。
+。
+.I cwnd
+と
+.I ssthresh
+はタイムアウト前の値に戻される。
+.RE
+.TP
+.\"O .IR tcp_keepalive_intvl " (integer; default: 75; since Linux 2.4)"
+.IR tcp_keepalive_intvl " (integer; default: 75; Linux 2.4 以降)"
+.\" Since 2.3.18
+.\"O The number of seconds between TCP keep-alive probes.
+TCP keep-alive のプローブを送る間隔 (秒単位)。
+.TP
+.\"O .IR tcp_keepalive_probes " (integer; default: 9; since Linux 2.2)"
+.IR tcp_keepalive_probes " (integer; default: 9; Linux 2.2 以降)"
+.\" Since 2.1.43
+.\"O The maximum number of TCP keep-alive probes to send
+.\"O before giving up and killing the connection if
+.\"O no response is obtained from the other end.
+TCP keep-alive プローブの最大回数。
+この回数だけ試しても接続先から反応が得られない場合は、
+あきらめて接続を切断する。
+.TP
+.\"O .IR tcp_keepalive_time " (integer; default: 7200; since Linux 2.2)"
+.IR tcp_keepalive_time " (integer; default: 7200; Linux 2.2 以降)"
+.\" Since 2.1.43
+.\"O The number of seconds a connection needs to be idle
+.\"O before TCP begins sending out keep-alive probes.
+.\"O Keep-alives are only sent when the
+.\"O .B SO_KEEPALIVE
+.\"O socket option is enabled.
+.\"O The default value is 7200 seconds (2 hours).
+.\"O An idle connection is terminated after
+.\"O approximately an additional 11 minutes (9 probes an interval
+.\"O of 75 seconds apart) when keep-alive is enabled.
+接続がアイドル状態になってから、keep-alive
+プローブを送信するまでの時間を秒単位で指定する。
+.B SO_KEEPALIVE
+ソケットオプションが有効になっていないと
+keep-alive は送られない。
+デフォルト値は 7200 秒 (2 時間)。
+keep-alive が有効になっている場合、
+さらにおよそ 11 分 (75 秒間隔の 9 プローブ分)
+経過するとアイドル状態の接続は終了させられる。
+
+.\"O Note that underlying connection tracking mechanisms and
+.\"O application timeouts may be much shorter.
+下層にある接続追跡機構やアプリケーションでのタイムアウトは、
+もっとずっと短いかもしれない。
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+.TP
+.\"O .IR tcp_low_latency " (Boolean; default: disabled; since Linux 2.4.21/2.6)"
+.IR tcp_low_latency " (Boolean; default: disabled; Linux 2.4.21/2.6 以降)"
+.\" Since 2.4.21/2.5.60
+.\"O If enabled, the TCP stack makes decisions that prefer lower
+.\"O latency as opposed to higher throughput.
+.\"O It this option is disabled, then higher throughput is preferred.
+.\"O An example of an application where this default should be
+.\"O changed would be a Beowulf compute cluster.
+有効にすると、TCP スタックはスループットを高くするよりも
+遅延を少なくすることを優先して判断を行う。
+このオプションを無効にすると、スループットを高くすることが優先される。
+このデフォルト値を変更した方がよいアプリケーションの例としては
+Beowulf コンピュータクラスタが挙げられるだろう。
+.TP
+.\"O .IR tcp_max_orphans " (integer; default: see below; since Linux 2.4)"
+.IR tcp_max_orphans " (integer; default: see below; Linux 2.4 以降)"
+.\" Since 2.3.41
+.\"O The maximum number of orphaned (not attached to any user file
+.\"O handle) TCP sockets allowed in the system.
+.\"O When this number is exceeded,
+.\"O the orphaned connection is reset and a warning is printed.
+.\"O This limit exists only to prevent simple denial-of-service attacks.
+.\"O Lowering this limit is not recommended.
+.\"O Network conditions might require you to increase the number of
+.\"O orphans allowed, but note that each orphan can eat up to ~64K
+.\"O of unswappable memory.
+.\"O The default initial value is set equal to the kernel parameter NR_FILE.
+.\"O This initial default is adjusted depending on the memory in the system.
+システムが許容する、
+orphan な (どのユーザファイルハンドルにもアタッチされていない)
+TCP ソケットの最大数。
+この数を越えると、orphan な接続はリセットされ、警告が表示される。
+この制限が存在するのは、単純な使用不能 (denial-of-service) 攻撃を
+防ぐために過ぎない。この値を小さくすることは推奨しない。
+ネットワークの条件によっては、この数値を大きくしないといけないかもしれないが、
+orphan なソケットひとつあたり
+64K 程度のスワップ不可能なメモリを消費することも注意せよ。
+デフォルトの初期値はカーネルパラメータの NR_FILE と等しい。
+この初期デフォルト値はシステムのメモリに応じて調整される。
+.TP
+.\"O .IR tcp_max_syn_backlog " (integer; default: see below; since Linux 2.2)"
+.IR tcp_max_syn_backlog " (integer; default: 下記参照; Linux 2.2 以降)"
+.\" Since 2.1.53
+.\"O The maximum number of queued connection requests which have
+.\"O still not received an acknowledgement from the connecting client.
+.\"O If this number is exceeded, the kernel will begin
+.\"O dropping requests.
+.\"O The default value of 256 is increased to
+.\"O 1024 when the memory present in the system is adequate or
+.\"O greater (>= 128Mb), and reduced to 128 for those systems with
+.\"O very low memory (<= 32Mb).
+.\"O It is recommended that if this
+.\"O needs to be increased above 1024, TCP_SYNQ_HSIZE in
+.\"O .I include/net/tcp.h
+.\"O be modified to keep
+.\"O TCP_SYNQ_HSIZE*16<=tcp_max_syn_backlog, and the kernel be
+.\"O recompiled.
+接続してきているクライアントから
+ack を受信していない状態の接続リクエストをキューに置ける最大数。
+この数値を越えると、カーネルはリクエストを捨て始める。
+デフォルトの値は 256 で、
+システムに充分なメモリがある (128Mb 以上) 場合は 1024 になり、
+メモリが非常に少ない場合 (32 Mb 以下) は 128 になる。
+この数値を 1024 以上に増やしたい場合は、
+.I include/net/tcp.h
+の TCP_SYNQ_HSIZE を
+TCP_SYNQ_HSIZE*16<=tcp_max_syn_backlog のように修正し、
+カーネルを再コンパイルすることを奨める。
+.TP
+.\"O .IR tcp_max_tw_buckets " (integer; default: see below; since Linux 2.4)"
+.IR tcp_max_tw_buckets " (integer; default: 下記参照; Linux 2.4 以降)"
+.\" Since 2.3.41
+.\"O The maximum number of sockets in TIME_WAIT state allowed in
+.\"O the system.
+.\"O This limit exists only to prevent simple denial-of-service attacks.
+.\"O The default value of NR_FILE*2 is adjusted
+.\"O depending on the memory in the system.
+.\"O If this number is
+.\"O exceeded, the socket is closed and a warning is printed.
+システムが許容する TIME_WAIT 状態にあるソケットの最大数。
+この制限が存在するのは、
+単純な使用不能 (denial-of-service) 攻撃を防ぐために過ぎない。
+デフォルト値は NR_FILE*2 で、システムのメモリに応じて調整される。
+この数値を越えると、そのようなソケットはクローズされ、警告が表示される。
+.TP
+.\"O .IR tcp_moderate_rcvbuf " (Boolean; default: enabled; since Linux 2.4.17/2.6.7)"
+.IR tcp_moderate_rcvbuf " (Boolean; default: enabled; Linux 2.4.17/2.6.7 以降)"
+.\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
+.\"O If enabled, TCP performs receive buffer auto-tuning,
+.\"O attempting to automatically size the buffer (no greater than
+.\"O .IR tcp_rmem[2] )
+.\"O to match the size required by the path for full throughput.
+有効にすると、TCP は受信バッファの自動調整を行う。
+具体的には、
+.RI ( tcp_rmem[2]
+を超えない範囲で) バッファの大きさを自動的に変化させ、
+その経路で最大のスループットを達成するのに必要な大きさに合わせようとする。
+.TP
+.\"O .IR tcp_mem " (since Linux 2.4)"
+.IR tcp_mem " (Linux 2.4 以降)"
+.\" Since 2.4.0-test7
+.\"O This is a vector of 3 integers: [low, pressure, high].
+.\"O These bounds, measured in units of the system page size,
+.\"O are used by TCP to track its memory usage.
+.\"O The defaults are calculated at boot time from the amount of
+.\"O available memory.
+.\"O (TCP can only use
+.\"O .I "low memory"
+.\"O for this, which is limited to around 900 megabytes on 32-bit systems.
+.\"O 64-bit systems do not suffer this limitation.)
+これは 3 つの整数 [low, pressure, high] からなるベクトル値である。
+これらは TCP がメモリ使用量を追跡するために用いられる
+(使用量はシステムのページサイズ単位で計測される)。
+デフォルトはブート時に利用できるメモリの量から計算される。
+(実際には、TCP は
+.I "low memory"
+のみを使用する。値は 32ビットシステムでは約 900 メガバイトに制限される。
+64 ビットシステムではこの制限はない。)
+.RS
+.TP 10
+.I low
+.\"O TCP doesn't regulate its memory allocation when the number
+.\"O of pages it has allocated globally is below this number.
+TCP は、グローバルにアロケートしたページがこの数値以下の場合は、
+メモリアロケーションを調整しない。
+.TP
+.I pressure
+.\"O When the amount of memory allocated by TCP
+.\"O exceeds this number of pages, TCP moderates its memory consumption.
+.\"O This memory pressure state is exited
+.\"O once the number of pages allocated falls below
+.\"O the
+.\"O .I low
+.\"O mark.
+TCP がアロケートしたメモリがこの数値分のページ数を越えると、
+TCP はメモリ消費を抑えるようになる。
+アロケートしたページ数が
+.I low
+以下になると、このメモリ圧迫状態から脱する。
+.TP
+.I high
+.\"O The maximum number of pages, globally, that TCP will allocate.
+.\"O This value overrides any other limits imposed by the kernel.
+TCP がグローバルに割り当てるページ数の最大値。
+この値はカーネルによって課されるあらゆる制限よりも優先される。
+.RE
+.TP
+.\"O .IR tcp_mtu_probing " (integer; default: 0; since Linux 2.6.17)"
+.IR tcp_mtu_probing " (integer; default: 0; Linux 2.6.17 以降)"
+.\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
+.\"O This parameter controls TCP Packetization-Layer Path MTU Discovery.
+.\"O The following values may be assigned to the file:
+このパラメータは、TCP のパケット化レイヤの Path MTU discovery を制御する。
+このファイルには以下の値を設定できる。
+.RS
+.IP 0 3
+.\"O Disabled
+無効にする。
+.IP 1
+.\"O Disabled by default, enabled when an ICMP black hole detected
+デフォルトでは無効だが、ICMP ブラックホールが検出された場合は有効にする。
+.IP 2
+.\"O Always enabled, use initial MSS of
+.\"O .IR tcp_base_mss .
+常に有効にする。
+MSS の初期値として
+.I tcp_base_mss
+が使用される。
+.RE
+.TP
+.\"O .IR tcp_no_metrics_save " (Boolean; default: disabled; since Linux 2.6.6)"
+.IR tcp_no_metrics_save " (Boolean; default: disabled; Linux 2.6.6 以降)"
+.\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
+.\"O By default, TCP saves various connection metrics in the route cache
+.\"O when the connection closes, so that connections established in the
+.\"O near future can use these to set initial conditions.
+.\"O Usually, this increases overall performance,
+.\"O but it may sometimes cause performance degradation.
+.\"O If
+.\"O .I tcp_no_metrics_save
+.\"O is enabled, TCP will not cache metrics on closing connections.
+デフォルトでは、TCP は接続クローズ時に各種の接続パラメータを
+ルートキャッシュ (route cache) に保存し、近い将来に接続が確立された際に
+これらの情報を初期状態として使用できるようになっている。
+通常は、これにより全体として性能が向上するが、
+時として性能の劣化を引き起こすこともある。
+.I tcp_no_metrics_save
+を有効にすると、TCP は接続クローズ時に接続パラメータをキャッシュ
+しなくなる。
+.TP
+.\"O .IR tcp_orphan_retries " (integer; default: 8; since Linux 2.4)"
+.IR tcp_orphan_retries " (integer; default: 8; Linux 2.4 以降)"
+.\" Since 2.3.41
+.\"O The maximum number of attempts made to probe the other
+.\"O end of a connection which has been closed by our end.
+こちらからクローズした接続について、
+先方をプローブする最大試行数。
+.TP
+.\"O .IR tcp_reordering " (integer; default: 3; since Linux 2.4)"
+.IR tcp_reordering " (integer; default: 3; Linux 2.4 以降)"
+.\" Since 2.4.0-test7
+.\"O The maximum a packet can be reordered in a TCP packet stream
+.\"O without TCP assuming packet loss and going into slow start.
+.\"O It is not advisable to change this number.
+.\"O This is a packet reordering detection metric designed to
+.\"O minimize unnecessary back off and retransmits provoked by
+.\"O reordering of packets on a connection.
+TCP パケットストリームでパケット順序の逆転が発生しただけであり、
+パケットロスが起こったとはみなさない、パケット数の最大値。
+この値を超えてパケットの順序逆転が起こると、パケットロスが生じたと
+みなし、slow start に入る。
+この数値は変更しないほうが良い。
+これは、接続中のパケットの並び替えによって生じる
+不必要な速度低下や再送を最小化するように設計された、
+パケット並び替え (packet reordering) の検知メトリックなのである。
+.TP
+.\"O .IR tcp_retrans_collapse " (Boolean; default: enabled; since Linux 2.2)"
+.IR tcp_retrans_collapse " (Boolean; default: enabled; Linux 2.2 以降)"
+.\" Since 2.1.96
+.\"O Try to send full-sized packets during retransmit.
+再送の際にフルサイズのパケットを送ろうとする。
+.TP
+.\"O .IR tcp_retries1 " (integer; default: 3; since Linux 2.2)"
+.IR tcp_retries1 " (integer; default: 3; Linux 2.2 以降)"
+.\" Since 2.1.43
+.\"O The number of times TCP will attempt to retransmit a
+.\"O packet on an established connection normally,
+.\"O without the extra effort of getting the network layers involved.
+.\"O Once we exceed this number of
+.\"O retransmits, we first have the network layer
+.\"O update the route if possible before each new retransmit.
+.\"O The default is the RFC specified minimum of 3.
+普通に確立されている接続上に、
+TCP がネットワーク層を巻き込まずに再送を試みる回数。
+再送がこの回数を越えると、まず最初に、
+新しい再送を送る前に可能ならネットワーク層に経路を更新させる。
+デフォルトは RFC が指定している最少数である 3。
+.TP
+.\"O .IR tcp_retries2 " (integer; default: 15; since Linux 2.2)"
+.IR tcp_retries2 " (integer; default: 15; Linux 2.2 以降)"
+.\" Since 2.1.43
+.\"O The maximum number of times a TCP packet is retransmitted
+.\"O in established state before giving up.
+.\"O The default value is 15, which corresponds to a duration of
+.\"O approximately between 13 to 30 minutes, depending
+.\"O on the retransmission timeout.
+.\"O The RFC\ 1122 specified
+.\"O minimum limit of 100 seconds is typically deemed too short.
+確立状態の接続に、この回数 TCP パケットの再送信を
+行なってもだめな場合はあきらめる。
+デフォルト値は 15 で、これは (再送のタイムアウトに依存するが)
+およそ 13〜30 分程度の期間に対応する。
+RFC\ 1122 は最小の限界を 100 秒と置いているが、
+これはたいていの場合には短すぎると思われる。
+.TP
+.\"O .IR tcp_rfc1337 " (Boolean; default: disabled; since Linux 2.2)"
+.IR tcp_rfc1337 " (Boolean; default: disabled; Linux 2.2 以降)"
+.\" Since 2.1.90
+.\"O Enable TCP behavior conformant with RFC\ 1337.
+.\"O When disabled,
+.\"O if a RST is received in TIME_WAIT state, we close
+.\"O the socket immediately without waiting for the end
+.\"O of the TIME_WAIT period.
+TCP の動作を RFC\ 1337 に準拠させる。
+無効にすると、TIME_WAIT 状態のときに RST が受信された場合、
+TIME_WAIT 期間の終了を待たずにそのソケットを直ちにクローズする。
+.TP
+.\"O .IR tcp_rmem " (since Linux 2.4)"
+.IR tcp_rmem " (Linux 2.4 以降)"
+.\" Since 2.4.0-test7
+.\"O This is a vector of 3 integers: [min, default, max].
+.\"O These parameters are used by TCP to regulate receive buffer sizes.
+.\"O TCP dynamically adjusts the size of the
+.\"O receive buffer from the defaults listed below, in the range
+.\"O of these values, depending on memory available in the system.
+これは 3 つの整数 [min, default, max] からなるベクトル値である。
+これらは TCP が受信バッファサイズを調整するために用いられる。
+TCP は、システムで利用できるメモリに応じて、
+受信バッファのサイズをこれらの変数の範囲で
+以下に示すデフォルトから動的に調整する。
+.RS
+.TP 10
+.I min
+.\"O minimum size of the receive buffer used by each TCP socket.
+.\"O The default value is the system page size.
+.\"O (On Linux 2.4, the default value is 4K, lowered to
+.\"O .B PAGE_SIZE
+.\"O bytes in low-memory systems.)
+.\"O This value
+.\"O is used to ensure that in memory pressure mode,
+.\"O allocations below this size will still succeed.
+.\"O This is not
+.\"O used to bound the size of the receive buffer declared
+.\"O using
+.\"O .B SO_RCVBUF
+.\"O on a socket.
+各 TCP ソケットが用いる受信バッファの最小サイズ。
+デフォルト値はシステムのページサイズである
+(Linux 2.4 では、デフォルト値は 4K バイトで、
+メモリの少ないシステムでは
+.B PAGE_SIZE
+バイトに減らされる)。
+この値は、メモリ圧迫モードにおいても、
+このサイズの割り当てが成功することを保証するために用いられる。
+これは、
+.B SO_RCVBUF
+を用いてソケットの最低受信バッファサイズを宣言する際には用いられない。
+.\"nakano Documentation/networking/ip-sysctls.txt
+.\"nakano をみる限りではこういう内容のような。
+.TP
+.I default
+.\"O the default size of the receive buffer for a TCP socket.
+.\"O This value overwrites the initial default buffer size from
+.\"O the generic global
+.\"O .I net.core.rmem_default
+.\"O defined for all protocols.
+.\"O The default value is 87380 bytes.
+.\"O (On Linux 2.4, this will be lowered to 43689 in low-memory systems.)
+.\"O If larger receive buffer sizes are desired, this value should
+.\"O be increased (to affect all sockets).
+.\"O To employ large TCP windows, the
+.\"O .I net.ipv4.tcp_window_scaling
+.\"O must be enabled (default).
+TCP ソケットの受信バッファのデフォルトサイズ。
+この値は、すべてのプロトコルに対して定義されている、
+ジェネリックなグローバルのデフォルトバッファサイズ
+.I net.core.rmem_default
+より優先される。
+デフォルト値は 87380 バイトである
+(Linux 2.4 では、メモリの少ないシステムの場合
+43689 まで減らされる)。
+大きな受信バッファサイズが必要な場合は、
+この値を増やすべきである (すべてのソケットに影響する)。
+大きな TCP ウィンドウを用いるには、
+.I net.ipv4.tcp_window_scaling
+を有効にしておかなければならない (デフォルトは有効)。
+.TP
+.I max
+.\"O the maximum size of the receive buffer used by each TCP socket.
+.\"O This value does not override the global
+.\"O .IR net.core.rmem_max .
+.\"O This is not used to limit the size of the receive buffer declared using
+.\"O .B SO_RCVBUF
+.\"O on a socket.
+.\"O The default value is calculated using the formula
+.\"O 
+.\"O     max(87380, min(4MB, \fItcp_mem\fP[1]*PAGE_SIZE/128))
+.\"O 
+.\"O (On Linux 2.4, the default is 87380*2 bytes,
+.\"O lowered to 87380 in low-memory systems).
+各 TCP ソケットで用いる受信バッファの最大サイズ。
+この値よりもグローバルの
+.I net.core.rmem_max
+が優先される。
+これは、
+.B SO_RCVBUF
+を用いてソケットの受信バッファサイズ制限を宣言する際には用いられない。
+.\"nakano 同上。
+デフォルト値は以下の式で計算される。
+
+    max(87380, min(4MB, \fItcp_mem\fP[1]*PAGE_SIZE/128))
+
+(Linux 2.4 では、デフォルト値は 87380*2 バイトで、
+メモリの少ないシステムでは 87380 まで減らされる。)
+.RE
+.TP
+.\"O .IR tcp_sack " (Boolean; default: enabled; since Linux 2.2)"
+.IR tcp_sack " (Boolean; default: enabled; Linux 2.2 以降)"
+.\" Since 2.1.36
+.\"O Enable RFC\ 2018 TCP Selective Acknowledgements.
+RFC\ 2018 の TCP Selective Acknowledgements を有効にする。
+.TP
+.\"O .IR tcp_slow_start_after_idle " (Boolean; default: enabled; since Linux 2.6.18)"
+.IR tcp_slow_start_after_idle " (Boolean; default: enabled; Linux 2.6.18 以降)"
+.\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
+.\"O If enabled, provide RFC 2861 behavior and time out the congestion
+.\"O window after an idle period.
+.\"O An idle period is defined as the current RTO (retransmission timeout).
+.\"O If disabled, the congestion window will not
+.\"O be timed out after an idle period.
+有効にすると、RFC 2861 の動作が行われ、
+アイドル時間経過後に輻輳ウィンドウをタイムアウトさせる。
+アイドル時間は現在の RTO (再送タイムアウト) で定義される。
+無効にすると、輻輳ウィンドウはアイドル時間経過後もタイムアウトされない。
+.TP
+.\"O .IR tcp_stdurg " (Boolean; default: disabled; since Linux 2.2)"
+.IR tcp_stdurg " (Boolean; default: disabled; Linux 2.2 以降)"
+.\" Since 2.1.44
+.\"O If this option is enabled, then use the RFC\ 1122 interpretation
+.\"O of the TCP urgent-pointer field.
+.\"O .\" RFC\ 793 was ambiguous in its specification of the meaning of the
+.\"O .\" urgent pointer.  RFC\ 1122 (and RFC\ 961) fixed on a particular
+.\"O .\" resolution of this ambiguity (unfortunately the "wrong" one).
+.\"O According to this interpretation, the urgent pointer points
+.\"O to the last byte of urgent data.
+.\"O If this option is disabled, then use the BSD-compatible interpretation of
+.\"O the urgent pointer:
+.\"O the urgent pointer points to the first byte after the urgent data.
+.\"O Enabling this option may lead to interoperability problems.
+このオプションを有効にすると、 TCP 緊急ポインタ (urgent-pointer)
+フィールドを RFC\ 1122 に従った解釈を行う。
+.\" RFC\ 793 は緊急ポインタの意味の規定が曖昧であった。
+.\" RFC\ 1122 (と RFC\ 961) ではこの曖昧さに一つの解決策を定めた
+.\" (残念ながら "間違った" 解決策であったが)。
+この解釈に従うと、緊急ポインタは緊急データの最後のバイトを指す。
+このオプションを無効にすると、緊急ポインタの解釈が BSD 互換の方法で
+行われる: 緊急ポインタは緊急データの後の最初のバイトを指す。
+このオプションを有効にすると、相互運用性に問題が生じるかもしれない。
+.TP
+.\"O .IR tcp_syn_retries  " (integer; default: 5; since Linux 2.2)"
+.IR tcp_syn_retries  " (integer; default: 5; Linux 2.2 以降)"
+.\" Since 2.1.38
+.\"O The maximum number of times initial SYNs for an active TCP
+.\"O connection attempt will be retransmitted.
+.\"O This value should not be higher than 255.
+.\"O The default value is 5, which corresponds to approximately 180 seconds.
+アクティブな TCP 接続に初期 SYN の再送を試みる最大回数。
+この数値は 255 よりも大きくすべきではない。
+デフォルトの値は 5 で、およそ 180 秒に対応する。
+.TP
+.\"O .IR tcp_synack_retries " (integer; default: 5; since Linux 2.2)"
+.IR tcp_synack_retries " (integer; default: 5; Linux 2.2 以降)"
+.\" Since 2.1.38
+.\"O The maximum number of times a SYN/ACK segment
+.\"O for a passive TCP connection will be retransmitted.
+.\"O This number should not be higher than 255.
+passive な TCP 接続の SYN/ACK セグメントで再送を試みる最大数。
+この数値は 255 よりも大きくすべきではない。
+.TP
+.\"O .IR tcp_syncookies " (Boolean; since Linux 2.2)"
+.IR tcp_syncookies " (Boolean; Linux 2.2 以降)"
+.\" Since 2.1.43
+.\"O Enable TCP syncookies.
+.\"O The kernel must be compiled with
+.\"O .BR CONFIG_SYN_COOKIES .
+.TCP syncookies を有効にする。カーネルは
+.B CONFIG_SYNCOOKIES
+をつけてコンパイルしておかなければならない。
+.\"O Send out syncookies when the syn backlog queue of a socket overflows.
+.\"O The syncookies feature attempts to protect a
+.\"O socket from a SYN flood attack.
+.\"O This should be used as a last resort, if at all.
+.\"O This is a violation of the TCP protocol,
+.\"O and conflicts with other areas of TCP such as TCP extensions.
+.\"O It can cause problems for clients and relays.
+.\"O It is not recommended as a tuning mechanism for heavily
+.\"O loaded servers to help with overloaded or misconfigured conditions.
+.\"O For recommended alternatives see
+.\"O .IR tcp_max_syn_backlog ,
+.\"O .IR tcp_synack_retries ,
+.\"O and
+.\"O .IR tcp_abort_on_overflow .
+ソケットのバックログキューがオーバーフローすると、
+syncookies が送信される。
+syncookies 機能は、SYN flood 攻撃からソケットを守ろうとする。
+これはいずれにしても、最終手段として用いるべきである。
+これは TCP プロトコルに違反しており、
+TCP 拡張のような、TCP の他の部分と衝突してしまう。
+クライアントやリレーで問題が起こることもある。
+過負荷や設定間違いによって負荷の大きな状態にあるサーバを調整して救うための
+機構とみなすべきではない。
+そのような用途には、代わりに
+.IR tcp_max_syn_backlog ,
+.IR tcp_synack_retries ,
+.I tcp_abort_on_overflow
+などの使用を考えること。
+.TP
+.\"O .IR tcp_timestamps " (Boolean; default: enabled; since Linux 2.2)"
+.IR tcp_timestamps " (Boolean; default: enabled; Linux 2.2 以降)"
+.\" Since 2.1.36
+.\"O Enable RFC\ 1323 TCP timestamps.
+RFC\ 1323 の TCP timestamps を有効にする。
+.TP
+.\"O .IR tcp_tso_win_divisor " (integer; default: 3; since Linux 2.6.9)"
+.IR tcp_tso_win_divisor " (integer; default: 3; Linux 2.6.9 以降)"
+.\"O This parameter controls what percentage of the congestion window
+.\"O can be consumed by a single TCP Segmentation Offload (TSO) frame.
+.\"O The setting of this parameter is a tradeoff between burstiness and
+.\"O building larger TSO frames.
+このパラメータは、一つの TCP Segmentation Offload (TSO) フレームで
+消費できる輻輳ウィンドウの割合 (パーセント) を制御する。
+バースト性と、どれだけ大きな TSO フレームを構築するかのはトレードオフであり、
+このパラメータはその度合いを設定する。
+.TP
+.\"O .IR tcp_tw_recycle " (Boolean; default: disabled; since Linux 2.4)"
+.IR tcp_tw_recycle " (Boolean; default: disabled; Linux 2.4 以降)"
+.\" Since 2.3.15
+.\"O Enable fast recycling of TIME_WAIT sockets.
+.\"O Enabling this option is not
+.\"O recommended since this causes problems when working
+.\"O with NAT (Network Address Translation).
+TIME_WAIT ソケットの素早い再利用を有効にする。
+このオプションを有効にすると、
+NAT (ネットワークアドレス変換) を用いていると問題が生じるので、
+あまり推奨しない。
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+.TP
+.\"O .IR tcp_tw_reuse " (Boolean; default: disabled; since Linux 2.4.19/2.6)"
+.IR tcp_tw_reuse " (Boolean; default: disabled; Linux 2.4.19/2.6 以降)"
+.\" Since 2.4.19/2.5.43
+.\"O Allow to reuse TIME_WAIT sockets for new connections when it is
+.\"O safe from protocol viewpoint.
+.\"O It should not be changed without advice/request of technical experts.
+プロトコルの面から見て問題ない場合に新規コネクションに TIME_WAIT
+状態のソケットを再利用することを許可する。技術的に詳しい人の助言や
+要請なしにこのオプションを変更すべきではない。
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+.TP
+.\"O .IR tcp_vegas_cong_avoid  " (Boolean; default: disabled; Linux 2.2 to 2.6.13)"
+.IR tcp_vegas_cong_avoid  " (Boolean; default: disabled; Linux 2.2 から 2.6.13 まで)"
+.\" Since 2.1.8; removed in 2.6.13
+.\"O Enable TCP Vegas congestion avoidance algorithm.
+.\"O TCP Vegas is a sender-side only change to TCP that anticipates
+.\"O the onset of congestion by estimating the bandwidth.
+.\"O TCP Vegas adjusts the sending rate by modifying the congestion window.
+.\"O TCP Vegas should provide less packet loss, but it is
+.\"O not as aggressive as TCP Reno.
+TCP Vegas 輻輳制御アルゴリズムを有効にする。
+TCP Vegas は帯域を推測することで輻輳の起こり始めを予想するように
+TCP の送信側のみに変更を加えたものである。
+TCP Vegas は輻輳ウィンドウを修正することで、送信レートを調整する。
+TCP Vegas は TCP Reno と比べてパケットロスは少ないが、
+TCP Reno ほど積極的な挙動はしない。
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+.TP
+.\"O .IR tcp_westwood " (Boolean; default: disabled; Linux 2.4.26/2.6.3 to 2.6.13)"
+.IR tcp_westwood " (Boolean; default: disabled; Linux 2.4.26/2.6.3 から 2.6.13 まで)"
+.\"O Enable TCP Westwood+ congestion control algorithm.
+.\"O TCP Westwood+ is a sender-side only modification of the TCP Reno
+.\"O protocol stack that optimizes the performance of TCP congestion control.
+.\"O It is based on end-to-end bandwidth estimation to set
+.\"O congestion window and slow start threshold after a congestion episode.
+.\"O Using this estimation, TCP Westwood+ adaptively sets a
+.\"O slow start threshold and a congestion window which takes into
+.\"O account the bandwidth used at the time congestion is experienced.
+.\"O TCP Westwood+ significantly increases fairness with respect to
+.\"O TCP Reno in wired networks and throughput over wireless links.
+TCP Westwood+ 輻輳制御アルゴリズムを有効にする。
+TCP Westwood+ は TCP 輻輳制御の性能を最適化するように TCP Reno の
+プロトコルスタックの送信側のみに修正を加えたものである。
+輻輳が起こった後で、輻輳ウィンドウや slow start の閾値を
+通信両端間の帯域の推測に基づいて設定する。
+この推測を使って、TCP Westwood+ は輻輳が発生した時に使っていた
+帯域を考慮に入れた slow start の閾値と輻輳ウィンドウを設定する。
+TCP Westwood+ は、有線ネットワークにおける TCP Reno の公平性
+(fairness) と、無線リンクでのスループットを大きく向上する。
+.TP
+.\"O .IR tcp_window_scaling " (Boolean; default: enabled; since Linux 2.2)"
+.IR tcp_window_scaling " (Boolean; default: enabled; Linux 2.2 以降)"
+.\" Since 2.1.36
+.\"O Enable RFC\ 1323 TCP window scaling.
+.\"O This feature allows the use of a large window
+.\"O (> 64K) on a TCP connection, should the other end support it.
+.\"O Normally, the 16 bit window length field in the TCP header
+.\"O limits the window size to less than 64K bytes.
+.\"O If larger windows are desired, applications can increase the size of
+.\"O their socket buffers and the window scaling option will be employed.
+.\"O If
+.\"O .I tcp_window_scaling
+.\"O is disabled, TCP will not negotiate the use of window
+.\"O scaling with the other end during connection setup.
+RFC\ 1323 の TCP ウィンドウスケーリングを有効にする。
+この機能を用いると、接続先が対応していれば、
+TCP 接続で大きな (64K 以上の) ウィンドウが使えるようになる。
+通常は TCP ヘッダのウインドウ長フィールドは 16 ビットなので、
+ウィンドウサイズは 64K バイト以下に限られる。
+もっと大きなウィンドウを使いたい場合は、
+アプリケーションはソケットバッファのサイズを増やして、
+ウィンドウスケーリングのオプションを利用すればよい。
+.I tcp_window_scaling
+を無効にしていると、
+TCP は他端との接続設定の際に、
+ウィンドウスケーリングのネゴシエーションを行なわない。
+.TP
+.\"O .IR tcp_wmem " (since Linux 2.4)"
+.IR tcp_wmem " (Linux 2.4 以降)"
+.\" Since 2.4.0-test7
+.\"O This is a vector of 3 integers: [min, default, max].
+.\"O These parameters are used by TCP to regulate send buffer sizes.
+.\"O TCP dynamically adjusts the size of the send buffer from the
+.\"O default values listed below, in the range of these values,
+.\"O depending on memory available.
+これは 3 つの整数 [min, default, max] からなるベクトル値である。
+これらは TCP が送信バッファサイズを調整するために用いられる。
+TCP は、システムで利用できるメモリに応じて、送信バッファのサイズを
+これらの変数の範囲で以下に示すデフォルトから動的に調整する。
+.RS
+.TP 10
+.I min
+.\"O Minimum size of the send buffer used by each TCP socket.
+.\"O The default value is the system page size.
+.\"O (On Linux 2.4, the default value is 4K bytes.)
+.\"O This value is used to ensure that in memory pressure mode,
+.\"O allocations below this size will still succeed.
+.\"O This is not used to bound the size of the send buffer declared using
+.\"O .B SO_SNDBUF
+.\"O on a socket.
+各 TCP ソケットが用いる送信バッファの最小サイズ。
+デフォルト値はシステムのページサイズである
+(Linux 2.4 では、デフォルト値は 4K である)。
+この値は、メモリ圧迫モードにおいても、
+このサイズ以下の割り当てが成功することを保証するために用いられる。
+これは、
+.B SO_SNDBUF
+を用いてソケットの最低送信バッファサイズを宣言する際には用いられない。
+.TP
+.I default
+.\"O The default size of the send buffer for a TCP socket.
+.\"O This value overwrites the initial default buffer size from
+.\"O the generic global
+.\"O .I /proc/sys/net/core/wmem_default
+.\"O defined for all protocols.
+.\"O The default value is 16K bytes.
+.\"O .\" True in Linux 2.4 and 2.6
+.\"O If larger send buffer sizes are desired, this value
+.\"O should be increased (to affect all sockets).
+.\"O To employ large TCP windows, the
+.\"O .I /proc/sys/net/ipv4/tcp_window_scaling
+.\"O must be set to a nonzero value (default).
+TCP ソケットの送信バッファのデフォルトサイズ。
+この値は、すべてのプロトコルに対して定義されている、
+ジェネリックなグローバルのデフォルトバッファサイズ
+.I /proc/sys/net/core/wmem_default
+より優先される。
+デフォルト値は 16K バイトである。
+.\" Linux 2.4 と 2.6 では正しい。
+大きな送信バッファサイズが必要な場合は、
+この値を増やすべきである (すべてのソケットに影響する)。
+大きな TCP ウィンドウを用いるには、
+.I /proc/sys/net/ipv4/tcp_window_scaling
+を 0 以外の値 (デフォルト値) にしておかなければならない。
+.TP
+.I max
+.\"O The maximum size of the send buffer used by each TCP socket.
+.\"O This value does not override the value in
+.\"O .IR /proc/sys/net/core/wmem_max .
+.\"O This is not used to limit the size of the send buffer declared using
+.\"O .B SO_SNDBUF
+.\"O on a socket.
+.\"O The default value is calculated using the formula
+.\"O 
+.\"O     max(65536, min(4MB, \fItcp_mem\fP[1]*PAGE_SIZE/128))
+.\"O 
+.\"O (On Linux 2.4, the default value is 128K bytes,
+.\"O lowered 64K depending on low-memory systems.)
+各 TCP ソケットで用いる送信バッファの最大サイズ。
+この値よりも
+.IR /proc/sys/net/core/wmem_max
+が優先される。
+これは
+.B SO_SNDBUF
+を用いてソケットの送信バッファサイズ制限を宣言する際には用いられない。
+デフォルト値は以下の式で計算される。
+
+    max(65536, min(4MB, \fItcp_mem\fP[1]*PAGE_SIZE/128))
+
+(Linux 2.4 では、デフォルト値は 128K バイトで、
+メモリの少ないシステムでは 64K にまで減らされる。)
+.RE
+.TP
+.\"O .IR tcp_workaround_signed_windows " (Boolean; default: disabled; since Linux 2.6.26)"
+.IR tcp_workaround_signed_windows " (Boolean; default: disabled; Linux 2.6.26 以降)"
+.\"O If enabled, assume that no receipt of a window-scaling option means that the
+.\"O remote TCP is broken and treats the window as a signed quantity.
+.\"O If disabled, assume that the remote TCP is not broken even if we do
+.\"O not receive a window scaling option from it.
+有効にすると、ウィンドウスケーリングオプションを受信しないのは、
+接続相手の TCP が壊れていると考え、ウィンドウを符号付きの量とみなす。
+無効にすると、接続相手からウィンドウスケーリングオプションを受信しなかった
+場合であっても、接続相手の TCP が壊れているとはみなさない。
+.\"O .SS Socket Options
+.SS ソケットオプション
+.\"O To set or get a TCP socket option, call
+.\"O .BR getsockopt (2)
+.\"O to read or
+.\"O .BR setsockopt (2)
+.\"O to write the option with the option level argument set to
+.\"O .BR IPPROTO_TCP .
+TCP ソケットのオプションは、
+オプションレベル引数に
+.I IPPROTO_TCP
+を指定した
+.BR setsockopt (2)
+で設定でき、
+.BR getsockopt (2)
+で取得できる。
+.\"O In addition,
+.\"O most
+.\"O .B IPPROTO_IP
+.\"O socket options are valid on TCP sockets.
+.\"O For more information see
+.\"O .BR ip (7).
+さらに、ほとんどの
+.B IPPROTO_IP
+ソケットオプションも TCP ソケットに対して有効である。詳細は
+.BR ip (7)
+を見よ。
+.\" FIXME Document TCP_CONGESTION (new in 2.6.13)
+.TP
+.\"O .BR TCP_CORK " (since Linux 2.2)"
+.BR TCP_CORK " (Linux 2.2 以降)"
+.\" precisely: since 2.1.127
+.\"O If set, don't send out partial frames.
+.\"O All queued partial frames are sent when the option is cleared again.
+.\"O This is useful for prepending headers before calling
+.\"O .BR sendfile (2),
+.\"O or for throughput optimization.
+.\"O As currently implemented, there is a 200 millisecond ceiling on the time
+.\"O for which output is corked by
+.\"O .BR TCP_CORK .
+.\"O If this ceiling is reached, then queued data is automatically transmitted.
+.\"O This option can be combined with
+.\"O .B TCP_NODELAY
+.\"O only since Linux 2.5.71.
+.\"O This option should not be used in code intended to be portable.
+セットされると、 partial フレームを送信しない。
+このオプションが解除されると、
+キューイングされた partial フレームが送られる。これは
+.BR sendfile (2)
+を呼ぶ前にヘッダを前置したり、
+スループットを最適化したい場合に便利である。
+現在の実装では、
+.B TCP_CORK
+で出力を抑えることができる時間の上限は 200 ミリ秒である。
+この上限に達すると、キューイングされたデータは自動的に送信される。
+Linux 2.5.71 以降においてのみ、このオプションを
+.B TCP_NODELAY
+と同時に用いることができる。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
+.TP
+.\"O .BR TCP_DEFER_ACCEPT " (since Linux 2.4)"
+.BR TCP_DEFER_ACCEPT " (Linux 2.4 以降)"
+.\" Precisely: since 2.3.38
+.\"O Allow a listener to be awakened only when data arrives on the socket.
+.\"O Takes an integer value (seconds), this can
+.\"O bound the maximum number of attempts TCP will make to
+.\"O complete the connection.
+.\"O This option should not be used in code intended to be portable.
+これを用いると、リスナはデータがソケットに到着した時のみ目覚めるようになる。
+整数値 (秒) をとり、
+TCP が接続を完了しようと試みる回数を制限できる。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
+.TP
+.\"O .BR TCP_INFO " (since Linux 2.4)"
+.BR TCP_INFO " (Linux 2.4 以降)"
+.\"O Used to collect information about this socket.
+.\"O The kernel returns a \fIstruct tcp_info\fP as defined in the file
+.\"O .IR /usr/include/linux/tcp.h .
+.\"O This option should not be used in
+.\"O code intended to be portable.
+このソケットの情報を収集するのに用いる。
+カーネルは
+.I /usr/include/linux/tcp.h
+ファイルで定義されている
+\fIstruct tcp_info\fP を返す。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
+.TP
+.\"O .BR TCP_KEEPCNT " (since Linux 2.4)"
+.BR TCP_KEEPCNT " (Linux 2.4 以降)"
+.\" Precisely: since 2.3.18
+.\"O The maximum number of keepalive probes TCP should send
+.\"O before dropping the connection.
+.\"O This option should not be
+.\"O used in code intended to be portable.
+接続を落とす前に TCP が試みる keepalive プローブの最大回数。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
+.TP
+.\"O .BR TCP_KEEPIDLE " (since Linux 2.4)"
+.BR TCP_KEEPIDLE " (Linux 2.4 以降)"
+.\" Precisely: since 2.3.18
+.\"O The time (in seconds) the connection needs to remain idle
+.\"O before TCP starts sending keepalive probes, if the socket
+.\"O option
+.\"O .B SO_KEEPALIVE
+.\"O has been set on this socket.
+.\"O This option should not be used in code intended to be portable.
+この時間 (秒単位) を越えて接続がアイドル状態に留まっていると、
+このソケットに
+.B SO_KEEPALIVE
+ソケットオプションが設定されている場合、
+TCP は keepalive プローブを送りはじめる。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
+.TP
+.\"O .BR TCP_KEEPINTVL " (since Linux 2.4)"
+.BR TCP_KEEPINTVL " (Linux 2.4 以降)"
+.\" Precisely: since 2.3.18
+.\"O The time (in seconds) between individual keepalive probes.
+.\"O This option should not be used in code intended to be portable.
+各 keepalive プローブの間隔 (秒単位)。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
+.TP
+.\"O .BR TCP_LINGER2 " (since Linux 2.4)"
+.BR TCP_LINGER2 " (Linux 2.4 以降)"
+.\" Precisely: since 2.3.41
+.\"O The lifetime of orphaned FIN_WAIT2 state sockets.
+.\"O This option can be used to override the system-wide setting in the file
+.\"O .I /proc/sys/net/ipv4/tcp_fin_timeout
+.\"O for this socket.
+.\"O This is not to be confused with the
+.\"O .BR socket (7)
+.\"O level option
+.\"O .BR SO_LINGER .
+.\"O This option should not be used in code intended to be portable.
+orphan された FIN_WAIT2 状態のソケットの寿命。
+このオプションを用いると、システム全体に適用されるファイル
+.I /proc/sys/net/ipv4/tcp_fin_timeout
+の値を、このソケットに対してのみ変更できる。
+.BR socket (7)
+レベルのオプション
+.B SO_LINGER
+と混同しないこと。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
+.TP
+.B TCP_MAXSEG
+.\" Present in Linux 1.0
+.\"O The maximum segment size for outgoing TCP packets.
+.\"O If this option is set before connection establishment, it also
+.\"O changes the MSS value announced to the other end in the initial packet.
+.\"O Values greater than the (eventual) interface MTU have no effect.
+.\"O TCP will also impose
+.\"O its minimum and maximum bounds over the value provided.
+送出 TCP パケットの最大セグメントサイズ。
+このオプションを接続確立の前に設定すると、
+初期パケットで他端にアナウンスする MSS の値も変化する。
+インターフェースの MTU よりも大きな (あるいは大きくなってしまった)
+値は効果を持たない。
+また TCP は、この値よりも最小・最大の制限の方を優先する。
+.\" FIXME
+.\" Document TCP_MD5SIG, added in Linux 2.6.20,
+.\" Needs CONFIG_TCP_MD5SIG
+.\" From net/inet/Kconfig
+.\" bool "TCP: MD5 Signature Option support (RFC2385) (EXPERIMENTAL)"
+.\" RFC2385 specifies a method of giving MD5 protection to TCP sessions.
+.\" Its main (only?) use is to protect BGP sessions between core routers
+.\" on the Internet.
+.\"
+.\" There is a TCP_MD5SIG option documented in FreeBSD's tcp(4),
+.\" but probably many details are different on Linux
+.\" Authors were yoshfuji@linux-ipv6.org and Dave Muller
+.\" http://thread.gmane.org/gmane.linux.network/47490
+.\" http://www.daemon-systems.org/man/tcp.4.html
+.\" http://article.gmane.org/gmane.os.netbsd.devel.network/3767/match=tcp_md5sig+freebsd
+.TP
+.B TCP_NODELAY
+.\" Present in Linux 1.0
+.\"O If set, disable the Nagle algorithm.
+.\"O This means that segments
+.\"O are always sent as soon as possible, even if there is only a
+.\"O small amount of data.
+.\"O When not set, data is buffered until there
+.\"O is a sufficient amount to send out, thereby avoiding the
+.\"O frequent sending of small packets, which results in poor
+.\"O utilization of the network.
+.\"O This option is overridden by
+.\"O .BR TCP_CORK ;
+.\"O however, setting this option forces an explicit flush of
+.\"O pending output, even if
+.\"O .B TCP_CORK
+.\"O is currently set.
+設定すると Nagle アルゴリズムを無効にする。
+すなわち、データ量が少ない場合でも
+各セグメントは可能な限り早く送信される。
+設定されていないと、
+送信する分だけ溜まるまでデータはバッファされ、
+小さなパケットを頻繁に送らずにすみ、
+ネットワークを有効に利用できる。
+このオプションは
+.B TCP_CORK
+により上書きされる。しかしながら、
+.B TCP_CORK
+が設定されている場合であっても、このオプションを設定すると、
+送信待ちの出力を明示的に掃き出す (flush) ことになる。
+.TP
+.\"O .BR TCP_QUICKACK " (since Linux 2.4.4)"
+.BR TCP_QUICKACK " (Linux 2.4.4 以降)"
+.\"O Enable quickack mode if set or disable quickack
+.\"O mode if cleared.
+.\"O In quickack mode, acks are sent
+.\"O immediately, rather than delayed if needed in accordance
+.\"O to normal TCP operation.
+.\"O This flag is not permanent,
+.\"O it only enables a switch to or from quickack mode.
+.\"O Subsequent operation of the TCP protocol will
+.\"O once again enter/leave quickack mode depending on
+.\"O internal protocol processing and factors such as
+.\"O delayed ack timeouts occurring and data transfer.
+.\"O This option should not be used in code intended to be
+.\"O portable.
+設定されていると quickack モードを有効にし、クリアされると無効にする。
+通常の TCP 動作では ack は必要に応じて遅延されるのに対し、
+quickack モードでは ack はすぐに送信される。
+このフラグは永続的なものではなく、
+quickack モードから/モードへ切り替えるためのものである。
+これ以降の TCP プロトコルの動作によっては、
+内部のプロトコル処理や、遅延 ack タイムアウトの発生、
+データ転送などの要因によって、
+再び quickack から出たり入ったりする。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
+.TP
+.\"O .BR TCP_SYNCNT " (since Linux 2.4)"
+.BR TCP_SYNCNT " (Linux 2.4 以降)"
+.\" Precisely: since 2.3.18
+.\"O Set the number of SYN retransmits that TCP should send before
+.\"O aborting the attempt to connect.
+.\"O It cannot exceed 255.
+.\"O This option should not be used in code intended to be portable.
+接続の試行を中止させる前に TCP が送る SYN 再送数を設定する。
+これは 255 より大きくはできない。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
+.TP
+.\"O .BR TCP_WINDOW_CLAMP " (since Linux 2.4)"
+.BR TCP_WINDOW_CLAMP " (Linux 2.4 以降)"
+.\" Precisely: since 2.3.41
+.\"O Bound the size of the advertised window to this value.
+.\"O The kernel imposes a minimum size of SOCK_MIN_RCVBUF/2.
+.\"O This option should not be used in code intended to be
+.\"O portable.
+広報するウィンドウのサイズをこの値に固定する。
+カーネルによって最小サイズは SOCK_MIN_RCVBUF/2 に制限されている。
+このオプションは移植性の必要なコードでは用いるべきでない。
+.\"O .SS Sockets API
+.SS ソケット API
+.\"O TCP provides limited support for out-of-band data,
+.\"O in the form of (a single byte of) urgent data.
+.\"O In Linux this means if the other end sends newer out-of-band
+.\"O data the older urgent data is inserted as normal data into
+.\"O the stream (even when
+.\"O .B SO_OOBINLINE
+.\"O is not set).
+.\"O This differs from BSD-based stacks.
+TCP は帯域外データ (out-of-band data) を限定的にサポートしており、
+(1 バイトの) 緊急データという形である。
+つまり Linux においては、
+接続先が (新しいやり方の) 帯域外データを送ってきた場合、
+(古いやり方の)
+緊急データは通常のデータとしてストリームに挿入されることになる (これは
+.B SO_OOBINLINE
+がセットされている場合でも同様である)。
+これは BSD ベースのスタックとは異なる。
+.PP
+.\"O Linux uses the BSD compatible interpretation of the urgent
+.\"O pointer field by default.
+.\"O This violates RFC\ 1122, but is
+.\"O required for interoperability with other stacks.
+.\"O It can be changed via
+.\"O .IR /proc/sys/net/ipv4/tcp_stdurg .
+Linux は、デフォルトでは urgent ポインタフィールドの解釈に
+BSD 互換の方法を用いる。これは RFC\ 1122 に反しているが、
+他のスタックと同時に動作させるにはやむを得ない。これは
+.I /proc/sys/net/ipv4/tcp_stdurg
+によって変更できる。
+
+.\"O It is possible to peek at out-of-band data using the
+.\"O .IR recv (2)
+.\"O .B MSG_PEEK
+.\"O flag.
+.BR recv (2)
+の
+.B MSG_PEEK
+フラグを使うと、帯域外データを覗き見することができる。
+
+.\"O Since version 2.4, Linux supports the use of
+.\"O .B MSG_TRUNC
+.\"O in the
+.\"O .I flags
+.\"O argument of
+.\"O .BR recv (2)
+.\"O (and
+.\"O .BR recvmsg (2)).
+Linux 2.4 以降では、
+.BR recv (2)
+(や
+.BR recvmsg (2))
+の
+.I flags
+引き数に
+.B MSG_TRUNC
+を使うことができる。
+.\"O This flag causes the received bytes of data to be discarded,
+.\"O rather than passed back in a caller-supplied buffer.
+.\"O Since Linux 2.4.4,
+.\"O .BR MSG_PEEK
+.\"O also has this effect when used in conjunction with
+.\"O .BR MSG_OOB
+.\"O to receive out-of-band data.
+このフラグを指定すると、受信データは、呼び出し元から渡されたバッファ
+にコピーされて返されるのではなく、廃棄されるようになる。
+Linux 2.4.4 以降では、
+.B MSG_PEEK
+を、帯域外データを受信するための
+.B MSG_OOB
+と組み合わせて使った場合にも、これと同じ効果を持つようになっている。
+.\"O .SS Ioctlsl
+.SS ioctl
+.\"O These following
+.\"O .BR ioctl (2)
+.\"O calls return information in
+.\"O .IR value .
+.\"O The correct syntax is:
+以下の
+.BR ioctl (2)
+呼び出しは
+.I value
+に情報を入れて返す。
+正しい書式は以下の通り。
+.PP
+.RS
+.nf
+.BI int " value";
+.IB error " = ioctl(" tcp_socket ", " ioctl_type ", &" value ");"
+.fi
+.RE
+.PP
+.\"O .I ioctl_type
+.\"O is one of the following:
+.I ioctl_type
+は以下のいずれか一つである:
+.TP
+.B SIOCINQ
+.\"O Returns the amount of queued unread data in the receive buffer.
+.\"O The socket must not be in LISTEN state, otherwise an error
+.\"O .RB ( EINVAL )
+.\"O is returned.
+受信バッファのキューにある、まだ読んでいないデータの量を返す。
+ソケットは LISTEN 状態にあってはならず、
+さもないとエラー
+.RB ( EINVAL )
+が返る。
+.TP
+.B SIOCATMARK
+.\"O Returns true (i.e.,
+.\"O .I value
+.\"O is nonzero) if the inbound data stream is at the urgent mark.
+受信データストリームが緊急マークの位置であれば、真を返す (つまり
+.I value
+が 0 以外)。
+.sp
+.\"O If the
+.\"O .B SO_OOBINLINE
+.\"O socket option is set, and
+.\"O .B SIOCATMARK
+.\"O returns true, then the
+.\"O next read from the socket will return the urgent data.
+.\"O If the
+.\"O .B SO_OOBINLINE
+.\"O socket option is not set, and
+.\"O .B SIOCATMARK
+.\"O returns true, then the
+.\"O next read from the socket will return the bytes following
+.\"O the urgent data (to actually read the urgent data requires the
+.\"O .B recv(MSG_OOB)
+.\"O flag).
+.B SO_OOBINLINE
+ソケットオプションが設定されていて、
+.B SIOCATMARK
+が真を返した場合、次のソケットからの読み込みでは緊急データが
+返される。
+.B SO_OOBINLINE
+ソケットオプションが設定されておらず、
+.B SIOCATMARK
+が真を返した場合、次のソケットからの読み込みでは緊急データに
+続くデータが返される (実際に緊急データを読み込むには
+.B recv(MSG_OOB)
+とフラグをつける必要がある)。
+
+.\"O Note that a read never reads across the urgent mark.
+.\"O If an application is informed of the presence of urgent data via
+.\"O .BR select (2)
+.\"O (using the
+.\"O .I exceptfds
+.\"O argument) or through delivery of a
+.\"O .B SIGURG
+.\"O signal,
+.\"O then it can advance up to the mark using a loop which repeatedly tests
+.\"O .B SIOCATMARK
+.\"O and performs a read (requesting any number of bytes) as long as
+.\"O .B SIOCATMARK
+.\"O returns false.
+データの一回の読み込みでは緊急マークを跨がっての読み込みは行われない。
+アプリケーションが緊急データの存在を
+.RI ( exceptfds
+引き数を使って)
+.BR select (2)
+経由または
+.B SIGURG
+シグナルの配送を通じて知らされた場合、
+.B SIOCATMARK
+のチェックと読み込み (何バイト読み込み要求をしてもよい) を
+.B SIOCATMARK
+が偽を返さなくなるまで繰り返し行うことで、緊急マークの位置まで
+読み進めることができる。
+.TP
+.B SIOCOUTQ
+.\"O Returns the amount of unsent data in the socket send queue.
+.\"O The socket must not be in LISTEN state, otherwise an error
+.\"O .RB ( EINVAL )
+.\"O is returned.
+ソケットの送信キューに残っている未送信データの量を返す。
+ソケットは LISTEN 状態にあってはならない。
+LISTEN 状態の場合にはエラー
+.RB ( EINVAL )
+となる。
+.\"O .SS Error Handling
+.SS エラー処理
+.\"O When a network error occurs, TCP tries to resend the packet.
+.\"O If it doesn't succeed after some time, either
+.\"O .B ETIMEDOUT
+.\"O or the last received error on this connection is reported.
+ネットワークエラーが起こると、 TCP はパケットの再送を試みる。
+何回かやっても成功しなければ、この接続に対して
+.B ETIMEOUT
+エラーか最後に受信したエラーが返される。
+.PP
+.\"O Some applications require a quicker error notification.
+.\"O This can be enabled with the
+.\"O .B IPPROTO_IP
+.\"O level
+.\"O .B IP_RECVERR
+.\"O socket option.
+.\"O When this option is enabled, all incoming
+.\"O errors are immediately passed to the user program.
+.\"O Use this option with care \(em it makes TCP less tolerant to routing
+.\"O changes and other normal network conditions.
+アプリケーションによっては、もっと早くエラーを知らせてほしい場合がある。
+これには
+.B IPPROTO_IP
+レベルの
+.B IP_RECVERR
+ソケットオプションを用いると良い。このオプションが有効になっていると、
+到着したエラーはすべてただちにユーザープログラムに渡される。
+このオプションは慎重に用いること \(em ルーティングの変更など、
+通常ありうるネットワーク状態に対して TCP をより脆弱にしてしまう。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EAFNOTSUPPORT
+.\"O Passed socket address type in
+.\"O .I sin_family
+.\"O was not
+.\"O .BR AF_INET .
+.I sin_family
+に渡されたソケットアドレスのタイプが
+.B AF_INET
+ではなかった。
+.TP
+.B EPIPE
+.\"O The other end closed the socket unexpectedly or a read is
+.\"O executed on a shut down socket.
+接続先が予期しなかったかたちでソケットをクローズした。
+またはシャットダウンされたソケットに読み込みが実行された。
+.TP
+.B ETIMEDOUT
+.\"O The other end didn't acknowledge retransmitted data after some time.
+接続先が、何回かデータを再送しても反応しない。
+.PP
+.\"O Any errors defined for
+.\"O .BR ip (7)
+.\"O or the generic socket layer may also be returned for TCP.
+.BR ip (7)
+で定義されているエラーや、ジェネリックなソケット層におけるエラーも
+TCP に返されることがある。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O Support for Explicit Congestion Notification, zero-copy
+.\"O .BR sendfile (2),
+.\"O reordering support and some SACK extensions
+.\"O (DSACK) were introduced in 2.4.
+.\"O Support for forward acknowledgement (FACK), TIME_WAIT recycling,
+.\"O and per-connection keepalive socket options were introduced in 2.3.
+Explicit Congestion Notification、zero-copy の
+.BR sendfile (2)、
+並び替えのサポート、SACK 拡張 (DSACK) などのサポートは
+2.4 で導入された。
+フォワード確認 (FACK)、TIME_WAIT リサイクル、接続ごとの keepalive
+に対するソケットオプションは 2.3 で導入された。
+.\"O .SH BUGS
+.SH バグ
+.\"O Not all errors are documented.
+まだ説明されていないエラーがある。
+.br
+.\"O IPv6 is not described.
+IPv6 に関する記述がない。
+.\" Only a single Linux kernel version is described
+.\" Info for 2.2 was lost. Should be added again,
+.\" or put into a separate page.
+.\"O .SH .\" AUTHORS
+.\" .SH 著者
+.\"O .\" This man page was originally written by Andi Kleen.
+.\"O .\" It was updated for 2.4 by Nivedita Singhvi with input from
+.\"O .\" Alexey Kuznetsov's Documentation/networking/ip-sysctl.txt
+.\"O .\" document.
+.\" この man ページは最初 Andi Kleen によって書かれた。
+.\" Alexey Kuznetsov の文書 Documentation/networking/ip-sysctl.txt
+.\" の情報を元に、Nivedita Singhvi が 2.4 向けに更新した。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR accept (2),
+.BR bind (2),
+.BR connect (2),
+.BR getsockopt (2),
+.BR listen (2),
+.BR recvmsg (2),
+.BR sendfile (2),
+.BR sendmsg (2),
+.BR socket (2),
+.BR ip (7),
+.BR socket (7)
+.sp
+.\"O RFC\ 793 for the TCP specification.
+RFC\ 793: TCP の仕様。
+.br
+.\"O RFC\ 1122 for the TCP requirements and a description of the Nagle algorithm.
+RFC\ 1122: TCP の要求事項と Nagle アルゴリズムの記述。
+.br
+.\"O RFC\ 1323 for TCP timestamp and window scaling options.
+RFC\ 1323: TCP のタイムスタンプ・ウィンドウスケーリング各オプション。
+.br
+.\"O RFC\ 1644 for a description of TIME_WAIT assassination hazards.
+RFC\ 1644: TIME_WAIT assassination hazard に関する記述。
+.br
+.\"O RFC\ 3168 for a description of Explicit Congestion Notification.
+RFC\ 3168: Explicit Congestion Notification に関する記述。
+.br
+.\"O RFC\ 2581 for TCP congestion control algorithms.
+RFC\ 2581: TCP 輻輳制御アルゴリズム。
+.br
+.\"O RFC\ 2018 and RFC\ 2883 for SACK and extensions to SACK.
+RFC\ 2018 と RFC\ 2883: SACK とその拡張。

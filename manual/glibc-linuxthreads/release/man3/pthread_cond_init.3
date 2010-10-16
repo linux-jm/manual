@@ -1,0 +1,628 @@
+.\"   Copyright (C) 1994-1999 Free Software Foundation, Inc.
+.\"
+.\"   Permission is granted to make and distribute verbatim copies of
+.\" this manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\"   Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\"   Permission is granted to copy and distribute translations of this
+.\" manual into another language, under the above conditions for modified
+.\" versions, except that this permission notice may be stated in a
+.\" translation approved by the Foundation.
+.\"
+.\" Copyright (C) 1999 Xavier Leroy.
+.\" 
+.\" Japanese Version Copyright (C) 2000 WAKABAYASHI, Takeyasu
+.\"         all rights reserved.
+.\" Translated on Fri Jan 14 16:50:24 JST 2000
+.\"         by WAKABAYASHI, Takeyasu <twakaba@eco.toyama-u.ac.jp>
+.\"
+.\"WORD:    predicate    述語
+.\"WORD:    atomically   一息で
+.\" .TH PTHREAD_COND 3 LinuxThreads
+.\" .SH NAME
+.\" pthread_cond_init, pthread_cond_destroy, pthread_cond_signal, pthread_cond_broadcast, pthread_cond_wait, pthread_cond_timedwait \- operations on conditions
+.\" .SH SYNOPSIS
+.\" .B #include <pthread.h>
+.\" .BI "pthread_cond_t " cond " = PTHREAD_COND_INITIALIZER;"
+.\" .BI "int pthread_cond_init(pthread_cond_t *" cond ", pthread_condattr_t *" cond_attr ");"
+.\" .BI "int pthread_cond_signal(pthread_cond_t *" cond ");"
+.\" .BI "int pthread_cond_broadcast(pthread_cond_t *" cond ");"
+.\" .BI "int pthread_cond_wait(pthread_cond_t *" cond ", pthread_mutex_t *" mutex ");"
+.\" .BI "int pthread_cond_timedwait(pthread_cond_t *" cond ", pthread_mutex_t *" mutex ", const struct timespec *" abstime ");"
+.\" .BI "int pthread_cond_destroy(pthread_cond_t *" cond ");"
+.TH PTHREAD_COND 3 LinuxThreads
+
+
+.SH NAME
+pthread_cond_init, pthread_cond_destroy, pthread_cond_signal, pthread_cond_broadcast, pthread_cond_wait, pthread_cond_timedwait \- 条件変数の操作
+
+.SH 書式
+.B #include <pthread.h>
+
+.BI "pthread_cond_t " cond " = PTHREAD_COND_INITIALIZER;"
+
+.BI "int pthread_cond_init(pthread_cond_t *" cond ", pthread_condattr_t *" cond_attr ");"
+
+.BI "int pthread_cond_signal(pthread_cond_t *" cond ");"
+
+.BI "int pthread_cond_broadcast(pthread_cond_t *" cond ");"
+
+.BI "int pthread_cond_wait(pthread_cond_t *" cond ", pthread_mutex_t *" mutex ");"
+
+.BI "int pthread_cond_timedwait(pthread_cond_t *" cond ", pthread_mutex_t *" mutex ", const struct timespec *" abstime ");"
+
+.BI "int pthread_cond_destroy(pthread_cond_t *" cond ");"
+
+.\" .SH DESCRIPTION
+.\" A condition (short for ``condition variable'') is a synchronization
+.\" device that allows threads to suspend execution and relinquish the
+.\" processors until some predicate on shared data is satisfied. The basic
+.\" operations on conditions are: signal the condition (when the
+.\" predicate becomes true), and wait for the condition, suspending the
+.\" thread execution until another thread signals the condition.
+.SH 説明
+
+条件(「条件変数」の省略) は、共有データに対するある述語が満たされる
+まで、スレッドが実行を停止しプロセッサを手放すことを可能にする同期
+装置である。条件に対する基本的な操作は、(述語が真になった場合に)
+条件を送信することと、他のスレッドが条件を送信するまでスレッドの実行
+を停止して条件を待つことである。
+
+.\" A condition variable must always be associated with a mutex, to avoid
+.\" the race condition where a thread prepares to wait on a condition
+.\" variable and another thread signals the condition just before the
+.\" first thread actually waits on it.
+条件変数はいつでも mutex と結びつけられていなければならない。これは、
+あるスレッドが条件変数を待とうとしている時に、他のスレッドが、
+先のスレッドが実際に条件変数に対して待機するその直前に条件を送信する、
+という競合条件を避けるためである。
+
+.\" .B "pthread_cond_init"
+.\" initializes the condition variable 
+.\" .IR "cond" ,
+.\" using the
+.\" condition attributes specified in 
+.\" .IR "cond_attr" ,
+.\" or default attributes
+.\" if 
+.\" .I "cond_attr"
+.\" is 
+.\" .BR "NULL" .
+.\" The LinuxThreads implementation supports no
+.\" attributes for conditions, hence the 
+.\" .I "cond_attr"
+.\" parameter is actually
+.\" ignored.
+.B "pthread_cond_init"
+は、条件変数
+.IR "cond"
+を
+.IR "cond_attr"
+で指定された条件属性、または
+.I "cond_attr"
+が
+.BR "NULL"
+であれば、デフォルトの属性で初期化する。
+LinuxThreads の実装は、いかなる条件変数の属性にも対応していない。
+かくして、
+.I "cond_attr"
+パラメタは、実のところ無視される。
+
+.\" Variables of type 
+.\" .B "pthread_cond_t"
+.\" can also be initialized
+.\" statically, using the constant 
+.\" .BR "PTHREAD_COND_INITIALIZER" .
+型
+.B "pthread_cond_t"
+の変数は、定数
+.BR "PTHREAD_COND_INITIALIZER" 
+を使って静的に初期化することもできる。
+
+.\" .B "pthread_cond_signal"
+.\" restarts one of the threads that are waiting on
+.\" the condition variable 
+.\" .IR "cond" .
+.\" If no threads are waiting on 
+.\" .IR "cond" ,
+.\" nothing happens. If several threads are waiting on 
+.\" .IR "cond" ,
+.\" exactly one
+.\" is restarted, but it is not specified which.
+.B "pthread_cond_signal"
+は、条件変数
+.IR "cond"
+に備えて待機しているスレッドの一つの実行を再開させる。
+.IR "cond"
+を待っているスレッドがなければ、何も起こらない。
+複数のスレッドが
+.IR "cond"
+を待っていれば、ただ一つのものだけが再開されるが、どれであるかは
+わからない。
+
+.\" .B "pthread_cond_broadcast"
+.\" restarts all the threads that are waiting on
+.\" the condition variable 
+.\" .IR "cond" .
+.\" Nothing happens if no threads are
+.\" waiting on 
+.\" .IR "cond" .
+.B "pthread_cond_broadcast"
+は
+.IR "cond"
+に備えて待機している全てのスレッドの実行を再開させる。
+.IR "cond"
+を待っているスレッドがなければ、何も起こらない。
+
+.\" .B "pthread_cond_wait"
+.\" atomically unlocks the 
+.\" .I "mutex"
+.\" (as per
+.\" .BR "pthread_unlock_mutex" )
+.\" and waits for the condition variable 
+.\" .I "cond"
+.\" to
+.\" be signaled. The thread execution is suspended and does not consume
+.\" any CPU time until the condition variable is signaled. The 
+.\" .I "mutex"
+.\" must be locked by the calling thread on entrance to
+.\" .BR "pthread_cond_wait" .
+.\" Before returning to the calling thread,
+.\" .B "pthread_cond_wait"
+.\" re-acquires 
+.\" .I "mutex"
+.\" (as per 
+.\" .BR "pthread_lock_mutex" ).
+.B "pthread_cond_wait"
+は
+(
+.BR "pthread_mutex_unlock" 
+による)
+.I "mutex"
+のアンロックと条件変数
+.I "cond"
+の送信に対する待機を一息で行う。条件変数が送信されるまで
+スレッドの実行は停止され、CPU 時間を消費することはない。
+.I "mutex"
+は、
+.BR "pthread_cond_wait"
+の開始時点で、これを呼び出すスレッドによってロックされていなければ
+ならない。
+呼び出し側のスレッドに戻る前に
+.B "pthread_cond_wait"
+は
+.I "mutex"
+を
+(
+.BR "pthread_mutex_lock"
+によって)再び獲得する。
+
+.\" Unlocking the mutex and suspending on the condition variable is done
+.\" atomically. Thus, if all threads always acquire the mutex before
+.\" signaling the condition, this guarantees that the condition cannot be
+.\" signaled (and thus ignored) between the time a thread locks the mutex
+.\" and the time it waits on the condition variable.
+mutex のアンロックと条件変数に対する待機は一息に行われる。従って、
+全てのスレッドが条件を送信する前に常に mutex を獲得するのならば、
+スレッドが mutex をアンロックする時点と、それが条件変数を待つ時点
+との中間の時点で、条件の送信が行なわれる(従って無視される)ことが
+不可能となることが保証される。
+
+.\" .B "pthread_cond_timedwait"
+.\" atomically unlocks 
+.\" .I "mutex"
+.\" and waits on
+.\" .IR "cond" ,
+.\" as 
+.\" .B "pthread_cond_wait"
+.\" does, but it also bounds the duration
+.\" of the wait. If 
+.\" .I "cond"
+.\" has not been signaled within the amount of time
+.\" specified by 
+.\" .IR "abstime" ,
+.\" the mutex 
+.\" .I "mutex"
+.\" is re-acquired and
+.\" .B "pthread_cond_timedwait"
+.\" returns the error 
+.\" .BR "ETIMEDOUT" .
+.\" The 
+.\" .I "abstime"
+.\" parameter specifies an absolute time, with the same
+.\" origin as 
+.\" .BR "time" (2)
+.\" and 
+.\" .BR "gettimeofday" (2):
+.\" an 
+.\" .I "abstime"
+.\" of 0
+.\" corresponds to 00:00:00 GMT, January 1, 1970.
+.B "pthread_cond_timedwait"
+は
+.B "pthread_cond_wait"
+と同じく、一息で
+.I "mutex"
+のアンロックと
+.IR "cond"
+への待機を行う。しかしまた、待ち時間の長さの設定も行う。
+.I "cond"
+が
+.IR "abstime"
+で指定された時間内に送信されなかったのならば、
+mutex 
+.I "mutex"
+が再獲得され
+.B "pthread_cond_timedwait"
+は、エラー
+.BR "ETIMEDOUT"
+を返す。
+.I "abstime"
+パラメタは
+.BR "time" (2)
+と
+.BR "gettimeofday" (2)
+の起点を同じくする絶対時間を指定する。すなわち
+0 の
+.I "abstime"
+は 00:00:00 GMT, January 1, 1970 に相当する。
+
+.\" .B "pthread_cond_destroy"
+.\" destroys a condition variable, freeing the
+.\" resources it might hold. No threads must be waiting on the condition
+.\" variable on entrance to 
+.\" .BR "pthread_cond_destroy" .
+.\" In the LinuxThreads
+.\" implementation, no resources are associated with condition variables,
+.\" thus 
+.\" .B "pthread_cond_destroy"
+.\" actually does nothing except checking that
+.\" the condition has no waiting threads.
+
+.B "pthread_cond_destroy"
+は条件変数を破壊し、それが保持している可能性のある資源を開放する。
+.BR "pthread_cond_destroy"
+の開始時点で、いかなるスレッドもその条件変数を待っていてはいけない。
+LinuxThreads の実装では、いかなる資源も条件変数に付随していない。
+従って、
+.B "pthread_cond_destroy"
+は、条件が待機スレッドを持っていないことを確かめる以外に
+何もしない。
+
+.\" .SH CANCELLATION
+.\" .B "pthread_cond_wait"
+.\" and 
+.\" .B "pthread_cond_timedwait"
+.\" are cancellation
+.\" points. If a thread is cancelled while suspended in one of these
+.\" functions, the thread immediately resumes execution, then locks again
+.\" the 
+.\" .I "mutex"
+.\" argument to 
+.\" .B "pthread_cond_wait"
+.\" and
+.\" .BR "pthread_cond_timedwait" ,
+.\" and finally executes the cancellation.
+.\" Consequently, cleanup handlers are assured that 
+.\" .I "mutex"
+.\" is locked when
+.\" they are called.
+.SH 取り消し
+
+.B "pthread_cond_wait"
+および
+.B "pthread_cond_timedwait"
+は、取り消しポイントである。このいずれかの関数で停止している
+スレッドが取り消されると、スレッドは直ちに実行を再開し、
+.B "pthread_cond_wait"
+と
+.BR "pthread_cond_timedwait"
+の
+.I "mutex"
+引数を再ロックし、最後に取り消しを実行する。
+結果として、クリーンアップハンドラが呼び出される際に
+.I "mutex"
+がロックされていることを保証される。
+
+.\" .SH "ASYNC-SIGNAL SAFETY"
+.\" The condition functions are not async-signal safe, and should not be
+.\" called from a signal handler. In particular, calling
+.\" .B "pthread_cond_signal"
+.\" or 
+.\" .B "pthread_cond_broadcast"
+.\" from a signal
+.\" handler may deadlock the calling thread.
+.SH 非同期シグナルに対する安全性
+
+条件関数は非同期シグナルに対して安全ではない。よって、
+シグナルハンドラから呼び出すべきではない。特に、
+.B "pthread_cond_signal"
+または
+.B "pthread_cond_broadcast"
+のシグナルハンドラからの呼び出しは、呼び出しスレッドを
+デッドロックする可能性がある。
+
+.\" .SH "RETURN VALUE"
+.\" All condition variable functions return 0 on success and a non-zero
+.\" error code on error.
+.SH 返り値
+
+全ての条件変数関数は、成功すると 0 を返し、エラーならば非ゼロの
+エラーコードを返す。
+
+.\" .SH ERRORS
+.\" .BR "pthread_cond_init" ,
+.\" .BR "pthread_cond_signal" ,
+.\" .BR "pthread_cond_broadcast" ,
+.\" and 
+.\" .B "pthread_cond_wait"
+.\" never return an error code.
+.SH エラー
+
+.BR "pthread_cond_init" ,
+.BR "pthread_cond_signal" ,
+.BR "pthread_cond_broadcast" ,
+および
+.B "pthread_cond_wait"
+は、決してエラーコードを返さない。
+
+.\" The 
+.\" .B "pthread_cond_timedwait"
+.\" function returns the following error codes
+.\" on error:
+.\" .RS
+.\" .TP
+.\" .B "ETIMEDOUT"
+.\" the condition variable was not signaled until the timeout specified by
+.\" .I "abstime"
+.B "pthread_cond_timedwait"
+は、エラーに際して次のエラーコードを返す:
+.RS
+.TP
+.B "ETIMEDOUT"
+条件変数が
+.I "abstime"
+で指定された時限までに送信されなかった。
+
+.\" .TP
+.\" .B "EINTR"
+.\" .B "pthread_cond_timedwait"
+.\" was interrupted by a signal
+.\" .RE
+.TP
+.B "EINTR"
+.B "pthread_cond_timedwait"
+がシグナルによって割り込まれた。
+.RE
+
+.\" The 
+.\" .B "pthread_cond_destroy"
+.\" function returns the following error code
+.\" on error:
+.\" .RS
+.\" .TP
+.\" .B "EBUSY"
+.\" some threads are currently waiting on 
+.\" .IR "cond" .
+.\" .RE
+.B "pthread_cond_destroy"
+関数は、エラーに際して次のエラーコードを返す:
+.RS
+.TP
+.B "EBUSY"
+いずれかのスレッドが現在
+.IR "cond"
+に対して待機している。
+.RE
+
+.\" .SH AUTHOR
+.\" Xavier Leroy <Xavier.Leroy@inria.fr>
+.\" .SH "SEE ALSO"
+.\" .BR "pthread_condattr_init" (3),
+.\" .BR "pthread_mutex_lock" (3),
+.\" .BR "pthread_mutex_unlock" (3),
+.\" .BR "gettimeofday" (2),
+.\" .BR "nanosleep" (2).
+.SH 著者
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.SH 関連項目
+.BR "pthread_condattr_init" (3),
+.BR "pthread_mutex_lock" (3),
+.BR "pthread_mutex_unlock" (3),
+.BR "gettimeofday" (2),
+.BR "nanosleep" (2).
+
+.\" .SH EXAMPLE
+.\" Consider two shared variables 
+.\" .I "x"
+.\" and 
+.\" .IR "y" ,
+.\" protected by the mutex 
+.\" .IR "mut" ,
+.\" and a condition variable 
+.\" .I "cond"
+.\" that is to be signaled whenever 
+.\" .I "x"
+.\" becomes greater than 
+.\" .IR "y" .
+.SH 例
+
+二つの共有変数
+.I "x"
+と
+.IR "y"
+があって、mutex 
+.IR "mut"
+により保護されているとしよう。更に、条件変数
+.I "cond"
+があって、
+.I "x"
+が
+.IR "y"
+より大きくなれば、送信されるとしよう。
+
+.RS
+.ft 3
+.nf
+.sp
+int x,y;
+pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+.ft
+.LP
+.RE
+.fi
+
+.\" Waiting until 
+.\" .I "x"
+.\" is greater than 
+.\" .I "y"
+.\" is performed as follows:
+.I "x"
+が
+.I "y"
+より大きくなるまで待つには、
+次のようにすれば良い:
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_mutex_lock(&mut);
+while (x <= y) {
+        pthread_cond_wait(&cond, &mut);
+}
+/* x と y の操作 */
+pthread_mutex_unlock(&mut);
+.ft
+.LP
+.RE
+.fi
+
+.\" Modifications on 
+.\" .I "x"
+.\" and 
+.\" .I "y"
+.\" that may cause 
+.\" .I "x"
+.\" to become greater than
+.\" .I "y"
+.\" should signal the condition if needed:
+.I "x"
+を
+.I "y"
+よりも大きくするような
+.I "x"
+と
+.I "y"
+の操作は必要に応じて、条件を送信せねばならない:
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_mutex_lock(&mut);
+/* x と y を変更する */
+if (x > y) pthread_cond_broadcast(&cond);
+pthread_mutex_unlock(&mut);
+.ft
+.LP
+.RE
+.fi
+
+.\" If it can be proved that at most one waiting thread needs to be waken
+.\" up (for instance, if there are only two threads communicating through
+.\" .I "x"
+.\" and 
+.\" .IR "y" ),
+.\" .B "pthread_cond_signal"
+.\" can be used as a slightly more
+.\" efficient alternative to 
+.\" .BR "pthread_cond_broadcast" .
+.\" In doubt, use
+.\" .BR "pthread_cond_broadcast" .
+起動すべきスレッドが最大限一つであることが確実ならば
+(例えば、
+.I "x"
+と
+.IR "y"
+を通じて交流するスレッドが二つしかないのならば)、
+.B "pthread_cond_signal"
+を
+.BR "pthread_cond_broadcast"
+の、少しばかり効率的な代替物として使用できる。
+疑問のある場合には
+.BR "pthread_cond_broadcast"
+を使用せよ。
+
+.\" To wait for 
+.\" .I "x"
+.\" to becomes greater than 
+.\" .I "y"
+.\" with a timeout of 5
+.\" seconds, do:
+.I "x"
+が
+.I "y"
+より大きくなるのを五秒の時限を設けて待つには次のようにする:
+
+.\" .RS
+.\" .ft 3
+.\" .nf
+.\" .sp
+.\" struct timeval now;
+.\" struct timespec timeout;
+.\" int retcode;
+.\"
+.\" pthread_mutex_lock(&mut);
+.\" gettimeofday(&now);
+.\" timeout.tv_sec = now.tv_sec + 5;
+.\" timeout.tv_nsec = now.tv_usec * 1000;
+.\" retcode = 0;
+.\" while (x <= y && retcode != ETIMEDOUT) {
+.\"         retcode = pthread_cond_timedwait(&cond, &mut, &timeout);
+.\" }
+.\" if (retcode == ETIMEDOUT) {
+.\"         /* timeout occurred */
+.\" } else {
+.\"         /* operate on x and y */
+.\" }
+.\" pthread_mutex_unlock(&mut);
+.\" .ft
+.\" .LP
+.\" .RE
+.\" .fi
+.RS
+.ft 3
+.nf
+.sp
+struct timeval now;
+struct timespec timeout;
+int retcode;
+
+pthread_mutex_lock(&mut);
+gettimeofday(&now);
+timeout.tv_sec = now.tv_sec + 5;
+timeout.tv_nsec = now.tv_usec * 1000;
+retcode = 0;
+while (x <= y && retcode != ETIMEDOUT) {
+        retcode = pthread_cond_timedwait(&cond, &mut, &timeout);
+}
+if (retcode == ETIMEDOUT) {
+        /* タイムアウト */
+} else {
+        /* x と y の操作 */
+}
+pthread_mutex_unlock(&mut);
+.ft
+.LP
+.RE
+.fi
+
+

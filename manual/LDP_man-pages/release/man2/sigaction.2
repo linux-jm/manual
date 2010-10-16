@@ -1,0 +1,726 @@
+'\" t
+.\" Copyright (c) 1994,1995 Mike Battersby <mib@deakin.edu.au>
+.\" and Copyright 2004, 2005 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" based on work by faith@cs.unc.edu
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified, aeb, 960424
+.\" Modified Fri Jan 31 17:31:20 1997 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified Thu Nov 26 02:12:45 1998 by aeb - add SIGCHLD stuff.
+.\" Modified Sat May  8 17:40:19 1999 by Matthew Wilcox
+.\"	add POSIX.1b signals
+.\" Modified Sat Dec 29 01:44:52 2001 by Evan Jones <ejones@uwaterloo.ca>
+.\"	SA_ONSTACK
+.\" Modified 2004-11-11 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Added mention of SIGCONT under SA_NOCLDSTOP
+.\"	Added SA_NOCLDWAIT
+.\" Modified 2004-11-17 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Updated discussion for POSIX.1-2001 and SIGCHLD and sa_flags.
+.\"	Formatting fixes
+.\" 2004-12-09, mtk, added SI_TKILL + other minor changes
+.\" 2005-09-15, mtk, split sigpending(), sigprocmask(), sigsuspend()
+.\"	out of this page into separate pages.
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya all rights reserved.
+.\" Translated 1997-03-03, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified 2000-10-02, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified 2001-10-18, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-03-15, Akihiro MOTOKI
+.\" Updated 2005-10-05, Akihiro MOTOKI
+.\" Updated 2007-09-08, Akihiro MOTOKI, LDP v2.64
+.\" Updated 2008-08-08, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2010-04-18, Akihiro MOTOKI, LDP v3.24
+.\"
+.\"WORD:	signal			シグナル
+.\"WORD:	process			プロセス
+.\"WORD:	signal handler		シグナルハンドラ
+.\"WORD:	pointer			ポインター
+.\"WORD:	mask			マスク
+.\"WORD:	block			禁止(block)
+.\"WORD:	suspend			停止(suspend)
+.\"WORD:	stop			停止(stop)
+.\"WORD:	catch			捕獲(catch)
+.\"WORD:	architecture		アーキテクチャー
+.\"WORD:	compatible		互換性
+.\"WORD:	pottable		移植性
+.\"
+.TH SIGACTION 2 2009-07-25 "Linux" "Linux Programmer's Manual"
+.SH 名前
+sigaction \- シグナルの動作の確認と変更
+.SH 書式
+.nf
+.B #include <signal.h>
+.sp
+.BI "int sigaction(int " signum ", const struct sigaction *" act ,
+.BI "              struct sigaction *" oldact );
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.ad l
+.BR sigaction ():
+_POSIX_C_SOURCE\ >=\ 1 || _XOPEN_SOURCE || _POSIX_SOURCE
+.ad b
+.SH 説明
+.BR sigaction ()
+システムコールは、特定のシグナルを受信した際の
+プロセスの動作を変更するのに使用される
+(シグナルの概要については
+.BR signal (7)
+を参照)。
+.PP
+.I signum
+には、
+.B SIGKILL
+と
+.B SIGSTOP
+以外の有効なシグナルをどれでも指定できる。
+.PP
+.I act
+が NULL 以外であれば、シグナル
+.I signum
+の新しい動作 (action) として
+.I act
+が設定される。
+.I oldact
+が NULL でなければ、今までの動作が
+.I oldact
+に格納される。
+.PP
+.I sigaction
+構造体は以下のような感じに定義される。
+.sp
+.in +4n
+.nf
+struct sigaction {
+    void     (*sa_handler)(int);
+    void     (*sa_sigaction)(int, siginfo_t *, void *);
+    sigset_t   sa_mask;
+    int        sa_flags;
+    void     (*sa_restorer)(void);
+};
+.fi
+.in
+.PP
+アーキテクチャによっては共用体 (union) が用いられており、その場合には
+.I sa_handler
+と
+.I sa_sigaction
+の両方を同時に割り当てることはできない。
+.PP
+.I sa_restorer
+要素は廃止予定であり使用すべきではない。
+POSIX には
+.I sa_restorer
+要素に関する規定はない。
+.PP
+.I sa_handler
+は
+.I signum
+に対応する動作を指定するもので、
+デフォルトの動作を行う
+.BR SIG_DFL 、
+そのシグナルを無視する
+.BR SIG_IGN 、
+シグナルハンドラ関数へのポインタが設定できる。
+シグナルハンドラ関数の引き数は一つであり、シグナル番号が引き数として
+渡される。
+.PP
+.I sa_flags
+に
+.B SA_SIGINFO
+が指定された場合、
+.RI ( sa_handler
+ではなく)
+.I sa_sigaction
+により
+.I signum
+に対応するシグナルハンドル関数が指定される。
+指定される関数は、最初の引き数としてシグナル番号を、
+二番目の引き数として
+.I siginfo_t
+へのポインタを、三番目の引き数として (\fIvoid\ *\fP にキャストした)
+.I ucontext_t
+へのポインタを受けとる。
+.PP
+.I sa_mask
+は、シグナル・ハンドラ実行中に禁止 (block) すべきシグナルのマスクを指定する
+(ハンドラ実行中のシグナルの禁止は、シグナル・ハンドラが起動されたスレッド
+のシグナルのマスクに追加することで行われる)。
+さらに、
+.B SA_NODEFER
+フラグが指定されていない場合は、ハンドラを起動するきっかけとなる
+シグナルにも
+.I sa_mask
+が適用される。
+.PP
+.I sa_flags
+はシグナル・ハンドラの動作を変更するためのフラグの集合を指定する。
+.I sa_flags
+には、以下に示すフラグの (0 個以上の) 論理和をとったものを指定する。
+.RS 4
+.TP
+.B SA_NOCLDSTOP
+.I signum
+が
+.B SIGCHLD
+の場合、
+子プロセスが停止したり
+(子プロセスが
+.BR SIGSTOP ", " SIGTSTP ", " SIGTTIN ", " SIGTTOU
+を受けたとき) 再開したり (子プロセスが
+.B SIGCONT
+を受けたとき) したときに
+.B SIGCHLD
+の通知を受けない。
+このフラグは、
+.B SIGCHLD
+に対してハンドラを設定する際にのみ意味を持つ。
+.TP
+.BR SA_NOCLDWAIT " (Linux 2.6 以降)"
+(Linux 2.6 以降)
+.\" 正確には Linux 2.5.60 以降 -- MTK
+.I signum
+が
+.B SIGCHLD
+の場合、子プロセスが終了したときに
+子プロセスをゾンビプロセスに変化させない
+.RB ( waitpid (2)
+も参照)。
+このフラグは、
+.B SIGCHLD
+に対してハンドラを設定する際、もしくはそのシグナルの処理方法を
+.B SIG_DFL
+に設定する際にのみ意味を持つ。
+
+.BR SIGCHLD
+に対してハンドラを設定する際に
+.B SA_NOCLDWAIT
+フラグをセットした場合、
+子プロセスが終了した際に
+.B SIGCHLD
+シグナルが生成されるかどうかは、
+POSIX.1 では規定されていない。
+Linux では、この状況で
+.B SIGCHLD
+シグナルは生成される。
+いくつかの他の実装では生成されない。
+.TP
+.B SA_NODEFER
+それ自身のシグナル・ハンドラーの内部にいる時でも
+そのシグナルをマスクしないようにする。
+このフラグはシグナルハンドラを設定する際にのみ意味を持つ。
+.B SA_NOMASK
+はこのフラグと同じ意味だが、廃止されており、非標準である。
+.TP
+.B SA_ONSTACK
+.BR sigaltstack (2)
+で提供される別のシグナル・スタックでシグナルハンドラを呼び出す。
+別のシグナル・スタックが利用可能でなければ、デフォルトのスタックが
+使用される。
+このフラグはシグナルハンドラを設定する際にのみ意味を持つ。
+.TP
+.BR SA_RESETHAND
+シグナルハンドラが呼ばれる度に、シグナルの動作をデフォルトに戻す。
+このフラグはシグナルハンドラを設定する際にのみ意味を持つ。
+.B SA_ONESHOT
+はこのフラグと同じ意味だが、廃止されており、非標準である。
+.TP
+.B SA_RESTART
+いくつかのシステムコールをシグナルの通知の前後で再開できるようにして、
+BSD シグナル方式 (semantics) と互換性のある動作を提供する。
+このフラグはシグナルハンドラを設定する際にのみ意味を持つ。
+.BR signal (7)
+に書かれているシステムコールの再開に関する議論を参照のこと。
+.TP
+.BR SA_SIGINFO " (Linux 2.2 以降)"
+シグナルハンドラは一つではなく、三つの引き数を持つ。この場合は
+.I sa_handler
+のかわりに
+.I sa_sigaction
+を設定しなければならない
+このフラグはシグナルハンドラを設定する際にのみ意味を持つ。
+.\" .RI ( sa_sigaction
+.\" フィールドは Linux 2.1.86 で追加された)。
+.RE
+.PP
+.I sa_sigaction
+のパラメータ
+.I siginfo_t
+は以下の要素を持つ構造体である:
+.sp
+.in +4n
+.nf
+siginfo_t {
+    int      si_signo;    /* Signal number */
+    int      si_errno;    /* An errno value */
+    int      si_code;     /* Signal code */
+    int      si_trapno;   /* Trap number that caused
+                             hardware-generated signal
+                             (unused on most architectures) */
+.\" FIXME
+.\" si_trapno seems to be only used on SPARC and Alpha;
+.\" this page could use a little more detail on its purpose there.
+    pid_t    si_pid;      /* Sending process ID */
+    uid_t    si_uid;      /* Real user ID of sending process */
+    int      si_status;   /* Exit value or signal */
+    clock_t  si_utime;    /* User time consumed */
+    clock_t  si_stime;    /* System time consumed */
+    sigval_t si_value;    /* Signal value */
+    int      si_int;      /* POSIX.1b signal */
+    void    *si_ptr;      /* POSIX.1b signal */
+    int      si_overrun;  /* Timer overrun count; POSIX.1b timers */
+    int      si_timerid;  /* Timer ID; POSIX.1b timers */
+.\" In the kernel: si_tid
+    void    *si_addr;     /* Memory location which caused fault */
+    int      si_band;     /* Band event */
+    int      si_fd;       /* File descriptor */
+}
+.fi
+.in
+
+.IR si_signo ", " si_errno ", " si_code
+は全てのシグナルに対して定義されている
+.RI ( si_errno
+は Linux では一般的には使用されない)。
+構造体の残りの部分は、共用体 (union) になっているかもしれない。
+その場合は該当するシグナルにおいて意味のあるフィールドのみを読み込む
+ことができる。
+.IP * 2
+POSIX.1b シグナルと
+.B SIGCHLD
+は
+.IR si_pid " と " si_uid
+を設定する。
+.IP *
+POSIX.1b タイマ (Linux 2.6 以降) は
+.I si_overrun
+と
+.I si_timerid
+を設定する。
+.I si_timerid
+フィールドはカーネルがタイマを特定するのに使用する内部 ID であり、
+.BR timer_create (2)
+が返すタイマ ID と同じではない。
+.IP *
+.B SIGCHLD
+は
+.IR si_status ", " si_utime ", " si_stime
+を設定する。
+.RB ( getrusage (2)
+や
+.BR time (2)
+と異なり) フィールド
+.I si_utime
+と
+.I si_stime
+には wait 待ちの子プロセスにより使用された時間は含まれない。
+2.6 より前と 2.6.27 以降のカーネルでは、
+これらのフィールドに格納される CPU 時間の単位は
+.I sysconf(_SC_CLK_TCK)
+である。
+2.6.27 より前の 2.6 系のカーネルでは、バグがあり、
+これらのフィールドの CPU 時間の単位が
+(カーネルのコンフィグで指定される) システムの jiffy であった
+.RB ( time (7)
+参照)。
+.\" FIXME .
+.\" When si_utime and si_stime where originally implemented, the
+.\" measurement unit was HZ, which was the same as clock ticks
+.\" (sysconf(_SC_CLK_TCK)).  In 2.6, HZ became configurable, and
+.\" was *still* used as the unit to return the info these fields,
+.\" with the result that the field values depended on the the
+.\" configured HZ.  Of course, the should have been measured in
+.\" USER_HZ instead, so that sysconf(_SC_CLK_TCK) could be used to
+.\" convert to seconds.  I have a queued patch to fix this:
+.\" http://thread.gmane.org/gmane.linux.kernel/698061/ .
+.\" This patch made it into 2.6.27.
+.\" But note that these fields still don't return the times of
+.\" waited-for children (as is done by getrusage() and times()
+.\" and wait4()).  Solaris 8 does include child times.
+.IP *
+.IR si_int " と " si_ptr
+は POSIX.1b シグナルの送信者によって指定される。
+詳細は
+.BR sigqueue (2)
+を参照のこと。
+.IP *
+.BR SIGILL ,
+.BR SIGFPE ,
+.BR SIGSEGV ,
+.B SIGBUS
+は
+.I si_addr
+にエラーが発生したアドレスを設定する。
+SIGPOLL は
+.IR si_band " と " si_fd
+を設定する。
+.PP
+.I si_code
+は、そのシグナルが送信された理由を示す値である (ビットマスクではない)。
+以下のリストに、どのシグナルの場合でも
+.I si_code
+に入りうる値を、シグナルが生成された理由とともに記載する。
+.RS 4
+.TP 15
+.B SI_USER
+.BR kill (2)
+または
+.BR raise (3)
+.TP
+.B SI_KERNEL
+カーネルにより送信された
+.TP
+.B SI_QUEUE
+.BR sigqueue (2)
+.TP
+.B SI_TIMER
+POSIX タイマが満了した
+.TP
+.B SI_MESGQ
+POSIX メッセージキューの状態が変化した (Linux 2.6.6 以降)。
+.BR mq_notify (3) 参照。
+.TP
+.B SI_ASYNCIO
+非同期 IO (AIO) が完了した
+.TP
+.B SI_SIGIO
+キューイングされた SIGIO
+.TP
+.B SI_TKILL
+.BR tkill (2)
+または
+.BR tgkill (2)
+(Linux 2.4.19 以降)
+.\" SI_DETHREAD is defined in 2.6.9 sources, but isn't implemented
+.\" It appears to have been an idea that was tried during 2.5.6
+.\" through to 2.5.24 and then was backed out.
+.RE
+.PP
+.B SIGILL
+シグナルの場合、
+.I si_code
+には以下の値を指定できる:
+.RS 4
+.TP 15
+.B ILL_ILLOPC
+不正な命令コード (opcode)
+.TP
+.B ILL_ILLOPN
+不正なオペランド
+.TP
+.B ILL_ILLADR
+不正なアドレッシングモード
+.TP
+.B ILL_ILLTRP
+不正なトラップ
+.TP
+.B ILL_PRVOPC
+特権が必要な命令コード (opcode)
+.TP
+.B ILL_PRVREG
+特権が必要なレジスタ
+.TP
+.B ILL_COPROC
+コプロセッサのエラー
+.TP
+.B ILL_BADSTK
+内部スタックエラー
+.RE
+.PP
+.B SIGFPE
+シグナルの場合、
+.I si_code
+には以下の値を指定できる:
+.RS 4
+.TP 15
+.B FPE_INTDIV
+整数の 0 による除算
+.TP
+.B FPE_INTOVF
+整数のオーバーフロー
+.TP
+.B FPE_FLTDIV
+浮動小数点の 0 による除算
+.TP
+.B FPE_FLTOVF
+浮動小数点のオーバーフロー
+.TP
+.B FPE_FLTUND
+浮動小数点のアンダーフロー
+.TP
+.B FPE_FLTRES
+浮動小数点の不正確な演算結果 (inexact result)
+.TP
+.B FPE_FLTINV
+浮動小数点の不正な操作
+.TP
+.B FPE_FLTSUB
+範囲外の添字 (subscript)
+.RE
+.PP
+.B SIGSEGV
+シグナルの場合、
+.I si_code
+には以下の値を指定できる:
+.RS 4
+.TP 15
+.B SEGV_MAPERR
+オブジェクトにマッピングされていないアドレス
+.TP
+.B SEGV_ACCERR
+マッピングされたオブジェクトに対するアクセス許可がない
+.RE
+.PP
+.B SIGBUS
+シグナルの場合、
+.I si_code
+には以下の値を指定できる:
+.RS 4
+.TP 15
+.B BUS_ADRALN
+不正なアドレス・アライメント (alignment)
+.TP
+.B BUS_ADRERR
+存在しない物理アドレス
+.TP
+.B BUS_OBJERR
+オブジェクト固有のハードウェアエラー
+.RE
+.PP
+.B SIGTRAP
+シグナルの場合、
+.I si_code
+には以下の値を指定できる:
+.RS 4
+.TP 15
+.B TRAP_BRKPT
+プロセスのブレークポイント
+.TP
+.B TRAP_TRACE
+プロセスのトレース・トラップ
+.RE
+.PP
+.B SIGCHLD
+シグナルの場合、
+.I si_code
+には以下の値を指定できる:
+.RS 4
+.TP 15
+.B CLD_EXITED
+子プロセスが終了した (exited)
+.TP
+.B CLD_KILLED
+子プロセスが kill された
+.TP
+.B CLD_DUMPED
+子プロセスが異常終了した
+.TP
+.B CLD_TRAPPED
+トレース対象の子プロセスがトラップを上げた
+.TP
+.B CLD_STOPPED
+子プロセスが停止 (stop) した
+.TP
+.B CLD_CONTINUED
+停止していた子プロセスが再開した (Linux 2.6.9 以降)
+.RE
+.PP
+.B SIGPOLL
+シグナルの場合、
+.I si_code
+には以下の値を指定できる:
+.RS 4
+.TP 15
+.B POLL_IN
+入力データが利用可能
+.TP
+.B POLL_OUT
+出力バッファが利用可能
+.TP
+.B POLL_MSG
+入力メッセージが利用可能
+.TP
+.B POLL_ERR
+I/O エラー
+.TP
+.B POLL_PRI
+高優先の入力が利用可能
+.TP
+.B POLL_HUP
+デバイスが接続されていない
+.RE
+.SH 返り値
+.BR sigaction ()
+は成功すれば 0 を返し、エラーならば \-1 を返す。
+.SH エラー
+.TP
+.B EFAULT
+.IR act " か " oldact
+が指しているメモリが正しいプロセスのアドレス空間にない。
+.TP
+.B EINVAL
+無効なシグナルが指定された。補足 (catch) したり無視したりできない
+シグナルである
+.BR SIGKILL " や " SIGSTOP
+に対する動作を変更しようとした場合にも発生する。
+.SH 準拠
+POSIX.1-2001, SVr4.
+.\" SVr4 には EINTR についての記述はない。
+.SH 注意
+.BR fork (2)
+経由で作成された子プロセスは、親プロセスのシグナルの処理方法の
+コピーを継承する。
+.BR execve (2)
+の前後で、ハンドラが設定されているシグナルの処理方法はデフォルトにリセットされ、
+無視が設定されているシグナルの処理方法は変更されずそのままとなる。
+
+POSIX では、
+.BR kill (2)
+や
+.BR raise (3)
+関数で生成できないシグナル
+.BR SIGFPE ,
+.BR SIGILL ,
+.B SIGSEGV
+を無視 (ignore) した場合、その後の動作は未定義である。
+ゼロによる整数割り算の結果は未定義となる。
+アーキテクチャーによっては、このとき
+.B SIGFPE
+シグナルが生成される。
+(同様に負の最大整数を \-1 で割ると
+.B SIGFPE
+が生成されるかもしれない)
+このシグナルを無視すると無限ループに陥るかもしれない。
+.PP
+POSIX.1-1990 では
+.B SIGCHLD
+に
+.B SIG_IGN
+を設定することを認めていない。
+POSIX.1-2001 では認められており、
+.B SIGCHLD
+を無視することでゾンビプロセスの生成を防止することができる
+.RB ( wait (2)
+を参照)。
+さらに、BSD と SystemV では
+.B SIGCHLD
+を無視した際の動作が異なっている。
+そのため、完全に移植性がある方法で、終了した子プロセスがゾンビにならないこと
+を保証するには、
+.B SIGCHLD
+シグナルを補足し、
+.BR wait (2)
+などを実行するしかない。
+.PP
+POSIX.1-1990 の仕様では
+.B SA_NOCLDSTOP
+のみが定義されている。
+POSIX.1-2001 では
+.BR SA_NOCLDWAIT ,
+.BR SA_RESETHAND ,
+.BR SA_NODEFER ,
+.B SA_SIGINFO
+が追加された。
+Unix の古い実装で動かすアプリケーションで、
+他の
+.I sa_flags
+フラグを使用すると移植性が下がる。
+.PP
+.B SA_RESETHAND
+フラグは SVr4 の同じ名前のフラグと互換性がある。
+.PP
+.B SA_NODEFER
+フラグは 1.3.9 以降のカーネルでは同じ名前の SVr4 のフラグと互換性がある。
+ぞれ以前の Linux カーネルの実装では、このフラグを設定しているシグナル
+だけでなく、どのシグナルでも受けることを許していた (実際には
+.I sa_mask
+の設定により無効にできる)。
+.PP
+.BR sigaction ()
+の二番目の引き数に NULL を指定して呼び出すと、現在のシグナルハンドラを確認する
+ことができる。また、二番目と三番目の引き数を NULL にて呼び出すことで、
+指定されたシグナルが現在のマシンで使えるかどうかチェックできる。
+.PP
+.B SIGKILL
+や
+.B SIGSTOP
+を
+.RI ( sa_mask
+に指定して) 禁止することはできない。
+禁止しようとしても黙って無視される。
+.PP
+シグナル集合の操作に関する詳細は
+.BR sigsetops (3)
+を参照すること。
+.PP
+シグナルハンドラ内から安全に呼び出すことができる、
+async-signal-safe functions (非同期シングルで安全な関数) の
+リストについては
+.BR signal (7)
+を参照。
+.SS 非公式
+.B SA_SIGINFO
+が導入される前は、
+.I "struct sigcontext"
+型の二番目の引き数と一緒に
+.I sa_handler
+を使用することで、
+いくつかの追加の情報を入手することができた。
+詳細についてはカーネルソースの関連部分を見てほしい。
+現在はこの使用法は廃止されている。
+.SH バグ
+2.6.13 以前のカーネルでは、
+.I sa_flags
+に
+.B SA_NODEFER
+を指定した場合、
+ハンドラが実行中に配送されたシグナル自身がマスクされなくなるだけでなく、
+.I sa_mask
+に指定されたシグナルもマスクされなくなる。
+このバグは、カーネル 2.6.14 で修正された。
+.SH 例
+.BR mprotect (2)
+参照。
+.SH 関連項目
+.BR kill (1),
+.BR kill (2),
+.BR killpg (2),
+.BR pause (2),
+.BR sigaltstack (2),
+.BR signal (2),
+.BR signalfd (2),
+.BR sigpending (2),
+.BR sigprocmask (2),
+.BR sigqueue (2),
+.BR sigsuspend (2),
+.BR wait (2),
+.BR raise (3),
+.BR siginterrupt (3),
+.BR sigsetops (3),
+.BR sigvec (3),
+.BR core (5),
+.BR signal (7)

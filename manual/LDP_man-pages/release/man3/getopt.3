@@ -1,0 +1,526 @@
+.\" Copyright (c) 1993 by Thomas Koenig (ig25@rz.uni-karlsruhe.de)
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" License.
+.\" Modified Sat Jul 24 19:27:50 1993 by Rik Faith (faith@cs.unc.edu)
+.\" Modified Mon Aug 30 22:02:34 1995 by Jim Van Zandt <jrv@vanzandt.mv.com>
+.\"  longindex is a pointer, has_arg can take 3 values, using consistent
+.\"  names for optstring and longindex, "\n" in formats fixed.  Documenting
+.\"  opterr and getopt_long_only.  Clarified explanations (borrowing heavily
+.\"  from the source code).
+.\" Modified 8 May 1998 by Joseph S. Myers (jsm28@cam.ac.uk)
+.\" Modified 990715, aeb: changed `EOF' into `-1' since that is what POSIX
+.\"  says; moreover, EOF is not defined in <unistd.h>.
+.\" Modified 2002-02-16, joey: added information about nonexisting
+.\"  option character and colon as first option character
+.\" Modified 2004-07-28, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Added text to explain how to order both '[-+]' and ':' at
+.\"		the start of optstring
+.\" Modified 2006-12-15, mtk, Added getopt() example program.
+.\"
+.\" Japanese Version Copyright (c) 1998 NAKANO Takeo all rights reserved.
+.\" Translated 1998-08-12, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified 1999-08-21, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified 2001-07-01, Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated & Modified 2002-03-23, Yuichi SATO
+.\" Updated & Modified 2003-09-07, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2005-01-10, Yuichi SATO
+.\" Updated & Modified 2005-10-28, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated & Modified 2006-01-18, Akihiro MOTOKI
+.\" Updated & Modified 2007-05-01, Akihiro MOTOKI, LDP v2.46
+.\" Updated 2008-08-11, Akihiro MOTOKI, LDP v3.05
+.\"
+.\"WORD:	argv-element		argv 要素
+.\"
+.TH GETOPT 3  2010-02-03 "GNU" "Linux Programmer's Manual"
+.SH 名前
+getopt, getopt_long, getopt_long_only,
+optarg, optind, opterr, optopt \- コマンドラインオプションを解釈する
+.SH 書式
+.nf
+.B #include <unistd.h>
+.sp
+.BI "int getopt(int " argc ", char * const " argv[] ,
+.BI "           const char *" optstring );
+.sp
+.BI "extern char *" optarg ;
+.BI "extern int " optind ", " opterr ", " optopt ;
+.sp
+.B #include <getopt.h>
+.sp
+.BI "int getopt_long(int " argc ", char * const " argv[] ,
+.BI "           const char *" optstring ,
+.BI "           const struct option *" longopts ", int *" longindex );
+.sp
+.BI "int getopt_long_only(int " argc ", char * const " argv[] ,
+.BI "           const char *" optstring ,
+.BI "           const struct option *" longopts ", int *" longindex );
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.ad l
+.in
+.sp
+.BR getopt ():
+_POSIX_C_SOURCE\ >=\ 2 || _XOPEN_SOURCE
+.br
+.BR getopt_long (),
+.BR getopt_long_only ():
+_GNU_SOURCE
+.ad b
+.SH 説明
+.BR getopt ()
+関数はコマンドライン引き数を解釈する。
+.BR getopt ()
+がとる引き数
+.I argc
+と
+.I argv
+は、それぞれプログラムの起動時に
+.IR main ()
+関数に渡された引き数の個数と配列である。
+\fIargv\fP の要素のうち \(aq\-\(aq で始まるもの
+(かつ "\-" 単独や "\-\-" 単独ではないもの) は
+オプション要素 (option element) とみなされる。
+この要素から先頭の \(aq\-\(aq を除いた文字は
+オプション文字 (option character) とされる。
+.BR getopt ()
+は、繰り返し呼び出されるごとに、次のオプション文字を返す。
+.PP
+変数
+.I optind
+は、
+.I argv
+の次に処理される要素のインデックスである。
+システムによりこの変数の値は 1 に初期化される。
+呼び出し側でこの値を 1 にリセットすることで、同じ
+.I argv
+のスキャンをやり直したり、新しい引き数ベクトルをスキャンすることができる。
+.PP
+新たなオプション文字を見つけると、
+.BR getopt ()
+はその文字を返し、
+外部変数 \fIoptind\fP とスタティックな変数 \fInextchar\fP を更新する。
+これらによって、
+.BR getopt ()
+は次回の呼び出しの際に、
+以降のオプション文字や \fIargv\fP 要素のスキャンを継続できる。
+.PP
+オプション文字がそれ以上見つからなくなると、
+.BR getopt ()
+は
+\-1 を返す。そして \fIoptind\fP は、\fIargv\fP の要素のうち、
+オプションでない最初の要素を示すようになる。
+.PP
+.I optstring
+は受け付けるオプション文字からなる文字列である。
+文字のあとにコロン (:) が置かれている場合は、
+オプションには引き数が必要であることを示す。
+このとき
+.BR getopt ()
+は、現在注目している
+\fIargv\fP 要素で、オプション文字に引き続くテキストへのポインタか、
+あるいは次の \fIargv\fP 要素のテキストへのポインタを
+.I optarg
+に代入する。
+2 個連続してコロンが置かれている場合は、
+そのオプションは引き数をとってもとらなくてもよい。
+現在の \fIargv\fP 要素にテキストがあれば
+(つまり、"\-oarg" のように、オプション名自身と同じワード内に
+テキストがある場合)、それが \fIoptarg\fP に返される。
+なければ \fIoptarg\fP は 0 に設定される。
+これは GNU による拡張である。
+.I optstring
+に
+.B W
+とそれに続くセミコロンが入っていると、
+.B \-W foo
+は長いオプション
+.B \-\-foo
+と同じように扱われる
+(POSIX.2 は
+.B \-W
+オプションを実装依存の拡張として予約している)。
+この動作は GNU による拡張であり、glibc 2 以前のライブラリでは
+利用できない。
+.PP
+デフォルトでは
+.BR getopt ()
+は \fIargv\fP をスキャンする際に順序を変更し、
+オプション以外の要素を最後に移動する。
+他にも 2 つのモードが実装されている。
+\fIoptstring\fP の先頭文字が \(aq+\(aq であるか、環境変数
+.B POSIXLY_CORRECT
+が設定されている場合には、オプションを対象とする動作は、
+非オプションの引き数が現れた段階で終了する。
+\fIoptstring\fP の先頭文字が \(aq\-\(aq である場合には、
+オプションでない \fIargv\fP 要素は、
+文字コード 1 のオプションであるかのように扱われる (これを用いるプログラムは、
+オプションや \fIargv\fP 要素を任意の順序で受け入れ、かつそれらの順序が
+意味を持つように書かれている必要がある)。
+"\-\-" は特殊な引き数で、スキャンのモードによらず、
+オプションのスキャンを強制的に終了させる。
+.PP
+認識できないオプション文字があると、
+.BR getopt ()
+はエラーメッセージを標準エラー出力 \fIstderr\fP に表示し、
+その文字を \fIoptopt\fP に保存して \(aq?\(aq を返す。
+呼び出したプログラムで \fIopterr\fP を 0 にしておけば、
+エラーメッセージの表示を抑制できる。
+.PP
+.BR getopt ()
+は \fIargv\fP の中に
+\fIoptstring\fP にないオプション文字を見つけた場合、
+またはオプション引き数が足りないことが分かった場合、
+\&\(aq?\(aq を返して外部変数 \fIoptopt\fP をそのオプション文字に設定する。
+\fIoptstring\fP の (上で説明したオプションで指定できる
+\&\(aq+\(aq または \(aq\-\(aq 後に続く) 最初の文字が
+コロン (\(aq:\(aq) のとき、
+.BR getopt ()
+はオプション引き数が足りない場合に \(aq?\(aq ではなく \(aq:\(aq を返す。
+エラーを見つけた場合で、かつ \fIoptstring\fP の最初の文字がコロンでなく、
+かつ外部変数 \fIopterr\fP が 0 でない場合 (これがデフォルト)、
+.BR getopt ()
+はエラーメッセージを表示する。
+.SS getopt_long() と getopt_long_only()
+.BR getopt_long ()
+関数は、長いオプション (2 つのダッシュ "\-\-" で始まるオプション) を
+受け入れることを除いて
+.BR getopt ()
+と同じように動作する
+(プログラムに長いオプションだけが渡された場合、
+.I optstring
+は NULL ではなく空文字列 ("") となる)。
+長いオプションの名前は、他と重ならない範囲において短縮できる。
+あるいは定義されたオプションに正確にマッチするものでも (当然) かまわない。
+長いオプションは引き数を取ることができ、
+.B \-\-arg=param
+または
+.B "\-\-arg param"
+と言う形式で指定する。
+.PP
+.I longopts
+は
+.I struct option
+の要素からなる配列の、先頭要素へのポインタである。
+.I struct option
+は
+.I <getopt.h>
+で以下のように定義されている。
+.in +4n
+.nf
+.sp
+struct option {
+    const char *name;
+    int         has_arg;
+    int        *flag;
+    int         val;
+};
+.fi
+.in
+.PP
+それぞれのフィールドの意味は以下の通り。
+.TP
+.I name
+長いオプションの名前。
+.TP
+.I has_arg
+\fBno_argument\fP (または 0) なら、オプションは引き数をとらない。
+\fBrequired_argument\fP (または 1) なら、オプションは引き数を必要とする。
+\fBoptional_argument\fP (または 2) なら、オプションは引き数をとっても
+とらなくても良い。
+.TP
+.I flag
+長いオプションに対する結果の返し方を指定する。\fIflag\fP が
+NULL なら
+.BR getopt_long ()
+は \fIval\fP を返す
+(例えば呼び出し元のプログラムは、
+\fIval\fP に等価なオプション文字を代入することができる)。
+NULL 以外の場合には、
+.BR getopt_long ()
+は 0 を返す。
+このときオプションが見つかると \fIflag\fP がポイントする変数に
+\fIval\fP が代入される。見つからないとこの変数は変更されない。
+.TP
+\fIval\fP
+返り値、または \fIflag\fP がポイントする変数へロードされる値。
+.PP
+配列の最後の要素は、全て 0 で埋められていなければならない。
+.PP
+\fIlongindex\fP は、NULL でなければ、
+長いオプションのインデックスを
+.I longopts
+からの相対位置として保持している変数へのポインタとなる。
+.PP
+.BR getopt_long_only ()
+は
+.BR getopt_long ()
+と同様の動作をするが、 \(aq\-\(aq も "\-\-" と同様に、
+長いオプションとして扱われる。\(aq\-\(aq で始まる
+("\-\-" 以外の) オプションが、長いものにはマッチしないが短いものに
+マッチする場合においては、それは短いオプションとして解釈される。
+.SH 返り値
+オプションが正常に見つかれば
+.BR getopt ()
+はそのオプション文字を返す。
+すべてのコマンドラインオプションの解析が終わったら、
+.BR getopt ()
+は \-1 を返す。
+.I optstring
+に含まれないオプション文字が見つかると、\(aq?\(aq を返す。
+引き数が足りないオプションが見つかった場合、
+返り値は
+.I optstring
+の最初の文字による異なる: 最初の文字が \(aq:\(aq であれば \(aq:\(aq を返し、
+それ以外の場合は \(aq?\(aq を返す。
+.PP
+.BR getopt_long ()
+と
+.BR getopt_long_only ()
+も、
+短いオプション文字を認識した場合にはその文字を返す。
+長いオプションに対しては、
+\fIflag\fP が NULL なら \fIval\fP を返し、
+\fIflag\fP が NULL 以外なら 0 を返す。
+エラーと \-1 の返り値は
+.BR getopt ()
+と同じである。
+さらに \(aq?\(aq は、マッチが確定できない場合や余分なパラメーターがある場合にも返る。
+.SH 環境
+.TP
+.B POSIXLY_CORRECT
+これが設定されていると、非オプションの引き数に到達した時点でオプション
+に対する操作が停止される。
+.TP
+.B _<PID>_GNU_nonoption_argv_flags_
+この変数は
+.BR bash (1)
+2.0 が glibc と通信するために用いられた。
+どの引き数がワイルドカードを展開した結果で、
+したがってオプションとみなすべきでないかを知らせるものである。
+この機能は
+.BR bash (1)
+のバージョン 2.01 で削除されたが、glibc にはまだ残っている。
+.SH 準拠
+.TP
+.BR getopt ():
+環境変数
+.B POSIXLY_CORRECT
+が設定されている場合は POSIX.2 と POSIX.1-2001 に準拠する。
+他の場合は \fIargv\fP の要素は本当の意味での定数にはならない。
+なぜなら順序が変更されてしまうからである。
+ただしそれらは、プロトタイプでは定数であるかのようにしてある。
+これは他のシステムとの互換性のためである。
+
+.I optstring
+で \(aq+\(aq や \(aq\-\(aq を使うのは GNU による拡張である.
+
+古い実装のいくつかでは、
+.BR getopt ()
+は
+.I <stdio.h>
+で宣言されていた。
+SUSv1 では、
+.I <unistd.h>
+か
+.I <stdio.h>
+のどちらかで
+宣言してもよかった。
+POSIX.1-2001 では、
+.B getopt
+の宣言を
+.I <stdio.h>
+で行うのは「過去の名残」であるとされた。
+POSIX.1-2001 では
+.I <stdio.h>
+で宣言を行うことを認めていない。
+.TP
+.BR getopt_long "(), " getopt_long_only ():
+これらの関数は GNU による拡張である。
+.SH 注意
+複数の引き数ベクトルをスキャンしたり、同じ引き数ベクトルを二回以上
+スキャンするようなプログラムで、
+.I optstring
+の先頭で \(aq+\(aq や \(aq\-\(aq といった GNU による拡張機能を使用したり、
+引き数ベクトルの切り替え時に
+.B POSIXLY_CORRECT
+の値を変更したりする場合には、
+.I optind
+を伝統的な 1 ではなく 0 にリセットすることで
+.BR getopt ()
+を再初期化しなければならない
+(0 にリセットすることで、
+.B POSIXLY_CORRECT
+や
+.I optstring
+の GNU 拡張機能のチェックを行う内部初期化ルーチンが起動される)。
+.SH バグ
+POSIX.2 における
+.BR getopt ()
+の仕様には技術的な問題があり、
+その内容は POSIX.2 Interpretation 150 に記されている。
+GNU による実装では (おそらく他のすべての実装でも)、
+仕様と異なる正しい動作をするように実装されている。
+.SH 例
+以下に示す簡単なサンプルプログラムでは、
+二種類のプログラムオプションを扱うのに
+.BR getopt ()
+を使用している。一つは値を伴わない
+.I \-n
+で、もう一つは対応する値が必要な
+.I "\-t val"
+である。
+.nf
+.sp
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+int
+main(int argc, char *argv[])
+{
+    int flags, opt;
+    int nsecs, tfnd;
+
+    nsecs = 0;
+    tfnd = 0;
+    flags = 0;
+    while ((opt = getopt(argc, argv, "nt:")) != \-1) {
+        switch (opt) {
+        case \(aqn\(aq:
+            flags = 1;
+            break;
+        case \(aqt\(aq:
+            nsecs = atoi(optarg);
+            tfnd = 1;
+            break;
+        default: /* \(aq?\(aq */
+            fprintf(stderr, "Usage: %s [\-t nsecs] [\-n] name\\n",
+                    argv[0]);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    printf("flags=%d; tfnd=%d; optind=%d\\n", flags, tfnd, optind);
+
+    if (optind >= argc) {
+        fprintf(stderr, "Expected argument after options\\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("name argument = %s\\n", argv[optind]);
+
+    /* Other code omitted */
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.PP
+以下は、
+.BR getopt_long ()
+の使用法を、ほぼすべての機能について示したプログラムの例である。
+.nf
+.sp
+#include <stdio.h>     /* for printf */
+#include <stdlib.h>    /* for exit */
+#include <getopt.h>
+
+int
+main(int argc, char **argv) {
+    int c;
+    int digit_optind = 0;
+
+    while (1) {
+        int this_option_optind = optind ? optind : 1;
+        int option_index = 0;
+        static struct option long_options[] = {
+            {"add", 1, 0, 0},
+            {"append", 0, 0, 0},
+            {"delete", 1, 0, 0},
+            {"verbose", 0, 0, 0},
+            {"create", 1, 0, \(aqc\(aq},
+            {"file", 1, 0, 0},
+            {0, 0, 0, 0}
+        };
+
+        c = getopt_long(argc, argv, "abc:d:012",
+                 long_options, &option_index);
+        if (c == \-1)
+            break;
+
+        switch (c) {
+        case 0:
+            printf("option %s", long_options[option_index].name);
+            if (optarg)
+                printf(" with arg %s", optarg);
+            printf("\\n");
+            break;
+
+        case \(aq0\(aq:
+        case \(aq1\(aq:
+        case \(aq2\(aq:
+            if (digit_optind != 0 && digit_optind != this_option_optind)
+              printf("digits occur in two different argv\-elements.\\n");
+            digit_optind = this_option_optind;
+            printf("option %c\\n", c);
+            break;
+
+        case \(aqa\(aq:
+            printf("option a\\n");
+            break;
+
+        case \(aqb\(aq:
+            printf("option b\\n");
+            break;
+
+        case \(aqc\(aq:
+            printf("option c with value \(aq%s\(aq\\n", optarg);
+            break;
+
+        case \(aqd\(aq:
+            printf("option d with value \(aq%s\(aq\\n", optarg);
+            break;
+
+        case \(aq?\(aq:
+            break;
+
+        default:
+            printf("?? getopt returned character code 0%o ??\\n", c);
+        }
+    }
+
+    if (optind < argc) {
+        printf("non-option ARGV\-elements: ");
+        while (optind < argc)
+            printf("%s ", argv[optind++]);
+        printf("\\n");
+    }
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+.BR getsubopt (3),
+.BR feature_test_macros (7)

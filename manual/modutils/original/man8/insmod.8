@@ -1,0 +1,318 @@
+.\" Copyright (c) 1996 Free Software Foundation, Inc.
+.\" This program is distributed according to the Gnu General Public License.
+.\" See the file COPYING in the kernel source directory.
+.\"
+.TH INSMOD 8 "January 30, 2002" Linux "Linux Module Support"
+.SH NAME
+insmod \- install loadable kernel module
+.hy 0
+.SH SYNOPSIS
+.B insmod
+[\-fhkLmnpqrsSvVxXyYN] [\-e\ \fIpersist_name\fR] [\-o\ \fImodule_name\fR]
+[\-O\ \fIblob_name\fR] [\-P\ \fIprefix\fR] \fImodule\fR
+[\ \fBsymbol\fR=\fIvalue\fR\ ...\ ]
+.SH DESCRIPTION
+.B insmod
+installs a loadable module in the running kernel.
+.PP
+.B insmod
+tries to link a module into the running kernel by resolving all symbols
+from the kernel's exported symbol table.
+.PP
+If the module file name is given without directories or extension,
+.B insmod
+will search for the module in some common default directories.
+The environment variable \fBMODPATH\fR can be used to override this default.
+If a module configuration file such as \fI/etc/modules.conf\fR exists,
+it will override the paths defined in \fBMODPATH\fR.
+.PP
+The environment variable \fBMODULECONF\fR can also be used to select a
+different configuration file from the default \fI/etc/modules.conf\fR (or
+\fI/etc/conf.modules\fR (deprecated)).
+This environment variable will override all the definitions above.
+.PP
+When environment variable
+.B UNAME_MACHINE
+is set, modutils will use its value instead of the machine field from
+the uname() syscall.
+This is mainly of use when you are compiling 64 bit modules in 32 bit
+user space or vice versa, set
+.B UNAME_MACHINE
+to the type of the modules.
+Current modutils does not support full cross build mode for modules, it
+is limited to choosing between 32 and 64 bit versions of the host
+architecture.
+.SS OPTIONS
+.TP
+\fB\-e\fR \fIpersist_name\fR, \fB\-\-persist\fR=\fIpersist_name\fR
+Specifies where any persistent data for the module is read from on load
+and written to when this instantiantion of the module is unloaded.
+This option is silently ignored if the module has no persistent data.
+Persistent data is only read by \fBinsmod\fR if this option is present, by
+default \fBinsmod\fR does not process persistent data.
+.TP
+.B ""
+As a shorthand form, \fB\-e\ ""\fR\ (an empty string) is interpreted by
+\fBinsmod\fR as the value of \fBpersistdir\fR as defined in
+\fImodules.conf\fR, followed by the filename of the module relative to
+the module search path it was found in, minus any trailing
+".gz", ".o" or ".mod".  If \fBmodules.conf\fR specifies
+"\fBpersistdir\ =\fR" (i.e. \fBpersistdir\fR is an empty field) then this
+shorthand form is silently ignored.  (See \fBmodules.conf\fR (5).)
+.TP
+.BR \-f ", " \-\-force
+Attempt load the module even if the version of the running kernel and
+the version of the kernel for which the module was compiled do not match.
+This only overrides the kernel version check, it has no effect on
+symbol name checks.  If the symbol names in the module do not match the
+kernel then there is no way to force \fBinsmod\fR to load the module.
+.TP
+.BR \-h ", " \-\-help
+Display a summary of options and immediately exit.
+.TP
+.BR \-k ", " \-\-autoclean
+Set the auto-clean flag on the module.  This flag will be used by
+\fBkerneld\fR(8) to remove modules that have not been used in some
+period of time \(em usually one minute.
+.TP
+.BR \-L ", " \-\-lock
+Use \fBflock\fR(2) to prevent simultaneous loads of the same module.
+.TP
+.BR \-m ", " \-\-map
+Output a load map on stdout, making it easier to debug the module in
+the event of a kernel panic.
+.TP
+.BR \-n ", " \-\-noload
+Dummy run, do everything except load the module into the kernel.  If
+requested by an \fB\-m\fR or \fB\-O\fR,
+the run will produce a map or blob file.  Since the module is not
+loaded, the real kernel load address is unknown so the map and blob
+file are based on an arbitrary load address of 0x12340000.
+.TP
+\fB\-o\fR \fImodule_name\fR, \fB\-\-name\fR=\fImodule_name\fR
+Explicitly name the module, rather than deriving the name from the
+base name of the source object file.
+.TP
+\fB\-O\fR \fIblob_name\fR, \fB\-\-blob\fR=\fIblob_name\fR
+Save the binary object in \fIblob_name\fR.
+The result is a binary blob (no ELF headers) showing exactly what is
+loaded into the kernel after section manipulation and relocation.
+Option \fB\-m\fR is recommended to get a map of the object.
+.TP
+.BR \-p ", " \-\-probe
+Probe the module to see if it could be successfully loaded.  This
+includes locating the object file in the module path, checking
+version numbers, and resolving symbols.  It does not check the
+relocations nor does it produce a map or blob file.
+.TP
+\fB\-P\fR \fIprefix\fR, \fB\-\-prefix\fR=\fIprefix\fR
+This option can be used with versioned modules for an SMP or bigmem
+kernel, since such modules have an extra prefix added in their symbol
+names.
+If the kernel was built with symbol versions then \fBinsmod\fR
+will automatically extract the prefix from the definition of
+"get_module_symbol" or "inter_module_get", one of which must exist in
+any kernel that supports modules.  If the kernel has no symbol versions
+but the module was built with symbol versions then the user must supply
+.BR \-P .
+.TP
+.BR \-q ", " \-\-quiet
+Do not print a list of any unresolved symbols.
+Do not complain about version mismatch.
+The problem will only be reflected in the exit status of \fBinsmod\fR.
+.TP
+.BR \-r ", " \-\-root
+Some users compile modules under a non-root userid then install the
+modules as root.  This process can leave the modules owned by the
+non-root userid, even though the modules directory is owned by root.
+If the non-root userid is compromised, an intruder can overwrite
+existing modules owned by that userid and use this exposure to
+bootstrap up to root access.
+.TP
+.B ""
+By default, modutils will reject attempts to use a module that is not
+owned by root.  Specifying -r will toggle the check and allow root to
+load modules that are not owned by root.  \fBNote:\fR
+the default value for root check can be changed when modutils is
+configured.
+.TP
+.B ""
+\fBUse of \-r to disable root checking or setting the default to
+"no root check" at configuration time is a major security exposure
+and is not recommended.\fR
+.TP
+.BR \-s ", " \-\-syslog
+Output everything to \fBsyslog\fR(3) instead of the terminal.
+.TP
+.BR \-S ", " \-\-kallsyms
+Force the loaded module to have \fBkallsyms\fR data, even if the kernel does
+not support it.  This option is for small systems where the kernel is
+loaded without \fBkallsyms\fR data but selected modules need \fBkallsyms\fR for
+debugging.
+.TP
+.BR \-v ", " \-\-verbose
+Be verbose.
+.TP
+.BR \-V ", " \-\-version
+Display the version of \fBinsmod\fR.
+.TP
+.BR \-X ", " \-\-export "; " \-x ", " \-\-noexport
+Do and do not export all of the module's external symbols, respectively.
+The default is for the symbols to be exported.  This option is only
+effective if the module does not explicitly export its own controlled
+symbol table, and thus is deprecated.
+.TP
+.BR \-Y ", " \-\-ksymoops "; " \-y ", " \-\-noksymoops
+Do and do not add \fBksymoops\fR symbols to ksyms.  These symbols are used by
+\fBksymoops\fR to provide better debugging if there is an Oops in this
+module.  The default is for the \fBksymoops\fR symbols to be defined.  This
+option is independent of the \fB\-X\fR/\fB\-x\fR options.
+.TP
+.B ""
+\fBksymoops\fR symbols add approximately 260 bytes per loaded module.  Unless
+you are really short on kernel space and are trying to reduce ksyms to
+its minimum size, take the default and get more accurate Oops
+debugging.  \fBksymoops\fR symbols are required to save persistent module
+data.
+.TP
+.BR \-N ", " \-\-numeric-only
+Only check the numeric part of the module version against the kernel
+version, i.e. ignore EXTRAVERSION when deciding if a module belongs to
+a kernel.
+This flag is automatically set for kernel 2.5 onwards, it is optional
+for earlier kernels.
+.SS MODULE PARAMETERS
+Some modules accept load-time parameters to customize their operation.
+These parameters are often I/O port and IRQ numbers that vary from
+machine to machine and cannot be determined from the hardware.
+.PP
+In modules built for 2.0 series kernels, any integer or character pointer
+symbol may be treated as a parameter and modified.  Beginning in the
+2.1 series kernels, symbols are explicitly marked as parameters so that
+only specific values may be changed.  Furthermore type information is
+provided for checking the values provided at load time.
+.PP
+In the case of integers, all values may be in decimal, octal or
+hexadecimal a la C: 17, 021 or 0x11.  Array elements are specified
+sequence separated by commas.  Elements can be skipped by omitting
+the value.
+.PP
+In 2.0 series modules, values that do not begin with a number are
+considered strings.  Beginning in 2.1, the parameter's type information
+indicates whether to interpret the value as a string.  If the value
+begins with double-quotes
+(\fB"\fR),
+.\" (syntax highlighting kludge:  This comment closes previous quote.
+the string is interpreted as
+in C, escape sequences and all.  Do note that from the shell prompt,
+the quotes themselves may need to be protected from shell interpretation.
+.SS GPL LICENSED MODULES AND SYMBOLS
+Starting with kernel 2.4.10, modules should have a license string,
+defined using \fBMODULE_LICENSE()\fR.  Several strings are recognised as
+being GPL compatible; any other license string or no license at all
+means that the module is treated as proprietary.  See
+\fIinclude/linux/module.h\fR for a list of GPL compatible license strings.
+.PP
+If the kernel supports the \fI/proc/sys/kernel/tainted\fR flag then
+\fBinsmod\fR will OR the tainted flag with '1' when loading a module without
+a GPL license.  A warning is issued if the kernel supports tainting and a
+module is loaded without a license.  A warning is always issued for
+modules which have a \fBMODULE_LICENSE()\fR that is not GPL compatible, even
+on older kernels that do not support tainting.  This minimizes warnings
+when a new modutils is used on older kernels.
+.PP
+\fBinsmod\ \-f\fR (force) mode will OR the tainted flag with '2' on kernels
+that support tainting.  It always issues a warning.
+.PP
+Some kernel developers require that symbols exported by their code must
+only be used by modules with a GPL compatible license.  These symbols
+are exported by \fBEXPORT_SYMBOL_GPL\fR instead of the normal
+\fBEXPORT_SYMBOL\fR.  GPL-only symbols exported by the kernel and by other
+modules are only visible to modules with a GPL-compatible license, these
+symbols appear in \fI/proc/ksyms\fR with a prefix of '\fBGPLONLY_\fR'.
+\fBinsmod\fR ignores the \fBGPLONLY_\fR prefix on symbols while loading a
+GPL licensed module so the module just refers to the normal symbol name,
+without the prefix.  GPL only symbols are not made available to modules
+without a GPL compatible license, this includes  modules with no license
+at all.
+.SS KSYMOOPS ASSISTANCE
+To assist with debugging of kernel Oops when using modules, \fBinsmod\fR
+defaults to adding some symbols to ksyms, see the \fB\-Y\fR option.
+These symbols start with \fB__insmod_modulename_\fR.  The
+\fImodulename\fR is required to make the symbols unique.  It is legal to
+load the same object more than once under different module names.
+Currently defined symbols are:
+.TP
+.B __insmod_modulename_Oobjectfile_Mmtime_Vversion
+\fIobjectfile\fR is the name of the file that the object was loaded
+from.  This ensures that ksymoops can match the code to the correct
+object.  \fImtime\fR is the last modified timestamp on that file in
+hex, zero if stat failed.  \fIversion\fR is the kernel version that
+the module was compiled for, -1 if no version is available.  The
+\fB_O\fR symbol has the same start address as the module header.
+.TP
+.B __insmod_modulename_Ssectionname_Llength
+This symbol appears at the start of selected ELF sections,
+currently .text, .rodata, .data, .bss and .sbss.  It only appears if the
+section has a non-zero size.  \fIsectionname\fR is the name of the ELF
+section, \fIlength\fR is the length of the section in decimal.  These
+symbols help ksymoops map addresses to sections when no symbols are
+available.
+.TP
+.B __insmod_modulename_Ppersistent_filename
+Only created by \fBinsmod\fR if the module has one or more parameters that
+are marked as persistent data and a filename to save persistent data
+(see \fB\-e\fR, above) is available.
+.PP
+The other problem with debugging kernel Oops in modules is that the
+contents of \fI/proc/ksyms\fR and \fI/proc/modules\fR can change between the
+Oops and when you process the log file.  To help overcome this problem, if
+the directory \fI/var/log/ksymoops\fR exists then \fBinsmod\fR and \fBrmmod\fR
+will automatically copy \fI/proc/ksyms\fR and \fI/proc/modules\fR to
+\fI/var/log/ksymoops\fR with a prefix of `date\ +%Y%m%d%H%M%S`.
+The system administrator can tell \fBksymoops\fR which snapshot files to use
+when debugging an Oops.  There is no switch to disable this automatic
+copy.  If you do not want it to occur, do not create \fI/var/log/ksymoops\fR.
+If that directory exists, it should be owned by root and be mode 644 or
+600 and you should run this script every day or so.  The script below
+is installed as \fBinsmod_ksymoops_clean\fR.
+.PP
+.ne 8
+.nf
+  #!/bin/sh
+  # Delete saved ksyms and modules not accessed in 2 days
+  if [ -d /var/log/ksymoops ]
+  then
+	  set -e
+	  # Make sure there is always at least one version
+	  d=`date +%Y%m%d%H%M%S`
+	  cp -a /proc/ksyms /var/log/ksymoops/${d}.ksyms
+	  cp -a /proc/modules /var/log/ksymoops/${d}.modules
+	  find /var/log/ksymoops -type f -atime +2 -exec rm {} \\;
+  fi
+.SH SEE ALSO
+\fBrmmod\fP(8), \fBmodprobe\fP(8), \fBdepmod\fP(8), \fBlsmod\fP(8),
+\fBksyms\fP(8), \fBmodules\fP(2), \fBgenksyms\fP(8), \fBkerneld\fP(8),
+\fBksymoops\fP(kernel).
+.SH BUGS
+\fBinsmod\fR [\fB\-V\fR\ |\ \fB\-\-version\fR] should display version
+information and then exit immediately.  Instead, it prints the version
+information and behaves as if no options were given.
+.SH HISTORY
+Module support was first conceived by Anonymous
+.br
+Initial Linux version by Bas Laarhoven <bas@vimec.nl>
+.br
+Version 0.99.14 by Jon Tombs <jon@gtex02.us.es>
+.br
+Extended by Bjorn Ekwall <bj0rn@blox.se>
+.br
+Original ELF help from Eric Youngdale <eric@aib.com>
+.br
+Rewritten for 2.1.17 by Richard Henderson <rth@tamu.edu>
+.br
+Extended by Bjorn Ekwall <bj0rn@blox.se> for modutils-2.2.*, March 1999
+.br
+Assistance for ksymoops by Keith Owens <kaos@ocs.com.au>, May 1999
+.br
+Maintainer: Keith Owens <kaos@ocs.com.au>.

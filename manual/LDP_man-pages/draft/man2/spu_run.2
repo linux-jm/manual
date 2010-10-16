@@ -1,0 +1,394 @@
+.\" Copyright (c) International Business Machines Corp., 2006
+.\"
+.\" This program is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+.\" the GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+.\" MA 02111-1307 USA
+.\"
+.\" HISTORY:
+.\" 2005-09-28, created by Arnd Bergmann <arndb@de.ibm.com>
+.\" 2006-06-16, revised by Eduardo M. Fleury <efleury@br.ibm.com>
+.\" 2007-07-10, some polishing by mtk
+.\" 2007-09-28, updates for newer kernels, added example
+.\"             by Jeremy Kerr <jk@ozlabs.org>
+.\"
+.\" Japanese Version Copyright (c) 2007  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2007-10-19, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2008-11-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.04
+.\" 
+.TH SPU_RUN 2 2007-11-25 Linux "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O spu_run \- execute an SPU context
+spu_run \- SPU コンテキストを実行する
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #include <sys/spu.h>
+
+.BI "int spu_run(int " fd ", unsigned int *" npc \
+", unsigned int *" event ");"
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The
+.\"O .BR spu_run ()
+.\"O system call is used on PowerPC machines that implement the
+.\"O Cell Broadband Engine Architecture in order to access Synergistic
+.\"O Processor Units (SPUs).
+.\"O The
+.\"O .I fd
+.\"O argument is a file descriptor returned by
+.\"O .BR spu_create (2)
+.\"O that refers to a specific SPU context.
+.\"O When the context gets scheduled to a physical SPU,
+.\"O it starts execution at the instruction pointer passed in
+.\"O .IR npc .
+.BR spu_run ()
+システムコールは、Cell Broadband Engine アーキテクチャを実装した
+PowerPC マシンで Synergistic Processor Units (SPU) にアクセスするために
+使用される。
+.I fd
+引き数は、
+.BR spu_create (2)
+が返すファイルディスクリプタで、
+特定の SPU コンテキストを参照する。
+そのコンテキストが物理 SPU に割り当てられると、
+.I npc
+で渡された命令ポインタ (instruction pointer) から実行が開始される。
+
+.\"O Execution of SPU code happens synchronously, meaning that
+.\"O .BR spu_run ()
+.\"O blocks while the SPU is still running.
+.\"O If there is a need
+.\"O to execute SPU code in parallel with other code on either the
+.\"O main CPU or other SPUs, a new thread of execution must be created
+.\"O first (e.g., using
+.\"O .BR pthread_create (3)).
+SPU コードの実行は同期的 (synchronously) に行われる、つまり
+SPU が実行中は
+.BR spu_run ()
+は停止 (block) する。
+SPU コードの実行をメイン CPU や他の SPU と並行して行う必要がある場合は、
+最初に、その SPU コードを実行する新しいスレッドを、(例えば
+.BR pthread_create (3)
+などを使って) 生成しなければならない。
+
+.\"O When
+.\"O .BR spu_run ()
+.\"O returns, the current value of the SPU program counter is written to
+.\"O .IR npc ,
+.\"O so successive calls to
+.\"O .BR spu_run ()
+.\"O can use the same
+.\"O .I npc
+.\"O pointer.
+.BR spu_run ()
+が返るときには、SPU のプログラムカウンタの現在値が
+.I npc
+に書き込まれる。
+これにより、連続する
+.BR spu_run ()
+の呼び出しで同じ
+.I npc
+ポインタを使うことができる。
+
+.\"O The
+.\"O .I event
+.\"O argument provides a buffer for an extended status code.
+.\"O If the SPU
+.\"O context was created with the
+.\"O .B SPU_CREATE_EVENTS_ENABLED
+.\"O flag, then this buffer is populated by the Linux kernel before
+.\"O .BR spu_run ()
+.\"O returns.
+.I event
+引き数には、拡張ステータスコード用のバッファを指定する。
+.B SPU_CREATE_EVENTS_ENABLED
+フラグ付きで SPU コンテキストが作成されると、
+.BR spu_run ()
+が返る前に Linux カーネルによりこのバッファに
+拡張ステータスコードが格納される。
+
+.\"O The status code may be one (or more) of the following constants:
+ステータスコードには以下の定数が一つ以上入る。
+.TP
+.B SPE_EVENT_DMA_ALIGNMENT
+.\"O A DMA alignment error occurred.
+DMA (direct memory access) のアライメント・エラーが発生した。
+.TP
+.B SPE_EVENT_INVALID_DMA
+.\"O An invalid MFC DMA command was attempted.
+無効な MFC (Memory Flow Controller) DMA コマンドを行おうとした。
+.TP
+.B SPE_EVENT_SPE_DATA_STORAGE
+.\"O A DMA storage error occurred.
+DMA ストレージ・エラーが発生した。
+.TP
+.B SPE_EVENT_SPE_ERROR
+.\"O An illegal instruction was executed.
+不正な命令が実行された。
+.PP
+.\"O NULL
+.\"O is a valid value for the
+.\"O .I event
+.\"O argument.
+.\"O In this case, the events will not be reported to the calling process.
+NULL は
+.I event
+引き数として有効な値である。
+この場合、イベントは呼び出し元のプロセスに報告されない。
+.\"O .SH RETURN VALUE
+.SH 返り値
+.\"O On success,
+.\"O .BR spu_run ()
+.\"O returns the value of the
+.\"O .I spu_status
+.\"O register.
+.\"O On error it returns \-1 and sets
+.\"O .I errno
+.\"O to one of the error codes listed below.
+成功すると、
+.BR spu_run ()
+は
+.I spu_status
+レジスタの値を返す。
+エラーの場合、\-1 を返し、
+.I errno
+を下記のエラーコードのいずれかに設定する。
+
+.\"O The
+.\"O .I spu_status
+.\"O register value is a bit mask of status codes and
+.\"O optionally a 14-bit code returned from the
+.\"O .BR stop-and-signal
+.\"O instruction on the SPU.
+.\"O The bit masks for the status codes
+.\"O are:
+.I spu_status
+レジスタの値は、ステータスコードと SPU の
+.B stop-and-signal
+命令が返す 14 ビットのコードの
+ビットマスクで構成される。
+後者の 14 ビットのコードはオプションである。
+ステータスコードのビットマスクは下記の通りである。
+.TP
+.B 0x02
+.\"O SPU was stopped by a
+.\"O .BR stop-and-signal
+.\"O instruction.
+SPU が
+.B stop-and-signal
+命令で停止した。
+.TP
+.B 0x04
+.\"O SPU was stopped by a
+.\"O .BR halt
+.\"O instruction.
+SPU が
+.B "halt (停止)"
+命令で止まった。
+.TP
+.B 0x08
+.\"O SPU is waiting for a channel.
+SPU はチャンネルのウェイト中である。
+.TP
+.B 0x10
+.\"O SPU is in single-step mode.
+SPU はシングルステップモードであった。
+.TP
+.B 0x20
+.\"O SPU has tried to execute an invalid instruction.
+SPU が不正な命令を実行しようとした。
+.TP
+.B 0x40
+.\"O SPU has tried to access an invalid channel.
+SPU が不正なチャンネルにアクセスしようとした。
+.TP
+.B 0x3fff0000
+.\"O The bits masked with this value contain the code returned from a
+.\"O .BR stop-and-signal
+.\"O instruction.
+.\"O These bits are only valid if the 0x02 bit is set.
+この値のマスクを適用して得られたビット値には、
+stop-and-signal 命令から返されたコードが入っている。
+これらのビットは 0x02 ビットがセットされている場合にのみ有効である。
+.PP
+.\"O If
+.\"O .BR spu_run ()
+.\"O has not returned an error, one or more bits among the lower eight
+.\"O ones are always set.
+.BR spu_run ()
+がエラーを返さなかった場合、下位 8 ビットのうち 1 つ以上は
+常にセットされる。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EBADF
+.\"O .I fd
+.\"O is not a valid file descriptor.
+.I fd
+が有効なファイルディスクリプタでない。
+.TP
+.B EFAULT
+.\"O .I npc
+.\"O is not a valid pointer, or
+.\"O .I event
+.\"O is non-NULL and an invalid pointer.
+.I npc
+が有効なポインタでない。または
+.I event
+が NULL 以外で、しかも無効なポインタである。
+.TP
+.B EINTR
+.\"O A signal occurred while
+.\"O .BR spu_run ()
+.\"O was in progress; see
+.\"O .BR signal (7).
+.\"O The
+.\"O .I npc
+.\"O value has been updated to the new program counter value if
+.\"O necessary.
+.BR spu_run ()
+の実行中にシグナルが発生した。
+.BR signal (7)
+参照。
+必要であれば、
+.I npc
+の値は新しいプログラムカウンタの値に更新される。
+.TP
+.B EINVAL
+.\"O .I fd
+.\"O is not a valid file descriptor returned from
+.\"O .BR spu_create (2).
+.I fd
+が
+.BR spu_create (2)
+が返した有効なファイルディスクリプタでない。
+.TP
+.B ENOMEM
+.\"O There was not enough memory available to handle a page fault
+.\"O resulting from a Memory Flow Controller (MFC) direct memory access.
+Memory Flow Controller (MFC) DMA により発生したページフォールトを
+処理するのに必要なメモリがなかった。
+.TP
+.B ENOSYS
+.\"O The functionality is not provided by the current system, because
+.\"O either the hardware does not provide SPUs or the spufs module is not
+.\"O loaded.
+機能が動作中のシステムで提供されていない。理由は、
+ハードウェアで SPU が提供されていないか、
+spufs モジュールがロードされていないか、のどちらかである。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O The
+.\"O .BR spu_run ()
+.\"O system call was added to Linux in kernel 2.6.16.
+.BR spu_run ()
+システムコールはカーネル 2.6.16 で Linux に追加された。
+.\"O .SH CONFORMING TO
+.SH 準拠
+.\"O This call is Linux-specific and only implemented by the PowerPC
+.\"O architecture.
+.\"O Programs using this system call are not portable.
+このシステムコールは Linux 固有であり、
+PowerPC アーキテクチャでのみ実装されている。
+このシステムコールを使ったプログラムは移植性がない。
+.\"O .SH NOTES
+.SH 注意
+.\"O Glibc does not provide a wrapper for this system call; call it using
+.\"O .BR syscall (2).
+.\"O Note however, that
+.\"O .BR spu_run ()
+.\"O is meant to be used from libraries that implement a more abstract
+.\"O interface to SPUs, not to be used from regular applications.
+.\"O See
+.\"O .I http://www.bsc.es/projects/deepcomputing/linuxoncell/
+.\"O for the recommended libraries.
+glibc はこのシステムコールに対するラッパー関数を提供していない。
+.BR syscall (2)
+を使うこと。ただし、
+.BR spu_run ()
+は より抽象度の高い SPU へのインタフェースを実装するライブラリから
+利用されることを意図したものであり、通常のアプリケーションから
+使用は意図されていない。推奨のライブラリについては
+.I http://www.bsc.es/projects/deepcomputing/linuxoncell/
+を参照のこと。
+.\"O .SH EXAMPLE
+.SH 例
+.\"O The following is an example of running a simple, one-instruction SPU
+.\"O program with the
+.\"O .BR spu_run ()
+.\"O system call.
+以下は、簡単な 1 命令の SPU プログラムを
+.BR spu_run ()
+システムコールを使って実行させる例である。
+
+.nf
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
+#define handle_error(msg) \\
+    do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+int main(void)
+{
+    int context, fd, spu_status;
+    uint32_t instruction, npc;
+
+    context = spu_create("/spu/example\-context", 0, 0755);
+    if (context == -1)
+        handle_error("spu_create");
+
+    /* write a \(aqstop 0x1234\(aq instruction to the SPU\(aqs
+     * local store memory
+     */
+    instruction = 0x00001234;
+
+    fd = open("/spu/example\-context/mem", O_RDWR);
+    if (fd == -1)
+        handle_error("open");
+    write(fd, &instruction, sizeof(instruction));
+
+    /* set npc to the starting instruction address of the
+     * SPU program. Since we wrote the instruction at the
+     * start of the mem file, the entry point will be 0x0
+     */
+    npc = 0;
+
+    spu_status = spu_run(context, &npc, NULL);
+    if (spu_status == -1)
+        handle_error("open");
+
+    /* we should see a status code of 0x1234002:
+     *   0x00000002 (spu was stopped due to stop\-and\-signal)
+     * | 0x12340000 (the stop\-and\-signal code)
+     */
+    printf("SPU Status: 0x%08x\\n", spu_status);
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.\" .SH AUTHORS
+.\" Arnd Bergmann <arndb@de.ibm.com>, Jeremy Kerr <jk@ozlabs.org>
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR close (2),
+.BR spu_create (2),
+.BR capabilities (7),
+.BR spufs (7)

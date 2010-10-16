@@ -1,0 +1,326 @@
+.\" apmd.8 -- 
+.\" Created: Wed Jan 10 15:07:25 1996 by faith@acm.org
+.\" Revised: Fri Dec 26 20:34:52 1997 by faith@acm.org
+.\" Revised: Wed Jun  2 18:47:02 1999 by db@post.harvard.edu
+.\" Copyright 1996, 1997 Rickard E. Faith (faith@acm.org)
+.\" Copyright 1999 David Brownell (db@post.harvard.edu)
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.\" Japanese Version Copyright (c) 2000 HAYAKAWA Hitoshi & NAKANO Takeo
+.\"   all rights reserved.
+.\" Translated Mon 29 May 2000 by HAYAKAWA Hitoshi <cz8cb01@linux.or.jp>
+.\"   and NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.TH APMD 8 "10 Jun 1999" "" "Linux Programmer's Manual"
+.SH 名前
+apmd \- Advanced Power Management (APM) デーモン
+.SH 書式
+.BI "apmd"
+.BI "[ \-c " check_seconds " ]
+.BI "[ \-P " proxy_cmd " ]"
+.BI "[ \-p " percent_to_log " ]"
+.BI "[ \-qVvW ]"
+.BI "[ \-w " warn_percent " ]
+.BI "[ \-? ]"
+.I "[deprecated options]"
+.SH 説明
+.B apmd
+は APM を監視するデーモンで、OS のカーネルの
+APM BIOS ドライバーを利用して動作する。
+.B apmd
+はドライバーからイベントの発生が通知された時にコマンド
+(通常はシェルスクリプト) を実行することができ、
+またシステムの電力状態が変化 (AC 電源供給のオン・オフなど) したときに
+.BR syslogd (8)
+を使ってログを残すことができる。
+電池の残量がわずかになった時には、
+システムの全ユーザーにいろいろな方法で警告を通知することもできる。
+.PP
+カーネルの APM ドライバーから
+サスペンドやスタンバイを行いたい旨の要求を受け取ると、
+.B apmd
+は適切なコマンドを実行し、
+そのイベントをログに書き、
+データをディスクに
+.BR sync (2)
+し、
+全てのデータがディスクに実際に書きこまれるように少しの間スリープし、
+その後 APM ドライバーに処理を続行するように通知する。
+しかし「クリティカル」なサスペンド (緊急シャットダウン) の場合には、
+途中の段階をすべて飛ばしてドライバーに処理の続行通知を送る。
+.PP
+このデーモンの主な利用法は
+.I proxy
+コマンドを使用して電力の節約をすることである。
+このコマンドのデフォルトの検索場所は
+.I /etc/apmd_proxy
+であり、起動の際には 1 個または 2 個の引数が付けられる。
+.TP
+.B start
+デーモンの起動時に呼びだされる。通常、システム全体の電力管理設定を行う。
+例えば電池使用時/非使用時の IDE ハードディスクのスタンバイ時間などである。
+.TP
+.B stop
+デーモンの停止時に呼びだされる。
+通常はデーモンの開始時に設定された電源の設定を元に戻す。
+.TP
+.B suspend "[ system | user ]"
+.\".B suspend "[ system | user | critical ]"
+システムのサスペンド開始を APM ドライバーが通知した時に呼びだされる。
+二番目の引数は、サスペンドの開始が BIOS によるものか、
+ユーザーのアクション (ラップトップを閉じた時など) によるものかを示す。
+.ig
+「クリティカル」なサスペンドは、緊急シャットダウンの必要がある時に
+BIOS からの通知によって実行される。
+シャットダウンについて安全に通知する余裕はないので、
+アプリケーションやデバイスドライバーには通知されない。
+..
+.sp
+BIOS の「サスペンド」モードは積極的に電力を節約する。
+通常は CPU のコア部分とメモリを除いて全てのデバイスの電源をカットし、
+これらも超低電力モード (very low power mode) にする。
+多くのラップトップでは、
+電池だけで数日間サスペンドし続けることができる。
+(「ハイバネーション」はさらなるサスペンドと言える。
+これは全ての状態がディスクに書きだされるので
+CPU のコアの電源供給もカットすることができ、
+電池から電源供給をする必要がまったくなくなる。
+現段階では Linux はハイバネーションをサポートしていない。)
+PCMCIA デバイスは
+.BR cardctl (8)
+を使って手動でサスペンドすべきである。
+またいくつかのドライバーモジュールもアンロードしておく必要があるかもしれない。
+.TP
+.B standby "[ system | user ]"
+システムのスタンバイ開始を APM ドライバーが通知した時に呼びだされる。
+二番目の引数はスタンバイの開始が BIOS によるものか
+ユーザーのアクション
+.RI ( "apm -s" 
+の実行など) によるものかを示している。
+.sp
+BIOS の「スタンバイ」モードは多少電力の節約をする。
+マシンはユーザーの操作にほとんど即時に反応できる状態に保たれる。
+多くのラップトップではスタンバイモードのままだと
+電池だけでは一日ももたない。
+通常は、 BIOS がすること以外には何もしなくてよい。
+.TP
+.B resume "[ suspend | standby | critical ]"
+システムの通常オペレーションへのレジュームを
+APM ドライバーが通知した時に呼びだされる。
+二番目の引数は、以前の状態が
+「サスペンド」モード(「クリティカル」なサスペンドの可能性もある) だったか 
+「スタンバイ」モードだったかを示している。
+.sp
+システムクロックをハードウェアクロックに一致するように更新する必要がある。
+これは通常カーネルの APM ドライバーによって処理される。
+PCMCIA デバイスは
+.BR cardctl (8)
+を使用して手動でレジュームする必要があるかもしれない。
+また再ロードや再初期化が必要になるドライバーモジュールも存在する。
+クリティカルなサスペンドの時には緊急シャットダウンにより、
+システムの状態が完全には保存されていないこともあるため、
+アプリケーションやドライバーの状態がおかしくなるかもしれない。
+.TP
+.B change power
+APM ドライバーの「電源状態の変化」イベントのうちの幾つかに対応する
+(特に AC 電源の挿抜など)。
+これが起きるとシステム全体の電力管理設定を変更する場合が多い。
+例えば電池しか使えない場合に IDE HDD を
+積極的にスタンバイモードに入れるようにするなど。
+.ig
+.TP
+.B change time
+システムクロックをハードウェアクロックに併せて更新しなければならない。
+これは普通はカーネルの APM ドライバーによって処理される。
+..
+.TP
+.B change battery
+少なくとも一つの (あるいは複数の) 電池の残量が "low" である、
+という BIOS の判断が APM ドライバーから通知された。
+ただし、少なくとも 10 分ぶんの電力は残っている。
+.TP
+.B change capability
+システムの電力管理設定機能のどれかが変更された旨が報告された。
+何らかのセットアップユーティリティの操作やデバイスの追加・取り外し
+などが考えられる。
+.PP
+このデーモンはいろいろなログメッセージを発行する。
+ほとんどは見ればわかるだろうが、
+電池の状態に関するメッセージには少々説明が必要かもしれない。
+ログの "Battery" または "Charge" メッセージには、
+続いて 4 つのフィールドが記述される。
+.HP
+1) 消費レート (パーセント/分)。負の場合は充電を示す。
+.HP
+2) 完全充電・完全消費状態からの経過時間 (hh:mm:ss)。
+この値は 100% または 0% になった状態からの経過時間を
+反映している場合にのみ意味がある。
+それ以外の場合には時間は括弧で括られ、
+最後に
+.B apmd
+の「重要な」状態変化 (デーモンの起動、AC 電源から電池駆動への移行など)
+が起きてからの経過時間を表す。
+.HP
+3) 完全に電池を消費してしまうまで (あるいは完全に充電されるまで) の予測時間。
+最後にレジューム状態から復帰して以降 (あるいは AC 電源が接続されて移行) と
+同じような利用状態が続くと仮定している。
+この時間は
+.B apmd
+自身が計算している。
+.HP
+4) 括弧に挟まれた、充電率と電池の寿命。
+これは APM BIOS の予測値である (インテリジェントな電池自身からの、
+やや控えめな見積りであることが多い)。
+この情報は、このデーモンからのメッセージのほとんどに追加される。
+.PP
+このデーモンは APM BIOS 1.2 イベントをサポートしている。
+しかし複数の電池の取り扱いなど、より高度な機能はサポートしていない。
+また最近の PC ハードウェアにある ACPI サポートとの連携は、まだできない。
+.SH オプション
+.TP
+.BR "\-c " seconds, " \--check " seconds
+.I /dev/apm_bios
+デバイスを何秒間ブロックするかを制御する。
+通常デーモンは APM ドライバーがイベントを報告するまでブロックする。
+この数字を変えると、電池の充電速度・消費速度をより頻繁にチェックできる。
+.TP
+.BR "\-P " proxy_cmd, " \-\-apmd_proxy " proxy_cmd
+APM ドライバーのイベントが報告されたときに起動するコマンドを指定する。
+このスクリプトに付加される引数に関する情報は上述の説明を見よ。
+.TP
+.BR "\-p " percent_change, " \--percentage " percent_change
+(消費や充電によって) 利用可能な電池残量が
+.I percent_change
+づつ変わるごとに、情報をログに送る。
+デフォルトは 5。この機能を無効にしたい場合は 100 より大きい値を指定する。
+.TP
+.B \-V, \-\-version
+デーモンのバージョンを表示して終了する。
+.TP
+.B \-v, \-\-verbose
+詳細出力モードを有効にする。
+APM ドライバーから報告される全てのイベントがログに送られる。
+.TP
+.B \-W, \-\-wall
+電池の状態が
+.RB ( -w
+オプションや APM BIOS によって定められた)
+"low" になったとき、
+.BR syslog (2)
+を用いてログをとるだけでなく、
+.BR wall (1)
+を用いて全てのユーザーに警告を発する。
+これは
+.BR syslogd (8)
+の設定で、 ALERT メッセージがユーザに送られるようになっていない場合に
+非常に便利である。
+両方が用いられると、危険な状態になったときによりたくさんの警告が発せられる。
+.TP
+.BR "\-w " warn_percent, " \--warn " warn_percent
+電池が充電状態になく、かつ残量が
+.IR warn_percent
+以下になったときに ALERT レベルの警告を
+.BR syslog (2)
+に送る。
+.B \-W
+または
+.B \-\-wall
+フラグが与えられていると、デーモンは
+.BR wall (1)
+も使ってユーザーにいまそこにある危機を警告する。
+警告はパーセンテージが変わるごとに発せられる。デフォルトは 10。
+この機能を無効にするには負の値を指定する。
+.TP
+.B \-q, \-\-quiet
+.B \-W
+オプションや
+.B \-w
+オプションから生じる警告メッセージを出さなくする。
+(多くのマシンでは、 APM BIOS は電力を使い切りそうになると
+警告音を発するので、それ以上の警告は必要ない。)
+.TP
+.B \-?, \-\-help
+利用法を表示して終了する。
+.PP
+これから書くソフトは、
+.I proxy
+スクリプトだけを使うようにすべきである。
+以下のオプションは今後は使うべきでない
+(これらのほとんどは正式リリースには存在しない)。
+指定されると、各イベントから起動されるどの proxy コマンドよりも優先される。
+.TP
+.BR "\-a " ac_online_cmd, " \-\-ac_online " ac_online_cmd
+AC 電源が利用できるようになったとき (ただしデーモンが最初に起動されたときは除く)
+に実行すべきコマンドを指定する。
+.TP
+.BR "\-b " ac_offline_cmd, " \-\-ac_offline " ac_offline_cmd
+マシンが電池駆動になったとき (ただしデーモンが最初に起動されたときは除く)
+に実行すべきコマンドを指定する。
+.TP
+.BR "\-l " low_battery_cmd, " \-\-low_battery " low_battery_cmd
+電池の残量が "low" であると
+APM BIOS が判断した場合に実行すべきコマンドを指定する。
+.TP
+.BR "\-s " pre_suspend_cmd, " \-\-pre_suspend " pre_suspend_cmd
+ドライバ経由でサスペンドする前に実行すべきコマンドを指定する。
+.TP
+.BR "\-r " post_resume_cmd, " \-\-post_resume " post_resume_cmd
+ドライバ経由で復帰した後に実行すべきコマンドを指定する。
+.TP
+.B \-u, \-\-utc
+(このオプションは現在は完全に無視される。)
+BIOS クロックが UTC (GMT) にセットされている。
+したがってサスペンドモードやレジュームモードから復帰したり
+BIOS の update time イベントの際には、デーモンは
+.I clock
+や
+.I hwclock
+プログラムに -u オプションを渡さなければならない。
+.SH バグ
+電力状態が変わったあと、最初に出される報告は不正確かもしれない。
+なぜなら 1% 以下の変化は 1% に丸められるからである。例えば、
+ある程度マシンを使って 50.9% の電池が残っているとすると、
+これは 50% と報告される。
+マシンの充電が始まると、残量が 51% になるまでの変化は 0.1% だけである。
+したがって充電速度は劇的に大きな値になってしまう。
+.PP
+他のアプリケーションに、システムの電源管理方針決定に参画させるには、
+より一般的なフックが必要である。
+.PP
+現在のところ、複数の電池は 1 つの大きな電池としてしか取り扱われない。
+.SH ファイル
+.I /dev/apm_bios
+.br
+.I /proc/apm
+.br
+.I /etc/apmd/apmd_proxy
+.SH 著者
+このプログラムは Rik Faith (faith@cs.unc.edu) によって書かれ、
+GNU 一般公共使用許諾のもとで自由に再配布できる。
+このプログラムは「完全に無保証」である。現在の管理者は
+Avery Pennarun (apenwarr@worldvisions.ca) である。
+.SH 関連項目
+.BR apm (1),
+.BR xapm (1),
+.BR cardctl (8),
+.BR hdparm (8),
+.BR syslogd (8)

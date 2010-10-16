@@ -1,0 +1,126 @@
+.\" Copyright (C) 2001 Andries Brouwer <aeb@cwi.nl>.
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2001 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Sun Nov  4 14:09:45 2001
+.\"         by Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.\"WORD:	lockcount	ロック数
+.\"WORD:	owner thread	所有者スレッド
+.\"
+.TH FLOCKFILE 3  2008-08-29 "" "Linux Programmer's Manual"
+.SH 名前
+flockfile, ftrylockfile, funlockfile \- 標準入出力 FILE のロックを行う
+.SH 書式
+.nf
+.B #include <stdio.h>
+.sp
+.BI "void flockfile(FILE *" filehandle );
+.br
+.BI "int ftrylockfile(FILE *" filehandle );
+.br
+.BI "void funlockfile(FILE *" filehandle );
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.ad l
+.sp
+上記の全ての関数:
+_POSIX_C_SOURCE\ >=\ 1 || _XOPEN_SOURCE || _BSD_SOURCE ||
+_SVID_SOURCE || _POSIX_SOURCE
+.ad b
+.SH 説明
+標準入出力関数はスレッドセーフである。これは、各
+.I FILE
+オブジェクトに対し、ロック数 (lockcount) と
+(ロック数が 0 でない場合は) 所有者スレッド (owner thread)
+を管理することで実現される。
+ライブラリの呼び出しが行われる毎に、標準入出力関数は
+.I FILE
+オブジェクトが他のスレッドによってロックされていない状態になるまで待ち、
+.I FILE
+オブジェクトをロックし、要求されて入出力を行い、
+オブジェクトのロックを解除する。
+.LP
+(注: このロックは、
+.BR flock (2)
+や
+.BR lockf (3)
+といった関数が行うロックとは全く無関係である。)
+.LP
+これらのことはすべて C プログラマには見えない部分で行われるが、
+より細かい制御ができた方がよい理由が2つあるだろう。一つは、一つのスレッドが
+行う一連の入出力動作は一緒に行われ、他のスレッドの入出力によって中断されない
+方がよいということであろう。もう一つは、効率を大きく上げるためには
+ロックのオーバヘッドを避ける必要があるということであろう。
+.LP
+この目的を実現するために、
+.I FILE
+オブジェクトのロック、一連の入出力動作の実行、
+ロックの解除をスレッドが明示的に指示することができる。
+これにより、他のスレッドが途中で入出力を行うのを防止する。
+このようなことを行う理由が効率の向上であるならば、
+ロックを行わないバージョンの標準入出力関数を使うこともできる。
+例えば、
+.BR getc (3)
+や
+.BR putc (3)
+の代わりに
+.BR getc_unlocked (3)
+や
+.BR putc_unlocked (3)
+を使用する。
+.LP
+.BR flockfile ()
+関数は、\fI*filehandle\fP が他のスレッドにロックされていな
+い状態になるまで待ったのち、現在のスレッドを \fI*filehandle\fP のオーナに設
+定し、ロック数を加算する。
+.LP
+.BR funlockfile ()
+関数は、ロック数を減算する。
+.LP
+.BR ftrylockfile ()
+関数は
+.BR flockfile ()
+のブロッキングを行わない
+バージョンである。他のスレッドが \fI*filehandle\fP をロックしている時は
+何も行わず、そうでない場合は \fI*filehandle\fP の所有権を獲得し、
+ロック数を加算する。
+.SH 返り値
+.BR ftrylockfile ()
+関数はロックに成功すると 0 を返し、
+失敗した場合は 0 以外の値を返す。
+.SH エラー
+なし。
+.SH 準拠
+POSIX.1-2001.
+.SH 可用性
+.B _POSIX_THREAD_SAFE_FUNCTIONS
+が定義されているときにこれらの関数を使用することができる。
+5.1.1 以降の libc と 2.0 以降の glibc に存在する。
+.SH 関連項目
+.BR unlocked_stdio (3)

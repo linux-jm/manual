@@ -1,0 +1,829 @@
+.\" This is _*_ nroff _*_ source. Emacs, gimme all those colors :)
+.\"
+.\" Copyright (c) International Business Machines Corp., 2006
+.\"
+.\" This program is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+.\" the GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+.\" MA 02111-1307 USA
+.\"
+.\" HISTORY:
+.\" 2005-09-28, created by Arnd Bergmann <arndb@de.ibm.com>,
+.\"   Mark Nutter <mnutter@us.ibm.com> and
+.\"   Ulrich Weigand <Ulrich.Weigand@de.ibm.com>
+.\" 2006-06-16, revised by Eduardo M. Fleury <efleury@br.ibm.com>
+.\" 2007-07-10, quite a lot of polishing by mtk
+.\"
+.TH SPUFS 7 2007-07-10 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O spufs \- the SPU file system
+spufs \- SPU ファイルシステム
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The SPU file system is used on PowerPC machines that implement the
+.\"O Cell Broadband Engine Architecture in order to access Synergistic
+.\"O Processor Units (SPUs).
+SPU ファイルシステムは、Cell Broadband Engine アーキテクチャを実装した
+PowerPC マシンにおいて、Synergistic Processor Unit (SPU) にアクセスする
+ために使用される。
+
+.\"O The file system provides a name space similar to POSIX shared
+.\"O memory or message queues.
+.\"O Users that have write permissions
+.\"O on the file system can use
+.\"O .BR spu_create (2)
+.\"O to establish SPU contexts under the spufs root directory.
+このファイルシステムでは、POSIX 共有メモリやメッセージキューに
+似た名前空間が提供される。
+ファイルシステムに書き込み許可を持つユーザは
+.BR spu_create (2)
+を使って spufs のルートディレクトリに SPU コンテキストを作成できる。
+
+.\"O Every SPU context is represented by a directory containing
+.\"O a predefined set of files.
+.\"O These files can be
+.\"O used for manipulating the state of the logical SPU.
+.\"O Users can change permissions on those files, but can't
+.\"O add or remove files.
+各 SPU コンテキストは、あらかじめ定義されたファイル群を含む
+ディレクトリとして表現される。
+これらのファイルを使って、論理 SPU の状態を操作できる。
+ユーザはこれらのファイルのアクセス許可を変更することはできるが、
+ファイルの追加・削除を行うことはできない。
+.\"O .SS Mount Options
+.SS マウントオプション
+.TP
+.B uid=<uid>
+.\"O set the user owning the mount point; the default is 0 (root).
+マウントポイントを所有するユーザを設定する。
+デフォルトは 0 (root) である。
+.TP
+.B gid=<gid>
+.\"O set the group owning the mount point; the default is 0 (root).
+マウントポイントを所有するグループを設定する。
+デフォルトは 0 (root) である。
+.\"O .SS Files
+.SS ファイル
+.\"O The files in
+.\"O .I spufs
+.\"O mostly follow the standard behavior for regular system calls like
+.\"O .BR read (2)
+.\"O or
+.\"O .BR write (2),
+.\"O but often support only a subset of the operations
+.\"O supported on regular file systems.
+.\"O This list details the supported
+.\"O operations and the deviations from the standard behavior described
+.\"O in the respective man pages.
+.I spufs
+のファイルは、ほとんどの場合
+.BR read (2)
+や
+.BR write (2)
+といった通常のシステムコールに対する標準的な振る舞いを示すが、
+多くの場合通常のファイルシステムでサポートされている操作の一部分だけが
+サポートされている。以下のリストでは、サポートされている操作と
+それぞれのマニュアルページに書かれている標準的な振る舞いとの違いに
+ついて説明する。
+
+.\"O All files that support the
+.\"O .BR read (2)
+.\"O operation also support
+.\"O .BR readv (2)
+.\"O and all files that support the
+.\"O .BR write (2)
+.\"O operation also support
+.\"O .BR writev (2).
+.BR read (2)
+操作に対応している全てのファイルは
+.BR readv (2)
+にも対応している。また、
+.BR write (2)
+操作に対応している全てのファイルは
+.BR writev (2)
+にも対応している。
+
+.\"O All files support the
+.\"O .BR access (2)
+.\"O and
+.\"O .BR stat (2)
+.\"O family of operations, but for the latter call,
+.\"O the only fields of the returned
+.\"O .I stat
+.\"O structure that contain reliable information are
+.\"O .IR st_mode ,
+.\"O .IR st_nlink ,
+.\"O .IR st_uid ,
+.\"O and
+.\"O .IR st_gid .
+全てのファイルは、
+.BR access (2)
+と
+.BR stat (2)
+系の操作に対応しているが、
+.BR stat (2)
+では、呼び出した際に返される
+.I stat
+構造体のフィールドのうち信頼できる情報が入っているのは
+.IR st_mode ,
+.IR st_nlink ,
+.IR st_uid ,
+.I st_gid
+だけである。
+
+.\"O All files support the
+.\"O .BR chmod (2)/ fchmod (2)
+.\"O and
+.\"O .BR chown (2)/ fchown (2)
+.\"O operations, but will not be able to grant permissions that contradict
+.\"O the possible operations (e.g., read access on the
+.\"O .I wbox
+.\"O file).
+全てのファイルは
+.BR chmod (2)/ fchmod (2)
+と
+.BR chown (2)/ fchown (2)
+の操作に対応しているが、
+そのファイルが対応している操作と矛盾するアクセス許可を
+付与することはできない (例えば、
+.I wbox
+ファイルに対する読み出しアクセスなど)。
+
+.\"O The current set of files is:
+現時点でのファイルは以下の通りである。
+.TP
+.B /mem
+.\"O the contents of the local storage memory of the SPU.
+.\"O This can be accessed like a regular shared memory
+.\"O file and contains both code and data in the address
+.\"O space of the SPU.
+.\"O The possible operations on an open
+.\"O .I mem
+.\"O file are:
+SPU のローカルストレージの内容。
+このファイルは通常の共有メモリファイルと同様にアクセスでき、
+SPU のアドレス空間にはコードとデータの両方を格納できる。
+オープンされた
+.I mem
+ファイルに可能な操作は以下である。
+.RS
+.TP
+.BR read "(2), " pread "(2), " write "(2), " pwrite "(2), " lseek (2)
+.\"O These operate as usual, with the exception that
+.\"O .BR lseek "(2), " write (2)
+.\"O and
+.\"O .BR pwrite (2)
+.\"O are not supported beyond the end of the file.
+.\"O The file size
+.\"O is the size of the local storage of the SPU,
+.\"O which is normally 256 kilobytes.
+これらは通常通り動作するが、
+ファイル末尾を越えての
+.BR lseek (2),
+.BR write (2),
+.BR pwrite (2)
+に対応していない点だけが異なる。
+ファイルサイズは SPU のローカルストレージのサイズであり、
+通常は 256 キロバイトである。
+.TP
+.BR mmap (2)
+.\"O Mapping
+.\"O .I mem
+.\"O into the process address space provides access to the SPU local
+.\"O storage within the process address space.
+.\"O Only
+.\"O .B MAP_SHARED
+.\"O mappings are allowed.
+.I mem
+をプロセスのアドレス空間にマッピングすると、
+プロセスのアドレス空間の一部として
+SPU のローカル・ストレージにアクセスできるようになる。
+.RE
+.TP
+.B /mbox
+.\"O The first SPU-to-CPU communication mailbox.
+.\"O This file
+.\"O is read-only and can be read in units of 32 bits.
+.\"O The file can only be used in non-blocking mode and not
+.\"O even
+.\"O .BR poll (2)
+.\"O will block on it.
+.\"O The only possible operation on an open
+.\"O .I mbox
+.\"O file is:
+SPU から CPU への通信用の一つ目のメールボックス。
+このファイルは読み出し専用で、読み出しは 32ビット単位で行う。
+このファイルは非停止 (non-blocking) モードでのみ使用でき、
+.BR poll (2)
+であってもこのファイルで停止 (block) することはない。
+オープンされた
+.I mbox
+ファイルに可能な操作は以下である。
+.RS
+.TP
+.BR read (2)
+.\"O If
+.\"O .I count
+.\"O is smaller than four,
+.\"O .BR read (2)
+.\"O returns \-1 and sets
+.\"O .I errno
+.\"O to
+.\"O .BR EINVAL .
+.\"O If there is no data available in the mailbox, the return
+.\"O value is set to \-1 and
+.\"O .I errno
+.\"O is set to
+.\"O .BR EAGAIN .
+.\"O When data
+.\"O has been read successfully, four bytes are placed in
+.\"O the data buffer and the value four is returned.
+.I count
+が 4 より小さい場合、
+.BR read (2)
+は \-1 を返し、
+.I errno
+を
+.B EINVAL
+に設定する。
+メールボックスにデータがない場合、\-1 が返り、
+.I errno
+が
+.B EAGAIN
+に設定される。データの読み出しに成功した場合、
+4 バイトがデータバッファに格納され、返り値として 4 が返される。
+.RE
+.TP
+.B /ibox
+.\"O The second SPU-to-CPU communication mailbox.
+.\"O This file is similar to the first mailbox file, but can be read
+.\"O in blocking I/O mode, thus
+.\"O .BR poll (2)
+.\"O and similar system calls can be used to monitor this file.
+.\"O The possible operations on an open
+.\"O .I ibox
+.\"O file are:
+SPU から CPU への通信用の二つ目のメールボックスである。
+このファイルは一つ目のメールボックスファイルと似ているが、
+停止 (blocking) I/O モードでの読み出しが可能である。したがって、
+.BR poll (2)
+や同様のシステムコールを使って、このファイルを監視することができる。
+オープンされた
+.I ibox
+ファイルに可能な操作は以下である。
+.RS
+.TP
+.BR read (2)
+.\"O If
+.\"O .I count
+.\"O is smaller than four,
+.\"O .BR read (2)
+.\"O returns \-1 and sets
+.\"O .I errno
+.\"O to
+.\"O .BR EINVAL .
+.\"O If there is no data available in the mailbox and the file
+.\"O descriptor has been opened with
+.\"O .BR O_NONBLOCK ,
+.\"O the return value is set to \-1 and
+.\"O .I errno
+.\"O is set to
+.\"O .BR EAGAIN .
+.I count
+が 4 より小さい場合、
+.BR read (2)
+は \-1 を返し、
+.I errno
+を
+.B EINVAL
+に設定する。
+メールボックスにデータがない場合、ファイルディスクリプタが
+.B O_NONBLOCK
+でオープンされていれば、返り値は \-1 となり、
+.I errno
+は
+.B EAGAIN
+に設定される。
+
+.\"O If there is no data available in the mailbox and the file
+.\"O descriptor has been opened without
+.\"O .BR O_NONBLOCK ,
+.\"O the call will
+.\"O block until the SPU writes to its interrupt mailbox channel.
+.\"O When data has been read successfully, four bytes are placed in
+.\"O the data buffer and the value four is returned.
+メールボックスにデータがない場合で、ファイルディスクリプタが
+.B O_NONBLOCK
+なしでオープンされていれば、
+SPU が自分の割り込みメールボックスチャネル (interrupt mailbox channel)
+に書き込みを行うまで
+.BR read (2)
+は停止 (block) する。
+データの読み出しに成功した場合、
+4 バイトがデータバッファに格納され、返り値として 4 が返される。
+.TP
+.BR poll (2)
+.\"O Poll on the
+.\"O .I ibox
+.\"O file returns
+.\"O .I "(POLLIN | POLLRDNORM)"
+.\"O whenever data is available for reading.
+.I ibox
+ファイルに対する
+.BR poll (2)
+は、読み出しデータが利用可能になる度に
+.I "(POLLIN | POLLRDNORM)"
+を返す。
+.RE
+.TP
+.B /wbox
+.\"O The CPU-to-SPU communication mailbox.
+.\"O It is write-only and can be written in units of 32 bits.
+.\"O If the mailbox is full,
+.\"O .BR write (2)
+.\"O will block and
+.\"O .BR poll (2)
+.\"O can be used to wait for it to become empty again.
+.\"O The possible operations on an open
+.\"O .I wbox
+.\"O file are:
+CPU から SPU への通信用のメールボックス。
+このファイルは書き込み専用で、書き込みは 32ビット単位で行う。
+メールボックスが一杯の場合、
+.BR write (2)
+は停止 (block) し、
+.BR poll (2)
+を使ってメールボックスに再度空きができるまで待つことができる。
+オープンされた
+.I wbox
+ファイルに可能な操作は以下である。
+.RS
+.TP
+.BR write (2)
+.\"O If
+.\"O .I count
+.\"O is smaller than four,
+.\"O .BR write (2)
+.\"O returns \-1 and sets
+.\"O .I errno
+.\"O to
+.\"O .BR EINVAL .
+.\"O If there is no space available in the mailbox and the file
+.\"O descriptor has been opened with
+.\"O .BR O_NONBLOCK ,
+.\"O the return
+.\"O value is set to \-1 and
+.\"O .I errno
+.\"O is set to
+.\"O .BR EAGAIN .
+.I count
+が 4 より小さい場合、
+.BR write (2)
+は \-1 を返し、
+.I errno
+を
+.B EINVAL
+に設定する。
+メールボックスに空き領域がない場合、ファイルディスクリプタが
+.B O_NONBLOCK
+でオープンされていれば、返り値は \-1 となり、
+.I errno
+は
+.B EAGAIN
+に設定される。
+
+.\"O If there is no space available in the mailbox and the file
+.\"O descriptor has been opened without
+.\"O .BR O_NONBLOCK ,
+.\"O the call will
+.\"O block until the SPU reads from its PPE mailbox channel.
+.\"O When data has been written successfully,
+.\"O the system call returns four as its function result.
+メールボックスに空き領域がない場合で、ファイルディスクリプタが
+.B O_NONBLOCK
+なしでオープンされていれば、
+SPU が自分の PPE メールボックスチャネルから読み出しを行うまで
+.BR write (2)
+は停止 (block) する。
+データの書き込みに成功した場合、返り値として 4 が返される。
+.TP
+.BR poll (2)
+.\"O A poll on the
+.\"O .I wbox
+.\"O file returns
+.\"O .I "(POLLOUT | POLLWRNORM)"
+.\"O whenever space is available for writing.
+.I wbox
+ファイルに対する
+.BR poll (2)
+は、書き込み用の空間が利用可能になる度に
+.I "(POLLOUT | POLLWRNORM)"
+を返す。
+.RE
+.TP
+.BR /mbox_stat ", " /ibox_stat ", " /wbox_stat
+.\"O These are read-only files that contain the length of the current
+.\"O queue of each mailbox, i.e., how many words can be read from
+.\"O .IR mbox " or " ibox
+.\"O or how many words can be written to
+.\"O .I wbox
+.\"O without blocking.
+.\"O The files can be read only in four-byte units and return
+.\"O a big-endian binary integer number.
+.\"O The possible operations on an open
+.\"O .I *box_stat
+.\"O file are:
+これらのファイルは読み出し専用で、
+各メールボックスの現在のキュー長を保持する。
+具体的には、停止 (blocking) せずに、
+.IR mbox " や " ibox
+から何ワードを読み出すことができ、
+.I wbox
+に何ワードを書き込むことができるか、ということである。
+これらのファイルは 4 バイト単位でのみ読み出しが可能で、
+ビッグ・エンディアンの整数値を返す。
+オープンされた
+.I *box_stat
+ファイルに可能な操作は以下である。
+.RS
+.TP
+.BR read (2)
+.\"O If
+.\"O .I count
+.\"O is smaller than four,
+.\"O .BR read (2)
+.\"O returns \-1 and sets
+.\"O .I errno
+.\"O to
+.\"O .BR EINVAL .
+.\"O Otherwise, a four-byte value is placed in the data buffer.
+.\"O This value is the number of elements that can be read from (for
+.\"O .I mbox_stat
+.\"O and
+.\"O .IR ibox_stat )
+.\"O or written to (for
+.\"O .IR wbox_stat )
+.\"O the respective mailbox without blocking or getting an
+.\"O .B EAGAIN
+.\"O error.
+.I count
+が 4 より小さい場合、
+.BR read (2)
+は \-1 を返し、
+.I errno
+を
+.B EINVAL
+に設定する。
+それ以外の場合、データバッファに 4 バイトの値が書き込まれる。
+この値は、各メールボックスにおいて停止せずに、または
+.B EAGAIN
+エラーなしで、読み出し可能なエレメント数
+.RI ( mbox_stat
+や
+.I ibox_stat
+の場合)、書き込み可能なエレメント数
+.RI ( wbox_stat
+の場合) である。
+.RE
+.TP
+.BR /npc ", " /decr ", " /decr_status ", " /spu_tag_mask ", " \
+/event_mask ", " /srr0
+.\"O These files expose internal registers of the SPU.
+.\"O The values are represented
+.\"O as ASCII strings containing the numeric value of each register.
+.\"O These can be used in read/write mode for debugging, but normal
+.\"O operation of programs should not rely on these files because
+.\"O accesses to any of them except
+.\"O .I npc
+.\"O require an SPU context save, which is very inefficient.
+これらのファイルは SPU の内部レジスタを公開するものである。
+値は、各レジスタの数値を含むアスキー文字列で表現される。
+これらのファイルはデバッグ用として読み出し/書き込みの両モードで利用できるが、
+プログラムの通常の操作はこれらのファイルに依存すべきではない。
+なぜなら、これらのファイルのうち
+.I npc
+以外へのアクセスでは SPU コンテキストの保存が必須であり、
+SPU コンテキストの保存は非常に効率が悪いからである。
+.IP
+.\"O The contents of these files are:
+これらのファイルの内容は以下の通り。
+.RS
+.TP 16
+.I npc
+.\"O Next Program Counter
+次のプログラムカウンタ
+.TP
+.I decr
+.\"O SPU Decrementer
+SPU Decrementer
+.TP
+.I decr_status
+.\"O Decrementer Status
+Decrementer の状態
+.TP
+.I spu_tag_mask
+.\"O MFC tag mask for SPU DMA
+SPU の DMA 用の MFA タグマスク
+.TP
+.I event_mask
+.\"O Event mask for SPU interrupts
+SPU の割り込みのイベントマスク
+.TP
+.I srr0
+.\"O Interrupt Return address register
+割り込みリターンアドレスレジスタ
+.RE
+.IP
+.\"O The possible operations on one of these files are:
+これらのファイルに対して可能な操作は以下である。
+.RS
+.TP
+.BR read (2)
+.\"O When the
+.\"O .I count
+.\"O supplied to the
+.\"O .BR read (2)
+.\"O call is shorter than the required length for the register
+.\"O value plus a newline character, subsequent reads from the same
+.\"O file descriptor will complete the string, regardless
+.\"O of changes to the register by a running SPU task.
+.\"O When a complete string has been read, all subsequent read operations
+.\"O will return zero bytes and a new file descriptor needs to be opened
+.\"O to read a new value.
+.BR read (2)
+に渡された
+.I count
+がレジスタ値と改行 (newline) 文字 1 個を格納するのに必要な長さより短い場合、
+同じファイルディスクリプタを続けて read することで、文字列全体を読み出すこと
+ができる。この際、実行中の SPU タスクによりレジスタ値の変更の影響は受けない。
+文字列全体が読み出されると、それ以降の read 操作では 0 バイトが返され、
+新しい値を読み出すには新しいファイルディスクリプタをオープンする必要がある。
+.TP
+.BR write (2)
+.\"O A
+.\"O .BR write (2)
+.\"O operation on the file sets the register to the
+.\"O value given in the string.
+.\"O The string is parsed from the beginning
+.\"O until the first non-numeric character or the end of the buffer.
+.\"O Subsequent writes to the same file descriptor overwrite the
+.\"O previous setting.
+このファイルへの
+.BR write (2)
+操作はレジスタ値を文字列で指定された値に設定する。
+文字列の解釈は先頭から開始され、数字以外の文字が初めて登場するか、
+バッファの末尾に達するまで行われる。
+同じファイルディスクリプタへ続けて write を行うと、
+後の write により前の設定が上書きされる。
+.RE
+.TP
+.B /fpcr
+.\"O This file provides access to the Floating Point Status and
+.\"O Control Register as a four-byte file.
+.\"O The operations on the
+.\"O .I fpcr
+.\"O file are:
+このファイルにより Floating Point Status and Control Register に
+アクセスできる。このファイルは大きさ 4 バイトである。
+.I fpcr
+ファイルに可能な操作は以下である。
+.RS
+.TP
+.BR read (2)
+.\"O If
+.\"O .I count
+.\"O is smaller than four,
+.\"O .BR read (2)
+.\"O returns \-1 and sets
+.\"O .I errno
+.\"O to
+.\"O .BR EINVAL .
+.\"O Otherwise, a four-byte value is placed in the data buffer;
+.\"O this is the current value of the
+.\"O .I fpcr
+.\"O register.
+.I count
+が 4 より小さい場合、
+.BR read (2)
+は \-1 を返し、
+.I errno
+を
+.B EINVAL
+に設定する。
+それ以外の場合、データバッファに 4 バイトの値が書き込まれる。
+書き込まれる値は
+.I fpcr
+レジスタの現在の値である。
+.TP
+.BR write (2)
+.\"O If
+.\"O .I count
+.\"O is smaller than four,
+.\"O .BR write (2)
+.\"O returns \-1 and sets
+.\"O .I errno
+.\"O to
+.\"O .BR EINVAL .
+.\"O Otherwise, a four-byte value is copied from the data buffer,
+.\"O updating the value of the
+.\"O .I fpcr
+.\"O register.
+.I count
+が 4 より小さい場合、
+.BR write (2)
+は \-1 を返し、
+.I errno
+を
+.B EINVAL
+に設定する。
+それ以外の場合、 4 バイトの値がデータバッファからコピーされ、
+.I fpcr
+レジスタの値が更新される。
+.RE
+.TP
+.BR /signal1 ", " /signal2
+.\"O The files provide access to the two signal notification channels
+.\"O of an SPU.
+.\"O These are read-write files that operate on 32-bit words.
+.\"O Writing to one of these files triggers an interrupt on the SPU.
+.\"O The value written to the signal files can
+.\"O be read from the SPU through a channel read or from
+.\"O host user space through the file.
+.\"O After the value has been read by the SPU, it is reset to zero.
+.\"O The possible operations on an open
+.\"O .I signal1
+.\"O or
+.\"O .I signal2
+.\"O file are:
+これらのファイルにより
+SPU の二つのシグナル通知チャネル (signal notification channel) に
+アクセスできる。
+これらは 32 ビット単位の読み書きができる。
+これらのファイルの一つに書き込みを行うと、その SPU の割り込みが
+発生するトリガーとなる。
+シグナルファイルへ書き込まれた値は、チャネル経由で SPU で読み出したり、
+このファイル経由でホストのユーザ空間で読み出したりできる。
+SPU が値を読み出した後では、値は 0 にリセットされる。
+オープンされた
+.I signal1
+や
+.I signal2
+ファイルに可能な操作は以下である。
+.RS
+.TP
+.BR read (2)
+.\"O If
+.\"O .I count
+.\"O is smaller than four,
+.\"O .BR read (2)
+.\"O returns \-1 and sets
+.\"O .I errno
+.\"O to
+.\"O .BR EINVAL .
+.\"O Otherwise, a four-byte value is placed in the data buffer;
+.\"O this is the current value of the specified signal notification
+.\"O register.
+.I count
+が 4 より小さい場合、
+.BR read (2)
+は \-1 を返し、
+.I errno
+を
+.B EINVAL
+に設定する。
+それ以外の場合、データバッファに 4 バイトの値が書き込まれる。
+書き込まれる値は、指定されたシグナル通知レジスタの現在の値である。
+.TP
+.BR write (2)
+.\"O If
+.\"O .I count
+.\"O is smaller than four,
+.\"O .BR write (2)
+.\"O returns \-1 and sets
+.\"O .I errno
+.\"O to
+.\"O .BR EINVAL .
+.\"O Otherwise, a four-byte value is copied from the data buffer,
+.\"O updating the value of the specified signal notification
+.\"O register.
+.I count
+が 4 より小さい場合、
+.BR write (2)
+は \-1 を返し、
+.I errno
+を
+.B EINVAL
+に設定する。
+それ以外の場合、 4 バイトの値がデータバッファからコピーされ、
+指定されたシグナル通知レジスタの値が更新される。
+.\"O The signal notification register will either be replaced with
+.\"O the input data or will be updated to the bitwise OR operation
+.\"O of the old value and the input data, depending on the contents
+.\"O of the
+.\"O .I signal1_type
+.\"O or
+.\"O .I signal2_type
+.\"O files respectively.
+シグナル通知レジスタの更新には、レジスタ値を入力データで置き換えるモードと
+以前の値と入力データのビット単位の OR をとった値に更新するモードがある。
+どちらのモードになるかは、それぞれ
+.IR signal1_type ,
+.I signal2_type
+ファイルの内容によって決まる。
+.RE
+.TP
+.BR /signal1_type ", " /signal2_type
+.\"O These two files change the behavior of the
+.\"O .I signal1
+.\"O and
+.\"O .I signal2
+.\"O notification files.
+これらのファイルは、シグナル通知ファイル
+.I signal1
+と
+.I signal2
+の動作を変更する。
+.\"O They contain a numerical
+.\"O ASCII string which is read as either "1" or "0".
+.\"O In mode 0 (overwrite), the hardware replaces the contents
+.\"O of the signal channel with the data that is written to it.
+.\"O In mode 1 (logical OR), the hardware accumulates the bits
+.\"O that are subsequently written to it.
+これらのファイルは数値を表すアスキー文字列を保持し、
+読み出すと "1" か "0" のどちらかが得られる。
+モード 0 (上書きモード) では、ハードウェアはシグナルチャネルの内容を
+シグナルチャネルに書き込まれたデータで置き換える。
+モード 1 (論理 OR モード) では、ハードウェアはシグナルチャネルに
+書き込まれたビットを積算していく。
+.\"O The possible operations on an open
+.\"O .I signal1_type
+.\"O or
+.\"O .I signal2_type
+.\"O file are:
+オープンされた
+.I signal1_type
+や
+.I signal2_type
+ファイルに可能な操作は以下である。
+.RS
+.TP
+.BR read (2)
+.\"O When the count supplied to the
+.\"O .BR read (2)
+.\"O call is shorter than the required length for the digit
+.\"O plus a newline character, subsequent reads from the same
+.\"O file descriptor will complete the string.
+.\"O When a complete string has been read, all subsequent read operations
+.\"O will return zero bytes and a new file descriptor needs to be opened
+.\"O to read the value again.
+.BR read (2)
+に渡された
+.I count
+がレジスタの数値と改行 (newline) 文字 1 個を格納するのに必要な長さより
+短い場合、同じファイルディスクリプタを続けて read することで、
+文字列全体を読み出すことができる。
+文字列全体が読み出されると、それ以降の read 操作では 0 バイトが返され、
+新しい値を読み出すには新しいファイルディスクリプタをオープンする必要がある。
+.TP
+.BR write (2)
+.\"O A
+.\"O .BR write (2)
+.\"O operation on the file sets the register to the
+.\"O value given in the string.
+.\"O The string is parsed from the beginning
+.\"O until the first non-numeric character or the end of the buffer.
+.\"O Subsequent writes to the same file descriptor overwrite the
+.\"O previous setting.
+このファイルへの
+.BR write (2)
+操作はレジスタ値を文字列で指定された値に設定する。
+文字列の解釈は先頭から開始され、数字以外の文字が初めて登場するか、
+バッファの末尾に達するまで行われる。
+同じファイルディスクリプタへ続けて write を行うと、
+後の write により前の設定が上書きされる。
+.RE
+.\"O .SH EXAMPLE
+.SH 例
+.TP
+.IR /etc/fstab "  entry"
+none  	/spu  	spufs  	gid=spu  	0	0
+.\" .SH AUTHORS
+.\" Arnd Bergmann <arndb@de.ibm.com>,
+.\" Mark Nutter <mnutter@us.ibm.com> and
+.\" Ulrich Weigand <Ulrich.Weigand@de.ibm.com>
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR close (2),
+.BR spu_create (2),
+.BR spu_run (2)

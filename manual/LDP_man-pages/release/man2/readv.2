@@ -1,0 +1,237 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (C) 2007 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" and Copyright (c) 1993 by Thomas Koenig (ig25@rz.uni-karlsruhe.de)
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" License.
+.\" Modified Sat Jul 24 18:34:44 1993 by Rik Faith (faith@cs.unc.edu)
+.\" Merged readv.[23], 2002-10-17, aeb
+.\" 2007-04-30 mtk, A fairly major rewrite to fix errors and
+.\"     add more details.
+.\"
+.\" 1996-04-12 Tom Bjorkholm <tomb@mydata.se>
+.\"            First version written
+.\" Modified Tue Oct 22 17:41:07 1996 by Eric S. Raymond <esr@thyrsus.com>
+.\"
+.\" Japanese Version Copyright (c) 1997-1999 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-02-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 1999-04-03, HANATAKA Shinya
+.\" Updated 2003-01-14, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-10-07, Akihiro MOTOKI
+.\" Updated 2007-06-01, Akihiro MOTOKI, LDP v2.50
+.\"
+.\"WORD:	vector			ベクタ (vector)
+.\"WORD:	file descriptor		ファイルディスクリプタ
+.\"WORD:	buffer			バッファ
+.\"
+.TH READV 2  2002-10-17 "Linux" "Linux Programmer's Manual"
+.SH 名前
+readv, writev \- 複数のバッファへの読み書きを行なう
+.SH 書式
+.nf
+.B #include <sys/uio.h>
+.sp
+.BI "ssize_t readv(int " fd ", const struct iovec *" iov ", int " iovcnt );
+.sp
+.BI "ssize_t writev(int " fd ", const struct iovec *" iov ", int " iovcnt );
+.fi
+.SH 説明
+.BR readv ()
+関数は、ファイルディスクリプタ
+.I fd
+に関連付けられたファイルから、
+.I iovcnt
+個のバッファ分のデータを読み込み、
+.I iov
+で指定されたバッファに格納する
+("scatter input";「ばらまき入力」)。
+.PP
+.BR writev ()
+関数は、
+.I iov
+で指定されたバッファから最大
+.I iovcnt
+個のバッファ分のデータを取り出し、
+ファイルディスクリプタ
+.I fd
+に関連付けられたファイルに書き込む
+("gather output";「かき集め出力」)。
+.PP
+ポインタ
+.I iov
+は
+.I iovec
+構造体の配列へのポインタである。
+.I iovec
+構造体は
+.I <sys/uio.h>
+で以下のように定義されている:
+.PP
+.br
+.in +4n
+.nf
+struct iovec {
+    void  *iov_base;    /* Starting address */
+    size_t iov_len;     /* Number of bytes to transfer */
+};
+.fi
+.in
+.PP
+.BR readv ()
+関数は、複数のバッファにデータを読み込む点を除いて
+.BR read (2)
+と全く同様の動作を行う。
+.PP
+.BR writev ()
+関数は、複数のバッファのデータを書き出す点以外は
+.BR write (2)
+と全く同様の動作を行う。
+.PP
+バッファは配列の順序で処理される。これは、
+.BR readv ()
+が
+.IR iov [0]
+が完全に一杯になるまでデータを詰めてから、
+.IR iov [0]
+などに進むことを意味する
+(データが十分ない場合は、
+.I iov
+が指すバッファのいずれも一杯にならない)。
+同様に、
+.BR writev ()
+は
+.IR iov [0]
+の内容を全部書き出してから
+.IR iov [1]
+などに進む。
+.PP
+.BR readv ()
+と
+.BR writev ()
+によるデータ転送は atomic に行われる。つまり、
+.BR writev ()
+によるデータ書き込みは一つのブロックとして行われ、他のプロセスの
+write による書き込みと混ざり合うことはない
+(例外に関しては
+.BR pipe (7)
+を参照のこと)。同様に、
+.BR readv ()
+はファイルから連続するデータブロックが読み出すことが保証され、
+同じファイル記述 (file description;
+.BR open (2)
+参照) を参照するファイルディスクリプタを持つ他のスレッドやプロセスが
+実行した read 操作の影響を受けることはない。
+.SH 返り値
+成功した場合、
+.BR readv ()
+関数は読み込んだバイト数を返し、
+.BR writev ()
+関数は書き込んだバイト数を返す。
+エラーの場合 \-1 を返し、\fIerrno\fP を適切に設定する。
+.SH エラー
+.BR read (2)
+や
+.BR write (2)
+と同じエラーが定義されている。
+さらに以下のエラーが定義されている:
+.TP
+.B EINVAL
+.I iov_len
+の合計が
+.I ssize_t
+の範囲をオーバーフローした。もしくは、
+ベクタ数 \fIiovcnt\fP が 0 より小さいか許可された最大値よりも大きかった。
+.SH 準拠
+4.4BSD
+.RB ( readv ()
+と
+.BR writev ()
+関数は 4.2BSD で最初に現われた)、POSIX.1-2001。
+Linux libc5 では \fIiovcnt\fP 引き数の型として \fIsize_t\fP を、
+これらの関数の返り値として \fIint\fP を使用していた。
+.\" readv/writev システムコールは Linux 1.3.40 以前はバグだらけであった
+.\" (と release.libc に書かれている)。
+.SH 注意
+.SS "Linux での注意"
+POSIX.1-2001 では、
+.I iov
+で渡すことができる要素数に上限を設ける実装が認められている。
+実装は、
+.I <limits.h>
+の
+.B IOV_MAX
+を定義することや、実行時に
+.I sysconf(_SC_IOV_MAX)
+の返り値経由で、この上限を広告することができる。
+Linux では、この仕組みにより広告される上限は 1024 であり、
+この値はカーネルでの上限そのものである。
+一方で、glibc のラッパー関数は、その関数の内部で呼ばれるカーネル・
+システムコールがこの上限を超過して失敗したことを検出すると、
+追加の動作をする。
+.BR readv ()
+の場合、ラッパー関数は
+.I iov
+で指定された全ての要素を格納できる大きさの一時バッファを割り当て、
+.BR read (2)
+を呼び出す際にそのバッファを渡し、
+そのバッファのデータを
+.I iov
+の各要素の
+.I iov_base
+フィールドが指定する場所にコピーしてから、
+そのバッファを解放する。
+.BR writev ()
+のラッパー関数も、同じように一時バッファを使って
+.BR write (2)
+を呼び出す。
+.SH バグ
+.BR readv ()
+や
+.BR writev ()
+のようなファイルディスクリプタに対する操作を行う関数と、
+標準入出力ライブラリの関数をごちゃまぜにして呼ぶのはお薦めしない。
+どんな結果になるかは定義されておらず、
+おそらく欲しい結果は得られないだろう。
+.SH 例
+以下のサンプルコードは
+.BR writev ()
+の使用方法を示すものである。
+
+.in +4n
+.nf
+char *str0 = "hello ";
+char *str1 = "world\\n";
+struct iovec iov[2];
+ssize_t nwritten;
+
+iov[0].iov_base = str0;
+iov[0].iov_len = strlen(str0);
+iov[1].iov_base = str1;
+iov[1].iov_len = strlen(str1);
+
+nwritten = writev(STDOUT_FILENO, iov, 2);
+.fi
+.in
+.SH 関連項目
+.BR read (2),
+.BR write (2)

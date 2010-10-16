@@ -1,0 +1,299 @@
+.\" Copyright (c) 1996 Free Software Foundation, Inc.
+.\" This program is distributed according to the Gnu General Public License.
+.\" See the file COPYING in the kernel source directory.
+.\" $Id: insmod.8,v 1.5 2004/07/30 13:11:13 nakano Exp $
+.\"
+.\" Translated Sun Aug 15 10:54:37 JST 1999
+.\"         by FUJIWARA Teruyoshi <fujiwara@linux.or.jp>
+.\" Updated Thu 12 Oct 2000 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated Sun 28 Jan 2001 by Kentaro Shirakata <argrath@ub32.org>
+.\"
+.\" WORD: persistent data	永続データ
+.\" WORD: prefix		プレフィックス
+.\"
+.TH INSMOD 8 "October 2, 2001" Linux "Linux Module Support"
+.SH 名前
+insmod \- ローダブルカーネルモジュールをインストールする
+.hy 0
+.SH 書式
+.B insmod
+[\-fhkLmnpqrsSvVxXyY] [\-e\ persist_name] [\-o\ module_name]
+[\-O\ blob_name] [\-P\ prefix] module [\ symbol=value\ ...\ ]
+.SH 説明
+.B insmod
+は実行中のカーネルにローダブルモジュールをインストールする。
+.PP
+.B insmod
+は実行中のカーネルにモジュールをリンクし、
+カーネルがエクスポートしているシンボルテーブルにある
+全てのシンボルを解決しようとする。
+.PP
+ディレクトリや拡張子なしでモジュールファイル名を与えると、
+.B insmod
+は標準のデフォルトディレクトリ(複数)からモジュールを探す。環境変数
+MODPATH を使って、このデフォルト値を上書きすることができる。
+/etc/modules.conf のようなモジュール設定ファイルがあれば、
+こちらの内容が MODPATH での指定を上書きする。
+.PP
+環境変数 MODULECONF によって、 /etc/modules.conf
+(あるいは /etc/conf.modules (使わないほうが良い))
+以外の設定ファイルを指定することもできる。
+この環境変数は、上記の指定すべてより優先される。
+.SS オプション
+.TP
+.I "-f --force"
+実行中のカーネルのバージョンと、
+モジュールに組み込まれているカーネルの対象バージョンが異なっても、
+モジュールのロードを試みる。
+これはカーネルバージョンチェックだけを無効にし、
+シンボル名チェックには何の影響も与えない。
+モジュールのシンボル名がカーネルのものと一致しない場合、
+.I insmod
+に強制的にモジュールをロードさせる方法はない。
+.TP
+.I "-h --help"
+ヘルプ文章を表示する。
+.TP
+.I "-k --autoclean"
+モジュールの auto-clean フラグを設定する。このフラグは
+\fBkerneld\fP(8) が使用し、
+一定期間(普通は 1 分)使われなかったモジュールを削除する。
+.TP
+.I "-L --lock"
+同じモジュールを同時にロードすることを防ぐために、\fBflock\fR(2) を用いる。
+.TP
+.I "-m --map"
+ロード時のメモリマップを標準出力に出力する。これにより、
+カーネルパニックの際のモジュールのデバッグが容易になる。
+より詳細なデバッグを可能にする。
+デフォルトでは ksymoops シンボルを定義する。
+このオプションは \-X/\-x オプションとは独立である。
+.sp
+ksymoops シンボルは、各ローダブルモジュールごとに、
+約 260 バイトを余分に必要とする。カーネル空間がキツキツで、
+ksyms を最小にしたいような場合を除き、
+デフォルトのままにして詳しい Oops デバッグを有効にするほうが良い。
+.TP
+.I "-o \fRmodule_name\fI --name\fR=module_name\fI"
+モジュールに明示的に名前をつける。
+通常はロードするオブジェクトファイルの
+basename に基づいた名前が用いられる。
+.TP
+.I "-O \fRblob_name\fI --blob\fR=blob_name\fI"
+バイナリオブジェクトを
+.I blob_name
+のファイル名で保存する。
+このファイルは カーネルにロードされ、セクション操作と再配置が行われた後の
+状態を正確に表しているバイナリ blob (ELF ヘッダなし)である。
+オブジェクトのマッピング情報を得るためには
+.I -m
+オプションが推奨される。
+.TP
+.I "-P \fRprefix\fI --prefix\fR=prefix\fI"
+このオプションは SMP カーネルや bigmem カーネル向けの、
+バージョン付きモジュールを使うときに利用できる。
+これらのモジュールには、シンボル名に余分な prefix がつくからである。
+カーネルがシンボルバージョンつきでビルドされると、
+insmod は自動的に prefix を "get_module_symbol" か "inter_module_get" の定義から取得する
+(モジュールをサポートする全てのカーネルにはこのどちらかが存在しなければならない)。
+カーネルがシンボルバージョンを持たず、
+しかしモジュールがシンボルバージョン付きでビルドされた場合は、
+ユーザーは \-P を指定する必要がある。
+.TP
+.I "-e \fRpersist_name\fI --persist\fR=persist_name\fI"
+モジュールの永続データを保存するファイル名を指定する。
+これはモジュールがロードされた時に読み込まれ、
+モジュールの実体がアンロードされた時に書き込まれる。
+モジュールに永続データがない場合はこのオプションは暗黙に無視される。
+永続データは
+.I insmod
+にこのオプションが指定された場合にのみ読み込まれる。
+デフォルトでは
+.I insmod
+は永続データを処理しない。
+省略記法として
+.I -e
+"" (空文字列) が指定されると、
+.I insmod
+は
+.I persistdir
+の値(
+.BR modules.conf (5)
+参照)の後ろに、モジュールのファイル名から末尾の \'.gz', \'.o' and \'.mod' を
+取ったもの(そのモジュールが見つかったモジュール検索パスからの相対パス)が
+指定されたものと解釈する。
+.IR persistdir =
+(つまり persistdir に 空フィールド)が指定されていると、
+省略記法は暗黙に無視される。
+.SS モジュールのパラメータ
+一部のモジュールではロード時にパラメータを指定して、
+動作を変えることができる。
+このようなパラメータは I/O ポートや IRQ 番号であることが多い。
+これらの数値はマシンごとに異なり、
+しかもハードウェアから求めることができないからである。
+.PP
+2.0 系列のカーネル用に構築したモジュールでは、
+全ての整数と文字ポインタシンボルはパラメータとして扱われ、
+従ってその内容は変更されうる。
+2.1 系列のカーネルからは、特定の値だけが変更されるように、
+シンボルにはパラメータかどうかの印が明示的に付けられる。
+また、ロード時に与えられた値をチェックするために、
+追加の型情報が与えられる。
+.PP
+整数の場合には、全ての値は 10 進値、8 進値, 16 進値で
+C 言語と同じように指定できる (17, 021, 0x11 等)。
+配列の要素は、値をコンマで区切って並べることにより指定する。
+値を省略することにより、要素を飛ばすことができる。
+.PP
+2.0 系列のモジュールでは、数字で始まらない値は文字列と解釈される。2.1
+以降では、値を文字列と解釈するかどうかはパラメータの型情報によって判断する。
+値が二重引用符(\fI"\fP)で始まる場合は、
+エスケープシーケンスも含めて全て C 言語と同じように文字列として解釈される。
+シェルのプロンプトで使う場合にはクォート自体もシェルが解釈するため、
+保護しなければならない点に注意すること。
+.SS GPL ライセンスのモジュールとシンボル
+カーネル 2.4.10 からモジュールはライセンス文を含むことになり、
+MODULE_LICENSE() によって定義されることになった。
+いくつかの文字列は GPL 互換であると認識される。
+それ以外のライセンス文字列だったり、そもそもライセンスがない場合は、
+そのモジュールはプロプラエタリなものとして扱われる。
+GPL 互換とされるライセンス文字列については
+include/linux/module.h を参照すること。
+.PP
+カーネルが
+.I /proc/sys/kernel/tainted flag
+をサポートする場合は、
+.I insmod
+は GPL ライセンスを持たないモジュールのロード時に、
+tainted (汚染) フラグを '1' と OR する。
+カーネルが tainting をサポートしていると、
+ライセンスのないモジュールがロードされる際には警告が発せられる。
+警告は GPL 互換でない MODULE_LICENSE() を持つモジュールに対しては
+(tainting をサポートしていない古いカーネルでも)、
+常に警告が発せられる。
+これによって、新しいモジュールが古いカーネルで利用されるときも、
+警告は最小限になる。
+.PP
+.I insmod\ -f
+(強制) モードでは、tainting をサポートするカーネルなら
+tainted フラグが '2' と OR され、常に警告が発せられる。
+.PP
+カーネル開発者の中には、彼らのコードがエクスポートするシンボルは、
+GPL 互換なライセンスのモジュールからしか利用できないようにしたい、
+と考えている人たちがいる。これらのシンボルは
+EXPOET_SYMBOL の代わりに EXPORT_SYMBOL_GPL でエクスポートされる。
+カーネルや、別のモジュールによってエクスポートされた
+GPL オンリーのシンボルは、GPL 互換なライセンスのモジュールからしか見えない。
+これらのシンボルには、
+/proc/ksyms において 'GPLONLY_' というプレフィックスが付く。
+.I insmod
+は GPL ライセンスのモジュールをロードするときは、
+シンボルの 'GPLONLY_' プレフィックスを無視し、
+通常のシンボル名の部分だけを参照する。
+GPL オンリーのシンボルは
+GPL 互換なライセンスを持たないモジュールに対しては利用可能とならない。
+ライセンスを全く持たないモジュールに対しても同様である。
+.SS KSYMOOPS 支援
+モジュール利用時のカーネル Oops のデバッグを支援するため、
+insmod はデフォルトではいくつかのシンボルを ksyms に追加する
+.RB ( \-Y
+オプションの説明を見よ)。
+これらのシンボルの名前は
+.BI __insmod_ modulename _
+で始まる。
+.I modulename
+はシンボルを他と重ならないようにするために必要である。
+同じオブジェクトを、別のモジュール名で複数回ロードするのは許されている。
+現在定義されているシンボルは
+.sp
+.nf
+__insmod_\fImodulename\fP_O\fIobjectfile\fP_M\fImtime\fP_V\fIversion\fP
+.fi
+.sp
+.I objectfile
+は、オブジェクトのロード元のファイルの名前である。
+これによって
+ksymoops がコードを正しいオブジェクトにマッチさせることが可能となる。
+.I mtime
+はそのファイルの最終修正タイムスタンプを 16 進で表したものである。
+stat に失敗すると 0 になる。
+.I version
+はモジュールのコンパイル時に指定されたカーネルのバージョンで、
+バージョンが取得できなければ \-1 となる。
+.\"NAKANO ちょっと意訳気味ですけれども。
+シンボル _O はモジュールヘッダと同じスタートアドレスになる。
+.sp
+.nf
+__insmod_\fImodulename\fP_S\fIsectionname\fP_L\fIlength\fP
+.fi
+.sp
+このシンボルは指定された ELF セクションの先頭に現れる。
+現在は .text, .rodata, .data, .bss である。
+これが現れるのは、セクションの長さが 0 以上の場合だけである。
+.I sectionname
+は ELF セクションの名前、
+.I length
+は各セクションの長さの 10 進表記である。
+これらのシンボルにより、 ksymoops はシンボルが使えない場合でも
+アドレスをセクションにマップできるようになる。
+.sp
+.nf
+__insmod_\fImodulename\fP_P\fIpersistent_filename\fP
+.fi
+.sp
+モジュールが永続データとしてマークされたパラメータを持ち、
+永続データを保存するファイル名が有効な場合 (上述の
+.I -e
+参照) にのみ、insmod によって作成される。
+.PP
+モジュールにおけるカーネル Oops のデバッグにおける別の問題として、
+/proc/ksyms と /proc/modules の内容が Oops とログファイル処理の間で
+変わってしまう可能性がある。
+この問題の処理を助けるため、
+/var/log/ksymoops があると、insmod と rmmod は自動的に
+/proc/ksyms と /proc/modules を /var/log/ksymoops
+に `date\ +%Y%m%d%H%M%S` の prefix を付けてコピーする。
+システム管理者は ksymoops に対して、
+Oops のデバッグ時にどのスナップショットファイルを利用するか伝えることができる。
+この自動コピーを無効にするスイッチは存在しない。
+これを望まない場合は、 /var/log/ksymoops を作ってはならない。
+このディレクトリを置くときには、所有者は root とし、
+モードは 644 または 600 にして、
+以下のスクリプトを一日一回程度実行すると良い。
+このスクリプトは insmod_ksymoops_clean としてインストールされる。
+.PP
+.nf
+  #!/bin/sh
+  # Delete saved ksyms and modules not accessed in 2 days
+  if [ -d /var/log/ksymoops ]
+  then
+	  set -e
+	  # Make sure there is always at least one version
+	  d=`date +%Y%m%d%H%M%S`
+	  cp -a /proc/ksyms /var/log/ksymoops/${d}.ksyms
+	  cp -a /proc/modules /var/log/ksymoops/${d}.modules
+	  find /var/log/ksymoops -type f -atime +2 -exec rm {} \\;
+  fi
+.fi
+.SH 関連項目
+\fBrmmod\fP(8), \fBmodprobe\fP(8), \fBdepmod\fP(8), \fBlsmod\fP(8),
+\fBksyms\fP(8), \fBmodules\fP(2), \fBgenksyms\fP(8), \fBkerneld\fP(8),
+\fBksymoops\fP(kernel).
+.SH 履歴
+モジュール対応を誰が最初に考えたのかは不明である。
+.br
+Linux 用の最初のバージョンは Bas Laarhoven <bas@vimec.nl> が作成した。
+.br
+バージョン 0.99.14 は Jon Tombs <jon@gtex02.us.es> が作成した。
+.br
+Bjorn Ekwall <bj0rn@blox.se> が拡張を行った。
+.br
+元々の ELF 対応は Eric Youngdale <eric@aib.com> の助力によるものである。
+.br
+バージョン 2.1.17 への更新は Richard Henderson <rth@tamu.edu> が行った。
+.br
+modutil-2.2.* での拡張は 1999 年 3 月に Bjorn Ekwall <bj0rn@blox.se> が行った。
+.br
+ksymoops の補助は 1999 年 5 月に Keith Owens <kaos@ocs.com.au> が行った。
+.br
+メンテナ: Keith Owens <kaos@ocs.com.au>.

@@ -1,0 +1,315 @@
+.\"   Copyright (C) 1996-1999 Free Software Foundation, Inc.
+.\"
+.\"   Permission is granted to make and distribute verbatim copies of
+.\" this manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\"   Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\"   Permission is granted to copy and distribute translations of this
+.\" manual into another language, under the above conditions for modified
+.\" versions, except that this permission notice may be stated in a
+.\" translation approved by the Foundation.
+.\"
+.\" Copyright (C) 1996 Xavier Leroy.
+.\" 
+.\" Japanese Version Copyright (C) 2000 WAKABAYASHI, Takeyasu
+.\"         all rights reserved.
+.\" Translated on Fri Jan 14 16:50:24 JST 2000
+.\"         by WAKABAYASHI, Takeyasu <twakaba@eco.toyama-u.ac.jp>
+.\" Updated and modified Sun Feb  2 15:15:47 JST 2003
+.\"         by Suzuki Takashi.
+.\"
+.\"WORD:    mutual exclusion    排他制御
+.\"WORD:    critical section    クリティカルセクション
+.\"
+.TH PTHREAD_MUTEX 3 LinuxThreads
+
+
+.SH "名前"
+pthread_mutex_init, pthread_mutex_lock, pthread_mutex_trylock, 
+pthread_mutex_unlock, pthread_mutex_destroy \- mutex の操作
+
+.SH 書式
+.B #include <pthread.h>
+
+.BI "pthread_mutex_t " fastmutex " = PTHREAD_MUTEX_INITIALIZER;"
+
+.BI "pthread_mutex_t " recmutex " = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;"
+
+.BI "pthread_mutex_t " errchkmutex " = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;"
+
+.BI "int pthread_mutex_init(pthread_mutex_t *" mutex ", const pthread_mutexattr_t *" mutexattr ");"
+
+.BI "int pthread_mutex_lock(pthread_mutex_t *" mutex "));"
+
+.BI "int pthread_mutex_trylock(pthread_mutex_t *" mutex ");"
+
+.BI "int pthread_mutex_unlock(pthread_mutex_t *" mutex ");"
+
+.BI "int pthread_mutex_destroy(pthread_mutex_t *" mutex ");"
+
+.SH "説明"
+mutex は、排他制御 (MUTual EXclusion) の仕組みであり、共有データの同時更新
+からの保護、クリティカルセクション (critical section) や
+モニタの実装などに使われる。
+
+mutex は二つの状態を取りうる。それは、アンロック状態(どのスレッドにも
+保有されていない)とロック状態(一つのスレッドに保有されている)である。
+二つの異なるスレッドが同時に一つの mutex を保有することはない。既に他の
+スレッドによってロックされた mutex をロックしようとするスレッドは、保有
+側のスレッドが先にその mutex をアンロックするまで実行を停止させられる。
+
+.B "pthread_mutex_init"
+は
+.I "mutex"
+が指す mutex オブジェクトを、
+.IR "mutexattr"
+で指定された mutex 属性オブジェクトに従って初期化する。
+.I "mutexattr"
+が
+.BR "NULL" ,
+ならば、デフォルトの属性がこのかわりに使われる。
+
+LinuxThreads の実装はただ一つの属性
+.IR "mutex kind"
+だけに対応している。この属性は、「速い」(``fast'')、
+「再帰的な」(``recursive'')、または
+「エラー検査を行なう」(``error checking'')のいずれかを
+指定するものである。
+mutex の種別(kind)は、その mutex を既に保有しているスレッドが、
+それを再びロックできるかどうかを決定する。
+デフォルトの種別は「速い」である。mutex 属性のより詳しい情報は、
+.BR "pthread_mutexattr_init" (3)
+を見よ。
+
+.B "pthread_mutex_t"
+型の変数は、(速い mutex に対する)定数
+.B "PTHREAD_MUTEX_INITIALIZER"
+と、(再帰的 mutex に対する)
+.B "PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP"
+および、(エラー検査を行なう mutex に対する)
+.B "PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP"
+で、静的に初期化することもできる。
+
+.B "pthread_mutex_lock"
+は、与えられた mutex をロックする。mutex が現在ロックされていなければ、
+それはロックされ、呼び出しスレッドによって所有される。この場合
+.B "pthread_mutex_lock"
+は直ちに返る。mutex が他のスレッドによって既にロックされていたのならば、
+.B "pthread_mutex_lock"
+は mutex がアンロックされるまで呼び出しスレッドの実行を停止させる。
+
+mutex が呼び出し側のスレッドにより既にロックされている場合には、
+.B "pthread_mutex_lock"
+の振舞いは、mutex の種別に依存する。mutex の種別が「速い」であれば、
+呼び出しスレッドは mutex がアンロックされるまで実行を停止する。
+従って事実上呼び出しスレッドのデッドロックを引き起こす。
+mutex の種別が「エラーをチェックする」であれば、
+.B "pthread_mutex_lock"
+はエラーコード
+.BR "EDEADLK"
+とともに直ちに戻る。mutex の種別が「再帰的」ならば、
+.B "pthread_mutex_lock"
+は成功し直ちに戻る。この際、呼び出しスレッドが、その mutex を
+ロックした回数を記録する。この mutex がアンロック状態に戻るには、
+同数の
+.B "pthread_mutex_unlock"
+操作が実行されねばならない。
+
+.B "pthread_mutex_trylock"
+は
+.BR "pthread_mutex_lock"
+と同様に振舞うが、mutex が既に他のスレッドによって
+(あるいは、「速い」 mutex の場合、呼び出しスレッドによって)
+ロックされている場合、呼び出しスレッドをブロックしない。
+かわりに、
+.B "pthread_mutex_trylock"
+はエラーコード
+.BR "EBUSY"
+で直ちに戻る。
+
+.B "pthread_mutex_unlock"
+は、与えられた mutex をアンロックする。
+.BR "pthread_mutex_unlock"
+の開始時点で、この mutex は呼び出しスレッドによりロックされ
+所有されているものと仮定される。
+ mutex が「速い」種別のものならば、
+.B "pthread_mutex_unlock"
+は常にそれをアンロック状態に戻す。それが「再帰的な」種別ならば、
+ mutex のロック計数(この mutex に対して
+.B "pthread_mutex_lock"
+操作が呼び出しスレッドで実行された回数)
+を一つ減らし、この計数がゼロになった時に、初めて mutex が
+実際にアンロックされる。
+
+「エラーを検査する」mutex に対しては、
+.B "pthread_mutex_unlock"
+は実行時に実際に、mutex が開始時点でロックされているか、
+また、それは現在
+.BR "pthread_mutex_unlock"
+を呼んでいるのと同じスレッドによってロックされたかどうか、を検査する。
+これらの条件が満たされない場合には、エラーコードが返され、mutex は
+不変のままにされる。「速い」mutex と「再帰的な」mutex はこのような
+チェックを行なわなず、よって、ロックされた mutex を所有者以外の
+スレッドによってアンロックすることを可能にしている。これは、移植性の
+ない振舞いであり、これに依存するようなことはすべきでない。
+
+.B "pthread_mutex_destroy"
+は、mutex オブジェクトを破壊し、それが保持している可能性のある
+資源を開放する。mutex は関数の開始時点でアンロックされていなければ
+ならない。LinuxThreads の実装では、いかなる資源も mutex オブジェクトに
+付随していない。故に
+.B "pthread_mutex_destroy"
+は実際のところ、mutex がアンロックされているかどうかを検査する
+以外のことは何もしない。
+
+.SH "取り消し"
+
+いかなる mutex 関数も取り消しポイントではない。
+.BR "pthread_mutex_lock"
+でさえも、それが任意の時間スレッドの実行を停止させうるという
+事実にも関わらず、取り消しポイントではない。これにより、取り消し
+ポイントにおける mutex の状態は予測可能となり、取り消しハンドラが、
+スレッドの実行停止以前にアンロックされる必要のある mutex まさにそれ
+のみを、正確にアンロックすることを可能にしている。この結果、遅延
+取り消しを用いるスレッドは、決して余計な時間 mutex を所有することはない。
+
+.SH "非同期シグナルに対する安全性"
+
+mutex 関数は非同期シグナルに対して安全ではない。これの
+意味するところは、それらはシグナルハンドラから呼ぶべきではない、
+ということである。特に
+.B "pthread_mutex_lock"
+または
+.B "pthread_mutex_unlock"
+のシグナルハンドラからの呼び出しは、呼び出しスレッドをデッド
+ロックさせる恐れがある。
+
+.SH "返り値"
+
+.B "pthread_mutex_init"
+は、常に 0 を返す。他の mutex 関数は、成功すれば 0 を返し、
+エラーでは非ゼロのエラーコードを返す。
+
+.SH "エラー"
+
+.B "pthread_mutex_lock"
+はエラーの際、次のエラーコードを返す:
+.RS
+.TP
+.B "EINVAL"
+mutex が適切に初期化されていない。
+
+.TP
+.B "EDEADLK"
+mutex は既に呼び出しスレッドによりロックされている。
+(「エラー検査を行なう」 mutexes のみ)
+.RE
+
+.B "pthread_mutex_trylock"
+はエラーの際、次のエラーコードを返す:
+.RS
+.TP
+.B "EBUSY"
+現在ロックされているので mutex を取得できない。
+
+.TP
+.B "EINVAL"
+mutex が適切に初期化されていない。
+.RE
+
+.B O"pthread_mutex_unlock"
+はエラーの際、次のエラーコードを返す:
+.RS
+.TP
+.B "EINVAL"
+mutex が適切に初期化されていない。
+
+.TP
+.B "EPERM"
+呼び出しスレッドは mutex を所有していない。(「エラーを検査する」 mutex のみ)
+.RE
+
+.B "pthread_mutex_destroy"
+はエラーの際、次のエラーコードを返す:
+.RS
+.TP
+.B "EBUSY"
+mutex は現在ロックされている。
+.RE
+
+.SH "著者"
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.SH "関連項目"
+.BR "pthread_mutexattr_init" (3),
+.BR "pthread_mutexattr_setkind_np" (3),
+.BR "pthread_cancel" (3).
+
+.SH "例"
+
+共有される大域変数
+.I "x"
+は mutex により次のように保護される:
+
+.RS
+.ft 3
+.nf
+.sp
+int x;
+pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
+.ft
+.LP
+.RE
+.fi
+
+全ての
+.I "x"
+へのアクセスとその変更は
+.B "pthread_mutex_lock"
+と
+.B "pthread_mutex_unlock"
+によって、次のように囲まれていなければならない:
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_mutex_lock(&mut);
+/* x の操作 */
+pthread_mutex_unlock(&mut);
+.ft
+.LP
+.RE
+.fi
+
+[訳注] glibc-linuxthreads の最新のドキュメントは Texinfo 形式で提供されている。
+上の記述は glibc-linuxthreads-2.2 以降では正しくない。
+以下は glibc-linuxthreads-2.3.1 の Texinfo ファイルからの引用である。
+種別 (kind) が型 (type) に変更されている。
+
+LinuxThreads 実装はただ 1 つの mutex 属性に対応している。
+それは mutex 型 (mutex type) で、
+「速い (fast) 」、「再帰的な (recursive) 」、
+「時刻情報つき (timed) 」、「エラー検査を行なう (error checking) 」の
+いずれかである。
+mutex 型は、
+あるスレッドが自分自身ですでに保持している mutex をロックできるかどうかを
+決定する。
+デフォルトの mutex 型は「時刻情報つき (timed) 」である。
+
+.B pthread_mutex_t
+型の変数は、定数
+.B "PTHREAD_MUTEX_INITIALIZER"
+( 時刻情報つき (timed) mutex 用 ) 、
+.B "PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP"
+( 再帰的な (recursive) mutex 用 ) 、
+.B "PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP"
+( 速い (fast) mutex 用 ) 、
+.B "PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP"
+( エラー検査を行なう (error checking) mutex 用 ) を用いて
+静的に初期化することもできる。

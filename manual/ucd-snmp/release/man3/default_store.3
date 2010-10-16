@@ -1,0 +1,184 @@
+.\" 
+.\" Japanese Version Copyright (c) 2001 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Mon Aug 20 07:04:42 JST 2001
+.\"         by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\"
+.TH SNMP_AGENT_API 3 "27 Oct 1999"
+.UC 5
+.SH 名前
+default_store \- 大域データの一般的な格納場所
+.SH 書式
+.nf
+#include <ucd-snmp/ucd-snmp-config.h>
+#include <ucd-snmp/ucd-snmp-includes.h>
+
+int ds_set_boolean(int storeid, int which, int value);
+int ds_get_boolean(int storeid, int which);
+int ds_set_int(int storeid, int which, int value);
+int ds_get_int(int storeid, int which);
+int ds_set_string(int storeid, int which, const char *value);
+char *ds_get_string(int storeid, int which);
+int ds_register_config(u_char type, const char *ftype, const char *token,
+                       int storeid, int which);
+int ds_register_premib(u_char type, const char *ftype, const char *token,
+                       int storeid, int which);
+void ds_shutdown(void);
+.fi
+.SH 説明
+デフォルトのデータ格納場所の目的は、次の 3 つである:
+.IP 1)
+大域的にアクセスできる変数や
+もっと公開の制限された変数にアクセスする関数群を作成したりせずに、
+大域的なデータ格納場所を作成する。
+.IP 2)
+スレッド (thread) ロックを実装する必要がある格納場所を提供する。
+しかし、これを書いている時点では、スレッドロックはまだ実装されていない。
+.IP 3)
+コード間の相互依存性の数を減らす
+(コードは最終的にリンクしてもしなくても良い)。
+問題としているアプリケーション内でリンクされない、
+別々のセクションのコードで使われる設定データのような
+データの格納場所を提供する。
+.PP
+ここで定義される関数は、以下の目的を (実現する機能を) 実装している。
+.PP
+現在のところ真偽値 (boolean)・整数値 (integer)・
+文字列 (string) という 3 つのデータ型がサポートされている。
+各データ型のデータは、別々の格納場所に分けられている。
+さらに、各データ型の格納場所はアプリケーションレベルでも分割されている。
+現在のところ 2 つの格納場所がある。
+1 つ目の格納場所は、SNMP ライブラリ自身によって予約されている。
+2 つ目の格納場所は、アプリケーションによって使われることを意図しており、
+ライブラリによる変更やチェックが行われないので、
+ユーザーが使いやすいものになっている。
+.PP
+3 つの格納場所は、
+bool_storage[storeid][which], int_storage[storeid][which], 
+string_storage[storeid][which] 
+という 3 つの配列と考えることができる。
+データは以下で定義される関数でアクセスできる。
+格納したいデータがある場合は、
+DS_APPLICATION_ID という storeid を使えば良い。
+.PP
+ライブラリが使う格納場所は、default_store.h で定義されており、
+現在のところ以下のように定義されている。
+.PP
+.nf
+/* 以下の定義は API の "storeid" 引き数として使われる。 */
+#define DS_LIBRARY_ID     0
+#define DS_APPLICATION_ID 1
+#define DS_TOKEN_ID       2
+
+/* storeid が DS_LIBRARY_ID の場合、
+   以下の定義は API の "which" 引き数として使われる。*/
+/* 真偽値を操作するライブラリで使われるもの */
+#define DS_LIB_MIB_ERRORS          0
+#define DS_LIB_SAVE_MIB_DESCRS     1
+#define DS_LIB_MIB_COMMENT_TERM    2
+#define DS_LIB_MIB_PARSE_LABEL     3
+#define DS_LIB_DUMP_PACKET         4
+#define DS_LIB_LOG_TIMESTAMP       5
+#define DS_LIB_DONT_READ_CONFIGS   6
+#define DS_LIB_MIB_REPLACE         7  /* オブジェクトを最新のモジュールで置き換える */
+#define DS_LIB_PRINT_NUMERIC_ENUM  8  /* 数値の列挙型 (enum) 値のみを表示する */
+#define DS_LIB_PRINT_NUMERIC_OIDS  9  /* 数値の oid のみを表示する */
+#define DS_LIB_DONT_BREAKDOWN_OIDS 10 /* oid インデックスを特に表示しない */
+#define DS_LIB_ALARM_DONT_USE_SIG  11 /* alarm() シグナルを使わない */
+#define DS_LIB_PRINT_FULL_OID      12 /* 完全な oid を表示する */
+#define DS_LIB_QUICK_PRINT         13 /* パースの際に非常に簡単な出力をする */
+#define DS_LIB_RANDOM_ACCESS	   14 /* oid ラベルにランダムにアクセスする */
+#define DS_LIB_REGEX_ACCESS	   15 /* oid ラベルに regex によるマッチングを行う */
+#define DS_LIB_DONT_CHECK_RANGE    16 /* send の値の範囲のチェックを行わない */
+#define DS_LIB_NO_TOKEN_WARNINGS   17 /* config 関数の token が不明な場合でも警告を出さない */
+#define DS_LIB_NUMERIC_TIMETICKS   18 /* timeticks を数値で表示する */
+#define DS_LIB_ESCAPE_QUOTES       19 /* oid の引用符をシェルにエスケープさせる */
+#define DS_LIB_REVERSE_ENCODE      20 /* バックからフロントへのパケットをエンコードする */
+#define DS_LIB_PRINT_BARE_VALUE	   21 /* (OID = value でない場合の) value だけを表示する */
+#define DS_LIB_EXTENDED_INDEX	   22 /* [x1][x2] という拡張形式でインデックスを表示する */
+
+/* 整数値を操作するライブラリで使われるもの */
+#define DS_LIB_MIB_WARNINGS  0
+#define DS_LIB_SECLEVEL      1
+#define DS_LIB_SNMPVERSION   2
+#define DS_LIB_DEFAULT_PORT  3
+#define DS_LIB_PRINT_SUFFIX_ONLY 4 /* oid node  == 1 のものを表示する。
+                                      1 番目と似ているが、mib モジュール
+                                      too == 2 のものを与える。 */
+
+
+/* 文字列を操作するライブラリで使われるもの */
+#define DS_LIB_SECNAME           0
+#define DS_LIB_CONTEXT           1
+#define DS_LIB_PASSPHRASE        2
+#define DS_LIB_AUTHPASSPHRASE    3
+#define DS_LIB_PRIVPASSPHRASE    4
+#define DS_LIB_OPTIONALCONFIG    5
+#define DS_LIB_APPTYPE           6
+#define DS_LIB_COMMUNITY         7
+#define DS_LIB_PERSISTENT_DIR    8
+#define DS_LIB_CONFIGURATION_DIR 9
+
+.fi
+.SH 関数
+.IP "ds_set_boolean(int storeid, int which, int value)"
+.I value
+!= 0 
+の場合は、bool_storage[storeid][which] のスロットに
+.I true
+を入れる。
+それ以外の場合は
+.I false
+を入れる。
+.IP "int ds_get_boolean(int storeid, int which)"
+storage[storeid][which] が true の場合は、1 を返す。
+それ以外の場合は、0 を返す。
+.IP "int ds_set_string(int storeid, int which, const char *value)"
+.I value
+をスロット string_storage[storeid][which] に入れる。
+.IP "char *ds_get_string(int storeid, int which)"
+スロット string_storage[storeid][which] に入っている文字列を返す。
+.IP "ds_set_int(int storeid, int which, int value)"
+.I value
+を
+スロット int_storage[storeid][which] に入れる。
+.IP "int ds_get_int(int storeid, int which)"
+スロット int_storage[storeid][which] に入っている整数値を返す。
+.IP "void ds_shutdown(void)"
+ds_register_config と ds_register_premib で集めた情報を
+保持しておくために使われているメモリを回収する。
+.IP "ds_register_config(u_char type, const char *ftype, const char *token, int storeid, int which)"
+token は設定ファイルのディレクティブを登録し、
+デフォルトの格納タイプとスロットに関連づける。
+特に、
+.I storeid
+と
+.I which
+は
+.I type
+データ型の格納スロットを指す。
+.I type
+は定数 ASN_BOOLEAN, ASN_INTEGER, ASN_OCTET_STR のいずれか 1 つである。
+.I ftype
+変数は
+.I token
+キーワードを探すためのファイル名のベース文字列である。
+例えば、
+.RS
+.IP
+ds_register_config(ASN_INTEGER, "snmp", "testtoken", DS_APPLICATION_ID, 5)
+.RE
+.IP
+という呼び出しでは、snmp.conf ファイルが見つかってパースされるときに、
+"testtoken" という語で始まる行が読まれ、
+"testtoken" の後にある値が
+スロット int_storage[DS_APPLICATION_ID][5] に格納される。
+例えば、設定ファイルの
+.RS
+.IP
+testtoken 42
+.RE
+.IP
+という行では、int_storage[DS_APPLICATION_ID][5] = 42 に設定される。
+.SH 関連項目
+snmp_config(5), read_config(3)

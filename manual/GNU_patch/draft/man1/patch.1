@@ -1,0 +1,2113 @@
+.\" patch man page
+.de Id
+.ds Dt \\$4
+..
+.Id $Id: patch.man,v 1.26 1998/03/21 15:48:43 eggert Exp $
+.ds = \-\^\-
+.de Sp
+.if t .sp .3
+.if n .sp
+..
+.\"
+.\" Japanese Version Copyright (C) 2005 Suzuki Takashi
+.\"         all rights reserved.
+.\" Translated Sat Jun 18 13:10:39 JST 2005
+.\"         by Suzuki Takashi <JM@linux.or.jp>.
+.\"
+.\"WORD:        context diff    コンテキスト diff (context, unifiedの総称として)
+.\"WORD:        normal diff     ノーマル diff
+.\"WORD:        diff            差分, diff
+.\"WORD:        diff list       差分リスト
+.\"WORD:        diff listing    差分リスト
+.\"WORD:        patched         パッチの当たった
+.\"WORD:        hunk            塊, hunk
+.\"WORD:        fuzz factor     曖昧度合い, fuzz factor
+.\"WORD:        reject          却下, reject
+.\"WORD:        simple backup   簡易バックアップ
+.\"
+.TH PATCH 1 \*(Dt GNU
+.ta 3n
+.\"O .SH NAME
+.SH "名前"
+.\"O patch \- apply a diff file to an original
+patch \- オリジナルファイルに差分ファイルを適用する
+.\"O .SH SYNOPSIS
+.SH "書式"
+.B patch
+.RI [ options ]
+.RI [ originalfile
+.RI [ patchfile ]]
+.Sp
+.\"O but usually just
+通常はもっと簡単に
+.Sp
+.BI "patch \-p" "num"
+.BI < patchfile
+.\"O .SH DESCRIPTION
+.SH "説明"
+.\"O .B patch
+.\"O takes a patch file
+.\"O .I patchfile
+.\"O containing a difference listing produced by the
+.\"O .B diff
+.\"O program and applies those differences to one or more original files,
+.\"O producing patched versions.
+.B patch
+は、プログラム
+.B diff
+で生成された差分リストを含むパッチファイル
+.I patchfile
+を引数に取り、
+1 個または複数のオリジナルファイルにこれらの差分を適用し、
+パッチの当たったバージョンを生成する。
+.\"O Normally the patched versions are put in place of the originals.
+.\"O Backups can be made; see the
+.\"O .B \-b
+.\"O or
+.\"O .B \*=backup
+.\"O option.
+.\"O The names of the files to be patched are usually taken from the patch file,
+.\"O but if there's just one file to be patched it can specified on the
+.\"O command line as
+.\"O .IR originalfile .
+通常、オリジナルファイルは
+パッチの当たったバージョンと置き換わる。
+バックアップを作成することもできる (
+.B \-b
+または
+.B \*=backup
+オプションを参照 ) 。
+通常、パッチを当てるファイルの名前はパッチファイルから得られる。
+ただし、パッチの当たるファイルが 1 個だけの場合、
+.I orginalfile
+としてコマンドラインで指定することができる。
+.PP
+.\"O Upon startup, patch attempts to determine the type of the diff listing,
+.\"O unless overruled by a
+.\"O \fB\-c\fP (\fB\*=context\fP),
+.\"O \fB\-e\fP (\fB\*=ed\fP),
+.\"O \fB\-n\fP (\fB\*=normal\fP),
+.\"O or
+.\"O \fB\-u\fP (\fB\*=unified\fP)
+.\"O option.
+.\"O Context diffs (old-style, new-style, and unified) and
+.\"O normal diffs are applied by the
+.\"O .B patch
+.\"O program itself, while
+.\"O .B ed
+.\"O diffs are simply fed to the
+.\"O .BR ed (1)
+.\"O editor via a pipe.
+実行すると、 patch は差分 (diff) リストの形式を判別する。
+ただし、
+\fB\-c\fP (\fB\*=context\fP),
+\fB\-e\fP (\fB\*=ed\fP),
+\fB\-n\fP (\fB\*=normal\fP),
+\fB\-u\fP (\fB\*=unified\fP)
+オプションのどれかが指定された場合、自動判別は行なわれない。
+コンテキスト diff (old-style, new-style, unified) および
+ノーマル diff は
+.B patch
+プログラム自身がパッチを適用する。
+いっぽう、
+.B ed
+diff はパイプを通じて
+.BR ed (1)
+エディタに流し込まれるだけである。
+.PP
+.\"O .B patch
+.\"O tries to skip any leading garbage, apply the diff,
+.\"O and then skip any trailing garbage.
+.\"O Thus you could feed an article or message containing a
+.\"O diff listing to
+.\"O .BR patch ,
+.\"O and it should work.
+.B patch
+は差分の前にあるゴミを読み飛ばし、差分を適用し、
+そして後ろにあるゴミを読み飛ばそうとする。
+そのため、差分リストを含む記事やメッセージを
+.B patch
+に流し込むことができ、それで動作するはずである。
+.\"O If the entire diff is indented by a consistent amount,
+.\"O or if a context diff contains lines ending in \s-1CRLF\s0
+.\"O or is encapsulated one or more times by prepending
+.\"O "\fB\- \fP" to lines starting with "\fB\-\fP" as specified by Internet RFC 934,
+.\"O this is taken into account.
+diff 全体が一定量インデントされている場合や、
+コンテキスト diff が \s-1CRLF\s0 で終わる行を含んでいる場合、
+インターネット RFC 934 で規定されるように
+"\fB\-\fP" で始まる行の先頭に
+1個または複数個の "\fB\- \fP" が付いている場合には、
+これらは考慮される。
+.PP
+.\"O With context diffs, and to a lesser extent with normal diffs,
+.\"O .B patch
+.\"O can detect when the line numbers mentioned in the patch are incorrect,
+.\"O and attempts to find the correct place to apply each hunk of the patch.
+.\"O As a first guess, it takes the line number mentioned for the hunk, plus or
+.\"O minus any offset used in applying the previous hunk.
+.\"O If that is not the correct place,
+.\"O .B patch
+.\"O scans both forwards and backwards for a set of lines matching the context
+.\"O given in the hunk.
+コンテキスト diff や
+ノーマル diff ( ノーマル diff の場合の適用範囲はやや狭い ) の場合、
+.B patch
+はパッチ中の行番号の誤りを検出することができ、
+パッチのそれぞれの塊 (hunk) について、正しい位置を見つけようとする。
+最初は、hunk に書かれた行番号に
+直前の hunk を適用した際のオフセットを加減した位置ではないかと推測する。
+もしそれが正しい位置ではない場合、
+.B patch
+は hunk 中のコンテキストに一致する行が前後にないかを探す。
+.\"O First
+.\"O .B patch
+.\"O looks for a place where all lines of the context match.
+.\"O If no such place is found, and it's a context diff, and the maximum fuzz factor
+.\"O is set to 1 or more, then another scan takes place ignoring the first and last
+.\"O line of context.
+.\"O If that fails, and the maximum fuzz factor is set to 2 or more,
+.\"O the first two and last two lines of context are ignored,
+.\"O and another scan is made.
+.\"O (The default maximum fuzz factor is 2.)
+まず、
+.B patch
+はコンテキストのすべての行が一致する位置を探す。
+そのような位置が見つからない場合で、かつコンテキスト diff であり、
+かつ fuzz factor (曖昧度合い) の最大値が 1 以上の場合、
+コンテキストの最初と最後の行を無視してもう一度探す。
+それも失敗し、 fuzz factor の最大値が 2 以上の場合、
+コンテキストの最初と最後の 2 行ずつを無視してもう一度探す。
+( デフォルトの fuzz factor の最大値は 2 である。 )
+.\"O If
+.\"O .B patch
+.\"O cannot find a place to install that hunk of the patch, it puts the
+.\"O hunk out to a reject file, which normally is the name of the output file
+.\"O plus a
+.\"O .B \&.rej
+.\"O suffix, or
+.\"O .B #
+.\"O if
+.\"O .B \&.rej
+.\"O would generate a file name that is too long
+.\"O (if even appending the single character
+.\"O .B #
+.\"O makes the file name too long, then
+.\"O .B #
+.\"O replaces the file name's last character).
+.B patch
+は、パッチのその hunk を適用する位置を見つけられない場合、
+その hunk を reject (却下) ファイルに書き出す。
+通常、 reject ファイルの名前は出力ファイルの後ろに
+.B \&.rej
+を付けたものか、
+.B \&.rej
+を付けるとファイル名が長くなりすぎる場合には
+.B #
+を付けたものとなる
+( もし
+.B #
+1 文字を付けても長くなりすぎる場合には、
+ファイル名の最後の文字を
+.B #
+に置き換える ) 。
+.\"O (The rejected hunk comes out in ordinary context diff form regardless of
+.\"O the input patch's form.
+.\"O If the input was a normal diff, many of the contexts are simply null.)
+.\"O The line numbers on the hunks in the reject file may be different than
+.\"O in the patch file: they reflect the approximate location patch thinks the
+.\"O failed hunks belong in the new file rather than the old one.
+( reject (却下) された hunk は入力されたパッチの形式にかかわらず、
+通常のコンテキスト diff の形式で出力される。
+入力がノーマル diff の場合、コンテキストの多くは単純に空になる。 )
+reject ファイル中の hunk に付けられた行番号はパッチファイルのものとは
+異なるかもしれない。
+reject ファイル中の行番号は、古いファイルにおける位置ではなく、
+.B patch
+が新しいファイルの中で hunk が当たると思うおおよその位置になっている。
+.PP
+.\"O As each hunk is completed, you are told if the hunk
+.\"O failed, and if so which line (in the new file)
+.\"O .B patch
+.\"O thought the hunk should go on.
+.\"O If the hunk is installed at a different line
+.\"O from the line number specified in the diff you
+.\"O are told the offset.
+それぞれの hunk の処理が終わると、
+hunk が失敗したかどうかや、
+もし失敗した場合、
+.B patch
+が ( 新しいファイルの ) どの行に
+その hunk が当たると思ったかが通知される。
+hunk が diff に示された行番号と異なる位置に適用された場合は、
+そのオフセットが通知される。
+.\"O A single large offset
+.\"O .I may
+.\"O indicate that a hunk was installed in the
+.\"O wrong place.
+.\"O You are also told if a fuzz factor was used to make the match, in which
+.\"O case you should also be slightly suspicious.
+.\"O If the
+.\"O .B \*=verbose
+.\"O option is given, you are also told about hunks that match exactly.
+大きなオフセットが 1 個だけ通知された場合、
+ある hunk が間違った位置に適用された
+.IR かもしれない 。
+一致する位置を探すために fuzz factor が使われたかどうかも通知されるが、
+その場合には少々不審に思ったほうがよい。
+.B \*=verbose
+オプションを指定すると、 hunk がぴったり一致した場合にも通知される。
+.PP
+.\"O If no original file
+.\"O .I origfile
+.\"O is specified on the command line,
+.\"O .B patch
+.\"O tries to figure out from the leading garbage what the name of the file
+.\"O to edit is, using the following rules.
+コマンドラインでオリジナルファイル
+.I origfile
+が指定されなかった場合、
+.B patch
+は diff の前にあるゴミから次のような規則を使って
+編集すべきファイルを判別しようとする。
+.LP
+.\"O First,
+.\"O .B patch
+.\"O takes an ordered list of candidate file names as follows:
+まず、
+.B patch
+は候補となるファイル名の順序付きリストを次のようにして作る:
+.TP 3
+.B " \(bu"
+.\"O If the header is that of a context diff,
+.\"O .B patch
+.\"O takes the old and new file names in the header.
+.\"O A name is ignored if it does not have enough slashes to satisfy the
+.\"O .BI \-p num
+.\"O or
+.\"O .BI \*=strip= num
+.\"O option.
+.\"O The name
+.\"O .B /dev/null
+.\"O is also ignored.
+ヘッダがコンテキスト diff のものである場合、
+.B patch
+はヘッダにある新旧のファイル名を使う。
+.BI \-p num
+または
+.BI \*=strip= num
+オプションに見合った数のスラッシュがないファイル名は無視される。
+.B /dev/null
+というファイル名も無視される。
+.TP
+.B " \(bu"
+.\"O If there is an
+.\"O .B Index:\&
+.\"O line in the leading garbage
+.\"O and if either the old and new names are both absent or if
+.\"O .B patch
+.\"O is conforming to \s-1POSIX\s0,
+.\"O .B patch
+.\"O takes the name in the
+.\"O .B Index:\&
+.\"O line.
+diff の前のゴミの中に
+.B Index:\&
+があり、新旧両方のファイル名がないか
+.B patch
+が \s-1POSIX\s0 に準拠している場合、
+.B patch
+は
+.B Index:\&
+の行にあるファイル名を使う。
+.TP
+.B " \(bu"
+.\"O For the purpose of the following rules,
+.\"O the candidate file names are considered to be in the order (old, new, index),
+.\"O regardless of the order that they appear in the header.
+以下のルールを実現するために、
+ヘッダに現れた順に関係なく、
+候補となるファイル名は、旧、新、 index の順序で扱われる。
+.LP
+.\"O Then
+.\"O .B patch
+.\"O selects a file name from the candidate list as follows:
+そして
+.B patch
+は候補リストから次のようにファイル名を選択する:
+.TP 3
+.B " \(bu"
+.\"O If some of the named files exist,
+.\"O .B patch
+.\"O selects the first name if conforming to \s-1POSIX\s0,
+.\"O and the best name otherwise.
+複数の名前のファイルが見つかった場合、
+.B patch
+は \s-1POSIX\s0 準拠ならば最初の名前を、
+そうでなければ最適な (best) 名前を選択する。
+.TP
+.B " \(bu"
+.\"O If
+.\"O .B patch
+.\"O is not ignoring \s-1RCS\s0, ClearCase, and \s-1SCCS\s0 (see the
+.\"O .BI "\-g\ " num
+.\"O or
+.\"O .BI \*=get= num
+.\"O option), and no named files exist
+.\"O but an \s-1RCS\s0, ClearCase, or \s-1SCCS\s0 master is found,
+.\"O .B patch
+.\"O selects the first named file
+.\"O with an \s-1RCS\s0, ClearCase, or \s-1SCCS\s0 master.
+.B patch
+が \s-1RCS\s0, ClearCase, \s-1SCCS\s0 を無視しない場合 (
+.BI "\-g\ " num
+または
+.BI \*=get= num
+オプションを参照 ) で、かつ候補リストの名前のファイルはどれも存在しないが
+\s-1RCS\s0, ClearCase, \s-1SCCS\s0 マスタが見つかった場合、
+.B patch
+は \s-1RCS\s0, ClearCase, \s-1SCCS\s0 マスタの存在する
+候補リスト中の最初の名前のファイルを選択する。
+.TP
+.B " \(bu"
+.\"O If no named files exist,
+.\"O no \s-1RCS\s0, ClearCase, or \s-1SCCS\s0 master was found,
+.\"O some names are given,
+.\"O .B patch
+.\"O is not conforming to \s-1POSIX\s0,
+.\"O and the patch appears to create a file,
+.\"O .B patch
+.\"O selects the best name requiring the creation of the fewest directories.
+候補リストの名前のファイルがどれも存在せず、
+\s-1RCS\s0, ClearCase, \s-1SCCS\s0 マスタも見つからず、
+候補リストには複数の名前があり、
+.B patch
+が \s-1POSIX\s0 準拠ではなく、
+そのパッチがファイルを作成しようとしているように見受けられる場合、
+.B patch
+は作成するディレクトリが最も少なくて済む、最適な (best) 名前を選択する。
+.TP
+.B " \(bu"
+.\"O If no file name results from the above heuristics, you are asked
+.\"O for the name of the file to patch, and
+.\"O .B patch
+.\"O selects that name.
+以上の規則でファイル名が決まらない場合、
+.B patch
+はパッチを当てるファイルの名前を尋ね、その名前を使う。
+.LP
+.\"O To determine the
+.\"O .I best
+.\"O of a nonempty list of file names,
+.\"O .B patch
+.\"O first takes all the names with the fewest path name components;
+.\"O of those, it then takes all the names with the shortest basename;
+.\"O of those, it then takes all the shortest names;
+.\"O finally, it takes the first remaining name.
+空でないファイル名のリストから
+.I 最適な (best)
+ものを選ぶために、
+.B patch
+はまずパス名の要素が最も少ないものを選び、
+その中からベースネームの最も短いものを選び、
+さらにその中から最も短いものを選び、
+最後に、残った中で最初の名前を選ぶ。
+.PP
+.\"O Additionally, if the leading garbage contains a
+.\"O .B Prereq:\&
+.\"O line,
+.\"O .B patch
+.\"O takes the first word from the prerequisites line (normally a version
+.\"O number) and checks the original file to see if that word can be found.
+.\"O If not,
+.\"O .B patch
+.\"O asks for confirmation before proceeding.
+さらに、前のゴミに
+.B Prereq:\&
+という行が含まれる場合、
+.B patch
+はその必要条件の行から最初の単語 ( 通常はバージョン番号 ) を取り、
+オリジナルファイルにその単語があるかどうかをチェックする。
+もしない場合、
+.B patch
+は処理する前に確認を求める。
+.PP
+.\"O The upshot of all this is that you should be able to say, while in a news
+.\"O interface, something like the following:
+すべての結論は、
+ニュースリーダを使っているときには、
+次のような感じにすればよいということである:
+.Sp
+	\fB| patch \-d /usr/src/local/blurfl\fP
+.Sp
+.\"O and patch a file in the
+.\"O .B blurfl
+.\"O directory directly from the article containing
+.\"O the patch.
+こうすれば、ディレクトリ
+.B blurfl
+にあるファイルに、パッチを含む記事から直接パッチを当てることができる。
+.PP
+.\"O If the patch file contains more than one patch,
+.\"O .B patch
+.\"O tries to apply each of them as if they came from separate patch files.
+.\"O This means, among other things, that it is assumed that the name of the file
+.\"O to patch must be determined for each diff listing,
+.\"O and that the garbage before each diff listing
+.\"O contains interesting things such as file names and revision level, as
+.\"O mentioned previously.
+パッチファイルに複数のパッチが含まれている場合、
+.B patch
+は、それぞれが別々のパッチファイルから入力されたかのように当てようとする。
+このときは、とりわけ、
+パッチを当てるファイルの名前はそれぞれの差分リストから決まらなければならず、
+それぞれの差分リストの前のゴミにはファイル名やリビジョン番号といった
+必要なことがらが含まれていることが求められる。
+.\"O .SH OPTIONS
+.SH "オプション"
+.TP 3
+.\"O \fB\-b\fP  or  \fB\*=backup\fP
+\fB\-b\fP  または  \fB\*=backup\fP
+.\"O Make backup files.
+.\"O That is, when patching a file,
+.\"O rename or copy the original instead of removing it.
+.\"O When backing up a file that does not exist,
+.\"O an empty, unreadable backup file is created
+.\"O as a placeholder to represent the nonexistent file.
+.\"O See the
+.\"O .B \-V
+.\"O or
+.\"O .B \*=version\-control
+.\"O option for details about how backup file names are determined.
+バックアップファイルを作成する。
+つまり、ファイルにパッチを当てるとき、
+元のファイルを削除せずに、リネームまたはコピーする。
+存在しないファイルをバックアップするときは、
+空の、読み出す内容のないバックアップファイルが作られ、
+ファイルが存在しなかったことを表すものとなる。
+バックアップファイルの名前がどのように決まるかについては
+.B \-V
+または
+.B \*=version\-control
+オプションを参照。
+.TP
+.B \*=backup\-if\-mismatch
+.\"O Back up a file if the patch does not match the file exactly
+.\"O and if backups are not otherwise requested.
+.\"O This is the default unless
+.\"O .B patch
+.\"O is conforming to \s-1POSIX\s0.
+パッチがファイルにぴったり一致しなかった場合で、
+かつ他の方法でバックアップを要求されていない場合に
+ファイルをバックアップする。
+.B patch
+が \s-1POSIX\s0 準拠でない場合はデフォルトである。
+.TP
+.B \*=no\-backup\-if\-mismatch
+.\"O Do not back up a file if the patch does not match the file exactly
+.\"O and if backups are not otherwise requested.
+.\"O This is the default if
+.\"O .B patch
+.\"O is conforming to \s-1POSIX\s0.
+パッチがファイルにぴったり一致しなかった場合で、
+かつ他の方法でバックアップを要求されていない場合には
+ファイルをバックアップしない。
+.B patch
+が \s-1POSIX\s0 準拠の場合はデフォルトである。
+.TP
+.\"O \fB\-B\fP \fIpref\fP  or  \fB\*=prefix=\fP\fIpref\fP
+\fB\-B\fP \fIpref\fP  または  \fB\*=prefix=\fP\fIpref\fP
+.\"O Prefix
+.\"O .I pref
+.\"O to a file name when generating its simple backup file name.
+.\"O For example, with
+.\"O .B "\-B\ /junk/"
+.\"O the simple backup file name for
+.\"O .B src/patch/util.c
+.\"O is
+.\"O .BR /junk/src/patch/util.c .
+簡易バックアップファイルの名前を生成するとき、ファイル名に
+.I pref
+というプレフィクスをつける。
+例えば、
+.B "\-B\ /junk/"
+とすると、
+.B src/patch/util.c
+というファイルに対する簡易バックアップファイルの名前は
+.B /junk/src/patch/util.c
+となる。
+.TP
+\fB\*=binary\fP
+.\"O Read and write all files in binary mode,
+.\"O except for standard output and
+.\"O .BR /dev/tty .
+.\"O This option has no effect on \s-1POSIX\s0-conforming systems.
+.\"O On systems like \s-1DOS\s0 where this option makes a difference,
+.\"O the patch should be generated by
+.\"O .BR "diff\ \-a\ \*=binary" .
+すべてのファイルをバイナリモードで読み書きする。
+ただし、標準出力と
+.B /dev/tty
+を除く。
+\s-1POSIX\s0 準拠のシステムではこのオプションは無効である。
+このオプションで違いの出る \s-1DOS\s0 のようなシステムでは、
+パッチを
+.B "diff\ \-a\ \*=binary"
+のようにして作らなければならない。
+.TP
+.\"O \fB\-c\fP  or  \fB\*=context\fP
+\fB\-c\fP  または  \fB\*=context\fP
+.\"O Interpret the patch file as a ordinary context diff.
+パッチファイルを通常のコンテキスト diff として解釈する。
+.TP
+.\"O \fB\-d\fP \fIdir\fP  or  \fB\*=directory=\fP\fIdir\fP
+\fB\-d\fP \fIdir\fP  または  \fB\*=directory=\fP\fIdir\fP
+.\"O Change to the directory
+.\"O .I dir
+.\"O immediately, before doing
+.\"O anything else.
+何をするよりも前に、
+ただちにディレクトリ
+.I dir
+に移動する。
+.TP
+.\"O \fB\-D\fP \fIdefine\fP  or  \fB\*=ifdef=\fP\fIdefine\fP
+\fB\-D\fP \fIdefine\fP  または  \fB\*=ifdef=\fP\fIdefine\fP
+.\"O Use the
+.\"O .BR #ifdef " .\|.\|. " #endif
+.\"O construct to mark changes, with
+.\"O .I define
+.\"O as the differentiating symbol.
+変更に印を付けるのに
+.BR #ifdef " .\|.\|. " #endif
+のような構造を使う。
+このとき差分を示すシンボルに
+.I define
+を用いる。
+.TP
+.B "\*=dry\-run"
+.\"O Print the results of applying the patches without actually changing any files.
+パッチを当てたときの結果を表示するが、
+実際にはどのファイルも変更しない。
+.TP
+.\"O \fB\-e\fP  or  \fB\*=ed\fP
+\fB\-e\fP  または  \fB\*=ed\fP
+.\"O Interpret the patch file as an
+.\"O .B ed
+.\"O script.
+パッチファイルを
+.B ed
+スクリプトとして解釈する。
+.TP
+.\"O \fB\-E\fP  or  \fB\*=remove\-empty\-files\fP
+\fB\-E\fP  または  \fB\*=remove\-empty\-files\fP
+.\"O Remove output files that are empty after the patches have been applied.
+.\"O Normally this option is unnecessary, since
+.\"O .B patch
+.\"O can examine the time stamps on the header to determine whether a file
+.\"O should exist after patching.
+.\"O However, if the input is not a context diff or if
+.\"O .B patch
+.\"O is conforming to \s-1POSIX\s0,
+.\"O .B patch
+.\"O does not remove empty patched files unless this option is given.
+.\"O When
+.\"O .B patch
+.\"O removes a file, it also attempts to remove any empty ancestor directories.
+パッチを当てたあと空になったファイルを削除する。
+通常、このオプションは不要である。
+なぜなら
+.B patch
+はヘッダのタイムスタンプを見て、パッチを当てたあとに
+ファイルが存在するべきかどうかを判断することができるからである。
+しかし、入力がコンテキスト diff でない場合や
+.B patch
+が \s-1POSIX\s0 準拠の場合、
+.B patch
+はこのオプションが与えられない限りパッチ後に空になったファイルを削除しない。
+.B patch
+がファイルを削除するときは、
+空の上位ディレクトリも削除しようとする。
+.TP
+.\"O \fB\-f\fP  or  \fB\*=force\fP
+\fB\-f\fP  または  \fB\*=force\fP
+.\"O Assume that the user knows exactly what he or she is doing, and do not
+.\"O ask any questions.  Skip patches whose headers
+.\"O do not say which file is to be patched; patch files even though they have the
+.\"O wrong version for the
+.\"O .B Prereq:\&
+.\"O line in the patch; and assume that
+.\"O patches are not reversed even if they look like they are.
+.\"O This option does not suppress commentary; use
+.\"O .B \-s
+.\"O for that.
+ユーザが何をしようとしているかを完全に分かっているとみなし、
+何も問い合わせをしない。
+どのファイルにパッチを当てるべきかが
+ヘッダに書かれていないパッチはスキップし、
+ファイルのバージョンがパッチ中の
+.B Prereq:\&
+の行に書かれたバージョンと違っていてもパッチを当て、
+パッチが反転しているように見えても反転していないとみなす。
+このオプションはコメント出力を抑制しない。そうしたければ
+.B \-s
+を使うこと。
+.TP
+.\"O \fB\-F\fP \fInum\fP  or  \fB\*=fuzz=\fP\fInum\fP
+\fB\-F\fP \fInum\fP  または  \fB\*=fuzz=\fP\fInum\fP
+.\"O Set the maximum fuzz factor.
+.\"O This option only applies to diffs that have context, and causes
+.\"O .B patch
+.\"O to ignore up to that many lines in looking for places to install a hunk.
+.\"O Note that a larger fuzz factor increases the odds of a faulty patch.
+.\"O The default fuzz factor is 2, and it may not be set to more than
+.\"O the number of lines of context in the context diff, ordinarily 3.
+fuzz factor の最大値を設定する。
+このオプションはコンテキスト diff に対してのみ有効で、
+.B patch
+が hunk を適用する位置を探すときに無視する行数の最大値を指定する。
+fuzz factor を大きくすると
+パッチが間違って当たってしまう場合が多くなることに注意すること。
+デフォルトの fuzz factor は 2 で、
+コンテキスト diff のコンテキストの行数よりも大きく設定してはならない。
+コンテキストの行数は通常 3 である。
+.TP
+.\"O \fB\-g\fP \fInum\fP  or  \fB\*=get=\fP\fInum\fP
+\fB\-g\fP \fInum\fP  または  \fB\*=get=\fP\fInum\fP
+.\"O This option controls
+.\"O .BR patch 's
+.\"O actions when a file is under \s-1RCS\s0 or \s-1SCCS\s0 control,
+.\"O and does not exist or is read-only and matches the default version,
+.\"O or when a file is under ClearCase control and does not exist.
+.\"O If
+.\"O .I num
+.\"O is positive,
+.\"O .B patch
+.\"O gets (or checks out) the file from the revision control system; if zero,
+.\"O .B patch
+.\"O ignores \s-1RCS\s0, ClearCase, and \s-1SCCS\s0
+.\"O and does not get the file; and if negative,
+.\"O .B patch
+.\"O asks the user whether to get the file.
+.\"O The default value of this option is given by the value of the
+.\"O .B PATCH_GET
+.\"O environment variable if it is set; if not, the default value is zero if
+.\"O .B patch
+.\"O is conforming to \s-1POSIX\s0, negative otherwise.
+このオプションは
+ファイルが \s-1RCS\s0 または \s-1SCCS\s0 で管理されていて、
+ファイルが存在しないか読み取り専用で
+デフォルトバージョンに一致する場合、
+またはファイルが ClearCase で管理されていてファイルが存在しない場合の
+.B patch
+の動作を変更する。
+.I num
+が正であれば、
+.B patch
+はリビジョン管理システムからファイルを取得 ( チェックアウト ) する。
+0 であれば、
+.B patch
+は \s-1RCS\s0, ClearCase, \s-1SCCS\s0 を無視し、ファイルを取得しない。
+負であれば、
+.B patch
+はファイルを取得するかどうかをユーザに尋ねる。
+このオプションのデフォルトの値は、
+環境変数
+.B PATCH_GET
+が設定されていればその値となる。
+そうでない場合、デフォルトの値は
+.B patch
+が \s-1POSIX\s0 準拠であれば 0 、そうでなければ負となる。
+.TP
+.B "\*=help"
+.\"O Print a summary of options and exit.
+オプションの要約を表示し、終了する。
+.TP
+.\"O \fB\-i\fP \fIpatchfile\fP  or  \fB\*=input=\fP\fIpatchfile\fP
+\fB\-i\fP \fIpatchfile\fP  または  \fB\*=input=\fP\fIpatchfile\fP
+.\"O Read the patch from
+.\"O .IR patchfile .
+.\"O If
+.\"O .I patchfile
+.\"O is
+.\"O .BR \- ,
+.\"O read from standard input, the default.
+パッチを
+.I patchfile
+から読み込む。
+.I patchfile
+が
+.B \-
+の場合は標準入力から読み込み、これがデフォルトである。
+.TP
+.\"O \fB\-l\fP  or  \fB\*=ignore\-whitespace\fP
+\fB\-l\fP  または  \fB\*=ignore\-whitespace\fP
+.\"O Match patterns loosely, in case tabs or spaces
+.\"O have been munged in your files.
+.\"O Any sequence of one or more blanks in the patch file matches any sequence
+.\"O in the original file, and sequences of blanks at the ends of lines are ignored.
+.\"O Normal characters must still match exactly.
+.\"O Each line of the context must still match a line in the original file.
+タブやスペースが変更されている場合のために、パターンの一致をゆるく見る。
+パッチファイル中の 1 個または複数の空白の並びは
+オリジナルファイルの空白のどの並びにも一致し、
+行末の空白の並びは無視される。
+通常文字は完全に一致していなければならない。
+コンテキストの各行はオリジナルファイルの 1 行に一致していなければならない。
+.TP
+.\"O \fB\-n\fP  or  \fB\*=normal\fP
+\fB\-n\fP  または  \fB\*=normal\fP
+.\"O Interpret the patch file as a normal diff.
+パッチファイルをノーマル diff として解釈する。
+.TP
+.\"O \fB\-N\fP  or  \fB\*=forward\fP
+\fB\-N\fP  または  \fB\*=forward\fP
+.\"O Ignore patches that seem to be reversed or already applied.
+.\"O See also
+.\"O .BR \-R .
+反転していると思われるパッチやすでに適用済みと思われるパッチを無視する。
+.B \-R
+も参照。
+.TP
+.\"O \fB\-o\fP \fIoutfile\fP  or  \fB\*=output=\fP\fIoutfile\fP
+\fB\-o\fP \fIoutfile\fP  または  \fB\*=output=\fP\fIoutfile\fP
+.\"O Send output to
+.\"O .I outfile
+.\"O instead of patching files in place.
+ファイルにパッチを当てて置き換えるのではなく、
+出力を
+.I outfile
+に送る。
+.TP
+.\"O \fB\-p\fP\fInum\fP  or  \fB\*=strip\fP\fB=\fP\fInum\fP
+\fB\-p\fP\fInum\fP  または  \fB\*=strip\fP\fB=\fP\fInum\fP
+.\"O Strip the smallest prefix containing
+.\"O .I num
+.\"O leading slashes from each file name found in the patch file.
+.\"O A sequence of one or more adjacent slashes is counted as a single slash.
+.\"O This controls how file names found in the patch file are treated, in case
+.\"O you keep your files in a different directory than the person who sent
+.\"O out the patch.
+パッチファイルで見つかったファイル名それぞれについて、
+.I num
+個のスラッシュを含む最小のプレフィクスを取り除く。
+隣接した 1 個または複数のスラッシュの並びは 1 個のスラッシュとして
+数えられる。
+このオプションは
+パッチを送った人と異なるディレクトリにファイルを格納している場合のために、
+パッチファイル中のファイル名の扱いを変更する。
+.\"O For example, supposing the file name in the patch file was
+例えば、パッチファイル中のファイル名が
+.Sp
+	\fB/u/howard/src/blurfl/blurfl.c\fP
+.Sp
+であったとすると、
+.\"O setting
+.B \-p0
+.\"O gives the entire file name unmodified,
+とするとファイル名全体が変更されずに用いられ、
+.B \-p1
+.\"O gives
+とすると
+.Sp
+	\fBu/howard/src/blurfl/blurfl.c\fP
+.Sp
+.\"O without the leading slash,
+のように先頭のスラッシュが取り除かれ、
+.B \-p4
+.\"O gives
+とすると
+.Sp
+	\fBblurfl/blurfl.c\fP
+.Sp
+のようになり、
+.\"O and not specifying
+.B \-p
+.\"O at all just gives you \fBblurfl.c\fP.
+を指定しなければ \fBblurfl.c\fP となる。
+.\"O Whatever you end up with is looked for either in the current directory,
+.\"O or the directory specified by the
+.\"O .B \-d
+.\"O option.
+最終的に参照されるディレクトリは
+カレントディレクトリ、または
+.B \-d
+オプションで指定されたディレクトリである。
+.TP
+.B \*=posix
+.\"O Conform more strictly to the \s-1POSIX\s0 standard, as follows.
+以下のようにより厳格に \s-1POSIX\s0 標準にしたがう。
+.RS
+.TP 3
+.B " \(bu"
+.\"O Take the first existing file from the list (old, new, index)
+.\"O when intuiting file names from diff headers.
+diff ヘッダから複数のファイル名が得られた場合、
+リスト (old, new, index) のうち最初に存在したファイルを用いる。
+.TP
+.B " \(bu"
+.\"O Do not remove files that are empty after patching.
+パッチを当てたあと空になったファイルを削除しない。
+.TP
+.B " \(bu"
+.\"O Do not ask whether to get files from \s-1RCS\s0, ClearCase, or \s-1SCCS\s0.
+\s-1RCS\s0, ClearCase, \s-1SCCS\s0 から
+ファイルを取得するかどうかを尋ねない。
+.TP
+.B " \(bu"
+.\"O Require that all options precede the files in the command line.
+コマンドラインではすべてのオプションがファイルの前になければならない。
+.TP
+.B " \(bu"
+.\"O Do not backup files when there is a mismatch.
+パッチが元のファイルにぴったり一致しない場合でも、
+ファイルをバックアップしない。
+.RE
+.TP
+.BI \*=quoting\-style= word
+.\"O Use style
+.\"O .I word
+.\"O to quote output names.
+.\"O The
+.\"O .I word
+.\"O should be one of the following:
+ファイル名を出力するのにスタイル
+.I word
+を使う。
+.I word
+は次のどれかでなければならない:
+.RS
+.TP
+.B literal
+.\"O Output names as-is.
+ファイル名をそのまま出力する。
+.TP
+.B shell
+.\"O Quote names for the shell if they contain shell metacharacters or would
+.\"O cause ambiguous output.
+ファイル名にシェルのメタキャラクタが含まれる場合や
+曖昧な出力となってしまう場合、
+ファイル名にシェル用の引用符を付ける。
+.TP
+.B shell-always
+.\"O Quote names for the shell, even if they would normally not require quoting.
+通常は引用符が必要でない場合にもシェル用の引用符を付ける。
+.TP
+.B c
+.\"O Quote names as for a C language string.
+C 言語文字列と同様にファイル名に引用符を付ける。
+.TP
+.B escape
+.\"O Quote as with
+.\"O .B c
+.\"O except omit the surrounding double-quote characters.
+.B c
+と同じように引用符を付けるが、最初と最後のダブルクウォート文字を省略する。
+.LP
+.\"O You can specify the default value of the
+.\"O .B \*=quoting\-style
+.\"O option with the environment variable
+.\"O .BR QUOTING_STYLE .
+.\"O If that environment variable is not set, the default value is
+.\"O .BR shell .
+.B \*=quoting\-style
+オプションのデフォルト値は環境変数
+.B QUOTING_STYLE
+で指定することができる。
+環境変数が設定されていない場合、デフォルト値は
+.B shell
+である。
+.RE
+.TP
+.\"O \fB\-r\fP \fIrejectfile\fP  or  \fB\*=reject\-file=\fP\fIrejectfile\fP
+\fB\-r\fP \fIrejectfile\fP  または  \fB\*=reject\-file=\fP\fIrejectfile\fP
+.\"O Put rejects into
+.\"O .I rejectfile
+.\"O instead of the default
+.\"O .B \&.rej
+.\"O file.
+reject ( 却下された hunk) を
+デフォルトの
+.B \&.rej
+ファイルではなく
+.I rejectfile
+に出力する。
+.TP
+.\"O \fB\-R\fP  or  \fB\*=reverse\fP
+\fB\-R\fP  または  \fB\*=reverse\fP
+.\"O Assume that this patch was created with the old and new files swapped.
+.\"O (Yes, I'm afraid that does happen occasionally, human nature being what it
+.\"O is.)
+.\"O .B patch
+.\"O attempts to swap each hunk around before applying it.
+.\"O Rejects come out in the swapped format.
+.\"O The
+.\"O .B \-R
+.\"O option does not work with
+.\"O .B ed
+.\"O diff scripts because there is too little
+.\"O information to reconstruct the reverse operation.
+このパッチは新旧のファイルが反転しているとみなす。
+( まあ、ときどきある。人間のやることだから。 )
+.B patch
+はそれぞれの hunk を当てる前に反転させる。
+reject ( 却下された hunk) も反転したあとの形式で出力される。
+.B \-R
+オプションは
+.B ed
+形式の diff スクリプトに対しては動作しない。
+反対の操作をするには情報が少なすぎるからである。
+.Sp
+.\"O If the first hunk of a patch fails,
+.\"O .B patch
+.\"O reverses the hunk to see if it can be applied that way.
+.\"O If it can, you are asked if you want to have the
+.\"O .B \-R
+.\"O option set.
+.\"O If it can't, the patch continues to be applied normally.
+.\"O (Note: this method cannot detect a reversed patch if it is a normal diff
+.\"O and if the first command is an append (i.e. it should have been a delete)
+.\"O since appends always succeed, due to the fact that a null context matches
+.\"O anywhere.
+.\"O Luckily, most patches add or change lines rather than delete them, so most
+.\"O reversed normal diffs begin with a delete, which fails, triggering
+.\"O the heuristic.)
+パッチの最初の hunk が失敗すると、
+.B patch
+は hunk を反転させて当たるかどうかをみる。
+もし当たる場合、
+.B \-R
+オプションをセットするかどうかを尋ねる。
+もし当たらない場合、通常の方法を継続する。
+( 注意: この方法では、
+ノーマル diff で最初のコマンドが追加の ( つまり、本来は削除であった ) 場合に
+反転されたパッチを検出することができない。
+それは、空のコンテキストはどこにでもマッチするために、
+追加は常に成功するからである。
+幸い、ほとんどのパッチは行を追加するか、変更するものであって、
+削除するものは少ないため、
+経験的にいって、反転したノーマル diff のほとんどは削除から始まっていて、
+失敗してくれる。 )
+.TP
+.\"O \fB\-s\fP  or  \fB\*=silent\fP  or  \fB\*=quiet\fP
+\fB\-s\fP  または  \fB\*=silent\fP  または  \fB\*=quiet\fP
+.\"O Work silently, unless an error occurs.
+エラーが発生しない限り、静かに動作する。
+.TP
+.\"O \fB\-t\fP  or  \fB\*=batch\fP
+\fB\-t\fP  または  \fB\*=batch\fP
+.\"O Suppress questions like
+.\"O .BR \-f ,
+.\"O but make some different assumptions:
+.\"O skip patches whose headers do not contain file names (the same as \fB\-f\fP);
+.\"O skip patches for which the file has the wrong version for the
+.\"O .B Prereq:\&
+.\"O line
+.\"O in the patch; and assume that patches are reversed if they look like
+.\"O they are.
+.B \-f
+と同様に質問を抑制する。
+ただし、異なる仮定をする。
+ヘッダにファイル名を含まないパッチはスキップし (\fB\-f\fP と同じ ) 、
+ファイルのバージョンがパッチ中の
+.B Prereq:\&
+の行に書かれたバージョンと違うパッチはスキップし、
+パッチが反転しているように見える場合は反転しているとみなす。
+.TP
+.\"O \fB\-T\fP  or  \fB\*=set\-time\fP
+\fB\-T\fP  または  \fB\*=set\-time\fP
+.\"O Set the modification and access times of patched files from time stamps
+.\"O given in context diff headers, assuming that the context diff headers
+.\"O use local time.  This option is not recommended, because patches using
+.\"O local time cannot easily be used by people in other time zones, and
+.\"O because local time stamps are ambiguous when local clocks move backwards
+.\"O during daylight-saving time adjustments.  Instead of using this option,
+.\"O generate patches with \s-1UTC\s0 and use the
+.\"O .B \-Z
+.\"O or
+.\"O .B \*=set\-utc
+.\"O option instead.
+パッチを当てたあとのファイルの変更日時とアクセス日時を
+コンテキスト diff ヘッダのタイムスタンプに設定する。
+コンテキスト diff ヘッダはローカル時刻を使っているとみなす。
+このオプションは推奨されない。
+なぜならローカル時刻を使ったパッチは異なるタイムゾーンの人には
+簡単に使えないから、
+またローカルタイムスタンプは
+サマータイムの調整で時刻が戻った場合に曖昧になるからである。
+このオプションを使う代わりに、
+\s-1UTC\s0 でパッチを生成し、
+.B \-Z
+または
+.B \*=set\-utc
+を使うこと。
+.TP
+.\"O \fB\-u\fP  or  \fB\*=unified\fP
+\fB\-u\fP  または  \fB\*=unified\fP
+.\"O Interpret the patch file as a unified context diff.
+パッチファイルを unified コンテキスト diff として解釈する。
+.TP
+.\"O \fB\-v\fP  or  \fB\*=version\fP
+\fB\-v\fP  または  \fB\*=version\fP
+.\"O Print out
+.\"O .BR patch 's
+.\"O revision header and patch level, and exit.
+.B patch
+のリビジョンヘッダとパッチレベルを出力し、終了する。
+.TP
+.\"O \fB\-V\fP \fImethod\fP  or  \fB\*=version\-control=\fP\fImethod\fP
+\fB\-V\fP \fImethod\fP  または  \fB\*=version\-control=\fP\fImethod\fP
+.\"O Use
+.\"O .I method
+.\"O to determine
+.\"O backup file names.  The method can also be given by the
+.\"O .B PATCH_VERSION_CONTROL
+.\"O (or, if that's not set, the
+.\"O .BR VERSION_CONTROL )
+.\"O environment variable, which is overridden by this option.
+.\"O The method does not affect whether backup files are made;
+.\"O it affects only the names of any backup files that are made.
+バックアップファイルの名前を決定するのに
+.I method
+を使う。
+method は
+.B PATCH_VERSION_CONTROL
+( または、それがない場合、
+.BR VERSION_CONTROL )
+環境変数で指定でき、このオプションで上書きされる。
+method はバックアップファイルが作られるかどうかには影響せず、
+作られるバックアップファイルの名前に影響するだけである。
+.Sp
+.\"O The value of
+.\"O .I method
+.\"O is like the \s-1GNU\s0
+.\"O Emacs `version-control' variable;
+.\"O .B patch
+.\"O also recognizes synonyms that
+.\"O are more descriptive.  The valid values for
+.\"O .I method
+.\"O are (unique abbreviations are
+.\"O accepted):
+.I method
+の値は \s-1GNU\s0 Emacs の `version-control' 変数と同様である。
+.B patch
+はもっと分かりやすい同義語も理解する。
+.I method
+の有効な値は次のとおりである
+( 区別が付けば短縮形を用いてもよい ):
+.RS
+.TP 3
+.\"O \fBexisting\fP  or  \fBnil\fP
+\fBexisting\fP  または  \fBnil\fP
+.\"O Make numbered backups of files that already have them,
+.\"O otherwise simple backups.
+.\"O This is the default.
+番号付きのバックアップがある場合、バックアップに番号を付ける。
+そうでない場合、簡易バックアップを作る。
+これがデフォルトである。
+.TP
+.\"O \fBnumbered\fP  or  \fBt\fP
+\fBnumbered\fP  または  \fBt\fP
+.\"O Make numbered backups.  The numbered backup file name for
+.\"O .I F
+.\"O is
+.\"O .IB F .~ N ~
+.\"O where
+.\"O .I N
+.\"O is the version number.
+バックアップに番号を付ける。
+.I F
+というファイルに対する番号付きバックアップファイルの名前は
+.IB F .~ N ~
+のようになる。
+.I N
+はバージョン番号である。
+.TP
+.\"O \fBsimple\fP  or  \fBnever\fP
+\fBsimple\fP  または  \fBnever\fP
+.\"O Make simple backups.
+.\"O The
+.\"O .B \-B
+.\"O or
+.\"O .BR \*=prefix ,
+.\"O .B \-Y
+.\"O or
+.\"O .BR \*=basename\-prefix ,
+.\"O and
+.\"O .B \-z
+.\"O or
+.\"O .BR \*=suffix
+.\"O options specify the simple backup file name.
+.\"O If none of these options are given, then a simple backup suffix is used;
+.\"O it is the value of the
+.\"O .B SIMPLE_BACKUP_SUFFIX
+.\"O environment variable if set, and is
+.\"O .B \&.orig
+.\"O otherwise.
+簡易バックアップを作る。
+.B \-B
+または
+.BR \*=prefix 、
+.B \-Y
+または
+.BR \*=basename\-prefix 、
+.B \-z
+または
+.B \*=suffix
+オプションで簡易バックアップファイルの名前が決まる。
+これらのうちどのオプションも指定されない場合、
+簡易バックアップサフィクスが使われる。
+サフィクスは
+.B SIMPLE_BACKUP_SUFFIX
+環境変数が存在する場合はその値、そうでない場合は
+.B \&.orig
+である。
+.PP
+.\"O With numbered or simple backups,
+.\"O if the backup file name is too long, the backup suffix
+.\"O .B ~
+.\"O is used instead; if even appending
+.\"O .B ~
+.\"O would make the name too long, then
+.\"O .B ~
+.\"O replaces the last character of the file name.
+番号付きまたは簡易バックアップの場合、
+バックアップファイルの名前が長すぎると、
+代わりにバックアップサフィクス
+.B ~
+が使われる。
+.B ~
+を付加しても長すぎる場合、
+ファイル名の最後の文字が
+.B ~
+に置き換えられる。
+.RE
+.TP
+\fB\*=verbose\fP
+.\"O Output extra information about the work being done.
+処理が行なわれる様子について追加の情報を出力する。
+.TP
+.\"O \fB\-x\fP \fInum\fP  or  \fB\*=debug=\fP\fInum\fP
+\fB\-x\fP \fInum\fP  または  \fB\*=debug=\fP\fInum\fP
+.\"O Set internal debugging flags of interest only to
+.\"O .B patch
+.\"O patchers.
+内部デバッグフラグを設定する。
+.B patch
+を変更する人にしか興味のないものである。
+.TP
+.\"O \fB\-Y\fP \fIpref\fP  or  \fB\*=basename\-prefix=\fP\fIpref\fP
+\fB\-Y\fP \fIpref\fP  または  \fB\*=basename\-prefix=\fP\fIpref\fP
+.\"O Prefix
+.\"O .I pref
+.\"O to the basename of a file name when generating its simple backup file name.
+.\"O For example, with
+.\"O .B "\-Y\ .del/"
+.\"O the simple backup file name for
+.\"O .B src/patch/util.c
+.\"O is
+.\"O .BR src/patch/.del/util.c .
+簡易バックアップファイルの名前を生成するとき、
+ファイル名のベースネームに
+プレフィクス
+.I pref
+を付ける。
+例えば、
+.B "\-Y\ .del/"
+とした場合、
+.B src/patch/util.c
+の簡易バックアップファイルの名前は
+.B src/patch/.del/util.c
+となる。
+.TP
+.\"O \fB\-z\fP \fIsuffix\fP  or  \fB\*=suffix=\fP\fIsuffix\fP
+\fB\-z\fP \fIsuffix\fP  または  \fB\*=suffix=\fP\fIsuffix\fP
+.\"O Use
+.\"O .I suffix
+.\"O as the simple backup suffix.
+.\"O For example, with
+.\"O .B "\-z\ -"
+.\"O the simple backup file name for
+.\"O .B src/patch/util.c
+.\"O is
+.\"O .BR src/patch/util.c- .
+.\"O The backup suffix may also be specified by the
+.\"O .B SIMPLE_BACKUP_SUFFIX
+.\"O environment variable, which is overridden by this option.
+.I suffix
+を簡易バックアップサフィクスとして使う。
+例えば、
+.B "\-z\ -"
+とした場合、
+.B src/patch/util.c
+の簡易バックアップファイルの名前は
+.B src/patch/util.c-
+となる。
+バックアップサフィクスは
+.B SIMPLE_BACKUP_SUFFIX
+環境変数で指定することができ、このオプションで上書きされる。
+.TP
+.\"O \fB\-Z\fP  or  \fB\*=set\-utc\fP
+\fB\-Z\fP  または  \fB\*=set\-utc\fP
+.\"O Set the modification and access times of patched files from time stamps
+.\"O given in context diff headers, assuming that the context diff headers
+.\"O use Coordinated Universal Time (\s-1UTC\s0, often known as \s-1GMT\s0).
+.\"O Also see the
+.\"O .B \-T
+.\"O or
+.\"O .B \*=set\-time
+.\"O option.
+パッチを当てたあとのファイルの変更日時とアクセス日時を
+コンテキスト diff ヘッダのタイムスタンプに設定する。
+コンテキスト diff ヘッダは
+世界協定時 (\s-1UTC\s0 、\s-1GMT\s0 としても知られる ) を
+使っているとみなす。
+.B \-T
+または
+.B \*=set\-time
+オプションも参照すること。
+.Sp
+.\"O The
+.\"O .B \-Z
+.\"O or
+.\"O .B \*=set\-utc
+.\"O and
+.\"O .B \-T
+.\"O or
+.\"O .B \*=set\-time
+.\"O options normally refrain from setting a file's time if the file's original time
+.\"O does not match the time given in the patch header, or if its
+.\"O contents do not match the patch exactly.  However, if the
+.\"O .B \-f
+.\"O or
+.\"O .B \*=force
+.\"O option is given, the file time is set regardless.
+.B \-Z
+または
+.B \*=set\-utc
+および
+.B \-T
+または
+.B \*=set\-time
+オプションは、通常はファイルのオリジナルの時刻が
+パッチヘッダ中の時刻と一致しない場合や
+内容がパッチとぴったり一致しない場合には、ファイルの時刻を設定しない。
+しかし、
+.B \-f
+または
+.B \*=force
+オプションが指定された場合、ファイルの時刻は強制的に設定される。
+.Sp
+.\"O Due to the limitations of
+.\"O .B diff
+.\"O output format, these options cannot update the times of files whose
+.\"O contents have not changed.  Also, if you use these options, you should remove
+.\"O (e.g. with
+.\"O .BR "make\ clean" )
+.\"O all files that depend on the patched files, so that later invocations of
+.\"O .B make
+.\"O do not get confused by the patched files' times.
+.B diff
+の出力形式の制限のため、
+これらのオプションでは
+内容の変化しないファイルの時刻は更新されない。
+また、これらのオプションを使った場合には、
+パッチの当たったファイルに依存するファイルを削除して
+( 例えば
+.B "make\ clean"
+で ) 、
+あとで
+.B make
+を実行したときにパッチの当たったファイルの時刻で
+混乱しないようにしなければならない。
+.\"O .SH ENVIRONMENT
+.SH "環境変数"
+.TP 3
+.B PATCH_GET
+.\"O This specifies whether
+.\"O .B patch
+.\"O gets missing or read-only files from \s-1RCS\s0, ClearCase, or \s-1SCCS\s0
+.\"O by default; see the
+.\"O .B \-g
+.\"O or
+.\"O .B \*=get
+.\"O option.
+.B patch
+が存在しないファイルや読み取り専用のファイルをデフォルトで
+\s-1RCS\s0, ClearCase, \s-1SCCS\s0 から取得するかどうかを指定する。
+.B \-g
+または
+.B \*=get
+オプションを参照。
+.TP
+.B POSIXLY_CORRECT
+.\"O If set,
+.\"O .B patch
+.\"O conforms more strictly to the \s-1POSIX\s0 standard by default:
+.\"O see the
+.\"O .B \*=posix
+.\"O option.
+設定されている場合、
+.B patch
+はデフォルトで
+\s-1POSIX\s0 標準により厳格に従う。
+.B \*=posix
+オプションを参照。
+.TP
+.B QUOTING_STYLE
+.\"O Default value of the
+.\"O .B \*=quoting\-style
+.\"O option.
+.B \*=quoting\-style
+オプションのデフォルトの値。
+.TP
+.B SIMPLE_BACKUP_SUFFIX
+.\"O Extension to use for simple backup file names instead of
+.\"O .BR \&.orig .
+.B \&.orig
+の代わりに簡易バックアップファイルの名前に使う拡張子。
+.TP
+\fBTMPDIR\fP, \fBTMP\fP, \fBTEMP\fP
+.\"O Directory to put temporary files in;
+.\"O .B patch
+.\"O uses the first environment variable in this list that is set.
+.\"O If none are set, the default is system-dependent;
+.\"O it is normally
+.\"O .B /tmp
+.\"O on Unix hosts.
+一時ファイルを入れるディレクトリ
+.B patch
+はこのリストの中で最初に設定されている環境変数を使う。
+どれも設定されていない場合、デフォルトはシステム依存である。
+Unix ホストでは通常
+.B /tmp
+である。
+.TP
+.\"O \fBVERSION_CONTROL\fP or \fBPATCH_VERSION_CONTROL\fP
+\fBVERSION_CONTROL\fP または \fBPATCH_VERSION_CONTROL\fP
+.\"O Selects version control style; see the
+.\"O .B \-v
+.\"O or
+.\"O .B \*=version\-control
+.\"O option.
+バージョンコントロールスタイルを選択する。
+.B \-V
+または
+.B \*=version\-control
+オプションを参照。
+.\"O .SH FILES
+.SH "ファイル"
+.TP 3
+.IB $TMPDIR "/p\(**"
+.\"O temporary files
+一時ファイル。
+.TP
+.B /dev/tty
+.\"O controlling terminal; used to get answers to questions asked of the user
+制御端末。ユーザに尋ねた質問の答えを得るために使われる。
+.\"O .SH "SEE ALSO"
+.SH "関連項目"
+.BR diff (1),
+.BR ed (1)
+.Sp
+Marshall T. Rose and Einar A. Stefferud,
+Proposed Standard for Message Encapsulation,
+Internet RFC 934 <URL:ftp://ftp.isi.edu/in-notes/rfc934.txt> (1985-01).
+.\"O .SH "NOTES FOR PATCH SENDERS"
+.SH "パッチを送る人への注意"
+.\"O There are several things you should bear in mind if you are going to
+.\"O be sending out patches.
+パッチを送ろうとする場合に心に留めておかなければならない点がいくつかある。
+.PP
+.\"O Create your patch systematically.
+パッチを機械的に作ること。
+.\"O A good method is the command
+.\"O .BI "diff\ \-Naur\ " "old\ new"
+.\"O where
+.\"O .I old
+.\"O and
+.\"O .I new
+.\"O identify the old and new directories.
+.\"O The names
+.\"O .I old
+.\"O and
+.\"O .I new
+.\"O should not contain any slashes.
+.\"O The
+.\"O .B diff
+.\"O command's headers should have dates
+.\"O and times in Universal Time using traditional Unix format,
+.\"O so that patch recipients can use the
+.\"O .B \-Z
+.\"O or
+.\"O .B \*=set\-utc
+.\"O option.
+よい方法は
+.BI "diff\ \-Naur\ " "old\ new"
+のようなコマンドを使うことである。
+.I new
+と
+.I old
+はそれぞれ新旧のディレクトリである。
+.I old
+と
+.I new
+には 1 個もスラッシュがあってはいけない。
+.B diff
+コマンドのヘッダに含まれる日時は伝統的な Unix 形式を使って
+協定世界時で書かれていなければならない。
+そうすれば
+パッチを受け取った人が
+.B \-Z
+または
+.B \*=set\-utc
+オプションを使うことができる。
+.\"O Here is an example command, using Bourne shell syntax:
+次のものは Bourne シェル形式を使ったコマンド例である:
+.Sp
+	\fBLC_ALL=C TZ=UTC0 diff \-Naur gcc\-2.7 gcc\-2.8\fP
+.PP
+.\"O Tell your recipients how to apply the patch
+.\"O by telling them which directory to
+.\"O .B cd
+.\"O to, and which
+.\"O .B patch
+.\"O options to use.  The option string
+.\"O .B "\-Np1"
+.\"O is recommended.
+.\"O Test your procedure by pretending to be a recipient and applying
+.\"O your patch to a copy of the original files.
+受け取る人にはパッチの当て方を伝える。
+つまり、どのディレクトリに
+.B cd
+すればよいかとどの
+.B patch
+オプションを使えばよいかを伝える。
+オプション文字列は
+.B "\-Np1"
+が推奨される。
+受け取った人になったつもりで手順を試し、
+オリジナルファイルのコピーを取って、作ったパッチを当ててみる。
+.PP
+.\"O You can save people a lot of grief by keeping a
+.\"O .B patchlevel.h
+.\"O file which is patched to increment the patch level
+.\"O as the first diff in the patch file you send out.
+.\"O If you put a
+.\"O .B Prereq:\&
+.\"O line in with the patch, it won't let them apply
+.\"O patches out of order without some warning.
+送り出すパッチファイルの最初の diff として、
+パッチレベルをインクリメントしていく
+.B patchlevel.h
+ファイルを入れておくと、
+多くの人の面倒を軽減できる。
+パッチに
+.B Prereq:\&
+行を加えておけば、
+順番を間違えて警告を食らうのを防ぐことができる。
+.PP
+.\"O You can create a file by sending out a diff that compares
+.\"O .B /dev/null
+.\"O or an empty file dated the Epoch (1970-01-01 00:00:00 \s-1UTC\s0)
+.\"O to the file you want to create.
+.\"O This only works if the file you want to create doesn't exist already in
+.\"O the target directory.
+.\"O Conversely, you can remove a file by sending out a context diff that compares
+.\"O the file to be deleted with an empty file dated the Epoch.
+.\"O The file will be removed unless
+.\"O .B patch
+.\"O is conforming to \s-1POSIX\s0 and the
+.\"O .B \-E
+.\"O or
+.\"O .B \*=remove\-empty\-files
+.\"O option is not given.
+.\"O An easy way to generate patches that create and remove files
+.\"O is to use \s-1GNU\s0
+.\"O .BR diff 's
+.\"O .B \-N
+.\"O or
+.\"O .B \*=new\-file
+.\"O option.
+.B /dev/null
+や
+日時が Epoch (1970-01-01 00:00:00 \s-1UTC\s0) の空のファイルと
+作成したいファイルを比較した diff を送ることで、
+ファイルを作成することができる。
+この方法はターゲットのディレクトリに作成したいファイルが
+まだ存在しない場合に限って動作する。
+反対に、削除したいファイルと日時が Epoch の空のファイルを比較した
+コンテキスト diff を送ることで、ファイルを削除することができる。
+ファイルは
+.B patch
+が \s-1POSIX\s0 準拠でなく、
+.B \-E
+または
+.B \*=remove\-empty\-files
+オプションが指定されない場合に削除される。
+ファイルを作成したり削除したりするパッチを生成する簡単な方法は、
+\s-1GNU\s0
+.B diff
+の
+.B \-N
+または
+.B \*=new\-file
+オプションを使うことである。
+.PP
+.\"O If the recipient is supposed to use the
+.\"O .BI \-p N
+.\"O option, do not send output that looks like this:
+受け取った人が
+.BI \-p N
+オプションを使うことが想定される場合、
+次のようなパッチを送らないこと:
+.Sp
+.ft B
+.ne 3
+	diff \-Naur v2.0.29/prog/README prog/README
+.br
+	\-\^\-\^\- v2.0.29/prog/README   Mon Mar 10 15:13:12 1997
+.br
+	+\^+\^+ prog/README   Mon Mar 17 14:58:22 1997
+.ft
+.Sp
+.\"O because the two file names have different numbers of slashes,
+.\"O and different versions of
+.\"O .B patch
+.\"O interpret the file names differently.
+.\"O To avoid confusion, send output that looks like this instead:
+なぜなら二つのファイル名は異なる数のスラッシュを含んでおり、
+.B patch
+のバージョンによって
+ファイル名を異なるように解釈するからである。
+混乱を避けるために、代わりに次のようなパッチを送ること:
+.Sp
+.ft B
+.ne 3
+	diff \-Naur v2.0.29/prog/README v2.0.30/prog/README
+.br
+	\-\^\-\^\- v2.0.29/prog/README   Mon Mar 10 15:13:12 1997
+.br
+	+\^+\^+ v2.0.30/prog/README   Mon Mar 17 14:58:22 1997
+.ft
+.Sp
+.PP
+.\"O Avoid sending patches that compare backup file names like
+.\"O .BR README.orig ,
+.\"O since this might confuse
+.\"O .B patch
+.\"O into patching a backup file instead of the real file.
+.\"O Instead, send patches that compare the same base file names
+.\"O in different directories, e.g.\&
+.\"O .B old/README
+.\"O and
+.\"O .BR new/README .
+バックアップファイルと名前が同じファイル、例えば
+.B README.orig
+と比較したパッチを送らないこと。
+この方法では
+.B patch
+が混乱して、
+正しいファイルではなく
+バックアップファイルにパッチを当ててしまうかもしれないからである。
+そうではなく、
+ファイル名が同じで別のディレクトリにあるファイルどうし、例えば
+.B old/README
+と
+.B new/README
+を比較したパッチを送ること。
+.PP
+.\"O Take care not to send out reversed patches, since it makes people wonder
+.\"O whether they already applied the patch.
+反転したパッチを送らないように注意すること。
+もうパッチを当てたのかと思ってしまうからである。
+.PP
+.\"O Try not to have your patch modify derived files
+.\"O (e.g. the file
+.\"O .B configure
+.\"O where there is a line
+.\"O .B "configure: configure.in"
+.\"O in your makefile), since the recipient should be
+.\"O able to regenerate the derived files anyway.
+.\"O If you must send diffs of derived files,
+.\"O generate the diffs using \s-1UTC\s0,
+.\"O have the recipients apply the patch with the
+.\"O .B \-Z
+.\"O or
+.\"O .B \*=set\-utc
+.\"O option, and have them remove any unpatched files that depend on patched files
+.\"O (e.g. with
+.\"O .BR "make\ clean" ).
+自動生成されるファイル
+( 例えば、 makefile に
+.B "configure: configure.in"
+という行がある場合の
+.B configure
+というファイル )
+を変更するパッチを作らないようにすること。
+受け取った人は自動生成されるファイルを再生成することができるからである。
+自動生成されるファイルの diff を送らなければならない場合、
+\s-1UTC\s0 を用いて diff を作り、
+受け取った人に
+.B \-Z
+または
+.B \*=set\-utc
+オプションを使ってパッチを当ててもらい、
+パッチの当たったファイルに依存する、
+パッチの当たっていないファイルを削除してもらう
+( 例えば
+.B "make\ clean"
+で ) 。
+.PP
+.\"O While you may be able to get away with putting 582 diff listings into
+.\"O one file, it may be wiser to group related patches into separate files in
+.\"O case something goes haywire.
+582 もの差分リストを 1 個のファイルに入れなくても済むのであれば、
+ぐちゃぐちゃになってしまった場合に備えて
+関連するパッチを別々のファイルにまとめておくのが賢明である。
+.\"O .SH DIAGNOSTICS
+.SH "エラーと終了ステータス"
+.\"O Diagnostics generally indicate that
+.\"O .B patch
+.\"O couldn't parse your patch file.
+エラーは一般に、
+.B patch
+がパッチファイルを解析できなかったことを示している。
+.PP
+.\"O If the
+.\"O .B \*=verbose
+.\"O option is given, the message
+.\"O .B Hmm.\|.\|.\&
+.\"O indicates that there is unprocessed text in
+.\"O the patch file and that
+.\"O .B patch
+.\"O is attempting to intuit whether there is a patch in that text and, if so,
+.\"O what kind of patch it is.
+.B \*=verbose
+オプションを指定した場合、
+.B Hmm.\|.\|.\&
+はパッチファイルの中に処理されなかったテキストがあり、
+.B patch
+がテキストの中にパッチがあるかどうかを
+必死に探そうとしていることを表している。
+パッチが見つかると、そのパッチがどんな種類のものかを示す。
+.PP
+.\"O .BR patch 's
+.\"O exit status is
+.\"O 0 if all hunks are applied successfully,
+.\"O 1 if some hunks cannot be applied,
+.\"O and 2 if there is more serious trouble.
+.\"O When applying a set of patches in a loop it behooves you to check this
+.\"O exit status so you don't apply a later patch to a partially patched file.
+.B patch
+の終了ステータスは、
+すべての hunk の適用に成功した場合に 0 、
+一部の hunk が適用できなかった場合に 1 、
+もっと深刻な問題に見舞われた場合に 2 となる。
+バッチ処理で複数のパッチを適用する場合、
+終了ステータスをチェックして、
+部分的にしかパッチの当たっていないファイルに
+以降のパッチを当てないようにすることが必要である。
+.\"O .SH CAVEATS
+.SH "警告"
+.\"O Context diffs cannot reliably represent the creation or deletion of
+.\"O empty files, empty directories, or special files such as symbolic links.
+.\"O Nor can they represent changes to file metadata like ownership, permissions,
+.\"O or whether one file is a hard link to another.
+.\"O If changes like these are also required, separate instructions
+.\"O (e.g. a shell script) to accomplish them should accompany the patch.
+コンテキスト diff は空のファイルや空のディレクトリ、
+シンボリックリンクなどのスペシャルファイルの作成や削除を
+確実に表すことはできない。
+所有者やアクセス権限、あるファイルが
+別のファイルのハードリンクであることといった
+ファイルメタデータの変更を表すこともできない。
+もしそのような変更も必要であれば、
+別に手順書 ( 例えば、シェルスクリプト ) を用意して、
+パッチに添付しなければならない。
+.PP
+.\"O .B patch
+.\"O cannot tell if the line numbers are off in an
+.\"O .B ed
+.\"O script, and can detect
+.\"O bad line numbers in a normal diff only when it finds a change or deletion.
+.\"O A context diff using fuzz factor 3 may have the same problem.
+.\"O Until a suitable interactive interface is added, you should probably do
+.\"O a context diff in these cases to see if the changes made sense.
+.\"O Of course, compiling without errors is a pretty good indication that the patch
+.\"O worked, but not always.
+.B patch
+は、
+.B ed
+スクリプト中の行番号がはみ出しているかどうかは分からないし、
+ノーマル diff の行番号の間違いは
+変更や削除を見つけた場合に限って検出できる。
+fuzz factor が 3 のコンテキスト diff も同じ問題に遭遇するかもしれない。
+適当な対話式のインタフェースが導入されるまでは、
+このような場合はコンテキスト diff を作って
+変更が妥当かどうかを確認しなければならない。
+もちろん、エラーなくコンパイルできたことは
+パッチがうまく当たったよい証拠になるが、必ずしもそうとはいえない。
+.PP
+.\"O .B patch
+.\"O usually produces the correct results, even when it has to do a lot of
+.\"O guessing.
+.\"O However, the results are guaranteed to be correct only when the patch is
+.\"O applied to exactly the same version of the file that the patch was
+.\"O generated from.
+.B patch
+は多数の推測が必要な場合であっても、通常は正しい結果を出す。
+しかし、結果が正しいことが保証されるのは、
+そのパッチが生成されたファイルと全く同一のバージョンの
+ファイルに適用された場合だけである。
+.\"O .SH "COMPATIBILITY ISSUES"
+.SH "互換性の問題"
+.\"O The \s-1POSIX\s0 standard specifies behavior that differs from
+.\"O .BR patch 's
+.\"O traditional behavior.
+.\"O You should be aware of these differences if you must interoperate with
+.\"O .B patch
+.\"O versions 2.1 and earlier, which do not conform to \s-1POSIX\s0.
+\s-1POSIX\s0 標準は
+.B patch
+の古典的な振る舞いと異なる振る舞いを規定している。
+.B patch
+のバージョン 2.1 およびそれ以前 ( これらは \s-1POSIX\s0 に
+準拠していない ) と
+相互に運用しなければならない場合、これらの違いを知っておく必要がある。
+.TP 3
+.B " \(bu"
+.\"O In traditional
+.\"O .BR patch ,
+.\"O the
+.\"O .B \-p
+.\"O option's operand was optional, and a bare
+.\"O .B \-p
+.\"O was equivalent to
+.\"O .BR \-p0.
+.\"O The
+.\"O .B \-p
+.\"O option now requires an operand, and
+.\"O .B "\-p\ 0"
+.\"O is now equivalent to
+.\"O .BR \-p0 .
+.\"O For maximum compatibility, use options like
+.\"O .B \-p0
+.\"O and
+.\"O .BR \-p1 .
+古典的な
+.B patch
+では、
+.B \-p
+オプションの引数は省略可能であり、単独の
+.B \-p
+は
+.B \-p0
+と同等であった。
+今日の
+.B patch
+では
+.B \-p
+オプションに引数が必須で、
+.B "\-p\ 0"
+が
+.B \-p0
+と同等である。
+互換性を最大限に保つために、
+.B \-p0
+や
+.B \-p1
+といったオプションを使う。
+.Sp
+.\"O Also,
+.\"O traditional
+.\"O .B patch
+.\"O simply counted slashes when stripping path prefixes;
+.\"O .B patch
+.\"O now counts pathname components.
+.\"O That is, a sequence of one or more adjacent slashes
+.\"O now counts as a single slash.
+.\"O For maximum portability, avoid sending patches containing
+.\"O .B //
+.\"O in file names.
+また、古典的な
+.B patch
+はパスプレフィクスを取り除く際、スラッシュの数を単純に数えていた。
+今日の
+.B patch
+はパス名の要素を数える。
+つまり、 1 個または複数の隣接するスラッシュの列は
+1 個のスラッシュとして数えられる。
+互換性を最大限に保つために、
+ファイル名に
+.B //
+を含むパッチは送らないようにすること。
+.TP
+.B " \(bu"
+.\"O In traditional
+.\"O .BR patch ,
+.\"O backups were enabled by default.
+.\"O This behavior is now enabled with the
+.\"O .B \-b
+.\"O or
+.\"O .B \*=backup
+.\"O option.
+古典的な
+.B patch
+では、デフォルトでバックアップが有効であった。
+今日の
+.B patch
+では
+.B \-b
+または
+.B \*=backup
+オプションで有効になる。
+.Sp
+.\"O Conversely, in \s-1POSIX\s0
+.\"O .BR patch ,
+.\"O backups are never made, even when there is a mismatch.
+.\"O In \s-1GNU\s0
+.\"O .BR patch ,
+.\"O this behavior is enabled with the
+.\"O .B \*=no\-backup\-if\-mismatch
+.\"O option, or by conforming to \s-1POSIX\s0 with the
+.\"O .B \*=posix
+.\"O option or by setting the
+.\"O .B POSIXLY_CORRECT
+.\"O environment variable.
+反対に、 \s-1POSIX\s0
+.B patch
+では、不整合があってもバックアップは一切作られない。
+\s-1GNU\s0
+.B patch
+では、この振る舞いは
+.B \*=no\-backup\-if\-mismatch
+オプションか、
+.B \*=posix
+オプションまたは
+.B POSIXLY_CORRECT
+環境変数で \s-1POSIX\s0 準拠にするかで有効になる。
+.Sp
+.\"O The
+.\"O .BI \-b "\ suffix"
+.\"O option
+.\"O of traditional
+.\"O .B patch
+.\"O is equivalent to the
+.\"O .BI "\-b\ \-z" "\ suffix"
+.\"O options of \s-1GNU\s0
+.\"O .BR patch .
+古典的な
+.B patch
+の
+.BI \-b "\ suffix"
+オプションは
+\s-1GNU\s0
+.B patch
+の
+.BI "\-b\ \-z" "\ suffix"
+オプションと同等である。
+.TP
+.B " \(bu"
+.\"O Traditional
+.\"O .B patch
+.\"O used a complicated (and incompletely documented) method
+.\"O to intuit the name of the file to be patched from the patch header.
+.\"O This method did not conform to \s-1POSIX\s0, and had a few gotchas.
+.\"O Now
+.\"O .B patch
+.\"O uses a different, equally complicated (but better documented) method
+.\"O that is optionally \s-1POSIX\s0-conforming; we hope it has
+.\"O fewer gotchas.  The two methods are compatible if the
+.\"O file names in the context diff header and the
+.\"O .B Index:\&
+.\"O line are all identical after prefix-stripping.
+.\"O Your patch is normally compatible if each header's file names
+.\"O all contain the same number of slashes.
+古典的な
+.B patch
+は、
+パッチヘッダからパッチを当てるファイルの名前を決定するのに
+複雑な ( しかも完全にはドキュメントになっていない ) 手法を用いていた。
+この手法は \s-1POSIX\s0 に準拠しておらず、いくつか誤りもあった。
+今日の
+.B patch
+は異なる、同じくらい複雑な (しかしドキュメントはましな) 手法を用いており、
+オプションで \s-1POSIX\s0 に準拠することができる。
+誤りが減っているとよいのだが。
+2 つの手法は、
+コンテキスト diff のヘッダのファイル名と
+.B Index:\&
+の行がプレフィクスを除いて全く同じである場合には互換性がある。
+作ったパッチは、
+それぞれのヘッダのファイル名がすべて同じ数のスラッシュを含んでいれば、
+通常は互換性がある。
+.TP
+.B " \(bu"
+.\"O When traditional
+.\"O .B patch
+.\"O asked the user a question, it sent the question to standard error
+.\"O and looked for an answer from
+.\"O the first file in the following list that was a terminal:
+.\"O standard error, standard output,
+.\"O .BR /dev/tty ,
+.\"O and standard input.
+.\"O Now
+.\"O .B patch
+.\"O sends questions to standard output and gets answers from
+.\"O .BR /dev/tty .
+.\"O Defaults for some answers have been changed so that
+.\"O .B patch
+.\"O never goes into an infinite loop when using default answers.
+古典的な
+.B patch
+がユーザに質問をするときは、
+質問を標準エラーに出力し、
+以下のリストのうちターミナルである最初のファイルから回答を求める:
+標準エラー、標準出力、
+.BR /dev/tty 、
+標準入力。
+今日の
+.B patch
+は質問は標準出力に出力し、
+.B /dev/tty
+から回答を得る。
+回答のデフォルトのうちいくつかは変更されており、
+デフォルトの回答を使っても
+.B patch
+が無限ループに陥らないようになっている。
+.TP
+.B " \(bu"
+.\"O Traditional
+.\"O .B patch
+.\"O exited with a status value that counted the number of bad hunks,
+.\"O or with status 1 if there was real trouble.
+.\"O Now
+.\"O .B patch
+.\"O exits with status 1 if some hunks failed,
+.\"O or with 2 if there was real trouble.
+古典的な
+.B patch
+は、失敗した hunk の数をステータス値として終了し、
+本当の問題に出くわした場合は 1 をステータス値としていた。
+今日の
+.B patch
+は hunk が失敗すると 1 で終了し、問題がある場合は 2 で終了する。
+.TP
+.B " \(bu"
+.\"O Limit yourself to the following options when sending instructions
+.\"O meant to be executed by anyone running \s-1GNU\s0
+.\"O .BR patch ,
+.\"O traditional
+.\"O .BR patch ,
+.\"O or a
+.\"O .B patch
+.\"O that conforms to \s-1POSIX\s0.
+.\"O Spaces are significant in the following list, and operands are required.
+\s-1GNU\s0
+.BR patch 、
+古典的
+.BR patch 、
+\s-1POSIX\s0 準拠の
+.B patch
+のどれを使うか分からない人に宛てて手順を送る場合、
+次のオプション以外は使わないこと。
+以下のリストでは空白も意味を持ち、引数は必須である。
+.Sp
+.nf
+.in +3
+.ne 11
+.B \-c
+.BI \-d " dir"
+.BI \-D " define"
+.B \-e
+.B \-l
+.B \-n
+.B \-N
+.BI \-o " outfile"
+.BI \-p num
+.B \-R
+.BI \-r " rejectfile"
+.in
+.fi
+.\"O .SH BUGS
+.SH "バグ"
+.\"O Please report bugs via email to
+.\"O .BR <bug-gnu-utils@gnu.org> .
+バグは電子メールで
+.B <bug-gnu-utils@gnu.org>
+へ報告してください。
+.PP
+.\"O .B patch
+.\"O could be smarter about partial matches, excessively deviant offsets and
+.\"O swapped code, but that would take an extra pass.
+.B patch
+は部分一致や大きく逸脱したオフセットやひっくり返ったコードに対して
+もっと賢くすることもできるだろうが、その道は長いだろう。
+.PP
+.\"O If code has been duplicated (for instance with
+.\"O \fB#ifdef OLDCODE\fP .\|.\|. \fB#else .\|.\|. #endif\fP),
+.\"O .B patch
+.\"O is incapable of patching both versions, and, if it works at all, will likely
+.\"O patch the wrong one, and tell you that it succeeded to boot.
+コードが重複している場合 ( 例えば
+\fB#ifdef OLDCODE\fP .\|.\|. \fB#else .\|.\|. #endif\fP
+のように区切られている場合 ) 、
+.B patch
+は両方のバージョンにパッチを当てることはできない。
+もしパッチが当たったとしたら、
+間違ったほうにパッチが当たってしまっていることもよくあり、
+それでも成功したから続きをやれというだろう。
+.PP
+.\"O If you apply a patch you've already applied,
+.\"O .B patch
+.\"O thinks it is a reversed patch, and offers to un-apply the patch.
+.\"O This could be construed as a feature.
+すでに当たっているパッチを当てようとすると、
+.B patch
+はパッチが反転していると思い、パッチを戻すかを尋ねる。
+これは機能のひとつとみなすことができよう。
+.\"O .SH COPYING
+.SH "著作権"
+Copyright
+.if t \(co
+1984, 1985, 1986, 1988 Larry Wall.
+.br
+Copyright
+.if t \(co
+1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998
+Free Software Foundation, Inc.
+.PP
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+.PP
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+.PP
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the copyright holders instead of in
+the original English.
+.\"O .SH AUTHORS
+.SH "著者"
+.\"O Larry Wall wrote the original version of
+.\"O .BR patch .
+.\"O Paul Eggert removed
+.\"O .BR patch 's
+.\"O arbitrary limits; added support for binary files,
+.\"O setting file times, and deleting files;
+.\"O and made it conform better to \s-1POSIX\s0.
+.\"O Other contributors include Wayne Davison, who added unidiff support,
+.\"O and David MacKenzie, who added configuration and backup support.
+オリジナルの
+.B patch
+は Larry Wall が書いた。
+Paul Eggert は恣意的な制限を取り除き、
+バイナリファイルへの対応や、ファイルの時刻設定、ファイルの削除を追加した。
+また、より \s-1POSIX\s0 に準拠するようにした。
+ほかには Wayne Davison が unidiff への対応を追加し、
+David MacKenzie がコンフィグレーションとバックアップへの対応を追加した。

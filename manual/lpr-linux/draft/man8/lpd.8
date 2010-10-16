@@ -1,0 +1,530 @@
+.\"	$OpenBSD: lpd.8,v 1.5 1997/07/17 07:43:07 deraadt Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)lpd.8	8.3 (Berkeley) 4/19/94
+.\"
+.\" Japanese Version Copyright (c) 2000 Hirohisa AMAN,
+.\"     <aman@soft.comp.kyutech.ac.jp> all right reserved.
+.\"
+.\"O .Dd April 19, 1994
+.\"O .Dt LPD 8
+.\"O .Os BSD 4.4
+.\"O
+.Dd April 19, 1994
+.Dt LPD 8
+.Os BSD 4.4
+.\"O
+.\"O .Sh NAME
+.\"O .Nm lpd
+.\"O .Nd line printer spooler daemon
+.\"O
+.Sh 名前
+.Nm lpd
+.Nd ラインプリンタ スプーラー デーモン
+.\"O
+.\"O .Sh SYNOPSIS
+.\"O .Nm lpd
+.\"O .Op Fl l
+.\"O
+.Sh 書式
+.Nm lpd
+.Op Fl l
+.\"O
+.\"O .Sh DESCRIPTION
+.\"O .Nm Lpd
+.\"O is the line printer daemon (spool area handler) and is normally invoked
+.\"O at boot time from the
+.\"O .Xr rc 8
+.\"O file.  It makes a single pass through the
+.\"O .Xr printcap 5
+.\"O file to find out about the existing printers and
+.\"O prints any files left after a crash. It then uses the system calls
+.\"O .Xr listen 2
+.\"O and
+.\"O .Xr accept 2
+.\"O to receive requests to print files in the queue,
+.\"O transfer files to the spooling area, display the queue,
+.\"O or remove jobs from the queue.  In each case, it forks a child to handle
+.\"O the request so the parent can continue to listen for more requests.
+.\"O .Pp
+.\"O
+.Sh 説明
+.Nm lpd
+は、ラインプリンタデーモン (スプール領域ハンドラー) であり、起動時に
+.Xr rc 8
+ファイルから呼び出されるのが普通である。
+これは、
+.Xr printcap 5
+ファイルをひととおり調べてプリンタ情報を入手し、クラッシュ後に残されていた
+ファイルがあればそれらをすべて印刷する。そして、システムコール
+.Xr listen 2
+及び
+.Xr accept 2
+を利用して、キュー内にあるファイルの印刷要求受付、
+スプール領域へのファイル転送、キューの表示、
+ならびにキュー内のジョブの削除を行なう。
+いずれの場合も、子プロセスをフォーク(fork)して要求を処理し、
+親プロセスは引き続いて他の要求を受け入れれるようにしている。
+.Pp
+.\"O
+.\"O Available options:
+.\"O .Bl -tag -width Ds
+.\"O .It Fl l
+.\"O The
+.\"O .Fl l
+.\"O flag causes
+.\"O .Nm lpd
+.\"O to log valid requests received from the network. This can be useful
+.\"O for debugging purposes.
+.\"O .El
+.\"O .Pp
+.\"O
+オプション :
+.Bl -tag -width Ds
+.It Fl l
+.Fl l
+フラグを立てると、
+.Nm lpd
+はネットワークから受け取った有効な要求のログをとる。
+これは、デバッグを行なうのに有用である。
+.El
+.Pp
+.\"O
+.\"O Access control is provided by two means. First, all requests must come from
+.\"O one of the machines listed in the file
+.\"O .Pa /etc/hosts.equiv
+.\"O or
+.\"O .Pa /etc/hosts.lpd .
+.\"O Second, if the
+.\"O .Li rs
+.\"O capability is specified in the
+.\"O .Xr printcap
+.\"O entry for the printer being accessed,
+.\"O .Em lpr
+.\"O requests will only be honored for those users with accounts on the
+.\"O machine with the printer.
+.\"O .Pp
+.\"O
+アクセス制御には 2 つの方法がある。まず 1 つ目は、
+.Pa /etc/hosts.equiv
+若しくは
+.Pa /etc/hosts.lpd
+ファイルに列挙されているマシンからの要求のみを受け付けるというものである。
+2 つ目の方法は、もし
+.Li rs
+がアクセスされようとしているプリンタの
+.Xr printcap
+エントリに指定してあれば、
+そのプリンタが接続されているマシンにアカウントを持ったユーザーに限り，
+.Em lpr
+要求が受理されるというものである。
+.Pp
+.\"O
+.\"O The file
+.\"O .Em minfree
+.\"O in each spool directory contains the number of disk blocks to leave free
+.\"O so that the line printer queue won't completely fill the disk.
+.\"O The
+.\"O .Em minfree
+.\"O file can be edited with your favorite text editor.
+.\"O .Pp
+.\"O
+ラインプリンタキューがディスクを全て使い果たすことのないよう、
+各スプールディレクトリ内のファイル
+.Em minfree
+には、空きとして残しておくディスクブロックの数が書き込まれる。
+この
+.Em minfree
+の編集には、いかなるエディタを使っても構わない。
+.Pp
+.\"O
+.\"O The daemon begins processing files
+.\"O after it has successfully set the lock for exclusive
+.\"O access (described a bit later),
+.\"O and scans the spool directory
+.\"O for files beginning with 
+.\"O .Em cf .
+.\"O Lines in each
+.\"O .Em cf
+.\"O file specify files to be printed or non-printing actions to be
+.\"O performed.  Each such line begins with a key character
+.\"O to specify what to do with the remainder of the line.
+.\"O
+デーモンは、排他的アクセスのためのロック(後述)をセットした後、
+ファイルの処理を開始し、スプールディレクトリを調べ、
+.Em cf
+で始まるファイルをさがす。
+各
+.Em cf
+ファイルでは、印刷されるべきファイルや(印刷以外で)実行される
+べき動作が指定されている。そのそれぞれの行は、一つのキー文字で始まっ
+ており、それはその行の残りの部分とともに何をするべきかを表している。
+.\"O
+.\"O .Bl -tag -width Ds
+.\"O .It J
+.\"O Job Name.  String to be used for the job name on the burst page.
+.\"O
+.Bl -tag -width Ds
+.It J
+ジョブの名前。バーストページにおいてジョブ名として使われる文字列。
+.\"O
+.\"O .It C
+.\"O Classification.  String to be used for the classification line
+.\"O on the burst page.
+.\"O
+.It C
+分類。バーストページにおいて分類行に使われる文字列。
+.\"O
+.\"O .It L
+.\"O Literal.  The line contains identification info from
+.\"O the password file and causes the banner page to be printed.
+.\"O
+.It L
+リテラル。パスワードファイルから得られた識別情報。
+これは、バナーページを印刷させる。
+.\"O
+.\"O .It T
+.\"O Title.  String to be used as the title for
+.\"O .Xr pr 1 .
+.\"O
+.It T
+タイトル。
+.Xr pr 1
+のタイトルとして使われる文字列。
+.\"O
+.\"O .It H
+.\"O Host Name.  Name of the machine where
+.\"O .Xr lpr
+.\"O was invoked.
+.\"O
+.It H
+ホスト名。
+.Xr lpr
+が呼び出されたマシンの名前。
+.\"O
+.\"O .It P
+.\"O Person.  Login name of the person who invoked
+.\"O .Xr lpr .
+.\"O This is used to verify ownership by
+.\"O .Xr lprm .
+.\"O
+.It P
+人。
+.Xr lpr
+を呼び出した人のログイン名。
+これは、所有権を確認するために
+.Xr lprm
+によって利用される。
+.\"O
+.\"O .It M
+.\"O Send mail to the specified user when the current print job completes.
+.\"O
+.It M
+現在のプリントジョブが完了した時点で、指定されたユーザーに対してメールを送る。
+.\"O
+.\"O .It f
+.\"O Formatted File.  Name of a file to print which is already formatted.
+.\"O
+.It f
+整形されたファイル。印刷するファイル(これは，既に整形してある)の名前。
+.\"O
+.\"O .It l
+.\"O Like ``f'' but passes control characters and does not make page breaks.
+.\"O
+.It l
+``f'' に似ているが、これは制御文字を通し、改ページをさせない。
+.\"O
+.\"O .It p
+.\"O Name of a file to print using
+.\"O .Xr pr 1
+.\"O as a filter.
+.\"O
+.It p
+.Xr pr 1
+をフィルタとして使うことで印刷されるべきファイルの名前。
+.\"O
+.\"O .It t
+.\"O Troff File.  The file contains
+.\"O .Xr troff 1
+.\"O output (cat phototypesetter commands).
+.\"O
+.It t
+troff ファイル。その内容は
+.Xr troff 1
+(cat 写植コマンド)の出力である。
+.\"O
+.\"O .It n
+.\"O Ditroff File.  The file contains device independent troff
+.\"O output.
+.\"O
+.It n
+ditroff ファイル。その内容はデバイス非依存 troff 出力である。
+.\"O
+.\"O .It r
+.\"O DVI File.  The file contains
+.\"O .Tn Tex l 
+.\"O output
+.\"O DVI format from Standford.
+.\"O
+.It r
+DVI ファイル。その内容は
+.Tn Tex 
+出力である。
+DVI フォーマットは、スタンフォード大学で開発されたものである。
+.\"O
+.\"O .It g
+.\"O Graph File.  The file contains data produced by
+.\"O .Xr plot 3 .
+.\"O
+.It g
+グラフファイル。その内容は
+.Xr plot 3
+によって作成されたデータである。
+.\"O
+.\"O .It c
+.\"O Cifplot File. The file contains data produced by
+.\"O .Em cifplot .
+.\"O
+.It c
+cifplot ファイル。その内容は
+.Em cifplot
+によって作成されたデータである。
+.\"O
+.\"O .It v
+.\"O The file contains a raster image.
+.\"O
+.It v
+ラスタイメージ(raster image)ファイル。
+.\"O
+.\"O .It r
+.\"O The file contains text data with
+.\"O FORTRAN carriage control characters.
+.\"O
+.It r
+FORTRAN キャリッジ制御文字(FORTRAN carriage control characters)を含んだテキストデータからなるファイル。
+.\"O
+.\"O .It \&1
+.\"O Troff Font R. Name of the font file to use instead of the default.
+.\"O
+.It \&1
+troff のフォント R 。
+デフォルトの代わりに使用するフォントファイルの名前。
+.\"O
+.\"O .It \&2
+.\"O Troff Font I. Name of the font file to use instead of the default.
+.\"O
+.It \&2
+troff のフォント I 。
+デフォルトの代わりに使用するフォントファイルの名前。
+.\"O
+.\"O .It \&3
+.\"O Troff Font B. Name of the font file to use instead of the default.
+.\"O
+.It \&3
+troff のフォント B 。
+デフォルトの代わりに使用するフォントファイルの名前。
+.\"O
+.\"O .It \&4
+.\"O Troff Font S. Name of the font file to use instead of the default.
+.\"O
+.It \&4
+troff のフォント S 。
+デフォルトの代わりに使用するフォントファイルの名前。
+.\"O
+.\"O .It W
+.\"O Width. Changes the page width (in characters) used by
+.\"O .Xr pr 1
+.\"O and the text filters.
+.\"O
+.It W
+横幅。
+.Xr pr 1
+やテキストフィルタで使用されるページ幅(文字数で指定)を変更する。
+.\"O
+.\"O .It I
+.\"O Indent.  The number of characters to indent the output by (in ascii).
+.\"O
+.It I
+インデント。出力に施すインデントの(アスキー文字での)文字数。
+.\"O
+.\"O .It U
+.\"O Unlink.  Name of file to remove upon completion of printing.
+.\"O
+.It U
+アンリンク(unlink)。印刷終了時に削除されるファイル名。
+.\"O
+.\"O .It N
+.\"O File name.  The name of the file which is being printed, or a blank
+.\"O for the standard input (when 
+.\"O .Xr lpr
+.\"O is invoked in a pipeline).
+.\"O .El
+.\"O .Pp
+.\"O
+.It N
+ファイル名。印刷されるファイル名。標準入力(
+.Xr lpr
+がパイプラインにおいて呼び出された場合)の場合は空白。
+.El
+.Pp
+.\"O
+.\"O If a file cannot be opened, a message will be logged via
+.\"O .Xr syslog 3
+.\"O using the
+.\"O .Em LOG_LPR
+.\"O facility.
+.\"O .Nm Lpd
+.\"O will try up to 20 times
+.\"O to reopen a file it expects to be there, after which it will
+.\"O skip the file to be printed.
+.\"O .Pp
+.\"O
+もしファイルをオープンできないときは、
+.Em LOG_LPR
+機能を使い、
+.Xr syslog 3
+を通じてメッセージが記録される。
+.Nm lpd
+は、そのファイルの印刷を見送るまでに最大 20 回まで再オープンを試みる。
+.Pp
+.\"O
+.\"O .Nm Lpd
+.\"O uses
+.\"O .Xr flock 2
+.\"O to provide exclusive access to the lock file and to prevent multiple
+.\"O daemons from becoming active simultaneously.  If the daemon should be killed
+.\"O or die unexpectedly, the lock file need not be removed.
+.\"O The lock file is kept in a readable
+.\"O .Tn ASCII
+.\"O form
+.\"O and contains two lines.
+.\"O The first is the process id of the daemon and the second is the control
+.\"O file name of the current job being printed.  The second line is updated to
+.\"O reflect the current status of
+.\"O .Nm lpd
+.\"O for the programs
+.\"O .Xr lpq 1
+.\"O and
+.\"O .Xr lprm 1 .
+.\"O
+.Nm lpd
+は、
+.Xr flock 2
+を使ってロックファイルへの排他的アクセスを提供し、
+複数のデーモンが同時にアクティブになるのを防ぐ。
+もし、不意にデーモンが殺されたり死んだりしても、ロックファイルを削除する
+必要はない。
+ロックファイルは、読むことの可能な
+.Tn ASCII
+形式で保持され、2 つの行をその内容としている。
+1 行目はデーモンのプロセス id であり、2 行目は現在の印刷ジョブの
+制御ファイル名である。
+2 行目は、
+.Xr lpq 1
+と
+.Xr lprm 1
+に使われるため、
+.Nm lpd
+の現在の状態を反映するよう更新される。
+.\"O
+.\"O .Sh FILES
+.\"O .Bl -tag -width "/var/spool/*/minfree" -compact
+.\"O .It Pa /etc/printcap
+.\"O printer description file
+.\"O .It Pa /var/spool/*
+.\"O spool directories
+.\"O .It Pa /var/spool/*/minfree
+.\"O minimum free space to leave
+.\"O .It Pa /dev/lp*
+.\"O line printer devices
+.\"O .It Pa /var/run/printer
+.\"O socket for local requests
+.\"O .It Pa /etc/hosts.equiv
+.\"O lists machine names allowed printer access
+.\"O .It Pa /etc/hosts.lpd
+.\"O lists machine names allowed printer access,
+.\"O but not under same administrative control.
+.\"O .El
+.\"O
+.Sh ファイル
+.Bl -tag -width "/var/spool/*/minfree" -compact
+.It Pa /etc/printcap
+プリンタ記述ファイル
+.It Pa /var/spool/*
+スプールディレクトリ(の集まり)
+.It Pa /var/spool/*/minfree
+最低限残しておくべき空き領域
+.It Pa /dev/lp*
+ラインプリンタデバイス
+.It Pa /var/run/printer
+ローカルでの要求に対するソケット(socket)
+.It Pa /etc/hosts.equiv
+プリンタへのアクセスが許可されているマシンの名前のリスト
+.It Pa /etc/hosts.lpd
+プリンタへのアクセスは許可されているが、同じ管理制御の下には置かれていない
+マシンの名前のリスト
+.El
+.\"O
+.\"O .Sh SEE ALSO
+.\"O .Xr lpc 8 ,
+.\"O .Xr pac 8 ,
+.\"O .Xr lpr 1 ,
+.\"O .Xr lpq 1 ,
+.\"O .Xr lprm 1 ,
+.\"O .Xr syslog 3 ,
+.\"O .Xr printcap 5
+.\"O .Rs
+.\"O .%T "BSD 4.3 Line printer manual"
+.\"O .Re
+.\"O .Sh HISTORY
+.\"O An
+.\"O .Nm
+.\"O daemon appeared in Version 6 AT&T UNIX.
+.\"O
+.Sh 関連項目
+.Xr lpc 8 ,
+.Xr pac 8 ,
+.Xr lpr 1 ,
+.Xr lpq 1 ,
+.Xr lprm 1 ,
+.Xr syslog 3 ,
+.Xr printcap 5
+.Rs
+
+.%T "BSD 4.3 ラインプリンタマニュアル"
+.Re
+.Sh 履歴
+.Nm
+デーモンは、Version 6 AT&T UNIX で登場した。
+
+

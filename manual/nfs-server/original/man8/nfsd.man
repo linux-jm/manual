@@ -1,0 +1,281 @@
+.TH NFSD 8 "11 August 1997"
+.SH NAME
+nfsd \- NFS service daemon
+.SH SYNOPSIS
+.ad l
+.B /usr/sbin/rpc.nfsd
+.B "[\ \-f\ exports-file\ ]"
+.B "[\ \-d\ facility\ ]"
+.B "[\ \-P\ port\ ]"
+.B "[\ \-R\ dirname\ ]"
+.B "[\ \-Fhlnprstv\ ]"
+.B "[\ \-\-debug\ facility\ ]"
+.B "[\ \-\-exports\-file=file\ ]"
+.B "[\ \-\-foreground\ ]"
+.B "[\ \-\-help\ ]"
+.B "[\ \-\-allow\-non\-root\ ]"
+.B "[\ \-\-re\-export\ ]"
+.B "[\ \-\-public\-root\ dirname\ ]"
+.\".B "[\ \-\-synchronous\-writes\ ]"
+.B "[\ \-\-no\-spoof\-trace\ ]"
+.B "[\ \-\-port\ port\ ]"
+.B "[\ \-\-log-transfers\ ]"
+.B "[\ \-\-version\ ]"
+.B "[ numservers ]"
+.ad b
+.SH DESCRIPTION
+The
+.I nfsd
+program is an NFS service daemon that handles client filesystem requests.
+Unlike on some other systems,
+.I nfsd
+operates as a normal user-level process.
+The server also differs from other NFS server implementations
+in that it mounts an entire file hierarchy
+not limited by the boundaries of physical file-systems.
+The implementation allows the clients read-only or
+read-write access to the file hierarchy of the server machine.
+.LP
+The
+.I mountd
+program starts an ancillary user-level mount daemon.
+.LP
+.SS Running from inetd
+Usually,
+.I nfsd
+will be started at system boot time. However, you may also invoke it from
+.I inetd
+by adding the following two lines to
+.IR /etc/inetd.conf :
+.PP
+.nf
+.ta +3i
+nfs/2 dgram  rpc/udp wait root /usr/sbin/rpc.nfsd rpc.nfsd
+nfs/2 stream rpc/tcp wait root /usr/sbin/rpc.nfsd rpc.nfsd
+.fi
+.PP
+When run from
+.IR inetd ,
+.i nfsd
+will terminate after a certain period of inactivity.
+.SH OPTIONS
+.TP
+.BR \-f " or " \-\-exports\-file
+This option specifies the exports file, listing the clients that this server
+is prepared to serve and parameters to apply to each such mount (see
+exports(5)).
+By default exports are read from
+.IR /etc/exports .
+.TP
+.BR "\-d facility" " or " "\-\-debug facility"
+Log operations verbosely. Legal values for
+.I facility
+are currently
+.I call
+for the logging of RPC calls and arguments, 
+.I fhcache
+for the file handle cache operation,
+.I auth
+for the authentication routines, and
+.I ugid
+for the uid mapping code, if used. Debug messages will be logged to
+.IR syslog (8)
+unless the daemon runs in the foreground.
+.TP
+.BR \-F " or " \-\-foreground
+Unlike in normal operation,
+.I nfsd
+will not detach from the terminal when given this option. When debugging
+is requested, it will be sent to standard error.
+.TP
+.BR \-h " or " \-\-help
+Provide a short help summary.
+.TP
+.BR \-l " or " \-\-log-transfers
+Tries to catch all files retrieved from and written the NFS server. This
+is mainly for the benefit of anonymous NFS exports and is intended to
+mimick the
+.B xferlog
+file supported by some FTP daemons. For each file store or retrieve,
+a single line is written to the system log daemon containing the
+client's IP address, and the file name. The log level of these
+transfer records is
+.BR daemon.info .
+.TP
+.BR \-n " or " \-\-allow\-non\-root
+Allow incoming NFS requests to be honored even if they do not
+originate from reserved IP ports.  Some older NFS client implementations
+require this.  Some newer NFS client implementations don't believe
+in reserved port checking. This check can be turned off for individual hosts
+by specifying the
+.I insecure
+export option in
+.IR /etc/exports .
+.TP
+.BR "\-P portnum" " or " "\-\-port portnum"
+Makes 
+.I nfsd 
+listen on port
+.B portnum
+instead of the default port 2049. By default,
+.I nfsd
+will listen on the nfs/udp port specified in
+.IR /etc/services ,
+or, if that is undefined, on port 2049.
+.TP
+.BR \-p " or " \-\-promiscuous
+Put the server into promiscuous mode where it will serve any host
+on the network.
+.TP
+.BR \-r " or " \-\-re\-export
+Allow remotely mounted file-systems to be exported.  This can be used to
+turn a machine into a multiplier for NFS or Novell servers. Caution
+should be used when re-exporting loopback NFS mounts because re-entering
+the mount point will result in deadlock between the NFS client and the
+NFS server.
+.IP
+It should be noted that (on Linux)
+.I nfsd
+looks at the major device number of the file system to find out whether
+it is a remote volume; if the major number is not 0, it assumes the file
+system is local. However, not only remote file systems use major number 0,
+also procfs does. If you choose to re-export NFS file systems, beware
+that this potentially includes
+.IR /proc
+if you have the file system root exported. This poses a security problem,
+and you should avoid this situation if possible.
+.\".TP
+.\".BR \-s " or " \-\-synchronous\-writes
+.\"The NFS protocol specification requires all write operations to the server
+.\".\"to be complete before the call returns. By default, 
+.\".I nfsd
+.\"does not do this. This option turns on synchronous writes.
+.\"--- why would anyone want to turn this off?
+.TP
+.BR \-t " or " \-\-no\-spoof\-trace
+By default, 
+.I nfsd 
+logs every access by unauthorized clients. This option turns off logging
+of such spoof attempts for all hosts listed explicitly in the
+.I exports
+file.
+.TP
+.BR \-R " or " \-\-public\-root
+Specifies the directory associated with the public file handle. See
+the section on WebNFS below.
+.TP
+.BR \-v " or " \-\-version
+Report the current version number of the program.
+.TP
+.BR numcopies
+This is an experimental feature that lets you run several instances of
+.I nfsd
+in parallel. When given a value of 
+.B numcopies
+greater than one, 
+.I nfsd
+will fork as many times as specified by this value.
+However, the servers do not share a common file handle
+cache, which makes certain file operations impossible. 
+.IP
+For this reason,
+.I nfsd
+will disallow all write operations when invoked with this option. Although
+this is very limiting, this feature may still prove useful for exporting
+public FTP areas or Usenet News spools.
+.SS WebNFS Support
+WebNFS is an extension to the normal NFS protocol developed by Sun
+that is particularly well-suited for file retrieval over the
+Internet, and is intended to be used (among others) from Web browsers.
+.P
+Central to the concept is the so-called public file handle. This is
+a special NFS file handle used by the NFS client (i.e. browser) to
+retrieve a file without having to go through the mount protocol.
+This file handle must be associated with a directory on the server
+machine, relative to which it evaluates filenames. This is the
+.IR "public root directory" ,
+which can be specified using the
+.B \-\-public\-root
+option.  A Web server, for instance, would probably use the root of its
+Web server as the public root
+.BR "" "(e.g. " /home/httpd ).
+A Web broser requesting the URL
+.B nfs://foo.bar.edu/zappa.html
+would then be given the file
+.BR /home/httpd/zappa.html .
+For ease of maintenance, the public root directory can also be specified
+using a special entry in the
+.I exports
+file (see
+.IR exports (5)
+for details).
+.P
+Naming a public root does
+.I not
+automatically export it; you still must explicitly do that in
+.B /etc/exports
+in order to actually make the directory accessible.
+A useful set of options to export data to WebNFS clients is
+.BR ro,all_squash,insecure .
+Please refer to
+.BR exports (5)
+for a detailed explanation of these flags.
+.P
+Also note that a WebNFS client can also access files not located below the
+public root directory as long as they are exported to him. In particular,
+if you have
+.B /home/ftp
+exported to the world in addition to the Web server's home directory,
+a web client may be able to access FTP files via
+.BR nfs://foo.bar.edu/../ftp/README .
+Of course, this does not apply to files that are not exported to the client.
+.SH SIGNALS
+.I nfsd
+recognizes the following signals:
+.TP
+.I SIGHUP
+causes 
+.I nfsd
+to re-read the export file and flush the file handle cache. If a public
+root was specified, this will also regenerate the file handle associated
+with the public directory name (useful when exporting a removable
+file system).
+.TP
+.I SIGUSR1
+When 
+.I nfsd
+was invoked with debugging options, sending this signal toggles
+generation of debug information.
+.TP
+.I SIGIOT
+When compiled with with the -DCALL_PROFILING option, sending a SIGIOT to
+.I nfsd
+will cause dump the average execution times per NFS operation into
+.IR /tmp/nfsd.profile .
+.SH BUGS
+.I nfsd
+does not support the retrieval of
+.B index.html
+files when asked to look up a directory file name. This is not an RFC
+requirement, so it's rather a feature absent than a true bug.
+.P
+The
+.B \-\-log-transfers
+option is not always accurate since there is no equivalent to the UNIX
+file system
+.BR open() " and " close()
+calls in the NFS protocol. Instead,
+.I nfsd
+writes out a transfer record whenever it encounters a READ or WRITE
+request at offset zero.
+.SH "SEE ALSO"
+exports(5), mountd(8), ugidd(8C)
+.SH AUTHORS
+Mark Shand wrote the orignal unfsd.
+Don Becker extended unfsd to support authentication
+and allow read-write access and called it hnfs.
+Rick Sladkey added host matching, showmount -e support,
+mountd authentication, inetd support, and all of the
+portability and configuration code.
+Olaf Kirch fixed one or two security holes and other bugs, added
+the uid mapping and a couple of other things.

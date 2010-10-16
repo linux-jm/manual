@@ -1,0 +1,227 @@
+.\" sd.4
+.\" Copyright 1992 Rickard E. Faith (faith@cs.unc.edu)
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 1996,1997 ISHIKAWA Mutsumi
+.\"         all rights reserved.
+.\" Translated 1997-02-06, ISHIKAWA Mutsumi <ishikawa@linux.or.jp>
+.\" Updated 2005-11-19, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.\" WORD:	pointer		ポインタ
+.\" WORD:	structure	構造体
+.\" WORD:	geometry	ジオメトリ
+.\" WORD:	sector		セクタ
+.\" WORD:	implement	実装
+.\" WORD:	raw device	ローデバイス
+.\"
+.TH SD 4 1992-12-17 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O sd \- Driver for SCSI Disk Drives
+sd \- SCSI ディスクドライブのためのドライバ
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.BR "#include <linux/hdreg.h>        " "/* for HDIO_GETGEO */"
+.BR "#include <linux/fs.h>           " "/* for BLKGETSIZE and BLKRRPART */"
+.fi
+.\"O .SH CONFIGURATION
+.SH 設定
+.\"O The block device name has the following form:
+.\"O .BI sd lp,
+.\"O where
+.\"O .I l
+.\"O is a letter denoting the physical drive, and
+.\"O .I p
+.\"O is a number denoting the partition on that physical drive.
+.\"O Often, the partition number,
+.\"O .IR p ,
+.\"O will be left off when the device corresponds to the whole drive.
+このブロックデバイス (block device) の名前は、次のような形式をとる:
+.BI sd lp,
+このうち、
+.I l
+は物理ドライブを意味する文字であり、
+.I p
+はその物理ドライブ上のパーティション (partition) を意味する数字である。
+パーティションナンバー
+.I p
+がない場合は、そのデバイスファイルはドライブ全体をさす。
+
+.\"O SCSI disks have a major device number of 8, and a minor device number of
+.\"O the form (16 *
+.\"O .IR drive_number ") + " partition_number ,
+.\"O where
+.\"O .I drive_number
+.\"O is the number of the physical drive in order of detection, and
+.\"O .I partition_number
+.\"O is as follows:
+SCSI ディスクはメジャーナンバー 8 を持ち、次のような形式のマイナーナンバー
+を持つ。(16 *
+.IR drive_number ") + " partition_number 、
+この
+.I drive_number
+は検出された物理ドライブの番号であり、
+.I partition_number
+は次のようになる:
+.sp
+.\"O partition 0 is the whole drive
+.\"O .br
+.\"O partitions 1-4 are the DOS "primary" partitions
+.\"O .br
+.\"O partitions 5-8 are the DOS "extended" (or "logical") partitions
+パーティション 0 はドライブ全体
+.br
+パーティション 1 〜 4 は DOS の "基本 (primary)" パーティション
+.br
+パーティション 5 〜 8 は DOS の "拡張 (extended)" (または、"論理
+(logical)") パーティション。
+
+.\"O For example,
+.\"O .I /dev/sda
+.\"O will have major 8, minor 0, and will refer to all of the first SCSI drive
+.\"O in the system; and
+.\"O .I /dev/sdb3
+.\"O will have major 8, minor 19, and will refer to the third DOS "primary"
+.\"O partition on the second SCSI drive in the system.
+例えば、
+.I /dev/sda
+はメジャーナンバー 8 マイナーナンバー 0 を持ち、システムの最初の SCSI
+ドライブ全体を参照する。そして、
+.I /dev/sdb3
+はメジャーナンバー 8 マイナーナンバー 19 を持ち、システムの二つ目の
+SCSI ドライブの三番目の DOS "基本" パーティションを参照する。
+
+.\"O At this time, only block devices are provided.
+.\"O Raw devices have not yet been implemented.
+現在は、ブロックデバイスだけが提供されている。ロー・デバイス (raw device)
+はまだ実装されていない。
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The following
+.\"O .IR ioctl s
+.\"O are provided:
+次の
+.I ioctl
+が提供されている:
+.TP
+.B HDIO_GETGEO
+.RS
+.\"O Returns the BIOS disk parameters in the following structure:
+次のような構造体を用いて BIOS のディスクパラメータを返す:
+.in +4n
+.nf
+
+struct hd_geometry {
+    unsigned char  heads;
+    unsigned char  sectors;
+    unsigned short cylinders;
+    unsigned long  start;
+};
+.fi
+.in
+
+.\"O A pointer to this structure is passed as the
+.\"O .BR ioctl (2)
+.\"O parameter.
+この構造体へのポインタが
+.BR ioctl (2)
+へのパラメータとして渡される。
+
+.\"O The information returned in the parameter is the disk geometry of the drive
+.\"O .I "as understood by DOS!"
+.\"O This geometry is
+.\"O .I not
+.\"O the physical geometry of the drive.
+.\"O It is used when constructing the
+.\"O drive's partition table, however, and is needed for convenient operation
+.\"O of
+.\"O .BR fdisk (1),
+.\"O .BR efdisk (1),
+.\"O and
+.\"O .BR lilo (1).
+.\"O If the geometry information is not available, zero will be returned for all
+.\"O of the parameters.
+このパラメータに入れられて返される情報は、
+.I "DOS によって理解されるような"
+ドライブのジオメトリである。
+このジオメトリは、ドライブの物理的なジオメトリ
+.I ではない。
+この情報はドライブのパーティションテーブルを作成する時に用いられる、
+また、
+.BR fdisk (1),
+.BR efdisk (1),
+.BR lilo (1)
+の適切な操作に必要である。
+もし、ジオメトリの情報が得られなければ、それぞれの値全てにゼロが入れ
+られて返される。
+.RE
+.TP
+.B BLKGETSIZE
+.\"O Returns the device size in sectors.
+.\"O The
+.\"O .BR ioctl (2)
+.\"O parameter should be a pointer to a
+.\"O .IR long .
+セクタの数で表したデバイスのサイズが返される。
+.BR ioctl (2)
+のパラメータは、
+.I long
+へのポインタでなければならない。
+.TP
+.B BLKRRPART
+.\"O Forces a reread of the SCSI disk partition tables.
+.\"O No parameter is needed.
+強制的に、SCSI ディスクのパーティションテーブルの再読み込みを行う。
+パラメータは必要ない。
+
+.\"O The
+.\"O .BR scsi (4)
+.\"O .BR ioctl (2)
+.\"O operations are also supported.
+.\"O If the
+.\"O .BR ioctl (2)
+.\"O parameter is required, and it is NULL, then
+.\"O .BR ioctl (2)
+.\"O will fail with the error
+.\"O .BR EINVAL .
+.BR scsi (4)
+の
+.BR ioctl (2)
+操作も同様にサポートされる。
+.BR ioctl (2)
+のパラメータが必要で、それが NULL ならば、
+.BR ioctl (2)
+はエラー
+.B EINVAL
+で失敗する。
+.\"O .SH FILES
+.SH ファイル
+.\"O /dev/sd[a\-h]: the whole device
+/dev/sd[a\-h]: ドライブ全体
+.br
+.\"O /dev/sd[a\-h][0\-8]: individual block partitions
+/dev/sd[a\-h][0\-8]: 個々のブロックパーティション
+.\"O .\".SH "SEE ALSO"
+.\" .SH 関連項目
+.\"O .\".BR scsi (4)
+.\" .BR scsi (4)

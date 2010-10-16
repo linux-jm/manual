@@ -1,0 +1,176 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright 1993 Rickard E. Faith (faith@cs.unc.edu)
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified Thu Oct 31 12:04:29 1996 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified, 27 May 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on capability requirements
+.\" 2008-05-03, mtk, expanded and rewrote parts of DESCRIPTION and RETURN
+.\"     VALUE, made style of page more consistent with man-pages style.
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-02-22, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2001-02-10, Yuichi SATO <sato@complex.eng.hokudai.ac.jp>
+.\" Updated & Modified 2004-12-30, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated 2008-08-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.05
+.\"
+.\"WORD:	group			グループ
+.\"WORD:	access			アクセス
+.\"WORD:	process			プロセス
+.\"WORD:	super user		スーパー・ユーザー
+.\"WORD:	supplementary group	補助グループ
+.\"
+.TH GETGROUPS 2 2008-06-03 "Linux" "Linux Programmer's Manual"
+.SH 名前
+getgroups, setgroups \- 補助グループ ID のリストを取得/設定する
+.SH 書式
+.B #include <sys/types.h>
+.br
+.B #include <unistd.h>
+.sp
+.BI "int getgroups(int " size ", gid_t " list []);
+.sp
+.B #include <grp.h>
+.sp
+.BI "int setgroups(size_t " size ", const gid_t *" list );
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR setgroups ():
+_BSD_SOURCE
+.SH 説明
+.PP
+.BR getgroups ()
+は呼び出し元プロセスの補助グループ (supplementary group) ID を
+.I list
+に返す。
+.I size
+引き数には、
+.I list
+により参照されるバッファに格納できる要素の最大数を設定すべきである。
+呼び出し元プロセスが
+.I size
+個より多くの補助グループのメンバの場合には、エラーとなる。
+この関数を呼び出したプロセスの実効グループ ID が、
+返されるリストに含まれるかどうかは規定されていない
+(したがって、アプリケーションは
+.BR getegid (2)
+を呼び出し、その結果の値を追加・削除すべきである)。
+
+.I size
+が 0 ならば、
+.I list
+は修正されないが、そのプロセスの補助グループ ID の合計数が返される。
+これを使うことで、それ以降の
+.BR getgroups ()
+の呼び出しで必要となる動的割り当てバッファ
+.I list
+のサイズを、呼び出し元が決定することができる。
+.PP
+.BR setgroups ()
+は、呼び出し元プロセスの補助グループ ID を設定する。
+適切な特権 (Linux では
+.B CAP_SETGID
+ケーパビリティ (capability)) が必要である。
+.I size
+引き数には、
+.I list
+により参照されるバッファに格納された補助グループ ID の数を指定する。
+.SH 返り値
+.BR getgroups ()
+は、成功すると補助グループ ID の数を返す。
+エラーの場合 \-1 を返し、
+.I errno
+を適切に設定する。
+
+.BR setgroups ()
+は、成功すると 0 を返す。
+エラーの場合 \-1 を返し、
+.I errno
+を適切に設定する。
+.SH エラー
+.TP
+.B EFAULT
+.I list
+が不正なアドレスである。
+.PP
+.BR getgroups ()
+は、上記に加えて以下のエラーで失敗する可能性がある。
+.TP
+.B EINVAL
+.I size
+が補助グループ ID の数より小さいが 0 でない。
+.PP
+.BR setgroups ()
+は、上記に加えて以下のエラーで失敗する可能性がある。
+.TP
+.B EINVAL
+.I size
+が
+.B NGROUPS_MAX
+より大きい
+.RB ( NGROUPS_MAX
+は Linux 2.6.4 より前では 32、Linux 2.6.4 以降では 65536)。
+.TP
+.B ENOMEM
+メモリ不足。
+.TP
+.B EPERM
+呼び出し元プロセスが十分な特権を持っていない。
+.SH 準拠
+SVr4, 4.3BSD.
+.BR getgroups ()
+関数は POSIX.1-2001 に準拠している。
+.BR setgroups ()
+は特権を必要とするため、POSIX.1-2001 に従っていない。
+.SH 注意
+プロセスは、実効グループ ID に加え、最大
+.B NGROUPS_MAX
+までの補助グループ ID を持つことができる。
+補助グループ ID の集合は親プロセスから継承され、
+.BR execve (2)
+の前後で保持される。
+
+補助グループ ID の最大数は
+.BR sysconf (3)
+を使って以下のようにして調べることができる:
+.nf
+
+    long ngroups_max;
+    ngroups_max = sysconf(_SC_NGROUPS_MAX);
+
+.fi
+.BR getgroups ()
+の返り値の最大値は、この値より 1 大きい値より大きくなることはない。
+.SH 関連項目
+.BR getgid (2),
+.BR setgid (2),
+.BR getgrouplist (3),
+.BR initgroups (3),
+.BR capabilities (7),
+.BR credentials (7)

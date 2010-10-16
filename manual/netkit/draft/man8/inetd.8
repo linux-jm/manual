@@ -1,0 +1,574 @@
+.\" Copyright (c) 1985, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)inetd.8	6.7 (Berkeley) 3/16/91
+.\"	$Id: inetd.8,v 1.1.1.1 2000/10/19 08:22:16 ysato Exp $
+.\" jpman %Id: inetd.8,v 1.2 1997/05/16 07:22:24 yugawa Stab %
+.\"
+.\" Modified for JM style on Tue Dec 14 18:07:00 JST 1999
+.\"	by Tatsuo SEKINE <tsekine@isoternet.org>
+.\" Update and Modified on Tue Mar 13 21:08:37 JST 2001
+.\"     by Yuichi SATO <sato@complex.eng.hokudai.ac.jp>
+.\"
+.\"WORD: socket listen queue	ソケット監視キュー
+.\"WORD: suffix		サフィックス
+.\"WORD: group id	グループ ID
+.\"
+.Dd August 22, 1999
+.Dt INETD 8
+.Os "Linux NetKit (0.17)"
+.\"O .Sh NAME
+.Sh 名前
+.Nm inetd
+.\"O .Nd internet
+.\"O .Dq super-server
+.Nd インターネット
+.Dq スーパーサーバー
+.\"O .Sh SYNOPSIS
+.Sh 書式
+.Nm inetd
+.Op Fl di
+.Op Fl q Ar queuelength
+.Op Ar configuration file
+.\"O .Sh DESCRIPTION
+.Sh 説明
+.\"O .Nm Inetd
+.\"O should be run at boot time by
+.\"O .Pa /etc/rc.local
+.\"O (see
+.\"O .Xr rc 8 ) .
+.Nm inetd
+は通常ブート時に
+.Pa /etc/rc.local
+によって起動される
+.Ns ( Xr rc 8
+を参照)。(訳注: ディストリビューションによって異なる)。
+.\"O If your 
+.\"O .Xr init 8
+.\"O can respawn arbitrary daemons,
+.\"O .Nm inetd
+.\"O can be run from init instead; then init will restart it if it crashes.
+使用している
+.Xr init 8
+が任意のデーモンを再起動できる場合、
+.Nm inetd
+は (/etc/rc.local ではなく) init から実行できる。
+そうすれば、クラッシュした場合に再起動できる。
+.\"O You must use the
+.\"O .Fl i
+.\"O option to prevent
+.\"O .Nm inetd
+.\"O from backgrounding itself, or init will become confused.
+この場合は
+.Nm inetd
+が自身をバックグラウンドに送るのを防ぐために
+.Fl i
+オプションを使わなければならない。
+さもないと init は混乱してしまう。
+.Pp
+.\"O When running,
+.\"O .Nm inetd listens for connections on certain
+.\"O internet sockets.  When a connection is found on one of its sockets, 
+.\"O it looks up what service the socket corresponds to, and invokes a 
+.\"O program to service the request. 
+実行されている間
+.Nm inetd 
+は定められたインターネットソケットを監視し、接続要求を待つ。
+監視しているソケットに対して接続要求が出されると、
+そのソケットに対応したサービスを判定し、
+サービスを提供するプログラムを起動する。
+.\"O After the program is finished, it 
+.\"O will continue to listen on the socket, except in some special cases 
+.\"O which will be described below.  Essentially,
+.\"O .Nm inetd
+.\"O allows running one daemon to invoke several others,
+.\"O reducing load on the system.
+サービスプログラムが完了すると、
+.Nm inetd
+は再びソケットの監視を行なう。
+後述するような例外もある。
+.Nm inetd
+を用いれば 1 つのデーモンで
+複数のサービスプログラムを起動することができるので、
+システムの負荷を軽減することができる。
+.\"O .Ss OPTIONS
+.Ss オプション
+.\"O The options available for
+.\"O .Nm inetd:
+.Nm inetd
+に指定できるオプションを示す:
+.Bl -tag -width Ds
+.It Fl d
+.\"O Turns on several kinds of debugging and make inetd behave if run in a 
+.\"O debugger. Also implies
+.\"O .Fl i .
+いくつかのデバッグを有効にして、
+inetd をデバッガから実行されたように動作させる。
+暗黙のうちに
+.Fl i
+も指定される。
+.It Fl i
+.\"O Do not background; for running from
+.\"O .Xr init 8 .
+バックグラウンドにしない。
+.Xr init 8
+から実行するためにある。
+.It Fl q Ar queuelength
+.\"O Sets the size of the socket listen queue to the specified
+.\"O value. Default is 128.
+ソケットの監視キューの大きさを指定された値に設定する。
+デフォルトは 128。
+.El
+.\"O .Ss CONFIGURATION
+.Ss 設定
+.\"O Upon execution,
+.\"O .Nm inetd
+.\"O reads its configuration information from a configuration
+.\"O file which, by default, is
+.\"O .Pa /etc/inetd.conf .
+.Nm inetd
+は実行時に設定情報を設定ファイルから読み込む。
+デフォルトでは設定ファイルは
+.Pa /etc/inetd.conf
+である。
+.\"O There must be an entry for each field of the configuration
+.\"O file, with entries for each field separated by a tab or
+.\"O a space.  Comments are denoted by a ``#'' at the beginning
+.\"O of a line.  There must be an entry for each field.  The
+.\"O fields of the configuration file are as follows:
+設定ファイルの各フィールドにはエントリが 1 つなければならない。
+各フィールドのエントリはタブやスペースで区切る。
+コメントは行頭に ``#'' をつける。
+設定ファイルのフィールドは次の通り:
+.Pp
+.Bd -unfilled -offset indent -compact
+.\"O service name[@hostname]
+.\"O socket type
+.\"O protocol
+.\"O wait/nowait[.max]
+.\"O user[.group]
+.\"O server program
+.\"O server program arguments
+サービス名[@ホスト名]
+ソケットタイプ
+プロトコル
+wait/nowait[.max]
+ユーザー名[.グループ名]
+サーバープログラム名
+サーバープログラム引き数
+.Ed
+.Pp
+.\"O To specify an 
+.\"O .Em Sun-RPC 
+.\"O based service, the entry would contain these fields.
+.Em Sun-RPC
+ベースのサービスを記述する場合には、次のエントリを記述する。
+.Pp
+.Bd -unfilled -offset indent -compact
+.\"O service name/version[@hostname]
+.\"O socket type
+.\"O rpc/protocol
+.\"O wait/nowait[.max]
+.\"O user[.group]
+.\"O server program
+.\"O server program arguments
+サービス名/バージョン[@ホスト名]
+ソケットタイプ
+RPC/プロトコル
+wait/nowait[.max]
+ユーザー名[.グループ名]
+サーバープログラム名
+サーバープログラム引き数
+.Ed
+.Pp
+.\"O The
+.\"O .Em service-name
+.\"O entry is the name of a valid service in
+.\"O the file
+.\"O .Pa /etc/services .
+.Em サービス名
+のエントリには、
+.Pa /etc/services
+ファイルに記述されているサービス名が記述される。
+.\"O For
+.\"O .Dq internal
+.\"O services (discussed below), the service
+.\"O name
+.\"O .Em must
+.\"O be the official name of the service (that is, the first entry in
+.\"O .Pa /etc/services ) . 
+.Dq 内部
+サービス (後述) については、
+名前としてそのサービスの公式名
+(すなわち
+.Pa /etc/services
+内の最初のエントリ) を指定
+.Em しなければならない。
+.\"O When used to specify a
+.\"O .Em Sun-RPC
+.\"O based service, this field is a valid RPC service name in
+.\"O the file
+.\"O .Pa /etc/rpc . 
+.Em Sun-RPC
+ベースのサービスを指定するためには、このフィールドは
+.Pa /etc/rpc
+に書かれた有効な RPC サービス名でなければならない。
+.\"O The part on the right of the 
+.\"O .Dq /
+.\"O is the RPC version number. This
+.\"O can simply be a single numeric argument or a range of versions.
+.\"O A range is bounded by the low version to the high version - 
+.\"O .Dq rusers/1-3 .
+.Dq /
+の右の部分が RPC のバージョン番号である。
+バージョン番号は、数字もしくは、バージョンの範囲 (レンジ) で指定する。
+範囲を指定する場合は低い番号から高い番号を指定する。
+たとえば
+.Dq rusers/1-3
+のように記述する。
+.Pp
+.\"O If a string of the form
+.\"O .Em @hostname 
+.\"O is appended to the service, it causes inetd to bind to the port for
+.\"O the service on only the specific IP address associated with
+.\"O .Em hostname ,
+.\"O instead of listening on all available addresses. 
+サービス名に
+.Em @hostname
+という形式の文字列が追加された場合、
+inetd は
+.Em hostname
+に対応する特定の IP アドレスからの接続についてのみ、
+サービスポートをバインドさせる (全てのアドレスからの接続は listen しない)。
+.\"O This can be done as
+.\"O many times as desired for different addresses, which permits setting
+.\"O up ``virtually hosted'' services. 
+異なるアドレスに対して使用したいだけ指定できるので、
+``仮想ホスト''サービスを設定できる。
+.\"O Note, however, that while you can
+.\"O listen to as many specific addresses as you want, kernel restrictions
+.\"O prevent 
+.\"O .Nm inetd
+.\"O from listening to the same port on a specific address and the general
+.\"O address at once.
+望むだけの数の特定のアドレスを監視できるが、
+カーネルによる制限によって、
+.Nm inetd
+がそのポートを特定のアドレスに対して (あるいは同時に一般のアドレスに対して)
+監視するのが禁止されることもある。
+.\"O .Em hostname
+.\"O should be a resolvable hostname or an IP address associated with one
+.\"O of the interfaces of the local system.
+.Em hostname
+はローカルシステムのインターフェースに関連づけられた、
+解決可能なホスト名または IP アドレスにすべきである。
+.Pp
+.\"O The
+.\"O .Em socket-type
+.\"O should be one of
+.\"O .Dq stream ,
+.\"O .Dq dgram ,
+.\"O .Dq raw ,
+.\"O .Dq rdm ,
+.\"O or
+.\"O .Dq seqpacket ,
+.\"O depending on whether the socket is a stream, datagram, raw,
+.\"O reliably delivered message, or sequenced packet socket.
+.Em ソケットタイプ
+のエントリは、
+.Dq stream ,
+.Dq dgram ,
+.Dq raw ,
+.Dq rdm ,
+.Dq seqpacket
+のいずれかで、それぞれソケットが
+stream, datagram, raw, reliably delivered message, sequenced packet socket
+である場合に対応している。
+.Pp
+.\"O The
+.\"O .Em protocol
+.\"O must be a valid protocol as given in
+.\"O .Pa /etc/protocols .
+.Em プロトコル
+のエントリには、
+.Pa /etc/protocols
+に記述されている有効なプロトコル名が記述される。
+.\"O Examples might be
+.\"O .Dq tcp
+.\"O or
+.\"O .Dq udp .
+例えば
+.Dq tcp
+や
+.Dq udp
+などである。
+.\"O Rpc based services are specified with the 
+.\"O .Dq rpc/tcp
+.\"O or 
+.\"O .Dq rpc/udp 
+.\"O service type.
+RPC ベースのサービスの場合、
+.Dq rpc/tcp
+や
+.Dq rpc/udp 
+のような指定になる。
+.\"O 
+.Pp
+.\"O The
+.\"O .Em wait/nowait
+.\"O entry is applicable to datagram sockets only (other sockets should
+.\"O have a
+.\"O .Dq nowait
+.\"O entry in this space).  If a datagram server connects
+.\"O to its peer, freeing the socket so
+.\"O .Nm inetd
+.\"O can received further messages on the socket, it is said to be
+.\"O a
+.\"O .Dq multi-threaded
+.\"O server, and should use the
+.\"O .Dq nowait
+.\"O entry.  
+.Em wait/nowait
+エントリは、datagram ソケットにのみ適用できる
+(その他のソケットでは、この場所は
+.Dq nowait
+でなければならない)。
+もし datagram サーバーが相手に接続したときにソケットを解放するなら、
+.Nm inetd
+はソケットに対するメッセージをさらに受けることができる。
+このようなサーバーは
+.Dq マルチスレッド
+サーバーと呼ばれ、
+.Dq nowait
+エントリを指定しなければならない。
+.\"O For datagram servers which process all incoming datagrams
+.\"O on a socket and eventually time out, the server is said to be
+.\"O .Dq single-threaded
+.\"O and should use a
+.\"O .Dq wait
+.\"O entry.
+入って来る全ての datagram を処理し、
+時間切れまで動作する datagram サーバーは、
+.Dq シングルスレッド
+サーバーと呼ばれ、
+.Dq wait
+エントリを指定しなければならない。
+.\"O .Xr Comsat 8
+.\"O .Pq Xr biff 1
+.\"O and
+.\"O .Xr talkd 8
+.\"O are both examples of the latter type of
+.\"O datagram server.
+.Xr comsat 8 ,
+.Pq Xr biff 1 ,
+.Xr talkd 8
+は後者のタイプの datagram サーバーの例である。
+.\"O .Xr Tftpd 8
+.\"O is an exception; it is a datagram server that establishes pseudo-connections.
+.\"O It must be listed as
+.\"O .Dq wait
+.\"O in order to avoid a race;
+.\"O the server reads the first packet, creates a new socket,
+.\"O and then forks and exits to allow
+.\"O .Nm inetd
+.\"O to check for new service requests to spawn new servers.
+.Xr tftpd 8
+は例外である; これは疑似接続を確立する datagram サーバーである。
+競合を避けるために
+.Dq wait
+が指定されなければならない;
+サーバーは最初のパケットを読み込み、新たなソケットを作成し、
+.Nm inetd
+が新たなサーバーを起動するような接続要求をチェックできるように、
+fork して終了する。
+.\"O The optional
+.\"O .Dq max
+.\"O suffix (separated from
+.\"O .Dq wait
+.\"O or
+.\"O .Dq nowait
+.\"O by a dot) specifies the maximum number of server instances that may be
+.\"O spawned from
+.\"O .Nm inetd
+.\"O within an interval of 60 seconds. When omitted,
+.\"O .Dq max
+.\"O defaults to 40.
+オプションのサフィックス (接尾辞) 
+.Dq max
+.Ns ( Dq wait
+または
+.Dq nowait
+からドット``.''で分けられる) は、60 秒の間に最大いくつのサーバーが
+.Nm inetd
+から起動できるかを指定する。
+省略された場合の、
+.Dq max
+のデフォルトは 40 である。
+.Pp
+.\"O The
+.\"O .Em user
+.\"O entry should contain the user name of the user as whom the server
+.\"O should run.  This allows for servers to be given less permission
+.\"O than root. 
+.Em user
+エントリには、サーバーを実行するユーザー名を書く。
+これによりサーバーを root よりも低い権限で実行できる。
+.\"O An optional group name can be specified by appending a dot to
+.\"O the user name followed by the group name. This allows for servers to run with
+.\"O a different (primary) group id than specified in the password file. If a group
+.\"O is specified and user is not root, the supplementary groups associated with
+.\"O that user will still be set.
+ユーザー名に続いてドット``.'' を付加して、
+その後ろにグループ名を指定することができる。
+これによりサーバーを password ファイルで指定される
+(プライマリの) グループ ID とは違うグループ ID で実行できる。
+グループ名が指定され、ユーザーが root 以外だった場合は、
+そのユーザの補助グループも (グループアクセスリストに) 設定されることになる。
+.Pp
+.\"O The
+.\"O .Em server-program
+.\"O entry should contain the pathname of the program which is to be
+.\"O executed by
+.\"O .Nm inetd
+.\"O when a request is found on its socket.  If
+.\"O .Nm inetd
+.\"O provides this service internally, this entry should
+.\"O be
+.\"O .Dq internal .
+.Em サーバープログラム名
+のエントリには、ソケットに要求があったとき
+.Nm inetd
+が起動し、当該エントリのサービスを提供する
+サーバープログラムのパス名を指定する。
+.Nm inetd
+内にすでに実装されているサービスを提供する場合には、サーバープログラムとして
+.Dq internal
+を指定する。
+.Pp
+.\"O The
+.\"O .Em server program arguments
+.\"O should be just as arguments
+.\"O normally are, starting with argv[0], which is the name of
+.\"O the program.  If the service is provided internally, the
+.\"O word
+.\"O .Dq internal
+.\"O should take the place of this entry.
+.Em サーバープログラム引数
+のエントリには、サーバーを起動する際の引数を、
+サーバープログラムの起動文字列である argv[0] を含めて記述する。
+.Nm inetd
+内に実装されているサービスを提供する場合には、サーバープログラム引数として
+.Dq internal
+を指定する。
+.\"O .Ss BUILTINS
+.Ss 組み込み関数
+.\"O .Nm Inetd
+.\"O provides several
+.\"O .Dq trivial
+.\"O services internally by use of
+.\"O routines within itself.  These services are
+.\"O .Dq echo ,
+.\"O .Dq discard ,
+.\"O .Dq chargen
+.\"O (character generator),
+.\"O .Dq daytime
+.\"O (human readable time), and
+.\"O .Dq time
+.\"O (machine readable time,
+.\"O in the form of the number of seconds since midnight, January
+.\"O 1, 1900).  All of these services are tcp based.  For
+.\"O details of these services, consult the appropriate
+.\"O .Tn RFC
+.\"O from the Network Information Center.
+.Nm inetd
+は、内蔵ルーチンを用いて簡単なサービスを自身で提供する。
+これらのサービスとは
+.Dq echo ,
+.Dq discard ,
+.Dq chargen
+(文字生成),
+.Dq daytime
+(人間が読む形式で時間を出力),
+.Dq time
+(機械可読形式の時間。1900 年 1 月 1 日 0 時からの経過秒数を出力)
+である。
+これらのサービスは TCP ベースである。
+これらのサービスの詳細については適切な
+.Tn RFC
+ドキュメントを参照のこと。
+.Pp
+.\"O .Nm Inetd
+.\"O rereads its configuration file when it receives a hangup signal,
+.\"O .Dv SIGHUP .
+.\"O Services may be added, deleted or modified when the configuration file
+.\"O is reread.
+.Dv SIGHUP
+を受けとると、
+.Nm inetd
+は、設定ファイルを再度読み込む。
+設定ファイルを再読み込みするときに、サービスを追加・削除・変更できる。
+.\"O .Nm Inetd
+.\"O creates a file
+.\"O .Em /var/run/inetd.pid
+.\"O that contains its process identifier.
+.Nm inetd
+はファイル
+.Pa /var/run/inetd.pid
+を作成し、そこにプロセス ID を記録する。
+.\"O .Sh SEE ALSO
+.Sh 関連項目
+.Xr comsat 8 ,
+.Xr fingerd 8 ,
+.Xr ftpd 8 ,
+.Xr rexecd 8 ,
+.Xr rlogind 8 ,
+.Xr rshd 8 ,
+.Xr telnetd 8 ,
+.Xr tftpd 8
+.\"O .Sh HISTORY
+.Sh 履歴
+.\"O The
+.\"O .Nm
+.\"O command appeared in
+.\"O .Bx 4.3 .
+.\"O Support for
+.\"O .Em Sun-RPC 
+.\"O based services is modelled after that
+.\"O provided by
+.\"O .Em SunOS 4.1 .
+.Nm
+コマンドは
+.Bx 4.3
+から登場した。
+.Em Sun-RPC
+ベースのサービスのサポートは、
+.Em SunOS 4.1
+で提供されたものにならって作られた。

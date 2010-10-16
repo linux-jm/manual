@@ -1,0 +1,1570 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (c) 1993 Michael Haardt
+.\" (michael@moria.de)
+.\" Fri Apr  2 11:32:09 MET DST 1993
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
+.\" USA.
+.\"
+.\" Modified 1993-07-24 by Rik Faith <faith@cs.unc.edu>
+.\" Modified 1995-02-25 by Jim Van Zandt <jrv@vanzandt.mv.com>
+.\" Modified 1995-09-02 by Jim Van Zandt <jrv@vanzandt.mv.com>
+.\" moved to man3, aeb, 950919
+.\" Modified 2001-09-22 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Modified 2001-12-17, aeb
+.\" Modified 2004-10-31, aeb
+.\" 2006-12-28, mtk:
+.\"     Added .SS headers to give some structure to this page; and a
+.\"     small amount of reordering.
+.\"     Added a section on canonical and noncanonical mode.
+.\"     Enhanced the discussion of "raw" mode for cfmakeraw().
+.\"     Document CMSPAR.
+.\"
+.\" Japanese Version Copyright (c) 1998-1999
+.\"   Michihide Hotta and NAKANO Takeo all rights reserved.
+.\" Translated 1998-02-02, Michihide Hotta <sim@remus.dti.ne.jp>
+.\" Updated 1999-03-14, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated 2001-02-17, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2001-10-16, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2002-01-04, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2003-09-01, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2006-07-26, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.36
+.\" Updated 2007-05-01, Akihiro MOTOKI, LDP v2.46
+.\" Updated 2007-09-06, Akihiro MOTOKI, LDP v2.64
+.\"
+.\"WORD:	carriage return		復帰(文字)
+.\"WORD:	new line		改行(文字)
+.\"WORD:	fill character		補填文字
+.\"WORD:	horizontal tab		水平タブ
+.\"WORD:	backspace		後退(文字)
+.\"WORD:	vertical tab		垂直タブ
+.\"WORD:	feature test macro	機能検査マクロ
+.\"
+.TH TERMIOS 3 2007-11-26 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O termios, tcgetattr, tcsetattr, tcsendbreak, tcdrain, tcflush, tcflow,
+.\"O cfmakeraw, cfgetospeed, cfgetispeed, cfsetispeed, cfsetospeed, cfsetspeed \-
+.\"O get and set terminal attributes, line control, get and set baud rate
+.SH 名前
+termios, tcgetattr, tcsetattr, tcsendbreak, tcdrain, tcflush, tcflow,
+cfmakeraw, cfgetospeed, cfgetispeed, cfsetispeed, cfsetospeed, cfsetspeed \-
+ターミナル属性の取得・設定、ライン制御、ボーレートの取得・設定
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #include <termios.h>
+.br
+.B #include <unistd.h>
+.sp
+.BI "int tcgetattr(int " fd ", struct termios *" termios_p );
+.sp
+.BI "int tcsetattr(int " fd ", int " optional_actions ,
+.BI "              const struct termios *" termios_p );
+.sp
+.BI "int tcsendbreak(int " fd ", int " duration );
+.sp
+.BI "int tcdrain(int " fd );
+.sp
+.BI "int tcflush(int " fd ", int " queue_selector );
+.sp
+.BI "int tcflow(int " fd ", int " action );
+.sp
+.BI "void cfmakeraw(struct termios *" termios_p );
+.sp
+.BI "speed_t cfgetispeed(const struct termios *" termios_p );
+.sp
+.BI "speed_t cfgetospeed(const struct termios *" termios_p );
+.sp
+.BI "int cfsetispeed(struct termios *" termios_p ", speed_t " speed );
+.sp
+.BI "int cfsetospeed(struct termios *" termios_p ", speed_t " speed );
+.sp
+.BI "int cfsetspeed(struct termios *" termios_p ", speed_t " speed );
+.fi
+.sp
+.in -4n
+.\"O Feature Test Macro Requirements for glibc (see
+.\"O .BR feature_test_macros (7)):
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR cfsetspeed (),
+.BR cfmakeraw ():
+_BSD_SOURCE
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The termios functions describe a general terminal interface that is
+.\"O provided to control asynchronous communications ports.
+termios 関数群は、非同期通信ポートを制御するための汎用
+ターミナルインタフェースである。
+.\"O .SS "The termios structure"
+.SS "termios 構造体"
+.LP
+.\"O Many of the functions described here have a \fItermios_p\fP argument
+.\"O that is a pointer to a \fItermios\fP structure.
+.\"O This structure contains at least the following members:
+ここに示されている関数の多くは、引き数に \fItermios_p\fP を用いる。
+この引き数は \fItermios\fP 構造体へのポインタである。
+この構造体には少なくとも以下に示すメンバが含まれる:
+.sp
+.in +4n
+.nf
+tcflag_t c_iflag;      /* input modes */
+tcflag_t c_oflag;      /* output modes */
+tcflag_t c_cflag;      /* control modes */
+tcflag_t c_lflag;      /* local modes */
+cc_t     c_cc[NCCS];   /* control chars */
+.fi
+.in
+.PP
+.\"O The values that may be assigned to these fields are described below.
+.\"O In the case of the first four bit-mask fields,
+.\"O the definitions of some of the associated flags that may be set are
+.\"O only exposed if a specific feature test macro (see
+.\"O .BR feature_test_macros (7))
+.\"O is defined, as noted in brackets ("[]").
+以下に、これらのフィールドに割り当て可能な値について説明する。
+最初の 4 つのビットマスクフィールドでは、
+関係するフラグの定義のいくつかは、特定の機能検査マクロ
+.RB ( feature_test_macros (7)
+参照) が定義された場合にのみ公開される。
+必要な機能検査マクロは角括弧 ("[]") 内に書かれている。
+.PP
+.\"O In the descriptions below, "not in POSIX" means that the
+.\"O value is not specified in POSIX.1-2001,
+.\"O and "XSI" means that the value is specified in POSIX.1-2001
+.\"O as part of the XSI extension.
+以下の説明で、 "POSIX にはない" は
+その値が POSIX.1-2001 で規定されていないことを意味し、
+"XSI" はその値が POSIX.1-2001 の XSI 拡張で
+規定されていることを意味する。
+.PP
+.\"O \fIc_iflag\fP flag constants:
+\fIc_iflag\fP フラグには以下の要素を指定できる:
+.TP
+.B IGNBRK
+.\"O Ignore BREAK condition on input.
+入力中の BREAK 信号を無視する。
+.TP
+.B BRKINT
+.\"O If \fBIGNBRK\fP is set, a BREAK is ignored.
+.\"O If it is not set
+.\"O but \fBBRKINT\fP is set, then a BREAK causes the input and output
+.\"O queues to be flushed, and if the terminal is the controlling
+.\"O terminal of a foreground process group, it will cause a
+.\"O \fBSIGINT\fP to be sent to this foreground process group.
+\fBIGNBRK\fP が設定されている場合は、BREAK 信号は無視される。
+\fBIGNBRK\fP が設定されていないが、\fBBRKINT\fP が設定されている場合は、
+BREAK 信号によって入出力キューがフラッシュされ、
+さらに、端末がフォアグラウンドプロセスグループの制御端末の場合は、
+フォアグラウンドプロセスグループに \fBSIGINT\fP が送られる。
+.\"O When neither \fBIGNBRK\fP nor \fBBRKINT\fP are set, a BREAK
+.\"O reads as a null byte (\(aq\\0\(aq), except when \fBPARMRK\fP is set,
+.\"O in which case it reads as the sequence \\377 \\0 \\0.
+\fBIGNBRK\fP も \fBBRKINT\fP も設定されていない場合、
+BREAK を NULL バイト (\(aq\\0\(aq) として読み込む。
+ただし、\fBPARMRK\fP が設定されている場合は \\377 \\0 \\0 のシーケンスとして
+読み込む。
+.TP
+.B IGNPAR
+.\"O Ignore framing errors and parity errors.
+フレームエラーおよびパリティエラーを無視する。
+.TP
+.B PARMRK
+.\"O If \fBIGNPAR\fP is not set, prefix a character with a parity error or
+.\"O framing error with \\377 \\0.
+.\"O If neither \fBIGNPAR\fP nor \fBPARMRK\fP
+.\"O is set, read a character with a parity error or framing error
+.\"O as \\0.
+\fBIGNPAR\fP が設定されていない場合、パリティエラーあるいはフレームエラー
+の発生した文字の前に \\377 \\0 を付加する。\fBIGNPAR\fP も \fBPARMRK\fP も
+設定されていない場合、パリティエラーあるいはフレームエラーの発生した文字を
+\\0 として読み込む。
+.TP
+.B INPCK
+.\"O Enable input parity checking.
+入力のパリティチェックを有効にする。
+.TP
+.B ISTRIP
+.\"O Strip off eighth bit.
+8 ビット目を落とす。
+.TP
+.B INLCR
+.\"O Translate NL to CR on input.
+入力の NL (New Line: 改行文字) を CR (Carriage Return: 復帰文字) に
+置き換える。
+.TP
+.B IGNCR
+.\"O Ignore carriage return on input.
+入力の CR を無視する。
+.TP
+.B ICRNL
+.\"O Translate carriage return to newline on input (unless \fBIGNCR\fP is set).
+(\fBIGNCR\fP が設定されていない場合) 入力の CR を NL に置き換える。
+.TP
+.B IUCLC
+.\"O (not in POSIX) Map uppercase characters to lowercase on input.
+(POSIX にはない) 入力の大文字を小文字に置き換える。
+.TP
+.B IXON
+.\"O Enable XON/XOFF flow control on output.
+出力の XON/XOFF フロー制御を有効にする。
+.TP
+.B IXANY
+.\"O (XSI) Typing any character will restart stopped output.
+.\"O (The default is to allow just the START character to restart output.)
+(XSI) 任意の文字を入力すると、停止していた出力を再開する
+(デフォルトでは、START 文字でのみ出力が再開される)。
+.TP
+.B IXOFF
+.\"O Enable XON/XOFF flow control on input.
+入力の XON/XOFF フロー制御を有効にする。
+.TP
+.B IMAXBEL
+.\"O (not in POSIX) Ring bell when input queue is full.
+.\"O Linux does not implement this bit, and acts as if it is always set.
+(POSIX にはない) 入力キューが一杯の時にベルを鳴らす。
+Linux ではこのビットは実装されておらず、
+常にセットされているかのように振舞う。
+.TP
+.\"O .BR IUTF8 " (since Linux 2.6.4)"
+.BR IUTF8 " (Linux 2.6.4 以降)"
+.\"O (not in POSIX) Input is UTF8;
+.\"O this allows character-erase to be correctly performed in cooked mode.
+(POSIX にはない) 入力が UTF8 である;
+これにより cooked mode で文字削除 (character-erase) を
+正しく機能させることができる。
+.PP
+.\"O \fIc_oflag\fP flag constants defined in POSIX.1:
+POSIX.1 で定義されている \fIc_oflag\fP フラグを以下に示す:
+.TP
+.B OPOST
+.\"O Enable implementation-defined output processing.
+実装に依存した出力処理を有効にする。
+.PP
+.\"O The remaining \fIc_oflag\fP flag constants are defined in POSIX.1-2001,
+.\"O unless marked otherwise.
+残りの \fIc_oflag\fP フラグは、特記のない限り POSIX.1-2001 で定義されている。
+.TP
+.B OLCUC
+.\"O (not in POSIX) Map lowercase characters to uppercase on output.
+(POSIX にはない) 出力時に小文字を大文字に変換する。
+.TP
+.B ONLCR
+.\"O (XSI) Map NL to CR-NL on output.
+(XSI) 出力の NL を CR-NL に置き換える。
+.TP
+.B OCRNL
+.\"O Map CR to NL on output.
+出力の CR を NL に置き換える。
+.TP
+.B ONOCR
+.\"O Don't output CR at column 0.
+0 桁目で CR を出力しない。
+.TP
+.B ONLRET
+.\"O Don't output CR.
+CR を出力しない。
+.TP
+.B OFILL
+.\"O Send fill characters for a delay, rather than using a timed delay.
+転送時間を遅らせるのではなく、補填文字 (fill character) を送る。
+(訳注:特定の文字に対して、端末側の処理を待つために転送を一定時間
+遅らせることができる。また、 \fBOFILL\fP を指定すると
+転送を遅らせる代わりに補填文字を送る。)
+.TP
+.B OFDEL
+.\"O (not in POSIX) Fill character is ASCII DEL (0177).
+.\"O If unset, fill character is ASCII NUL (\(aq\\0\(aq).
+.\"O (Not implemented on Linux.)
+(POSIX にはない) 補填文字を ASCII DEL にする。
+このフラグが設定されていない場合は ASCII NUL (\(aq\\0\(aq) になる。
+(Linux では実装されていない)
+.TP
+.B NLDLY
+.\"O Newline delay mask.
+.\"O Values are \fBNL0\fP and \fBNL1\fP.
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .B _SVID_SOURCE
+.\"O or
+.\"O .BR _XOPEN_SOURCE ]
+NL の遅延を設定する。値は \fBNL0\fP (遅延なし) および \fBNL1\fP である。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+か
+.B _XOPEN_SOURCE
+が必要]
+.TP
+.B CRDLY
+.\"O Carriage return delay mask.
+.\"O Values are \fBCR0\fP, \fBCR1\fP, \fBCR2\fP, or \fBCR3\fP.
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .B _SVID_SOURCE
+.\"O or
+.\"O .BR _XOPEN_SOURCE ]
+CR の遅延を設定する。値は \fBCR0\fP (遅延なし),
+\fBCR1\fP, \fBCR2\fP,\fBCR3\fP である。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+か
+.B _XOPEN_SOURCE
+が必要]
+.TP
+.B TABDLY
+.\"O Horizontal tab delay mask.
+.\"O Values are \fBTAB0\fP, \fBTAB1\fP, \fBTAB2\fP, \fBTAB3\fP (or \fBXTABS\fP).
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .B _SVID_SOURCE
+.\"O or
+.\"O .BR _XOPEN_SOURCE ]
+水平タブ (horizontal tab) の遅延を設定する。
+値は \fBTAB0\fP (遅延なし),
+\fBTAB1\fP, \fBTAB2\fP, \fBTAB3\fP (\fBXTABS\fP) である。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+か
+.B _XOPEN_SOURCE
+が必要]
+.\"O A value of TAB3, that is, XTABS, expands tabs to spaces
+.\"O (with tab stops every eight columns).
+XTAB3 (これは XTABS と同じである) の値はタブをスペース何個に変換するかを示す
+(タブは 8 桁毎に止まる)。
+.TP
+.B BSDLY
+.\"O Backspace delay mask.
+.\"O Values are \fBBS0\fP or \fBBS1\fP.
+.\"O (Has never been implemented.)
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .B _SVID_SOURCE
+.\"O or
+.\"O .BR _XOPEN_SOURCE ]
+後退 (backspace) の遅延を設定する。
+値は \fBBS0\fP (遅延なし) あるいは \fBBS1\fP である。
+(実装されたことはない)
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+か
+.B _XOPEN_SOURCE
+が必要]
+.TP
+.B VTDLY
+.\"O Vertical tab delay mask.
+.\"O Values are \fBVT0\fP or \fBVT1\fP.
+垂直タブ (vertical tab) の遅延を設定する。
+値は \fBVT0\fP (遅延なし) あるいは \fBVT1\fP である。
+.TP
+.B FFDLY
+.\"O Form feed delay mask.
+.\"O Values are \fBFF0\fP or \fBFF1\fP.
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .B _SVID_SOURCE
+.\"O or
+.\"O .BR _XOPEN_SOURCE ]
+頁送り (form feed) の遅延を設定する。
+値は \fBFF0\fP (遅延なし) あるいは \fBFF1\fP である。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+か
+.B _XOPEN_SOURCE
+が必要]
+.PP
+.\"O \fIc_cflag\fP flag constants:
+\fIc_cflag\fP フラグは以下の通り:
+.TP
+.B CBAUD
+.\"O (not in POSIX) Baud speed mask (4+1 bits).
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .BR _SVID_SOURCE ]
+(POSIX にはない) ボーレートマスク (4+1 ビット)。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+が必要]
+.TP
+.B CBAUDEX
+.\"O (not in POSIX) Extra baud speed mask (1 bit), included in
+.\"O .BR CBAUD .
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .BR _SVID_SOURCE ]
+(POSIX にはない) 追加のボーレートマスク (1 ビット)。
+.B CBAUD
+に含まれている。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+が必要]
+.sp
+.\"O (POSIX says that the baud speed is stored in the
+.\"O .I termios
+.\"O structure without specifying where precisely, and provides
+.\"O .BR cfgetispeed ()
+.\"O and
+.\"O .BR cfsetispeed ()
+.\"O for getting at it.
+.\"O Some systems use bits selected by
+.\"O .B CBAUD
+.\"O in
+.\"O .IR c_cflag ,
+.\"O other systems use separate fields, for example,
+.\"O .I sg_ispeed
+.\"O and
+.\"O .IR sg_ospeed .)
+(POSIX では、
+.I termios
+構造体に格納されたボーレートは正確なものではなく、
+ボーレートを操作するために
+.BR cfgetispeed ()
+と
+.BR cfsetispeed ()
+が提供されている。
+.I c_cflag
+内の
+.B CBAUD
+で選択されたビットを使うシステムもあれば、
+.I sg_ispeed
+や
+.I sg_ospeed
+といった独立したフィールドを使うものもある。)
+.TP
+.B CSIZE
+.\"O Character size mask.
+.\"O Values are \fBCS5\fP, \fBCS6\fP, \fBCS7\fP, or \fBCS8\fP.
+文字サイズを設定する。
+値は \fBCS5\fP, \fBCS6\fP, \fBCS7\fP, \fBCS8\fP である。
+.TP
+.B CSTOPB
+.\"O Set two stop bits, rather than one.
+ストップビットを 1 ではなく 2 にする。
+.TP
+.B CREAD
+.\"O Enable receiver.
+受信を有効にする。
+.TP
+.B PARENB
+.\"O Enable parity generation on output and parity checking for input.
+出力にパリティを付加し、入力のパリティチェックを行う。
+.TP
+.B PARODD
+.\"O If set, then parity for input and output is odd;
+.\"O otherwise even parity is used.
+設定されると、入力および出力に対するパリティが奇数パリティとなる。
+設定されない場合、偶数パリティが使用される。
+.TP
+.B HUPCL
+.\"O Lower modem control lines after last process closes the device (hang up).
+最後のプロセスがデバイスをクローズした後、モデムの制御線を low にする
+(切断する)。
+.TP
+.B CLOCAL
+.\"O Ignore modem control lines.
+モデムの制御線を無視する。
+.TP
+.B LOBLK
+.\"O (not in POSIX) Block output from a noncurrent shell layer.
+.\"O For use by \fBshl\fP (shell layers).  (Not implemented on Linux.)
+(POSIX にはない) 現在のシェル層以外からの出力を抑制する。
+ \fBshl\fP (シェル層) で用いられる。(Linux では実装されていない)
+.TP
+.B CIBAUD
+.\"O (not in POSIX) Mask for input speeds.
+.\"O The values for the
+.\"O .B CIBAUD
+.\"O bits are
+.\"O the same as the values for the
+.\"O .B CBAUD
+.\"O bits, shifted left
+.\"O .B IBSHIFT
+.\"O bits.
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .BR _SVID_SOURCE ]
+.\"O (Not implemented on Linux.)
+(POSIX にはない) 入力速度のマスク。
+.B CIBAUD
+ビットのための値は
+.B CBAUD
+ビットのための値と同じであり、
+左に
+.B IBSHIFT
+ビットシフトしたものである。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+が必要]
+(Linux では実装されていない)
+.TP
+.B CMSPAR
+.\"O (not in POSIX)
+.\"O Use "stick" (mark/space) parity (supported on certain serial
+.\"O devices): if
+.\"O .B PARODD
+.\"O is set, the parity bit is always 1; if
+.\"O .B PARODD
+.\"O is not set, then the parity bit is always 0).
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .BR _SVID_SOURCE ]
+(POSIX にはない)
+(一部のシリアルデバイスでサポートされている)
+「スティック (stick)」パリティ (マーク/スペース パリティ)を使用する。
+.B PARODD
+が設定された場合パリティビットは常に 1 となり、
+設定されない場合は常に 0 となる。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+が必要]
+.TP
+.B CRTSCTS
+.\"O (not in POSIX) Enable RTS/CTS (hardware) flow control.
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .BR _SVID_SOURCE ]
+(POSIX にはない) RTS/CTS (ハードウェア) フロー制御を有効にする。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+が必要]
+.PP
+.\"O \fIc_lflag\fP flag constants:
+\fIc_lflag\fP フラグは以下の通り:
+.TP
+.B ISIG
+.\"O When any of the characters INTR, QUIT, SUSP, or DSUSP are received,
+.\"O generate the corresponding signal.
+INTR, QUIT, SUSP, DSUSP の文字を受信した時、対応するシグナルを
+発生させる。
+.TP
+.B ICANON
+.\"O Enable canonical mode (described below).
+カノニカルモードを有効にする (下記参照)。
+.TP
+.B XCASE
+.\"O (not in POSIX; not supported under Linux)
+.\"O If \fBICANON\fP is also set, terminal is uppercase only.
+.\"O Input is converted to lowercase, except for characters preceded by \\.
+.\"O On output, uppercase characters are preceded by \\ and lowercase
+.\"O characters are converted to uppercase.
+(POSIX にはない; Linux では対応していない)
+\fBICANON\fP が同時に設定された場合、端末は大文字のみが有効である。
+入力された文字は \\ が付いた文字を除いて小文字に変換される。
+出力時は、大文字の前に \\ が付き、小文字は大文字に変換される。
+.\"O [requires _BSD_SOURCE or _SVID_SOURCE or _XOPEN_SOURCE]
+.\"O .\" glibc is probably now wrong to allow
+.RB [ _BSD_SOURCE
+が
+.B _SVID_SOURCE
+か
+.B _XOPEN_SOURCE
+が必要]
+.\" 以下はおそらく glibc の間違いであろう。
+.\"O .\" Define
+.\"O .\" .B _XOPEN_SOURCE
+.\"O .\" to expose
+.\"O .\" .BR XCASE .
+.\" .B XCASE
+.\" を公開するには
+.\" .B _XOPEN_SOURCE
+.\" を定義すること。
+.TP
+.B ECHO
+.\"O Echo input characters.
+入力された文字をエコーする。
+.TP
+.B ECHOE
+.\"O If \fBICANON\fP is also set, the ERASE character erases the preceding
+.\"O input character, and WERASE erases the preceding word.
+\fBICANON\fP も同時に設定された場合、ERASE 文字は前の文字を削除し、
+WERASE 文字は前の単語を削除する。
+.TP
+.B ECHOK
+.\"O If \fBICANON\fP is also set, the KILL character erases the current line.
+\fBICANON\fP も同時に設定された場合、KILL 文字は現在の行を削除する。
+.TP
+.B ECHONL
+.\"O If \fBICANON\fP is also set, echo the NL character even if ECHO is not set.
+\fBICANON\fP も同時に設定された場合、
+ECHO が設定されていなくても NL 文字をエコーする。
+.TP
+.B ECHOCTL
+.\"O (not in POSIX) If \fBECHO\fP is also set, ASCII control signals other than
+.\"O TAB, NL, START, and STOP are echoed as \fB^X\fP,
+.\"O where X is the character with
+.\"O ASCII code 0x40 greater than the control signal.
+.\"O For example, character
+.\"O 0x08 (BS) is echoed as \fB^H\fP.
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .BR _SVID_SOURCE ]
+(POSIX にはない) \fBECHO\fP も同時に設定された場合、
+TAB, NL, START, STOP の ASCII 制御文字が \fB^X\fP としてエコーされる。
+X は制御文字より ASCII コードで 0x10 だけ大きな文字である。
+例えば文字 0x28 (BS) は \fB^H\fP とエコーされる。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+が必要]
+.TP
+.B ECHOPRT
+.\"O (not in POSIX) If \fBICANON\fP and \fBIECHO\fP are also set, characters
+.\"O are printed as they are being erased.
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .BR _SVID_SOURCE ]
+(POSIX にはない) \fBICANON\fP および \fBIECHO\fP が同時に設定されている場合、
+削除された文字も表示される。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+が必要]
+.TP
+.B ECHOKE
+.\"O (not in POSIX) If \fBICANON\fP is also set, KILL is echoed by erasing
+.\"O each character on the line, as specified by \fBECHOE\fP and \fBECHOPRT\fP.
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .BR _SVID_SOURCE ]
+(POSIX にはない) \fBICANON\fP も設定された場合、
+KILL が行の各文字を消去する代わりにエコーされる。
+これは \fBECHOE\fP および \fBECHOPRT\fP を指定することと等しい。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+が必要]
+.TP
+.B DEFECHO
+.\"O (not in POSIX) Echo only when a process is reading.
+.\"O (Not implemented on Linux.)
+(POSIX にはない) プロセスが読み込んだときにだけエコーする。
+(Linux では実装されていない)
+.TP
+.B FLUSHO
+.\"O (not in POSIX; not supported under Linux)
+.\"O Output is being flushed.
+.\"O This flag is toggled by typing
+.\"O the DISCARD character.
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .BR _SVID_SOURCE ]
+(POSIX にはない; Linux では対応していない)
+出力をフラッシュする。このフラグは DISCARD 文字を入力することで切替えられる。
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+が必要]
+.TP
+.B NOFLSH
+.\"O Disable flushing the input and output queues when generating the
+.\"O .BR SIGINT ,
+.\"O .BR SIGQUIT ,
+.\"O and
+.\"O .B SIGSUSP
+.\"O signals.
+.\"O .\" Stevens lets SIGSUSP only flush the input queue
+.BR SIGINT ,
+.BR SIGQUIT ,
+.B SIGSUSP
+シグナル発生時の入力・出力キューのフラッシュを無効にする。
+.TP
+.B TOSTOP
+.\"O Send the
+.\"O .B SIGTTOU
+.\"O signal to the process group of a background process
+.\"O which tries to write to its controlling terminal.
+バックグラウンドプロセスのプロセスグループで制御端末へ
+文字を出力しようとしているプロセスに対して
+.B SIGTTOU
+シグナルを送る。
+.TP
+.B PENDIN
+.\"O (not in POSIX; not supported under Linux)
+.\"O All characters in the input queue are reprinted when
+.\"O the next character is read.
+.\"O .RB ( bash (1)
+.\"O handles typeahead this way.)
+.\"O [requires
+.\"O .B _BSD_SOURCE
+.\"O or
+.\"O .BR _SVID_SOURCE ]
+(POSIX にはない; Linux では対応していない)
+次の文字を読み込んだ時、入力キュー中の全文字を再表示する。
+.RB ( bash (1)
+は入力行をこのように処理している。)
+.RB [ _BSD_SOURCE
+か
+.B _SVID_SOURCE
+が必要]
+.TP
+.B IEXTEN
+.\"O Enable implementation-defined input processing.
+.\"O This flag, as well as \fBICANON\fP must be enabled for the
+.\"O special characters EOL2, LNEXT, REPRINT, WERASE to be interpreted,
+.\"O and for the \fBIUCLC\fP flag to be effective.
+実装依存の入力処理を有効にする。
+このフラグは、特殊文字である EOL2, LNEXT, REPRINT, WERASE や、
+\fBIUCLC\fP フラグを有効にするために必要である。
+.PP
+.\"O The \fIc_cc\fP array defines the special control characters.
+.\"O The symbolic indices (initial values) and meaning are:
+\fIc_cc\fP 配列は特殊な制御文字を定義している。
+シンボルの一覧 (初期値) と意味は以下の通り。
+.TP
+.B VINTR
+.\"O (003, ETX, Ctrl-C, or also 0177, DEL, rubout)
+.\"O Interrupt character.
+.\"O Send a
+.\"O .B SIGINT
+.\"O signal.
+.\"O Recognized when
+.\"O .B ISIG
+.\"O is set, and then not passed as input.
+(003, ETX, Ctrl-C か 0177, DEL, rubout)
+割り込み文字。
+.B SIGINT
+シグナルを送る。
+.B ISIG
+がセットされている場合に認識し、入力には渡されない。
+.TP
+.B VQUIT
+.\"O (034, FS, Ctrl-\e)
+.\"O Quit character.
+.\"O Send
+.\"O .B SIGQUIT
+.\"O signal.
+.\"O Recognized when
+.\"O .B ISIG
+.\"O is set, and then not passed as input.
+(034, FS, Ctrl-\e)
+終了文字。
+.B SIGQUIT
+シグナルを送る。
+.B ISIG
+がセットされている場合に認識し、入力には渡されない。
+.TP
+.B VERASE
+.\"O (0177, DEL, rubout, or 010, BS, Ctrl-H, or also #)
+.\"O Erase character.
+.\"O This erases the previous not-yet-erased character,
+.\"O but does not erase past EOF or beginning-of-line.
+.\"O Recognized when
+.\"O .B ICANON
+.\"O is set, and then not passed as input.
+(0177, DEL, rubout か 010, BS, Ctrl-H か #)
+消去文字。これにより、直前の未消去文字を消去する。
+しかし、EOF や行頭を超えては消去しない。
+.B ICANON
+がセットされている場合に認識し、入力には渡されない。
+.TP
+.B VKILL
+.\"O (025, NAK, Ctrl-U, or Ctrl-X, or also @)
+.\"O Kill character.
+.\"O This erases the input since the last EOF or beginning-of-line.
+.\"O Recognized when
+.\"O .B ICANON
+.\"O is set, and then not passed as input.
+(025, NAK, Ctrl-U か Ctrl-X か @)
+完全消去文字。直前の EOF か行頭以降の全ての入力を消去する。
+.B ICANON
+がセットされている場合に認識し、入力には渡されない。
+.TP
+.B VEOF
+.\"O (004, EOT, Ctrl-D)
+.\"O End-of-file character.
+(004, EOT, Ctrl-D)
+ファイル終端文字。
+.\"O More precisely: this character causes the pending tty buffer to be sent
+.\"O to the waiting user program without waiting for end-of-line.
+より正確には、tty バッファの内容を行末を待たずにユーザープログラムに送る。
+.\"O If it is the first character of the line, the
+.\"O .BR read (2)
+.\"O in the
+.\"O user program returns 0, which signifies end-of-file.
+これが行の最初の文字だった場合、ユーザープログラムの
+.BR read (2)
+は 0 を
+返し、ファイル終端であることを知らせる。
+.\"O Recognized when
+.\"O .B ICANON
+.\"O is set, and then not passed as input.
+.B ICANON
+がセットされている場合に認識し、入力には渡されない。
+.TP
+.B VMIN
+.\"O Minimum number of characters for noncanonical read.
+非カノニカル読み込み時の最小文字数。
+.TP
+.B VEOL
+(0, NUL)
+.\"O Additional end-of-line character.
+.\"O Recognized when
+.\"O .B ICANON
+.\"O is set.
+追加の行末文字。
+.B ICANON
+がセットされている場合に認識する。
+.TP
+.B VTIME
+.\"O Timeout in deciseconds for noncanonical read.
+非カノニカル読み込み時のタイムアウト時間 (1/10 秒単位)。
+.TP
+.B VEOL2
+.\"O (not in POSIX; 0, NUL)
+(POSIX にはない; 0, NUL)
+.\"O Yet another end-of-line character.
+.\"O Recognized when
+.\"O .B ICANON
+.\"O is set.
+追加の行末文字。
+.B ICANON
+がセットされている場合に認識する。
+.TP
+.B VSWTCH
+.\"O (not in POSIX; not supported under Linux; 0, NUL)
+(POSIX にはない; Linux では対応していない; 0, NUL)
+.\"O Switch character.
+.\"O (Used by \fBshl\fP only.)
+スイッチ文字 (\fBshl\fP でのみ用いられる)。
+.TP
+.B VSTART
+(021, DC1, Ctrl-Q)
+.\"O Start character.
+.\"O Restarts output stopped by the Stop character.
+.\"O Recognized when
+.\"O .B IXON
+.\"O is set, and then not passed as input.
+開始文字。停止文字で停止した出力を再開する。
+.B IXON
+がセットされている場合に認識し、入力には渡されない。
+.TP
+.B VSTOP
+(023, DC3, Ctrl-S)
+.\"O Stop character.
+.\"O Stop output until Start character typed.
+.\"O Recognized when
+.\"O .B IXON
+.\"O is set, and then not passed as input.
+停止文字。開始文字が入力されるまで出力を停止する。
+.B IXON
+が設定されている場合に認識し、入力には渡されない。
+.TP
+.B VSUSP
+(032, SUB, Ctrl-Z)
+.\"O Suspend character.
+.\"O Send
+.\"O .B SIGTSTP
+.\"O signal.
+.\"O Recognized when
+.\"O .B ISIG
+.\"O is set, and then not passed as input.
+中断文字。
+.B SIGTSTP
+シグナルを送る。
+.B ISIG
+がセットされている場合に認識し、入力には渡されない。
+.TP
+.B VDSUSP
+.\"O (not in POSIX; not supported under Linux; 031, EM, Ctrl-Y)
+(POSIX にはない; Linux では対応していない; 031, EM, Ctrl-Y)
+.\"O Delayed suspend character:
+.\"O send
+.\"O .B SIGTSTP
+.\"O signal when the character is read by the user program.
+.\"O Recognized when
+.\"O .B IEXTEN
+.\"O and
+.\"O .B ISIG
+.\"O are set, and the system supports
+.\"O job control, and then not passed as input.
+遅延中断文字。ユーザープログラムから文字が読み込まれた時に
+.B SIGTSTP
+シグナルを送る。
+.B IEXTEN
+と
+.B ISIG
+がセットされていて、システムがジョブ制御に対応している場合に
+認識し、入力には渡されない。
+.TP
+.B VLNEXT
+.\"O (not in POSIX; 026, SYN, Ctrl-V)
+(POSIX にはない; 026, SYN Ctrl-V)
+.\"O Literal next.
+.\"O Quotes the next input character, depriving it of
+.\"O a possible special meaning.
+.\"O Recognized when
+.\"O .B IEXTEN
+.\"O is set, and then not passed as input.
+リテラル。次の入力文字をエスケープし、特別な意味があっても解釈しない。
+.B IEXTEN
+がセットされている場合に認識し、入力には渡されない。
+.TP
+.B VWERASE
+.\"O (not in POSIX; 027, ETB, Ctrl-W)
+(POSIX にはない; 027, ETB, Ctrl-W)
+.\"O Word erase.
+単語消去。
+.\"O Recognized when
+.\"O .B ICANON
+.\"O and
+.\"O .B IEXTEN
+.\"O are set, and then not passed as input.
+.B ICANON
+と
+.B IEXTEN
+がセットされている場合に認識し、入力には渡されない。
+.TP
+.B VREPRINT
+.\"O (not in POSIX; 022, DC2, Ctrl-R)
+(POSIX にはない; 022, DC2, Ctrl-R)
+.\"O Reprint unread characters.
+まだ読み込んでいない文字列を再表示する。
+.\"O Recognized when
+.\"O .B ICANON
+.\"O and
+.\"O .B IEXTEN
+.\"O are set, and then not passed as input.
+.B ICANON
+と
+.B IEXTEN
+がセットされている場合に認識し、入力には渡されない。
+.TP
+.B VDISCARD
+.\"O (not in POSIX; not supported under Linux; 017, SI, Ctrl-O)
+(POSIX にはない; Linux では対応していない; 017, SI, Ctrl-O)
+.\"O Toggle: start/stop discarding pending output.
+未送信バッファの内容の破棄/保存を切り替える。
+.\"O Recognized when
+.\"O .B IEXTEN
+.\"O is set, and then not passed as input.
+.B IEXTEN
+がセットされている場合に認識し、入力には渡されない。
+.TP
+.B VSTATUS
+.\"O (not in POSIX; not supported under Linux;
+.\"O status request: 024, DC4, Ctrl-T).
+(POSIX にはない; Linux では対応していない;
+状態要求: 024, DC4, Ctrl-T)
+.LP
+.\"O These symbolic subscript values are all different, except that
+.\"O .BR VTIME ,
+.\"O .B VMIN
+.\"O may have the same value as
+.\"O .BR VEOL ,
+.\"O .BR VEOF ,
+.\"O respectively.
+これらのシンボルの示す値は全て異なる。
+ただし、
+.BR VTIME ,
+.B VMIN
+はそれぞれ
+.BR VEOL ,
+.B VEOF
+と同じ値である。
+.\"O In noncanonical mode the special character meaning is replaced
+.\"O by the timeout meaning.
+.\"O For an explanation of
+.\"O .B VMIN
+.\"O and
+.\"O .BR VTIME ,
+.\"O see the description of
+.\"O noncanonical mode below.
+非カノニカルモードでは、特殊文字の意味はタイムアウトの意味に変わる。
+.B VMIN
+と
+.B VTIME
+の説明については、下記の非カノニカルモードの説明を参照のこと。
+.\"O .SS "Retrieving and changing terminal settings"
+.SS "端末の設定の取得と変更"
+.PP
+.\"O .BR tcgetattr ()
+.\"O gets the parameters associated with the object referred by \fIfd\fP and
+.\"O stores them in the \fItermios\fP structure referenced by
+.\"O \fItermios_p\fP.
+.\"O This function may be invoked from a background process;
+.\"O however, the terminal attributes may be subsequently changed by a
+.\"O foreground process.
+.BR tcgetattr ()
+は \fIfd\fP に関するパラメータを取得し、\fItermios_p\fP が参照する構
+造体 \fItermios\fP に設定する。この関数はバックグラウンドプロセスから
+呼ばれることもあるが、この場合、端末の属性はフォアグラウンドプロセス
+によって変化することもある。
+.LP
+.\"O .BR tcsetattr ()
+.\"O sets the parameters associated with the terminal (unless support is
+.\"O required from the underlying hardware that is not available) from the
+.\"O \fItermios\fP structure referred to by \fItermios_p\fP.
+.\"O \fIoptional_actions\fP specifies when the changes take effect:
+.BR tcsetattr ()
+は端末に関連したパラメータを設定する (ハードウェアの設定に必要で、ここで
+設定できないものを除く)。設定には \fItermios_p\fP が参照する
+\fItermios\fP 構造体を用いる。
+\fIoptional_actions\fP には変更が有効となるタイミングを設定する:
+.IP \fBTCSANOW\fP
+.\"O the change occurs immediately.
+ただちに変更が有効となる。
+.IP \fBTCSADRAIN\fP
+.\"O the change occurs after all output written to
+.\"O .I fd
+.\"O has been transmitted.
+.\"O This function should be used when changing
+.\"O parameters that affect output.
+.I fd
+への出力がすべて転送された後に変更が有効になる。この機能は
+出力に影響するパラメータを変更する時に使用するべきである。
+.IP \fBTCSAFLUSH\fP
+.\"O the change occurs after all output written to the object referred by
+.\"O .I fd
+.\"O has been transmitted, and all input that has been received but not read
+.\"O will be discarded before the change is made.
+パラメータを変更する前に、
+.I fd
+への出力がすべて転送され、受信したがまだ読み込んでいないすべての
+入力が破棄される。
+.\"O .SS "Canonical and noncanonical mode"
+.SS "カノニカルモードと非カノニカルモード"
+.\"O The setting of the
+.\"O .B ICANON
+.\"O canon flag in
+.\"O .I c_lflag
+.\"O determines whether the terminal is operating in canonical mode
+.\"O .RB ( ICANON
+.\"O set) or
+.\"O noncanonical mode
+.\"O .RB ( ICANON
+.\"O unset).
+.\"O By default,
+.\"O .B ICANON
+.\"O set.
+.I c_lflag
+の
+.B ICANON
+フラグの設定により、端末がカノニカルモードで動作するかが決定される。
+.B ICANON
+がセットされた場合、カノニカルモード (canonical mode) となり、
+セットされない場合、非カノニカルモード (noncanonical mode) となる。
+デフォルトでは、
+.B ICANON
+はセットされる。
+
+.\"O In canonical mode:
+カノニカルモードでは、以下のような動作となる。
+.IP * 2
+.\"O Input is made available line by line.
+.\"O An input line is available when one of the line delimiters
+.\"O is typed (NL, EOL, EOL2; or EOF at the start of line).
+.\"O Except in the case of EOF, the line delimiter is included
+.\"O in the buffer returned by
+.\"O .BR read (2).
+入力は行単位に行われる。
+行区切り文字が打ち込まれた時点で、入力行が利用可能となる。
+行区切り文字は NL, EOL, EOL2 および行頭での EOF である。
+EOF 以外の場合、
+.BR read (2)
+が返すバッファに行区切り文字も含められる。
+.IP * 2
+.\"O Line editing is enabled (ERASE, KILL;
+.\"O and if the
+.\"O .B IEXTEN
+.\"O flag is set: WERASE, REPRINT, LNEXT).
+.\"O A
+.\"O .BR read (2)
+.\"O returns at most one line of input; if the
+.\"O .BR read (2)
+.\"O requested fewer bytes than are available in the current line of input,
+.\"O then only as many bytes as requested are read,
+.\"O and the remaining characters will be available for a future
+.\"O .BR read (2).
+行編集が有効となる (ERASE, KILL が効果を持つ。
+.B IEXTEN
+フラグが設定された場合は、
+WERASE, REPRINT, LNEXT も効果を持つ)。
+.BR read (2)
+は最大でも 1行の入力しか返さない。
+.BR read (2)
+が要求したバイト数が現在の入力行のバイト数よりも少ない場合、
+要求したのと同じバイト数だけが読み込まれ、
+残りの文字は次回の
+.BR read (2)
+で読み込まれる。
+.PP
+.\"O In noncanonical mode input is available immediately (without
+.\"O the user having to type a line-delimiter character),
+.\"O and line editing is disabled.
+.\"O The settings of MIN
+.\"O .RI ( c_cc[VMIN] )
+.\"O and TIME
+.\"O .RI ( c_cc[VTIME] )
+.\"O determine the circumstances in which a
+.\"O .BR read (2)
+.\"O completes; there are four distinct cases:
+非カノニカルモードでは、入力は即座に利用可能となり
+(ユーザは行区切り文字を打ち込む必要はない)、
+行編集は無効となる。
+MIN
+.RI ( c_cc[VMIN] )
+と TIME
+.RI ( c_cc[VTIME] )
+の設定により、
+.BR read (2)
+が完了する条件が決定される。4種類の場合がある:
+.IP * 2
+MIN == 0; TIME == 0:
+.\"O If data is available,
+.\"O .BR read (2)
+.\"O returns immediately, with the lesser of the number of bytes
+.\"O available, or the number of bytes requested.
+.\"O If no data is available,
+.\"O .BR read (2)
+.\"O returns 0.
+データが利用可能であれば、
+.BR read (2)
+はすぐに返る。このときの返り値は、そのとき利用可能なバイト数か
+.BR read (2)
+の要求バイト数のうち小さい方となる。
+利用可能なデータがない場合
+.BR read (2)
+は 0 を返す。
+.IP * 2
+MIN > 0; TIME == 0:
+.\"O .BR read (2)
+.\"O blocks until the lesser of MIN bytes or the number of bytes requested
+.\"O are available, and returns the lesser of these two values.
+.BR read (2)
+は、利用可能なデータが MIN バイトか要求バイト数のいずれかに達するまで
+停止する。返り値は、MIN か要求バイト数の小さい方となる。
+.IP * 2
+MIN == 0; TIME > 0:
+.\"O TIME specifies the limit for a timer in tenths of a second.
+.\"O The timer is started when
+.\"O .BR read (2)
+.\"O is called.
+.\"O .BR read (2)
+.\"O returns either when at least one byte of data is available,
+.\"O or when the timer expires.
+.\"O If the timer expires without any input becoming available,
+.\"O .BR read (2)
+.\"O returns 0.
+TIME はタイマの上限を規定し、単位は 1/10 秒である。
+タイマは
+.BR read (2)
+が呼ばれた時点で開始される。
+.BR read (2)
+が返るのは、少なくとも 1バイトのデータが利用可能となった時点、
+またはタイマが時間切れとなった時点である。
+入力が全くなくタイマが時間切れとなった場合、
+.BR read (2)
+は 0 を返す。
+.IP * 2
+MIN > 0; TIME > 0:
+.\"O TIME specifies the limit for a timer in tenths of a second.
+.\"O Once an initial byte of input becomes available,
+.\"O the timer is restarted after each further byte is received.
+.\"O .BR read (2)
+.\"O returns either when the lesser of the number of bytes requested or
+.\"O MIN byte have been read,
+.\"O or when the inter-byte timeout expires.
+.\"O Because the timer is only started after the initial byte
+.\"O becomes available, at least one byte will be read.
+TIME はタイマの上限を規定し、単位は 1/10 秒である。
+入力の最初のバイトが利用可能になった後は、
+新たに 1バイト受信する度にタイマがリセットされる。
+.BR read (2)
+が返るのは、MIN バイトか要求バイト数のうち少ない方まで読み出された時点か、
+バイト間タイマが時間切れとなった時点である。
+は最初のバイトが利用可能にならないとタイマは開始されないので、
+少なくとも 1バイトは読み込まれる。
+.SS "Raw mode"
+.LP
+.\"O .BR cfmakeraw ()
+.\"O sets the terminal to something like the
+.\"O "raw" mode of the old Version 7 terminal driver:
+.\"O input is available character by character,
+.\"O echoing is disabled, and all special processing of
+.\"O terminal input and output characters is disabled.
+.\"O The terminal attributes are set as follows:
+.BR cfmakeraw ()
+は、端末を昔の Version 7 端末ドライバの
+"raw" モードのように設定する。
+入力は文字単位に可能であり、エコーが無効となり、
+端末の入出力文字に対する特殊処理はすべて無効となる。
+端末の属性は以下のように設定される:
+.nf
+
+    termios_p\->c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP
+                    | INLCR | IGNCR | ICRNL | IXON);
+    termios_p\->c_oflag &= ~OPOST;
+    termios_p\->c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+    termios_p\->c_cflag &= ~(CSIZE | PARENB);
+    termios_p\->c_cflag |= CS8;
+.fi
+.\"O .SS "Line control"
+.SS "ライン制御"
+.LP
+.\"O .BR tcsendbreak ()
+.\"O transmits a continuous stream of zero-valued bits for a specific
+.\"O duration, if the terminal is using asynchronous serial data
+.\"O transmission.
+.\"O If \fIduration\fP is zero, it transmits zero-valued bits
+.\"O for at least 0.25 seconds, and not more that 0.5 seconds.
+.\"O If \fIduration\fP is not zero, it sends zero-valued bits for some
+.\"O implementation-defined length of time.
+.BR tcsendbreak ()
+は端末が非同期のシリアルデータ転送を用いている場合に、
+連続した0のビット列を一定間隔で転送する。
+\fIduration\fP が 0 の場合は、0 のビットを 0.25 秒以上、
+0.5 秒以下の間隔で転送する。 \fIduration\fP が 0 でない場合は、
+0 のビットを実装依存の時間間隔で送る。
+.LP
+.\"O If the terminal is not using asynchronous serial data transmission,
+.\"O .BR tcsendbreak ()
+.\"O returns without taking any action.
+端末が非同期のシリアルデータ転送モードでない場合、
+.BR tcsendbreak ()
+は何も行わずに戻る。
+.LP
+.\"O .BR tcdrain ()
+.\"O waits until all output written to the object referred to by
+.\"O .I fd
+.\"O has been transmitted.
+.BR tcdrain ()
+は
+.I fd
+が行っている出力の転送が完了するまで待つ。
+.LP
+.\"O .BR tcflush ()
+.\"O discards data written to the object referred to by
+.\"O .I fd
+.\"O but not transmitted, or data received but not read, depending on the
+.\"O value of
+.\"O .IR queue_selector :
+.BR tcflush ()
+は
+.I fd
+が行っているデータの出力でまだ転送されていないもの、あるいは受信し
+たがまだ入力していないものを破棄する。いずれを行うかは
+.I queue_selector
+の値で定める:
+.\"??nakano flush == discard?
+.IP \fBTCIFLUSH\fP
+.\"O flushes data received but not read.
+受信したが読んでいないデータをフラッシュする。
+.IP \fBTCOFLUSH\fP
+.\"O flushes data written but not transmitted.
+書いたが送信していないデータをフラッシュする。
+.IP \fBTCIOFLUSH\fP
+.\"O flushes both data received but not read, and data written but not
+.\"O transmitted.
+受信したが読んでいないデータ・書いたが送信していないデータ両方
+をフラッシュする。
+.LP
+.\"O .BR tcflow ()
+.\"O suspends transmission or reception of data on the object referred to by
+.\"O .IR fd ,
+.\"O depending on the value of
+.\"O .IR action :
+.BR tcflow ()
+は
+.I fd
+で指定されたオブジェクトにおけるデータの送信あるいは受信を一時的に中断する。
+送信と受信のどちらかは、
+.IR action で決まる:
+.IP \fBTCOOFF\fP
+.\"O suspends output.
+出力の中断。
+.IP \fBTCOON\fP
+.\"O restarts suspended output.
+中断した出力の再開。
+.IP \fBTCIOFF\fP
+.\"O transmits a STOP character, which stops the terminal device from
+.\"O transmitting data to the system.
+STOP 文字の送信。
+STOP 文字は端末デバイスからシステムへのデータ送信を停止する。
+.IP \fBTCION\fP
+.\"O transmits a START character, which starts the terminal device
+.\"O transmitting data to the system.
+START 文字の送信。
+START 文字は端末デバイスからシステムへのデータ送信を開始する。
+.LP
+.\"O The default on open of a terminal file is that neither its input nor its
+.\"O output is suspended.
+端末ファイルがオープンされたときのデフォルトでは、
+入力も出力も中断されていない。
+.\"O .SS "Line speed"
+.SS "ライン速度"
+.\"O The baud rate functions are provided for getting and setting the values
+.\"O of the input and output baud rates in the \fItermios\fP structure.
+.\"O The new values do not take effect
+.\"O until
+.\"O .BR tcsetattr ()
+.\"O is successfully called.
+ボーレート関数は \fItermios\fP 構造体中の入出力ボーレートを
+取得、設定するために提供される。
+設定された値は
+.BR tcsetattr ()
+の呼び出しが成功するまでは有効ではない。
+
+.\"O Setting the speed to \fBB0\fP instructs the modem to "hang up".
+.\"O The actual bit rate corresponding to \fBB38400\fP may be altered with
+.\"O .BR setserial (8).
+速度を \fBB0\fP に設定した場合、モデムは停止 (hang up) する。
+\fBB38400\fP に該当する実際のビットレートは
+.BR setserial (8)
+で
+変更できる。
+.LP
+.\"O The input and output baud rates are stored in the \fItermios\fP
+.\"O structure.
+入力および出力ボーレートは \fItermios\fP 構造体に格納される。
+.LP
+.\"O .BR cfgetospeed ()
+.\"O returns the output baud rate stored in the \fItermios\fP structure
+.\"O pointed to by
+.\"O .IR termios_p .
+.BR cfgetospeed ()
+は
+.I termios_p
+が示している \fItermios\fP 構造体に格納されている
+出力ボーレートを返す。
+.LP
+.\"O .BR cfsetospeed ()
+.\"O sets the output baud rate stored in the \fItermios\fP structure pointed
+.\"O to by \fItermios_p\fP to \fIspeed\fP, which must be one of these constants:
+.BR cfsetospeed ()
+は \fItermios_p\fP で示されている \fItermios\fP 構造体中の出力ボーレートを
+\fIspeed\fP に設定する。値は以下のいずれかでなければならない:
+.nf
+
+.ft B
+	B0
+	B50
+	B75
+	B110
+	B134
+	B150
+	B200
+	B300
+	B600
+	B1200
+	B1800
+	B2400
+	B4800
+	B9600
+	B19200
+	B38400
+	B57600
+	B115200
+	B230400
+.ft P
+
+.fi
+.\"O The zero baud rate, \fBB0\fP,
+.\"O is used to terminate the connection.
+.\"O If B0 is specified, the modem control lines shall no longer be asserted.
+.\"O Normally, this will disconnect the line.
+.\"O \fBCBAUDEX\fP is a mask
+.\"O for the speeds beyond those defined in POSIX.1 (57600 and above).
+.\"O Thus, \fBB57600\fP & \fBCBAUDEX\fP is nonzero.
+0ボー (\fBB0\fP) は接続の中断に用いられる。
+B0が指定された場合、モデムの制御線は使用されない状態になり、一般にはこれで
+接続が切断される。
+\fBCBAUDEX\fP はPOSIX.1で定義されている速度の範囲外 (57600 およびそれ以上)
+を設定する。すなわち例えば \fBB57600\fP & \fBCBAUDEX\fP は 0 でない。
+.LP
+.\"O .BR cfgetispeed ()
+.\"O returns the input baud rate stored in the \fItermios\fP structure.
+.BR cfgetispeed ()
+は \fItermios\fP 構造体中の入力ボーレートを返す。
+.LP
+.\"O .BR cfsetispeed ()
+.\"O sets the input baud rate stored in the \fItermios\fP structure to
+.\"O .IR speed ,
+.\"O which must be specified as one of the \fBBnnn\fP constants listed above for
+.\"O .BR cfsetospeed ().
+.\"O If the input baud rate is set to zero, the input baud rate will be
+.\"O equal to the output baud rate.
+.BR cfsetispeed ()
+は \fItermios\fP 構造体中の入力ボーレートを
+.I speed
+に設定する。
+.I speed
+には、上述の
+.BR cfsetospeed ()
+のボーレート定数 \fBBnnn\fP のいずれか一つを指定しなければならない。
+入力ボーレートが 0 に設定された場合、入力ボーレートは出力ボーレート
+と同じ値となる。
+.LP
+.\"O .BR cfsetspeed ()
+.\"O is a 4.4BSD extension.
+.\"O It takes the same arguments as
+.\"O .BR cfsetispeed (),
+.\"O and sets both input and output speed.
+.BR cfsetspeed ()
+は 4.4BSD による拡張である。この関数は
+.BR cfsetispeed ()
+と同じ引き数をとり、入出力両方の速度を設定する。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.LP
+.\"O .BR cfgetispeed ()
+.\"O returns the input baud rate stored in the
+.\"O \fItermios\fP
+.\"O structure.
+.BR cfgetispeed ()
+は \fItermios\fP 構造体中の入力ボーレートを返す。
+.LP
+.\"O .BR cfgetospeed ()
+.\"O returns the output baud rate stored in the \fItermios\fP structure.
+.BR cfgetospeed ()
+は \fItermios\fP 構造体中の出力ボーレートを返す。
+.LP
+.\"O All other functions return:
+他のすべての関数の戻り値:
+.IP 0
+.\"O on success.
+実行成功。
+.IP \-1
+.\"O on failure and set
+.\"O .I errno
+.\"O to indicate the error.
+実行失敗。
+.I errno
+がエラーの種類を示す。
+.LP
+.\"O Note that
+.\"O .BR tcsetattr ()
+.\"O returns success if \fIany\fP of the requested changes could be
+.\"O successfully carried out.
+.\"O Therefore, when making multiple changes
+.\"O it may be necessary to follow this call with a further call to
+.\"O .BR tcgetattr ()
+.\"O to check that all changes have been performed successfully.
+.BR tcsetattr ()
+は \fIなんらかの\fP 変更要求が成功した場合に成功を返すことに注意。
+従って、複数の変更を行った場合には、引き続いて
+.BR tcgetattr ()
+を呼び出して全ての変更が実行されているかを確認する必要があるかもしれない。
+.\"O .SH CONFORMING TO
+.SH 準拠
+.BR tcgetattr (),
+.BR tcsetattr (),
+.BR tcsendbreak (),
+.BR tcdrain (),
+.BR tcflush (),
+.BR tcflow (),
+.BR cfgetispeed (),
+.BR cfgetospeed (),
+.BR cfsetispeed (),
+.\"O and
+.BR cfsetospeed ()
+.\"O are specified in POSIX.1-2001.
+は POSIX.1-2001 で規定されている。
+
+.\"O .BR cfmakeraw ()
+.\"O and
+.\"O .BR cfsetspeed ()
+.\"O are nonstandard, but available on the BSDs.
+.BR cfmakeraw ()
+と
+.BR cfsetspeed ()
+は非標準だが、BSD では利用可能である。
+.\"O .SH NOTES
+.SH 注意
+.\"O Unix V7 and several later systems have a list of baud rates
+.\"O where after the fourteen values B0, ..., B9600 one finds the
+.\"O two constants EXTA, EXTB ("External A" and "External B").
+.\"O Many systems extend the list with much higher baud rates.
+Unix V7 とその後のいくつかのシステムでは、ボーレートの 14 個のリストである
+B0, ..., B9600 の後ろに EXTA, EXTB ("External A" と "External B") の 2 つを
+追加している。
+多くのシステムではさらに高速なボーレートのためにリストを拡張している。
+.LP
+.\"O The effect of a nonzero \fIduration\fP with
+.\"O .BR tcsendbreak ()
+.\"O varies.
+.BR tcsendbreak ()
+で \fIduration\fP に 0 以外を指定した場合の効果は様々である。
+.\"O SunOS specifies a break of
+.\"O .I "duration\ *\ N"
+.\"O seconds, where \fIN\fP is at least 0.25, and not more than 0.5.
+SunOS は
+.IB duration * N
+秒のブレークを規定している。ここで \fIN\fP は 0.25 以上 0.5 未満である。
+.\"O Linux, AIX, DU, Tru64 send a break of
+.\"O .I duration
+.\"O milliseconds.
+Linux, AIX, DU, Tru64 は
+.I duration
+ミリ秒のブレークを送信する。
+.\"O FreeBSD and NetBSD and HP-UX and MacOS ignore the value of
+.\"O .IR duration .
+FreeBSD, NetBSD, HP-UX, MacOS は
+.I duration
+の値を無視する。
+.\"O Under Solaris and Unixware,
+.\"O .BR tcsendbreak ()
+.\"O with nonzero
+.\"O .I duration
+.\"O behaves like
+.\"O .BR tcdrain ().
+Solaris と Unixware では、非ゼロの
+.I duration
+を指定した
+.BR tcsendbreak ()
+の振る舞いは
+.BR tcdrain ()
+と同様である。
+.\"O .\" libc4 until 4.7.5, glibc for sysv: EINVAL for duration > 0.
+.\"O .\" libc4.7.6, libc5, glibc for unix: duration in ms.
+.\"O .\" glibc for bsd: duration in us
+.\"O .\" glibc for sunos4: ignore duration
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR stty (1),
+.BR console_ioctl (4),
+.BR tty_ioctl (4),
+.BR setserial (8)

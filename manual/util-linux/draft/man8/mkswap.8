@@ -1,0 +1,285 @@
+.\" Copyright 1998 Andries E. Brouwer (aeb@cwi.nl)
+.\"
+.\" May be distributed under the GNU General Public License
+.\" Rewritten for 2.1.117, aeb, 981010.
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Japanese Version Copyright (c) 1997 NAKANO Takeo all rights reserved.
+.\" Translated Thu Aug 28 1997 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified Thu 7 Oct 1999 by NAKANO Takeo 
+.\" Updated & Modified Sat 18 Mar 2000 by NAKANO Takeo
+.\" Updated & Modified Wed 14 Jun 2000 by NAKANO Takeo 
+.\" Updated & Modified Wed May  5 00:29:28 JST 2004
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified Sat May  7 00:44:04 JST 2005 by Yuichi SATO
+.\"
+.TH MKSWAP 8 "25 March 1999" "Linux 2.2.4" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O mkswap \- set up a Linux swap area
+.SH 名前
+mkswap \- Linux のスワップ領域を準備する
+.\"O .SH SYNOPSIS
+.SH 書式
+.BI "mkswap [\-c] [\-v" N "] [\-f] [\-p " PSZ "] [\-L " label "] " device  " [" size "]"
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .B mkswap
+.\"O sets up a Linux swap area on a device or in a file.
+.B mkswap
+は Linux のスワップ領域をデバイス上またはファイル上に準備する。
+
+.\"O (After creating the swap area, you need the
+.\"O .B swapon
+.\"O command to start using it. Usually swap areas are listed in
+.\"O .I /etc/fstab
+.\"O so that they can be taken into use at boot time by a
+.\"O .B swapon -a
+.\"O command in some boot script.)
+(スワップ領域を準備した後にこの領域の利用を開始するには、
+.B swapon
+コマンドを用いる必要がある。通常スワップ領域は
+.I /etc/fstab
+にリストされ、起動スクリプトに記述されている
+.B swapon \-a
+コマンドによって、起動時から利用できるようになっている。)
+
+.\"O The
+.\"O .I device
+.\"O argument will usually be a disk partition (something like
+.\"O .I /dev/hda4
+.\"O or
+.\"O .IR /dev/sdb7 )
+.\"O but can also be a file.
+.\"O The Linux kernel does not look at partition Id's, but
+.\"O many installation scripts will assume that partitions
+.\"O of hex type 82 (LINUX_SWAP) are meant to be swap partitions.
+.\"O (Warning: Solaris also uses this type. Be careful not to kill
+.\"O your Solaris partitions.)
+引き数
+.I device
+は通常はディスクパーティション
+.RI ( /dev/hda4
+や
+.I /dev/sdb7
+のようなもの) であるが、ファイルを指定することもできる。
+Linux カーネルはパーティション ID を参照しないが、
+インストールスクリプトの多くでは、パーティション形式が
+16 進の 82 (LINUX_SWAP) となっているものをスワップパーティション
+とみなしている。
+(警告: Solaris もこの形式を使う。
+Solaris のパーティションを破壊しないように注意すること。)
+
+.\"O The
+.\"O .I size
+.\"O parameter is superfluous but retained for backwards compatibility.
+.\"O (It specifies the desired size of the swap area in 1024-byte blocks.
+.\"O .B mkswap
+.\"O will use the entire partition or file if it is omitted.
+.\"O Specifying it is unwise - a typo may destroy your disk.)
+.I size
+パラメータは不要であるが、過去との互換性のために残してある。
+(スワップ領域にしたいサイズを 1024 バイトブロック単位で指定する。
+このパラメータが省略されると、
+.B mkswap
+はパーティション全体を用いる。
+このパラメータは指定しないほうが賢い。タイプミスをすると
+ディスクを壊してしまう。)
+
+.\"O The
+.\"O .I PSZ
+.\"O parameter specifies the page size to use. It is almost always
+.\"O unnecessary (even unwise) to specify it, but certain old libc
+.\"O versions lie about the page size, so it is possible that
+.\"O .B mkswap
+.\"O gets it wrong. The symptom is that a subsequent
+.\"O .B swapon
+.\"O fails because no swap signature is found. Typical values for
+.\"O .I PSZ
+.\"O are 4096 or 8192.
+.I PSZ
+引き数は、用いるページサイズを指定する。
+ほとんどの場合は指定しなくてもよい (というか指定するのは賢くない) が、
+古い libc のあるバージョンはページサイズの値を間違えて返すことがあり、
+.B mkswap
+の動作をおかしくしてしまうことがある。これに伴う症状として、
+.B swapon
+が "no swap signature is found" といって失敗する。
+.I PSZ
+に与える通常の値は 4096 または 8192 である。
+
+.\"O Linux knows about two styles of swap areas, old style and new style.
+.\"O The last 10 bytes of the first page of the swap area distinguishes
+.\"O them: old style has `SWAP_SPACE', new style has `SWAPSPACE2' as
+.\"O signature.
+Linux はスワップ領域として 2 つの形式を認識する。古い形式と新しい形式
+とである。これらは、スワップ領域先頭ページの末尾 10 バイトに
+よって区別される。古い形式では `SWAP_SPACE'、新しい形式では
+`SWAPSPACE2' がそれぞれサインとなる。
+
+.\"O In the old style, the rest of this first page was a bit map,
+.\"O with a 1 bit for each usable page of the swap area.
+.\"O Since the first page holds this bit map, the first bit is 0.
+.\"O Also, the last 10 bytes hold the signature. So, if the page
+.\"O size is S, an old style swap area can describe at most
+.\"O 8*(S-10)-1 pages used for swapping.
+.\"O With S=4096 (as on i386), the useful area is at most 133890048 bytes
+.\"O (almost 128 MiB), and the rest is wasted.
+.\"O On an alpha and sparc64, with S=8192, the useful area is at most
+.\"O 535560992 bytes (almost 512 MiB).
+古い形式では、先頭ページの残りの部分はビットマップであり、
+1 ビットがスワップ領域で利用できるそれぞれのページに対応する。
+先頭のページはこのビットマップを保持するので、先頭ビットは 0 である。
+また最後の 10 バイトはサインになっている。したがってページサイズを
+S とすれば、古い形式のスワップ領域は最大で
+8*(S-10)-1 ページをスワップに用いることができる。
+S=4096 (i386 の値) ならば、利用できる領域の最大値は
+133890048 バイト (ほぼ 128 MiB) であり、
+残りの部分は無駄となる。 alpha と sparc64 では S=8192 なので、最大値は
+535560992 バイト (ほぼ 512 MiB) となる。
+
+.\"O The old setup wastes most of this bitmap page, because zero bits
+.\"O denote bad blocks or blocks past the end of the swap space,
+.\"O and a simple integer suffices to indicate the size of the swap space,
+.\"O while the bad blocks, if any, can simply be listed. Nobody wants
+.\"O to use a swap space with hundreds of bad blocks. (I would not even
+.\"O use a swap space with 1 bad block.)
+.\"O In the new style swap area this is precisely what is done.
+.\"O The maximum useful size of a swap area now depends on the architecture.
+.\"O It is roughly 2GiB on i386, PPC, m68k, ARM, 1GiB on sparc, 512MiB on mips,
+.\"O 128GiB on alpha and 3TiB on sparc64.
+古い形式では、このビットマップページの大部分を無駄にしていることになる。
+なぜならマップ中のビット 0 は、不良ブロックかスワップ領域の境界後にある
+ブロックを示すためのものだからである。スワップ領域のサイズは簡単な計算
+で求まる値に制限されるかわり、不良ブロックがあればリストするのが簡単に
+なっている。しかし不良ブロックがたくさんあるような領域をスワップに
+したい人など誰もいないだろう (筆者は 1 つの不良ブロックでさえ
+許したくない)。
+新しい形式のスワップ領域では、これはもっとしかるべく扱われている。
+利用できるスワップ領域の最大値は、現在ではアーキテクチャ依存である。
+i386, PPC, m68k, ARM では約 2GiB、 sparc では 1GiB、
+mips では 512MiB, alpha では 128GiB, sparc64 では 3TiB である。
+
+.\"O Note that before 2.1.117 the kernel allocated one byte for each page,
+.\"O while it now allocates two bytes, so that taking a swap area of 2 GiB
+.\"O in use might require 2 MiB of kernel memory.
+2.1.117 以前のカーネルでは、 1 ページあたり 1 バイトを割り当てていたが、
+現在では 2 バイトを割り当てている。したがって 2 GiB の
+スワップ領域には 2 MiB のカーネルメモリが必要となる。
+
+.\"O Presently, Linux allows 32 swap areas (this was 8 before Linux 2.4.10).
+.\"O The areas in use can be seen in the file
+.\"O .I /proc/swaps
+.\"O (since 2.1.25).
+現時点では、 Linux は 32 個のスワップ領域を持つことができる
+(Linux 2.4.10 より前は 8 個であった)。
+利用している領域は
+.I /proc/swaps
+ファイルで見ることができる (2.1.25 以降)。
+
+.\"O .B mkswap
+.\"O refuses areas smaller than 10 pages.
+.B mkswap
+では 10 ページより小さい領域を作ることはできない。
+
+.\"O If you don't know the page size that your machine uses, you may be
+.\"O able to look it up with "cat /proc/cpuinfo" (or you may not -
+.\"O the contents of this file depend on architecture and kernel version).
+使っているマシンのページサイズがわからない場合は、"cat /proc/cpuinfo"
+によって調べることができるかもしれない。
+(できないかもしれない - このファイルの内容はアーキテクチャと
+カーネルのバージョンに依存しているので。)
+
+.\"O To setup a swap file, it is necessary to create that file before
+.\"O initializing it with
+.\"O .B mkswap ,
+.\"O e.g. using a command like
+スワップファイルを作成する場合は、
+.B mkswap
+による初期化を行う前に、ファイルを作成しておく必要がある。
+この目的には、以下のようなコマンドを用いれば良い:
+
+.nf
+.RS
+# dd if=/dev/zero of=swapfile bs=1024 count=65536
+.RE
+.fi
+
+.\"O Note that a swap file must not contain any holes (so, using
+.\"O .BR cp (1)
+.\"O to create the file is not acceptable).
+スワップファイルには "hole" (未確保の領域) が存在してはならないことに
+注意せよ (したがってファイルを作成する際に
+.BR cp (1)
+を使ってはならない)。
+
+.\"O .SH OPTIONS
+.SH オプション
+.TP
+.B \-c
+.\"O Check the device (if it is a block device) for bad blocks
+.\"O before creating the swap area.
+.\"O If any are found, the count is printed.
+スワップ領域を作る前に、デバイスに対して不良ブロックのチェックを行う。
+不良ブロックが見つかった場合は、そのカウント数を表示する。
+.TP
+.B \-f
+.\"O Force - go ahead even if the command is stupid.
+.\"O This allows the creation of a swap area larger than the file
+.\"O or partition it resides on.
+.\"O On SPARC, force creation of the swap area.
+.\"O Without this option
+.\"O .B mkswap
+.\"O will refuse to create a v0 swap on a device with a valid SPARC superblock,
+.\"O as that probably means one is going to erase the partition table.
+強制する。馬鹿なコマンドでも実行する。
+これを指定すると、ファイルまたはパーティションの実際の大きさよりも
+大きなスワップファイルを作る動作ができてしまう。
+SPARC ではスワップ領域を強制的に作成する。
+このオプションを付けないと、
+.B mkswap
+は正しい SPARC のスーパーブロックを持ったデバイスには
+v0 のスワップを作成しない。パーティションテーブルを
+消してしまう可能性があるからである。
+.TP
+.BI "\-p " PSZ
+.\"O Specify the page size to use.
+用いるページサイズを指定する。
+.TP
+.BI "\-L " label
+.\"O Specify a label, to allow swapon by label.
+.\"O (Only for new style swap areas.)
+ラベルを指定し、そのラベルで swapon できるようにする。
+(新しい形式のスワップ領域のみ。)
+.TP
+.B \-v0
+.\"O Create an old style swap area.
+古い形式のスワップ領域を作成する。
+.TP
+.B \-v1
+.\"O Create a new style swap area.
+新しい形式のスワップ領域を作成する。
+
+.LP
+.\"O If no \-v option is given,
+.\"O .B mkswap
+.\"O will default to new style, but use old style if the current kernel
+.\"O is older than 2.1.117 (and also if PAGE_SIZE is less than 2048).
+.\"O The new style header does not touch the first block, so may be
+.\"O preferable, in case you have a boot loader or disk label there.
+.\"O If you need to use both 2.0 and 2.2 kernels, use the \-v0 option
+.\"O when creating the swapspace.
+\-v オプションを省略して
+.B mkswap
+を実行すると、
+デフォルトでは新しい形式を作成する。しかし使用中のカーネルが
+2.1.117 より古い場合 (あるいは PAGE_SIZE が 2048 より小さい場合) には、
+古い形式で作成する。
+新しい形式のヘッダは、最初のブロックには書き込まない。
+したがってブートローダやディスクラベルを置く場合にはこちらが望ましい。
+2.0 と 2.2 のカーネルを両方用いる必要がある場合は、
+スワップ領域を作成する際には \-v0 オプションを用いること。
+
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR fdisk (8),
+.BR swapon (8)

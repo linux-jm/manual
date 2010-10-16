@@ -1,0 +1,353 @@
+.\" Copyright 1993 Giorgio Ciucci (giorgio@crcc.it)
+.\" and Copyright 2004, 2005 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified Tue Oct 22 08:11:14 EDT 1996 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified Sun Feb 18 01:59:29 2001 by Andries E. Brouwer <aeb@cwi.nl>
+.\" Modified, 27 May 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on CAP_IPC_OWNER requirement
+.\" Modified, 17 Jun 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on CAP_SYS_ADMIN requirement for IPC_SET and IPC_RMID
+.\" Modified, 11 Nov 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Language and formatting clean-ups
+.\"	Added msqid_ds and ipc_perm structure definitions
+.\" 2005-08-02, mtk: Added IPC_INFO, MSG_INFO, MSG_STAT descriptions
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-02-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated & Modified 2001-06-04, Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated & Modified 2002-07-06, Yuichi SATO
+.\" Updated & Modified 2004-12-31, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2005-10-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.\"WORD:	message			メッセージ
+.\"WORD:	queue			キュー
+.\"WORD:	member			メンバー
+.\"WORD:	structure		構造体
+.\"WORD:	effective user ID	実効ユーザ ID
+.\"WORD:	creator			作成者
+.\"WORD:	owner			所有者
+.\"WORD:	feature test macro	機能検査マクロ
+.\"
+.TH MSGCTL 2 2008-08-06 "Linux" "Linux Programmer's Manual"
+.SH 名前
+msgctl \- メッセージ制御操作
+.SH 書式
+.nf
+.B #include <sys/types.h>
+.B #include <sys/ipc.h>
+.B #include <sys/msg.h>
+
+.BI "int msgctl(int " msqid ", int " cmd ", struct msqid_ds *" buf );
+.fi
+.SH 説明
+.BR msgctl ()
+はメッセージ・キュー識別子
+.I msqid
+で指定されたメッセージ・キュー (message queue) に対して
+.I cmd
+で指定された制御操作を行なう。
+.PP
+.I msqid_ds
+データ構造体は \fI<sys/msg.h>\fP で以下のように定義されている:
+.nf
+.in +4n
+
+struct msqid_ds {
+    struct ipc_perm msg_perm;     /* 所有権と許可 */
+    time_t          msg_stime;    /* 最後の msgsnd(2) の時刻 */
+    time_t          msg_rtime;    /* 最後の msgrcv(2) の時刻 */
+    time_t          msg_ctime;    /* 最後に変更が行われた時刻 */
+    unsigned long   __msg_cbytes; /* キューにある現在のバイト数
+                                     (非標準) */
+    msgqnum_t       msg_qnum;     /* キューにある現在入っている
+                                     メッセージの数 */
+    msglen_t        msg_qbytes;   /* キューに許可されている
+                                     最大バイト数 */
+    pid_t           msg_lspid;    /* 最後の msgsnd(2) の PID */
+    pid_t           msg_lrpid;    /* 最後の msgrcv(2) の PID */
+};
+.in
+.fi
+.PP
+.I ipc_perm
+構造体は \fI<sys/ipc.h>\fP で以下のように定義されている
+(強調されたフィールドは
+.B IPC_SET
+を使って設定可能である):
+.PP
+.nf
+.in +4n
+struct ipc_perm {
+    key_t          __key;       /* msgget(2) に与えるキー */
+    uid_t          \fBuid\fP;         /* 所有者の実効 UID */
+    gid_t          \fBgid\fP;         /* 所有者の実効 GID */
+    uid_t          cuid;        /* 作成者の実効 UID */
+    gid_t          cgid;        /* 作成者の実効 GID */
+    unsigned short \fBmode\fP;        /* 許可 */
+    unsigned short __seq;       /* シーケンス番号 */
+};
+.in
+.fi
+.PP
+.I cmd
+として有効な値は:
+.TP
+.B IPC_STAT
+.I msqid
+に関連づけられたメッセージ・キュー・データ構造体から、ポインタ
+.I buf
+が指し示す
+.I msqid_ds
+構造体に情報をコピーする。
+呼び出し側はメッセージ・キューに対する読み込み許可を持っていなければならない。
+.TP
+.B IPC_SET
+ポインタ
+.I buf
+が指し示す
+.I msqid_ds
+構造体のメンバーの値を、メッセージ・キューに関連づけられた
+カーネル・データ構造体に書き込み、
+.I msg_ctime
+メンバーも更新する。
+構造体のメンバーのうち、更新されるものを以下に示す:
+.IR msg_qbytes ,
+.IR msg_perm.uid ,
+.IR msg_perm.gid ,
+.I msg_perm.mode
+(の下位 9 ビット)。
+呼び出したプロセスの実効ユーザ ID が、メッセージ・キューの所有者
+.RI ( msg_perm.uid )
+または作成者
+.RI ( msg_perm.cuid )
+と一致するか、呼び出し元が特権を持たなければならない。
+.I msg_qbytes
+をシステム・パラメータの
+.B MSGMNB
+を超えて設定するには、適切な特権 (Linux では
+.B CAP_IPC_RESOURCE
+ケーパビリティ (capability)) が必要である。
+.TP
+.B IPC_RMID
+メッセージ・キューをただちに削除する。
+同時にその構造体の読み書きの待ち状態にあったプロセスに通知する
+(エラーが返り、
+.I errno
+が
+.B EIDRM
+に設定される)。
+呼び出したプロセスが適切な特権を持っているか、
+呼び出したプロセスの実効ユーザ ID がメッセージ・キューの作成者か
+所有者の実効ユーザ ID でなければならない。
+.TP
+.BR IPC_INFO " (Linux 固有)"
+システム全体でのメッセージ・キューの制限とパラメータに関する情報を、
+.I buf
+が指す構造体に入れて返す。
+この構造体は
+.I msginfo
+型である (そのためキャストが必要である)。
+.I msginfo
+は
+.B _GNU_SOURCE
+機能検査マクロが定義された場合に
+.I <sys/msg.h>
+で以下のように定義される:
+.nf
+.in +4n
+
+struct msginfo {
+    int msgpool; /* メッセージ・データの保持に使用される
+                    バッファ・プールの大きさ (1024 バイト単位);
+                    カーネル内では未使用 */
+    int msgmap;  /* メッセージ・マップの最大エントリ数;
+                    カーネル内では未使用 */
+    int msgmax;  /* 一つのメッセージに書き込み可能な
+                    最大バイト数 */
+    int msgmnb;  /* 一つのキューに書き込み可能な最大バイト数;
+                    (msgget(2) での) キュー作成中の msg_qbytes
+                    の初期化に使用される */
+    int msgmni;  /* メッセージ・キューの数の最大値 */
+    int msgssz;  /* メッセージ・セグメントのサイズ;
+                    カーネル内では未使用 */
+    int msgtql;  /* システム上の全キューの最大メッセージ数;
+                    カーネル内では未使用 */
+    unsigned short int msgseg;
+                 /* 最大セグメント数; カーネル内では未使用 */
+};
+
+.in
+.fi
+設定
+.I msgmni ,
+.I msgmax ,
+.I msgmnb
+は
+.I /proc
+にある同じ名前のファイル経由で変更可能である。
+詳しくは
+.BR proc (5)
+を参照。
+.TP
+.BR MSG_INFO " (Linux 固有)"
+.B IPC_INFO
+のときと同じ情報を格納した
+.I msginfo
+構造体を返す。
+但し、以下のフィールドにはメッセージ・キューが
+消費しているシステム資源に関する情報が格納される点が異なる。
+.I msgpool
+フィールドは現在システム上に存在するメッセージ・キューの数を返す。
+.I msgmap
+フィールドはシステム上の全てのキューに入っているメッセージ総数を返す。
+.I msgtql
+フィールドはシステム上の全てのキューに入っている全メッセージの
+総バイト数を返す。
+.TP
+.BR MSG_STAT " (Linux 固有)"
+.B IPC_STAT
+と同じく
+.I msqid_ds
+構造体を返す。
+但し、
+.I msqid
+引き数は、キュー識別子ではなく、システム上の全てのメッセージ・キュー
+に関する情報を管理するカーネルの内部配列へのインデックスである。
+.SH 返り値
+成功すると、
+.BR IPC_STAT ,
+.BR IPC_SET ,
+.B IPC_RMID
+は 0 を返す。
+.B IPC_INFO
+と
+.B MSG_INFO
+操作は、成功すると、全てのメッセージ・キューに関する情報を
+管理しているカーネルの内部配列の使用中エントリのインデックスの
+うち最大値を返す
+(この情報は、システムの全てのメッセージ・キューに関する情報を
+取得するために、
+.B MSG_STAT
+操作を繰り返し実行する際に使用できる)。
+.B MSG_STAT
+操作は、成功すると、
+.I msqid
+で指定されたインデックスを持つメッセージ・キューの識別子を返す。
+
+エラーの場合は \-1 を返し、
+.I errno
+を適切に設定する。
+.SH エラー
+失敗した場合、
+.I errno
+は以下の値の中のどれか一つに設定される:
+.TP
+.B EACCES
+引き数
+.I cmd
+が
+.B IPC_STAT
+または
+.B MSG_STAT
+に等しいが、呼び出したプロセスがメッセージ・キュー
+.I msqid
+に対する読み込み許可を持っておらず、かつ
+.B CAP_IPC_OWNER
+ケーパビリティを持っていない。
+.TP
+.B EFAULT
+引き数
+.I cmd
+が
+.B IPC_SET
+か
+.B IPC_STAT
+で、ポインタ
+.I buf
+で指されているアドレスがアクセス可能でない。
+.TP
+.B EIDRM
+メッセージ・キューが削除された。
+.TP
+.B EINVAL
+.I cmd
+または
+.I msqid
+に不正な値が設定された。
+もしくは、
+.B MSG_STAT
+操作の場合に、
+.I msqid
+で指定されたインデックス値が現在未使用の配列のスロットを参照いていた。
+.TP
+.B EPERM
+引き数
+.I cmd
+が
+.B IPC_SET
+か
+.B IPC_RMID
+であるが、呼び出したプロセスの実効ユーザ ID がメッセージキューの
+.RI ( msg_perm.cuid
+として見つかる) 作成者
+と
+.RI ( msg_perm.uid
+として見つかる) 所有者のいずれでもなく、
+かつ呼び出したプロセスに特権 (Linux では
+.B CAP_SYS_ADMIN
+ケーパビリティ) がない。
+.SH 準拠
+SVr4, POSIX.1-2001.
+.\" SVID には EIDRM エラーについての記述はない。
+.SH 注意
+.BR IPC_INFO ,
+.BR MSG_STAT ,
+.B MSG_INFO
+操作は、
+.BR ipcs (8)
+プログラムで割り当て済の資源に関する情報を提供するために
+使用されている。将来、これらの操作は変更されたり、
+/proc ファイルシステムのインタフェースに移動されるかもしれない。
+
+
+\fIstruct msqid_ds\fP 内の多くのフィールドは、
+Linux 2.2 では
+.I short
+だったが、Linux 2.4 では
+.I long
+になった。
+この利点を生かすには、glibc-2.1.91 以降の環境下で
+再コンパイルすれば十分である。
+(カーネルは新しい形式の呼び出しと古い形式の呼び出しを
+.I cmd
+内の
+.B IPC_64
+フラグで区別する。)
+.SH 関連項目
+.BR msgget (2),
+.BR msgrcv (2),
+.BR msgsnd (2),
+.BR capabilities (7),
+.BR mq_overview (7),
+.BR svipc (7)

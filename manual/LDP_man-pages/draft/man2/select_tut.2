@@ -1,0 +1,1199 @@
+.\" This manpage is copyright (C) 2001 Paul Sheer.
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" very minor changes, aeb
+.\"
+.\" Modified 5 June 2002, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" 2006-05-13, mtk, removed much material that is redundant with select.2
+.\"             various other changes
+.\" 2008-01-26, mtk, substantial changes and rewrites
+.\"
+.\" Translated 2002-02-21, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated 2002-09-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-03-15, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2006-07-21, Akihiro MOTOKI, LDP v2.36
+.\" Updated 2009-02-13, Akihiro MOTOKI, LDP v3.18
+.\"
+.\"WORD:	file descriptor		ファイルディスクリプタ
+.\"WORD:	exceptional condition	例外状態
+.\"
+.TH SELECT_TUT 2 2009-01-26 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O select, pselect, FD_CLR, FD_ISSET, FD_SET, FD_ZERO \-
+.\"O synchronous I/O multiplexing
+select, pselect, FD_CLR, FD_ISSET, FD_SET, FD_ZERO \- 同期 I/O の多重化
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.\"O /* According to POSIX.1-2001 */
+/* POSIX.1-2001 に従う場合 */
+.br
+.B #include <sys/select.h>
+.sp
+.\"O /* According to earlier standards */
+/* 以前の規格に従う場合 */
+.br
+.B #include <sys/time.h>
+.br
+.B #include <sys/types.h>
+.br
+.B #include <unistd.h>
+.sp
+.BI "int select(int " nfds ", fd_set *" readfds ", fd_set *" writefds ,
+.BI "           fd_set *" exceptfds ", struct timeval *" utimeout );
+.sp
+.BI "void FD_CLR(int " fd ", fd_set *" set );
+.br
+.BI "int  FD_ISSET(int " fd ", fd_set *" set );
+.br
+.BI "void FD_SET(int " fd ", fd_set *" set );
+.br
+.BI "void FD_ZERO(fd_set *" set );
+.sp
+.B #include <sys/select.h>
+.sp
+.BI "int pselect(int " nfds ", fd_set *" readfds ", fd_set *" writefds ,
+.BI "            fd_set *" exceptfds ", const struct timespec *" ntimeout ,
+.BI "            const sigset_t *" sigmask );
+.fi
+.sp
+.in -4n
+.\"O Feature Test Macro Requirements for glibc (see
+.\"O .BR feature_test_macros (7)):
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR pselect ():
+_POSIX_C_SOURCE\ >=\ 200112L || _XOPEN_SOURCE\ >=\ 600
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .BR select ()
+.\"O (or
+.\"O .BR pselect ())
+.\"O is used to efficiently monitor multiple file descriptors,
+.\"O to see if any of them is, or becomes, "ready";
+.\"O that is, to see whether I/O becomes possible,
+.\"O or an "exceptional condition" has occurred on any of the descriptors.
+.BR select ()
+(や
+.BR pselect ())
+を使うと、効率的に複数のファイルディスクリプタを監視し、
+そのファイルディスクリプタのいずれかが
+「ready (準備ができた)」状態、つまり I/O (入出力) が可能になっているかや、
+ファイルディスクリプタのいずれかが
+「例外状態 (exceptional condition)」が発生したか、を調べることができる。
+
+.\"O Its principal arguments are three "sets" of file descriptors:
+.\"O \fIreadfds\fP, \fIwritefds\fP, and \fIexceptfds\fP.
+この関数の主要な引き数は、3種類のファイルディスクリプタの「集合」
+\fIreadfds\fP, \fIwritefds\fP, \fIexceptfds\fP である。
+.\"O Each set is declared as type
+.\"O .IR fd_set ,
+.\"O and its contents can be manipulated with the macros
+.\"O .BR FD_CLR (),
+.\"O .BR FD_ISSET (),
+.\"O .BR FD_SET (),
+.\"O and
+.\"O .BR FD_ZERO ().
+.\"O A newly declared set should first be cleared using
+.\"O .BR FD_ZERO ().
+各々の集合は
+.B fd_set
+として宣言され、その内容は
+.BR FD_CLR (),
+.BR FD_ISSET (),
+.BR FD_SET (),
+.BR FD_ZERO ()
+といったマクロによって操作できる。
+新しく宣言された集合は、まず最初に
+.BR FD_ZERO ()
+を使ってクリアすべきである。
+.\"O .BR select ()
+.\"O modifies the contents of the sets according to the rules
+.\"O described below; after calling
+.\"O .BR select ()
+.\"O you can test if a file descriptor is still present in a set with the
+.\"O .BR FD_ISSET ()
+.\"O macro.
+.\"O .BR FD_ISSET ()
+.\"O returns nonzero if a specified file descriptor is present in a set
+.\"O and zero if it is not.
+.\"O .BR FD_CLR ()
+.\"O removes a file descriptor from a set.
+.BR select ()
+はこれらの集合の内容を、以降に述べる規則に従って修正する。
+.BR select ()
+を呼んだ後、ファイルディスクリプタがまだ集合に存在しているかどうかは、
+.BR FD_ISSET ()
+マクロによって調べることができる。
+.BR FD_ISSET ()
+は指定されたディスクリプタが集合に存在していれば 0 以外の値を返し、
+存在しなければ 0 を返す。
+.BR FD_CLR ()
+は集合からのファイルディスクリプタの削除を行う。
+.\"O .SS Arguments
+.SS 引き数
+.TP
+\fIreadfds\fP
+.\"O This set is watched to see if data is available for reading from any of
+.\"O its file descriptors.
+.\"O After
+.\"O .BR select ()
+.\"O has returned, \fIreadfds\fP will be
+.\"O cleared of all file descriptors except for those that
+.\"O are immediately available for reading.
+この集合に含まれるいずれかのファイルディスクリプタで、
+データの読み込みが可能になったかどうかを監視する。
+.BR select ()
+から戻る時に、\fIreadfds\fP のうち、
+直ちに読み込み可能なファイルディスクリプタ以外は
+集合から削除される。
+.TP
+\fIwritefds\fP
+.\"O This set is watched to see if there is space to write data to any of
+.\"O its file descriptors.
+.\"O After
+.\"O .BR select ()
+.\"O has returned, \fIwritefds\fP will be
+.\"O cleared of all file descriptors except for those that
+.\"O are immediately available for writing.
+この集合に含まれるいずれかのファイルディスクリプタで、
+データを書き込むスペースがあるかどうかを監視する。
+.BR select ()
+から戻る時に、\fIwritefds\fP のうち、
+直ちに書き込み可能なファイルディスクリプタ以外は
+集合から削除される。
+.TP
+\fIexceptfds\fP
+.\"O This set is watched for "exceptional conditions".
+.\"O In practice, only one such exceptional condition is common:
+.\"O the availability of \fIout-of-band\fP (OOB) data for reading
+.\"O from a TCP socket.
+.\"O See
+.\"O .BR recv (2),
+.\"O .BR send (2),
+.\"O and
+.\"O .BR tcp (7)
+.\"O for more details about OOB data.
+.\"O (One other less common case where
+.\"O .BR select (2)
+.\"O indicates an exceptional condition occurs with pseudo-terminals
+.\"O in packet mode; see
+.\"O .BR tty_ioctl (4).)
+.\"O After
+.\"O .BR select ()
+.\"O has returned,
+.\"O \fIexceptfds\fP will be cleared of all file descriptors except for those
+.\"O for which an exceptional condition has occurred.
+この集合に含まれるいずれかのファイルディスクリプタで、
+「例外状態 (exceptional condition)」が発生したかどうかを監視する。
+実際の動作では、普通に起こり得る例外状態は一つだけであり、
+それは TCP ソケットで \fI帯域外 (out-of-band; OOB)\fP データが
+読み込み可能な場合である。
+OOB データの詳細については、
+.BR recv (2),
+.BR send (2),
+.BR tcp (7)
+を参照のこと。
+(これ以外では、まれなことだが、
+パケットモードの擬似端末 (pseudo-terminals) で
+.BR select ()
+が例外状態を示すことがある。)
+.BR select ()
+が返る時に、\fIexceptfds\fP のうち、
+例外状態が発生したディスクリプタ以外は集合から削除される。
+.TP
+\fInfds\fP
+.\"O This is an integer one more than the maximum of any file descriptor in
+.\"O any of the sets.
+.\"O In other words, while adding file descriptors to each of the sets,
+.\"O you must calculate the maximum integer value of all of them,
+.\"O then increment this value by one, and then pass this as \fInfds\fP.
+全ての集合に含まれるファイルディスクリプタのうち、
+値が最大のものに 1 を足した整数である。
+すなわち、ファイルディスクリプタを各集合に加える作業の途中で、
+全てのファイルディスクリプタを見て最大値を求め、
+それに 1 を加えて \fInfds\fP として渡さないといけない、ということだ。
+.TP
+\fIutimeout\fP
+.\"O This is the longest time
+.\"O .BR select ()
+.\"O may wait before returning, even if nothing interesting happened.
+.\"O If this value is passed as NULL, then
+.\"O .BR select ()
+.\"O blocks indefinitely waiting for a file descriptor to become ready.
+.\"O \fIutimeout\fP can be set to zero seconds, which causes
+.\"O .BR select ()
+.\"O to return immediately, with information about the readiness
+.\"O of file descriptors at the time of the call.
+.\"O The structure \fIstruct timeval\fP is defined as:
+(何も起こらなかった場合に)
+.BR select ()
+が戻る前に待つ最大時間である。
+この値に NULL を渡すと、
+.BR select ()
+はファイルディスクリプタのいずれかが ready (準備ができた) 状態に
+なるまで待ち続けてずっと停止する。
+\fIutimeout\fP は 0 秒にすることもでき、
+この場合
+.BR select ()
+は直ちに返り、呼び出し時点のファイルディスクリプタの状態に
+関する情報が返される。
+構造体 \fIstruct timeval\fP は次のように定義されている:
+.IP
+.in +4n
+.nf
+struct timeval {
+    time_t tv_sec;    /* seconds */
+    long tv_usec;     /* microseconds */
+};
+.fi
+.in
+.TP
+\fIntimeout\fP
+.\"O This argument for
+.\"O .BR pselect ()
+.\"O has the same meaning as
+.\"O .IR utimeout ,
+.\"O but
+.\"O .I "struct timespec"
+.\"O has nanosecond precision as follows:
+.BR pselect ()
+のこの引き数は
+.I utimeout
+と同じ意味を持つが、
+.I "struct timespec"
+は次に示すようにナノ秒の精度を持つ。
+.in +4n
+.nf
+struct timespec {
+    long tv_sec;    /* seconds */
+    long tv_nsec;   /* nanoseconds */
+};
+.fi
+.in
+.TP
+\fIsigmask\fP
+.\"O This argument holds a set of signals that the kernel should unblock
+.\"O (i.e., remove from the signal mask of the calling thread),
+.\"O while the caller is blocked inside the
+.\"O .BR pselect ()
+.\"O call (see
+.\"O .BR sigaddset (3)
+.\"O and
+.\"O .BR sigprocmask (2)).
+.\"O It may be NULL,
+.\"O in which case the call does not modify the signal mask on
+.\"O entry and exit to the function.
+.\"O In this case,
+.\"O .BR pselect ()
+.\"O will then behave just like
+.\"O .BR select ().
+この引き数は、呼び出し側が
+.BR pselect ()
+内部で停止している間に、カーネルが通知を許可すべきシグナル集合
+(すなわち、呼び出したスレッドのシグナルマスクから削除すべきシグナル集合)
+を保持する
+.RB ( sigaddset (3)
+と
+.BR sigprocmask (2)
+を参照)。
+この引き数は NULL にすることもでき、その場合はこの関数へ
+入るとき・出るときにシグナルマスクを変更しない。
+この場合、
+.BR pselect ()
+は
+.BR select ()
+と全く同じ動作となる。
+.\"O .SS Combining Signal and Data Events
+.SS シグナルとデータイベントを組み合わせる
+.\"O .BR pselect ()
+.\"O is useful if you are waiting for a signal as well as
+.\"O for file descriptor(s) to become ready for I/O.
+.\"O Programs that receive signals
+.\"O normally use the signal handler only to raise a global flag.
+.\"O The global flag will indicate that the event must be processed
+.\"O in the main loop of the program.
+ファイルディスクリプタが I/O 可能な状態になるのと同時に
+シグナルも待ちたい場合には、
+.BR pselect ()
+が便利である。
+シグナルを受信するプログラムは、通常は、
+シグナルハンドラをグローバルなフラグを立てるためだけに使う。
+このグローバルなフラグは、
+そのイベントをプログラムのメインループで
+処理しなければならないことを示す。
+.\"O A signal will cause the
+.\"O .BR select ()
+.\"O (or
+.\"O .BR pselect ())
+.\"O call to return with \fIerrno\fP set to \fBEINTR\fP.
+.\"O This behavior is essential so that signals can be processed
+.\"O in the main loop of the program, otherwise
+.\"O .BR select ()
+.\"O would block indefinitely.
+シグナルを受けると
+.BR select ()
+(や
+.BR pselect ())
+は
+\fIerrno\fP に \fBEINTR\fP をセットして戻ることになる。
+シグナルがプログラムのメインループで処理されるためにはこの動作が不可欠で、
+これがないと
+.BR select ()
+は永遠に停止し続けることになる。
+.\"O Now, somewhere
+.\"O in the main loop will be a conditional to check the global flag.
+.\"O So we must ask:
+.\"O what if a signal arrives after the conditional, but before the
+.\"O .BR select ()
+.\"O call?
+.\"O The answer is that
+.\"O .BR select ()
+.\"O would block indefinitely, even though an event is actually pending.
+さて、メインループのどこかにこのグローバルフラグをチェックする
+条件文があるとしよう。ここで少し考えてみないといけない。
+「シグナルが条件文の後、しかし
+.BR select ()
+コールの前に到着したら
+どうなるのか？」
+答えは「その
+.BR select ()
+は、たとえ解決待ちのイベントがあったとしても、
+永遠に停止する」である。
+.\"O This race condition is solved by the
+.\"O .BR pselect ()
+.\"O call.
+.\"O This call can be used to set the signal mask to a set of signals
+.\"O that are only to be received within the
+.\"O .BR pselect ()
+.\"O call.
+この競合状態は
+.BR pselect ()
+コールによって解決できる。
+このコールを使うと、
+.BR pselect ()
+で受信したいシグナルの集合だけをシグナルマスクに設定することができる。
+.\"O For instance, let us say that the event in question
+.\"O was the exit of a child process.
+.\"O Before the start of the main loop, we
+.\"O would block \fBSIGCHLD\fP using
+.\"O .BR sigprocmask (2).
+.\"O Our
+.\"O .BR pselect ()
+.\"O call would enable
+.\"O .B SIGCHLD
+.\"O by using an empty signal mask.
+.\"O Our program would look like:
+例えば、問題となっているイベントが子プロセスの終了の場合を考えよう。
+メインループが始まる前に、
+.B SIGCHLD
+を
+.BR sigprocmask (2)
+でブロックする。
+.BR pselect ()
+コールでは
+.B SIGCHLD
+を、もともとのシグナルマスクを使って有効にするのだ。
+このプログラムは次のようになる。
+.PP
+.nf
+static volatile sig_atomic_t got_SIGCHLD = 0;
+
+static void
+child_sig_handler(int sig)
+{
+    got_SIGCHLD = 1;
+}
+
+int
+main(int argc, char *argv[])
+{
+    sigset_t sigmask, empty_mask;
+    struct sigaction sa;
+    fd_set readfds, writefds, exceptfds;
+    int r;
+
+    sigemptyset(&sigmask);
+    sigaddset(&sigmask, SIGCHLD);
+    if (sigprocmask(SIG_BLOCK, &sigmask, NULL) == \-1) {
+        perror("sigprocmask");
+        exit(EXIT_FAILURE);
+    }
+
+    sa.sa_flags = 0;
+    sa.sa_handler = child_sig_handler;
+    sigemptyset(&sa.sa_mask);
+    if (sigaction(SIGCHLD, &sa, NULL) == \-1) {
+        perror("sigaction");
+        exit(EXIT_FAILURE);
+    }
+
+    sigemptyset(&empty_mask);
+
+    for (;;) {          /* main loop */
+        /* Initialize readfds, writefds, and exceptfds
+           before the pselect() call. (Code omitted.) */
+
+        r = pselect(nfds, &readfds, &writefds, &exceptfds,
+                    NULL, &empty_mask);
+        if (r == \-1 && errno != EINTR) {
+            /* Handle error */
+        }
+
+        if (got_SIGCHLD) {
+            got_SIGCHLD = 0;
+
+            /* Handle signalled event here; e.g., wait() for all
+               terminated children. (Code omitted.) */
+        }
+
+        /* main body of program */
+    }
+}
+.fi
+.\"O .SS Practical
+.SS 実例
+.\"O So what is the point of
+.\"O .BR select ()?
+.\"O Can't I just read and write to my descriptors whenever I want?
+.\"O The point of
+.\"O .BR select ()
+.\"O is that it watches
+.\"O multiple descriptors at the same time and properly puts the process to
+.\"O sleep if there is no activity.
+.\"O Unix programmers often find
+.\"O themselves in a position where they have to handle I/O from more than one
+.\"O file descriptor where the data flow may be intermittent.
+.\"O If you were to merely create a sequence of
+.\"O .BR read (2)
+.\"O and
+.\"O .BR write (2)
+.\"O calls, you would
+.\"O find that one of your calls may block waiting for data from/to a file
+.\"O descriptor, while another file descriptor is unused though ready for I/O.
+.\"O .BR select ()
+.\"O efficiently copes with this situation.
+実際のところ
+.BR select ()
+の大事な点は何なのか？
+ディスクリプタは好きなときに読み書きできるんじゃないの？
+.BR select ()
+の重要なところは、複数のディスクリプタを同時に監視でき、
+なんの動きもなければプロセスを適切にスリープ状態に移行するところにあるのだ。
+Unix プログラマは、
+複数のファイルディスクリプタの入出力を同時に扱わねばならず、
+しかもデータの流れは間欠的である、という状況によく出会う。
+単に
+.BR read (2)
+や
+.BR write (2)
+コールのシーケンスを作るだけでは、それらのコールのどれかが
+ファイルディスクリプタからのデータを待ってブロックしており、
+別のファイルディスクリプタには I/O が可能なのに使えない、
+ということになってしまうだろう。
+.BR select ()
+を使うとこの状況に効果的に対処できる。
+.\"O .SS Select Law
+.SS SELECT の掟
+.\"O Many people who try to use
+.\"O .BR select ()
+.\"O come across behavior that is
+.\"O difficult to understand and produces nonportable or borderline results.
+.\"O For instance, the above program is carefully written not to
+.\"O block at any point, even though it does not set its file descriptors to
+.\"O nonblocking mode.
+.\"O It is easy to introduce
+.\"O subtle errors that will remove the advantage of using
+.\"O .BR select (),
+.\"O so here is a list of essentials to watch for when using
+.\"O .BR select ().
+.BR select ()
+を使おうとした多くの人は、理解しにくい挙動に出くわし、結果的に
+できたものは移植性がないか、よくてもギリギリのものになってしまう。
+例えば、上記のプログラムは、
+集合に含まれるファイルディスクリプタを非停止 (nonblocking) モード
+にしなくても、どこにもブロックが生じないよう注意して書かれている。
+微妙な間違いによって、
+.BR select ()
+を使う利点は簡単に失われてしまう。
+そこで、
+.BR select ()
+コールを使うときに注意すべき重要事項を列挙しておくことにする。
+.TP 4
+1.
+.\"O You should always try to use
+.\"O .BR select ()
+.\"O without a timeout.
+.\"O Your program
+.\"O should have nothing to do if there is no data available.
+.\"O Code that
+.\"O depends on timeouts is not usually portable and is difficult to debug.
+.BR select ()
+を使うときは、タイムアウトは設定すべきでない。
+処理するデータが無いときには、
+あなたのプログラムには何もすることは無いはずである。
+タイムアウトに依存したコードは通常移植性がなく、
+デバッグも難しくなる。
+.TP
+2.
+.\"O The value \fInfds\fP must be properly calculated for efficiency as
+.\"O explained above.
+上述したように、
+効率的なプログラムを書くには
+.I nfds
+の値を適切に計算して与えなければならない。
+.TP
+3.
+.\"O No file descriptor must be added to any set if you do not intend
+.\"O to check its result after the
+.\"O .BR select ()
+.\"O call, and respond appropriately.
+.\"O See next rule.
+.BR select ()
+コールの終了後に結果をチェックして、
+適切に対応するつもりのないファイルディスクリプタは、
+どの集合にも加えてはならない。
+次のルールも参照。
+.TP
+4.
+.\"O After
+.\"O .BR select ()
+.\"O returns, all file descriptors in all sets
+.\"O should be checked to see if they are ready.
+.BR select ()
+から返った後には、全ての集合の全てのファイルディスクリプタについて
+読み書き可能な状態になっているかをチェックすべきである。
+.TP
+5.
+.\"O The functions
+.\"O .BR read (2),
+.\"O .BR recv (2),
+.\"O .BR write (2),
+.\"O and
+.\"O .BR send (2)
+.\"O do \fInot\fP necessarily read/write the full amount of data
+.\"O that you have requested.
+.\"O If they do read/write the full amount, it's
+.\"O because you have a low traffic load and a fast stream.
+.\"O This is not always going to be the case.
+.\"O You should cope with the case of your
+.\"O functions only managing to send or receive a single byte.
+.BR read (2),
+.BR recv (2),
+.BR write (2),
+.BR send (2)
+といった関数は、こちらが要求した全データを読み書きする必要は\fIない\fP。
+もし全データを読み書きするなら、それはトラフィックの負荷が小さく、
+ストリームが速い場合だろう。この条件は常に満たされるとは限らない。
+これらの関数が頑張っても 1 バイトしか送受信できないような場合も
+考慮に入れてやらなければならない。
+.TP
+6.
+.\"O Never read/write only in single bytes at a time unless you are really
+.\"O sure that you have a small amount of data to process.
+.\"O It is extremely
+.\"O inefficient not to read/write as much data as you can buffer each time.
+.\"O The buffers in the example below are 1024 bytes although they could
+.\"O easily be made larger.
+処理するデータ量が小さいことがはっきりとわかっている場合を除いて、
+一度に 1 バイトずつ読み書きするようなことはしてはならない。
+バッファの許すかぎりのデータをまとめて読み書きしないと、
+非常に効率が悪い。下記の例ではバッファは 1024 バイトにしているが、
+このサイズを大きくするのは簡単だろう。
+.TP
+7.
+.\"O The functions
+.\"O .BR read (2),
+.\"O .BR recv (2),
+.\"O .BR write (2),
+.\"O and
+.\"O .BR send (2)
+.\"O as well as the
+.\"O .BR select ()
+.\"O call can return \-1 with
+.\"O .I errno
+.\"O set to \fBEINTR\fP,
+.\"O or with
+.\"O .I errno
+.\"O set to \fBEAGAIN\fP (\fBEWOULDBLOCK\fP).
+.\"O These results must be properly managed (not done properly above).
+.\"O If your program is not going to receive any signals, then
+.\"O it is unlikely you will get \fBEINTR\fP.
+.\"O If your program does not set nonblocking I/O,
+.\"O you will not get \fBEAGAIN\fP.
+.\"O .\" Nonetheless, you should still cope with these errors for completeness.
+.BR read (2),
+.BR recv (2),
+.BR write (2),
+.BR send (2)
+などの関数や
+.BR select ()
+コールは、
+.I errno
+を
+.B EINTR " や " EAGAIN
+.RB ( EWOULDBLOCK )
+にして \-1 を返すことがある。
+このような結果に対して適切に対応してやらなければならない
+(上記の例ではしていない)。
+書いているプログラムがシグナルを受ける予定がなければ、
+.B EINTR
+が返されることはあまり考えられない。
+書いているプログラムで非ブロック I/O をセットしていない場合は、
+.B EAGAIN
+が返されることはないだろう。
+.\" それでもなお、完全を期するならば、
+.\" これらのエラーを考慮に入れる必要がある。
+.TP
+8.
+.\"O Never call
+.\"O .BR read (2),
+.\"O .BR recv (2),
+.\"O .BR write (2),
+.\"O or
+.\"O .BR send (2)
+.\"O with a buffer length of zero.
+決して、引き数に長さ 0 のバッファを指定して
+.BR read (2),
+.BR recv (2),
+.BR write (2),
+.BR send (2)
+を呼び出してはならない。
+.TP
+9.
+.\"O If the functions
+.\"O .BR read (2),
+.\"O .BR recv (2),
+.\"O .BR write (2),
+.\"O and
+.\"O .BR send (2)
+.\"O fail with errors other than those listed in \fB7.\fP,
+.\"O or one of the input functions returns 0, indicating end of file,
+.\"O then you should \fInot\fP pass that descriptor to
+.\"O .BR select ()
+.\"O again.
+.\"O In the example below,
+.\"O I close the descriptor immediately, and then set it to \-1
+.\"O to prevent it being included in a set.
+.BR read (2),
+.BR recv (2),
+.BR write (2),
+.BR send (2)
+が
+\fB7.\fP に示した以外のエラーで失敗した場合や、
+入力系の関数の一つがファイル末尾を表す 0 を返した場合は、
+そのディスクリプタをもう一度 select に渡しては\fIならない\fP。
+下記の例では、そのディスクリプタをただちにクローズし、
+そこには \-1 をセットして、
+それが集合に含まれ続けるのを許さないようにしている。
+.TP
+10.
+.\"O The timeout value must be initialized with each new call to
+.\"O .BR select (),
+.\"O since some operating systems modify the structure.
+.\"O .BR pselect ()
+.\"O however does not modify its timeout structure.
+タイムアウトの値は
+.BR select ()
+を呼ぶたびに初期化すべきである。
+OS によっては timeout 構造体が変更される場合があるからである。
+但し、
+.BR pselect ()
+は自分の timeout 構造体を変更することはない。
+.TP
+11.
+.\"O Since
+.\"O .BR select ()
+.\"O modifies its file descriptor sets,
+.\"O if the call is being used in a loop,
+.\"O then the sets must be reinitialized before each call.
+.BR select ()
+はファイルディスクリプタ集合を変更するので、
+.BR select ()
+がループの中で使用されている場合には、呼び出しを行う前に毎回
+ディスクリプタ集合を初期化し直さなければならない。
+.\" "I have heard" does not fill me with confidence, and doesn't
+.\" belong in a man page, so I've commented this point out.
+.\" .TP
+.\"O .\" 11.
+.\"O .\" I have heard that the Windows socket layer does not cope with OOB data
+.\"O .\" properly.
+.\"O .\" It also does not cope with
+.\"O .\" .BR select ()
+.\"O .\" calls when no file descriptors are set at all.
+.\"O .\" Having no file descriptors set is a useful
+.\"O .\" way to sleep the process with subsecond precision by using the timeout.
+.\"O .\" (See further on.)
+.\" 聞いたところでは、Windows のソケット層は
+.\" OOB データを正しく処理しないらしい。
+.\" また、ファイルディスクリプタが全くセットされていないような
+.\" .BR select ()
+.\" コールも正しく処理しないらしい。
+.\" ファイルディスクリプタを一切設定しないで timeout を使うやり方は、
+.\" 1 秒以下の精度でプロセスをスリープさせるには便利な方法なのだが
+.\" (続きを見よ)。
+.\"O .SS Usleep Emulation
+.SS usleep エミュレーション
+.\"O On systems that do not have a
+.\"O .BR usleep (3)
+.\"O function, you can call
+.\"O .BR select ()
+.\"O with a finite timeout and no file descriptors as
+.\"O follows:
+.BR usleep (3)
+関数を持たないシステムでは、
+有限のタイムアウトを指定し、ファイルディスクリプタを全くセットせずに
+.BR select ()
+を呼び出すことで、これを代用できる。
+以下のようにする。
+.PP
+.nf
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 200000;  /* 0.2 seconds */
+    select(0, NULL, NULL, NULL, &tv);
+.fi
+.PP
+.\"O This is only guaranteed to work on Unix systems, however.
+但し、これが動くと保証されているのは Unix システムに限られる。
+.\"O .SH RETURN VALUE
+.SH 返り値
+.\"O On success,
+.\"O .BR select ()
+.\"O returns the total number of file descriptors
+.\"O still present in the file descriptor sets.
+成功すると、
+.BR select ()
+はファイルディスクリプタ集合に残っている
+ファイルディスクリプタの総数を返す。
+
+.\"O If
+.\"O .BR select ()
+.\"O timed out, then the return value will be zero.
+.\"O The file descriptors set should be all
+.\"O empty (but may not be on some systems).
+.BR select ()
+がタイムアウトすると、返り値は 0 になる。
+その時、ファイルディスクリプタ集合はすべて空である
+(しかしそうならないシステムもある)。
+
+.\"O A return value of \-1 indicates an error, with \fIerrno\fP being
+.\"O set appropriately.
+.\"O In the case of an error, the contents of the returned sets and
+.\"O the \fIstruct timeout\fP contents are undefined and should not be used.
+.\"O .BR pselect ()
+.\"O however never modifies \fIntimeout\fP.
+返り値が \-1 の場合はエラーを意味し、
+.I errno
+が適切にセットされる。エラーが起こった場合、
+返された集合の内容や構造体 \fIstruct timeout\fP の内容は
+未定義となっており、使用すべきではない。
+しかし
+.BR pselect ()
+は決して
+.I ntimeout
+を変更しない。
+.\"O .SH NOTES
+.SH 注意
+.\"O Generally speaking,
+.\"O all operating systems that support sockets also support
+.\"O .BR select ().
+.\"O .BR select ()
+.\"O can be used to solve
+.\"O many problems in a portable and efficient way that naive programmers try
+.\"O to solve in a more complicated manner using
+.\"O threads, forking, IPCs, signals, memory sharing, and so on.
+一般的に言って、ソケットをサポートする全てのオペレーティングシステムは
+.BR select ()
+もサポートしている。
+.BR select ()
+を使うと、プログラマがスレッド、フォーク、IPC、シグナル、メモリ共有、
+等々を使ってもっと複雑な方法で解決しようとする多くの問題が、
+移植性がありかつ効率的な方法で解決できる。
+.PP
+.\"O The
+.\"O .BR poll (2)
+.\"O system call has the same functionality as
+.\"O .BR select (),
+.\"O and is somewhat more efficient when monitoring sparse
+.\"O file descriptor sets.
+.\"O It is nowadays widely available, but historically was less portable than
+.\"O .BR select ().
+.BR poll (2)
+システムコールは
+.BR select ()
+と同じ機能を持っており、
+まばらなファイルディスクリプタ集合を監視する場合に
+いくらか効率がよい。
+現在では広く利用可能であるが、以前は
+.BR select ()
+より移植性の面で劣っていた。
+.PP
+.\"O The Linux-specific
+.\"O .BR epoll (7)
+.\"O API provides an interface that is more efficient than
+.\"O .BR select (2)
+.\"O and
+.\"O .BR poll (2)
+.\"O when monitoring large numbers of file descriptors.
+Linux 独自の
+.BR epoll (7)
+API は、多数のファイルディスクリプタを監視する場合に
+.BR select (2)
+や
+.BR poll (2)
+よりも効率的なインタフェースを提供している。
+.\"O .SH EXAMPLE
+.SH 例
+.\"O Here is an example that better demonstrates the true utility of
+.\"O .BR select ().
+.\"O The listing below a TCP forwarding program that forwards
+.\"O from one TCP port to another.
+.BR select ()
+の本当に便利な点を示す、よい例を紹介する。
+以下のリストは、ある TCP ポートから別のポートへ転送を行う
+TCP フォワードプログラムである。
+.PP
+.nf
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <string.h>
+#include <signal.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <errno.h>
+
+static int forward_port;
+
+#undef max
+#define max(x,y) ((x) > (y) ? (x) : (y))
+
+static int
+listen_socket(int listen_port)
+{
+    struct sockaddr_in a;
+    int s;
+    int yes;
+
+    if ((s = socket(AF_INET, SOCK_STREAM, 0)) == \-1) {
+        perror("socket");
+        return \-1;
+    }
+    yes = 1;
+    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
+            (char *) &yes, sizeof(yes)) == \-1) {
+        perror("setsockopt");
+        close(s);
+        return \-1;
+    }
+    memset(&a, 0, sizeof(a));
+    a.sin_port = htons(listen_port);
+    a.sin_family = AF_INET;
+    if (bind(s, (struct sockaddr *) &a, sizeof(a)) == \-1) {
+        perror("bind");
+        close(s);
+        return \-1;
+    }
+    printf("accepting connections on port %d\\n", listen_port);
+    listen(s, 10);
+    return s;
+}
+
+static int
+connect_socket(int connect_port, char *address)
+{
+    struct sockaddr_in a;
+    int s;
+
+    if ((s = socket(AF_INET, SOCK_STREAM, 0)) == \-1) {
+        perror("socket");
+        close(s);
+        return \-1;
+    }
+
+    memset(&a, 0, sizeof(a));
+    a.sin_port = htons(connect_port);
+    a.sin_family = AF_INET;
+
+    if (!inet_aton(address, (struct in_addr *) &a.sin_addr.s_addr)) {
+        perror("bad IP address format");
+        close(s);
+        return \-1;
+    }
+
+    if (connect(s, (struct sockaddr *) &a, sizeof(a)) == \-1) {
+        perror("connect()");
+        shutdown(s, SHUT_RDWR);
+        close(s);
+        return \-1;
+    }
+    return s;
+}
+
+#define SHUT_FD1 do {                                \\
+                     if (fd1 >= 0) {                 \\
+                         shutdown(fd1, SHUT_RDWR);   \\
+                         close(fd1);                 \\
+                         fd1 = \-1;                   \\
+                     }                               \\
+                 } while (0)
+
+#define SHUT_FD2 do {                                \\
+                     if (fd2 >= 0) {                 \\
+                         shutdown(fd2, SHUT_RDWR);   \\
+                         close(fd2);                 \\
+                         fd2 = \-1;                   \\
+                     }                               \\
+                 } while (0)
+
+#define BUF_SIZE 1024
+
+int
+main(int argc, char *argv[])
+{
+    int h;
+    int fd1 = \-1, fd2 = \-1;
+    char buf1[BUF_SIZE], buf2[BUF_SIZE];
+    int buf1_avail, buf1_written;
+    int buf2_avail, buf2_written;
+
+    if (argc != 4) {
+        fprintf(stderr, "Usage\\n\\tfwd <listen-port> "
+                 "<forward-to-port> <forward-to-ip-address>\\n");
+        exit(EXIT_FAILURE);
+    }
+
+    signal(SIGPIPE, SIG_IGN);
+
+    forward_port = atoi(argv[2]);
+
+    h = listen_socket(atoi(argv[1]));
+    if (h == \-1)
+        exit(EXIT_FAILURE);
+
+    for (;;) {
+        int r, nfds = 0;
+        fd_set rd, wr, er;
+
+        FD_ZERO(&rd);
+        FD_ZERO(&wr);
+        FD_ZERO(&er);
+        FD_SET(h, &rd);
+        nfds = max(nfds, h);
+        if (fd1 > 0 && buf1_avail < BUF_SIZE) {
+            FD_SET(fd1, &rd);
+            nfds = max(nfds, fd1);
+        }
+        if (fd2 > 0 && buf2_avail < BUF_SIZE) {
+            FD_SET(fd2, &rd);
+            nfds = max(nfds, fd2);
+        }
+        if (fd1 > 0 && buf2_avail \- buf2_written > 0) {
+            FD_SET(fd1, &wr);
+            nfds = max(nfds, fd1);
+        }
+        if (fd2 > 0 && buf1_avail \- buf1_written > 0) {
+            FD_SET(fd2, &wr);
+            nfds = max(nfds, fd2);
+        }
+        if (fd1 > 0) {
+            FD_SET(fd1, &er);
+            nfds = max(nfds, fd1);
+        }
+        if (fd2 > 0) {
+            FD_SET(fd2, &er);
+            nfds = max(nfds, fd2);
+        }
+
+        r = select(nfds + 1, &rd, &wr, &er, NULL);
+
+        if (r == \-1 && errno == EINTR)
+            continue;
+
+        if (r == \-1) {
+            perror("select()");
+            exit(EXIT_FAILURE);
+        }
+
+        if (FD_ISSET(h, &rd)) {
+            unsigned int l;
+            struct sockaddr_in client_address;
+
+            memset(&client_address, 0, l = sizeof(client_address));
+            r = accept(h, (struct sockaddr *) &client_address, &l);
+            if (r == \-1) {
+                perror("accept()");
+            } else {
+                SHUT_FD1;
+                SHUT_FD2;
+                buf1_avail = buf1_written = 0;
+                buf2_avail = buf2_written = 0;
+                fd1 = r;
+                fd2 = connect_socket(forward_port, argv[3]);
+                if (fd2 == \-1)
+                    SHUT_FD1;
+                else
+                    printf("connect from %s\\n",
+                            inet_ntoa(client_address.sin_addr));
+            }
+        }
+
+        /* NB: read oob data before normal reads */
+
+        if (fd1 > 0)
+            if (FD_ISSET(fd1, &er)) {
+                char c;
+
+                r = recv(fd1, &c, 1, MSG_OOB);
+                if (r < 1)
+                    SHUT_FD1;
+                else
+                    send(fd2, &c, 1, MSG_OOB);
+            }
+        if (fd2 > 0)
+            if (FD_ISSET(fd2, &er)) {
+                char c;
+
+                r = recv(fd2, &c, 1, MSG_OOB);
+                if (r < 1)
+                    SHUT_FD1;
+                else
+                    send(fd1, &c, 1, MSG_OOB);
+            }
+        if (fd1 > 0)
+            if (FD_ISSET(fd1, &rd)) {
+                r = read(fd1, buf1 + buf1_avail,
+                          BUF_SIZE \- buf1_avail);
+                if (r < 1)
+                    SHUT_FD1;
+                else
+                    buf1_avail += r;
+            }
+        if (fd2 > 0)
+            if (FD_ISSET(fd2, &rd)) {
+                r = read(fd2, buf2 + buf2_avail,
+                          BUF_SIZE \- buf2_avail);
+                if (r < 1)
+                    SHUT_FD2;
+                else
+                    buf2_avail += r;
+            }
+        if (fd1 > 0)
+            if (FD_ISSET(fd1, &wr)) {
+                r = write(fd1, buf2 + buf2_written,
+                           buf2_avail \- buf2_written);
+                if (r < 1)
+                    SHUT_FD1;
+                else
+                    buf2_written += r;
+            }
+        if (fd2 > 0)
+            if (FD_ISSET(fd2, &wr)) {
+                r = write(fd2, buf1 + buf1_written,
+                           buf1_avail \- buf1_written);
+                if (r < 1)
+                    SHUT_FD2;
+                else
+                    buf1_written += r;
+            }
+
+        /* check if write data has caught read data */
+
+        if (buf1_written == buf1_avail)
+            buf1_written = buf1_avail = 0;
+        if (buf2_written == buf2_avail)
+            buf2_written = buf2_avail = 0;
+
+        /* one side has closed the connection, keep
+           writing to the other side until empty */
+
+        if (fd1 < 0 && buf1_avail \- buf1_written == 0)
+            SHUT_FD2;
+        if (fd2 < 0 && buf2_avail \- buf2_written == 0)
+            SHUT_FD1;
+    }
+    exit(EXIT_SUCCESS);
+}
+.fi
+.PP
+.\"O The above program properly forwards most kinds of TCP connections
+.\"O including OOB signal data transmitted by \fBtelnet\fP servers.
+.\"O It handles the tricky problem of having data flow in both directions
+.\"O simultaneously.
+.\"O You might think it more efficient to use a
+.\"O .BR fork (2)
+.\"O call and devote a thread to each stream.
+.\"O This becomes more tricky than you might suspect.
+.\"O Another idea is to set nonblocking I/O using
+.\"O .BR fcntl (2).
+.\"O This also has its problems because you end up using
+.\"O inefficient timeouts.
+上記のプログラムは、ほとんどの種類の TCP 接続をフォワードする。
+.B telnet
+サーバによって中継される OOB シグナルデータも扱える。
+このプログラムは、データフローを双方向に同時に送るという、
+ややこしい問題も処理できる。
+.BR fork (2)
+コールを使って、各ストリームごとに専用のスレッドを用いるほうが効率的だ、
+という人もいるかもしれない。しかし、これは考えているよりずっとややこしい。
+あるいは、
+.BR fcntl (2)
+を使って非ブロック I/O をセットすれば良い、というアイデアもあるだろう。
+これにも実際には問題があり、タイムアウトが非効率的に起こってしまう。
+
+.\"O The program does not handle more than one simultaneous connection at a
+.\"O time, although it could easily be extended to do this with a linked list
+.\"O of buffers \(em one for each connection.
+.\"O At the moment, new
+.\"O connections cause the current connection to be dropped.
+このプログラムは一度にひとつ以上の同時接続を扱うことはできないが、
+その様に拡張するのは簡単で、バッファのリンクリストを
+(接続ごとにひとつずつ) 使えばよい。
+現時点のものでは、新しい接続がくると古い接続は落ちてしまう。
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR accept (2),
+.BR connect (2),
+.BR ioctl (2),
+.BR poll (2),
+.BR read (2),
+.BR recv (2),
+.BR select (2),
+.BR send (2),
+.BR sigprocmask (2),
+.BR write (2),
+.BR sigaddset (3),
+.BR sigdelset (3),
+.BR sigemptyset (3),
+.BR sigfillset (3),
+.BR sigismember (3),
+.BR epoll (7)
+.\" .SH AUTHORS
+.\" This man page was written by Paul Sheer.

@@ -1,0 +1,885 @@
+.\" -*- nroff -*-
+.\" Copyright 1995 Yggdrasil Computing, Incorporated.
+.\" written by Adam J. Richter (adam@yggdrasil.com),
+.\" with typesetting help from Daniel Quinlan (quinlan@yggdrasil.com).
+.\" and Copyright 2003 Michael Kerrisk (mtk.manpages@gmail.com).
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
+.\" USA.
+.\"
+.\" Modified by David A. Wheeler <dwheeler@dwheeler.com> 2000-11-28.
+.\" Applied patch by Terran Melconian, aeb, 2001-12-14.
+.\" Modified by Hacksaw <hacksaw@hacksaw.org> 2003-03-13.
+.\" Modified by Matt Domsch, 2003-04-09: _init and _fini obsolete
+.\" Modified by Michael Kerrisk <mtk.manpages@gmail.com> 2003-05-16.
+.\" Modified by Walter Harms: dladdr, dlvsym
+.\" Modified by Petr Baudis <pasky@suse.cz>, 2008-12-04: dladdr caveat
+.\"
+.\" Japanese Version Copyright (c) 1998 NAKANO Takeo all rights reserved.
+.\" Translated Sat May 23 1998 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified 1999-09-14, NAKANO Takeo
+.\" Modified 2000-03-19, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2001-02-16, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2001-12-21, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2002-10-21, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2003-09-01, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-03-15, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2006-01-20, Akihiro MOTOKI
+.\" Updated 2009-03-02, Akihiro MOTOKI, LDP v3.19
+.\"
+.\"WORD:	linker			リンカ
+.\"WORD:	dynamic linking		動的リンク
+.\"WORD:	dynamic library		動的ライブラリ
+.\"
+.TH DLOPEN 3 2008-12-06 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O dlclose, dlerror, dlopen, dlsym \- Programming interface to dynamic linking loader
+.SH 名前
+dlclose, dlerror, dlopen, dlsym \- 動的リンクを行うローダへの
+プログラミングインターフェース
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #include <dlfcn.h>
+.sp
+.BI "void *dlopen(const char *" filename ", int " flag );
+.sp
+.B "char *dlerror(void);"
+.sp
+.BI "void *dlsym(void *" handle ", const char *" symbol );
+.sp
+.BI "int dlclose(void *" handle );
+.sp
+.\"O Link with \fI\-ldl\fP.
+\fI\-ldl\fP でリンクする。
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The four functions
+.\"O .BR dlopen (),
+.\"O .BR dlsym (),
+.\"O .BR dlclose (),
+.\"O .BR dlerror ()
+.\"O implement the interface to the dynamic linking loader.
+.BR dlopen (),
+.BR dlsym (),
+.BR dlclose (),
+.BR dlerror ()
+の 4つの関数は、動的リンク (dynamic linking) を行うローダへの
+インタフェースを実装したものである。
+.SS "dlerror()"
+.\"O The function
+.\"O .BR dlerror ()
+.\"O returns a human readable string describing the most recent error
+.\"O that occurred from
+.\"O .BR dlopen (),
+.\"O .BR dlsym ()
+.\"O or
+.\"O .BR dlclose ()
+.\"O since the last call to
+.\"O .BR dlerror ().
+.\"O It returns NULL if no errors have occurred since initialization or since
+.\"O it was last called.
+関数
+.BR dlerror ()
+は、前回
+.BR dlerror ()
+が呼び出された後に、
+.BR dlopen (),
+.BR dlsym (),
+.BR dlclose ()
+のいずれかで最後に発生したエラーについての説明メッセージを返す。
+初期化後または前回呼び出された後で、エラーが発生していなければ NULL を返す。
+.SS "dlopen()"
+.\"O The function
+.\"O .BR dlopen ()
+.\"O loads the dynamic library file named by the null-terminated
+.\"O string
+.\"O .I filename
+.\"O and returns an opaque "handle" for the dynamic library.
+関数
+.BR dlopen ()
+は、NULL 終端された文字列
+.I filename
+で指定されたファイル名の動的ライブラリ (dynamic library) をロードし、
+その動的ライブラリへの内部「ハンドル」を返す。
+.\"O If
+.\"O .I filename
+.\"O is NULL, then the returned handle is for the main program.
+.\"O If
+.\"O .I filename
+.\"O contains a slash ("/"), then it is interpreted as a (relative
+.\"O or absolute) pathname.
+.I filename
+が NULL の場合、メイン・プログラムへのハンドルが返される。
+.I filename
+がスラッシュ ("/") を含む場合、(相対か絶対かの)パス名として解釈される。
+.\"O Otherwise, the dynamic linker searches for the library as follows
+.\"O (see
+.\"O .BR ld.so (8)
+.\"O for further details):
+それ以外の場合、動的リンカは以下の手順でライブラリを検索する
+(詳細は
+.BR ld.so (8)
+を参照):
+.IP o 4
+.\"O (ELF only) If the executable file for the calling program
+.\"O contains a DT_RPATH tag, and does not contain a DT_RUNPATH tag,
+.\"O then the directories listed in the DT_RPATH tag are searched.
+(ELF のみ) 呼び出し元プログラムの実行ファイルに DT_RPATH タグが含まれており、
+DT_RUNPATH タグが含まれていない場合、DT_RPATH タグに書かれている
+ディレクトリ・リストを検索する。
+.IP o
+.\"O If, at the time that the program was started, the environment variable
+.\"O .B LD_LIBRARY_PATH
+.\"O was defined to contain a colon-separated list of directories,
+.\"O then these are searched.
+.\"O (As a security measure this variable is ignored for set-user-ID and
+.\"O set-group-ID programs.)
+プログラムの開始時に環境変数
+.B LD_LIBRARY_PATH
+にコロン区切りのディレクトリのリストが定義されていれば、
+この環境変数に定義されたディレクトリが検索される
+(セキュリティ上の理由で、この変数は set-UID や set-GID された
+プログラムの場合は無視される)。
+.IP o
+.\"O (ELF only) If the executable file for the calling program
+.\"O contains a DT_RUNPATH tag, then the directories listed in that tag
+.\"O are searched.
+(ELF のみ) 呼び出し元プログラムの実行ファイルに DT_RUNPATH タグが含まれて
+いる場合、そのタグに書かれているディレクトリ・リストを検索する。
+.IP o
+.\"O The cache file
+.\"O .I /etc/ld.so.cache
+.\"O (maintained by
+.\"O .BR ldconfig (8))
+.\"O is checked to see whether it contains an entry for
+.\"O .IR filename .
+キャッシュファイル
+.I /etc/ld.so.cache
+の中に
+.I filename
+のエントリが入っているかをチェックする
+.RB ( /etc/ld.so.cache
+は
+.BR ldconfig (8)
+によって管理されている)。
+.IP o
+.\"O The directories
+.\"O .I /lib
+.\"O and
+.\"O .I /usr/lib
+.\"O are searched (in that order).
+ディレクトリ
+.I /lib
+と
+.I /usr/lib
+をこの順番で検索する。
+.PP
+.\"O If the library has dependencies on other shared libraries,
+.\"O then these are also automatically loaded by the dynamic linker
+.\"O using the same rules.
+.\"O (This process may occur recursively,
+.\"O if those libraries in turn have dependencies, and so on.)
+そのライブラリが他の共有ライブラリに依存している場合は、
+依存しているライブラリも動的リンカが同じ検索ルールに基づいて
+自動的にロードする (それらのライブラリにさらに依存関係がある場合などは
+この処理は再帰的に行われる)。
+.PP
+.\"O One of the following two values must be included in
+.\"O .IR flag :
+.I flag
+には以下の 2 つの値のいずれかを含めなければならない:
+.TP
+.B RTLD_LAZY
+.\"O Perform lazy binding.
+.\"O Only resolve symbols as the code that references them is executed.
+.\"O If the symbol is never referenced, then it is never resolved.
+.\"O (Lazy binding is only performed for function references;
+.\"O references to variables are always immediately bound when
+.\"O the library is loaded.)
+lazy binding (手抜きなシンボルの結び付け) が行う。
+シンボルの解決はそのシンボルを参照するコードが実行されるときにのみ
+行われる。シンボルが一度も参照されなかった場合には、そのシンボルは
+解決されないままとなる。
+(lazy binding は関数参照についてのみ実施される; 変数への参照は常に
+ライブラリがロードされた時点で直ちに解決される。)
+.TP
+.B RTLD_NOW
+.\"O If this value is specified, or the environment variable
+.\"O .B LD_BIND_NOW
+.\"O is set to a nonempty string,
+.\"O all undefined symbols in the library are resolved before
+.\"O .BR dlopen ()
+.\"O returns.
+.\"O If this cannot be done, an error is returned.
+この値が指定されるか、環境変数
+.B LD_BIND_NOW
+に空でない文字列が設定された場合、
+ライブラリ中の未定義のシンボルを全て解決してから
+.BR dlopen ()
+は復帰する。解決できなかったときにはエラーが返される。
+.PP
+.\"O Zero or more of the following values may also be ORed in
+.\"O .IR flag :
+以下の値のうち 0 個以上を論理和 (OR) の形で
+.I flag
+に追加することもできる:
+.TP
+.B RTLD_GLOBAL
+.\"O The symbols defined by this library will be
+.\"O made available for symbol resolution of subsequently loaded libraries.
+このライブラリで定義されているシンボルが、これより後でロードされる
+ライブラリのシンボル解決で利用できるようになる。
+.TP
+.B RTLD_LOCAL
+.\"O This is the converse of
+.\"O .BR RTLD_GLOBAL ,
+.\"O and the default if neither flag is specified.
+.\"O Symbols defined in this library are not made available to resolve
+.\"O references in subsequently loaded libraries.
+このフラグは
+.B RTLD_GLOBAL
+の反対の意味であり、どちらのフラグも指定されなかった場合は
+こちらがデフォルトとなる。
+このライブラリで定義されているシンボルは、これより後でロードされる
+ライブラリでのシンボル参照で利用できない。
+.TP
+.\"O .BR RTLD_NODELETE " (since glibc 2.2)"
+.BR RTLD_NODELETE " (glibc 2.2 以降)"
+.\"O Do not unload the library during
+.\"O .BR dlclose ().
+.\"O Consequently, the library's static variables are not reinitialized
+.\"O if the library is reloaded with
+.\"O .BR dlopen ()
+.\"O at a later time.
+.\"O This flag is not specified in POSIX.1-2001.
+.\"O .\" (But it is present on Solaris.)
+.BR dlclose ()
+中にそのライブラリをアンロードしない。
+そのため、同じライブラリをこれ以降に
+.BR dlopen ()
+で再度ロードした場合に、ライブラリ内の静的変数は再初期化されない。
+このフラグは POSIX.1-2001 では規定されていない。
+.\" (しかし Solaris に存在する)
+.TP
+.\"O .BR RTLD_NOLOAD " (since glibc 2.2)"
+.BR RTLD_NOLOAD " (glibc 2.2 以降)"
+.\"O Don't load the library.
+.\"O This can be used to test if the library is already resident
+.\"O .RB ( dlopen ()
+.\"O returns NULL if it is not, or the library's handle if it is resident).
+.\"O This flag can also be used to promote the flags on a library
+.\"O that is already loaded.
+.\"O For example, a library that was previously loaded with
+.\"O .B RTLD_LOCAL
+.\"O can be reopened with
+.\"O .BR RTLD_NOLOAD\ |\ RTLD_GLOBAL .
+.\"O This flag is not specified in POSIX.1-2001.
+.\"O .\" (But it is present on Solaris.)
+.\"O .\"
+そのライブラリをロードしない。
+このフラグはそのライブラリがすでに組み込まれているかを検査するのに
+利用できる
+.RB ( dlopen ()
+は、ライブラリが組み込まれていなければ NULL を返し、
+すでに組み込まれていればそのライブラリのハンドルを返す)。
+また、すでにロードされているライブラリのフラグを昇格させるのにも
+利用できる。例えば、過去に
+.B RTLD_LOCAL
+でロードしたライブラリを
+.BR RTLD_NOLOAD\ |\ RTLD_GLOBAL
+で再オープンすることができる。
+このフラグは POSIX.1-2001 では規定されていない。
+.\" (しかし Solaris に存在する)
+.TP
+.\"O .BR RTLD_DEEPBIND " (since glibc 2.3.4)"
+.BR RTLD_DEEPBIND " (glibc 2.3.4 以降)"
+.\" Inimitably described by UD in
+.\" http://sources.redhat.com/ml/libc-hacker/2004-09/msg00083.html.
+.\"O Place the lookup scope of the symbols in this
+.\"O library ahead of the global scope.
+.\"O This means that a self-contained library will use
+.\"O its own symbols in preference to global symbols with the same name
+.\"O contained in libraries that have already been loaded.
+.\"O This flag is not specified in POSIX.1-2001.
+このライブラリ内のシンボルの参照領域をグローバル領域よりも前に配置する。
+つまり、内蔵型のライブラリでは、すでにロードされたライブラリに含まれる
+同じ名前のグローバルなシンボルよりも自ライブラリ内のシンボルが優先して
+使われる。
+このフラグは POSIX.1-2001 では規定されていない。
+.PP
+.\"O If
+.\"O .I filename
+.\"O is a NULL pointer, then the returned handle is for the main program.
+.I filename
+が NULL ポインタである場合は、
+返されるハンドルはメイン・プログラムのものになる。
+.\"O When given to
+.\"O .BR dlsym (),
+.\"O this handle causes a search for a symbol in the main program,
+.\"O followed by all shared libraries loaded at program startup,
+.\"O and then all shared libraries loaded by
+.\"O .BR dlopen ()
+.\"O with the flag
+.\"O .BR RTLD_GLOBAL .
+このハンドルが
+.BR dlsym ()
+に渡されると、シンボルの検索は、メイン・プログラム内、
+プログラムの起動時にロードされる全ての共有ライブラリ、
+.BR dlopen ()
+によって
+.B RTLD_GLOBAL
+フラグ付きでロードされた全ての共有ライブラリ、の順序で行われる。
+.PP
+.\"O External references in the library are resolved using the libraries
+.\"O in that library's dependency list and any other libraries previously
+.\"O opened with the
+.\"O .B RTLD_GLOBAL
+.\"O flag.
+.\"O If the executable was linked with the flag "\-rdynamic"
+.\"O (or, synonymously, "\-\-export\-dynamic"),
+.\"O then the global symbols in the executable will also be used
+.\"O to resolve references in a dynamically loaded library.
+オープンされたライブラリ中での外部参照は、
+そのライブラリの依存リストにあるライブラリか、
+.B RTLD_GLOBAL
+フラグ付きで既にオープンされているライブラリを使って解決される。
+実行ファイルが "\-rdynamic" フラグ ("\-\-export\-dynamic" も同義)
+付きでリンクされている場合は、実行ファイル中のグローバルシンボルも、
+動的にロードされるライブラリ内の参照解決に用いられる。
+.PP
+.\"O If the same library is loaded again with
+.\"O .BR dlopen (),
+.\"O the same file handle is returned.
+.\"O The dl library maintains reference
+.\"O counts for library handles, so a dynamic library is not
+.\"O deallocated until
+.\"O .BR dlclose ()
+.\"O has been called on it as many times as
+.\"O .BR dlopen ()
+.\"O has succeeded on it.
+.\"O The
+.\"O .BR _init ()
+.\"O routine, if present, is only called once.
+.\"O But a subsequent call with
+.\"O .B RTLD_NOW
+.\"O may force symbol resolution for a library earlier loaded with
+.\"O .BR RTLD_LAZY .
+同じライブラリが
+.BR dlopen ()
+によって再度ロードされた場合には、同じファイルハンドルが返される。
+dl ライブラリはライブラリハンドルのリンク数を管理している。
+したがって動的ライブラリは
+.BR dlclose ()
+が
+.BR dlopen ()
+と同じ回数だけ呼び出されない限りアンロードされない。
+.BR _init ()
+ルーチンは一度だけ呼び出される
+.RB ( _init ()
+が存在する場合のみ)。
+.B RTLD_NOW
+が指定されて
+.BR dlopen ()
+が呼び出された場合、
+.B RTLD_LAZY
+で以前にロードされたライブラリのシンボル解決が実行されることがある。
+.PP
+.\"O If
+.\"O .BR dlopen ()
+.\"O fails for any reason, it returns NULL.
+.BR dlopen ()
+は、何らかの理由で失敗すると NULL を返す。
+
+.SS "dlsym()"
+.\"O The function
+.\"O .BR dlsym ()
+.\"O takes a "handle" of a dynamic library returned by
+.\"O .BR dlopen ()
+.\"O and the
+.\"O null-terminated symbol name, returning the address where that symbol is
+.\"O loaded into memory.
+.\"O If the symbol is not found, in the specified
+.\"O library or any of the libraries that were automatically loaded by
+.\"O .BR dlopen ()
+.\"O when that library was loaded,
+.\"O .BR dlsym ()
+.\"O returns NULL.
+関数
+.BR dlsym ()
+は、
+.BR dlopen ()
+が返した動的ライブラリの「ハンドル」と、
+NULL 終端されたシンボル名の文字列を引き数に取り、
+そのシンボルがロードされたメモリのアドレスを返す。
+シンボルが、指定されたライブラリと、指定されたライブラリがロードされる際に
+.BR dlopen ()
+が自動的にロードしてライブラリのいずれにも見つからない場合には、
+.BR dlsym ()
+は NULL を返す
+.\"O (The search performed by
+.\"O .BR dlsym ()
+.\"O is breadth first through the dependency tree of these libraries.)
+.RB ( dlsym ()
+による検索は、これらのライブラリの依存関係のツリーを先頭から
+辿って行われる)。
+.\"O Since the value of the symbol could actually be NULL (so that a
+.\"O NULL return from
+.\"O .BR dlsym ()
+.\"O need not indicate an error), the correct way to test for an error
+.\"O is to call
+.\"O .BR dlerror ()
+.\"O to clear any old error conditions, then call
+.\"O .BR dlsym (),
+.\"O and then call
+.\"O .BR dlerror ()
+.\"O again, saving its return value into a variable, and check whether
+.\"O this saved value is not NULL.
+実際にはシンボルの値自体が NULL になることもある (そのため、
+.BR dlsym ()
+の返り値が NULL であったとしても必ずしもエラーという訳ではない)。
+エラーかどうかを確認する正しい方法は以下の通りである:
+.BR dlerror ()
+を呼び出して以前のエラー状態をクリアしてから、
+.BR dlsym ()
+を呼び出す。その後でもう一度
+.BR dlerror ()
+を呼び出して、
+.BR dlerror ()
+の返り値を変数に保存し、保存した値が NULL であるか判定する。
+.PP
+.\"O There are two special pseudo-handles,
+.\"O .B RTLD_DEFAULT
+.\"O and
+.\"O .BR RTLD_NEXT .
+.B RTLD_DEFAULT
+と
+.B RTLD_NEXT
+という二つの特別な擬似ハンドルがある。
+.\"O The former will find the first occurrence of the desired symbol
+.\"O using the default library search order.
+.\"O The latter
+.\"O will find the next occurrence of a function in the search order
+.\"O after the current library.
+.\"O This allows one to provide a wrapper
+.\"O around a function in another shared library.
+.B RTLD_DEFAULT
+は、デフォルトのライブラリ検索順序にしたがって、
+検索対象のシンボルが最初に現れるところを探す。
+.B RTLD_NEXT
+は、ライブラリ検索順序の中で現在のライブラリ以降で最初に
+関数が現れるところを探す。この機能を使うことで、別の共有ライブラリの
+関数へのラッパーを提供することができる。
+.SS "dlclose()"
+.\"O The function
+.\"O .BR dlclose ()
+.\"O decrements the reference count on the dynamic library handle
+.\"O .IR handle .
+.\"O If the reference count drops to zero and no other loaded libraries use
+.\"O symbols in it, then the dynamic library is unloaded.
+関数
+.BR dlclose ()
+は動的ライブラリのハンドル
+.I handle
+の参照カウントを 1 減らす。参照カウントが 0 になり、ロードされている
+他のライブラリからそのライブラリ内のシンボルが使われていなければ、
+その動的ライブラリをアンロードする。
+.LP
+.\"O The function
+.\"O .BR dlclose ()
+.\"O returns 0 on success, and nonzero on error.
+関数
+.BR dlclose ()
+は、成功した場合は 0 を返し、エラーの場合 0 以外を返す。
+.\"O .SS "The obsolete symbols _init(0 and _fini()"
+.SS "廃止されたシンボル _init() と _fini()"
+.\"O The linker recognizes special symbols
+.\"O .B _init
+.\"O and
+.\"O .BR _fini .
+.\"O If a dynamic library exports a routine named
+.\"O .BR _init (),
+.\"O then that code is executed after the loading, before
+.\"O .BR dlopen ()
+.\"O returns.
+.\"O If the dynamic library exports a routine named
+.\"O .BR _fini (),
+.\"O then that routine is called just before the library is unloaded.
+リンカは
+.B _init
+と
+.B _fini
+を特別なシンボルと解釈する。
+ある動的ライブラリで
+.BR _init ()
+という名前のルーチンがエクスポートされていれば、
+そのコードは、ライブラリのロード後、かつ
+.BR dlopen ()
+が復帰する前に実行される。
+その動的ライブラリで
+.BR _fini ()
+という名前のルーチンがエクスポートされていれば、
+ライブラリがアンロードされる直前にそのルーチンが呼び出される。
+.\"O In case you need to avoid linking against the system startup files,
+.\"O this can be done by using the
+.\"O .BR gcc (1)
+.\"O .I \-nostartfiles
+.\"O command-line option.
+システムの起動ファイルに対するリンクを避ける必要がある場合、
+.BR gcc (1)
+のコマンドラインに
+.I \-nostartfiles
+オプションを指定すればよい。
+.LP
+.\"O Using these routines, or the gcc
+.\"O .B \-nostartfiles
+.\"O or
+.\"O .B \-nostdlib
+.\"O options, is not recommended.
+.\"O Their use may result in undesired behavior,
+.\"O since the constructor/destructor routines will not be executed
+.\"O (unless special measures are taken).
+.\"O .\" void _init(void) __attribute__((constructor));
+.\"O .\" void _fini(void) __attribute__((destructor));
+このルーチンや、gcc のオプション
+.B \-nostartfiles
+や
+.B \-nostdlib
+は使用しないことを推奨する。
+これらを使うと、望ましくない動作をすることがある。
+なぜなら、(特別な措置が行われない限り) これらの constructor/destructor
+ルーチンは実行されないからである。
+.\" void _init(void) __attribute__((constructor));
+.\" void _fini(void) __attribute__((destructor));
+.LP
+.\"O Instead, libraries should export routines using the
+.\"O .B __attribute__((constructor))
+.\"O and
+.\"O .B __attribute__((destructor))
+.\"O function attributes.
+.\"O See the gcc info pages for information on these.
+.\"O Constructor routines are executed before
+.\"O .BR dlopen ()
+.\"O returns, and destructor routines are executed before
+.\"O .BR dlclose ()
+.\"O returns.
+代わりに、ライブラリは
+.B __attribute__((constructor))
+や
+.B __attribute__((destructor))
+の関数属性を使って必要なルーチンをエクスポートするのがよい。
+これらについては gcc の info ページを参照のこと。
+constructor ルーチンは
+.BR dlopen ()
+が復帰する前に実行され、
+destructor ルーチンは
+.BR dlclose ()
+が復帰する前に実行される。
+.\"O .SS Glibc extensions: dladdr() and dlvsym()
+.SS GNU での拡張: dladdr() と dlvsym()
+.\"O Glibc adds two functions not described by POSIX, with prototypes
+glibc では POSIX には記載されていない関数が 2つ追加されている。
+プロトタイプは以下の通りである。
+.sp
+.nf
+.B #define _GNU_SOURCE
+.B #include <dlfcn.h>
+.sp
+.BI "int dladdr(void *" addr ", Dl_info *" info );
+.sp
+.BI "void *dlvsym(void *" handle ", char *" symbol ", char *" version );
+.fi
+.PP
+.\"O The function
+.\"O .BR dladdr ()
+.\"O takes a function pointer and tries to resolve name
+.\"O and file where it is located.
+.\"O Information is stored in the
+.\"O .I Dl_info
+.\"O structure:
+関数
+.BR dladdr ()
+は、関数のポインタを引き数にとり、関数の名前と関数が定義されている
+ファイルの解決を試みる。情報は
+.I Dl_info
+構造体に格納される。
+.sp
+.in +4n
+.nf
+typedef struct {
+    const char *dli_fname;  /* Pathname of shared object that
+                               contains address */
+    void       *dli_fbase;  /* Address at which shared object
+                               is loaded */
+    const char *dli_sname;  /* Name of nearest symbol with address
+                               lower than \fIaddr\fP */
+    void       *dli_saddr;  /* Exact address of symbol named
+                               in \fIdli_sname\fP */
+} Dl_info;
+.fi
+.in
+.PP
+.\"O If no symbol matching
+.\"O .I addr
+.\"O could be found, then
+.\"O .I dli_sname
+.\"O and
+.\"O .I dli_saddr
+.\"O are set to NULL.
+.I addr
+にマッチするシンボルが見つからなかった場合、
+.I dli_sname
+と
+.I dli_saddr
+は NULL にセットされる。
+.PP
+.\"O .BR dladdr ()
+.\"O returns 0 on error, and nonzero on success.
+.BR dladdr ()
+は、エラー時には 0 を返し、成功した場合は 0 以外を返す。
+.PP
+.\"O The function
+.\"O .BR dlvsym (),
+.\"O provided by glibc since version 2.1,
+.\"O does the same as
+.\"O .BR dlsym ()
+.\"O but takes a version string as an additional argument.
+関数
+.BR dlvsym ()
+は
+.BR dlsym ()
+と同じ動作をするが、バージョンの文字列を渡す引き数が
+追加されている点が異なる
+.RB ( dlvsym ()
+はバージョン 2.1 以降の glibc で提供されている)。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+.\"O POSIX.1-2003 describes
+.\"O .BR dlclose (),
+.\"O .BR dlerror (),
+.\"O .BR dlopen (),
+.\"O and
+.\"O .BR dlsym ().
+POSIX.1-2003 には
+.BR dlclose (),
+.BR dlerror (),
+.BR dlopen (),
+.BR dlsym ().
+の記載がある。
+.\"O .SH NOTES
+.SH 注意
+.\"O The symbols
+.\"O .B RTLD_DEFAULT
+.\"O and
+.\"O .B RTLD_NEXT
+.\"O are defined by
+.\"O .I <dlfcn.h>
+.\"O only when
+.\"O .B _GNU_SOURCE
+.\"O was defined before including it.
+シンボル
+.B RTLD_DEFAULT
+と
+.B RTLD_NEXT
+は
+.I <dlfcn.h>
+で定義されており、
+.I <dlfcn.h>
+のインクルード前に
+.B _GNU_SOURCE
+が定義されている場合のみ有効となる。
+.\" .LP
+.\"O .\" The string returned by
+.\"O .\" .BR dlerror ()
+.\"O .\" should not be modified.
+.\"O .\" Some systems give the prototype as
+.\"O .\" .sp
+.\"O .\" .in +5
+.\"O .\" .B "const char *dlerror(void);"
+.\"O .\" .in
+.\" .BR dlerror ()
+.\" が返す文字列は変更すべきではない。システムによっては、
+.\" 以下のようなプロトタイプになっている。
+.\" .sp
+.\" .in +5
+.\" .B "const char *dlerror(void);"
+.\" .in
+
+.\"O Since glibc 2.2.3,
+.\"O .BR atexit (3)
+.\"O can be used to register an exit handler that is automatically
+.\"O called when a library is unloaded.
+glibc 2.2.3 以降では、
+.BR atexit (3)
+を使って、ライブラリがアンロードされる際に自動的に呼び出される
+終了ハンドラ (exit handler) を登録することができる。
+.\"O .SS History
+.SS 歴史
+.\"O The dlopen interface standard comes from SunOS.
+.\"O That system also has
+.\"O .BR dladdr (),
+.\"O but not
+.\"O .BR dlvsym ().
+dlopen インターフェースの標準は SunOS をもとにしている。
+SunOS には
+.BR dladdr ()
+もあったが、
+.BR dlvsym ()
+はなかった。
+.\"O .SH BUGS
+.SH バグ
+.\"O Sometimes, the function pointers you pass to
+.\"O .BR dladdr ()
+.\"O may surprise you.
+.\"O On some architectures (notably i386 and x86_64),
+.\"O .I dli_fname
+.\"O and
+.\"O .I dli_fbase
+.\"O may end up pointing back at the object from which you called
+.\"O .BR dladdr (),
+.\"O even if the function used as an argument should come from
+.\"O a dynamically linked library.
+時として、
+.BR dladdr ()
+に渡した関数ポインタは驚くような値になることがある。
+いくつかのアーキテクチャ (特に i386 と x86_64) では、
+引き数として使用した関数が動的リンクライブラリで定義されるもので
+あったとしても、
+.I dli_fname
+と
+.I dli_fbase
+が
+.BR dladdr ()
+を呼び出したオブジェクトを参照した状態で終わっていることがある。
+.PP
+.\"O The problem is that the function pointer will still be resolved
+.\"O at compile time, but merely point to the
+.\"O .I plt
+.\"O (Procedure Linkage Table)
+.\"O section of the original object (which dispatches the call after
+.\"O asking the dynamic linker to resolve the symbol).
+.\"O To work around this,
+.\"O you can try to compile the code to be position-independent:
+.\"O then, the compiler cannot prepare the pointer
+.\"O at compile time anymore and today's
+.\"O .BR gcc (1)
+.\"O will generate code that just loads the final symbol address from the
+.\"O .I got
+.\"O (Global Offset Table) at run time before passing it to
+.\"O .BR dladdr ().
+.\"O motoki: 括弧内 (which dispatches 〜) の部分の訳に自信なし。
+.\"O         which の主語は original object でいいのか?
+問題は、関数ポインタの解決は今なおコンパイル時に行われるが、
+そのポインタは元のオブジェクトの
+.I plt
+(Procedure Linkage Table) セクションを指しているだけだという点にある
+(オブジェクト自体は、ダイナミックリンカによってシンボルの解決が行われた後に、
+関数の呼び出しを行う)。
+これに対処する方法としては、
+コードを position-independent でコンパイルするという方法がある。
+そうすると、コンパイラはコンパイル時にポインタを用意することができず、
+今日の
+.BR gcc (1)
+では、実行時に
+.BR dladdr ()
+に関数ポインタを渡す前に、
+.I got
+(Global Offset Table) から最終的なシンボルのアドレスをロードするだけの
+コードが生成される。
+.\"O .SH EXAMPLE
+.SH 例
+.\"O Load the math library, and print the cosine of 2.0:
+math ライブラリをロードし、2.0 の余弦を表示する
+.nf
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <dlfcn.h>
+
+int
+main(int argc, char **argv)
+{
+    void *handle;
+    double (*cosine)(double);
+    char *error;
+
+    handle = dlopen("libm.so", RTLD_LAZY);
+    if (!handle) {
+        fprintf(stderr, "%s\en", dlerror());
+        exit(EXIT_FAILURE);
+    }
+
+    dlerror();    /* Clear any existing error */
+
+    /* Writing: cosine = (double (*)(double)) dlsym(handle, "cos");
+       would seem more natural, but the C99 standard leaves
+       casting from "void *" to a function pointer undefined.
+       The assignment used below is the POSIX.1\-2003 (Technical
+       Corrigendum 1) workaround; see the Rationale for the
+       POSIX specification of dlsym(). */
+
+    *(void **) (&cosine) = dlsym(handle, "cos");
+.\" But in fact "gcc -O2 -Wall" will complain about the preceding cast.
+
+    if ((error = dlerror()) != NULL)  {
+        fprintf(stderr, "%s\en", error);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("%f\en", (*cosine)(2.0));
+    dlclose(handle);
+    exit(EXIT_SUCCESS);
+}
+.fi
+.PP
+.\"O If this program were in a file named "foo.c", you would build the program
+.\"O with the following command:
+このプログラムを "foo.c" に書いたとすると、以下のコマンドでプログラムを
+ビルドできる。
+.in +4n
+.LP
+    gcc \-rdynamic \-o foo foo.c \-ldl
+.in
+.PP
+.\"O Libraries exporting
+.\"O .BR _init ()
+.\"O and
+.\"O .BR _fini ()
+.\"O will want to be compiled as
+.\"O follows, using \fIbar.c\fP as the example name:
+.BR _init ()
+と
+.BR _fini ()
+をエクスポートするライブラリの場合は
+以下のようにしてコンパイルする必要がある。
+例として \fIbar.c\fP をコンパイルする場合:
+.in +4n
+.LP
+    gcc \-shared \-nostartfiles \-o bar bar.c
+.in
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR ld (1),
+.BR ldd (1),
+.BR dl_iterate_phdr (3),
+.BR feature_test_macros (7),
+.BR rtld-audit (7),
+.BR ld.so (8),
+.BR ldconfig (8),
+ld.so info pages, gcc info pages, ld info pages

@@ -1,0 +1,389 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)routed.8	6.6 (Berkeley) 3/16/91
+.\"	From: @(#)routed.8	8.2 (Berkeley) 12/11/93
+.\"	From: NetBSD: routed.8,v 1.6 1995/03/18 15:00:38 cgd Exp
+.\"	$Id: routed.8,v 1.1.1.1 2000/10/19 08:22:16 ysato Exp $
+.\"
+.\" Japanese Version Copyright (c) 2001 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Sun Jan 14 21:05:08 JST 2001
+.\"         by Yuichi SATO <sato@complex.eng.hokudai.ac.jp>
+.\"
+.\"WORD:	destination	到達先
+.\"
+.Dd December 11, 1993
+.Dt ROUTED 8
+.Os "Linux NetKit (0.17)"
+.Sh 名前
+.Nm routed
+.Nd ネットワークルーティングデーモン
+.Sh 書式
+.Nm routed
+.Op Fl d
+.Op Fl g
+.Op Fl q
+.Op Fl s
+.Op Fl t
+.Op Ar logfile
+.Sh 説明
+.Nm routed
+は、ネットワークのルーティングテーブルを管理するために、ブート時に起動される。
+ルーティングデーモンは、
+Xerox NS ルーティング情報プロトコル
+(Routing Information Protocol) を変更したものを使う。
+これにより、カーネルのルーティングテーブルのエントリを最新に保つ。
+このサーバは、複数のアドレスタイプを使用できる一般化したプロトコルを使う。
+しかし、現在のところは、ネットワーククラスタ内で
+インターネットのルーティングをするためだけに使われている。
+.Pp
+通常の運用において
+.Nm routed
+は、
+ルーティング情報パケットを待つために、
+.Xr route 8
+サービス
+.Ns ( Xr services 5
+を参照)
+用の
+.Xr udp 4
+ソケットの接続を待つ。
+ホストがネットワーク間のルータである場合、
+.Nm routed
+は、直接接続されている全てのホストとネットワークに、
+ルーティングテーブルの複製を定期的に提供する。
+.Pp
+.Nm routed
+が動作し始めると、
+システムで設定されており、
+かつ ``up'' とマークされている
+直接接続されたインターフェースを探すために、
+.Dv SIOCGIFCONF
+.Xr ioctl 2
+が使われる (ソフトウェアループバックインターフェースは無視される)。
+複数のインターフェースが存在する場合、
+ホストはネットワーク間でパケットを転送するものと仮定される。
+それから
+.Nm routed
+は、
+.Em リクエスト
+パケットを各インターフェースから送信する
+(インターフェースがサポートしている場合は、ブロードキャストパケットを使う)。
+そして、
+.Nm routed
+は、他のホストからの
+.Em リクエスト
+パケットと
+.Em レスポンス
+パケットの接続を待つループに入る。
+.Pp
+.Em リクエスト
+パケットを受信すると、
+.Nm routed
+は内部テーブルで管理している情報に基づいてリプライを作成する。
+作成された
+.Em レスポンス
+パケットには既知のルートのリストが含まれ、
+各ルートには「ホップカウント」メトリックが付く
+(16 以上のホップカウントは「無限大」とみなされる)。
+ここで返された各ルートのメトリックは、
+.Em 送信者からの相対的な
+メトリックである。
+.Pp
+以下の条件を満たす場合、
+.Nm routed
+が受信した
+.Em レスポンス
+パケットは、
+ルーティングテーブルを更新するために使われる:
+.Bl -enum
+.It
+到達先ネットワークまたは到達先ホストについての
+ルーティングテーブルのエントリが存在せず、
+かつ到達先を示すメトリックが「到達可能」である場合
+(すなわち、ホップカウントが無限大でない場合)。
+.It
+パケットの送信元ホストが、
+既存のルーティングテーブルのエントリにあるネットワーク間ルータと同じ場合。
+つまり、到達先へのパケットをルーティングする
+ルータそのものから、更新された情報を受け取る場合。
+.It
+ルーティングテーブルの既存のエントリが
+一定期間 (90 秒と定義されている) 更新されておらず、
+このルートが少なくとも現在のルートと同じくらい有効な価値がある場合。
+.It
+新しいルートが、現在ルーティングテーブルに格納されているルートと比べて、
+到達先へのより短いルートを表している場合。
+これを決定するために、新しいルートのメトリックを
+テーブルに格納されているルートのメトリックと比較する。
+.El
+.Pp
+更新が行われた場合、
+.Nm routed
+は内部テーブルの変更を記録し、カーネルのルーティングテーブルを更新する。
+この変更は次に
+.Em レスポンス
+パケットを送信する際に反映される。
+.Pp
+.Nm routed
+は外部からのパケットを処理するのに加え、
+定期的にルーティングテーブルのエントリをチェックする。
+エントリが 3 分間以上更新されていない場合、
+そのエントリのメトリックは無限大に設定され、
+削除のためのマークが付けられる。
+そのエントリの失効が
+ローカルのインターネット上で通知されるのを保証するために、
+削除は更に 60 秒後になる。
+.Pp
+ネットワーク間ルータとして動作しているホストは、
+直接接続された全てのホストやネットワークに対して、
+30 秒毎に無条件でルーティングテーブルを提供する。
+レスポンスは、
+ブロードキャスト機能を持つネットワークのブロードキャストアドレス・
+point-to-point リンクの到達先アドレス・
+ルータ自身の他のネットワークでのアドレス
+に対して送信される。
+無条件にレスポンスを送信する場合、
+通常のルーティングテーブルは無視される。
+ネットワークとインターフェースが正しく機能しているかを、
+各ネットワークがレスポンスを受信できるか否かを使って決定する。
+あるインターフェースでレスポンスが受信できない場合、
+そのインターフェースに対してルーティングするために別のルートを選択する。
+また、他のルートもない場合、そのルートはルーティングテーブルから削除される。
+.Pp
+.Nm routed
+がサポートするオプションを示す:
+.Bl -tag -width Ds
+.It Fl d
+不正なパケットを受信したというような、
+付加的なデバッグ情報をログに記録するようにする。
+.It Fl g
+このフラグは、ネットワーク間ルータにおいて 
+``default'' の到達先へのルートを設けるために使われる。
+このフラグは、インターネットのゲートウェイや、
+他のローカルルータにルートを報告しない
+別のルーティングプロトコルを利用するゲートウェイで、
+典型的に使われる。
+.It Fl s
+このオプションを指定すると、
+ネットワーク間ルータとして動作しているか否かに関係なく、
+.Nm routed
+に強制的にルーティング情報を提供させる。
+複数のネットワークインターフェースがある場合や、
+point-to-point リンクを使用中である場合は、これがデフォルトである。
+.It Fl q
+このオプションは、
+.Fl s
+オプションの反対である。
+.It Fl t
+.Fl t
+オプションが指定すると、
+送受信した全てのパケットが標準出力に表示される。
+更に、
+.Nm routed
+は自分自身を制御端末から切り離さないため、
+キーボードからインタラプトを入力すればプロセスが kill される。
+.El
+.Pp
+この他に指定された引き数は、
+.Nm routed
+の動作を記録するファイルの名前として解釈される。
+このログにはルーティングテーブルの変更が記録される。
+また、全てのパケットを追跡しない場合は、
+変更されたルートに関連して送受信された最新のメッセージの履歴も記録される。
+.Pp
+上記の機能に加えて、
+.Nm routed
+は「遠隔にある」
+.Em passive
+もしくは
+.Em active
+なゲートウェイという概念をサポートする。
+.Nm routed
+が起動すると、
+.Dv SIOGIFCONF
+.Xr ioctl 2
+からの情報のみでは突き止められない可能性のあるゲートウェイを見付けるために、
+.Pa /etc/gateways
+ファイルが読み込まれる。
+このようにして指定したゲートウェイには、
+ルーティング情報を交換するつもりがない場合には、
+passive というマークを付ける必要がある。
+また、ルーティング情報を交換する場合には、
+active というマークを付ける必要がある
+(すなわち、この場合には
+.Nm routed
+がマシン上で稼働している必要がある)。
+passive ゲートウェイを通るルートは、
+起動時に一度だけカーネルのルーティングテーブルに設定される。
+このようなルートは、送信されるルーティング情報には含まれない。
+active ゲートウェイは、ネットワークインターフェースと同様に扱われる。
+ルーティング情報はゲートウェイに配布される。
+また、一定時間ルーティング情報が受信されない場合、
+それに関連したルートは削除される。
+.Em external
+とマークされたゲートウェイも passive であるが、
+カーネルのルーティングテーブルに載ることもなく、
+ルーティングの更新時にもその情報が含められることはない。
+external エントリの機能は、
+.Nm routed
+に対して、
+「別のルーティングプロセスがそのようなルートを追加する可能性があり、
+その到達先に対して他のルートを設定すべきでない」
+と知らせることである。
+external エントリは、
+2 つのルータが同じ到達先へのルートを覚えてもよい場合にのみ、必要である。
+.Pp
+.Pa /etc/gateways
+は、以下のフォーマットの行で構成される:
+.Bd -ragged
+.Pf < Cm net No \&|
+.Cm host Ns >
+.Ar name1
+.Cm gateway
+.Ar name2
+.Cm metric
+.Ar value
+.Pf < Cm passive No \&|
+.Cm active No \&|
+.Cm external Ns >
+.Ed
+.Pp
+キーワード
+.Cm net
+と
+.Cm host
+はそれぞれ、ルートがネットワークに付いてのルートなのか、
+特定のホストについてのルートなのかを示す。
+.Pp
+.Ar name1
+は、到達先ネットワークまたはホストの名前である。
+この名前は、
+.Pa /etc/networks
+または
+.Pa /etc/hosts
+にあるシンボル名でもよい
+(また、
+.Nm routed
+が
+.Xr named 8
+の後に起動される場合は、
+ネームサーバがこの名前を知っていなければならない)。
+また、
+「ドット」表記で指定したインターネットアドレスでもよい。
+.Xr inet 3
+を参照すること。
+.Pp
+.Ar name2
+は、メッセージがフォワードされるべきゲートウェイの名前またはアドレスである。
+.Pp
+.Ar value
+は、到達先ホストまたはネットワークへのホップカウントを表すメトリックである。
+.Pp
+キーワード
+.Cm passive ,
+.Cm active ,
+.Cm external
+の 1 つを使って、
+ゲートウェイが
+.Em passive
+または
+.Em active
+として (上記のように) 扱われる必要があるか、
+あるいはゲートウェイが
+.Nm routed
+プロトコルのスコープで
+.Em external
+であるのかを示す。
+.Pp
+Arpanet や Milnet に直接接続されたネットワーク間ルータは、
+ルーティング情報を集めるために
+.Pq Tn EGP
+を使うべきである。
+さもなければ、passive ゲートウェイの静的ルーティングテーブルを使うことになる。
+.Tn EGP
+は、ローカルネットワークに対して
+他のインターネットシステムへのルートを提供するために必要である。
+.Sh ファイル
+.Bl -tag -width /etc/gateways -compact
+.It Pa /etc/gateways
+遠隔ゲートウェイについての情報を記述するファイル
+.El
+.Sh 関連項目
+.Xr udp 7 ,
+.Xr icmp 7 
+.Rs
+.%T Internet Transport Protocols
+.%R XSIS 028112
+.%Q Xerox System Integration Standard
+.Re
+.Sh バグ
+.Nm routed
+は (動作などが) 疑わしい。
+.Xr gated 8
+または
+.Xr zebra 8
+の使用を考慮に入れること。
+.Pp
+リダイレクトによりルートが変更または追加された場合、
+カーネルのルーティングテーブルと
+.Nm routed
+のルーティングテーブルが対応しない可能性がある。
+.Nm routed
+は、
+raw ソケット経由で受信した
+.Tn ICMP
+パケットを読み込むことにより、
+受信したリダイレクトを注目すべきである。
+.Pp
+.Nm routed
+は他のルーティングプロトコルも組み込むべきである。
+各プロトコルに対して別々のプロセスを使うには、
+余計なルートや競合するルートを排除するために、設定オプションが必要である。
+.Pp
+.Nm routed
+は、より多くの情報を集めるために、
+.Tn IMP
+のようなインテリジェントなインタフェースで接続を待つべきである。
+.Nm routed
+は、(例えば、出力側の失敗といった)
+ネットワークインターフェースの
+一方向の失敗を、常に検出できるとは限らない。
+.Sh 履歴
+.Nm
+コマンドは
+.Bx 4.2
+で登場した。
+.Sh 翻訳者謝辞
+この man ページの翻訳にあたり、
+FreeBSD jpman project <http://www.jp.freebsd.org/man-jp/>
+による翻訳を参考にさせていただいた。

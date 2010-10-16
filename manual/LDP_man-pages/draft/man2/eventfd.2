@@ -1,0 +1,645 @@
+.\" Copyright (C) 2008 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" starting from a version by Davide Libenzi <davidel@xmailserver.org>
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+.\" MA  02111-1307  USA
+.\"
+.\" 2008-10-10, mtk: describe eventfd2(), and EFD_NONBLOCK and EFD_CLOEXEC
+.\"
+.\" Japanese Version Copyright (c) 2008  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2008-04-08, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2008-11-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.13
+.\" 
+.TH EVENTFD 2 2009-01-26 Linux "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O eventfd \- create a file descriptor for event notification
+eventfd \- イベント通知用のファイルディスクリプタを生成する
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #include <sys/eventfd.h>
+.sp
+.BI "int eventfd(unsigned int " initval ", int " flags );
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .BR eventfd ()
+.\"O creates an "eventfd object" that can be used as
+.\"O an event wait/notify mechanism by userspace applications,
+.\"O and by the kernel to notify userspace applications of events.
+.\"O The object contains an unsigned 64-bit integer
+.\"O .RI ( uint64_t )
+.\"O counter that is maintained by the kernel.
+.\"O This counter is initialized with the value specified in the argument
+.\"O .IR initval .
+.BR eventfd ()
+は "eventfd オブジェクト" を生成する。
+eventfd オブジェクトはユーザ空間アプリケーションがイベント待ち受け/通知用の
+仕組みとして使うことができる。また、カーネルがユーザ空間アプリケーションに
+イベントを通知するためにも使うことができる。
+このオブジェクトには、unsigned の 64 ビット整数
+.RI ( uint64_t )
+型のカウンタが含まれており、このカウンタはカーネルにより管理される。
+このカウンタは
+.I initval
+引き数で指定された値で初期化される。
+
+.\"O Starting with Linux 2.6.27, the following values may be bitwise ORed in
+.\"O .IR flags
+.\"O to change the behaviour of
+.\"O .BR eventfd ():
+Linux 2.6.27 以降では、
+以下の値のいくつかをビット単位の論理和 (OR) で指定することで、
+.BR eventfd ()
+の振舞いを変更することができる。
+.TP 14
+.B EFD_NONBLOCK
+.\"O Set the
+.\"O .BR O_NONBLOCK
+.\"O file status flag on the new open file description.
+.\"O Using this flag saves extra calls to
+.\"O .BR fcntl (2)
+.\"O to achieve the same result.
+新しく生成されるオープンファイル記述 (open file description) の
+.B O_NONBLOCK
+ファイルステータスフラグをセットする。
+このフラグを使うことで、
+.B O_NONBLOCK
+をセットするために
+.BR fcntl (2)
+を追加で呼び出す必要がなくなる。
+.TP
+.B EFD_CLOEXEC
+.\"O Set the close-on-exec
+.\"O .RB ( FD_CLOEXEC )
+.\"O flag on the new file descriptor.
+.\"O See the description of the
+.\"O .B O_CLOEXEC
+.\"O flag in
+.\"O .BR open (2)
+.\"O for reasons why this may be useful.
+新しいファイルディスクリプタに対して
+close-on-exec
+.RB ( FD_CLOEXEC )
+フラグをセットする。
+このフラグが役に立つ理由については、
+.BR open (2)
+の
+.B O_CLOEXEC
+フラグの説明を参照のこと。
+.PP
+.\"O In Linux up to version 2.6.26, the
+.\"O .I flags
+.\"O argument is unused, and must be specified as zero.
+バージョン 2.6.26 以前の Linux では、
+.I flags
+引き数は未使用であり、0 を指定しなければならない。
+
+.\"O As its return value,
+.\"O .BR eventfd ()
+.\"O returns a new file descriptor that can be used to refer to the
+.\"O eventfd object.
+.\"O The following operations can be performed on the file descriptor:
+.BR eventfd ()
+は eventfd オブジェクトを参照するのに使用できる新しいファイルディスクリプタ
+を返す。返されたファイルディスクリプタに対しては以下の操作を実行できる。
+.TP
+.BR read (2)
+.\"O If the eventfd counter has a nonzero value, then a
+.\"O .BR read (2)
+.\"O returns 8 bytes containing that value,
+.\"O and the counter's value is reset to zero.
+.\"O (The returned value is in host byte order,
+.\"O i.e., the native byte order for integers on the host machine.)
+eventfd カウンタが 0 以外の値の場合、
+.BR read (2)
+はカウンタ値を格納した 8 バイトの値を返し、
+カウンタ値は 0 にリセットされる
+(返り値はホスト・バイトオーダ、つまり
+ホストマシンで整数表現に本来使用されるバイトオーダで格納される)。
+.IP
+.\"O If the counter is zero at the time of the
+.\"O .BR read (2),
+.\"O then the call either blocks until the counter becomes nonzero,
+.\"O or fails with the error
+.\"O .B EAGAIN
+.\"O if the file descriptor has been made nonblocking.
+.BR read (2)
+の時点でカウンタが 0 の場合、
+.BR read (2)
+はカウンタが 0 以外になるまで停止 (block) する、
+もしくはファイルディスクリプタが非停止 (nonblocking)
+に設定されている場合はエラー
+.B EAGAIN
+で失敗する。
+.IP
+.\"O A
+.\"O .BR read (2)
+.\"O will fail with the error
+.\"O .B EINVAL
+.\"O if the size of the supplied buffer is less than 8 bytes.
+渡されたバッファの大きさが 8 バイト未満の場合、
+.BR read (2)
+はエラー
+.B EINVAL
+で失敗する。
+.TP
+.BR write (2)
+.\"O A
+.\"O .BR write (2)
+.\"O call adds the 8-byte integer value supplied in its
+.\"O buffer to the counter.
+.\"O The maximum value that may be stored in the counter is the largest
+.\"O unsigned 64-bit value minus 1 (i.e., 0xfffffffffffffffe).
+.BR write (2)
+は、引き数のバッファで渡された 8 バイトの整数値をカウンタに加算する。
+カウンタに格納可能な最大値は unsigned の 64 ビット整数の最大値から
+1 を引いた値 (すなわち 0xfffffffffffffffe) である。
+.\"O If the addition would cause the counter's value to exceed
+.\"O the maximum, then the
+.\"O .BR write (2)
+.\"O either blocks until a
+.\"O .BR read (2)
+.\"O is performed on the file descriptor,
+.\"O or fails with the error
+.\"O .B EAGAIN
+.\"O if the file descriptor has been made nonblocking.
+加算を行うとカウンタ値が最大値を超過する場合には、
+そのファイルディスクリプタに対して
+.BR read (2)
+が実行されるまで、
+.BR write (2)
+は停止 (block) する、
+もしくはファイルディスクリプタが非停止 (nonblocking)
+に設定されている場合はエラー
+.B EAGAIN
+で失敗する。
+.IP
+.\"O A
+.\"O .BR write (2)
+.\"O will fail with the error
+.\"O .B EINVAL
+.\"O if the size of the supplied buffer is less than 8 bytes,
+.\"O or if an attempt is made to write the value 0xffffffffffffffff.
+渡されたバッファの大きさが 8 バイト未満の場合、もしくは
+値 0xffffffffffffffff を書き込もうとした場合、
+.BR write (2)
+はエラー
+.B EINVAL
+で失敗する。
+.TP
+.\"O .BR poll "(2), " select "(2) (and similar)"
+.BR poll "(2), " select "(2) (と同様の操作)"
+.\"O The returned file descriptor supports
+.\"O .BR poll (2)
+.\"O (and analogously
+.\"O .BR epoll (7))
+.\"O and
+.\"O .BR select (2),
+.\"O as follows:
+返されたファイルディスクリプタは、
+.BR poll (2)
+.RB ( epoll (7)
+も同じ) や
+.BR select (2)
+をサポートしており、以下のような動作をする。
+.RS
+.IP * 3
+.\"O The file descriptor is readable
+.\"O (the
+.\"O .BR select (2)
+.\"O .I readfds
+.\"O argument; the
+.\"O .BR poll (2)
+.\"O .B POLLIN
+.\"O flag)
+.\"O if the counter has a value greater than 0.
+カウンタが 0 より大きい値の場合、
+ファイルディスクリプタは読み出し可能となる
+.RB ( select (2)
+の
+.I readfds
+引き数や
+.BR poll (2)
+の
+.B POLLIN
+フラグ)。
+.IP *
+.\"O The file descriptor is writable
+.\"O (the
+.\"O .BR select (2)
+.\"O .I writefds
+.\"O argument; the
+.\"O .BR poll (2)
+.\"O .B POLLOUT
+.\"O flag)
+.\"O if it is possible to write a value of at least "1" without blocking.
+少なくとも値 "1" を、停止 (block) を伴わずに書き込める場合、
+ファイルディスクリプタは書き込み可能となる
+.RB ( select (2)
+の
+.I writefds
+引き数や
+.BR poll (2)
+の
+.B POLLOUT
+フラグ)。
+.IP *
+.\"O If an overflow of the counter value was detected,
+.\"O then
+.\"O .BR select (2)
+.\"O indicates the file descriptor as being both readable and writable, and
+.\"O .BR poll (2)
+.\"O returns a
+.\"O .B POLLERR
+.\"O event.
+カウンタ値のオーバーフローが検出された場合、
+.BR select (2)
+はファイルディスクリプタは読み出し可能と書き込み可能の両方を通知し、
+.BR poll (2)
+は
+.B POLLERR
+イベントを返す。
+.\"O As noted above,
+.\"O .BR write (2)
+.\"O can never overflow the counter.
+.\"O However an overflow can occur if 2^64
+.\"O eventfd "signal posts" were performed by the KAIO
+.\"O subsystem (theoretically possible, but practically unlikely).
+.\"O If an overflow has occurred, then
+.\"O .BR read (2)
+.\"O will return that maximum
+.\"O .I uint64_t
+.\"O value (i.e., 0xffffffffffffffff).
+上述の通り、
+.BR write (2)
+でカウンタがオーバーフローすることは決してない。
+しかしながら、 KAIO サブシステムによって 2^64 回の eventfd "signal posts" が
+実行された場合にはオーバーフローが起こり得る
+(理論的にはあり得るが、実用的にはあり得ない)。
+オーバーフローが発生した場合、
+.BR read (2)
+は
+.I uint64_t
+の最大値 (すなわち 0xffffffffffffffff) を返す。
+.RE
+.IP
+.\"O The eventfd file descriptor also supports the other file-descriptor
+.\"O multiplexing APIs:
+.\"O .BR pselect (2),
+.\"O .BR ppoll (2),
+.\"O and
+.\"O .BR epoll (7).
+eventfd ファイルディスクリプタは、これ以外のファイルディスクリプタ
+多重 API である
+.BR pselect (2),
+.BR ppoll (2),
+.BR epoll (7)
+もサポートしている。
+.TP
+.BR close (2)
+.\"O When the file descriptor is no longer required it should be closed.
+.\"O When all file descriptors associated with the same eventfd object
+.\"O have been closed, the resources for object are freed by the kernel.
+ファイルディスクリプタがそれ以降は必要なくなった際には、クローズすべきである。
+同じ eventfd オブジェクトに関連付けられたファイルディスクリプタが全て
+クローズされると、そのオブジェクト用の資源がカーネルにより解放される。
+.PP
+.\"O A copy of the file descriptor created by
+.\"O .BR eventfd ()
+.\"O is inherited by the child produced by
+.\"O .BR fork (2).
+.\"O The duplicate file descriptor is associated with the same
+.\"O eventfd object.
+.\"O File descriptors created by
+.\"O .BR eventfd ()
+.\"O are preserved across
+.\"O .BR execve (2).
+.BR fork (2)
+で生成された子プロセスは、
+.BR eventfd ()
+で生成されたファイルディスクリプタのコピーを継承する。
+複製されたファイルディスクリプタは同じ eventfd オブジェクトに関連付けられる。
+.BR execve (2)
+の前後で
+.BR eventfd ()
+で生成されたファイルディスクリプタは保持される。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O On success,
+.\"O .BR eventfd ()
+.\"O returns a new eventfd file descriptor.
+.\"O On error, \-1 is returned and
+.\"O .I errno
+.\"O is set to indicate the error.
+成功すると、
+.BR eventfd ()
+は新規の eventfd ファイルディスクリプタを返す。
+エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EINVAL
+.\"O .I flags
+.\"O is invalid;
+.\"O or, in Linux 2.6.26 or earlier,
+.\"O .I flags
+.\"O is nonzero.
+.I flags
+が無効。
+Linux 2.6.26 以前では、
+.I flags
+が 0 以外の値。
+.TP
+.B EMFILE
+.\"O The per-process limit on open file descriptors has been reached.
+オープン済みのファイルディスクリプタの数がプロセスあたりの上限に
+達していた。
+.TP
+.B ENFILE
+.\"O The system-wide limit on the total number of open files has been
+.\"O reached.
+オープン済みのファイル総数がシステム全体の上限に達していた。
+.TP
+.B ENODEV
+.\" Note from Davide:
+.\" The ENODEV error is basically never going to happen if
+.\" the kernel boots correctly. That error happen only if during
+.\" the kernel initialization, some error occur in the anonymous
+.\" inode source initialization.
+.\"O Could not mount (internal) anonymous inode device.
+(カーネル内の) 無名 inode デバイスをマウントできなかった。
+.TP
+.B ENOMEM
+.\"O There was insufficient memory to create a new
+.\"O eventfd file descriptor.
+新しい eventfd ファイルディスクリプタを生成するのに十分なメモリがなかった。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O .BR eventfd ()
+.\"O is available on Linux since kernel 2.6.22.
+.\"O Working support is provided in glibc since version 2.8.
+.BR eventfd ()
+はカーネル 2.6.22 以降の Linux で利用可能である。
+正しく動作する glibc 側のサポートはバージョン 2.8 以降で提供されている。
+.\" eventfd() is in glibc 2.7, but reportedly does not build
+.\"O The
+.\"O .BR eventfd2 ()
+.\"O system call (see NOTES) is available on Linux since kernel 2.6.27.
+.BR eventfd2 ()
+システムコール (「注意」参照) は
+カーネル 2.6.27 以降の Linux で利用可能である。
+.\"O Since version 2.9, the glibc
+.\"O .BR eventfd ()
+.\"O wrapper will employ the
+.\"O .BR eventfd2 ()
+.\"O system call, if it is supported by the kernel.
+バージョン 2.9 以降では、glibc の
+.BR eventfd ()
+のラッパー関数は、カーネルが対応していれば
+.BR eventfd2 ()
+システムコールを利用する。
+.\"O .SH CONFORMING TO
+.SH 準拠
+.\"O .BR eventfd ()
+.\"O and
+.\"O .BR eventfd2 ()
+.\"O are Linux-specific.
+.BR eventfd ()
+と
+.BR eventfd2 ()
+は Linux 固有である。
+.\"O .SH NOTES
+.SH 注意
+.\"O Applications can use an eventfd file descriptor instead of a pipe (see
+.\"O .BR pipe (2))
+.\"O in all cases where a pipe is used simply to signal events.
+.\"O The kernel overhead of an eventfd file descriptor
+.\"O is much lower than that of a pipe,
+.\"O and only one file descriptor is
+.\"O required (versus the two required for a pipe).
+アプリケーションは、パイプをイベントを通知するためだけに使用している
+全ての場面において、パイプの代わりに eventfd ファイルディスクリプタを
+使用することができる。
+eventfd ファイルディスクリプタを使う方が、パイプを使う場合に比べて
+カーネルでのオーバヘッドは比べるとずっと小さく、ファイルディスクリプタも
+一つしか必要としない (パイプの場合は二つ必要である)。
+
+.\"O When used in the kernel, an eventfd
+.\"O file descriptor can provide a kernel-userspace bridge allowing,
+.\"O for example, functionalities like KAIO (kernel AIO)
+.\"O .\" or eventually syslets/threadlets
+.\"O to signal to a file descriptor that some operation is complete.
+カーネル内で使用すると、eventfd ファイルディスクリプタは
+カーネル空間とユーザ空間のブリッジ機能を提供することができ、
+例えば KAIO (kernel AIO)
+.\" や eventually syslets/threadlets
+のような機能が、あるファイルディスクリプタに何らかの操作が完了したことを
+通知することができる。
+
+.\"O A key point about an eventfd file descriptor is that it can be
+.\"O monitored just like any other file descriptor using
+.\"O .BR select (2),
+.\"O .BR poll (2),
+.\"O or
+.\"O .BR epoll (7).
+eventfd ファイルディスクリプタの重要な点は、
+eventfd ファイルディスクリプタが
+.BR select (2),
+.BR poll (2),
+.BR epoll (7)
+を使って他のファイルディスクリプタと全く同様に監視できる点である。
+.\"O This means that an application can simultaneously monitor the
+.\"O readiness of "traditional" files and the readiness of other
+.\"O kernel mechanisms that support the eventfd interface.
+.\"O (Without the
+.\"O .BR eventfd ()
+.\"O interface, these mechanisms could not be multiplexed via
+.\"O .BR select (2),
+.\"O .BR poll (2),
+.\"O or
+.\"O .BR epoll (7).)
+このことは、アプリケーションは「従来の (traditional)」 ファイルの状態変化と
+eventfd インタフェースをサポートする他のカーネル機構の状態変化を同時に監視
+できることを意味する
+.RB ( eventfd ()
+インタフェースがない時には、これらのカーネル機構は
+.BR select (2),
+.BR poll (2),
+.BR epoll (7)
+経由で多重することはできなかった)。
+.\"O .SS Underlying Linux system calls
+.SS 下層にある Linux のシステムコール
+.\"O There are two underlying Linux system calls:
+.\"O .BR eventfd ()
+.\"O and the more recent
+.\"O .BR eventfd2 ().
+.\"O The former system call does not implement a
+.\"O .I flags
+.\"O argument.
+.\"O The latter system call implements the
+.\"O .I flags
+.\"O values described above.
+下層にある Linux システムコールは二種類あり、
+.BR eventfd ()
+と、もっと新しい
+.BR eventfd2 ()
+である。
+.BR eventfd ()
+は
+.I flags
+引き数を実装していない。
+.BR eventfd2 ()
+では上記の値の
+.I flags
+が実装されている。
+.\"O The glibc wrapper function will use
+.\"O .BR eventfd2 ()
+.\"O where it is available.
+glibc のラッパー関数は、
+.BR eventfd2 ()
+が利用可能であれば、これを使用する。
+.\"O .SS Additional glibc features
+.SS glibc の追加機能
+.\"O The GNU C library defines an additional type,
+.\"O and two functions that attempt to abstract some of the details of
+.\"O reading and writing on an eventfd file descriptor:
+GNU C ライブラリは、eventfd ファイルディスクリプタの読み出しと書き込みに
+を関する詳細のいくつか抽象化するために、一つの型と、二つの関数を追加で
+定義している。
+.in +4n
+.nf
+
+typedef uint64_t eventfd_t;
+
+int eventfd_read(int fd, eventfd_t *value);
+int eventfd_write(int fd, eventfd_t value);
+.fi
+.in
+
+.\"O The functions perform the read and write operations on an
+.\"O eventfd file descriptor,
+.\"O returning 0 if the correct number of bytes was transferred,
+.\"O or \-1 otherwise.
+これらの関数は、eventfd ファイルディスクリプタに対する読み出しと
+書き込みの操作を実行し、正しいバイト数が転送された場合には
+0 を返し、そうでない場合は \-1 を返す。
+.\"O .SH EXAMPLE
+.SH 例
+.PP
+.\"O The following program creates an eventfd file descriptor
+.\"O and then forks to create a child process.
+.\"O While the parent briefly sleeps,
+.\"O the child writes each of the integers supplied in the program's
+.\"O command-line arguments to the eventfd file descriptor.
+.\"O When the parent has finished sleeping,
+.\"O it reads from the eventfd file descriptor.
+以下のプログラムは eventfd ファイルディスクリプタを生成し、
+その後 fork を実行して子プロセスを生成する。
+親プロセスが少しの間 sleep する間に、子プロセスは
+プログラムのコマンドライン引き数で指定された整数(列)をそれぞれ
+eventfd ファイルディスクリプタに書き込む。
+親プロセスは sleep を完了すると eventfd ファイルディスクリプタから
+読み出しを行う。
+
+.\"O The following shell session shows a sample run of the program:
+以下に示すシェルセッションにこのプログラムの使い方を示す。
+.in +4n
+.nf
+
+.RB "$" " ./a.out 1 2 4 7 14"
+Child writing 1 to efd
+Child writing 2 to efd
+Child writing 4 to efd
+Child writing 7 to efd
+Child writing 14 to efd
+Child completed write loop
+Parent about to read
+Parent read 28 (0x1c) from efd
+.fi
+.in
+.\"O .SS Program source
+.SS プログラムのソース
+\&
+.nf
+#include <sys/eventfd.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>             /* Definition of uint64_t */
+
+#define handle_error(msg) \\
+    do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+int
+main(int argc, char *argv[])
+{
+    int efd, j;
+    uint64_t u;
+    ssize_t s;
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <num>...\\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    efd = eventfd(0, 0);
+    if (efd == \-1)
+        handle_error("eventfd");
+
+    switch (fork()) {
+    case 0:
+        for (j = 1; j < argc; j++) {
+            printf("Child writing %s to efd\\n", argv[j]);
+            u = strtoull(argv[j], NULL, 0);
+                    /* strtoull() allows various bases */
+            s = write(efd, &u, sizeof(uint64_t));
+            if (s != sizeof(uint64_t))
+                handle_error("write");
+        }
+        printf("Child completed write loop\\n");
+
+        exit(EXIT_SUCCESS);
+
+    default:
+        sleep(2);
+
+        printf("Parent about to read\\n");
+        s = read(efd, &u, sizeof(uint64_t));
+        if (s != sizeof(uint64_t))
+            handle_error("read");
+        printf("Parent read %llu (0x%llx) from efd\\n",
+                (unsigned long long) u, (unsigned long long) u);
+        exit(EXIT_SUCCESS);
+
+    case \-1:
+        handle_error("fork");
+    }
+}
+.fi
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR futex (2),
+.BR pipe (2),
+.BR poll (2),
+.BR read (2),
+.BR select (2),
+.BR signalfd (2),
+.BR timerfd_create (2),
+.BR write (2),
+.BR epoll (7),
+.BR sem_overview (7)

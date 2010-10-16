@@ -1,0 +1,354 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)recno.3	8.5 (Berkeley) 8/18/94
+.\"
+.\" Japanese Version Copyright (c) 1999 Shouichi Saito
+.\"	all rights reserved.
+.\" Translated Mon Jul 26 12:18:39 JST 1999
+.\"	by Shouichi Saito <ss236rx@ymg.urban.ne.jp>
+.\" Proofed Tue Aug 19 1999 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.\"WORD:	access method		アクセスメソッド
+.\"WORD:	pad character		埋め文字
+.TH RECNO 3 1994-08-18 "" "Linux Programmer's Manual"
+.UC 7
+.SH 名前
+.\"O recno \- record number database access method
+recno \- レコード番号データベースへのアクセスメソッド
+.SH 書式
+.nf
+.ft B
+#include <sys/types.h>
+#include <db.h>
+.ft R
+.fi
+.SH 説明
+.\"O The routine
+.\"O .BR dbopen (3)
+.\"O is the library interface to database files.
+ルーチン
+.BR dbopen (3)
+はデータベースファイルに対するライブラリインターフェースである。
+.\"O One of the supported file formats is record number files.
+.\"O The general description of the database access methods is in
+.\"O .BR dbopen (3),
+.\"O this manual page describes only the recno specific information.
+サポートされているファイルフォーマットの一つに、
+レコード番号ファイル (record number file: recno file) がある。
+データベースへのアクセスメソッドに関する一般的な記述は
+.BR dbopen (3),
+に書かれている。
+このマニュアルページでは recno 特有の情報についてのみ記述する。
+.PP
+.\"O The record number data structure is either variable or fixed-length
+.\"O records stored in a flat-file format, accessed by the logical record
+.\"O number.
+レコード番号データ構造は、フラットなファイル形式に格納された
+可変長/固定長レコードからなり、論理レコード番号でアクセスされる。
+.\"O The existence of record number five implies the existence of records
+.\"O one through four, and the deletion of record number one causes
+.\"O record number five to be renumbered to record number four, as well
+.\"O as the cursor, if positioned after record number one, to shift down
+.\"O one record.
+レコード番号 5 があれば、レコード番号 1 から 4 も存在する。
+レコード番号 1 を削除すると、レコード番号 5 は 4 に付け替えられ、
+カーソルも移動する。レコード番号 1 以降のものは一つ繰り上がるわけである。
+.PP
+.\"O The recno access method specific data structure provided to
+.\"O .BR dbopen (3)
+.\"O is defined in the
+.\"O .I <db.h>
+.\"O include file as follows:
+.BR dbopen (3)
+で使う recno アクセスメソッドに特有のデータ構造体は、
+.I <db.h>
+インクルードファイルで次のように定義されている。
+.PP
+.in +4n
+.nf
+typedef struct {
+    unsigned long flags;
+    unsigned int  cachesize;
+    unsigned int  psize;
+    int           lorder;
+    size_t        reclen;
+    unsigned char bval;
+    char         *bfname;
+} RECNOINFO;
+.fi
+.in
+.PP
+.\"O The elements of this structure are defined as follows:
+この構造体の要素を以下に示す。
+.TP
+flags
+.\"O The flag value is specified by
+.\"O .IR or 'ing
+.\"O any of the following values:
+flag の値は
+以下の値のいずれかか、これらの論理和で指定される。
+.RS
+.TP
+.B R_FIXEDLEN
+.\"O The records are fixed-length, not byte delimited.
+レコード長が固定であり、バイト区切りではない。
+.\"O The structure element
+.\"O .I reclen
+.\"O specifies the length of the record, and the structure element
+.\"O .I bval
+.\"O is used as the pad character.
+構造体の要素
+.I reclen
+はレコードの長さを指定する。また、要素
+.I bval
+は埋め文字 (pad character) を指定する。
+.\"O Any records, inserted into the database, that are less than
+.\"O .I reclen
+.\"O bytes long are automatically padded.
+データベースに入れられたレコードの内
+.I reclen
+バイトに満たないものでは、残りの部分に埋め文字が自動的に入る。
+.TP
+.B R_NOKEY
+.\"O In the interface specified by
+.\"O .BR dbopen (3),
+.\"O the sequential record retrieval fills in both the caller's key and
+.\"O data structures.
+.BR dbopen (3)
+で指定されたインターフェイスでは、シーケンシャルなレコード取得は
+呼び出しキーとデータ構造体の両方を埋めていく。
+.\"O If the
+.\"O .B R_NOKEY
+.\"O flag is specified, the
+.\"O .I cursor
+.\"O routines are not required to fill in the key structure.
+.\"O This permits applications to retrieve records at the end of files without
+.\"O reading all of the intervening records.
+.B R_NOKEY
+フラグが指定されていると、キー構造体を埋めるのに
+.I cursor
+ルーチンを必要としない。
+これを用いれば、アプリケーションがファイルの終りの方を取得する際に、
+その途中のレコードを読まなくても済む事になる。
+.TP
+.B R_SNAPSHOT
+.\"O This flag requires that a snapshot of the file be taken when
+.\"O .BR dbopen (3)
+.\"O is called, instead of permitting any unmodified records to be read from
+.\"O the original file.
+このフラグを指定すると、
+.BR dbopen (3)
+の呼び出しの際、
+オリジナルファイルから変更されていないレコードを読む代わりに、
+ファイルの snapshot を用いる。
+.RE
+.TP
+.I cachesize
+.\"O A suggested maximum size, in bytes, of the memory cache.
+.\"O This value is
+.\"O .B only
+.\"O advisory, and the access method will allocate more memory rather than fail.
+.\"O If
+.\"O .I cachesize
+.\"O is  0 (no size is specified) a default cache is used.
+想定されるメモリキャッシュの最大サイズ (バイト単位)。
+この値は
+.B あくまで
+参考であり、アクセスメソッドはこの値を越えたメモリの
+割り当てに成功することもある。
+.I cachesize
+が 0 (あるいは指定されていない) の場合、デフォルトのキャッシュが使われる。
+.TP
+.I psize
+.\"O The recno access method stores the in-memory copies of its records
+.\"O in a btree.
+.\"O This value is the size (in bytes) of the pages used for nodes in that tree.
+recno アクセスメソッドは、自身のレコードのコピーをメモリ内部に
+btree で保存している。
+この値は、その btree 中のノードに対して用いられる
+ページサイズ (バイト単位) である。
+.\"O If
+.\"O .I psize
+.\"O is 0 (no page size is specified) a page size is chosen based on the
+.\"O underlying file system I/O block size.
+.\"O See
+.\"O .BR btree (3)
+.\"O for more information.
+.I psize
+が 0 (あるいは指定されていない) の場合、
+ファイルシステムの I/O ブロックサイズを基にして
+ページサイズが決められる。
+詳細は
+.BR btree (3)
+を参照。
+.TP
+.I lorder
+.\"O The byte order for integers in the stored database metadata.
+.\"O The number should represent the order as an integer; for example,
+.\"O big endian order would be the number 4,321.
+.\"O If
+.\"O .I lorder
+.\"O is 0 (no order is specified) the current host order is used.
+データベースに格納されているメタデータの整数値のバイトオーダー。
+この数字は、順序を整数で表したものである。
+例えばビッグエンディアンなら、この数値は 4,321 となる。
+.I lorder
+が 0 (指定されていない) の場合、現在のホスト
+で使われているバイトオーダーが使われる。
+.TP
+.I reclen
+.\"O The length of a fixed-length record.
+固定レコード長の長さ。
+.TP
+.I bval
+.\"O The delimiting byte to be used to mark the end of a record for
+.\"O variable-length records, and the pad character for fixed-length
+.\"O records.
+可変レコード長において、
+レコードの終りを示す区切りバイト (区切り文字) である。
+固定レコード長では埋め文字として使われる。
+.\"O If no value is specified, newlines ("\en") are used to mark the end
+.\"O of variable-length records and fixed-length records are padded with
+.\"O spaces.
+値が指定されていないと、
+可変レコード長のレコードの終りには改行 ("\en") が使われる。
+固定レコード長のレコードは空白 (space) で埋められる。
+.TP
+.I bfname
+.\"O The recno access method stores the in-memory copies of its records
+.\"O in a btree.
+.\"O If
+.\"O .I bfname
+.\"O is non-NULL, it specifies the name of the btree file,
+.\"O as if specified as the filename for a
+.\"O .BR dbopen (3)
+.\"O of a btree file.
+recno アクセスメソッドは、
+自身のレコードのコピーをメモリ内部で btree に保存している。
+.I bfname
+が NULL でない場合、これは btree ファイル名
+(btree ファイルを
+.BR dbopen (3)
+する時に指定するファイル名) を指定する。
+.PP
+.\"O The data part of the key/data pair used by the
+.\"O .I recno
+.\"O access method
+.\"O is the same as other access methods.
+.I recno
+アクセスメソッドで使われるキー/データ対のデータ部分は、
+他のアクセスメソッドと同じである。
+.\"O The key is different.
+.\"O The
+.\"O .I data
+.\"O field of the key should be a pointer to a memory location of type
+.\"O .IR recno_t ,
+.\"O as defined in the
+.\"O .I <db.h>
+.\"O include file.
+しかしキーは異なっている。
+キーの
+.I data
+フィールドは
+.I recno_t
+型の、メモリ位置へのポインタでなければならない。
+.I recno_t
+は
+.I <db.h>
+インクルードファイルで定義されている。
+.\"O This type is normally the largest unsigned integral type available to
+.\"O the implementation.
+この型は通常、その実装で利用可能な最大の符号無し整数である。
+.\"O The
+.\"O .I size
+.\"O field of the key should be the size of that type.
+キーの
+.I size
+フィールドはその型のサイズとなる。
+.PP
+.\"O Because there can be no metadata associated with the underlying
+.\"O recno access method files, any changes made to the default values
+.\"O (e.g., fixed record length or byte separator value) must be explicitly
+.\"O specified each time the file is opened.
+recno アクセスメソッドのファイルに関連づけられる
+メタデータは存在できないから、
+デフォルト値 (固定レコード長やセパレータ文字など)
+に対する変更はファイルを開く毎に明示的に指定しなければならない。
+.PP
+.\"O In the interface specified by
+.\"O .BR dbopen (3),
+.\"O using the
+.\"O .I put
+.\"O interface to create a new record will cause the creation of multiple,
+.\"O empty records if the record number is more than one greater than the
+.\"O largest record currently in the database.
+.BR dbopen (3)
+で指定されたインターフェイスでは、
+.I put
+インターフェイスを使って新しいレコードを作成するときに、
+指定したレコード番号がデータベース中に存在している最大レコード番号より
+一つ以上大きいと、
+空のレコードが同時にできてしまう。
+.SH エラー
+.\"O The
+.\"O .I recno
+.\"O access method routines may fail and set
+.\"O .I errno
+.\"O for any of the errors specified for the library routine
+.\"O .BR dbopen (3)
+.\"O or the following:
+.I recno
+アクセスメソッドルーチンは失敗すると
+.BR dbopen (3)
+で指定されているエラーに応じた
+.IR errno " か、"
+あるいは以下に示す
+.I errno
+をセットする。
+.TP
+.B EINVAL
+.\"O An attempt was made to add a record to a fixed-length database that
+.\"O was too large to fit.
+固定長データベースにレコードを追加するとき、データが長すぎた。
+.SH バグ
+.\"O Only big and little endian byte order is supported.
+バイトオーダーとしてはビッグエンディアンとリトルエンディアンのみが
+サポートされている。
+.SH 関連項目
+.BR btree (3),
+.BR dbopen (3),
+.BR hash (3),
+.BR mpool (3)
+.sp
+.IR "Document Processing in a Relational Database System" ,
+Michael Stonebraker, Heidi Stettner, Joseph Kalash, Antonin Guttman,
+Nadene Lynn, Memorandum No. UCB/ERL M82/32, May 1982.

@@ -1,0 +1,1039 @@
+.\"
+.\" Heavily modified by Paul ``Rusty'' Russell March 1997
+.\" 
+.\" Based on the original ipfwadm man page by Jos Vos <jos@xos.nl> (see README)
+.\"
+.\"	This program is free software; you can redistribute it and/or modify
+.\"	it under the terms of the GNU General Public License as published by
+.\"	the Free Software Foundation; either version 2 of the License, or
+.\"	(at your option) any later version.
+.\"
+.\"	This program is distributed in the hope that it will be useful,
+.\"	but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"	GNU General Public License for more details.
+.\"
+.\"	You should have received a copy of the GNU General Public License
+.\"	along with this program; if not, write to the Free Software
+.\"	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.\"
+.\"WORD:	firewall		ファイアウォール
+.\"WORD:	interface		インターフェース
+.\"WORD:	source address		発信元アドレス
+.\"WORD:	destination address	宛先アドレス
+.\"WORD:	network mask		ネットマスク
+.\"WORD:	user			ユーザ
+.\"WORD:	chain			チェイン
+.\"WORD:	input chain		input チェイン
+.\"WORD:	output chain		output チェイン
+.\"WORD:	forwarding chain	forward チェイン
+.\"WORD:	builtin chain		組み込み済みチェイン
+.\"
+.\"
+.\" Japanese Version Copyright (c) 2001 OHGAMI Atsushi
+.\"         all rights reserved.
+.\" Translated Sun Jun 10 13:27:00 JST 2001
+.\"         by OHGAMI Atsushi (ati@ff.iij4u.or.jp)
+.\"            Sun Jul 12 07:40:00 JST 2001
+.\"         by MATSUDA Yoh-ichi (matsuda@palnet.or.jp)
+.\"
+.TH IPCHAINS 8 "February 8, 1998" "" ""
+.\"O .SH NAME
+.SH 名前
+.\"O ipchains \- IP firewall administration
+ipchains \- IP ファイアウォール管理
+.\"O .SH SYNOPSIS
+.SH 書式
+.\"O .BR "ipchains -[ADC] " "chain rule-specification [options]"
+.BR "ipchains -[ADC] " "チェイン ルールの詳細 [オプション]"
+.br
+.\"O .BR "ipchains -[RI] " "chain rulenum rule-specification [options]"
+.BR "ipchains -[RI] " "チェイン ルール番号 ルールの詳細 [オプション]"
+.br
+.\"O .BR "ipchains -D " "chain rulenum [options]"
+.BR "ipchains -D " "チェイン ルール番号 [オプション]"
+.br
+.\"O .BR "ipchains -[LFZNX] " "[chain] [options]"
+.BR "ipchains -[LFZNX] " "[チェイン] [オプション]"
+.br
+.\"O .BR "ipchains -P " "chain target [options]"
+.BR "ipchains -P " "チェイン ターゲット [オプション]"
+.br
+.\"O .BR "ipchains -M " "[ -L | -S ] [options]"
+.BR "ipchains -M " "[ -L | -S ] [オプション]"
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .B Ipchains
+.\"O is used to set up, maintain, and inspect the IP firewall rules in the
+.\"O Linux kernel.  These rules can be divided into 4 different categories:
+.\"O the IP input chain, the IP output chain, the IP forwarding chain, and 
+.\"O user defined chains.
+.B ipchains
+は Linux カーネル中の IP ファイアウォールのルールを設定し、保守し、
+検査するためのものである。
+これらのルールは、4 つのカテゴリに分類できる - 
+IP input (入力) チェイン、IP output (出力) チェイン、
+IP forward (転送) チェイン、そしてユーザ定義チェインである。
+
+.\"O For each of these categories, a separate table of rules is maintained,
+.\"O any of which might refer to one of the user-defined chains.
+これら各々のカテゴリ毎に、ルールの一覧表【訳注: table/テーブル】が
+用意される。
+これらルールはユーザ定義チェインのどれか一つを参照することもある。
+.\"O See
+.\"O .IR ipfw (4)
+.\"O for more details.
+詳細については
+.IR ipfw (4)
+を参照のこと。
+.\"O .SH TARGETS
+.SH ターゲット
+.\"O A firewall rule specifies criteria for a packet, and a target.  If the
+.\"O packet does not match, the next rule in the chain is then examined; if
+.\"O it does match, then the next rule is specified by the value of the
+.\"O target, which can be the name of a user-defined chain, or one of the
+.\"O special values 
+.\"O .IR ACCEPT ,
+.\"O .IR DENY ,
+.\"O .IR REJECT ,
+.\"O .IR MASQ ,
+.\"O .IR REDIRECT ,
+.\"O or
+.\"O .IR RETURN .
+ファイアウォールルールでは、パケットの判定基準とターゲットを指定する。
+対象パケットがマッチしないと、チェイン中の次のルールが検査される。
+ルールに一致する場合、次のルールはターゲットの値によって指定される。
+ターゲットの値はユーザ定義チェインの名前か、または特別な値である
+.IR ACCEPT ,
+.IR DENY ,
+.IR REJECT ,
+.IR MASQ ,
+.IR REDIRECT ,
+.IR RETURN 
+のうちの 1 つである。
+.sp 0.5
+.\"O .I ACCEPT 
+.\"O means to let the packet through.  
+.I ACCEPT 
+は、対象パケットを通過させる。
+.\"O .I DENY
+.\"O means to drop the packet on the floor.  
+.I DENY
+は、対象パケットを床へ落とし、捨て去る。
+.\"O .I REJECT 
+.\"O means the same as drop, but is more polite and easier to debug, since
+.\"O an ICMP message is sent back to the sender indicating that the packet
+.\"O was dropped.  (Note that
+.\"O .I DENY 
+.\"O and 
+.\"O .I REJECT 
+.\"O are the same for ICMP packets.)  
+.I REJECT 
+は、対象パケットを捨て去るという点では DENY と同じだが、 DENY よりも
+礼儀正しく、デバッグし易くなっている。
+何故なら、パケットを捨てる際に対象パケットを捨てたことを示す ICMP
+メッセージを送信元に返信するからである。
+(
+.I DENY 
+と
+.I REJECT 
+は、 ICMP パケットに関しては動作が同じであることに注意されたい。)
+.sp 0.5
+.\"O .I MASQ
+.\"O is only legal for the forward and user defined chains, and can only be
+.\"O used when the kernel is compiled with
+.\"O .B CONFIG_IP_MASQUERADE
+.\"O defined.
+.\"O With this, packets will be masqueraded as if they originated from the
+.\"O local host.  Furthermore, reverse packets will be recognized as such
+.\"O and they will be demasqueraded automatically, bypassing the forwarding
+.\"O chain.
+.I MASQ
+は forward チェインとユーザ定義チェインに対してのみ有効であり、且つカーネルが
+.B CONFIG_IP_MASQUERADE
+付きでコンパイルされている場合にだけ使用できる。
+これにより、パケットはあたかもローカルホストから発信されたかのように
+マスカレードされる。
+更に、受信されるパケットは先にマスカレードされたホストに対する返答として
+認識されると共に、自動的にマスカレード外し (demasquerade) が行われ、
+forward チェインのチェックから外される。
+.sp 0.5
+.\"O .I REDIRECT
+.\"O is only legal for the input and user-defined chains and can only be
+.\"O used when the Linux kernel is compiled with
+.\"O .B CONFIG_IP_TRANSPARENT_PROXY
+.\"O defined.
+.\"O With this, packets will be redirected to a local socket, even if they
+.\"O were sent to a remote host.  If the specified redirection port is 0,
+.\"O which is the default value, the destination port of a packet will be
+.\"O used as the redirection port.  When this target is used, an optional
+.\"O extra argument (the port number) can be supplied.
+.I REDIRECT
+は input チェインとユーザ定義チェインに対してのみ有効であり、カーネルが
+.B CONFIG_IP_TRANSPARENT_PROXY
+付きでコンパイルされている場合にだけ使用できる。
+このターゲットにより、リモートホスト宛に送信されたパケットであっても
+ローカルのソケットへ振り向けられる。
+リダイレクト先のポートにデフォルト値である 0 が指定されていると、
+そのパケットの宛先ポートがリダイレクト先のポートとして使用される。
+このターゲットを用いる時は、オプションの引数としてポート番号が指定できる。
+.sp 0.5
+.\"O If the end of a user-defined chain is reached, or a rule with target
+.\"O .I RETURN
+.\"O is matched, then the next rule in the previous (calling) chain is
+.\"O examined.  If the end of a builtin chain is reached, or a rule in a
+.\"O builtin chain with target
+.\"O .I RETURN
+.\"O is matched, the target specified by the chain policy determines the
+.\"O fate of the packet.
+ユーザ定義チェインの終りに達するか、またはターゲット
+.I RETURN
+を持つルールにマッチした場合、以前の (呼び出し元の) チェイン中の次の
+ルールが評価される。
+組み込み済みチェインの終りに達するか、または組み込み済みチェインのルールの
+ターゲットとして
+.I RETURN
+にマッチした場合、チェインに指定されたポリシーがそのパケットの運命を
+決定する。
+.\"O .SH OPTIONS
+.SH オプション
+.\"O The options that are recognized by
+.\"O .B ipchains
+.\"O can be divided into several different groups.
+.B ipchains
+が認識するオプションは、幾つかのグループに分類できる。
+.\"O .SS COMMANDS
+.SS コマンド
+.\"O These options specify the specific action to perform; only one of them
+.\"O can be specified on the command line, unless otherwise specified
+.\"O below.  For all the long versions of the command and option names, you
+.\"O only need to use enough letters to ensure that 
+.\"O .B ipchains
+.\"O can differentiate it from all other options.
+これらのオプションは実行する特定の機能を指定する - 
+以下に特別に指定のない限り、コマンドラインではこれらのオプションのうち
+いずれか一つしか指定することができない。
+ロングバージョンのコマンドやオプション名は、必ずしも完全な形の名前で
+指定する必要はなく、
+.B ipchains
+が他のオプションと識別することができるだけの長さがあれば十分である。
+【訳注: 例えば、 --append の場合、 --a で始まるオプション名は他にないので、
+--app でも可である。】
+.TP
+.BR "-A, --append"
+.\"O Append one or more rules to the end of the selected chain.  
+.\"O When the source and/or destination names resolve to more than one
+.\"O address, a rule will be added for each possible address combination.
+選択したチェインの末尾に 1 つ以上のルールを追加する。
+名前解決の結果、発信元アドレスと宛先アドレスの両方またはいずれかの名前が
+1 つ以上の IP アドレスを持つ場合、ルールは各々の可能なアドレスの組合せ毎に
+追加される。
+.TP
+.BR "-D, --delete"
+.\"O Delete one or more rules from the selected chain.  There are two
+.\"O versions of this command: the rule can be specified as a number in the
+.\"O chain (starting at 1 for the first rule) or a rule to match.
+選択したチェインから、1 つ以上のルールを削除する。
+このコマンドには 2 つのバージョンがある - 
+ルールは (最初のルールを 1 として数え始めて) チェイン中の番号で
+指定されるか、一致するルールにて指定される。
+.TP
+.B "-R, --replace"
+.\"O Replace a rule in the selected chain.  If the source and/or
+.\"O destination names resolve to multiple addresses, the command will
+.\"O fail.  Rules are numbered starting at 1.
+選択したチェインのルールを置き換える。
+名前解決の結果、発信元と宛先の両方またはいずれかの名前が
+複数の IP アドレスを持つ場合、コマンドの実行は失敗する。
+ルールには 1 から始まる番号が振られる。
+.TP
+.B "-I, --insert"
+.\"O Insert one or more rules in the selected chain as the given rule
+.\"O number.  So, if the rule number is 1, the rule or rules are inserted
+.\"O at the head of the chain.
+選択したチェインへ、 1 つ以上のルールを指定のルール番号で挿入する。
+従って、ルール番号に 1 を指定すると、そのルールはチェインの先頭に
+挿入される。
+.TP
+.B "-L, --list"
+.\"O List all rules in the selected chain.  If no chain is selected, all
+.\"O chains are listed.  It is legal to specify the
+.\"O .B -Z
+.\"O (zero) option as well, in which case no chain may be specified.  The
+.\"O exact output is affected by the other arguments given.
+選択したチェインに含まれる全てのルールを一覧表示する。
+チェインを指定しないと、全てのチェインが一覧表示される。
+チェインを指定しない時に、
+.B -Z
+(ゼロ) オプションとの組み合わせは有効である。
+正確な出力は他の引数の指定によって行われる。
+.TP
+.B "-F, --flush"
+.\"O Flush the selected chain.  This is equivalent to deleting all the
+.\"O rules one by one.
+選択したチェインの内容を一気に消去する。
+これは全てのルールを一つずつ削除することと等価である。
+.TP
+.B "-Z, --zero"
+.\"O Zero the packet and byte counters in all chains.  It is legal to
+.\"O specify the
+.\"O .B "-L, --list"
+.\"O (list) option as well, to see the counters immediately before they are
+.\"O cleared; if this is done, then no specific chain can be specified
+.\"O (they will
+.\"O .I all
+.\"O be displayed and cleared).
+全てのチェインのパケットカウンタとバイトカウンタをゼロに初期化する。
+カウンタがクリアされる直前にその値を見たい時の為に、 
+.B "-L, --list"
+(リスト) オプションとの組み合わせは有効である - 
+カウンタのクリアを行う際、特定のチェインを指定することは出来ない。
+(
+.I 全ての
+チェインが表示されると共にクリアされる)
+.TP
+.B "-N, --new-chain"
+.\"O Create a new user-defined chain of the given name.  There must be no
+.\"O target of that name already.
+指定した名前のユーザ定義チェインを新たに作成する。
+既存のターゲットと同じ名前は使用できない。
+.TP
+.B "-X, --delete-chain"
+.\"O Delete the specified user-defined chain.  There must be no references
+.\"O to the chain (if there are you must delete or replace the referring
+.\"O rules before the chain can be deleted).  If no argument is given, it
+.\"O will attempt to delete every non-builtin chain.
+指定したユーザ定義チェインを削除する。
+削除対象チェインへの参照が存在してはならない 
+(参照されている場合は、そのチェインを削除する前に、参照元のルールを
+削除するか、或は他のチェインへ移動しなければならない)。
+引数が与えられなかった場合、 ipchains は組み込み済みチェインを除く
+全てのユーザ定義チェインを削除しようとする。
+.TP
+.B "-P, --policy"
+.\"O Set the policy for the chain to the given target.  See the section
+.\"O .B TARGETS
+.\"O for the legal targets.  Only non-userdefined chains can have policies,
+.\"O and neither built-in nor user-defined chains can be policy targets.
+チェインのポリシーを指定したターゲットに設定する。
+正しいターゲットについては、
+.B ターゲット
+の項を参照。
+ポリシーを持つことができるのはユーザ定義ではないチェインだけであり、
+組み込み済みチェインもユーザ定義チェインもポリシーのターゲットとはなり得ない。
+.TP
+.B "-M, --masquerading"
+.\"O This option allows viewing of the currently masqueraded connections
+.\"O (in conjuction with the
+.\"O .B -L
+.\"O option) or to set the kernel masquerading parameters (with the
+.\"O .B -S
+.\"O option).
+このオプションは、(
+.B -L
+オプションと組み合わせて) 現在マスカレードされている接続を閲覧したり、(
+.B -S
+オプションと組み合わせて) カーネルにマスカレードの値を設定する。
+.TP
+.BI "-S, --set tcp tcpfin udp"
+.\"O Change the timeout values used for masquerading.
+.\"O This command always takes 3 parameters, representing the timeout values
+.\"O (in seconds) for TCP sessions, TCP sessions after receiving
+.\"O a FIN packet, and UDP packets, respectively.
+.\"O A timeout value 0 means that the current timeout value of the
+.\"O corresponding entry is preserved.
+.\"O This option is only allowed in combination with the
+.\"O .B -M
+.\"O flag.
+IP マスカレードに使用するタイムアウト値を変更する。
+このコマンドは常に 3 つのパラメータを取り、それぞれ、TCP セッション、
+FIN パケット受信後の TCP セッション、UDP パケットに対するタイムアウト
+値 (秒) を表す。
+タイムアウト値 0 は、対応する項目の現在のタイムアウト値が保持される
+ことを意味する。
+このオプションは、
+.B -M
+フラグとの組み合わせの時のみ使用できる。
+.TP
+.B "-C, --check"
+.\"O Check the given packet against the selected chain.  This is extremely
+.\"O useful for testing, as the same kernel routines used to check "real"
+.\"O network packets are used to check this packet.  It can be used to
+.\"O check user-defined chains as well as the builtin ones.  The
+.\"O same arguments used to specify firewall rules are used to construct
+.\"O the packet to be tested.  In particular, the 
+.\"O .B -s 
+.\"O (source),
+.\"O .B -d 
+.\"O (destination),
+.\"O .B -p 
+.\"O (protocol), and
+.\"O .B -i 
+.\"O (interface) flags are compulsory.
+選択したチェインで与えられたパケットを照合する。
+このパケットを、ネットワークから来た "本物の" パケットのように扱わせることで
+カーネルルーチンのテストに使える。
+組み込み済みチェインやユーザ定義チェインをチェックするのにも使える。
+ファイアウォールのルールを規定した引数は、テスト用パケットを構築するのにも
+使える。
+特に、
+.B -s
+(発信元)、
+.B -d
+(宛先)、
+.B -p
+(プロトコル)、
+.B -i
+(インターフェース) フラグは必ず指定する。
+.TP
+.B "-h, --help"
+.\"O Give a (currently very brief) description of the command syntax.  If followed by the word 
+.\"O .IR icmp ,
+.\"O then a list of ICMP names is listed.
+コマンドの書式に関する (今のところは非常に簡単な) 説明を表示する。
+オプションに
+.IR icmp 
+を指定すると、ICMP 名の一覧を表示する。
+.TP
+.B "-V, --version"
+.\"O Simply output the ipchains version number.
+単に ipchains のバージョン番号を表示する。
+.\"O .SS PARAMETERS
+.SS 引数
+.\"O The following parameters make up a rule specification (as used in the
+.\"O add, delete, replace, append and check commands).
+下記に示すパラメータは (追加 (append), 削除 (delete), 置換(replace),
+挿入 (insert) 及びチェック (check) の各コマンドにて用いられる) ルールの
+指定を補う。
+
+.TP
+.BI "-p, --protocol" "[!] protocol"
+.\"O The protocol of the rule or of the packet to check.
+.\"O The specified protocol can be one of
+.\"O .IR tcp ,
+.\"O .IR udp ,
+.\"O .IR icmp ,
+.\"O or
+.\"O .IR all ,
+.\"O or it can be a numeric value, representing one of these protocols or a
+.\"O different one.  Also a protocol name from /etc/protocols is allowed.
+.\"O A "!" argument before the protocol inverts the
+.\"O test.  The number zero is equivalent to
+.\"O .IR all .
+.\"O Protocol
+.\"O .I all
+.\"O will match with all protocols and is taken as default when this
+.\"O option is omitted.
+.\"O .I All
+.\"O may not be used in in combination with the check command.
+チェック対象となるルールまたはパケットのプロトコル。
+プロトコルには
+.IR tcp ,
+.IR udp ,
+.IR icmp ,
+.IR all ,
+のどれか一つを指定する。
+またはこれらのプロトコルに対応したプロトコル番号や、これらのプロトコルに
+対応していない番号を指定できる。
+また、 /etc/protocols にあるプロトコル名での指定も許される。
+プロトコル指定の前に "!" を置くと、そのプロトコルを指定しないことになる。
+数値 0 は
+.IR all
+と等価である。
+プロトコル
+.I all
+は全てのプロトコルと一致し、このオプションが省略された場合のデフォルト値
+である。
+.I all
+は check コマンドと組み合わせてはならない。
+.TP
+.BR "-s, --source, --src " "[!] \fIaddress\fP[/\fImask\fP] [!] [\fIport[:port]\fP]"
+.\"O Source specification.
+発信元の指定。
+.\"O .I Address
+.\"O can be either a hostname, a network name, or a plain IP address.
+.I address
+は、ホスト名・ネットワーク名・素の IP アドレスのいずれでもよい。
+.\"O The
+.\"O .I mask
+.\"O can be either a network mask or a plain number,
+.\"O specifying the number of 1's at the left side of the network mask.
+.\"O Thus, a mask of
+.\"O .I 24
+.\"O is equivalent to
+.\"O .IR 255.255.255.0 .
+.\"O A "!" argument before the address specification inverts the sense of
+.\"O the address.
+.I mask
+は、ネットマスク・単なる数 (ネットマスクの左側から数えた 1 の個数) のいずれでもよい。
+したがって、
+.I 24
+という mask の値は、
+.IR 255.255.255.0
+と等価である。
+アドレス指定の前に "!" を置くと、そのアドレスを指定しないことになる。
+.sp 0.5
+.\"O The source may include a port specification or ICMP type.  This can
+.\"O either be a service name, a port number, a numeric ICMP type, or one
+.\"O of the ICMP type names shown by the command
+.\"O .br
+.\"O  ipchains -h icmp
+.\"O .br
+発信元にはポート指定または ICMP タイプを含めてもよい。
+これはサービス名、ポート番号、ICMP タイプの数値、あるいは
+.br
+ ipchains -h icmp
+.br
+コマンドで表示される ICMP タイプ名のいずれかでよい。
+.br
+.\"O Note that many of these ICMP names refer to both a type and code,
+.\"O meaning that an ICMP code after the
+.\"O .B -d
+.\"O flag is illegal.  In the rest of this paragraph, a
+.\"O .I port
+.\"O means either a port specification or an ICMP type.
+.\"O An inclusive range can also be specified, using the format
+.\"O .IR port : port .
+.\"O If the first port is omitted, "0" is assumed; if the last is omitted,
+.\"O "65535" is assumed.
+これら ICMP 名の多くはタイプとコードの両方を参照することに注意されたい。
+よって、
+.B -d
+フラグの後の ICMP コードの指定は誤りである。
+この節の残りの部分では、
+.I port
+はポート指定または ICMP タイプのいずれかを意味する。
+対象とするポートの範囲を
+.IR port : port 
+という書式で指定することもできる。
+最初のポートを省略すると、"0" とみなされる。
+最後のポートを省略すると、"65535" とみなされる。
+.sp 0.5
+.\"O Ports may only be specified in combination with the
+.\"O .IR tcp ,
+.\"O .IR udp ,
+.\"O or
+.\"O .I icmp
+.\"O protocols.  A "!" before the port specification inverts the sense.
+.\"O When the check command is specified, exactly one port is required, and
+.\"O if the
+.\"O .B -f 
+.\"O (fragment) flag is specified, no ports are allowed.
+ポートは、
+.IR tcp ,
+.IR udp ,
+.I icmp
+プロトコルとの組み合わせでのみ指定可能である。
+ポート指定の前に "!" を置くと、そのポートを指定しないことになる。
+check コマンドが指定された場合、厳密に 1 つのポートが必要である。
+.B -f 
+(fragment) フラグが指定された場合、ポートの指定は許されない。
+.TP
+.BR "--source-port " "[!] [\fIport[:port]\fP]"
+.\"O This allows separate specification of the source port or port range.
+.\"O See the description of the
+.\"O .B -s
+.\"O flag above for details.The flag
+.\"O .B --sport
+.\"O is an alias for this option.
+発信元ポートまたは発信元ポート範囲の、個別指定を可能とする。
+詳細については、前出の
+.B -s
+フラグに関する解説を参照のこと。フラグ
+.B --sport
+は、このオプションの別名である。
+.TP
+.BR "-d, --destination, --dst " "[!] \fIaddress\fP[/\fImask\fP] [!] [\fIport[:port]\fP]"
+.\"O Destination specification. 
+.\"O See the desciption of the
+.\"O .B -s
+.\"O (source) flag for a detailed description of the syntax.  For ICMP,
+.\"O which does not have ports, a "destination port" refers to the numeric
+.\"O ICMP code.
+宛先指定。
+構文についての詳細な説明は、
+.B -s
+(source) フラグの解説を参照のこと。
+ポートを持たない ICMP に対しては、"宛先ポート" は数字の ICMP コードを表す。
+.TP
+.BR "--destination-port " "[!] [\fIport[:port]\fP]"
+.\"O This allows separate specification of the ports.  See the description of
+.\"O the
+.\"O .B -s
+.\"O flag for details.  The flag
+.\"O .B --dport
+.\"O is an alias for this option.
+ポートの個別指定を可能とする。詳細については、
+.B -s
+フラグの解説を参照のこと。フラグ
+.B --dport
+は、このオプションの別名である。
+.TP
+.BR "--icmp-type " "[!] typename"
+.\"O This allows specification of the ICMP type (use the
+.\"O .B "-h icmp"
+.\"O option to see valid ICMP type names).  This is often more convenient
+.\"O than appending it to the destination specification.
+ICMP タイプの指定を可能にする (正しい ICMP タイプ名を確認するには、
+.B "-h icmp"
+オプションを使用する)。
+宛先指定に ICMP タイプを付加するよりも、これを利用するほうがより便利な
+場合が多い。
+.TP
+.BR "-j, --jump " "\fItarget\fP"
+.\"O This specifies the target of the rule; ie. what to do if the packet
+.\"O matches it.  The target can be a user-defined chain (not the one this
+.\"O rule is in) or one of the special targets which decide the fate of the
+.\"O packet immediately.  If this option is omitted in a rule, then
+.\"O matching the rule will have no effect on the packet's fate, but the
+.\"O counters on the rule will be incremented.
+これはルールのターゲットを指定する - 
+すなわち、ルールにマッチしたパケットの行く末である。
+ターゲットはユーザ定義チェイン (但し、当該ルールが含まれているものを
+除く) か、パケットの運命を直接決定する特定のターゲットのうちの一つが
+指定可能である。
+ルール中でこのオプションが省略された場合には、パケットの運命には全く
+影響しないが、ルールのカウンタの値は増加する。
+.TP
+.BI "-i, --interface " "[!] name"
+.\"O Optional name of an interface via which a packet is received (for
+.\"O packets entering the input chain), or via which is packet is going to
+.\"O be sent (for packets entering the forward or output chains).  When
+.\"O this option is omitted, the empty string is assumed, which has a
+.\"O special meaning and will match with any interface name.  When the "!"
+.\"O argument is used before the interface name, the sense is inverted.  If
+.\"O the interface name ends in a "+", then any interface which begins with
+.\"O this name will match.
+(input チェインにおいては) 受信したパケットが通過するインターフェース名、
+(forward 及び output チェインにおいては) 送信されるパケットが通過する
+インターフェース名を指定する。
+このオプションが省略された場合は空文字列と見なされ、全ての
+インターフェース名を指定することと同じ意味になる。
+インタフェース名の前に "!" が置かれると、そのインターフェースを
+指定しないという意味になる。
+インタフェース名の末尾の "+" は前方一致を示し、"+" の直前までの文字列
+で始まるインタフェースの全てにマッチする。
+.TP
+.B "[!] " "-f, --fragment"
+.\"O This means that the rule only refers to second and further fragments
+.\"O of fragmented packets.  Since there is no way to tell the source or
+.\"O destination ports of such a packet (or ICMP type), such a packet will
+.\"O not match any rules which specify them.  When the "!" argument
+.\"O precedes the "-f" flag, the sense is inverted.
+寸断された (fragment: フラグメント) パケットのうち 2 番目以降の
+フラグメントだけを参照するルールであることを意味する。
+そのようなパケット (または ICMP タイプ) の発信元ポートや宛先ポートを
+識別する方法は無いので、この類のパケットはあらゆるルールとマッチしない。
+"-f" フラグの前に "!" があると、2番目以降のフラグメントを参照しない。
+.\"O .SS "OTHER OPTIONS"
+.SS その他のオプション
+.\"O The following additional options can be specified:
+以下のオプションを追加することができる - 
+.TP
+.BI "-b, --bidirectional"
+.\"O Bidirectional mode.  The rule will match with IP packets in both
+.\"O directions; this has the same effect as repeating the rule with the
+.\"O source & destination reversed.  Note that this does NOT mean that if
+.\"O you allow TCP syn packets out, the -b rule will allow non-SYN packets
+.\"O back in: the reverse rule is exactly the same as the rule you entered.
+.\"O This means that it's usually better to simply avoid the -b flag and
+.\"O spell the rules out explicitly.
+双方向モード。
+ルールは IP パケットに対し双方向にマッチする - 
+これは発信元と宛先を交換してルールを繰り返して記述することと同じ効果を
+もたらす。
+TCP syn パケットの送出を許可する設定に -b ルールを適応すると、TCP syn
+パケットでないパケットの受け取りを許可する設定にはならない。
+【訳注: -b フラグが反対を意味するからといって、"TCP synパケット" の反対
+の意味で "非SYNパケット" という対応になったり、 "パケットの送出" の反対
+の意味で "パケットの受けとり" という対応にはならない。
+意味が反対になるのは発信元アドレスと宛先アドレスの交換によるパケットの
+方向だけであり、 "SYN パケット" が"非SYNパケット" にはならないし、
+input チェインから output チェインに扱いが変わる訳でもない。】
+つまり、-b フラグは使わずに、きちんと一つずつルールを指定したほうがよい。
+.TP
+.BI "-v, --verbose"
+.\"O Verbose output.  This option makes the list command show the interface
+.\"O address, the rule options (if any), and the TOS masks.  The packet and
+.\"O byte counters are also listed, with the suffix 'K', 'M' or 'G' for
+.\"O 1000, 1,000,000 and 1,000,000,000 multipliers respectively (but see
+.\"O the
+.\"O .B -x
+.\"O flag to change this).  When used in combination with
+.\"O .BR -M ,
+.\"O information related to delta sequence numbers will also be listed.
+.\"O For appending, insertion, deletion and replacement, this causes
+.\"O detailed information on the rule or rules to be printed.
+詳細表示。
+このオプションは、コマンドのインターフェースアドレス・(もしあれば)
+ルールのオプション・TOS マスク・パケットとバイトのカウンタを一覧表にして
+表示する。
+カウンタ表示の後の 'K', 'M', 'G' は各々、 1000, 1,000,000, 1,000,000,000 倍を
+意味する。
+(但し、
+.B -x
+フラグはこの表示方法を変更する。)
+.BR -M 
+と組み合わせて使うと、デルタシーケンス番号 (delta sequence numbers) に
+関連する情報も表示される。
+追加、挿入、削除、置換にこのオプションを適用すると、ルールの詳細情報が
+表示されるようになる。
+.TP
+.BI "-n, --numeric"
+.\"O Numeric output.
+.\"O IP addresses and port numbers will be printed in numeric format.
+.\"O By default, the program will try to display them as host names,
+.\"O network names, or services (whenever applicable).
+数値での出力。
+IP アドレスとポート番号が数値形式で出力される。
+デフォルトでは、 ipchains はそれらをホスト名、ネットワーク名、或は
+サービス名で(出来るだけ)表示しようと試みる。
+.TP
+.BI "-l, --log"
+.\"O Turn on kernel logging of matching packets.
+.\"O When this option is set for a rule, the Linux kernel will print
+.\"O some information
+.\"O of all matching packets (like most IP header fields) via
+.\"O .IR printk ().
+マッチしたパケットをカーネルのログに記録する。
+ルールにこのオプションが設定される時、 Linux カーネルは 
+.IR printk()
+関数を通じて、マッチしたパケット全ての(多くは IP ヘッダフィールドに関する)
+情報を出力する。
+.TP
+.BI "-o, --output" " [maxsize]"
+.\"O Copy matching packets to the userspace device.  This is currently
+.\"O mainly for developers who want to play with firewalling effects in
+.\"O userspace.  The optional maxsize argument can be used to limit the
+.\"O maximum number of bytes from the packet which are to be copied.  This
+.\"O option is only valid if the kernel has been compiled with
+.\"O CONFIG_IP_FIREWALL_NETLINK set.
+マッチしたパケットをユーザ空間のデバイスへコピーする。
+これは現在主にユーザ空間でファイアウォールの効果を使って何かしたい
+開発者が使用する。
+オプション引数の最大サイズはコピーされるパケットの最大数を制限する
+為に使われる。
+このオプションはカーネルを CONFIG_IP_FIREWALL_NETLINK を設定して
+コンパイルした時のみ有効である。
+.TP
+.BI "-m, --mark" " markvalue"
+.\"O Mark matching packets.  Packets can be marked with a 32-bit unsigned
+.\"O value which may (one day) change how they are handled internally.  If
+.\"O you are not a kernel hacker you are unlikely to care about this.  If
+.\"O the string
+.\"O .I markvalue 
+.\"O begins with a + or -, then this value will be added or subtracted from
+.\"O the current marked value of the packet (which starts at zero).
+マッチしたパケットに印を付ける。
+パケットには 32 ビットの符号無しの数値で印が付けられ、
+その値によって (そのうち) そのパケットが内部で
+どのように扱われるかが変更できるようになるだろう。
+あなたがカーネルハッカーでなければ、このオプションは気にしなくて良い。
+.I マーク値
+が + 或は - から始まる際には、  (ゼロから始まる) 現在のマーク値からその値を
+加算或は減算する。
+.TP
+.BI "-t, --TOS" " andmask xormask"
+.\"O Masks used for modifying the TOS field in the IP header.  When a
+.\"O packet matches a rule, its TOS field is first bitwise and'ed with
+.\"O first mask and the result of this will be bitwise xor'ed with the
+.\"O second mask.  The masks should be specified as hexadecimal 8-bit
+.\"O values.  As the LSB of the TOS field must be unaltered (RFC 1349), TOS
+.\"O values which would cause it to be altered are rejected, as are any
+.\"O rules which always set more than one TOS bit.  Rules which might set
+.\"O multiple TOS bits for certain packets result in warnings (sent to
+.\"O stdout) which can be ignored if you know that packets with those TOS
+.\"O values will never reach that rule.   Obviously,
+.\"O manipulating the TOS is a meaningless gesture if the rule's target is
+.\"O .I DENY 
+.\"O or 
+.\"O .IR REJECT .
+IP ヘッダ内の TOS フィールドを変更する為に使用されるマスク。
+パケットがルールにマッチする時、その TOS フィールドは 1 番目のマスク
+でビット単位の論理積が行われ、その結果は 2 番目のマスクでビット単位の
+排他的論理和が行われる。
+マスク値は 16 進の 8 ビット値で指定する。
+TOS フィールドの LSB は不変でなければならない (RFC 1349) 。
+これを変更しようとすると、拒絶される。
+すなわち、 TOS ビットが 1 つ以上設定されているものがこれに該当する。
+パケットに複数の TOS ビットを設定しようとすると、(標準出力を通じて)
+ワーニングメッセージを出す。
+そのような TOS 値を持つパケットが当該ルールに到達することはあり得ないと
+わかっているなら、ワーニングメッセージは無視できる。
+勿論、 TOS の操作はルールのターゲットが
+.I DENY 
+或は
+.IR REJECT
+の場合には無意味である。
+.TP
+.BI "-x, --exact"
+.\"O Expand numbers.
+.\"O Display the exact value of the packet and byte counters,
+.\"O instead of only the rounded number in K's (multiples of 1000)
+.\"O M's (multiples of 1000K) or G's (multiples of 1000M).  This option is
+.\"O only relevant for the 
+.\"O .B -L 
+.\"O command.
+番号表示の拡張。
+パケット及びバイトカウンタの値を K (1000倍)、 M (1000K倍) 或は
+G (1000M倍)で丸めた値でなく、正確な値で表示する。
+このオプションは
+.B -L 
+コマンドでのみ有効である。
+.TP
+.BI "[!] -y, --syn"
+.\"O Only match TCP packets with the SYN bit set and the ACK and FIN bits
+.\"O cleared.  Such packets are used to request TCP connection initiation;
+.\"O for example, blocking such packets coming in an interface will prevent
+.\"O incoming TCP connections, but outgoing TCP connections will be
+.\"O unaffected.  This option is only meaningful when the protocol type is
+.\"O set to TCP.  If the "!" flag precedes the "-y", the sense of the
+.\"O option is inverted.
+TCP パケットの内、SYN ビットがセットされ ACK ビットと FIN ビットがクリア
+されたパケットにのみマッチする。
+そのようなパケットは、TCP 接続の開始要求に使用される。
+例えば、あるインターフェースへ到着するそのようなパケットを遮断すると、
+内向きの TCP 接続を防止するが、外向きの TCP 接続は影響を受けない。
+このオプションは、プロトコルの種類が TCP に設定されている場合にのみ意味を持つ。
+"-y" の前に "!" フラグがあると、このオプションの判定結果が否定される。
+【訳注: -y の場合、各々のビットの条件は "SYN=1 and ACK=0 and FIN=0" の
+組合せにのみマッチする。
+"! -y" はこの否定なので、各ビットの組合せが上記以外の全てのパケットが
+マッチする。
+すなわち、 "SYN=0 or ACK=1 or FIN=1" という条件になる。
+SYN ビットが 0 であれば良いのは言うまでもなく、例えば
+"SYN=1 and ACK=1 and FIN=0" という組合せでもマッチする。】
+.TP
+.BI "--line-numbers"
+.\"O When listing rules, add line numbers to the beginning of each rule,
+.\"O corresponding to that rule's position in the chain.
+ルールを一覧表示する際、各ルールの先頭にそのルールのチェイン中での
+位置に対応する行番号を追加する。
+.TP
+.BI "--no-warnings"
+.\"O Disable all warnings.
+全ての警告を無効にする。
+.\"O .SH FILES
+.SH ファイル
+.I /proc/net/ip_fwchains
+.br
+.I /proc/net/ip_masquerade
+.\"O .SH DIAGNOSTICS
+.SH 返り値
+.\"O Various error messages are printed to standard error.  The exit code
+.\"O is 0 for correct functioning.  Errors which appear to be caused by
+.\"O invalid or abused command line parameters cause an exit code of 2, and
+.\"O other errors cause an exit code of 1.
+各種エラーメッセージは標準エラー出力に出力される。
+正常動作時の終了コードは 0 である。
+無効な、或は誤ったコマンド行パラメータに起因すると思われるエラーは、
+終了コード 2 を発生する。
+その他のエラーでの終了コードは 1 である。
+.\"O .SH BUGS
+.SH バグ
+.PP
+.\"O If input is a terminal, and a rule is inserted in, or appended to, the
+.\"O forward chain, and IP forwarding does not seem to be enabled, and
+.\"O --no-warnings is not specified, a message is printed to standard
+.\"O output, warning that no forwarding will occur until this is rectified.
+.\"O This is to help users unaware of the requirement (which did not exist
+.\"O in the 2.0 kernels).
+ターミナルからの入力により forward チェインへルールが挿入または追加された
+ときに IP 転送機能が有効になっていない場合で --no-warnings を
+指定していなければ、誤りを修正するまで IP 転送が行われないことを警告する
+メッセージが標準出力へ表示される。
+これは、(2.0 カーネルには存在しなかった) 必要条件に気付かないユーザを助け
+るためのものである。
+.PP
+.\"O There is no way to reset the packet and byte counters in one chain
+.\"O only.  This is a kernel limitation.
+パケットカウンタとバイトカウンタを 1 つのチェインの分だけリセットする
+方法は無い。これはカーネルの制限である。
+.PP
+.\"O Loop detection is not done in ipchains; packets in a loop get dropped
+.\"O and logged, but that's the first you'll find out about it if you
+.\"O inadvertantly create a loop.
+ループの検知は ipchains では行われない。
+ループ状態にあるパケットは破棄されログに記録されるが、
+うっかりループを作ってしまうことを考慮して、ログから見つけ出すことが
+必要である。
+.PP
+.\"O The explanation of what effect marking a packet has is intentionally
+.\"O vague until documentation describing the new 2.1 kernel's packet
+.\"O scheduling routines is released.
+新しい 2.1 カーネルのパケットスケジューリングのルーチンを詳述する文書が
+リリースされる迄、パケットのマーキングの効果に関する説明は意図的に
+曖昧にしている。
+.PP
+.\"O There is no way to zero the policy counters (ie. those on the built-in
+.\"O chains).
+(組み込み済みチェインの) ポリシーカウンタを 0 にする方法は無い 。
+.\"O .SH NOTES
+.SH 注意
+.\"O This 
+.\"O .B ipchains
+.\"O is very different from the ipfwadm by Jos Vos, as it uses the new IP
+.\"O firewall trees.  Its functionality is a superset of ipfwadm, and there
+.\"O is generally a 1:1 mapping of commands.  I believe the new command
+.\"O names are more rational.  There are, however, a few changes of which
+.\"O you should be aware.
+.B ipchains
+は、新しい IP ファイアウォールツリーを利用するという点で、Jos Vos 作の
+ipfwadm とは大きく異なっている。
+ipchains の機能は ipfwadm のスーパーセットであり、コマンドはほぼ 1 対 1 で
+対応付けることができる。
+新しいコマンド名は、より理に適ったものであると思う。
+とはいえ、注意すべき変更点もいくつか存在する。
+.PP
+.\"O Fragments are handled differently.  All fragments after the first used
+.\"O to be let through (which is usually safe); they can now be filtered.
+.\"O This means that you should probably add an explicit rule to accept
+.\"O fragments if you are converting over.  Also, look for old accounting
+.\"O rules which check for source and destination ports of 0xFFFF (0xFF for
+.\"O ICMP packets) which was the old way of doing accounting on fragments.
+フラグメントの扱いが異なる。
+従来は、2 番目以降のフラグメントを全て通過させていた (通常、これは安全である)。
+現在では、これらをフィルタすることができる。
+すなわち、 ipfwadm からルールを変換する際には、フラグメントを許可する
+ルールを明示しなければならない。
+同様に、送信元及び宛先ポートに 0xFFFF (ICMP では 0xFF) を指定して
+チェックする、古い統計 (accounting)ルールを探す必要がある。
+これはフラグメントの統計を取る古い方法である。
+.PP
+.\"O Accounting rules are now simply integrated into the input and output
+.\"O chains; you can simulate the old behaviour like so:
+.\"O .br
+.\"O ipchains -N acctin
+.\"O .br
+.\"O ipchains -N acctout
+.\"O .br
+.\"O ipchains -N acctio
+.\"O .br
+.\"O ipchains -I input -j acctio
+.\"O .br
+.\"O ipchains -I input -j acctin
+.\"O .br
+.\"O ipchains -I output -j acctio
+.\"O .br
+.\"O ipchains -I output -j acctout
+.\"O .br
+.\"O This creates three user-defined chains, 
+.\"O .IR acctin ,
+.\"O .I acctout
+.\"O and
+.\"O .IR acctio ,
+.\"O which are to contain any accounting rules (these rules should be
+.\"O specified without a 
+.\"O .B -j 
+.\"O flag, so that the packets simply pass through them unscathed).
+統計 (accounting) ルールは、現在は input チェインと output チェインへ
+統合されている。
+以前の挙動と同じようにするには以下のようにすればよい - 
+.br
+ ipchains -N acctin
+.br
+ ipchains -N acctout
+.br
+ ipchains -N acctio
+.br
+ ipchains -I input -j acctio
+.br
+ ipchains -I input -j acctin
+.br
+ ipchains -I output -j acctio
+.br
+ ipchains -I output -j acctout
+.br
+これは 3 つのユーザ定義チェイン、
+.IR acctin ,
+.I acctout ,
+.IR acctio ,
+を生成する。
+.\"O which are to contain any accounting rules (these rules should be
+.\"O specified without a 
+.\"O .B -j 
+.\"O flag, so that the packets simply pass through them unscathed).
+これらはあらゆる統計ルールを含められる。
+(これらのルールは
+.B -j 
+フラグを使わず指定するべきである。
+そうすれば、パケットはこれらのチェインを単に無傷のまま通過する。)
+.PP
+.\"O A 
+.\"O .I MASQ
+.\"O or 
+.\"O .I REDIRECT
+.\"O target encountered by the kernel out of place (ie. not
+.\"O during a forward or input rule respectively) will cause a message to
+.\"O the syslog and the packet to be dropped.
+カーネルが
+.I MASQ
+ターゲットや
+.I REDIRECT
+ターゲットが不適切なところにある (つまり、 forward ルール以外に
+MASQ があったり、入力ルール以外に REDIRECT がある等) のを見つけると、syslog
+にメッセージを記録し、そのパケットは破棄される。
+.PP
+.\"O The old behaviour of SYN and ACK matching (which was previously
+.\"O ignored for non-TCP packets) has changed; the SYN option is not valid
+.\"O for non-TCP-specific rules.
+SYN 及び ACK に合致する際の古い挙動 (従来、非 TCP パケットに対しては
+無視されていた) が変更された。
+非 TCP パケット固有のルールに対する SYN オプションは誤りである。
+.PP
+.\"O The ACK matching option (the
+.\"O .B -k
+.\"O flag) is no longer supported; the combination of
+.\"O .B !
+.\"O and 
+.\"O .B -y
+.\"O will give the equivalent).
+ACK マッチングオプション (
+.B -k
+フラグ) は、もはやサポートされない。
+.B !
+と
+.B -y
+との組み合わせがこれに相当する)。
+.PP
+.\"O It is now illegal to specify a TOS mask which will set or alter the
+.\"O least significant TOS bit; previously TOS masks were silently altered
+.\"O by the kernel if they tried to do this.
+現在では、TOS の最下位ビットを設定・変更する TOS マスクを
+明記するのはエラーになる - 
+以前の TOS マスクの場合、そのような試みはカーネル内部で黙って
+変更されていた。
+.PP
+.\"O The 
+.\"O .B -b
+.\"O flag is now handled by simply inserting or deleting a pair of rules,
+.\"O one with the source and destination specifications reversed.
+現在、
+.B -b
+フラグは単に送信元及び宛先の指定を反転させるルールの組合せを
+挿入或は削除する為だけになった。
+.PP
+.\"O There is no way to specify an interface by address: use its name.
+インターフェースをアドレスで指定する方法は無い。インターフェース名を使うこと。
+.\"O .SH SEE ALSO
+.SH 関連項目
+ipfw(4)
+.\"O .SH AUTHOR
+.SH 著者
+.\"O Rusty Russell <rusty@linuxcare.com>.  Thanks also to Hans Persson for
+.\"O detailed proofreading; I want him to read all my future documents!
+Rusty Russell <rusty@linuxcare.com>。細かな点まで校正してくれた Hans Persson
+にお礼が言いたい。今後私が書く文書は、全部彼に読んでもらいたい!
+.SH 翻訳者
+大神 淳 <ati@ff.iij4u.or.jp>
+.br
+松田 陽一 <matsuda@palnet.or.jp>
+.SH 日本語版校正
+白方 健太郎 <argrath@ub32.org>
+.br
+武井 伸光 <takei@webmasters.gr.jp>
+.br
+元木 顕弘 <amotoki@dd.iij4u.or.jp>
+.br
+関根 達夫 <tsekine@isoternet.org>

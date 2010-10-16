@@ -1,0 +1,122 @@
+.\" No comment!
+.\"
+.TH RSSH 1 "22 Feb 2003" "man pages" "Derek D. Martin"
+.SH NAME 
+rssh \- restricted secure shell allowing only scp and/or sftp 
+.SH SYNOPSIS
+.B rssh 
+.I -c scp|sftp-server 
+.RI [ " options... " ] " " [ " ... " ]
+.br
+.SH DESCRIPTION
+.B rssh
+is a restricted shell for providing limited access to a host via \fIssh\fP(1), 
+allowing a user whose shell is configured to
+.B rssh
+to use \fIscp\fP(1) or \fIsftp\fP(1) only.  It is intended primarily to work
+with OpenSSH (see http://www.openssh.com), but may work with other
+implementations.
+.P
+The system administrator should install the shell on the restricted system.
+Then the password file entry of any user for whom it is desireable to provide
+restricted access should be edited, such that their shell is \fBrssh\fP. For
+example:
+.P
+.RS
+luser:x:666:666::/home/luser:/usr/bin/rssh
+.RE
+.P
+If invoked with the 
+.I -v 
+option,
+.B rssh
+will report its version, and exit.  All other arguments to 
+.B rssh
+are those specified by the remote \fIssh\fP(1) client, and aren't of much
+concern to the average user.  The arguments provided must be what a shell on
+the remote end would receive in order to pass control to \fIscp\fP(1) or
+\fIsftp\fP(1).  If 
+.B rssh
+receives arguments which do not conform, it will emit an error message and exit.
+If the program the user is trying to run is not allowed, or contains syntax
+which will try to execute a shell command (such as a command substitution), it
+will also emit an error and exit.
+.P
+.B rssh
+has a configuration file, rssh.conf(5), which allows some of the behavior of
+.B rssh
+to be customized.  See that man page for details.
+.SH SECURITY NOTES
+Prior to OpenSSH 3.5, \fIsshd\fP(8) will generally attempt to parse files in
+the user's home directory, and may also try to run a start-up script from the
+user's .I $HOME/.ssh
+directory.  
+.B rssh 
+does not make use of the user's environment in any way.  The relevant command
+is executed by calling \fIexecv\fP(3) with the full path to the command, as
+specified at compile time.  It does not depend upon the user's PATH variable,
+or on any other environment variable.
+.P
+There are, however, several problems that can arise.  This is due entirely to
+the way the OpenSSH Project's sshd works, and is in no way the fault of
+\fBrssh\fP.  For example, one problem which might exist is that, according to
+the \fIsshd\fP(8) man page from at least some releases of OpenSSH, the
+commands listed in the
+.I $HOME/.ssh/rc
+file are executed with
+.I /bin/sh
+instead of the user's defined shell.  This appears not to be the case on the
+systems the author had available to test on; commands were executed using the
+user's configured shell (\fBrssh\fP), which did not allow the execution.
+However if it is true on your system, then a malicious user may be able to
+circumvent
+.B rssh
+by uploading a file to
+.I $HOME/.ssh/rc
+which will be executed by 
+.I /bin/sh
+on that system.  If any releases (of OpenSSH) are, in fact, vulnerable to this
+problem, then it is very likely that they are only old, outdated versions.  So
+long as you are running a recent version of OpenSSH, this should not be a
+problem as far as I can tell.
+.P
+If your sshd 
+.I is
+vulnerable to this attack, there is a workaround for this problem, though it
+is pretty restrictive.
+.B  "The user's home directory absolutely must *not* be writable by the user."
+If it is, the user can use sftp to remove the directory or rename it, and then
+create a new one, and fill it up with whatever environment files they like.  For
+providing file uploads, this means a user-writable directory must be created for
+them, and they must be made aware of their inability to write into their home
+directory other than in this location.
+.P
+A second problem is that after authenticating the user, sshd also reads
+.I $HOME/.ssh/environment
+to allow the user to set variables in their environment.  This allows the user
+to completely circumvent 
+.B rssh 
+by clever manipulation of such environment variables as
+.IR LD_LIBRARY_PATH " or " LD_PRELOAD
+to link the rssh binary against arbitrary shared libraries.  In order to
+prevent this from being a problem, as of version 0.9.3, by default
+.B rssh
+is now compiled statically.  The restrictive work-around mentioned above will
+also defeat this sort of attack.
+.P
+As of OpenSSH 3.5, 
+.I sshd
+now supports the option
+.I PermitUserEnvironment
+which is set to "no" by default.  This option allows restricted shells like
+.B rssh
+to function properly without requiring them to be linked statically.  As of
+.B rssh
+version 1.0.1, the configure script should detect that OpenSSH 3.5 is present,
+and disable the default of static compilation.
+.SH BUGS
+None.  =8^)
+.SH SEE ALSO
+\fIsshd\fP(8), \fIssh\fP(1), \fIscp\fP(1), \fIsftp\fP(1).
+
+

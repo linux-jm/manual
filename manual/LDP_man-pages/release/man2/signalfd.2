@@ -1,0 +1,453 @@
+.\" Copyright (C) 2008 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" starting from a version by Davide Libenzi <davidel@xmailserver.org>
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+.\" MA  02111-1307  USA
+.\"
+.\" Japanese Version Copyright (c) 2008  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2008-04-06, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.79
+.\" Updated 2008-11-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.13
+.\" Updated 2009-02-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.18
+.\" 
+.TH SIGNALFD 2 2009-01-13 Linux "Linux Programmer's Manual"
+.SH 名前
+signalfd \- シグナル受け付け用のファイルディスクリプタを生成する
+.SH 書式
+.B #include <sys/signalfd.h>
+.sp
+.BI "int signalfd(int " fd ", const sigset_t *" mask ", int " flags );
+.SH 説明
+.BR signalfd ()
+は、呼び出し元宛てのシグナルを受け付けるために使用されるファイル
+ディスクリプタを生成する。
+この方法はシグナルハンドラや
+.BR sigwaitinfo (2)
+を用いる方法の代わりとなるものであり、このファイルディスクリプタを
+.BR select (2),
+.BR poll (2),
+.BR epoll (7)
+で監視できるという利点がある。
+
+.I mask
+引き数には、呼び出し元がこのファイルディスクリプタ経由で受け付けたい
+シグナル集合を指定する。この引き数で指定するシグナル集合の内容は、
+.BR sigsetops (3)
+で説明されているマクロを使って初期化することができる。
+通常、ファイルディスクリプタ経由で受信するシグナル集合は、
+そのシグナルがデフォルトの配送方法に基いて処理されるのを防ぐために、
+.BR sigprocmask (2)
+を使ってブロックしておくべきである。
+シグナル
+.B SIGKILL
+と
+.B SIGSTOP
+を signalfd ファイルディスクリプタ経由で受信することはできない。
+これらのシグナルが
+.I mask
+で指定された場合には黙って無視される。
+
+.I fd
+引き数が \-1 の場合、
+.BR signalfd ()
+は新しいファイルディスクリプタを生成し、
+.I mask
+で指定されたシグナル集合をそのファイルディスクリプタに関連付ける。
+.I fd
+引き数が \-1 以外の場合、
+.I fd
+には有効な既存の signalfd ファイルディスクリプタを指定しなければならず、
+そのディスクリプタに関連付けられているシグナル集合は
+.I mask
+を使って置き換えられる。
+
+Linux 2.6.27 以降では、
+以下の値のいくつかをビット単位の論理和 (OR) で指定することで、
+.BR signalfd ()
+の振舞いを変更することができる。
+.TP 14
+.B SFD_NONBLOCK
+新しく生成されるオープンファイル記述 (open file description) の
+.B O_NONBLOCK
+ファイルステータスフラグをセットする。
+このフラグを使うことで、
+.B O_NONBLOCK
+をセットするために
+.BR fcntl (2)
+を追加で呼び出す必要がなくなる。
+.TP
+.B SFD_CLOEXEC
+新しいファイルディスクリプタに対して
+close-on-exec
+.RB ( FD_CLOEXEC )
+フラグをセットする。
+このフラグが役に立つ理由については、
+.BR open (2)
+の
+.B O_CLOEXEC
+フラグの説明を参照のこと。
+.PP
+バージョン 2.6.26 以前の Linux では、
+.I flags
+引き数は未使用であり、0 を指定しなければならない。
+
+.BR signalfd ()
+が返すファイルディスクリプタは以下の操作をサポートしている。
+.TP
+.BR read (2)
+.I mask
+に指定されているシグナルのうち一つ以上がそのプロセスに対して
+処理待ち (pending) であれば、それらのシグナルの情報が
+.BR read (2)
+に渡されたバッファを使って、
+.I signalfd_siginfo
+構造体に格納されて返される。
+.BR read (2)
+は、バッファに格納可能な範囲でできるだけ多くの処理待ちのシグナルに
+ついての情報を返す。
+バッファは最低でも
+.I "sizeof(struct signalfd_siginfo)"
+バイトの大きさがなければならない。
+.BR read (2)
+の返り値は読み出されたトータルのバイト数である。
+.IP
+.BR read (2)
+が行われた結果、シグナルは消費され、
+これらのシグナルはそのプロセスに対しては処理待ちではなくなる
+(つまり、シグナルハンドラで捕捉されることもなく、
+.BR sigwaitinfo (2)
+を使って受け取ることもできなくなる)。
+.IP
+.I mask
+に指定されているシグナルがそのプロセスに対して一つも処理待ちでなければ、
+.BR read (2)
+は、
+.I mask
+で指定されたシグナルのうちいずれか一つがそのプロセスに対して発生するまで
+停止 (block) する、もしくはファイルディスクリプタが非停止 (nonblocking)
+に設定されている場合はエラー
+.B EAGAIN
+で失敗する。
+.TP
+.BR poll "(2), " select "(2) (と同様の操作)"
+.I mask
+に指定されたシグナルのうち一つ以上がそのプロセスに対して処理待ちであれば、
+ファイルディスクリプタは読み出し可能となる
+.RB ( select (2)
+の
+.I readfds
+引き数や
+.BR poll (2)
+の
+.B POLLIN
+フラグ)。
+.IP
+signalfd ファイルディスクリプタは、これ以外のファイルディスクリプタ
+多重 API である
+.BR pselect (2),
+.BR ppoll (2),
+.BR epoll (7)
+もサポートしている。
+.TP
+.BR close (2)
+ファイルディスクリプタがそれ以降は必要なくなった際には、クローズすべきである。
+同じ signalfd オブジェクトに関連付けられたファイルディスクリプタが全て
+クローズされると、そのオブジェクト用の資源がカーネルにより解放される。
+.SS signalfd_siginfo 構造体
+signalfd ファイルディスクリプタからの
+.BR read (2)
+で返される
+.I signalfd_siginfo
+構造体のフォーマットは以下の通りである。
+.in +4n
+.nf
+
+struct signalfd_siginfo {
+struct signalfd_siginfo {
+    uint32_t ssi_signo;   /* シグナル番号 */
+    int32_t  ssi_errno;   /* エラー番号 (未使用) */
+    int32_t  ssi_code;    /* シグナルコード */
+    uint32_t ssi_pid;     /* 送信元の PID */
+    uint32_t ssi_uid;     /* 送信元の実 UID */
+    int32_t  ssi_fd;      /* ファイルディスクリプタ (SIGIO) */
+    uint32_t ssi_tid;     /* カーネルタイマ ID (POSIX タイマ)
+    uint32_t ssi_band;    /* Band イベント (SIGIO) */
+    uint32_t ssi_overrun; /* POSIX タイマのオーバーラン回数 */
+    uint32_t ssi_trapno;  /* シグナルの原因となったトラップ番号 */
+.\" ほとんどのアーキテクチャで ssi_trapno は未使用
+    int32_t  ssi_status;  /* 終了ステータスかシグナル (SIGCHLD) */
+    int32_t  ssi_int;     /* sigqueue(2) から送られた整数 */
+    uint64_t ssi_ptr;     /* sigqueue(2) から送られたポインタ */
+    uint64_t ssi_utime;   /* 消費したユーザ CPU 時間 (SIGCHLD) */
+    uint64_t ssi_stime;   /* 消費したシステム CPU 時間 (SIGCHLD) */
+    uint64_t ssi_addr;    /* シグナルを生成したアドレス
+                             (ハードウェアが生成したシグナルの場合) */
+    uint8_t  pad[\fIX\fP];      /* pad の大きさは 128 バイト
+                             (将来のフィールド追加用の場所の確保) */
+};
+
+.fi
+.in
+.I signalfd_siginfo
+構造体の各フィールドは、
+.I siginfo_t
+構造体の同じような名前のフィールドと同様である。
+.I siginfo_t
+構造体については
+.BR sigaction (2)
+に説明がある。
+返された
+.I signalfd_siginfo
+構造体の全てのフィールドがあるシグナルに対して有効なわけではない。
+どのフィールドが有効かは、
+.I ssi_code
+フィールドで返される値から判定することができる。
+このフィールドは
+.I siginfo_t
+の
+.I si_code
+フィールドと同様である。詳細は
+.BR sigaction (2)
+を参照。
+.SS fork(2) での扱い
+.BR fork (2)
+が行われると、子プロセスは signalfd ファイルディスクリプタのコピーを
+継承する。
+子プロセスでこのファイルディスクリプタから
+.BR read (2)
+を行うと、子プロセスに対するキューに入っているシグナルに関する
+情報が返される。
+.SS execve(2) での扱い
+他のファイルディスクリプタと全く同様に、
+signalfd ファイルディスクリプタも
+.BR execve (2)
+の前後でオープンされたままとなる。但し、そのファイルディスクリプタに
+close-on-exec のマーク
+.RB ( fcntl (2)
+参照) が付いている場合はクローズされる。
+.BR execve (2)
+の前に読み出し可能となっていた全てのシグナルは新しく起動されたプログラム
+でも引き続き読み出し可能である
+(これは伝統的なシグナルの扱いと同じであり、
+処理待ちのブロックされたシグナルは
+.BR execve (2)
+の前後で処理待ちのままとなる)。
+.SS スレッドでの扱い
+マルチスレッドプログラムにおける signalfd ファイルディスクリプタの扱いは
+シグナルの標準的な扱いと全く同じである。
+言い換えると、あるスレッドが signalfd ファイルディスクリプタから
+読み出しを行うと、そのスレッド自身宛てのシグナルとプロセス (すなわち
+スレッドグループ全体) 宛てのシグナルが読み出される。
+(スレッドは同じプロセスの他のスレッド宛てのシグナルを読み出すことはできない。)
+.SH 返り値
+成功すると、
+.BR signalfd ()
+は signalfd ファイルディスクリプタを返す。
+返されるファイルディスクリプタは、
+.IR fd
+が \-1 の場合は新規のファイルディスクリプタであり、
+.I fd
+が有効な signalfd ファイルディスクリプタだった場合は
+.I fd
+自身である。
+エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.SH エラー
+.TP
+.B EBADF
+ファイルディスクリプタ
+.I fd
+が有効なファイルディスクリプタでない。
+.TP
+.B EINVAL
+.I fd
+が有効な signalfd ファイルディスクリプタではない。
+.\" or, the
+.\" .I sizemask
+.\" argument is not equal to
+.\" .IR sizeof(sigset_t) ;
+.TP
+.B EINVAL
+.I flags
+が無効。
+Linux 2.6.26 以前では、
+.I flags
+が 0 以外の値。
+.TP
+.B EMFILE
+オープン済みのファイルディスクリプタの数がプロセスあたりの上限に
+達していた。
+.TP
+.B ENFILE
+オープン済みのファイル総数がシステム全体の上限に達していた。
+.TP
+.B ENODEV
+(カーネル内の) 無名 inode デバイスをマウントできなかった。
+.TP
+.B ENOMEM
+新しい signalfd ファイルディスクリプタを生成するのに十分なメモリがなかった。
+.SH バージョン
+.BR signalfd ()
+はカーネル 2.6.22 以降の Linux で利用可能である。
+正しく動作する glibc 側のサポートはバージョン 2.8 以降で提供されている。
+.\" signalfd() is in glibc 2.7, but reportedly does not build
+.BR signalfd4 ()
+システムコール (「注意」参照) は
+カーネル 2.6.27 以降の Linux で利用可能である。
+.SH 準拠
+.BR signalfd ()
+と
+.BR signalfd4 ()
+は Linux 固有である。
+.SH 注意
+実際の Linux のシステムコールでは
+.I "size_t sizemask"
+という引き数が追加で必要である。この引き数で
+.I mask
+のサイズを指定する。
+glibc の
+.BR signalfd ()
+ラッパー関数にはこの引き数は含まれず、
+ラッパー関数が必要な値を計算して内部で呼び出すシステムコールに提供する。
+
+一つのプロセスは複数の signalfd ファイルディスクリプタを生成することができる。
+これにより、異なるファイルディスクリプタで異なるシグナルを受け取ることが
+できる (この機能は
+.BR select (2),
+.BR poll (2),
+.BR epoll (7)
+を使ってファイルディスクリプタを監視する場合に有用かもしれない。
+異なるシグナルが到着すると、異なるファイルディスクリプタが利用可能に
+なるからだ)。
+一つのシグナルが二つ以上のファイルディスクリプタの
+.I mask
+に含まれている場合、そのシグナルの発生はそのシグナルを
+.I mask
+に含むファイルディスクリプタのうちいずれか一つから読み出すことができる。
+.SH 下層にある Linux のシステムコール
+下層にある Linux システムコールは二種類あり、
+.BR signalfd ()
+と、もっと新しい
+.BR signalfd4 ()
+である。
+.BR signalfd ()
+は
+.I flags
+引き数を実装していない。
+.BR signalfd4 ()
+では上記の値の
+.I flags
+が実装されている。
+glibc 2.9 以降では、
+.BR signalfd ()
+のラッパー関数は、
+.BR signalfd4 ()
+が利用可能であれば、これを使用する。
+.SH バグ
+カーネル 2.6.25 より前では、
+.BR sigqueue (2)
+により送信されたシグナルと一緒に渡されるデータでは、フィールド
+.I ssi_ptr
+と
+.I ssi_int
+は設定されない。
+.\" The fix also was put into 2.6.24.5
+.SH 例
+下記のプログラムは、シグナル
+.B SIGINT
+と
+.B SIGQUIT
+を signalfd ファイルディスクリプタ経由で受信する。
+シグナル
+.B SIGQUIT
+受信後にプログラムは終了する。
+以下に示すシェルセッションにこのプログラムの使い方を示す。
+.in +4n
+.nf
+
+.RB "$" " ./signalfd_demo"
+.BR "^C" "                   # Control\-C generates SIGINT"
+Got SIGINT
+.B ^C
+Got SIGINT
+\fB^\\\fP                    # Control\-\\ generates SIGQUIT
+Got SIGQUIT
+$
+.fi
+.in
+.SS プログラムのソース
+\&
+.nf
+#include <sys/signalfd.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#define handle_error(msg) \\
+    do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+int
+main(int argc, char *argv[])
+{
+    sigset_t mask;
+    int sfd;
+    struct signalfd_siginfo fdsi;
+    ssize_t s;
+
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGINT);
+    sigaddset(&mask, SIGQUIT);
+
+    /* Block signals so that they aren\(aqt handled
+       according to their default dispositions */
+
+    if (sigprocmask(SIG_BLOCK, &mask, NULL) == \-1)
+        handle_error("sigprocmask");
+
+    sfd = signalfd(\-1, &mask, 0);
+    if (sfd == \-1)
+        handle_error("signalfd");
+
+    for (;;) {
+        s = read(sfd, &fdsi, sizeof(struct signalfd_siginfo));
+        if (s != sizeof(struct signalfd_siginfo))
+            handle_error("read");
+
+        if (fdsi.ssi_signo == SIGINT) {
+            printf("Got SIGINT\\n");
+        } else if (fdsi.ssi_signo == SIGQUIT) {
+            printf("Got SIGQUIT\\n");
+            exit(EXIT_SUCCESS);
+        } else {
+            printf("Read unexpected signal\\n");
+        }
+    }
+}
+.fi
+.SH 関連項目
+.BR eventfd (2),
+.BR poll (2),
+.BR read (2),
+.BR select (2),
+.BR sigaction (2),
+.BR sigprocmask (2),
+.BR sigwaitinfo (2),
+.BR timerfd_create (2),
+.BR sigsetops (3),
+.BR sigwait (3),
+.BR epoll (7),
+.BR signal (7)

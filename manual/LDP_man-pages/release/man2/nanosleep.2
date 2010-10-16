@@ -1,0 +1,238 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (C) Markus Kuhn, 1996
+.\" and Copyright (C) Linux Foundation, 2008, written by Michael Kerrisk
+.\"     <mtk.manpages@gmail.com>
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
+.\" USA.
+.\"
+.\" 1996-04-10  Markus Kuhn <mskuhn@cip.informatik.uni-erlangen.de>
+.\"             First version written
+.\" Modified, 2004-10-24, aeb
+.\" 2008-06-24, mtk
+.\"     Minor rewrites of some parts.
+.\"     NOTES: describe case where clock_nanosleep() can be preferable.
+.\"     NOTES: describe CLOCK_REALTIME versus CLOCK_NANOSLEEP
+.\"     Replace crufty discussion of HZ with a pointer to time(7).
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated, 1997-02-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 1999-02-27, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2003-09-15, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-02-10, Akihiro MOTOKI
+.\" Updated 2006-07-23, Akihiro MOTOKI, LDP v2.36
+.\" Updated 2006-08-13, Akihiro MOTOKI, LDP v2.39
+.\" Updated 2008-08-08, Akihiro MOTOKI, LDP v3.05
+.\"
+.\"WORD:	puase			停止
+.\"WORD:	sleep			停止
+.\"WORD:	signal			シグナル
+.\"WORD:	NULL			NULL
+.\"WORD:	block			禁止(block)
+.\"WORD:	kernel			カーネル
+.\"WORD:	real-time		リアル・タイム
+.\"WORD:	schedule		スケジュール
+.\"WORD:	busy wait		ビシー・ウェイト
+.\"
+.TH NANOSLEEP 2 2009-01-19 "Linux" "Linux Programmer's Manual"
+.SH 名前
+nanosleep \- 高精度なスリープ
+.SH 書式
+.B #include <time.h>
+.sp
+.BI "int nanosleep(const struct timespec *" req ", struct timespec *" rem );
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR nanosleep ():
+_POSIX_C_SOURCE\ >=\ 199309L
+.SH 説明
+.BR nanosleep ()
+は、少なくとも
+.I *req
+で指定された時間の間、プログラムの実行を遅延させる。
+.BR nanosleep ()
+は、呼び出したスレッドの実行を、
+少なくとも
+.I *req
+で指定された時間の間、もしくは呼び出したスレッドでハンドラの起動の
+きっかけとなるシグナル、またはプロセスを終了させるシグナルの配送が
+行われるまで一時停止する。
+
+呼び出しがシグナルハンドラにより割り込まれた場合、
+.BR nanosleep
+は \-1 を返し、
+.I errno
+に
+.B EINTR
+を設定し、
+.I rem
+が NULL でなければ
+残りの時間を
+.I rem
+が指す構造体に格納する。
+.I *rem
+の値を使うと、
+.BR nanosleep ()
+をもう一度呼び出して、指定した時間の停止を
+完了させることができる (但し、「注意」の節を参照のこと)。
+
+ナノ秒刻みの時間間隔を指定するのに
+.I timespec
+構造体が使用される。この構造体は次のように定義されている。
+.sp
+.in +4n
+.nf
+    time_t tv_sec;        /* 秒 */
+    long   tv_nsec;       /* ナノ秒 */
+};
+.fi
+.in
+.PP
+ナノ秒のフィールドの値は 0 から 999999999 の範囲になければならない。
+
+.BR sleep  (3)
+や
+.BR usleep (3)
+に比べると
+.BR nanosleep ()
+には以下のような利点がある:
+停止期間の指定に関して高い時間分解能が提供されている。
+シグナルと互いに影響を及ぼすことがないと
+POSIX.1 で明示的に規定されている。
+シグナルハンドラによって割り込まれた際に、停止を再開するのが
+より簡単にできる。
+.SH 返り値
+要求された期間の停止に成功した場合、
+.BR nanosleep ()
+は 0 を返す。呼び出しがシグナルハンドラにより割り込まれたり、
+エラーが発生した場合は、\-1 を返し、
+.I errno
+にエラー内容を示す値を設定する。
+.SH エラー
+.TP
+.B EFAULT
+ユーザ空間からの情報のコピーで問題があった。
+.TP
+.B EINTR
+そのスレッドに配送されたシグナルにより停止が中断された。
+スレッドが簡単に
+.BR nanosleep ()
+を再び呼び出して停止を続けることができるように、
+残りの停止時間が \fI*rem\fP に格納される。
+.TP
+.B EINVAL
+.I tv_nsec
+フィールドの値が 0 から 999999999 までの範囲になかったか、
+.I tv_sec
+が負であった。
+.SH 準拠
+POSIX.1-2001.
+.SH 注意
+.I req
+で指定された期間が、内部で使用されるクロックの粒度の倍数になっていない
+場合、期間は一番近い倍数に切り上げられる。
+また、停止が完了した後、CPU が呼び出し元のスレッドを再び実行できるように
+なるまでには遅延が入る。
+
+シグナルによる割り込み後に繰り返し再開された場合、
+.BR nanosleep ()
+の停止が相対的な期間であることは問題となることがある。
+これは、呼び出しの割り込みから再開までの間の時間が原因で
+停止が最終的に完了した際に時間にずれが発生するからである。
+この問題は、絶対時刻が指定できる
+.BR clock_nanosleep (2)
+を使うことで回避できる。
+
+POSIX.1 は、
+.BR nanosleep ()
+は
+.B CLOCK_REALTIME
+に対して時刻を計測するべきだと規定している。
+しかしながら、Linux は
+.B CLOCK_MONOTONIC
+クロックを用いて時刻を計測している。
+.\" See also http://thread.gmane.org/gmane.linux.kernel/696854/
+.\" Subject: nanosleep() uses CLOCK_MONOTONIC, should be CLOCK_REALTIME?
+.\" Date: 2008-06-22 07:35:41 GMT
+このことはおそらく問題にならないだろう。
+なぜなら、POSIX.1 の
+.BR clock_settime ()
+の仕様には、
+.B CLOCK_REALTIME
+の不連続な変化は
+.BR nanosleep ()
+に影響すべきではない、と書かれているからである。
+.RS
+.PP
+.BR clock_settime ()
+経由で
+.B CLOCK_REALTIME
+クロックの値を設定しても、
+.BR nanosleep ()
+関数などの
+.B CLOCK_REALTIME
+に基づくサービスにより相対的な期間だけ実行を停止するスレッドには影響はない。
+結果として、クロック値が更新前か後かに関わらず、要求された相対的な時間が
+経過すると満了することになる。
+.RE
+.SS 以前の動作
+(例えば、時間が重要な意味を持つハードウェアを制御する場合など)
+より正確な停止を必要とするアプリケーションに対応するために、
+.BR nanosleep ()
+は、マイクロ秒精度のビジー・ウェイトを利用することで、
+2\ ms 以下の停止を行うことができた。
+但し、この機能を利用するには、呼び出し元のスレッドが
+.B SCHED_FIFO
+や
+.B SCHED_RR
+といったリアルタイム・ポリシーの元でスケジューリングされている
+必要があった。
+この特別な拡張はカーネル 2.5.39 で削除された。したがって、
+現在の 2.4 系列のカーネルにはこの機能が存在するが、
+2.6系列のカーネルにはない。
+.SH バグ
+Linux 2.4 では、
+.BR nanosleep ()
+が
+.RB ( SIGTSTP
+などの) シグナルにより停止された場合、
+.BR nanosleep ()
+の呼び出しは
+.B SIGCONT
+シグナルによるスレッドの再開後に
+.B EINTR
+エラーで失敗する。
+システムコールがこの後で再スタートされた場合、
+スレッドが停止状態にある間に経過した時間は
+停止期間としてカウント「されない」。
+.SH 関連項目
+.BR clock_nanosleep (2),
+.BR sched_setscheduler (2),
+.BR sleep (3),
+.BR timer_create (2),
+.BR usleep (3),
+.BR time (7)

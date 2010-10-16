@@ -1,0 +1,293 @@
+.\" apmd.8 -- 
+.\" Created: Wed Jan 10 15:07:25 1996 by faith@acm.org
+.\" Revised: Fri Dec 26 20:34:52 1997 by faith@acm.org
+.\" Revised: Wed Jun  2 18:47:02 1999 by db@post.harvard.edu
+.\" Copyright 1996, 1997 Rickard E. Faith (faith@acm.org)
+.\" Copyright 1999 David Brownell (db@post.harvard.edu)
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH APMD 8 "10 Jun 1999" "" "Linux Programmer's Manual"
+.SH NAME
+apmd \- Advanced Power Management (APM) daemon
+.SH SYNOPSIS
+.BI "apmd"
+.BI "[ \-c " check_seconds " ]
+.BI "[ \-P " proxy_cmd " ]"
+.BI "[ \-p " percent_to_log " ]"
+.BI "[ \-qVvW ]"
+.BI "[ \-w " warn_percent " ]
+.BI "[ \-? ]"
+.I "[deprecated options]"
+.SH DESCRIPTION
+.B apmd
+is an APM monitoring daemon, and works in conjunction with the
+APM BIOS driver in the OS kernel.  It can execute a command (normally a shell
+script) when certain events are reported by the driver, and will log, via
+.BR syslogd (8),
+certain changes in system power status.  When the available battery power becomes
+very low, it can alert all users on the system using several methods.
+.PP
+When the kernel APM driver notifies the daemon of
+a pending suspend or standby request,
+.B apmd
+will invoke the approprate command,
+log the event, 
+.BR sync (2)
+data to the disk,
+sleep briefly to help ensure all the data actually gets to the disk,
+and then tell the APM driver to continue its operation.
+However, for "critical" suspends (indicating an emergency shutdown)
+only the last step (telling the driver to continue) is performed.
+.PP
+Most uses of this daemon will use the
+.I proxy
+command to support power conservation activities.  This command is
+searched for by default in
+.I /etc/apmd_proxy
+and is invoked with one or two arguments:
+.TP
+.B start
+Invoked when the daemon starts.  Normally sets system-wide power policy, such as
+IDE hard drive standby times, to account for whether battery power is in use.
+.TP
+.B stop
+Invoked when the daemon stops.  Normally undoes any policy settings done when the
+daemon started.
+.TP
+.B suspend "[ system | user ]"
+.\".B suspend "[ system | user | critical ]"
+Invoked when the APM driver reports that system suspension has been initiated.
+The second parameter indicates whether the BIOS or a user action (such as closing
+a laptop) initiated suspension.
+.ig
+A "critical" suspend is initiated by the BIOS when an emergency shutdown needs
+to happen.  Applications and device drivers are not be notified since there
+isn't enough time to safely do anything about the shutdown.
+..
+.sp
+The BIOS "suspend" mode aggressively conserves power, and normally involves
+shutting off power to all devices except the CPU core and memory, which is kept
+in a very low power mode.  Most laptops can stay suspended, using battery power
+alone, for several days.  ("Hibernation" is a kind of super-suspend, where all
+that state is written to disk and the machine uses even less power bcause it
+can turn off that CPU core, using no battery power at all.  At this writing,
+Linux does not support hibernation.)
+PCMCIA devices should be manually suspended using
+.BR cardctl (8),
+and some modular drivers may need to be unloaded.
+.TP
+.B standby "[ system | user ]"
+Invoked when the APM driver reports that system standby has been initiated.
+The second parameter indicates whether the BIOS or a user action (such as
+invoking
+.IR "apm -s" )
+caused this.
+.sp
+The BIOS "standby" mode slightly conserves power, and leaves the
+machine able to respond almost immediately to user activity.
+Most laptops can't stay in standby mode for even a day, if they must
+rely on battery power.  Normally, nothing needs to be done beyond
+what the BIOS itself will do.
+.TP
+.B resume "[ suspend | standby | critical ]"
+Invoked when the APM driver reports that system has resumed normal operation.
+The second parameter indicates what sort of mode it was in before, either
+the "suspend" mode (possibly a "critical" suspend) or else "standby" mode.
+.sp
+The system clock must be updated to match the hardware clock; this will
+normally have been handled by the kernel's APM driver.
+PCMCIA devices may need to be manually resumed from standby using
+.BR cardctl (8),
+and some modular drivers may need to be reloaded or otherwise reinitialized.
+In the case of a critical suspend, system state may not have been completely
+saved due to an emergency shutdown; applications and and drivers may be in
+a confused state.
+.TP
+.B change power
+This presents a subset of the APM driver "power change" events, specifically
+those where AC power was added or removed.
+This will often modify the system wide power policy; for example, so that IDE
+hard drives aggressively enter standby mode when only battery power is available.
+.ig
+.TP
+.B change time
+The system clock must be updated to match the hardware clock; this will
+normally have been handled by the kernel's APM driver.
+..
+.TP
+.B change battery
+The APM driver has reported that the BIOS thinks the strength of one (or more)
+batteries is "low"; at least ten minutes of should power remain.
+.TP
+.B change capability
+Some change in the power management capabilities of the system was reported.
+It may have been caused by operation of some setup utility, or by the arrival
+or removal of some devices.
+.PP
+This daemon issues a number of different log messages, most of which should
+be self explanatory.  The messages emitted for battery status need some
+explanation, however. 
+The information logged contains 4 fields after a "Battery" or "Charge" label:
+.HP
+1) Rate of discharge (percent/minute).  Negative rates indicate charging.
+.HP
+2) Time since total charge or total discharge (hh:mm:ss).  This value is
+only useful if it reflects the time since a 100% or 0% state has been
+reached.  Otherwise, this time is in parentheses, and reflects the time
+since the last "important"
+.B apmd
+status change such as starting the daemon, changing from AC power to battery
+power, and so on.
+.HP
+3) Estimate of time left until total discharge (or total charge), assuming
+use similar to that since the last resume ( or since AC was connected).
+This time is calculated by
+.B apmd
+itself.
+.HP
+4) Parenthetically, the percent and length of remaining battery life, as
+estimated by the APM BIOS (which is often a conservative estimate from an
+intelligent battery itself).  This particular information is provided with
+most messages from this daemon.
+.PP
+This daemon supports APM BIOS 1.2 events, though it does not support some
+of the advanced features such as multiple batteries.  Also,
+there is no interaction yet with ACPI support as found in newer PC hardware.
+.SH OPTIONS
+.TP
+.BR "\-c " seconds, " \--check " seconds
+Controls how many seconds to block on the \fI/dev/apm_bios\fR device.  Normally
+the daemon blocks until the APM driver reports an event; this number may be
+changed to cause battery charge or discharge rates to be checked more often.
+.TP
+.BR "\-P " proxy_cmd, " \-\-apmd_proxy " proxy_cmd
+Identifies the command to invoke when certain APM driver events are reported.
+See above for information about the arguments to this script.
+.TP
+.BR "\-p " percent_change, " \--percentage " percent_change
+Every time the percentage of available power changes (discharge or recharge) by
+.IR percent_change ,
+log information.  The default is 5.  Use values greater than 100 to disable
+this feature.
+.TP
+.B \-V, \-\-version
+Print the daemon's version and exit.
+.TP
+.B \-v, \-\-verbose
+Enables verbose mode, where each event reported by the APM driver is logged.
+.TP
+.B \-W, \-\-wall
+In addition to logging low battery status (as determined either by
+the \fB-w\fR level or by the APM BIOS) using
+.BR syslog (2),
+also use
+.BR wall (1)
+to alert all users.  This is most useful if
+.BR syslogd (8)
+is not set up to write ALERT messages to all users.  If both methods are
+used, more warnings will be made during the critical time period.
+.TP
+.BR "\-w " warn_percent, " \--warn " warn_percent
+When the battery is not being charged and the percentage of available power
+drops below
+.IR warn_percent ,
+log a warning at ALERT level to
+.BR syslog (2).
+If the
+.B \-W
+or
+.B \-\-wall
+flag was given, the daemon will also use
+.BR wall (1)
+to alert all users of impending doom.  Give the warning each time the
+percentage changes.  The default is 10.  Use negative values to disable
+this feature.
+.TP
+.B \-q, \-\-quiet
+Disables the warnings identified by the 
+.B -W
+and
+.B -w
+options.  (The APM BIOS on many machines will provide an audible warning
+when power is about to be used up, so those extra warnings may not be needed.)
+.TP
+.B \-?, \-\-help
+Prints a usage message and exits.
+.PP
+New software should only use the
+.I proxy
+script, rather than the following now-deprecated options (most of which
+have never appeared in a production release).
+If they are provided, they take precedence over any proxy command
+invocation for each event.
+.TP
+.BR "\-a " ac_online_cmd, " \-\-ac_online " ac_online_cmd
+Provides a command to be run when AC power becomes available, though not
+when the daemon first starts.
+.TP
+.BR "\-b " ac_offline_cmd, " \-\-ac_offline " ac_offline_cmd
+Provides a command to be run when the machine is operating on
+battery power, though not when the daemon first starts.
+.TP
+.BR "\-l " low_battery_cmd, " \-\-low_battery " low_battery_cmd
+Provides a command to be run when the APM BIOS judges that
+battery power is "low".
+.TP
+.BR "\-s " pre_suspend_cmd, " \-\-pre_suspend " pre_suspend_cmd
+Provides a command to be run before suspending through the driver. 
+.TP
+.BR "\-r " post_resume_cmd, " \-\-post_resume " post_resume_cmd
+Provides a command to be run after resuming through the driver. 
+.TP
+.B \-u, \-\-utc
+(This option is now completely ignored.)
+The BIOS clock is set to UTC (GMT), so the daemon should pass the -u option to the
+.I clock
+or
+.I hwclock
+program when coming out of suspend or resume mode, or when responding
+to the BIOS update time event.
+.SH BUGS
+The first status report printed after a power change may be
+inaccurate because the power change occured at a fractional percentage that
+was rounded to a full percentage.  For example, say you are discharging the
+machine and have 50.9% power, which is reported as 50%.  When you start to
+charge the machine, it will only have 0.1% left before the percentage flips
+to 51%, and the charge rate will be dramatically over-estimated.
+.PP
+There needs to be a more general hook to let other applications participate
+in system power management decisions and policies.
+.PP
+Multiple batteries are currently treated as if they were just one large one.
+.SH FILES
+.I /dev/apm_bios
+.br
+.I /proc/apm
+.br
+.I /etc/apmd/apmd_proxy
+.SH AUTHOR
+This program was written by Rik Faith (faith@cs.unc.edu) and may be freely
+distributed under the terms of the GNU General Public License.  There is
+ABSOLUTELY NO WARRANTY for this program.  The current maintainer is Avery
+Pennarun (apenwarr@worldvisions.ca).
+.SH "SEE ALSO"
+.BR apm "(1), " xapm "(1), " cardctl "(8), " hdparm "(8), " syslogd "(8)"

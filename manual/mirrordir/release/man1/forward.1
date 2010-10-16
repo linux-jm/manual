@@ -1,0 +1,163 @@
+.\" (c) 1999 by Paul Sheer <psheer@obsidian.co.za>    -*- nroff -*-
+.\"
+.\" Japanese Version Copyright (c) 2003 NAKANO Takeo all rights reserved.
+.\" Translated Wed 29 Jan 2003 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.TH forward 1 "1999 February 14" "Linux"
+.SH 名前
+forward \- 任意のソケットを安全で圧縮された経路にフォワードする
+.SH 書式
+.B forward
+.br
+[\fB-h\fP, \fB--help\fP]
+.br
+[\fB-v\fP, \fB--verbose\fP]
+.br
+[\fB-V\fP, \fB--version\fP]
+.br
+[\fB-p\fP, \fB--password\fP \fIpassword\fP]
+.br
+[\fB--netrc\fP]
+.br
+[\fB--no-netrc\fP]
+.br
+[\fB--secure\fP]
+.br
+[\fB-z\fP, \fB--gzip\fP]
+.br
+[\fB-K\fP, \fB--key-size\fP \fIbits\fP]
+.br
+[\fIuser\fP\fB@\fP]\fImachine1\fP[\fB:\fP\fIport1\fP] 
+.br
+\fImachine2\fP\fB:\fP\fIport2\fP
+.br
+\fIlisten_port\fP
+.SH 説明
+.B forward
+はローカルマシンの
+.I listen_port
+で待ち受ける。接続を受信すると、その接続を
+.BR secure-mcserv (1)
+デーモンが既に動作しているはずの
+.I machine1
+ヘとフォワードする。すると
+.B secure-mcserv
+デーモンは
+.I machine2
+のポート
+.I port2
+に接続する。そしてすべてのトラフィックは、
+透過的に
+.I listen_port
+と
+.I machine2
+の
+.I port2
+の間をフォワードされる。
+
+ローカルマシンの
+.I listen_port
+と
+.I machine2
+の
+.I port2
+との間の接続は、
+.B --secure
+オプションと
+.B --gzip
+オプションで変更できる。このように、
+.B forward
+はあらゆるサービスに対して、安全性あるいは圧縮を付加できる。
+.SH オプション
+すべてのオプションは
+.B mirrordir
+と同様である。詳細は
+.BR mirrordir (1)
+を見てほしい。ただし
+.B --debug
+は
+.B forward
+がバックグラウンドのデーモンへフォークするのを妨げる意味しか持たない。
+.SH 例
+私はこれらを試していないが、論理的には正しいと思う。
+どこかでタイプミスをしていたら、私に知らせてほしい。
+.PP
+プリントサーバ \fBA\fP が LAN にある。
+この LAN にはマスカレードサーバ \fBB\fP があり、
+LAN をインターネットにつないでいる。
+\fBB\fP はインターネットと \fBA\fP の両方を見ることができる。
+ある別のサイトで、\fBJohn\fP は \fBD\fP というマシンを持っており、
+これはマスカレードサーバ \fBC\fP を通してインターネットにつながっている。
+\fBB\fP と \fBD\fP は、インターネット越しでしかお互いを見ることはできない。
+.B John
+は lpr を \fBD\fP で起動し、
+印刷を \fBA\fP に出力させたい。
+また \fBB\fP と \fBC\fP の間の経路を圧縮させ、
+(1024 ビットの鍵交換で) 暗号化させたい。
+.PP
+.nf
+手順は以下のようになる (515 はプリンタのポート):
+    A# lpd &
+    B# secure-mcserv -d -p 12345
+~/.netrc に john の B におけるパスワードのエントリを追加する。そして
+    C# forward john@B:12345 A:515 515 --secure -K 1024 -z
+/etc/printcap に C のプリンタ x のエントリを追加する。そして
+    D# lpr -Px mydocument
+.fi
+.PP
+同僚の \fBJohn\fP が嫌いな \fBJill\fP が、
+X セッションのスクリーンダンプを表示する場合を考える。
+彼女は安全な X セッションを、サーバ \fBA\fP と
+メインフレーム \fBB\fP の間に作りたい。
+.PP
+.nf
+手順は以下のようになる (6010 は display 10.0 に対応する):
+    A# X &
+    A# secure-mcserv -d -p 12345
+~/.netrc に jill の A におけるパスワードのエントリを追加する。そして
+    B# forward jill@A:12345 A:6000 6010 --secure -K 1024
+    B# export DISPLAY=localhost:10.0
+    B# fvwm &
+.fi
+.SH テスト済みサービスのリスト
+.\"nakano wierd は多分 weird の typo.
+telnet ログイン、X セッション、プリンタ (lpr) サービス、
+http、pop3 接続はテストされ、動作が確認されている。
+ftp はソケットのバインドが妙 (?) なのでフォワードできない。
+他に動作したものがあったら知らせてほしい。
+ほとんどのものは動作するはずだが。
+.SH バグ
+.BR mirrordir (1)
+の \fBバグ\fP セクションも見てほしい。
+帯域外データ
+.RB ( recv "(2) と " send (2)
+の
+.BR MSG_OOB )
+は暗号化も圧縮もされない。修正されず、プレインテキストで送信される。
+これをセキュリティ上のリスクだと考える方は、
+私に知らせてほしい。何らかの対応をしたいと思う。
+.PP
+.BR rlogin (1)
+での画面サイズ変更 (の検知?) は動作しないようだ。しかし
+.BR telnet (1)
+では問題ない。これは OOB データが正しく送られないことと関連しているに違いない。
+しかし問題点を発見するために
+rlogin, rlogind, forward, secure-mcserv
+を同時にデバッグするのは、私は気がすすまない。
+チャレンジしてみたい人は、どうか頑張ってほしい。
+.SH ファイル
+.TP
+\fB~/.netrc\fP
+マシンとそのパスワードのリスト。
+.SH 標準
+mirrordir は作成者の発明であり、
+いかなる OS の標準にも従っていない。
+.SH 入手方法
+このプログラムの最新版は、
+\fBftp://metalab.unc.edu/pub/Linux/system/backup\fP または
+\fBftp://lava.obsidian.co.za/pub/linux/mirrordir\fP
+から入手できる。
+.SH 著者
+Paul Sheer  <psheer@obsidian.co.za>  <psheer@icon.co.za>
+.SH 関連項目
+\fBmirrordir\fP(1), \fBpslogin\fP(1), \fBssh\fP(1)

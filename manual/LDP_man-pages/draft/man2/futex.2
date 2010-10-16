@@ -1,0 +1,480 @@
+.\" Page by b.hubert - may be freely modified and distributed
+.\"
+.\" Niki A. Rahimi (LTC Security Development, narahimi@us.ibm.com)
+.\" added ERRORS section.
+.\"
+.\" Modified 2004-06-17 mtk
+.\" Modified 2004-10-07 aeb, added FUTEX_REQUEUE, FUTEX_CMP_REQUEUE
+.\"
+.\" FIXME
+.\" 2.6.14 adds FUTEX_WAKE_OP
+.\" 2.6.18 adds (Ingo Molnar) priority inheritance support:
+.\" FUTEX_LOCK_PI, FUTEX_UNLOCK_PI, and FUTEX_TRYLOCK_PI.  These need
+.\" to be documented in the manual page.  Probably there is sufficient
+.\" material in the kernel source file Documentation/pi-futex.txt.
+.\" 2.6.25 adds FUTEX_WAKE_BITSET, FUTEX_WAIT_BITSET
+.\"
+.\" Japanese Version Copyright(C) 2003 Suzuki Takashi
+.\"         all rights reserved.
+.\" Translated Fri Oct 24 10:37:10 JST 2003
+.\"         by Suzuki Takashi.
+.\" Updated & Modified Sat Feb  5 14:28:53 JST 2005
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>, LDP v2.01
+.\" Updated & Modified Wed Jan  3 04:51:22 JST 2007 by Yuichi SATO, LDP v2.43
+.\"
+.\"WORD: integer                int 型変数
+.\"WORD: sleep                  起床待ちする
+.\"WORD: wake                   起床する
+.\"WORD: wake up                起床する
+.\"
+.TH FUTEX 2 2008-11-27 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O futex \- Fast Userspace Locking system call
+futex \- 高速ユーザ空間ロック機構のシステムコール
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.sp
+.B "#include <linux/futex.h>"
+.B "#include <sys/time.h>"
+.sp
+.BI "int futex(int *" uaddr ", int " op ", int " val \
+", const struct timespec *" timeout ,
+.br
+.BI "          int *" uaddr2 ", int " val3 );
+.\" int *? void *? u32 *?
+.fi
+.\"O .SH "DESCRIPTION"
+.SH 説明
+.PP
+.\"O The
+.\"O .BR futex ()
+.\"O system call provides a method for
+.\"O a program to wait for a value at a given address to change, and a
+.\"O method to wake up anyone waiting on a particular address (while the
+.\"O addresses for the same memory in separate processes may not be
+.\"O equal, the kernel maps them internally so the same memory mapped in
+.\"O different locations will correspond for
+.\"O .BR futex ()
+.\"O calls).
+.\"O It is typically used to
+.\"O implement the contended case of a lock in shared memory, as
+.\"O described in
+.\"O .BR futex (7).
+.BR futex ()
+システムコールは、
+指定したアドレスの値が変更されるのをプログラムが待つ手段や
+特定のアドレスに対して待機中のプロセスを wake (起床) させる手段を提供する
+(プロセスが異なれば同じメモリに対するアドレスも同じではないかもしれないが、
+カーネルは異なる位置にマップされた同じメモリを
+.BR futex ()
+で使えるよう内部でマップする)。
+典型的には、futex は
+.BR futex (7)
+に記されているように、
+共有メモリ中のロックが競合する場合の処理を実装するのに用いられる。
+.PP
+.\"O When a
+.\"O .BR futex (7)
+.\"O operation did not finish uncontended in userspace, a call needs to be made
+.\"O to the kernel to arbitrate.
+.\"O Arbitration can either mean putting the calling
+.\"O process to sleep or, conversely, waking a waiting process.
+.BR futex (7)
+の操作がユーザ空間で競合なく完了しなかった場合、
+カーネルに仲裁させるためにシステムコールを呼ぶ必要がある。
+仲裁というのは、呼び出しプロセスを sleep (起床待ち) させたり、反対に
+待ちプロセスを wake させたりすることを意味する。
+.PP
+.\"O Callers of this function are expected to adhere to the semantics as set out in
+.\"O .BR futex (7).
+.\"O As these
+.\"O semantics involve writing nonportable assembly instructions, this in turn
+.\"O probably means that most users will in fact be library authors and not
+.\"O general application developers.
+この関数を呼び出すプロセスは
+.BR futex (7)
+に記述されているセマンティクスに忠実であることが要求される。
+このセマンティクスには移植不可能なアセンブリ命令を書くことが含まれる。
+このことは言い換えると futex のユーザのほとんどは実際はライブラリの作者であり、
+一般アプリケーションの開発者ではないということである。
+.PP
+.\"O The
+.\"O .I uaddr
+.\"O argument needs to point to an aligned integer which stores the counter.
+.\"O The operation to execute is passed via the
+.\"O .I op
+.\"O argument, along with a value
+.\"O .IR val .
+.I uaddr
+引き数は、カウンタを格納する、
+アラインメントの揃った int 型変数を指している必要がある。
+実行する操作は
+.I op
+引き数を介して、値
+.I val
+とともに渡される。
+.PP
+.\"O Five operations are currently defined:
+現在のところ 5 つの操作が定義されている:
+.TP
+.B FUTEX_WAIT
+.\"O This operation atomically verifies that the futex address
+.\"O .I uaddr
+.\"O still contains the value
+.\"O .IR val ,
+.\"O and sleeps awaiting
+.\"O .B FUTEX_WAKE
+.\"O on this futex address.
+.\"O If the
+.\"O .I timeout
+.\"O argument is non-NULL, its contents describe the maximum
+.\"O duration of the wait, which is infinite otherwise.
+.\"O The arguments
+.\"O .I uaddr2
+.\"O and
+.\"O .I val3
+.\"O are ignored.
+この操作は futex アドレス
+.I uaddr
+に指定された値
+.I val
+がまだ格納されているかどうかを不可分操作で検証し、
+sleep 状態で
+この futex アドレスに対して
+.B FUTEX_WAKE
+が実行されるのを待つ。
+.I timeout
+引き数が NULL でない場合、その内容は
+待ち時間の最大値を表す。NULL の場合は無限大を表す。
+引き数
+.I uaddr2
+と
+.I val3
+は無視される。
+
+.\"O For
+.\"O .BR futex (7),
+.\"O this call is executed if decrementing the count gave a negative value
+.\"O (indicating contention), and will sleep until another process releases
+.\"O the futex and executes the
+.\"O .B FUTEX_WAKE
+.\"O operation.
+.BR futex (7)
+に照らし合わせると、この呼び出しは
+カウントのデクリメントで負の値 (競合を表す) になった場合に実行され、
+別のプロセスがその futex を解放し
+.B FUTEX_WAKE
+の操作を実行するまで sleep する。
+.TP
+.B FUTEX_WAKE
+.\"O This operation wakes at most \fIval\fP
+.\"O processes waiting on this futex address (i.e., inside
+.\"O .BR FUTEX_WAIT ).
+この操作では指定した futex アドレスに対して待ち状態の
+(すなわち
+.B FUTEX_WAIT
+中の) 最大 \fIval\fP 個のプロセスを wake させる。
+.\"O The arguments
+.\"O .IR timeout ,
+.\"O .I uaddr2
+.\"O and
+.\"O .I val3
+.\"O are ignored.
+引き数
+.IR timeout ,
+.IR uaddr2 ,
+.I val3
+は無視される。
+
+.\"O For
+.\"O .BR futex (7),
+.\"O this is executed if incrementing
+.\"O the count showed that there were waiters, once the futex value has been set
+.\"O to 1 (indicating that it is available).
+\fBfutex\fR(4) に照らし合わせると、
+この操作は
+カウントのインクリメントで待ちプロセスがあると判明し、
+futex 値が 1 に設定された (利用可能であることを表す) 場合に実行される。
+.TP
+.\"O .BR FUTEX_FD " (present up to and including Linux 2.6.25)"
+.BR FUTEX_FD " (Linux 2.6.25 以前)"
+.\"O To support asynchronous wakeups, this operation associates a file descriptor
+.\"O with a futex.
+.\"O .\" , suitable for .BR poll (2).
+.\"O If another process executes a
+.\"O .BR FUTEX_WAKE ,
+.\"O the process will receive the signal number that was passed in
+.\"O number that was passed in
+.\"O .IR val .
+.\"O The calling process must close the returned file descriptor after use.
+非同期の wake に対応するため、この操作はファイルディスクリプタを futex に
+関連づける。
+.\" .BR poll (2)
+.\" に適している。
+別のプロセスが
+.B FUTEX_WAKE
+を実行すると、プロセスは
+.I val
+で渡されたシグナル番号のシグナルを受信する。
+呼び出しプロセスは使用後、返されたファイルディスクリプタを
+クローズしなければならない。
+.\"O The arguments
+.\"O .IR timeout ,
+.\"O .I uaddr2
+.\"O and
+.\"O .I val3
+.\"O are ignored.
+引き数
+.IR timeout ,
+.IR uaddr2 ,
+.I val3
+は無視される。
+
+.\"O To prevent race conditions, the caller should test if the futex has
+.\"O been upped after
+.\"O .B FUTEX_FD
+.\"O returns.
+競合状態を防止するため、呼び出しプロセスは
+.B FUTEX_FD
+が返ったあと
+futex が up されたかどうかを確認しなければならない。
+
+.\" FIXME . Check that this flag does eventually get removed.
+.\"O Because it was inherently racy,
+.\"O .B FUTEX_FD
+.\"O has been removed from Linux 2.6.26 onwards.
+.B FUTEX_FD
+はもともと競合が起きやすかったため、
+Linux 2.6.26 以降で削除されている。
+.TP
+.\"O .BR FUTEX_REQUEUE " (since Linux 2.5.70)"
+.BR FUTEX_REQUEUE " (Linux 2.5.70 以降)"
+.\"O This operation was introduced in order to avoid a "thundering herd" effect
+.\"O when
+.\"O .B FUTEX_WAKE
+.\"O is used and all processes woken up need to acquire another
+.\"O futex.
+.\"O This call wakes up
+.\"O .I val
+.\"O processes, and requeues all other waiters on the futex at address
+.\"O .IR uaddr2 .
+この操作は、
+.B FUTEX_WAKE
+が使われていて、かつ wake されている全てのプロセスが
+他の futex を取得する必要がある場合に、
+「獣の群れの暴走 (thundering herd)」効果を避けるために導入された。
+この呼び出しは
+.I val
+個のプロセスを wake し、アドレス
+.I uaddr2
+で futex を待っている他の全てのプロセスを再度キューにいれる。
+.\"O The arguments
+.\"O .I timeout
+.\"O and
+.\"O .I val3
+.\"O are ignored.
+引き数
+.I timeout
+と
+.I val3
+は無視される。
+.TP
+.\"O .BR FUTEX_CMP_REQUEUE " (since Linux 2.6.7)"
+.BR FUTEX_CMP_REQUEUE " (Linux 2.6.7 以降)"
+.\"O There was a race in the intended use of
+.\"O .BR FUTEX_REQUEUE ,
+.\"O so
+.\"O .B FUTEX_CMP_REQUEUE
+.\"O was introduced.
+.\"O This is similar to
+.\"O .BR FUTEX_REQUEUE ,
+.\"O but first checks whether the location
+.\"O .I uaddr
+.\"O still contains the value
+.\"O .IR val3 .
+.\"Osato:
+.\"Osato: intended がよく分からない。
+.\"Osato:
+故意に
+.B FUTEX_REQUEUE
+を使う場合に競合が起こるため、
+.B FUTEX_CMP_REQUEUE
+が導入された。これは
+.B FUTEX_REQUEUE
+と似ているが、場所
+.I uaddr
+に値
+.I val3
+がまだ保持されているかを最初にチェックする。
+.\"O If not, the operation fails with the error
+.\"O .BR EAGAIN .
+.\"O The argument
+.\"O .I timeout
+.\"O is ignored.
+保持されていない場合、操作はエラー
+.B EAGAIN
+で失敗する。引き数
+.I timeout
+は無視される。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.PP
+.\"O Depending on which operation was executed,
+.\"O the returned value for a successful call can have differing meanings.
+どの操作が実行されたかによって、
+成功時の返り値の意味が変わる。
+.TP
+.B FUTEX_WAIT
+.\"O Returns 0 if the process was woken by a
+.\"O .B FUTEX_WAKE
+.\"O call.
+.\"O In case of timeout,
+.\"O the operation fails with the error
+.\"O .BR ETIMEDOUT .
+.\"O If the futex was not equal to the expected value,
+.\"O the operation fails with the error
+.\"O .BR EWOULDBLOCK .
+.\"O Signals (see
+.\"O .BR signal (7))
+.\"O or other spurious wakeups cause
+.\"O .B FUTEX_WAIT
+.\"O to fail with the error
+.\"O .BR EINTR .
+プロセスが
+.B FUTEX_WAKE
+の呼び出しで wake すると 0 を返す。
+タイムアウトの場合、操作はエラー
+.B ETIMEOUT
+で失敗する。
+futex が指定された値と等しくない場合、
+エラー
+.B EWOULDBLOCK
+で失敗する。
+シグナルを受信するか
+.RB ( signal (7)
+参照) 他の偽の wake があった場合には、エラー
+.B EINTR
+で失敗する。
+.TP
+.B FUTEX_WAKE
+.\"O Returns the number of processes woken up.
+wake したプロセスの数を返す。
+.TP
+.B FUTEX_FD
+.\"O Returns the new file descriptor associated with the futex.
+futex に関連づけられた新たなファイルディスクリプタを返す。
+.TP
+.B FUTEX_REQUEUE
+.\"O Returns the number of processes woken up.
+wake したプロセスの数を返す。
+.TP
+.B FUTEX_CMP_REQUEUE
+.\"O Returns the number of processes woken up.
+wake したプロセスの数を返す。
+.PP
+.\"O In the event of an error, all operations return \-1, and set
+.\"O .I errno
+.\"O to indicate the error.
+エラーの場合、全ての操作で \-1 が返り、
+.I errno
+がエラーの内容を示す値に設定される。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EACCES
+.\"O No read access to futex memory.
+futex メモリに読み込みアクセス権がなかった。
+.TP
+.B EAGAIN
+.\"O .B FUTEX_CMP_REQUEUE
+.\"O found an unexpected futex value.
+.\"O (This probably indicates a race;
+.\"O use the safe
+.\"O .B FUTEX_WAKE
+.\"O now.)
+.B FUTEX_CMP_REQUEUE
+で予期しない futex 値が見つかった
+(これは競合を示しているかもしれない。
+この場合は安全な
+.B FUTEX_WAKE
+を使うこと)。
+.TP
+.B EFAULT
+.\"O Error in getting
+.\"O .I timeout
+.\"O information from userspace.
+ユーザ空間から
+.I timeout
+の情報を取得する際にエラーが発生した。
+.TP
+.B EINVAL
+.\"O An operation was not defined or error in page alignment.
+操作が定義されていない。またはページ・アラインメントでエラーが発生した。
+.TP
+.B ENFILE
+.\"O The system limit on the total number of open files has been reached.
+オープンされているファイルの総数がシステムの制限に達した。
+.TP
+.B ENOSYS
+.\"O Invalid operation specified in
+.\"O .IR op .
+.I op
+に無効な操作が指定された。
+.\"O .SH "VERSIONS"
+.SH バージョン
+.PP
+.\"O Initial futex support was merged in Linux 2.5.7 but with different semantics
+.\"O from what was described above.
+.\"O A 4-argument system call with the semantics
+.\"O given here was introduced in Linux 2.5.40.
+.\"O In Linux 2.5.70 one argument
+.\"O was added.
+.\"O In Linux 2.6.7 a sixth argument was added \(em messy, especially
+.\"O on the s390 architecture.
+最初の futex 対応は Linux 2.5.7 で組み込まれたが、
+上記のセマンティクスとは異なる。
+ここで示されているセマンティクスを持つ
+4 つの引き数のシステムコールは、Linux 2.5.40 で導入された。
+Linux 2.5.70 では 1 つの引き数が追加された。
+Linux 2.6.7 では 6 番目の引き数が追加された。
+これは汚く、s390 アーキテクチャ上の特別のものである。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+.\"O This system call is Linux-specific.
+このシステムコールは Linux 独自である。
+.\"O .SH "NOTES"
+.SH 注意
+.PP
+.\"O To reiterate, bare futexes are not intended as an easy-to-use abstraction
+.\"O for end-users.
+.\"O (There is no wrapper function for this system call in glibc.)
+.\"O Implementors are expected to be assembly literate and to have
+.\"O read the sources of the futex userspace library referenced below.
+繰り返すが、裸の futex はエンドユーザが容易に使うことのできる概念として
+意図されたものではない
+(glibc にはこのシステムコールに対するラッパー関数はない)。
+実装者は、アセンブリ言語に慣れており、以下に挙げる futex ユーザ空間ライブラリの
+ソースを読み終えていることが要求される。
+.\"O .\" .SH "AUTHORS"
+.\" .SH 著者
+.\" .PP
+.\"O .\" Futexes were designed and worked on by
+.\"O .\" Hubertus Franke (IBM Thomas J. Watson Research Center),
+.\"O .\" Matthew Kirkwood, Ingo Molnar (Red Hat)
+.\"O .\" and Rusty Russell (IBM Linux Technology Center).
+.\"O .\" This page written by bert hubert.
+.\" futex は Hubertus Franke (IBM Thomas J. Watson Research Center),
+.\" Matthew Kirkwood, Ingo Molnar (Red Hat),
+.\" Rusty Russell (IBM Linux Technology Center) が設計し、作成した。
+.\" このページは bert hubert が記した。
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR futex (7)
+.PP
+\fIFuss, Futexes and Furwocks: Fast Userlevel Locking in Linux\fP
+(proceedings of the Ottawa Linux Symposium 2002),
+.\"O futex example library, futex-*.tar.bz2
+futex の使用例ライブラリ, futex-*.tar.bz2
+<URL:ftp://ftp.nl.kernel.org/pub/linux/kernel/people/rusty/>.

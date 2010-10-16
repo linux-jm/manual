@@ -1,0 +1,418 @@
+'\" t
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2006 Yuichi SATO
+.\"     and Copyright (c) 2007-2008 Akihiro MOTOKI
+.\" Translated 2006-07-05 by Yuichi SATO <ysato444@yahoo.co.jp>, LDP v2.29
+.\" Updated 2006-07-20 by Yuichi SATO, LDP v2.36
+.\" Updated 2007-06-13, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.55
+.\" Updated 2008-08-10, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2008-09-19, Akihiro MOTOKI, LDP v3.08
+.\"
+.TH INOTIFY 7 2008-11-18 "Linux" "Linux Programmer's Manual"
+.SH 名前
+inotify \- ファイルシステムイベントを監視する
+.SH 説明
+.I inotify
+API はファイルシステムイベントを監視するための機構を提供する。
+inotify は個々のファイルやディレクトリを監視するのに使える。
+ディレクトリを監視する場合、inotify はディレクトリ自身と
+ディレクトリ内のファイルのイベントを返す。
+
+以下のシステムコールがこの API と共に使用される:
+.BR inotify_init (2)
+(や
+.BR inotify_init1 (2)),
+.BR inotify_add_watch (2),
+.BR inotify_rm_watch (2),
+.BR read (2),
+.BR close (2).
+
+.BR inotify_init (2)
+は inotify インスタンスを作成し、inotify インスタンスを参照する
+ファイルディスクリプタを返す。
+もっと新しい
+.BR inotify_init1 (2)
+も
+.BR inotify_init (2)
+と同様だが、いくつかの追加の機能が提供されている。
+
+.BR inotify_add_watch (2)
+は inotify インスタンスに関連づけられた「監視対象 (watch) リスト」を操作する。
+監視対象リストの各アイテム ("watch") は、
+ファイルまたはディレクトリのパス名と、
+そのパス名で参照されるファイルに対して
+カーネルが監視する複数のイベントの集合を指定する。
+.BR inotify_add_watch (2)
+は新しい監視アイテムの作成や既存の監視対象の変更ができる。
+各監視対象は一意の「監視対象ディスクリプタ」を持つ。
+これは監視対象を作成したときに
+.BR inotify_add_watch (2)
+から返される整数である。
+
+.BR inotify_rm_watch (2)
+は inotify の監視対象リストからアイテムを削除する。
+
+inotify インスタンスを指している
+全てのファイルディスクリプタがクローズされた場合、
+その下層にあるオブジェクトとそのリソースは、
+カーネルで再利用するために解放される。
+関連が切られた監視対象は自動的に解放される。
+
+どのようなイベントが起こっていたかを知るには、
+アプリケーションで inotify ファイルディスクリプタを
+.BR read (2)
+すればよい。
+これまでに何もイベントが起こっていない場合、
+停止 (blocking) モードのファイルディスクリプタであれば、
+少なくとも 1 つのイベントが起こるまで
+.BR read (2)
+は停止する (シグナルにより割り込まれなかった場合。
+シグナルによる割り込みがあった場合、呼び出しはエラー
+.BR EINTR
+で失敗する。
+.BR signal (7)
+参照)。
+
+.BR read (2)
+が成功すると、以下の構造体を 1 つ以上含むバッファが返される:
+.in +4n
+.nf
+
+struct inotify_event {
+    int      wd;       /* 監視対象ディスクリプタ */
+.\" FIXME . The type of the 'wd' field should probably be "int32_t".
+.\" I submitted a patch to fix this.  See the LKML thread
+.\" "[patch] Fix type errors in inotify interfaces", 18 Nov 2008
+.\" Glibc bug filed: http://sources.redhat.com/bugzilla/show_bug.cgi?id=7040
+    uint32_t mask;     /* イベントのマスク */
+    uint32_t cookie;   /* 関連するイベント群を関連づける
+                          一意なクッキー (rename(2) 用) */
+    uint32_t len;      /* \(aqname\(aq フィールドのサイズ */
+    char     name[];   /* NULL で終端された任意の名前 */
+};
+.fi
+.in
+
+.I wd
+はイベント発生の監視対象を指定する。
+これは、前もって行われた
+.BR inotify_add_watch (2)
+呼び出しで返された監視対象ディスクリプタのうちの 1 つである。
+
+.I mask
+には発生したイベント (下記参照) を記述するためのビットが含まれる。
+
+.I cookie
+は関連するイベントを関連づけるための一意な整数である。
+現在のところ、この値は rename イベントに対してのみ使われており、
+結果のペアである
+.B IN_MOVE_FROM
+と
+.B IN_MOVE_TO
+イベントをアプリケーションで関連づけることができる。
+
+.I name
+フィールドは監視しているディレクトリ内のファイルに対して
+イベントが返される場合のためにだけ存在する。
+監視するディレクトリからのファイルの相対パス名を表す。
+このパス名は NULL で終端され、
+その後の読み込みで適切なアドレス境界に調整するために、
+さらに NULL バイトが含まれる場合もある。
+
+.I len
+フィールドは NULL バイトを含む
+.I name
+の全てのバイト数を表す。
+よって、
+.I inotify_event
+構造体のサイズは
+.I "sizeof(inotify_event)+len"
+である。
+
+.BR read (2)
+に渡されたバッファが小さすぎて次のイベントに関する情報を返せない
+場合の動作はカーネルのバージョンにより異なる。
+2.6.21 より前のカーネルでは、
+.BR read (2)
+は 0 を返す。
+2.6.21 以降のカーネルでは、
+.BR read (2)
+はエラー
+.B EINVAL
+で失敗する。
+.SS inotify イベント
+.BR inotify_add_watch (2)
+の
+.I mask
+引き数と、inotify ファイル構造体を
+.BR read (2)
+したときに返される
+.I inotify_event
+構造体の
+.I mask
+フィールドは、ともに inotify イベントを識別するための
+ビットマスクである。
+以下のビットが
+.BR inotify_add_watch (2)
+を呼ぶときの
+.I mask
+に指定可能であり、
+.BR read (2)
+で返される
+.I mask
+フィールドで返される:
+.RS 4
+.sp
+.PD 0
+.TP 18
+.B IN_ACCESS
+ファイルがアクセス (read) された。(*)
+.TP
+.B IN_ATTRIB
+メタデータが変更された。
+メタデータとは、例えば、許可 (permission)、タイムスタンプ、拡張属性、
+リンクカウント (Linux 2.6.25 以降)、UID、GID などである。(*)
+.TP
+.B IN_CLOSE_WRITE
+書き込みのためにオープンされたファイルがクローズされた。(*)
+.TP
+.B IN_CLOSE_NOWRITE
+書き込み以外のためにオープンされたファイルがクローズされた。(*)
+.TP
+.B IN_CREATE
+監視対象ディレクトリ内でファイルやディレクトリが作成された。(*)
+.TP
+.B IN_DELETE
+監視対象ディレクトリ内でファイルやディレクトリが削除された。(*)
+.TP
+.B IN_DELETE_SELF
+監視対象のディレクトリまたはファイル自身が削除された。
+.TP
+.B IN_MODIFY
+ファイルが修正された。(*)
+.TP
+.B IN_MOVE_SELF
+監視対象のディレクトリまたはファイル自身が移動された。
+.TP
+.B IN_MOVED_FROM
+ファイルが監視対象ディレクトリ外へ移動された。(*)
+.TP
+.B IN_MOVED_TO
+ファイルが監視対象ディレクトリ内へ移動された。(*)
+.TP
+.B IN_OPEN
+ファイルがオープンされた。(*)
+.PD
+.RE
+.PP
+ディレクトリを監視する場合、
+上記でアスタリスク (*) を付けたイベントは、
+そのディレクトリ内のファイルに対して発生する。
+このとき
+.I inotify_event
+構造体で返される
+.I name
+フィールドは、ディレクトリ内のファイル名を表す。
+.PP
+.B IN_ALL_EVENTS
+マクロは上記のイベント全てのマスクとして定義される。
+このマクロは
+.BR inotify_add_watch (2)
+を呼び出すときの
+.I mask
+引き数として使える。
+
+さらに 2 つの便利なマクロがある。
+.B IN_MOVE
+は
+IN_MOVED_FROM|IN_MOVED_TO
+と等しく、
+.B IN_CLOSE
+は
+IN_CLOSE_WRITE|IN_CLOSE_NOWRITE
+と等しい。
+.PP
+その他にも以下のビットを
+.BR inotify_add_watch (2)
+を呼ぶときの
+.I mask
+に指定できる:
+.RS 4
+.sp
+.PD 0
+.TP 18
+.B IN_DONT_FOLLOW
+\fIpathname\fP がシンボリックリンクである場合に辿らない。
+(Linux 2.6.15 以降)
+.TP
+.B IN_MASK_ADD
+\fIpathname\fP に対する監視マスクが既に存在する場合、
+(マスクの置き換えではなく) イベントを追加 (OR) する。
+.TP
+.B IN_ONESHOT
+1 つのイベントについて \fIpathname\fP を監視し、
+イベントが発生したら監視対象リストから削除する。
+.TP
+.BR IN_ONLYDIR " (Linux 2.6.15 以降)"
+\fIpathname\fP がディレクトリの場合にのみ監視する。
+.PD
+.RE
+.PP
+以下のビットが
+.BR read (2)
+で返される
+.I mask
+フィールドに設定される:
+.RS 4
+.sp
+.PD 0
+.TP 18
+.B IN_IGNORED
+監視対象が (\fBinotify_rm_watch\fP(2) により) 明示的に
+削除された。もしくは (ファイルの削除、またはファイル
+システムのアンマウントにより) 自動的に削除された。
+.TP
+.B IN_ISDIR
+このイベントの対象がディレクトリである。
+.TP
+.B IN_Q_OVERFLOW
+イベントキューが溢れた (このイベントの場合、\fIwd\fP は \-1 である)。
+.TP
+.B IN_UNMOUNT
+監視対象オブジェクトを含むファイルシステムがアンマウントされた。
+.PD
+.RE
+.SS /proc インターフェース
+以下のインターフェースは、inotify で消費される
+カーネルメモリの総量を制限するのに使用できる:
+.TP
+.I /proc/sys/fs/inotify/max_queued_events
+このファイルの値は、アプリケーションが
+.BR inotify_init (2)
+を呼び出すときに使用され、対応する inotify インスタンスについて
+キューに入れられるイベントの数の上限を設定する。
+この制限を超えたイベントは破棄されるが、
+.B IN_Q_OVERFLOW
+イベントが常に生成される。
+.TP
+.I /proc/sys/fs/inotify/max_user_instances
+1 つの実ユーザ ID に対して生成できる
+inotify インスタンスの数の上限を指定する。
+.TP
+.I /proc/sys/fs/inotify/max_user_watches
+作成可能な監視対象の数の実 UID 単位の上限を指定する。
+.SH バージョン
+inotify は 2.6.13 の Linux カーネルに組込まれた。
+これに必要なライブラリのインターフェースは、
+glibc のバージョン 2.4 に追加された
+.RB ( IN_DONT_FOLLOW ,
+.BR IN_MASK_ADD ,
+.B IN_ONLYDIR
+だけはバージョン 2.5 で追加された)。
+.SH 準拠
+inotify API は Linux 独自のものである。
+.SH 注意
+inotify ファイルディスクリプタは
+.BR select (2),
+.BR poll (2),
+.BR epoll (7)
+を使って監視できる。
+イベントがある場合、ファイルディスクリプタは読み込み可能と通知する。
+
+Linux 2.6.25 以降では、シグナル駆動 (signal-driven) I/O の通知が
+inotify ファイルディスクリプタについて利用可能である。
+.BR fcntl (2)
+に書かれている
+.RB ( O_ASYNC
+フラグを設定するための)
+.BR F_SETFL ,
+.BR F_SETOWN ,
+.B F_SETSIG
+の議論を参照のこと。
+シグナルハンドラに渡される
+.I siginfo_t
+構造体は、以下のフィールドが設定される
+.RI ( siginfo_t
+は
+.BR sigaction (2)
+で説明されている)。
+.I si_fd
+には inotify ファイルディスクリプタ番号が、
+.I si_signo
+にはシグナル番号が、
+.I si_code
+には
+.BR POLL_IN
+が、
+.I si_band
+には
+.B POLLIN
+が設定される。
+
+inotify ファイルディスクリプタに対して
+連続して生成される出力 inotify イベントが同一の場合
+.RI ( wd ,
+.IR mask ,
+.IR cookie ,
+.I name
+が等しい場合)、
+前のイベントがまだ読み込まれていなければ、
+連続するイベントが 1 つのイベントにまとめられる
+(ただし「バグ」の節も参照のこと)。
+
+inotify ファイルディスクリプタの読み込みで返されるイベントは、
+順序付けられたキューになる。
+従って、たとえば、あるディレクトリの名前を別の名前に変更した場合、
+inotify ファイルディスクリプタについての正しい順番で
+イベントが生成されることが保証される。
+
+.B FIONREAD
+.BR ioctl (2)
+は inotify ファイルディスクリプタから何バイト読み込めるかを返す。
+
+inotify によるディレクトリの監視は再帰的に行われない:
+あるディレクトリ以下のサブディレクトリを監視する場合、
+監視対象を追加で作成しなければならない。
+.SH バグ
+2.6.16 以前のカーネルでは
+.B IN_ONESHOT
+.I mask
+フラグが働かない。
+
+カーネル 2.6.25 より前では、
+連続する同一のイベントを一つにまとめることを意図したコード
+(古い方のイベントがまだ読み込まれていない場合に、
+最新の 2 つのイベントを一つにまとめられる可能性がある) が、
+最新のイベントが「最も古い」読み込まれていないイベントとまとめられるか
+をチェックするようになっていた。
+.SH 関連項目
+.BR inotify_add_watch (2),
+.BR inotify_init (2),
+.BR inotify_init1 (2),
+.BR inotify_rm_watch (2),
+.BR read (2),
+.BR stat (2),
+.IR Documentation/filesystems/inotify.txt .

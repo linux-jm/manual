@@ -1,0 +1,144 @@
+.\" -*- nroff -*-
+.TH PROBE_IRQ_ON 9 "1997/08/14 07:53:32" "Linux DDI 2.1.47" "Linux Kernel Functions"
+.\" Copyright (C) 1997 Neil Moore <amethyst@maxwell.ml.org>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+
+.\" Turn off hyphentation
+.hlm 0
+.\" Turn off adjustment
+.na
+.SH NAME
+probe_irq_on, probe_irq_off \- safe probing for IRQs
+.SH SYNOPSIS
+.B #include <linux/interrupt.h>
+.\" To keep all components of a declaration together, escape all white
+.\" space except after a comma.  In case the proc name plus the first
+.\" declaration is too long for one line, allow a break after '(' by
+.\" adding '\%'.
+.HP
+.B "unsigned\ long\ probe_irq_on(void)"
+.\" We don't want an inter-paragraph space between the two declarations,
+.\" but we have to end the paragraph to stop the hanging indent.  .PD 0
+.\" gets rid of inter-paragraph spacing
+.PD 0
+.HP
+.BI "int\ probe_irq_off(unsigned\ long " irqs ");"
+.\" And set it back to normal now
+.PD 1
+.\" Back to standard adjustment
+.ad
+.\" Allow hypenation, omit if you want no hyphenation in the man page
+.hlm 1
+.SH DESCRIPTION
+.SS Usage
+.PP
+.B probe_irq_on()
+turns on IRQ detection.  It operates by enabling all interrupts which have
+no handlers, while keeping the handlers for those interrupts NULL.  The
+kernel's generic interrupt handling routine will disable these IRQs when
+an interrupt is received on them.  
+.B probe_irq_on()
+adds each of these IRQ numbers to a vector which it will return.  It waits
+approximately 100ms for any spurious interrupts that may occur, and masks
+these from its vector; it then returns this vector to its caller.
+.PP
+.B probe_irq_off()
+tests an internal list of enabled IRQs against its
+.I irqs
+parameter, which should be the value returned by the last
+.BR probe_irq_on() .
+This function basically detects which IRQs have been switched off, and thus
+which ones have received interrupts.
+.SS Example
+This explanation may seem a bit confusing, so here is an example of code
+the mythical FUBAR 2000 driver could use to probe for IRQs:
+.RS
+.PP
+unsigned long irqs;
+.br
+int irq;
+.sp
+irqs = probe_irq_on();
+.sp
+outb(FB2K_GIVE_ME_AN_INTERRUPT_OR_GIVE_ME_DEATH,
+     FB2K_CONTROL_PORT);
+.br
+  /* the interrupt could take a while to occur */
+.br
+udelay(1000);
+.sp
+irq = probe_irq_off(irqs);
+.sp
+if (irq == 0) {
+.br
+	printk("fb2k: could not detect IRQ.\en");
+.br
+	printk("fb2k: Installation failed.\en");
+.br
+} else if (irq == -1) {
+.br
+	printk("fb2k: multiple IRQs detected.\en");
+.br
+	printk("fb2k: Installation failed.\en");
+.br
+} else {
+.br
+	fb2k_dev->irq = irq;
+.br
+	printk("fb2k: using probed IRQ %d.\en", irq);
+.br
+}
+.br
+.SH "RETURN VALUE"
+.B probe_irq_on()
+returns a bitmap of all unhandled IRQs (except those which are receiving
+spurious interrupts).  This value should only be used as a parameter to
+the next call to
+.BR probe_irq_off() .
+.PP
+.B probe_irq_off()
+returns the IRQ number of whichever unhandled interrupt has occurred since
+the last
+.BR probe_irq_on() .
+If no interrupts have occurred on any of the marked IRQs, 0 is returned;
+if interrupts have occurred on more than one of these IRQs, -1 is returned.
+.SH AVAILABILITY
+Linux 1.2+.  These functions are not available on m68k-based machines.
+.SH "SEE ALSO"
+.BR request_irq "(9)"
+.PP
+.I arch/*/kernel/irq.c
+.SH AUTHOR
+.RI "Neil Moore <" amethyst@maxwell.ml.org ">"
+.SH BUGS
+As mentioned above, these functions are not available on m68k-based machines.
+.PP
+This manpage is way too confusing.
+.\"
+.\" probe_irq_on.9,v
+.\" Revision 1.2  1997/08/14 07:53:32  amethyst
+.\" Formatting changes.
+.\"
+.\" Revision 1.1  1997/07/28 10:28:34  amethyst
+.\" Initial revision
+.\"
+.\"

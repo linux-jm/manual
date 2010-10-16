@@ -1,0 +1,1200 @@
+.\"/* Copyright 1999 Bjorn Ekwall <bj0rn@blox.se>
+.\" This program is distributed according to the Gnu General Public License.
+.\" See the file COPYING in the base distribution directory
+.\"
+.\" Japanese Version Copyright (c) 2000 NAKANO Takeo all rights reserved.
+.\" Translated Thu 12 Oct 2000 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated Sun 28 Jan 2001 by Kentaro Shirakata <argrath@ub32.org>
+.\" Updated Sun 6 Jan 2002 by NAKANO Takeo
+.\" 
+.TH MODULES.CONF 5 "07 December 1999"
+.UC 4
+.\"O .SH NAME
+.\"O modules.conf \- configuration file for loading kernel modules
+.SH 名前
+modules.conf \- カーネルモジュールのロードに対する設定ファイル
+.hy 0
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The behavior of
+.\"O .B modprobe(8)
+.\"O (and
+.\"O .B depmod(8)
+.\"O )
+.\"O can be modified by the (optional) configuration file
+.\"O .B /etc/modules.conf.
+.BR modprobe (8)
+(および
+.BR depmod (8))
+の動作は、設定ファイル
+.B /etc/modules.conf
+によって変更できる (このファイルは無くてもよい)。
+.PP
+.\"O The configuration file consists of a set of lines.
+設定ファイルは行単位で解釈される。
+.br
+.\"O All empty lines, and all text on a line after a '#', will be ignored.
+全ての空行と、'#' 文字以降の行末までは無視される。
+.br
+.\"O Lines may be continued by ending the line with a '\\'.
+行末が '\e' になっている行は次の行に継続する。
+.br
+.\"O The remaining lines should all conform to one of the following formats:
+残りは指定行 (directive) であり、
+すべて以下のフォーマットのいずれかに従う:
+.sp
+.nf
+.\"O 
+  [add] above module module_list
+  alias alias_name result
+  [add] below module module_list
+  define VARIABLE WORD
+  depfile=A_PATH
+  else
+  elseif EXPRESSION
+  endif
+  if EXPRESSION
+  include PATH_TO_CONFIG_FILE
+  insmod_opt=GENERIC_OPTIONS_TO_INSMOD
+  install module command ...
+  keep
+  [add] options module MODULE_SPECIFIC_OPTIONS
+  path=A_PATH
+  path[TAG]=A_PATH
+  generic_stringfile=A_PATH
+  pcimapfile=A_PATH
+  isapnpmapfile=A_PATH
+  usbmapfile=A_PATH
+  parportmapfile=A_PATH
+  ieee1394mapfile=A_PATH
+  pnpbiosmapfile=A_PATH
+  [add] probe name module_list
+  [add] probeall name module_list
+  prune filename
+  post-install module command ...
+  post-remove module command ...
+  pre-install module command ...
+  pre-remove module command ...
+  remove module command ...
+  persistdir directory_name
+.fi
+.PP
+.\"O All arguments to a directive will be processed to handle
+.\"O shell meta-characters,
+.\"O which means that "shell tricks" like wild-cards
+.\"O and commands enclosed in back-quotes can be used:
+各指定行に与える引数の解釈では、シェルのメタキャラクタが有効になる。
+すなわち、ワイルドカードやコマンドのバッククォートといった、
+シェルでの技が利用できる。
+.sp
+.nf
+.\"O 
+  path[misc]=/lib/modules/1.1.5?/local
+  path[net]=/lib/modules/`uname \-r`/net
+.\"O 
+.fi
+.sp
+.\"O .B DANGER:
+.\"O Applying shell expansion to user supplied input is a major security
+.\"O risk.  Modutils code only does meta expansion via shell commands for
+.\"O trusted data.  Basically this means only for data in the config file.
+.B 危険:
+ユーザーが指定した入力にシェル展開を適用するのは
+大きなセキュリティ上のリスクがある。
+modutils は信頼できるデータに対してのみシェルコマンドのメタ展開を行う。
+基本的にこれは設定ファイルのデータのみを展開することを意味する。
+.\"O Even that assumes that the user cannot run modprobe as root while
+.\"O supplying their own config file.  Programs (including the kernel) that
+.\"O invoke modutils programs as root with user supplied input must pass
+.\"O exactly one user supplied parameter and must set safe mode or risk
+.\"O creating local root exploits.  See
+.\"O .I modprobe
+.\"O for details on safe mode.
+modutils では、ユーザーは modprobe を (自分自身の設定ファイルを指定して)
+root 権限で実行することはできない、と仮定している。
+ユーザーからの入力を指定して modutils を root 権限で起動するプログラム
+(カーネルを含む) は、正確に一つだけのユーザー入力パラメータを渡し、
+かつセーフモードに設定しないと、ローカルで root を奪取される危険がある。
+セーフモードの詳細については
+.I modprobe
+を参照のこと。
+.PP
+.\"O Directives may be repeated multiple times.
+.\"O Note that some directives can have an optional prefix:
+.\"O .I add.
+.\"O When this prefix is used, the new module_list will be
+.\"O .B added
+.\"O to the previous module_list instead of replacing it.
+各指定は複数回繰り返してもよい。
+指定によっては、前に
+.I add
+を置くこともできる。これがないと、指定した module_list が以前の
+module_list を置き換えるが、
+これがあると module_list が以前の module_list に\fB追加される\fP。
+.\"O .SH SEMANTICS
+.SH 記法 (SEMANTICS)
+.\"O .B A_PATH
+.\"O is the fully qualified path to the target.
+.\"O It is possible to use shell meta-characters in
+.\"O .B A_PATH
+.\"O including command output, such as
+.\"O .I \`uname \-r\`
+.\"O and
+.\"O .I \`kernelversion\`.
+.B A_PATH
+はターゲットへの完全なパス名である。
+.I \`uname \-r\`
+や
+.I \`kernelversion\`.
+といったシェルのメタキャラクタを
+.B A_PATH
+に用いてもよい。
+.br
+.\"O These two commands are also understood internally in these utilities
+.\"O as meaning the version number of the current kernel and the current
+.\"O kernel version respectively (e.g.: 2.2.3 and 2.2).
+これらの 2 つのコマンドは、
+.RB ( modprobe " や " depmod
+のような) ユーティリティの内部でも、
+現在のカーネルのリリースとバージョン (それぞれ 2.2.3 や 2.2 など)
+を表すものとして認識されている。
+.PP
+.\"O .B WORD
+.\"O is a sequence if non-white characters.
+.\"O If ' " or ` is found in the string, all characters up to the
+.\"O matching ' " or ` will also be included, even whitespace.
+.\"O Every
+.\"O .B WORD
+.\"O will then be expanded w.r.t. meta-characters.
+.\"O If the expanded result gives more than one word then only
+.\"O the first word of the result will be used.
+.B WORD
+は空白文字以外からなるシーケンスである。
+.\"NAKANO 原文は if -> of の typo だろう。
+もし ' や " や ` が文字列にあると、
+対応する ', ", ` にマッチするまでの全ての文字 (空白文字も)
+がその文字列に含まれることになる。
+全ての
+.B WORD
+は、その後メタキャラクタのルールにしたがって展開される。
+.\"NAKANO w.r.t は with regard to かなあ?
+展開した結果が二つ以上のワードになった場合は、
+結果のうち最初のワードだけが用いられる。
+.PP
+.\"O EXPRESSION below can be:
+EXPRESSION は以下のいずれかである。
+.TP
+.I "WORD compare_op WORD"
+.\"O where compare_op is one of ==, !=, <, <=, >= or >.
+.\"O The string values of the WORDs are compared.
+compare_op は ==, !=, <, <=, >=, > のいずれかである。
+両 WORD が文字列として比較される。
+.TP
+.I "\-n WORD compare_op WORD"
+.\"O where compare_op is one of ==, !=, <, <=, >= or >.
+.\"O The numeric values of the WORDs are compared.
+compare_op は ==, !=, <, <=, >=, > のいずれかである。
+両 WORD が数値として比較される。
+.TP
+.I WORD
+.\"O If the expansion of WORD fails, or if the
+.\"O expansion is "0" (zero), "false" or "" (empty)
+.\"O then the expansion has the value FALSE.
+.\"O Otherwise the expansion has the value TRUE
+WORD の展開に失敗するか、
+展開した結果が "0" (zero), "false", "" (empty)
+のいずれかであれば、展開結果の値は FALSE となる。
+それ以外の場合は展開結果の値は TRUE となる。
+.TP
+.I "\-f FILENAME"
+.\"O Test if the file FILENAME exists.
+FILENAME が存在するかどうかのテスト。
+.TP
+.I \-k
+.\"O Test if "autoclean" is enabled (i.e. called from the kernel).
+"autoclean" が有効になっているかどうか (すなわちカーネルから呼ばれたかどうか)
+のテスト。
+.TP
+.I "! EXPRESSION"
+.\"O A negated expression is also an expression.
+式の否定も式である。
+.\"O .SH SYNTAX
+.SH 文法 (SYNTAX)
+.\"O This is a description of the legal directives.
+以下に有効な指定について説明する。
+.TP
+.I "define VARIABLE WORD"
+.\"O Do a
+.\"O .I putenv("VARIABLE=WORD").
+.\"O Variables can be created and modified by this directive.
+.\"O The variables will be available in the environment, which makes them
+.\"O usable for all commands executed in the current session.
+.I putenv("VARIABLE=WORD")
+を実行する。この指定は変数の作成・変更のいずれも行える。
+変数は環境に作られるので、
+現在のセッションで実行される全てのコマンドから利用できる。
+.TP
+.I "depfile=A_PATH"
+.\"O This is the path to the dependency file that will be created by
+.\"O .B depmod
+.\"O and used by
+.\"O .B modprobe
+.\"O to find the modules and their dependent modules.
+.\"O Normally the default value should be used, see below.
+依存関係ファイルへのパス。
+これは
+.B depmod
+によって作成され、
+.B modprobe
+によってモジュールとその依存モジュールを探すために利用される。
+通常はデフォルトの値を用いるべきである。以下を参照のこと。
+.TP
+.I "if EXPRESSION"
+.\"O If the expression is evaluated to be
+.\"O .B TRUE
+.\"O then all directives up to the matching
+.\"O .I "else, elseif"
+.\"O or
+.\"O .I endif
+.\"O are processed.  Otherwise they are ignored.
+.\"O .I if
+.\"O directives may be nested up to an internal maximum of 20.
+式
+.I EXPRESSION
+が
+.B TRUE
+と解釈されたら、
+.IR else ", " elseif ", " endif
+のいずれかにマッチするまでの全ての指定行が実行される。
+.B FALSE
+と解釈されたら、それらの指定行は無視される。
+.I if
+行は、内部の最大値である 20 までネストできる。
+.br
+.\"O Note: please avoid having any
+.\"O .B path
+.\"O directives conditionally processed.
+.\"O Since
+.\"O .B modprobe
+.\"O has enough built-in "smarts", a conditionally processed
+.\"O .B path
+.\"O directive will gain you nothing but confusion.  Really.
+注意:
+.B path
+指定行を条件式内部で処理することは避けて欲しい。
+.B modprobe
+には「賢い頭脳」が組み込まれているので、
+.B path
+指定行の条件処理は、単に混乱を生むだけである。ほんとです。
+.TP
+.I "else"
+.\"O If the previous matching
+.\"O .I if
+.\"O or
+.\"O .I elseif
+.\"O directive evaluated its expression to be
+.\"O .B FALSE
+.\"O then the directives enclosed by the (optional)
+.\"O .I else
+.\"O directive and its matching
+.\"O .I endif
+.\"O directive will be processed.
+これより前での
+.IR if " または " elseif
+指定行での式の評価が
+.B FALSE
+であり、
+.I else
+があれば、ここまでの指定行は無視され、
+これ以降
+.I endif
+までの指定行が処理される。
+.TP
+.I "elseif EXPRESSION"
+.\"O If the previous matching
+.\"O .I if
+.\"O or
+.\"O .I elseif
+.\"O directives evaluated their expression to be
+.\"O .B FALSE
+.\"O and if the expression for this directive evaluates to
+.\"O .B TRUE
+.\"O then the directives up to the next matching
+.\"O .I "elseif, else"
+.\"O or
+.\"O .I endif
+.\"O directive will be processed.
+これより前に置かれた
+.IR if " または " elseif
+での式評価の結果が
+.B FALSE
+で、ここでの式評価の結果が
+.B TRUE
+であれば、次に
+.IR elseif ", " else ", " endif
+のいずれかが現れるまでの指定行が処理される。
+.TP
+.I "endif"
+.\"O This directive ends the chain of matching
+.\"O .I "if, elseif"
+.\"O or
+.\"O .I else
+.\"O directive(s) controlling the conditional processing of configuration
+.\"O file directives.
+これは設定ファイルにおける条件処理を制御する
+.IR if ", " elseif ", " else
+のチェインを終了させる。
+.sp
+.nf
+.\"O 
+  if EXPRESSION
+      any config lines
+  elseif EXPRESSION
+      any config lines
+  else
+      any config lines
+  endif
+.\"O 
+.fi
+.sp
+.\"O The
+.\"O .I else
+.\"O and
+.\"O .I elseif
+.\"O directives are optional.
+.IR else " と " elseif
+は無くてもよい。
+.TP
+.I "include PATH_TO_CONFIG_FILE"
+.\"O To handle different platforms or configurations with a
+.\"O single configuration file can be quite complex.
+.\"O With the use of the
+.\"O .I include
+.\"O directive, conditionally processed by
+.\"O .I if
+.\"O directives, this is now easier to handle.
+別々のプラットフォームや設定を一つの設定ファイルで扱うのは、
+非常に複雑になる場合がある。
+.I if
+の条件によって
+.I include
+指定行を用いれば、この取り扱いは簡単になる。
+.TP
+.I "insmod_opt=GENERIC_OPTIONS_TO_INSMOD"
+.\"O If insmod should need some special options, not specified elsewhere,
+.\"O this directive makes it possible to add such an option,
+.\"O to be used for every invocation.
+.\"O The standard default options to insmod does normally not have to
+.\"O be modified unless some special situation needs to be handled.
+insmod に (他では指定できないような) 特殊なオプションが必要な場合は、
+このオプションで起動の度にそれらを追加することが可能である。
+特殊な状況を除いて、
+通常は insmod の標準的なデフォルトのオプションを変更する必要はない。
+.TP
+.I "keep"
+.\"O If this word is found on a line
+.\"O .B before
+.\"O any lines that contain the
+.\"O .B path
+.\"O descriptions, the default set of paths will be saved, and thus added to.
+.\"O Otherwise the normal behavior is that the default set will be
+.\"O .B replaced
+.\"O by the set of paths in the configuration file.
+このワードが
+.B path
+の記述を含む行の\fB前に\fP置かれた場合は、
+デフォルトのパスのセットは保存され、それに追加される。
+これがない場合の通常の振舞いでは、
+パスのセットが設定ファイルで\fB置き換え\fPられる。
+.TP
+.I "path=A_PATH"
+.TP
+.I "path[TAG]=A_PATH"
+.\"O The
+.\"O .B A_PATH
+.\"O argument specifies an additional directory to search for modules.
+.\"O The
+.\"O .B path
+.\"O directive can carry an optional tag.
+.\"O This tells us a little more about the purpose of the modules in
+.\"O this directory and allows some automated operations by
+.\"O .B modprobe.
+.\"O The tag is appended to the "path" keyword enclosed in square brackets.
+.\"O If the tag is missing, the tag "misc" is assumed.
+.B A_PATH
+引数はモジュールを探すディレクトリの追加分を指定する。
+.B path
+指定行は、オプションのタグをとることができる。
+これはそのモジュールの目的に関する情報を多少なりとも示し、
+また
+.B modprobe
+の動作をいくらか自動化する。
+この "path" キーワードに追加されるタグは角括弧 [] で括られる。
+タグがない場合は、 "misc" タグが指定されたかのように動作する。
+.br
+.\"O One very useful tag is
+.\"O .B boot,
+.\"O which can be used to mark all directories containing modules
+.\"O that should be loaded at boot-time.
+非常に有用なタグとして、
+.B boot
+がある。これはブート時にロードしなければならないモジュールを
+保有しているすべてのディレクトリをマークするために利用できる。
+.br
+.\"O Note that you must specify the
+.\"O .B keep
+.\"O directive to prevent any
+.\"O .B path
+.\"O directives from over-riding the default paths.
+なお
+.B keep
+指定行を使えば、
+.B path
+指定行によるデフォルトのパスの置き換えを防ぐことができる。
+.TP
+.I "generic_stringfile=A_PATH"
+.\"O This is the path to the generic_string file that will be created by
+.\"O .B depmod
+.\"O and used by install scripts that need string information from modules.
+.\"O Normally the default value should be used, see below.
+これは generic_string ファイルへのパスである。このファイルは
+.B depmod
+によって作成され、モジュールからの文字列情報が必要な
+インストールスクリプトが利用する。
+通常はデフォルトの値を用いるべきである。以下を参照のこと。
+.TP
+.I "pcimapfile=A_PATH"
+.\"O This is the path to the pcimap file that will be created by
+.\"O .B depmod
+.\"O and used by install scripts to find the module that supports a pci device.
+.\"O Normally the default value should be used, see below.
+これは pcimap ファイルへのパスである。このファイルは
+.B depmod
+によって作成され、インストールスクリプトが
+pci デバイスをサポートするモジュールを検索する際に用いられる。
+通常はデフォルトの値を用いるべきである。以下を参照のこと。
+.TP
+.I "isapnpmapfile=A_PATH"
+.\"O This is the path to the isapnpmap file that will be created by
+.\"O .B depmod
+.\"O and used by install scripts to find the module that supports an ISA PNP device.
+.\"O Normally the default value should be used, see below.
+これは isapnpmap ファイルへのパスである。このファイルは
+.B depmod
+によって作成され、インストールスクリプトが
+ISA PNP デバイスをサポートするモジュールを検索する際に用いられる。
+通常はデフォルトの値を用いるべきである。以下を参照のこと。
+.TP
+.I "usbmapfile=A_PATH"
+.\"O This is the path to the usbmap file that will be created by
+.\"O .B depmod
+.\"O and used by install scripts to find the module that supports an USB device.
+.\"O Normally the default value should be used, see below.
+これは usbmap ファイルへのパスである。このファイルは
+.B depmod
+によって作成され、インストールスクリプトが
+USB デバイスをサポートするモジュールを検索する際に用いられる。
+通常はデフォルトの値を用いるべきである。以下を参照のこと。
+.TP
+.I "parportmapfile=A_PATH"
+.\"O This is the path to the parportmap file that will be created by
+.\"O .B depmod
+.\"O and used by install scripts to find the module that supports an parport device.
+.\"O Normally the default value should be used, see below.
+これは parportmap ファイルへのパスである。このファイルは
+.B depmod
+によって作成され、インストールスクリプトが
+parport デバイスをサポートするモジュールを検索する際に用いられる。
+通常はデフォルトの値を用いるべきである。以下を参照のこと。
+.TP
+.I "ieee1394mapfile=A_PATH"
+.\"O This is the path to the ieee1394map file that will be created by
+.\"O .B depmod
+.\"O and used by install scripts to find the module that supports an ieee1394 device.
+.\"O Normally the default value should be used, see below.
+これは ieee1394map ファイルへのパスである。このファイルは
+.B depmod
+によって作成され、インストールスクリプトが
+ieee1394 デバイスをサポートするモジュールを検索する際に用いられる。
+通常はデフォルトの値を用いるべきである。以下を参照のこと。
+.TP
+.I "pnpbiosmapfile=A_PATH"
+.\"O This is the path to the pnpbiosmap file that will be created by
+.\"O .B depmod
+.\"O and used by install scripts to find the module that supports an pnpbios device.
+.\"O Normally the default value should be used, see below.
+これは pnpbiosmap ファイルへのパスである。このファイルは
+.B depmod
+によって作成され、インストールスクリプトが
+pnpbios デバイスをサポートするモジュールを検索する際に用いられる。
+通常はデフォルトの値を用いるべきである。以下を参照のこと。
+.TP
+.I "alias alias_name result"
+.\"O The "alias" directive can be used to give alias names to modules.
+.\"O A line in /etc/modules.conf that looks like this:
+"alias" 指定行はモジュールに別名をつけるために用いる。
+/etc/modules.conf に
+.sp
+.nf
+.\"O 
+  alias iso9660 isofs
+.\"O 
+.fi
+.sp
+.\"O makes it possible to write
+.\"O .B "modprobe iso9660"
+.\"O although there is no object file for such a module available.
+のような行があれば、実際にはそのようなモジュールがなくても
+.B "modprobe iso9660"
+のように書くことができるようになる。
+.br
+.\"O Note that the line:
+なお
+.sp
+.nf
+.\"O 
+  alias some_module off
+.\"O 
+.fi
+.sp
+.\"O will make modprobe ignore requests to load that module.
+.\"O Another special alias is:
+という行は、modprobe にそのモジュールのロード要求を無視させる。
+また
+.sp
+.nf
+.\"O 
+  alias some_module null
+.\"O 
+.fi
+.sp
+.\"O which will make requests for some_module always succeed, but no
+.\"O module will actually be installed.
+.\"O This can be used as a base for stacks created via the
+.\"O .I above
+.\"O and
+.\"O .I below
+.\"O directives.
+というエイリアスは、some_module への要求を常に成功させるが、
+しかし実際にはそのモジュールはインストールされない。
+これは
+.I above
+や
+.I below
+指定行で作成されるスタックのベースとして利用できる。
+.\"O .br
+.\"O .nf
+.\"O 
+.\"O .fi
+.IP
+.\"O .ne 7
+.\"O It is possible to have a large number of levels of
+.\"O .I alias
+.\"O directives, since all aliases will be recursively expanded
+.\"O in order to find the physical module actually referred to.  There is an
+.\"O arbitrary limit of 1000 on alias depth to detect loops like:
+.I alias
+指定のレベルは深くなっても良い
+(訳注: alias の alias の alias... としてかまわない)。
+全てのエイリアスは、
+実際に物理的に存在しているモジュールを探すべく、再帰的に展開される。
+エイリアスの実際の深さの限界は、おおよそ 1000 程度になっている。
+これは以下のようなループを検知するためである。
+.sp
+.nf
+.\"O 
+  alias a b
+  alias b a
+.\"O 
+.fi
+.sp
+.\"O .br
+.\"O If the final result of an
+.\"O .I alias
+.\"O mapping does not match the name of any module then modprobe applies
+.\"O probe and probeall mappings to the result.  If those do not succeed
+.\"O then the module is not found.  This makes constructs like this give
+.\"O sensible results (from devfs).
+.\"O .br
+.I alias
+マッピングの最終的な結果がいずれのモジュールにもマッチしなければ、
+modprobe はその結果に probe と probeall をマップする。
+これらも成功しなければ、そのモジュールは見付からなかったことになる。
+したがって以下のような指定は気が利いていると言える (devfs より)。
+.\"NAKANO 最後の文、意味わかってません。
+.sp
+.nf
+.\"O 
+  alias           /dev/sg*        /dev/sg
+  probeall        /dev/sg         scsi-hosts sg
+.\"O 
+.fi
+.sp
+.ne 7
+.\"O It is legal for an alias to map module A to module B and for module
+.\"O A to exist at the same time but this construct is ambiguous and is
+.\"O .B not
+.\"O recommended.  For historical reasons, the kernel sound system has a
+.\"O module called sound.o but the sound developers also want an alias from
+.\"O sound to the module for the user's sound card, e.g. "alias\ sound\ sb".
+.\"O In an attempt to support this requirement but still maintain the
+.\"O defined behavior where options can be applied to aliases, modprobe
+.\"O bypasses alias expansion when processing a module name if the name was
+.\"O obtained via modules.dep, otherwise aliases are expanded.  This is not
+.\"O guaranteed to give the expected behavior on all combinations of
+.\"O aliases and real modules, you should avoid using an alias with the same
+.\"O name as a real module.
+モジュール A が実際に存在する場合にも、モジュール A をモジュール B への
+エイリアスとしてマップすることはできる。
+しかしこれは誤解の元であるので\fB推奨できない\fP。
+歴史的な理由から、カーネルのサウンドシステムには
+sound.o というモジュールがある。しかしサウンドの開発者たちも、
+sound をユーザサウンドカード用モジュールへのエイリアスとしたい、
+すなわち "alias\ sound\ sb" としたいことがあるかもしれない。
+この要求をサポートし、
+なおかつ「オプションをエイリアスに与えることが可能」
+という定められた動作を維持するために、
+modprobe はモジュール名のエイリアス展開を、
+その名前が modules.dep に見付かった場合には行わない
+(見付からなければ展開する)。
+これはエイリアスと実際のモジュールのあり得る全ての組み合わせに対して
+期待された動作をするとは限らないので、
+実際に存在するモジュールと同じ名前へのエイリアスは避けるべきなのである。
+.TP
+.I "[add] probe name module_list"
+.TP
+.I "[add] probeall name module_list"
+.\"O These directives can only be used when
+.\"O .I name
+.\"O is the name of the module requested on the command line of
+.\"O .B modprobe.
+.\"O The effect is that when a request for
+.\"O .I name
+.\"O is made, the modules in module_list will be tried, in the specified order.
+.\"O The difference between the directives is that
+.\"O .I probe
+.\"O will continue until the first successful module insertion, while
+.\"O .I probeall
+.\"O will continue until the end of the list.
+.\"O The exit status reflects whether any module has been successfully
+.\"O installed or not.
+.\"O The optional
+.\"O .I add
+.\"O prefix adds the new list to the previous list instead of replacing it.
+これらの指定行は
+.I name
+が
+.B modprobe
+のコマンドラインで要求されたモジュール名である場合に限って利用できる。
+効果としては、
+.I name
+への要求があると、 module_list にあるモジュールが、
+指定の順序で試される。二つの指定行の違いは、
+.I probe
+はモジュールの挿入が一度成功すればそこで試行を終了するのに対して、
+.I probeall
+はリストの最後まで続ける点にある。
+終了ステータスは、いずれかのモジュールのインストールに
+成功したかどうかを反映する。
+.I add
+が前に付加されると、新しいリストを前のリストに置き換えるのではなく追加する。
+.TP
+.I "prune filename"
+.\"O The top level module directory for a kernel install contains files
+.\"O which are not modules.  These include modules.dep,
+.\"O modules.generic_string, modules.pcimap, modules.isapnpmap,
+.\"O modules.usbmap, modules.parportmap, modules.ieee1394map,
+.\"O modules.pnpbiosmap, the build symlink to the kernel source tree and any
+.\"O other files that the install process wants to save from a kernel build.
+.\"O To prevent
+.\"O .B depmod
+.\"O issuing warnings about "not an ELF file", these non-module files should
+.\"O appear in the prune list.
+インストールされているカーネルに対するモジュールディレクトリのトップには、
+モジュールではないファイルがおかれている。
+これらには modules.dep,
+modules.generic_string, modules.pcimap, modules.isapnpmap,
+modules.usbmap, modules.parportmap, modules.ieee1394map,
+modules.pnpbiosmap のほか、
+カーネルソースツリーへのビルド用 symlink など、インストールプロセスが
+ビルドツリーから保存しておきたいと考えたファイルが含まれる。
+これらに対して
+.B depmod
+が "not an ELF file" という警告を発するのをやめさせるには、
+これらのモジュールでないファイルが prune リストに入っていなければならない。
+.\"O .B depmod
+.\"O has a built in prune list which cannot be removed because it lists
+.\"O files which will exist for any kernel build.  If you add your own files
+.\"O to the top level modules directory, add a
+.\"O .I prune
+.\"O statement for each
+.\"O .IR filename .
+.B depmod
+は組み込みの prune リストを持っており、これにはいかなるカーネルビルドに
+おいても存在するファイルが含まれているので、削除することはできない。
+自分のファイルをこのモジュールディレクトリのトップに追加したら、
+各
+.I filename
+に対して
+.I prune
+宣言を加えると良い。
+.\"O .B Note:
+.\"O The prune list is only used when scanning the top directory of a
+.\"O .IR path ,
+.\"O and only if the directory contains at least one subdirectory from the
+.\"O standard list of subdirectory names, i.e. it appears to be a top level
+.\"O directory built from a kernel install.  The
+.\"O .I prune
+.\"O list has no effect on subdirectories of a
+.\"O .IR path .
+\fB注意\fP: prune リストは
+.I path
+のトップディレクトリをスキャンするとき、
+かつそのディレクトリが標準的なサブディレクトリ名リスト以下、
+高々一つのサブディレクトリしか含まない場合にしか
+(すなわちカーネルのインストールでビルドされた
+トップディレクトリのように見える場合にしか) 参照されない。
+.\"NAKANO と言うことを言っていると思うのだけれど...
+.I prune
+リストは
+.I path
+のサブディレクトリには効力を持たない。
+.TP
+.I "[add] options [-k] module [MODULE_SPECIFIC_OPTIONS]"
+.\"O All module names, including aliased names, can have their own
+.\"O .I options
+.\"O directives.
+.\"O Options specified for an alias have higher priority than the options
+.\"O specified for more "basic" names. This rule is used to resolve
+.\"O conflicting
+.\"O .I options
+.\"O directives.
+.\"O Options given on the command line have the highest priority.
+エイリアスされた名前も含め、すべてのモジュール名はそれぞれ固有の
+.I options
+指定行を持つことができる。
+エイリアスに対して指定されたオプションは、
+より「基本的な」名前に対して指定されたオプションよりも高い優先度を持つ。
+このルールは
+.I options
+指定行の衝突を解決する際に利用される。
+コマンドラインで指定されたオプションは、最も高い優先度を持つ。
+.\"O If there is
+.\"O .I -k
+.\"O before the module name, then the module won't be autocleaned even if
+.\"O .B modprobe
+.\"O has been invoked with the
+.\"O .I -k
+.\"O autoclean option.
+.\"O The optional
+.\"O .I add
+.\"O prefix adds the new list to the previous list instead of replacing it.
+モジュール名の前に
+.I \-k
+があると、たとえ
+.B modprobe
+が autoclean オプション
+.I \-k
+で実行されていた場合でも、モジュールは autoclean されなくなる。
+.I add
+が前に付加されると、新しいリストを前のリストに置き換えるのではなく追加する。
+.\"O If the result of an
+.\"O .I alias
+.\"O is not a real module then any
+.\"O .I options
+.\"O that were constructed from the
+.\"O .I alias
+.\"O chain are discarded before invoking probe[all].
+.\"O If any of the
+.\"O .I MODULE_SPECIFIC_OPTIONS
+.\"O contain characters that are special to the shell (e.g. space, comma,
+.\"O parentheses) then the option must be enclosed in '"..."'.
+.\"O The '' delimit the option in modules.conf, the "" delimit the option
+.\"O when it is passed to the shell.  For example,
+.I alias
+の結果が実際のモジュールでなければ、その
+.I alias
+のチェーンによって構成された
+.I options
+は、probe[all] を呼ぶ前に捨てられる。
+.I MODULE_SPECIFIC_OPTIONS
+のどれかにシェルにとって特別な文字 (スペース・コンマ・括弧)
+が含まれている場合には、そのオプションは '"..."'
+で括らなければならない。 '' は
+modules.conf の内部でオプションを区切り、 "" は
+オプションがシェルに渡されるときにそれを区切る。以下に例を示す。
+.\"O .br
+.sp
+.nf
+.\"O 
+  abc='"def,ghi jkl (xyz)"'
+.\"O 
+.fi
+.sp
+.\"O .ne 7
+.TP
+.I "[add] above module module_list"
+.\"O This directive makes it possible for one module to "pull in"
+.\"O another set of modules on top of itself in a module stack,
+.\"O as seen in the output of the
+.\"O .B lsmod(8)
+.\"O command.
+この指定行は、あるモジュールのモジュールスタックの上に
+他のモジュールセットを "pull in" するのに利用できる。
+結果は
+.BR lsmod (8)
+コマンドの出力で見ることができる。
+.\"O The
+.\"O .I above
+.\"O directive is useful for those circumstances when the dependencies
+.\"O are more complex than what can be described in the
+.\"O .B modules.dep
+.\"O dependency file.
+.\"O This is an optimized case of the
+.\"O .I post-install
+.\"O and
+.\"O .I pre-remove
+.\"O directives.
+.I above
+指定行は依存関係が
+.B modules.dep
+ファイルには記述できないほど複雑なような状況下で有用である。
+これは
+.I post-install
+および
+.I pre-remove
+指定行の最適化された場合であるとみなすことができる。
+.\"O Note that failure of installing the module will not influence the
+.\"O exit status of
+.\"O .B modprobe.
+.\"O The optional
+.\"O .I add
+.\"O prefix adds the new list to the previous list instead of replacing it.
+モジュールのインストールに失敗しても、
+.B modprobe
+の終了ステータスには影響しないことに注意。
+.I add
+が前に付加されると、新しいリストを前のリストに置き換えるのではなく追加する。
+.TP
+.I "[add] below module module_list"
+.\"O This directive makes it possible for one module to "push"
+.\"O another set of modules below itself in a module stack,
+.\"O as seen in the output of the
+.\"O .B lsmod(8)
+.\"O command.
+この指定行は、あるモジュールのモジュールスタックの下に
+他のモジュールセットを "push" するのに利用できる。
+結果は
+.BR lsmod (8)
+コマンドの出力で見ることができる。
+.\"O The
+.\"O .I below
+.\"O directive is useful for those circumstances when the dependencies
+.\"O are more complex than what can be described in the
+.\"O .B modules.dep
+.\"O dependency file.
+.\"O This is an optimized case of the
+.\"O .I pre-install
+.\"O and
+.\"O .I post-remove
+.\"O directives.
+.I below
+指定行は依存関係が
+.B modules.dep
+ファイルには記述できないほど複雑なような状況下で有用である。
+これは
+.I pre-install
+および
+.I post-remove
+指定行の最適化された場合であるとみなすことができる。
+.\"O Note that failure of installing the module will not influence the
+.\"O exit status of
+.\"O .B modprobe.
+.\"O The optional
+.\"O .I add
+.\"O prefix adds the new list to the previous list instead of replacing it.
+モジュールのインストールに失敗しても、
+.B modprobe
+の終了ステータスには影響しないことに注意。
+.I add
+が前に付加されると、新しいリストを前のリストに置き換えるのではなく追加する。
+.PP
+.\"O The following directives are useful for (optionally) executing specific
+.\"O commands when loading and unloading a module.  Note that even aliased
+.\"O module names can have these directives,
+.\"O which will be executed in the proper order together with any
+.\"O directives for the unaliased module name.
+以下の指定行はモジュールのロード・アンロードの際に
+特定のコマンドを実行したい場合に利用できる (指定しなくてもよい)。
+エイリアスされたモジュール名に対してもこれらの指定は可能で、
+エイリアス展開後のモジュール名に対する指定が他にあれば、
+それらとともに適切な順序で実行される。
+.TP
+.I "pre-install module command"
+.\"O Execute
+.\"O .I command
+.\"O before installing the specified module.
+.\"O See the
+.\"O .I below
+.\"O directive as well.
+指定したモジュールをインストールする前に
+.I command
+を実行する。
+.I below
+指定行も参照のこと。
+.TP
+.I "install module command"
+.\"O Execute
+.\"O .I command
+.\"O instead of the default
+.\"O .B insmod
+.\"O when installing the specified module.
+指定したモジュールをインストールする際に、デフォルトの
+.B insmod
+ではなく
+.I command
+を実行する。
+.TP
+.I "post-install module command"
+.\"O Execute
+.\"O .I command
+.\"O after installing the specified module.
+.\"O See the
+.\"O .I above
+.\"O directive as well.
+指定したモジュールをインストールした後に
+.I command
+を実行する。
+.I above
+指定行も参照のこと。
+.TP
+.I "pre-remove module command"
+.\"O Execute
+.\"O .I command
+.\"O before removing the specified module.
+.\"O See the
+.\"O .I above
+.\"O directive as well.
+指定したモジュールを削除する前に
+.I command
+を実行する。
+.I above
+指定行も参照のこと。
+.TP
+.I "remove module command"
+.\"O Execute
+.\"O .I command
+.\"O instead of the default (built-in)
+.\"O .B rmmod
+.\"O when removing the specified module.
+指定したモジュールを削除する際に、デフォルト (組み込み) の
+.B rmmod
+ではなく
+.I command
+を実行する。
+.TP
+.I "post-remove module command"
+.\"O Execute
+.\"O .I command
+.\"O after removing the specified module.
+.\"O See the
+.\"O .I below
+.\"O directive as well.
+指定したモジュールを削除した後に
+.I command
+を実行する。
+.I below
+指定行も参照のこと。
+.TP
+.I "persistdir\fR=directory_name\fI"
+.\"O When
+.\"O .B rmmod
+.\"O removes a module that contains persistent module parameters, it stores
+.\"O the (possibly) modified parameters underneath
+.\"O .IR directory_name .
+.B rmmod
+が永続モジュールパラメータを含むモジュールを削除する時、
+(おそらく) 修正されたパラメータを
+.I directory_name
+の下に保存する。
+.\"O When
+.\"O .B modprobe
+.\"O loads a module that contains persistent module parameters, it looks
+.\"O under
+.\"O .I directory_name
+.\"O for any previous values for those parameters.
+.B modprobe
+が永続モジュールパラメータを含むモジュールをロードする時、
+以前の値を
+.I directory_name
+の下から探す。
+.\"O You must set
+.\"O .I persistdir
+.\"O to the name of a directory that is readable when modules are loaded and
+.\"O is writable when modules are unloaded, the default value is
+.\"O /var/lib/modules/persist.
+.I persistdir
+はモジュールがロードされた時に読み込み可能で、
+モジュールがアンロードされた時に書き込み可能でなければならない。
+デフォルト値は /var/lib/modules/persist である。
+.\"O Many Linux distributions load their modules before mounting
+.\"O filesystems, this can cause problems for persistent data.
+.\"O If /var is a separate partition and it is mounted after modules are
+.\"O loaded then
+.\"O .B insmod
+.\"O has nowhere to read persistent data from.
+多くの Linux ディストリビューションはファイルシステムをマウントする前に
+モジュールをロードするが、これは永続データに関する問題を引き起こすかもしれない。
+/var が別のパーティションにあって、モジュールがロードされてからマウントされる場合、
+.B insmod
+は永続データを読み込めない。
+.\"O You have two choices when /var is on a separate partition.
+/var が別のパーティションにある場合には、二つの選択肢がある。
+.IP "" 8
+.\"O 1)\ Specify
+.\"O .I persistdir
+.\"O pointing at a directory in the root partition, say
+.\"O /lib/modules/persist.  This assumes that the root partition is writable
+.\"O when
+.\"O .B rmmod
+.\"O runs.
+1)
+.I persistdir
+にルートパーティションのディレクトリ、
+例えば /lib/modules/persist を指定する。
+これは
+.B rmmod
+が実行されるときにルートパーティションが書き込み可能であることを仮定している。
+.IP "" 8
+.\"O 2)\ Load any filesystem related modules first, mount the /var partition
+.\"O then load the rest of the modules.  This assumes that the filesystem
+.\"O modules have no persistent data.
+2)\ ファイルシステム関係のモジュールを全て最初にロードし、
+/var パーティションをマウントし、それから残りのモジュールをロードする。
+これはファイルシステムに永続データがないことを仮定している。
+.PP
+.\"O .SH DEFAULT CONFIGURATION
+.SH デフォルトの設定
+.\"O If the configuration file '/etc/modules.conf' is missing,
+.\"O or if any directive is not overridden,
+.\"O the following defaults are assumed:
+設定ファイル '/etc/modules.conf' がない場合や、
+あるいは指定行の上書き変更がない場合には、
+以下のデフォルトが用いられる。
+.\"O .PP
+.sp 
+.nf
+  depfile=/lib/modules/`uname \-r`/modules.dep
+  generic_stringfile=/lib/modules/`uname \-r`/modules.generic_string
+  pcimapfile=/lib/modules/`uname \-r`/modules.pcimap
+  isapnpmapfile=/lib/modules/`uname \-r`/modules.isapnpmap
+  usbmapfile=/lib/modules/`uname \-r`/modules.usbmap
+  parportmapfile=/lib/modules/`uname \-r`/modules.parportmap
+  ieee1394mapfile=/lib/modules/`uname \-r`/modules.ieee1394map
+  pnpbiosmapfile=/lib/modules/`uname \-r`/modules.pnpbiosmap
+
+  path[boot]=/lib/modules/boot
+  path[toplevel]=/lib/modules/`uname \-r`
+  path[toplevel]=/lib/modules/`kernelversion`
+  path[toplevel]=/lib/modules/default
+  path[toplevel]=/lib/modules
+
+  persistdir=/var/lib/modules/persist
+.\"O .PP
+.fi
+.sp
+.\"O There are also a set of default
+.\"O .I alias
+.\"O and
+.\"O .I options
+.\"O directives.
+.\"O Since this set is continuously extended, no list will be given here.
+.\"O The (current) default set can be viewed by using the
+.\"O .B "modprobe \-c"
+.\"O command with an empty
+.\"O .B /etc/modules.conf
+.\"O file.
+.I alias
+と
+.I options
+指定行に対しても一連のデフォルト設定がある。
+このセットは継続的に拡張されているので、ここにはリストしない。
+(現在の) デフォルトのセットは、
+.B /etc/modules.conf
+ファイルがないときに
+.B "modprobe \-c"
+コマンドを実行すれば閲覧できる。
+.PP
+.\"O All
+.\"O .I options
+.\"O directives specify the options needed for
+.\"O a module, as in:
+全ての
+.I options
+指定行は、以下のようにモジュールに必要なオプションを指定する。
+.sp
+.nf
+.\"O 
+  modprobe de620 bnc=1
+.\"O 
+.fi
+.sp
+.\"O These options will be overridden by any options given
+.\"O in the
+.\"O .B /etc/modules.conf
+.\"O file, and on the
+.\"O .B modprobe
+.\"O command line.
+これらのオプションは
+.B /etc/modules.conf
+ファイルに与えられているオプションと、
+.B modprobe
+のコマンドラインによって上書きされる。
+.PP
+.\"O Remember that it is possible to have an
+.\"O .I options
+.\"O directive for aliased module names as well
+.\"O as for the non-aliased name.
+.\"O This is useful for e.g. the dummy module:
+エイリアスされたモジュールにも
+.I options
+指定行は (されていないモジュールと) 同じように使うことができる。
+これは例えばダミーのモジュールに便利である。
+.sp
+.nf
+.\"O 
+  alias dummy0 dummy
+  options dummy0 \-o dummy0
+.\"O 
+.fi
+.\"O .PP
+.\"O .SH ALTERNATIVE CONFIGURATION FILE
+.SH 別の設定ファイル
+.\"O For historical reasons, if /etc/modules.conf does not exist, modutils
+.\"O will read /etc/conf.modules instead.
+.\"O However the use of this historical name is deprecated and it should be
+.\"O replaced with /etc/modules.conf.
+.\"O This version of modutils issues a warning message if /etc/conf.modules
+.\"O exists, later versions will give an error message and refuse to load
+.\"O modules.
+歴史的な理由から、もし /etc/modules.conf が存在しないと、
+modutils は代わりに /etc/conf.modules を読む。
+しかしこの古い名前の利用は推奨できない。
+/etc/modules.conf に置き換えるべきである。
+このバージョンの modutils では、
+/etc/conf.modules があると警告メッセージを発する。
+以降のバージョンではエラーメッセージを出して
+モジュールのロードを行わないことになるだろう。
+.\"O .SH SEE ALSO
+.SH 関連項目
+.\"O depmod(8), modprobe(8), insmod(8)
+.BR depmod (8),
+.BR modprobe (8),
+.BR insmod (8)
+.\"O .SH AUTHOR
+.SH 著者
+.nf
+Bjorn Ekwall <bj0rn@blox.se>
+Keith Owens <kaos@ocs.com.au>
+.fi
+

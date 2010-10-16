@@ -1,0 +1,926 @@
+'\" t
+.\" Copyright (c) 2005 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Japanese Version Copyright (c) 2005 Akihiro MOTOKI all rights reserved.
+.\" Translated 2005-09-06, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2006-04-15, Akihiro MOTOKI, LDP v2.29
+.\" Updated 2007-01-05, Akihiro MOTOKI, LDP v2.43
+.\" Updated 2008-08-08, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2008-11-05, Akihiro MOTOKI, LDP v3.12
+.\" Updated 2008-11-09, Akihiro MOTOKI, LDP v3.13
+.\" Updated 2008-12-26, Akihiro MOTOKI, LDP v3.14
+.\"
+.\"WORD:	manager thread		管理スレッド
+.\"WORD:	thread group		スレッド・グループ
+.\"WORD:	real-time signal	リアルタイムシグナル
+.\"WORD:	non-conformant		標準非準拠の
+.\"WORD:	alternate signal stack	代替シグナルスタック
+.\"
+.TH PTHREADS 7  2008-11-18 "Linux" "Linux Programmer's Manual"
+.SH 名前
+pthreads \- POSIX スレッド
+.SH 説明
+POSIX.1 は、一般に POSIX スレッドや Pthreads として知られる
+スレッド・プログラミングのインタフェース群 (関数、ヘッダファイル)
+を規定している。一つのプロセスは複数のスレッドを持つことができ、
+全てのスレッドは同じプログラムを実行する。
+これらのスレッドは同じ大域メモリ (データとヒープ領域) を共有するが、
+各スレッドは自分専用のスタック (自動変数) を持つ。
+
+POSIX.1 はスレッド間でどのような属性を共有するかについても定めている
+(つまり、これらの属性はスレッド単位ではなくプロセス全体で共通である):
+.IP \- 3
+プロセス ID
+.IP \- 3
+親プロセス ID
+.IP \- 3
+プロセスグループ ID とセッション ID
+.IP \- 3
+制御端末
+.IP \- 3
+ユーザ ID とグループ ID
+.IP \- 3
+オープンするファイルディスクリプタ
+.IP \- 3
+レコードのロック
+.RB ( fcntl (3)
+参照)
+.IP \- 3
+シグナルの配置
+.IP \- 3
+ファイルモード作成マスク
+.RB ( umask (2))
+.IP \- 3
+カレント・ディレクトリ
+.RB ( chdir (2))
+とルート・ディレクトリ
+.RB ( chroot (2))
+.IP \- 3
+インターバル・タイマ
+.RB ( setitimer (2))
+と POSIX タイマ
+.RB ( timer_create (2))
+.IP \- 3
+nice 値
+.RB ( setpriority (2))
+.IP \- 3
+リソース制限
+.RB ( setrlimit (2))
+.IP \- 3
+CPU 時間
+.RB ( times (2))
+とリソース
+.RB ( getrusage (2))
+の消費状況の計測
+.PP
+スタックについても、POSIX.1 はどのような属性が
+個々のスレッドで独立に管理されるかを規定している:
+.IP \- 3
+スレッド ID
+.RB ( pthread_t
+データ型)
+.IP \- 3
+シグナルマスク
+.RB ( pthread_sigmask (3))
+.IP \- 3
+.I errno
+変数
+.IP \- 3
+代替シグナルスタック
+.RB ( sigaltstack (2))
+.IP \- 3
+リアルタイム・スケジューリングのポリシーと優先度
+.RB ( sched_setscheduler (2)
+と
+.BR sched_setparam (2))
+.PP
+以下の Linux 特有の機能もスレッド単位である:
+.IP \- 3
+ケーパビリティ
+.RB ( capabilities (7)
+参照)
+.IP \- 3
+CPU affinity (親和度)
+.RB ( sched_setaffinity (2))
+.SS "pthreads 関数の返り値"
+ほとんどの pthreads 関数は成功すると 0 を返し、
+失敗した場合エラー番号を返す。
+pthreads 関数は
+.I errno
+をセットしない点に注意すること。
+POSIX.1-2001 では、
+エラーを返す可能性のある pthreads 関数がエラー
+.B EINTR
+で失敗することは決してないと規定している。
+.SS "スレッド ID"
+あるプロセス内の各スレッドは
+.RI ( pthread_t
+型の) 一意なスレッド識別子を持つ。
+この識別子は、
+.BR pthread_create (3)
+の呼び出し元に返される。また、スレッドは自身のスレッド識別子を
+.BR pthread_self (3)
+を使って取得できる。
+スレッド ID の一意性が保証されるのは、一つのプロセス内においてのみである。
+終了したスレッドが join された後では、スレッド ID は再利用される可能性がある。
+スレッド ID を引き数に取る全てのスレッド関数において、
+その ID は呼び出し元と同じプロセス内の一つのスレッドを参照する。
+.SS "スレッドセーフな関数"
+スレッドセーフな関数は、複数のスレッドから同時に呼び出しても安全な
+(すなわち、同時に呼び出されたかに関わらず、同じ結果を返す) 関数のことである。
+
+POSIX.1-2001 と POSIX.1-2008では、一部の例外を除き、
+標準で規定されている全ての関数がスレッドセーフであることを要求している。
+以下の関数が例外である。
+.in +4n
+.nf
+
+asctime()
+basename()
+catgets()
+crypt()
+ctermid() (NULL でない引き数を渡された場合)
+ctime()
+dbm_clearerr()
+dbm_close()
+dbm_delete()
+dbm_error()
+dbm_fetch()
+dbm_firstkey()
+dbm_nextkey()
+dbm_open()
+dbm_store()
+dirname()
+dlerror()
+drand48()
+ecvt() [POSIX.1-2001 のみ (POSIX.1-2008 で削除された)]
+encrypt()
+endgrent()
+endpwent()
+endutxent()
+fcvt() [POSIX.1-2001 のみ (POSIX.1-2008 で削除された)]
+ftw()
+gcvt() [POSIX.1-2001 のみ (POSIX.1-2008 で削除された)]
+getc_unlocked()
+getchar_unlocked()
+getdate()
+getenv()
+getgrent()
+getgrgid()
+getgrnam()
+gethostbyaddr() [POSIX.1-2001 のみ (POSIX.1-2008 で削除された)]
+gethostbyname() [POSIX.1-2001 のみ (POSIX.1-2008 で削除された)]
+gethostent()
+getlogin()
+getnetbyaddr()
+getnetbyname()
+getnetent()
+getopt()
+getprotobyname()
+getprotobynumber()
+getprotoent()
+getpwent()
+getpwnam()
+getpwuid()
+getservbyname()
+getservbyport()
+getservent()
+getutxent()
+getutxid()
+getutxline()
+gmtime()
+hcreate()
+hdestroy()
+hsearch()
+inet_ntoa()
+l64a()
+lgamma()
+lgammaf()
+lgammal()
+localeconv()
+localtime()
+lrand48()
+mrand48()
+nftw()
+nl_langinfo()
+ptsname()
+putc_unlocked()
+putchar_unlocked()
+putenv()
+pututxline()
+rand()
+readdir()
+setenv()
+setgrent()
+setkey()
+setpwent()
+setutxent()
+strerror()
+strsignal() [POSIX.1-2008 で追加された]
+strtok()
+system() [POSIX.1-2008 で追加された]
+tmpnam() (NULL でない引き数を渡された場合)
+ttyname()
+unsetenv()
+wcrtomb() (最後の引き数が NULL の場合)
+wcsrtombs() (最後の引き数が NULL の場合)
+wcstombs()
+wctomb()
+.fi
+.in
+.SS 取り消しポイント (cancellation points)
+POSIX.1 の規定では、特定の関数は取り消しポイントでなければならず、
+他の特定の関数は取り消しポイントであってもよいとされている。
+あるスレッドが取り消し可能で、その取り消し種別 (cancelability type)
+が延期 (deferred) で、そのスレッドに対する取り消し要求が処理待ちの場合、
+取り消しポイントである関数を呼び出した時点で、そのスレッドのキャンセルが
+行われる。
+
+POSIX.1-2001 と POSIX.1-2008 の両方、もしくはいずれか一方では、
+以下の関数は、取り消しポイント (cancellation points) で
+あることが必須となっている。
+
+.\" FIXME
+.\" Document the list of all functions that are cancellation points in glibc
+.in +4n
+.nf
+accept()
+aio_suspend()
+clock_nanosleep()
+close()
+connect()
+creat()
+fcntl() F_SETLKW
+fdatasync()
+fsync()
+getmsg()
+getpmsg()
+lockf() F_LOCK
+mq_receive()
+mq_send()
+mq_timedreceive()
+mq_timedsend()
+msgrcv()
+msgsnd()
+msync()
+nanosleep()
+open()
+openat() [POSIX.1-2008 で追加された]
+pause()
+poll()
+pread()
+pselect()
+pthread_cond_timedwait()
+pthread_cond_wait()
+pthread_join()
+pthread_testcancel()
+putmsg()
+putpmsg()
+pwrite()
+read()
+readv()
+recv()
+recvfrom()
+recvmsg()
+select()
+sem_timedwait()
+sem_wait()
+send()
+sendmsg()
+sendto()
+sigpause() [POSIX.1-2001 only (moves to "may" list in POSIX.1-2008)]
+sigsuspend()
+sigtimedwait()
+sigwait()
+sigwaitinfo()
+sleep()
+system()
+tcdrain()
+usleep() [POSIX.1-2001 のみ (POSIX.1-2008 で削除された)]
+wait()
+waitid()
+waitpid()
+write()
+writev()
+.fi
+.in
+
+POSIX.1-2001 と POSIX.1-2008 の両方、もしくはいずれか一方では、
+以下の関数は、取り消しポイント (cancellation points) で
+あってもよいことになっている。
+
+.in +4n
+.nf
+access()
+asctime()
+asctime_r()
+catclose()
+catgets()
+catopen()
+chmod() [POSIX.1-2008 で追加された]
+chown() [POSIX.1-2008 で追加された]
+closedir()
+closelog()
+ctermid()
+ctime()
+ctime_r()
+dbm_close()
+dbm_delete()
+dbm_fetch()
+dbm_nextkey()
+dbm_open()
+dbm_store()
+dlclose()
+dlopen()
+dprintf() [POSIX.1-2008 で追加された]
+endgrent()
+endhostent()
+endnetent()
+endprotoent()
+endpwent()
+endservent()
+endutxent()
+faccessat() [POSIX.1-2008 で追加された]
+fchmod() [POSIX.1-2008 で追加された]
+fchmodat() [POSIX.1-2008 で追加された]
+fchown() [POSIX.1-2008 で追加された]
+fchownat() [POSIX.1-2008 で追加された]
+fclose()
+fcntl() (cmd 引き数が何であっても)
+fflush()
+fgetc()
+fgetpos()
+fgets()
+fgetwc()
+fgetws()
+fmtmsg()
+fopen()
+fpathconf()
+fprintf()
+fputc()
+fputs()
+fputwc()
+fputws()
+fread()
+freopen()
+fscanf()
+fseek()
+fseeko()
+fsetpos()
+fstat()
+fstatat() [POSIX.1-2008 で追加された]
+ftell()
+ftello()
+ftw()
+futimens() [POSIX.1-2008 で追加された]
+fwprintf()
+fwrite()
+fwscanf()
+getaddrinfo()
+getc()
+getc_unlocked()
+getchar()
+getchar_unlocked()
+getcwd()
+getdate()
+getdelim() [POSIX.1-2008 で追加された]
+getgrent()
+getgrgid()
+getgrgid_r()
+getgrnam()
+getgrnam_r()
+gethostbyaddr() [SUSv3 のみ (この関数は POSIX.1-2008 で削除されている)]
+gethostbyname() [SUSv3 のみ (この関数は POSIX.1-2008 で削除されている)]
+gethostent()
+gethostid()
+gethostname()
+getline() [POSIX.1-2008 で追加された]
+getlogin()
+getlogin_r()
+getnameinfo()
+getnetbyaddr()
+getnetbyname()
+getnetent()
+getopt() (opterr が 0 以外の場合)
+getprotobyname()
+getprotobynumber()
+getprotoent()
+getpwent()
+getpwnam()
+getpwnam_r()
+getpwuid()
+getpwuid_r()
+gets()
+getservbyname()
+getservbyport()
+getservent()
+getutxent()
+getutxid()
+getutxline()
+getwc()
+getwchar()
+getwd() [SUSv3 のみ (この関数は POSIX.1-2008 で削除されている)]
+glob()
+iconv_close()
+iconv_open()
+ioctl()
+link()
+linkat() [POSIX.1-2008 で追加された]
+lio_listio() [POSIX.1-2008 で追加された]
+localtime()
+localtime_r()
+lockf() [POSIX.1-2008 で追加された]
+lseek()
+lstat()
+mkdir() [POSIX.1-2008 で追加された]
+mkdirat() [POSIX.1-2008 で追加された]
+mkdtemp() [POSIX.1-2008 で追加された]
+mkfifo() [POSIX.1-2008 で追加された]
+mkfifoat() [POSIX.1-2008 で追加された]
+mknod() [POSIX.1-2008 で追加された]
+mknodat() [POSIX.1-2008 で追加された]
+mkstemp()
+mktime()
+nftw()
+opendir()
+openlog()
+pathconf()
+pclose()
+perror()
+popen()
+posix_fadvise()
+posix_fallocate()
+posix_madvise()
+posix_openpt()
+posix_spawn()
+posix_spawnp()
+posix_trace_clear()
+posix_trace_close()
+posix_trace_create()
+posix_trace_create_withlog()
+posix_trace_eventtypelist_getnext_id()
+posix_trace_eventtypelist_rewind()
+posix_trace_flush()
+posix_trace_get_attr()
+posix_trace_get_filter()
+posix_trace_get_status()
+posix_trace_getnext_event()
+posix_trace_open()
+posix_trace_rewind()
+posix_trace_set_filter()
+posix_trace_shutdown()
+posix_trace_timedgetnext_event()
+posix_typed_mem_open()
+printf()
+psiginfo() [POSIX.1-2008 で追加された]
+psignal() [POSIX.1-2008 で追加された]
+pthread_rwlock_rdlock()
+pthread_rwlock_timedrdlock()
+pthread_rwlock_timedwrlock()
+pthread_rwlock_wrlock()
+putc()
+putc_unlocked()
+putchar()
+putchar_unlocked()
+puts()
+pututxline()
+putwc()
+putwchar()
+readdir()
+readdir_r()
+readlink() [POSIX.1-2008 で追加された]
+readlinkat() [POSIX.1-2008 で追加された]
+remove()
+rename()
+renameat() [POSIX.1-2008 で追加された]
+rewind()
+rewinddir()
+scandir() [POSIX.1-2008 で追加された]
+scanf()
+seekdir()
+semop()
+setgrent()
+sethostent()
+setnetent()
+setprotoent()
+setpwent()
+setservent()
+setutxent()
+sigpause() [POSIX.1-2008 で追加された]
+stat()
+strerror()
+strerror_r()
+strftime()
+symlink()
+symlinkat() [POSIX.1-2008 で追加された]
+sync()
+syslog()
+tmpfile()
+tmpnam()
+ttyname()
+ttyname_r()
+tzset()
+ungetc()
+ungetwc()
+unlink()
+unlinkat() [POSIX.1-2008 で追加された]
+utime() [POSIX.1-2008 で追加された]
+utimensat() [POSIX.1-2008 で追加された]
+utimes() [POSIX.1-2008 で追加された]
+vdprintf() [POSIX.1-2008 で追加された]
+vfprintf()
+vfwprintf()
+vprintf()
+vwprintf()
+wcsftime()
+wordexp()
+wprintf()
+wscanf()
+.fi
+.in
+
+実装時に、標準規格で規定されていないその他の関数を取り消しポイント
+とすることも認められている。
+特に、停止 (block) する可能性がある非標準の関数を取り消しポイントと
+する実装はあり得ることだろう
+(ファイルを扱う可能性のあるほとんどの関数がこれに含まれる)。
+.\" So, scanning "cancellation point" comments in the glibc 2.8 header
+.\" files, it looks as though at least the following nonstandard
+.\" functions are cancellation points:
+.\" endnetgrent
+.\" endspent
+.\" epoll_pwait
+.\" epoll_wait
+.\" fcloseall
+.\" fdopendir
+.\" fflush_unlocked
+.\" fgetc_unlocked
+.\" fgetgrent
+.\" fgetgrent_r
+.\" fgetpwent
+.\" fgetpwent_r
+.\" fgets_unlocked
+.\" fgetspent
+.\" fgetspent_r
+.\" fgetwc_unlocked
+.\" fgetws_unlocked
+.\" fputc_unlocked
+.\" fputs_unlocked
+.\" fputwc_unlocked
+.\" fputws_unlocked
+.\" fread_unlocked
+.\" fwrite_unlocked
+.\" gai_suspend
+.\" getaddrinfo_a
+.\" getdate_r
+.\" getgrent_r
+.\" getgrouplist
+.\" gethostbyaddr_r
+.\" gethostbyname2
+.\" gethostbyname2_r
+.\" gethostbyname_r
+.\" gethostent_r
+.\" getnetbyaddr_r
+.\" getnetbyname_r
+.\" getnetent_r
+.\" getnetgrent
+.\" getnetgrent_r
+.\" getprotobyname_r
+.\" getprotobynumber_r
+.\" getprotoent_r
+.\" getpw
+.\" getpwent_r
+.\" getservbyname_r
+.\" getservbyport_r
+.\" getservent_r
+.\" getspent
+.\" getspent_r
+.\" getspnam
+.\" getspnam_r
+.\" getutmp
+.\" getutmpx
+.\" getw
+.\" getwc_unlocked
+.\" getwchar_unlocked
+.\" initgroups
+.\" innetgr
+.\" mkostemp
+.\" mkostemp64
+.\" mkstemp64
+.\" ppoll
+.\" pthread_timedjoin_np
+.\" putgrent
+.\" putpwent
+.\" putspent
+.\" putw
+.\" putwc_unlocked
+.\" putwchar_unlocked
+.\" rcmd
+.\" rcmd_af
+.\" rexec
+.\" rexec_af
+.\" rresvport
+.\" rresvport_af
+.\" ruserok
+.\" ruserok_af
+.\" setnetgrent
+.\" setspent
+.\" sgetspent
+.\" sgetspent_r
+.\" updwtmpx
+.\" utmpxname
+.\" vfscanf
+.\" vfwscanf
+.\" vscanf
+.\" vsyslog
+.\" vwscanf
+.SS "Linux でのコンパイル"
+Linux では、Pthreads API を用いたプログラムは
+.I "cc \-pthread"
+でコンパイルすべきである。
+.SS "POSIX スレッドの Linux での実装"
+これまで、2つのスレッドの実装が Linux の GNU C ライブラリにより
+提供されてきた。
+.TP
+.B LinuxThreads
+最初の Pthreads の実装。
+glibc 2.4 以降は、この実装はもはやサポートされていない。
+.TP
+.BR NPTL " (Native POSIX Threads Library)"
+新しい Pthreads の実装。LinuxThreads と比べると、
+NPTL は POSIX.1 の要求仕様への準拠の度合いが高く、
+多数のスレッドを作成した際の性能も高い。
+NPTL は glibc 2.3.2 以降で利用可能である。
+NPTL を利用するには Linux 2.6 カーネルに実装されている機能が必要である。
+.PP
+どちらの実装もいわゆる 1:1 実装、すなわち個々のスレッドが
+カーネルのスケジューリング実体にマッピングされる。
+どちらのスレッドの実装も Linux の
+.BR clone (2)
+システムコールを利用している。
+NPTL では、スレッド同期の基本機構 (mutex や スレッドの join 等) は
+Linux の
+.BR futex (2)
+システムコールを使って実装されている。
+.SS LinuxThreads
+この実装の大きな特徴は以下の通りである:
+.IP \- 3
+メインスレッド (最初のスレッド) とプログラムが
+.BR pthread_create (3)
+を使って作成したスレッドに加え、
+この実装では「管理 (manager)」スレッドが作成される。
+管理スレッドはスレッドの作成と終了を取り扱う
+(このスレッドがうっかり kill されると、問題が起こることがある)。
+.IP \- 3
+この実装では内部でシグナルを使用している。
+Linux 2.2 以降では、リアルタイムシグナルのうち最初の 3つが使われる
+.RB ( signal (7)
+参照)。
+それ以前のカーネルでは
+.B SIGUSR1
+と
+.B SIGUSR2
+が使われる。
+アプリケーションは、スレッド実装で利用されているシグナルを
+どれも使わないようにしなければならない。
+.IP \- 3
+スレッド間でプロセス ID を共有しない
+(実際には LinuxThreads のスレッドは通常よりは情報を共有するプロセスとして
+実装されているが、一つの共通のプロセス ID を共有してはいない)。
+(管理スレッドを含む) LinuxThreads スレッドは
+.BR ps (1)
+を使うと別のプロセスのように見える。
+.PP
+LinuxThreads の実装では POSIX.1 仕様から逸脱している点が
+いくつかある。以下に示すような点がある:
+.IP \- 3
+.BR getpid (2)
+を呼び出したときに、スレッド毎に異なる値が返される。
+.IP \- 3
+メインスレッド以外のスレッドで
+.BR getppid (2)
+を呼び出すと、管理スレッドのプロセス ID が返される。
+本当は、これらのスレッドで
+.BR getppid (2)
+を呼んだ場合にはメインスレッドでの
+.BR getppid (2)
+と同じ値が返るべきである。
+.IP \- 3
+あるスレッドが
+.BR fork (2)
+を使って新しい子プロセスを作成した場合、
+どのスレッドでもこの子プロセスを
+.BR wait (2)
+できるべきである。しかしながら、この実装では子プロセスを作成した
+スレッドだけがこの子プロセスを
+.BR wait (2)
+できる。
+.IP \- 3
+あるスレッドが
+.BR execve (2)
+を呼び出した場合、他のスレッドは全て終了される (POSIX.1 の仕様通り)。
+しかしながら、新しいプロセスは
+.BR execve (2)
+を呼んだスレッドと同じ PID を持つ。正しくは
+メインスレッドと同じ PID を持つべきである。
+.IP \- 3
+スレッド間でユーザ ID とグループ ID が共有されない
+このことは、set-user-ID プログラムで面倒な事態を招いたり、
+アプリケーションが
+.BR seteuid (2)
+などを使って信用情報 (credentials) を変更した場合に
+Pthreads 関数が失敗する原因となる。
+.IP \- 3
+スレッド間で共通のセッション ID やプロセスグループ ID を共有しない。
+.IP \- 3
+スレッド間で
+.BR fcntl (2)
+を使って作成されるレコード・ロックを共有しない。
+.IP \- 3
+.BR times (2)
+と
+.BR getrusage (2)
+が返す情報がプロセス全体の情報でなくスレッド単位の情報である。
+.IP \- 3
+スレッド間でセマフォのアンドゥ値
+.RB ( semop (2)
+参照) を共有しない。
+.IP \- 3
+スレッド間でインターバル・タイマを共有しない。
+.IP \- 3
+スレッドは共通の nice 値を共有しない。
+.IP \- 3
+POSXI.1 では、全体としてのプロセスに送られるシグナルと、
+個別のスレッドに送られるシグナルを区別して考えている。
+POSIX.1 によると、プロセスに送られたシグナル (例えば
+.BR kill (2)
+を使って送る) は、そのプロセスに属すスレッドのうち
+勝手に (arbitrarily) に選択された一つのスレッドにより処理される
+ことになっている。LinuxThreads はプロセスに送られるシグナルの
+概念に対応しておらず、シグナルは特定のスレッドにだけ送ることができる。
+.IP \- 3
+スレッドはそれぞれの独自の代替シグナルスタックの設定を持つ。
+しかし、新しいスレッドの代替シグナルスタックの設定は
+そのスレッドを作成したスレッドからコピーされ、そのため
+スレッドは最初は一つの代替シグナルスタックを共有する。
+(仕様では、新しいスレッドは代替シグナルスタックが定義されていない状態
+で開始されるべきとされている。
+2つのスレッドが共有されている代替シグナルスタック上で同時に
+シグナルの処理を行った場合、予測不可能なプログラムのエラーが
+起こり得る。)
+.SS NPTL
+NPTL では、一つのプロセスの全てのスレッドは同じスレッド・グループ
+に属する; スレッド・グループの全メンバーは同じ PID を共有する。
+NPTL は管理スレッド (manager thread) を利用しない。
+NPTL は内部でリアルタイムシグナルのうち最初の 2つの番号を使用しており
+.RB ( signal (7)
+参照)、これらのシグナルはアプリケーションでは使用できない。
+
+NPTL にも POSIX.1 に準拠していない点が少なくとも一つある:
+.IP \- 3
+スレッドは共通の nice 値を共有しない。
+.\" FIXME . bug report filed for NPTL nice nonconformance
+.\" http://bugzilla.kernel.org/show_bug.cgi?id=6258
+.\" Sep 08: there is a patch by Denys Vlasenko to address this
+.\" "make setpriority POSIX compliant; introduce PRIO_THREAD extension"
+.\" Monitor this to see if it makes it into mainline.
+.PP
+NPTL の標準非準拠な点のうちいくつかは以前のカーネルでのみ発生する:
+.IP \- 3
+.BR times (2)
+と
+.BR getrusage (2)
+が返す情報がプロセス全体の情報でなくスレッド単位の情報である
+(カーネル 2.6.9 で修正された)。
+.IP \- 3
+スレッド間でリソース制限を共有しない (カーネル 2.6.10 で修正された)。
+.IP \- 3
+スレッド間でインターバル・タイマを共有しない
+(カーネル 2.6.12 で修正された)。
+.IP \- 3
+メインスレッドだけが
+.BR setsid (2)
+を使って新しいセッションを開始することができる
+(カーネル 2.6.16 で修正された)。
+.IP \- 3
+メインスレッドだけが
+.BR setpgid (2)
+を使ってそのプロセスをプロセス・グループ・リーダーにすることができる
+(カーネル 2.6.16 で修正された)。
+.IP \- 3
+スレッドはそれぞれの独自の代替シグナルスタックの設定を持つ。
+しかし、新しいスレッドの代替シグナルスタックの設定は
+そのスレッドを作成したスレッドからコピーされ、そのため
+スレッドは最初は一つの代替シグナルスタックを共有する
+(カーネル 2.6.16 で修正された)。
+.PP
+NPTL の実装では以下の点についても注意すること:
+.IP \- 3
+スタックサイズのリソースのソフト・リミット
+.RB ( setrlimit (2)
+の
+.B RLIMIT_STACK
+の説明を参照) が
+.I unlimited
+以外の値に設定されている場合、ソフト・リミットの値が
+新しいスレッドのデフォルトのスタックサイズとなる。
+設定を有効にするためには、プログラムを実行する前にリミット値を
+設定しておかなければならない。たいていは、シェルの組み込みコマンドの
+.I ulimit -s
+(C シェルでは
+.IR "limit stacksize" )
+を使って設定する。
+.SS "スレッド実装の判定"
+glibc 2.3.2 以降では、
+.BR getconf (1)
+コマンドを使って、
+システムのスレッド実装を判定することができる。
+以下に例を示す:
+.nf
+.in +4n
+
+bash$ getconf GNU_LIBPTHREAD_VERSION
+NPTL 2.3.4
+.in
+.fi
+.PP
+ぞれ以前の glibc のバージョンでは、以下のようなコマンドで
+デフォルトのスレッド実装を判定することができる。
+.nf
+.in +4n
+
+bash$ $( ldd /bin/ls | grep libc.so | awk \(aq{print $3}\(aq ) | \\
+                egrep \-i \(aqthreads|ntpl\(aq
+        Native POSIX Threads Library by Ulrich Drepper et al
+.in
+.fi
+.SS "スレッドの実装の選択: LD_ASSUME_KERNEL"
+LinuxThreads と NPTL の両方をサポートしている glibc
+(glibc 2.3.\fIx\fP) があるシステムでは、
+.B LD_ASSUME_KERNEL
+環境変数を使うことで、動的リンカがデフォルトで
+選択するスレッド実装を上書きすることができる。
+この変数により、動的リンカが特定のバージョンのカーネル上で
+動作していると仮定するように指定する。
+NPTL が必要とするサポート機能を提供していないカーネルバージョンを
+指定することで、強制的に LinuxThreads を使うことができる
+(このようなことをする最もありそうな場面は、
+LinuxThreads の標準非準拠な振舞いに依存する (壊れた) アプリケーション
+を動作させる場合だろう)。
+以下に例を示す:
+.nf
+.in +4n
+
+bash$ $( LD_ASSUME_KERNEL=2.2.5 ldd /bin/ls | grep libc.so | \\
+                awk \(aq{print $3}\(aq ) | egrep \-i \(aqthreads|ntpl\(aq
+        linuxthreads-0.10 by Xavier Leroy
+.in
+.fi
+.SH 関連項目
+.BR clone (2),
+.BR futex (2),
+.BR gettid (2),
+.BR futex (7),
+.BR signal (7),
+.br
+および Pthreads の各種マニュアルページ、例えば:
+.BR pthread_attr_init (3),
+.BR pthread_atfork (3),
+.BR pthread_cancel (3),
+.BR pthread_cleanup_push (3),
+.BR pthread_cond_signal (3),
+.BR pthread_cond_wait (3),
+.BR pthread_create (3),
+.BR pthread_detach (3),
+.BR pthread_equal (3),
+.BR pthread_exit (3),
+.BR pthread_key_create (3),
+.BR pthread_kill (3),
+.BR pthread_mutex_lock (3),
+.BR pthread_mutex_unlock (3),
+.BR pthread_once (3),
+.BR pthread_setcancelstate (3),
+.BR pthread_setcanceltype (3),
+.BR pthread_setspecific (3),
+.BR pthread_sigmask (3),
+.BR pthread_testcancel (3)

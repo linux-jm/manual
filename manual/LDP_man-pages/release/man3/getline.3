@@ -1,0 +1,178 @@
+.\" Copyright (c) 2001 John Levon <moz@compsoc.man.ac.uk>
+.\" Based in part on GNU libc documentation
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" License.
+.\"
+.\" Japanese Version Copyright (c) 2001 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated 2001-11-09, Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated 2006-07-20, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.34
+.\" Updated 2010-04-18, Akihiro MOTOKI, LDP v3.24
+.\"
+.\"WORD:    delimiter    区切り文字
+.\"
+.TH GETLINE 3  2009-12-05 "GNU" "Linux Programmer's Manual"
+.SH 名前
+getline, getdelim \- 区切り文字までの文字列入力を読み込む
+.SH 書式
+.nf
+.B #include <stdio.h>
+.sp
+.BI "ssize_t getline(char **" lineptr ", size_t *" n ", FILE *" stream );
+
+.BI "ssize_t getdelim(char **" lineptr ", size_t *" n ", int " delim \
+", FILE *" stream );
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+
+glibc 2.10 より前:
+.br
+.BR getline (),
+.BR getdelim ():
+_GNU_SOURCE
+
+glibc 2.10 以降:
+.br
+.BR getline (),
+.BR getdelim ():
+_POSIX_C_SOURCE >= 200809 || _XOPEN_SOURCE >= 700
+.SH 説明
+.BR getline ()
+は \fIstream\fP から 1 行全てを読み込み、テキストが含まれているバッファのアドレスを
+.I "*lineptr"
+に格納する。
+バッファはヌル文字 (\e0) で終端される。
+改行文字が見つかった場合は、改行文字もバッファに格納される。
+
+.I "*lineptr"
+が NULL の場合、
+.BR getline ()
+は行の内容を格納するためのバッファを確保する。
+このバッファはユーザーのプログラムで解放すべきである
+.RI ( *n
+の値は無視される)。
+
+別の方法として、
+.BR getline ()
+を呼び出す際に、
+.I "*lineptr"
+に
+.BR malloc (3)
+で確保した大きさ
+.I "*n"
+バイトのバッファへのポインタを入れて渡すこともできる。
+読み込んだ行を保持するのに十分なバッファがない場合、
+.BR getline ()
+は
+.BR realloc (3)
+を使ってバッファのサイズを変更し、必要に応じて
+.I "*lineptr"
+と
+.I "*n"
+を更新する。
+
+どちらの場合でも、呼び出しに成功したときには、
+.I "*lineptr"
+と
+.I "*n"
+がバッファのアドレスと割り当てたサイズを反映した値に更新される。
+
+.BR getdelim ()
+は
+.BR getline ()
+と同じように動作するが、改行文字以外の区切り文字を引き数
+.I delim
+に指定することができる。
+.BR getline ()
+と同様に、ファイル終端に達するまでに入力行に区切り文字が見付からない場合は、
+区切り文字をバッファに追加しない。
+.SH 返り値
+成功した場合、
+.BR getline ()
+と
+.BR getdelim ()
+は読み込んだ文字数を返す。
+文字数には区切り文字は含まれるが、終端に使う NULL バイトは含まれない。
+この値によって、読み込んだ行に含まれる NULL バイトを操作することができる。
+
+どちらの関数も、行の読み込みに失敗した場合には \-1 を返す
+(ファイルの終端に達した場合にも \-1 を返す)。
+.SH エラー
+.TP
+.B EINVAL
+引き数が不正である
+.RI ( n
+または
+.I lineptr
+が NULL である。
+もしくは
+.I stream
+が有効でない)。
+.SH バージョン
+これらの関数は libc 4.6.27 以降で利用可能である。
+.SH 準拠
+.BR getline ()
+と
+.BR getdelim ()
+は、どちらも元は GNU による拡張であったが、
+POSIX.1-2008 で標準化された。
+.SH 例
+.nf
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+
+int
+main(void)
+{
+    FILE * fp;
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    fp = fopen("/etc/motd", "r");
+    if (fp == NULL)
+        exit(EXIT_FAILURE);
+
+    while ((read = getline(&line, &len, fp)) != \-1) {
+        printf("Retrieved line of length %zu :\en", read);
+        printf("%s", line);
+    }
+
+    if (line)
+        free(line);
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+.BR read (2),
+.BR fgets (3),
+.BR fopen (3),
+.BR fread (3),
+.BR gets (3),
+.BR scanf (3),
+.BR feature_test_macros (7)

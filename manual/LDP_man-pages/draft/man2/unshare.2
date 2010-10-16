@@ -1,0 +1,285 @@
+.\" Copyright (C) 2006, Janak Desai <janak@us.ibm.com>
+.\" and Copyright (C) 2006, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Licensed under the GPL
+.\"
+.\" Patch Justification:
+.\" unshare system call is needed to implement, using PAM,
+.\" per-security_context and/or per-user namespace to provide
+.\" polyinstantiated directories. Using unshare and bind mounts, a
+.\" PAM module can create private namespace with appropriate
+.\" directories(based on user's security context) bind mounted on
+.\" public directories such as /tmp, thus providing an instance of
+.\" /tmp that is based on user's security context. Without the
+.\" unshare system call, namespace separation can only be achieved
+.\" by clone, which would require porting and maintaining all commands
+.\" such as login, and su, that establish a user session.
+.\"
+.\" FIXME Document CLONE_NEWIPC, which is new in 2.6.18
+.\" FIXME Document CLONE_NEWUTS, which is new in 2.6.19
+.\" FIXME Document CLONE_SYSVSEM, which is new in 2.6.26
+.\"
+.\" Japanese Version Copyright (c) 2006 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated 2006-08-10 by Yuichi SATO <ysato444@yahoo.co.jp>, LDP v2.36
+.\"
+.TH UNSHARE 2 2008-11-20 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O unshare \- disassociate parts of the process execution context
+unshare \- プロセス実行コンテキストの一部を分離する
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #define _GNU_SOURCE
+.\" Actually _BSD_SOURCE || _SVID_SOURCE
+.\" See http://sources.redhat.com/bugzilla/show_bug.cgi?id=4749
+.B #include <sched.h>
+.sp
+.BI "int unshare(int " flags );
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .BR unshare ()
+.\"O allows a process to disassociate parts of its execution
+.\"O context that are currently being shared with other processes.
+.BR unshare ()
+を使うと、プロセスは他のプロセスと現在共有している
+実行コンテキストの一部を分離することができる。
+.\"O Part of the execution context, such as the mount namespace, is shared
+.\"O implicitly when a new process is created using
+.\"O .BR fork (2)
+.\"O or
+.\"O .BR vfork (2),
+.\"O while other parts, such as virtual memory, may be
+.\"O shared by explicit request when creating a process using
+.\"O .BR clone (2).
+実行コンテキストの一部、たとえばマウント名前空間 (mount namespace)
+などは、新しいプロセスを
+.BR fork (2)
+または
+.BR vfork (2)
+を使って生成したときに、暗黙のうちに共有される。
+一方、仮想メモリなどは、
+.BR clone (2)
+を使ってプロセスを生成するときに、明示的に共有することを要求できる。
+
+.\"O The main use of
+.\"O .BR unshare ()
+.\"O is to allow a process to control its
+.\"O shared execution context without creating a new process.
+.BR unshare ()
+の主な利用法は、プロセスが新しいプロセスを生成することなく、
+共有実行コンテキストを制御することである。
+
+.\"O The
+.\"O .I flags
+.\"O argument is a bit mask that specifies which parts of
+.\"O the execution context should be unshared.
+.I flags
+引き数はビットマスクであり、
+実行コンテキストのどの部分の共有を解除するかを表す。
+.\"O This argument is specified by ORing together zero or more
+.\"O of the following constants:
+この引き数は、以下の定数の 0 個以上の OR で指定する:
+.TP
+.B CLONE_FILES
+.\"O Reverse the effect of the
+.\"O .BR clone (2)
+.\"O .B CLONE_FILES
+.\"O flag.
+.BR clone (2)
+.B CLONE_FILES
+フラグの効果を取り消す。
+.\"O Unshare the file descriptor table, so that the calling process
+.\"O no longer shares its file descriptors with any other process.
+ファイルディスクリプタテーブルを共有させず、
+呼び出し元プロセスは他のプロセスとファイルディスクリプタを共有しなくなる。
+.TP
+.B CLONE_FS
+.\"O Reverse the effect of the
+.\"O .BR clone (2)
+.\"O .B CLONE_FS
+.\"O flag.
+.BR clone (2)
+.B CLONE_FS
+フラグの効果を取り消す。
+.\"O Unshare file system attributes, so that the calling process
+.\"O no longer shares its root directory, current directory,
+.\"O or umask attributes with any other process.
+ファイルシステム属性を共有させず、
+呼び出し元プロセスは他のプロセスとルートディレクトリ・
+カレントディレクトリ・umask 属性を共有しなくなる。
+.\"O .BR chroot (2),
+.\"O .BR chdir (2),
+.\"O or
+.\"O .BR umask (2)
+.BR chroot (2),
+.BR chdir (2),
+.BR umask (2)
+に影響する。
+.TP
+.B CLONE_NEWNS
+.\" These flag name are inconsistent:
+.\" CLONE_NEWNS does the same thing in clone(), but CLONE_VM,
+.\" CLONE_FS, and CLONE_FILES reverse the action of the clone()
+.\" flags of the same name.
+.\"O This flag has the
+.\"O .I same
+.\"O effect as the
+.\"O .BR clone (2)
+.\"O .B CLONE_NEWNS
+.\"O flag.
+このフラグは
+.BR clone (2)
+.B CLONE_NEWNS
+フラグと\fI同じ\fR効果を持つ。
+.\"O Unshare the mount namespace,
+.\"O so that the calling process has a private copy of
+.\"O its namespace which is not shared with any other process.
+マウント名前空間を共有せず、呼び出し元プロセスは
+他のプロセスとは共有しない固有の名前空間のコピーを持つ。
+.\"O Specifying this flag automatically implies
+.\"O .B CLONE_FS
+.\"O as well.
+このフラグを指定すると、
+.B CLONE_FS
+も暗黙のうちに指定される。
+.\" As at 2.6.16, the following forced implications also apply,
+.\" although the relevant flags are not yet implemented.
+.\" If CLONE_THREAD is set force CLONE_VM.
+.\" If CLONE_VM is set, force CLONE_SIGHAND.
+.\" If CLONE_SIGHAND is set and signals are also being shared
+.\" (i.e., current->signal->count > 1), force CLONE_THREAD.
+.\"
+.\" FIXME . CLONE_VM is not (yet, as at 2.6.16) implemented.
+.\" .TP
+.\" .B CLONE_VM
+.\" Reverse the effect of the
+.\" .BR clone (2)
+.\" .B CLONE_VM
+.\" flag.
+.\" .RB ( CLONE_VM
+.\" is also implicitly set by
+.\" .BR vfork (2),
+.\" and can be reversed using this
+.\" .BR unshare ()
+.\" flag.)
+.\" Unshare virtual memory, so that the calling process no
+.\" longer shares its virtual address space with any other process.
+.PP
+.\"O If
+.\"O .I flags
+.\"O is specified as zero, then
+.\"O .BR unshare ()
+.\"O is a no-op;
+.\"O no changes are made to the calling process's execution context.
+.I flags
+に 0 が指定された場合、
+.BR unshare ()
+は何も行わないので、
+呼び出し元プロセスの実行コンテキストは、何も変更されない。
+.\"O .SH RETURN VALUE
+.SH 返り値
+.\"O On success, zero returned.
+.\"O On failure, \-1 is returned and
+.\"O .I errno
+.\"O is set to indicate the error.
+成功した場合は 0 が返される。
+失敗した場合は \-1 が返されて、
+.I errno
+にはエラーを示す値が設定される。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EINVAL
+.\"O An invalid bit was specified in
+.\"O .IR flags .
+.I flags
+に不正なビットが指定された。
+.TP
+.B ENOMEM
+.\"O Cannot allocate sufficient memory to copy parts of caller's
+.\"O context that need to be unshared.
+呼び出し元のコンテキストのうち共有を解除する必要がある部分をコピーするために、
+十分なメモリが確保できなかった。
+.TP
+.B EPERM
+.\"O .I flags
+.\"O specified
+.\"O .B CLONE_NEWNS
+.\"O but the calling process was not privileged (did not have the
+.\"O .B CAP_SYS_ADMIN
+.\"O capability).
+.I flags
+に
+.B CLONE_NEWNS
+が指定されたが、呼び出し元プロセスに特権
+.RB ( CAP_SYS_ADMIN
+ケーパビリティ) がなかった。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O The
+.\"O .BR unshare ()
+.\"O system call was added to Linux in kernel 2.6.16.
+.BR unshare ()
+システムコールは Linux カーネル 2.6.16 で追加された。
+.\"O .SH CONFORMING TO
+.SH 準拠
+.\"O The
+.\"O .BR unshare ()
+.\"O system call is Linux-specific.
+.BR unshare ()
+システムコールは Linux 固有である。
+.\"O .SH NOTES
+.SH 注意
+.\"O Not all of the process attributes that can be shared when
+.\"O a new process is created using
+.\"O .BR clone (2)
+.\"O can be unshared using
+.\"O .BR unshare ().
+.BR clone (2)
+で新しいプロセスを生成したときに共有される全てのプロセス属性を、
+.BR unshare ()
+によって共有の解除ができるわけではない。
+.\"O In particular, as at kernel 2.6.16,
+.\"O .BR unshare ()
+.\"O does not implement flags that reverse the effects of
+特に、カーネル 2.6.16 においては、
+.BR unshare ()
+に
+.BR CLONE_SIGHAND ,
+.\" However, we can do unshare(CLONE_SIGHAND) if CLONE_SIGHAND
+.\" was not specified when doing clone(); i.e., unsharing
+.\" signal handlers is permitted if we are not actually
+.\" sharing signal handlers.   mtk
+.BR CLONE_SYSVSEM ,
+.BR CLONE_THREAD ,
+.\"O or
+.\" FIXME . check future kernel versions (e.g., 2.6.17)
+.\" to see if CLONE_VM gets implemented.
+.\"O .BR CLONE_VM .
+.B CLONE_VM
+の効果を取り消すためのフラグが実装されていない。
+.\" However, as at 2.6.16, we can do unshare(CLONE_VM) if CLONE_VM
+.\" was not specified when doing clone(); i.e., unsharing
+.\" virtual memory is permitted if we are not actually
+.\" sharing virtual memory.   mtk
+.\"O Such functionality may be added in the future, if required.
+これらの機能は、必要であれば将来追加されるかもしれない。
+.\"
+.\"9) Future Work
+.\"--------------
+.\"The current implementation of unshare does not allow unsharing of
+.\"signals and signal handlers. Signals are complex to begin with and
+.\"to unshare signals and/or signal handlers of a currently running
+.\"process is even more complex. If in the future there is a specific
+.\"need to allow unsharing of signals and/or signal handlers, it can
+.\"be incrementally added to unshare without affecting legacy
+.\"applications using unshare.
+.\"
+.\"O .SH SEE ALSO
+.SH 関連項目
+.BR clone (2),
+.BR fork (2),
+.BR vfork (2),
+Documentation/unshare.txt

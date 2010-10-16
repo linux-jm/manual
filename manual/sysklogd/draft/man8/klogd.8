@@ -1,0 +1,665 @@
+.\" Copyright 1994 Dr. Greg Wettstein, Enjellic Systems Development.
+.\" May be distributed under the GNU General Public License
+.\" Sun Jul 30 01:35:55 MET: Martin Schulze: Updates
+.\" Sun Nov 19 23:22:21 MET: Martin Schulze: Updates
+.\" Mon Aug 19 09:42:08 CDT 1996: Dr. G.W. Wettstein: Updates
+.\"
+.\" Japanese Version Copyright (c) 1998 MAEHARA Kohichi
+.\"         all rights reserved.
+.\" Translated Tue Feb 10 00:00:00 JST 1998
+.\"         by MAEHARA Kohichi <maeharak@kw.netlaputa.ne.jp>
+.\" Updated Thu 31 Aug 23:14:54 JST 2000 by Kentaro Shirakata <argrath@ub32.org>
+.\" Updated Thu  9 Sep 00:30:42 JST 2000 by Kentaro Shirakata <argrath@ub32.org>
+.\" Updated Wed 28 Mar 13:58:14 JST 2001 by Kentaro Shirakata <argrath@ub32.org>
+.\"
+.TH KLOGD 8 "21 August, 1999" "Version 1.4" "Linux System Administration"
+.\"O .SH NAME
+.SH 名前
+.\"O klogd \- Kernel Log Daemon
+klogd \- カーネルログデーモン
+.LP
+.SH 書式
+.B klogd
+.RB [ " \-c "
+.I n
+]
+.RB [ " \-d " ]
+.RB [ " \-f "
+.I fname
+]
+.RB [ " \-iI " ]
+.RB [ " \-n " ]
+.RB [ " \-o " ]
+.RB [ " \-p " ]
+.RB [ " \-s " ]
+.RB [ " \-k "
+.I fname
+]
+.RB [ " \-v " ]
+.RB [ " \-x " ]
+.RB [ " \-2 " ]
+.LP
+.SH 説明
+klogd は Linux のカーネルメッセージを捕え記録するシステムデーモンである。
+.LP
+.SH オプション
+.TP
+.BI "\-c " n
+コンソールに出力するログのレベルの既定値を \fIn\fR にする。
+.TP
+.B "\-d"
+デバッグモード。これは\fB大量に\fR stderr に出力する。
+.TP
+.BI "\-f " file
+syslog の facility ではなくて指定した名前のファイルにメッセージを記録
+する。
+.TP
+.BI "\-i \-I"
+.\"O Signal the currently executing klogd daemon.  Both of these switches control
+.\"O the loading/reloading of symbol information.  The \-i switch signals the
+.\"O daemon to reload the kernel module symbols.  The \-I switch signals for a
+.\"O reload of both the static kernel symbols and the kernel module symbols.
+現在実行されている klogd デーモンにシグナルを送る。
+どちらのオプションもシンボル情報を(再)読み込みするように指示する。
+\-iオプションはカーネルモジュールシンボルを再読み込みさせる。
+\-Iオプションは静的カーネルシンボルとカーネルモジュールシンボルの
+両方を再読み込みさせる。
+.TP
+.B "\-n"
+自動的なバックグラウンドへの移行を抑止する。これは 
+.B klogd 
+が 
+.BR init(8)
+により起動および制御される場合にのみ必要である。
+.TP
+.B "-o"
+`ワンショット'モードで実行する。\fBklogd\fP はカーネルメッセー
+ジバッファに存在する全てのメッセージを読み出し記録する。一回の読み出
+しと記録ののちデーモンは終了する。
+.TP
+.B "-p"
+.\"O Enable paranoia.  This option controls when klogd loads kernel module symbol
+.\"O information.  Setting this switch causes klogd to load the kernel module
+.\"O symbol information whenever an Oops string is detected in the kernel message
+.\"O stream.
+パラノイアモード。klog がいつカーネルモジュールシンボルを読み込むかを指定する。
+このオプションを設定すると、カーネルメッセージストリームに "Oops" の文字列が
+流れる毎にカーネルモジュールシンボルの情報を読み込む。
+.TP
+.B "-s"
+\fBklogd\fP はカーネルメッセージバッファとのインターフェイスにシステム
+コールの使用を強行する。
+.TP
+.BI "\-k " file
+カーネルシンボル情報を指定した名前のファイルから取得する。
+.TP
+.B "\-v"
+バージョンを出力し、終了する。
+.TP
+.B "\-x"
+.\"O Omits EIP translation and therefore doesn't read the System.map file.
+EIP 変換を抑制し、 System.map を読み込まない。
+.TP
+.B "\-2"
+.\"O When symbols are expanded, print the line twice.  Once with addresses
+.\"O converted to symbols, once with the raw text.  This allows external
+.\"O programs such as ksymoops do their own processing on the original
+.\"O data.
+シンボルが展開された時、
+アドレスをシンボルに変換したものと生テキストの 2 回表示する。
+これにより、ksymoops のような外部プログラムが変換される前の
+データを使って処理を行えるようになる。
+.LP
+.\"O .SH OVERVIEW
+.SH 概説
+.\"O The functionality of klogd has been typically incorporated into other
+.\"O versions of syslogd but this seems to be a poor place for it.  In the
+.\"O modern Linux kernel a number of kernel messaging issues such as
+.\"O sourcing, prioritization and resolution of kernel addresses must be
+.\"O addressed.  Incorporating kernel logging into a separate process
+.\"O offers a cleaner separation of services.
+klogd の機能はよく他の版の syslogd に編入されてしまいがちであるが、そ
+れはあまり良い方法とは思われない。最近の Linux カーネルにおいては、情
+報源の特定、順位付け、カーネルアドレスの解決など多くのメッセージに関す
+る問題を扱わなければならない。カーネルロギングを個別のプロセスとするこ
+とは、各種サービスの分割を明確なものにする。
+
+.\"O In Linux there are two potential sources of kernel log information: the 
+.\"O .I /proc
+.\"O file system and the syscall (sys_syslog) interface, although
+.\"O ultimately they are one and the same.  Klogd is designed to choose
+.\"O whichever source of information is the most appropriate.  It does this
+.\"O by first checking for the presence of a mounted 
+.\"O .I /proc
+.\"O file system.  If this is found the 
+.\"O .I /proc/kmsg
+.\"O file is used as the source of kernel log
+.\"O information.  If the proc file system is not mounted 
+.\"O .B klogd
+.\"O uses a
+.\"O system call to obtain kernel messages.  The command line switch
+.\"O .RB ( "\-s" )
+.\"O can be used to force klogd to use the system call interface as its
+.\"O messaging source.
+Linux ではカーネルログ情報の情報源として二つの可能性がある。
+.I /proc
+ファイルシステムと syscall (sys_syslog) インターフェースであるが、
+突き詰めていけばこれらは同じ一つのものである。
+klogd は最もふさわしい情報としてどちらかを選択するように設計されている。
+最初に、実際にマウントされている
+.I /proc
+ファイルシステムを確認する。もしそこに
+.I /proc/kmsg
+ファイルがあれば、それをカーネルログ情報の情報源として利用する。もし 
+proc ファイルシステムがマウントされていなければ、
+.B klogd 
+はカーネルメッセージの取得にシステムコールを利用する。コマンドラインス
+イッチの
+.RB ( "\-s" )
+は klogd にその情報源としてシステムコールの利用を強行させる。
+
+.\"O If kernel messages are directed through the 
+.\"O .BR syslogd " daemon the " klogd
+.\"O daemon, as of version 1.1, has the ability to properly prioritize
+.\"O kernel messages.  Prioritization of the kernel messages was added to it
+.\"O at approximately version 0.99pl13 of the kernel.  The raw kernel messages
+.\"O are of the form:
+もしカーネルメッセージが
+.B syslogd
+デーモンに振り向けられたとしても、
+version 1.1 の
+.B klogd 
+デーモンはその優先順位を適切に判定することが可能である。
+カーネルメッセージの優先順位付けは version 0.99pl13 あたり
+のカーネルで実装された。生のカーネルメッセージの形式は次の通り:
+.IP
+.\"O \<[0\-7]\>Something said by the kernel.
+\<[0\-7]\>カーネルからの出力
+.PP
+.\"O The priority of the kernel message is encoded as a single numeric
+.\"O digit enclosed inside the <> pair.  The definitions of these values is
+.\"O given in the kernel include file kernel.h.  When a message is received
+.\"O from the kernel the klogd daemon reads this priority level and assigns
+.\"O the appropriate priority level to the syslog message.  If file output
+.\"O (\fB-f\fR) is used the prioritization sequence is left pre\-pended to the
+.\"O kernel message.
+カーネルメッセージの優先順位は <> 括弧に閉じられた一桁の数字に変換される。
+この数値はカーネルの include ファイル kernel.h で定義されている。
+カーネルからメッセージを受けると klogd デーモンはこの優先順位を読み取り、
+適切な syslog のメッセージレベルに割り付ける。
+(\fB-f\fR)
+によってファイルへの出力が指示されている場合には、カーネルメッセージに
+優先順位番号が残される。
+
+.\"O The
+.\"O .B klogd
+.\"O daemon also allows the ability to alter the presentation of
+.\"O kernel messages to the system console.  Consequent with the
+.\"O prioritization of kernel messages was the inclusion of default
+.\"O messaging levels for the kernel.  In a stock kernel the the default
+.\"O console log level is set to 7.  Any messages with a priority level
+.\"O numerically lower than 7 (higher priority) appear on the console.
+klogd デーモンはカーネルメッセージの出力先をシステムコンソールへ変更す
+ることもできる。カーネルによって優先順位が付けられる結果として、
+メッセージはそれぞれデフォルトの既定のカーネルへのメッセージレベルが
+割り当てられている。
+手を加えていないカーネルのデフォルトのコンソールへのメッセージレベルは 
+7 に設定されている。7 よりも小さい(つまり高い)優先順位レベルを持つメッ
+セージはコンソールに出力される。
+
+.\"O Messages of priority level 7 are considered to be 'debug' messages and
+.\"O will thus not appear on the console.  Many administrators,
+.\"O particularly in a multi\-user environment, prefer that all kernel
+.\"O messages be handled by klogd and either directed to a file or to
+.\"O the syslogd daemon.  This prevents 'nuisance' messages such as line
+.\"O printer out of paper or disk change detected from cluttering the
+.\"O console.
+レベル 7 の優先順位を持つメッセージは `debug' メッセージとみなされ、
+コンソールには出力されない。特にマルチユーザ環境における、多くのシ
+ステム管理者は全てのカーネルメッセージを klogd により管理させ、
+ファイルか syslogd デーモンに渡したいと思うだろう。そうすれば、
+プリンタの用紙切れとかディスクの交換検出のような`わずらわしい'メッセージ
+のコンソールへの出力を避けることができる。
+
+.\"O When
+.\"O .B \-c
+.\"O is given on the commandline the
+.\"O .B klogd
+.\"O daemon will execute a system call to inhibit all kernel messages from
+.\"O being displayed on the console.  Former versions always issued this
+.\"O system call and defaulted to all kernel messages except for panics.
+.\"O This is handled differently nowardays so
+.\"O .B klogd
+.\"O doesn't need to set this value anymore.  The
+.\"O argument given to the \fB\-c\fR switch specifies the priority level of
+.\"O messages which will be directed to the console.  Note that messages of
+.\"O a priority value LOWER than the indicated number will be directed to
+.\"O the console.
+\fB\-c\fR オプションが指定されると、
+.B klogd
+デーモンはコンソールに表示される全てのカーネルメッセージを抑制する
+システムコールを実行する。
+以前のバージョンでは常にこのシステムコールが実行され、
+そのデフォルトは panic を除くすべてのカーネルメッセージであった。
+最近のバージョンでは少し違う扱いをしており、
+もはやこのオプション値を設定する必要はない。
+\fB\-c\fR オプションの引数にはコンソールへ出力すべきメッ
+セージの優先順位レベルを指定する。指示される数字「よりも小さい」優先順
+位値を持つメッセージがコンソールへ出力される、という点に注意すること。
+.IP
+.\"O For example, to have the kernel display all messages with a
+.\"O priority level of 3
+.\"O .BR "" ( KERN_ERR )
+.\"O or more severe the following
+.\"O command would be executed:
+たとえば、優先順位値が 3 
+.RB ( KERN_ERR )
+かそれよりも重要なすべてのメッセージをコンソールに出力するためには、次
+のコマンドを実行する:
+.IP
+.nf
+	klogd \-c 4
+.fi
+.PP
+.\"O The definitions of the numeric values for kernel messages are given in
+.\"O the file 
+.\"O .IR kernel.h " which can be found in the " /usr/include/linux
+.\"O directory if the kernel sources are installed.  These values parallel
+.\"O the syslog priority values which are defined in the file 
+.\"O .IR syslog.h " found in the " /usr/include/sys " sub\-directory."
+カーネルメッセージの(優先順位の)数値は、カーネルのソースコードが
+インストールされているのであれば、
+.IR /usr/include/linux
+にある
+.IR kernel.h 
+ファイルで定義されている。これらの数値は
+.IR /usr/include/sys 
+サブディレクトリにある
+.IR syslog.h 
+ファイルでの優先順位値の定義に対応している。
+
+.\"O The klogd daemon can also be used in a 'one\-shot' mode for reading the
+.\"O kernel message buffers.  One shot mode is selected by specifying the
+.\"O \fB\-o\fR switch on the command line.  Output will be directed to either the
+.\"O syslogd daemon or to an alternate file specified by the \fB-f\fR switch.
+klogd デーモンはカーネルメッセージを読み出す 'ワンショット' モードも利
+用可能である。ワンショットモードはコマンドラインの \fB\-o\fR オプション
+で指示される。その出力は syslogd デーモンに渡されるか \fB\-f\fR スイッ
+チが指定されていれば代りのファイルに書き出される。
+.IP
+.\"O For example, to read all the kernel messages after a system
+.\"O boot and record them in a file called krnl.msg the following
+.\"O command would be given.
+たとえば、システムがブートした際のカーネルメッセージを全て読み出して、
+それを krnl.msg という名前のファイルに記録するには次のコマンドを実行す
+る。
+.IP
+.nf
+	klogd -o -f ./krnl.msg
+.fi
+.PP
+.\"O .SH KERNEL ADDRESS RESOLUTION
+.SH カーネルアドレスの解決
+.\"O If the kernel detects an internal error condition a general protection
+.\"O fault will be triggered.  As part of the GPF handling procedure the
+.\"O kernel prints out a status report indicating the state of the
+.\"O processor at the time of the fault.  Included in this display are the
+.\"O contents of the microprocessor's registers, the contents of the kernel
+.\"O stack and a tracing of what functions were being executed at the time
+.\"O of the fault.
+カーネルが内部エラー状態を検出すると、
+一般保護違反 (General Protection Fault) が発生する。
+GPF 処理手続きの一部として、カーネルは違反が発生した時点での
+プロセッサの状態を示すステータス報告を表示する。
+この表示にはプロセッサのレジスタの内容、カーネルスタックの内容、
+違反が発生した時にどの関数が実行されていたかのトレースが含まれる。
+
+.\"O This information is
+.\"O .B EXTREMELY IMPORTANT
+.\"O in determining what caused the internal error condition.  The
+.\"O difficulty comes when a kernel developer attempts to analyze this
+.\"O information.  The raw numeric information present in the protection
+.\"O fault printout is of very little use to the developers.  This is due
+.\"O to the fact that kernels are not identical and the addresses of
+.\"O variable locations or functions will not be the same in all kernels.
+.\"O In order to correctly diagnose the cause of failure a kernel developer
+.\"O needs to know what specific kernel functions or variable locations
+.\"O were involved in the error.
+この情報は内部エラー状態が発生した原因を特定するために
+.B 極めて重要
+である。
+カーネル開発者がこの情報を分析しようとすると、困難が生じる。
+なぜならカーネルは全て同じなわけではなく、
+変数の位置や関数のアドレスはカーネルごとに異なるからである。
+エラーの原因を診断するためには、カーネル開発者は
+特定のカーネルの、どの関数や変数位置がエラーに関係したかを知る必要がある。
+
+.\"O As part of the kernel compilation process a listing is created which
+.\"O specified the address locations of important variables and function in
+.\"O the kernel being compiled.  This listing is saved in a file called
+.\"O System.map in the top of the kernel directory source tree.  Using this
+.\"O listing a kernel developer can determine exactly what the kernel was
+.\"O doing when the error condition occurred.
+カーネルコンパイル処理の一部として、
+コンパイルされたカーネルにおける重要な変数と関数のアドレスを記した一覧が作成される。
+この一覧は カーネルディレクトリソースツリーのトップに System.map という名前で
+作成される。
+この一覧を使って、カーネル開発者はエラー状態が発生した時に
+カーネルが何をしていたかを正確に知ることができる。
+
+.\"O The process of resolving the numeric addresses from the protection
+.\"O fault printout can be done manually or by using the
+.\"O .B ksymoops
+.\"O program which is included in the kernel sources.
+保護違反の表示から数値表現のアドレスを解決する処理は、
+手動かまたはカーネルソースに含まれる
+.B ksymoops
+プログラムを使って行なわれる。
+
+.\"O As a convenience
+.\"O .B klogd
+.\"O will attempt to resolve kernel numeric addresses to their symbolic
+.\"O forms if a kernel symbol table is available at execution time.  If you
+.\"O require the original address of the symbol, use the
+.\"O .B -2
+.\"O switch to preserve the numeric address.  A
+.\"O symbol table may be specified by using the \fB\-k\fR switch on the
+.\"O command line.  If a symbol file is not explicitly specified the
+.\"O following filenames will be tried:
+利便性のために、
+.B klogd
+はカーネルの数値表現のアドレスを、それらのシンボル表現に変換しようとする。
+ただし実行時にカーネルのシンボルテーブルが必要である。
+もしシンボルの元のアドレスも必要な場合は、
+.B -2
+を使うと数値アドレスも保存される。
+シンボルテーブルはコマンドラインの \fB\-k\fR オプションを用いて指定する。
+シンボルファイルが明示されない場合は、次の順番でファイルを探す:
+
+.nf
+.I /boot/System.map
+.I /System.map
+.I /usr/src/linux/System.map
+.fi
+
+カーネル 1.3.43 のシステムマップから、
+バージョン情報も提供されるようになっている。
+バージョン情報はシンボルテーブルのリストを解析検索する際に利用される。
+この機能は(カーネルの)安定版と先進版の両方で提供されているので
+(その判別に)役に立つ。
+
+たとえば、安定版のカーネルはそのマップファイルを /boot/System.map に持っ
+ている。もし先進版のカーネルが /usr/src/linux の `標準の' 配置でコンパ
+イルされているのであれば、システムマップは /usr/src/linux/System.map 
+に存在する。klogd は先進版のもとで起動する時には 
+/usr/src/linux/System.map マップファイル を優先して利用し、
+/boot/System.map マップファイルは無視する。
+
+1.3.43 以降の最近のカーネルでは klogd がきちんと理解し、変換できるように
+重要なカーネルアドレスは適切に整列されている。それ以前のカーネルはカー
+ネルのソースコードへのパッチが必要であり、そのパッチは sysklogd のソー
+スコードと共に提供されている。
+
+.\"O The process of analyzing kernel protections faults works very well
+.\"O with a static kernel.  Additional difficulties are encountered when
+.\"O attempting to diagnose errors which occur in loadable kernel modules.
+.\"O Loadable kernel modules are used to implement kernel functionality in
+.\"O a form which can be loaded or unloaded at will.  The use of loadable
+.\"O modules is useful from a debugging standpoint and can also be useful
+.\"O in decreasing the amount of memory required by a kernel.
+カーネル保護違反の分析処理は、静的カーネルに対しては非常にうまくいく。
+ローダブルカーネルモジュールで発生したエラーを診断しようとすると
+さらなる困難に出会うことになる。
+ローダブルカーネルモジュールはカーネルの機能の一部を
+自由にロードしたりアンロードしたりするのに用いられる。
+ローダブルモジュールはデバッグの観点から有用であり、
+カーネルが必要とするメモリの量を減らすのにも有用である。
+
+.\"O The difficulty with diagnosing errors in loadable modules is due to
+.\"O the dynamic nature of the kernel modules.  When a module is loaded the
+.\"O kernel will allocate memory to hold the module, when the module is
+.\"O unloaded this memory will be returned back to the kernel.  This
+.\"O dynamic memory allocation makes it impossible to produce a map file
+.\"O which details the addresses of the variable and functions in a kernel
+.\"O loadable module.  Without this location map it is not possible for a
+.\"O kernel developer to determine what went wrong if a protection fault
+.\"O involves a kernel module.
+ローダブルモジュールのエラー診断が困難なのは、
+カーネルモジュールが動的であるということによる。
+モジュールがロードされるとカーネルはモジュールを保持するためのメモリを確保し、
+モジュールがアンロードされるとこのメモリはカーネルに返される。
+動的にメモリが確保されるため、カーネルローダブルモジュールの
+変数や関数のアドレスの詳細を記したマップファイルを作成することは不可能である。
+マップファイルなしではカーネルモジュールによる保護違反が発生した時に
+カーネル開発者が何が悪いのかを判断することは不可能である。
+
+.\"O .B klogd
+.\"O has support for dealing with the problem of diagnosing protection
+.\"O faults in kernel loadable modules.  At program start time or in
+.\"O response to a signal the daemon will interrogate the kernel for a
+.\"O listing of all modules loaded and the addresses in memory they are
+.\"O loaded at.  Individual modules can also register the locations of
+.\"O important functions when the module is loaded.  The addresses of these
+.\"O exported symbols are also determined during this interrogation
+.\"O process.
+.B klogd
+はカーネルローダブルモジュールで発生した保護違反を診断する際に生じる
+この問題を扱えるようになっている。
+プログラム開始時やシグナルを受け取った時に、klogd は
+全てのロードされているモジュールと
+それらがロードされているメモリアドレスの一覧を問い合わせる。
+これらの外部シンボルのアドレスもこの問い合わせ処理の間に決定される。
+
+.\"O When a protection fault occurs an attempt will be made to resolve
+.\"O kernel addresses from the static symbol table.  If this fails the
+.\"O symbols from the currently loaded modules are examined in an attempt
+.\"O to resolve the addresses.  At the very minimum this allows klogd to
+.\"O indicate which loadable module was responsible for generating the
+.\"O protection fault.  Additional information may be available if the
+.\"O module developer chose to export symbol information from the module.
+保護違反が発生すると、
+静的シンボルテーブルからカーネルアドレスの解決を試みる。
+これに失敗した場合、
+現在ロードされているモジュールのシンボルを用いてアドレスの解決を試みる。
+これにより、最小限ではあるが、
+klogd は保護違反を起こしたローダブルモジュールがどれかを示すことができるようになる。
+もしモジュール開発者がモジュールからシンボル情報をエクスポートするように
+していれば、追加の情報も得られる。
+
+.\"O Proper and accurate resolution of addresses in kernel modules requires
+.\"O that
+.\"O .B klogd
+.\"O be informed whenever the kernel module status changes.  The
+.\"O .B \-i
+.\"O and
+.\"O .B \-I
+.\"O switches can be used to signal the currently executing daemon that
+.\"O symbol information be reloaded.  Of most importance to proper
+.\"O resolution of module symbols is the
+.\"O .B \-i
+.\"O switch.  Each time a kernel module is loaded or removed from the
+.\"O kernel the following command should be executed:
+カーネルモジュールのアドレスを適切かつ正確に解決するためには、
+カーネルモジュールの状態が変わる度にそれを
+.B klogd
+に知らせる必要がある。
+.B \-i
+と
+.B \-I
+オプションは現在起動しているデーモンにシンボル情報を再読み込みするように
+指示するために使われる。
+ほとんどの場合、適切にモジュールシンボルを解決させるために必要なのは
+.B \-i
+オプションである。カーネルモジュールが追加または削除される度に、
+以下のコマンドを実行するべきである。
+
+.nf
+.I klogd \-i
+.fi
+
+.\"O The
+.\"O .B \-p
+.\"O switch can also be used to insure that module symbol information is up
+.\"O to date.  This switch instructs
+.\"O .B klogd
+.\"O to reload the module symbol information whenever a protection fault
+.\"O is detected.  Caution should be used before invoking the program in
+.\"O \'paranoid\' mode.  The stability of the kernel and the operating
+.\"O environment is always under question when a protection fault occurs.
+.B \-p
+オプションもカーネルシンボル情報が最新であることを保証するために用いられる。
+このオプションは、保護違反が発生する度に
+.B klogd
+にモジュールシンボル情報を再読み込みするように指示する。
+プログラムを「パラノイア」モードで動かす前に注意してほしい。
+保護違反が発生した時のカーネルと実行環境の安定性は常に疑問である。
+.\"O Since the klogd daemon must execute system calls in order to read the
+.\"O module symbol information there is the possibility that the system may
+.\"O be too unstable to capture useful information.  A much better policy
+.\"O is to insure that klogd is updated whenever a module is loaded or
+.\"O unloaded.  Having uptodate symbol information loaded increases the
+.\"O probability of properly resolving a protection fault if it should occur.
+モジュールシンボル情報を読み込むために klogd デーモンが
+システムコールを実行する必要があるため、
+システムが不安定になって有用な情報が得られなくなる可能性がある。
+モジュールがロード・アンロードされた時に klogd (の情報)が更新される
+ことを保証する方が遥かによい方法である。
+最新のシンボル情報をあらかじめ読み込んでおくことにより、
+保護違反が起きた時にそれを正しく解決する可能性が上昇する。
+
+.\"O Included in the sysklogd source distribution is a patch to the
+.\"O modules-2.0.0 package which allows the
+.\"O .B insmod,
+.\"O .B rmmod
+.\"O and
+.\"O .B modprobe
+.\"O utilities to automatically signal
+.\"O .B klogd
+.\"O whenever a module is inserted or removed from the kernel.  Using this
+.\"O patch will insure that the symbol information maintained in klogd is
+.\"O always consistent with the current kernel state.
+sysklogd のソースパッケージには
+modules-2.0.0 パッケージに対するパッチが含まれている。
+このパッチを適用すると、
+.BR insmod ,
+.BR rmmod ,
+.B modprobe
+を使ってカーネルにモジュールを追加・削除した時に
+自動的に
+.B klogd
+にシグナルを送るようになる。
+
+.PP
+.\"O .SH SIGNAL HANDLING
+.SH シグナルの処理
+.\"O .B klogd
+.\"O will respond to eight signals:
+.\"O .BR SIGHUP ", " SIGINT ", " SIGKILL ", " SIGTERM ", " SIGTSTP ", "
+.\"O .BR SIGUSR1 ", "SIGUSR2 " and " SIGCONT ".  The"
+.\"O .BR SIGINT ", " SIGKILL ", " SIGTERM " and " SIGHUP
+.\"O signals will cause the daemon to close its kernel log sources and
+.\"O terminate gracefully.
+klogd は以下の 8 種類のシグナルに反応する:
+.BR SIGHUP ", " SIGINT ", " SIGKILL ", " SIGTERM ", " SIGTSTP ", "
+.BR SIGUSR1 ", "SIGUSR2 ", " SIGCONT
+。このうち 
+.BR SIGINT ", " SIGKILL ", " SIGTERM ", " SIGHUP
+の各シグナルはデーモンにカーネルログの生成源を閉じさせ、適切に終了させる。
+
+.BR SIGTSTP "と " SICONT
+の両シグナルはカーネルロギングの開始と終了のために利用される。
+.B SIGTSTP 
+シグナルを受信するとデーモンはそのログの生成源を閉じ、アイドルループに
+突入する。その次に
+.B SIGCONT 
+を受信するとデーモンは初期化を実行したのち、その入力源を再度選択し実行
+を再開する。
+.BR SIGSTOP "と " SIGCONT
+の組合せは無停止でカーネルログの入力源を再選択させることができる。例え
+ば、\fI/proc\fR ファイルシステムの利用を解除するには次の順番でコマンド
+を実行すればよい:
+.PP
+.PD 0
+.TP
+	# kill -TSTP pid
+.TP
+	# umount /proc
+.TP
+	# kill -CONT pid
+.PD
+.PP
+.B LOG_INFO 
+優先順位を持つシステムログがその停止/再開を記録する。
+
+.\"O The 
+.\"O .BR SIGUSR1 " and " SIGUSR2
+.\"O signals are used to initiate loading/reloading of kernel symbol information.
+.\"O Receipt of the
+.\"O .B SIGUSR1
+.\"O signal will cause the kernel module symbols to be reloaded.  Signaling the
+.\"O daemon with
+.\"O .B SIGUSR2
+.\"O will cause both the static kernel symbols and the kernel module symbols to
+.\"O be reloaded.
+.BR SIGUSR1 " と " SIGUSR2
+はカーネルシンボル情報を(再)読み込みさせるために用いる。
+.B SIGUSR1
+はカーネルモジュールシンボルを再読み込みさせる。
+.B SIGUSR2
+は静的カーネルシンボルとカーネルモジュールシンボルの両方を再読み込みさせる。
+
+.\"O Provided that the System.map file is placed in an appropriate location the
+.\"O signal of generally greatest usefulness is the
+.\"O .B SIGUSR1
+.\"O signal.  This signal is designed to be used to signal the daemon when kernel
+.\"O modules are loaded/unloaded.  Sending this signal to the daemon after a
+.\"O kernel module state change will insure that proper resolution of symbols will
+.\"O occur if a protection fault occurs in the address space occupied by a kernel
+.\"O module.
+System.map ファイルが適切な位置に置かれているなら、
+最も有効なシグナルは一般に
+.B SIGUSR1
+である。
+このシグナルはカーネルモジュールが(再)読み込みされた時のために
+用意されている。
+カーネルモジュールの状態が変わった後にこのシグナルをデーモンに送れば、
+カーネルモジュールが占めているアドレス空間で保護違反が起きた時に
+適切にシンボルを解決できることが保証される。
+.LP
+.\"O .SH FILES
+.SH ファイル
+.PD 0
+.TP
+.I /proc/kmsg
+.B klogd 
+の記録するカーネルメッセージ源の一つ
+.TP
+.I /var/run/klogd.pid
+.B klogd 
+のプロセス id が記録されているファイル
+.TP
+.I /boot/System.map, /System.map, /usr/src/linux/System.map
+カーネルシステムマップのデフォルト位置
+.PD
+.SH バグ
+多分、沢山。整理されたコンテキスト diff を送ってくれれば歓迎します。 
+.SH 著者
+.B klogd 
+のオリジナルは Steve Lord (lord@crya.com)によって書かれ、Greg
+Wettstein が多くの改善を施した。
+.PD 0
+.TP
+Dr. Greg Wettstein (greg@wind.enjellic.com)
+.TP
+Enjellic Systems Development
+.PD
+.PP
+.PD 0
+.TP
+Oncology Research Divsion Computing Facility
+.TP
+Roger Maris Cancer Center
+.TP
+Fargo, ND 58122
+.PD
+.zZ

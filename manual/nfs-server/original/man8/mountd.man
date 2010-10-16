@@ -1,0 +1,182 @@
+.TH MOUNTD 8 "11 August 1997"
+.SH NAME
+mountd \- NFS mount daemon
+.SH SYNOPSIS
+.ad l
+.B /usr/sbin/rpc.mountd
+.B "[\ \-f\ exports-file\ ]"
+.B "[\ \-d\ facility\ ]"
+.B "[\ \-P\ port\ ]"
+.B "[\ \-Dhnprv\ ]"
+.B "[\ \-\-debug\ facility ]"
+.B "[\ \-\-exports\-file=file\ ]"
+.B "[\ \-\-help\ ]"
+.B "[\ \-\-allow\-non\-root\ ]"
+.B "[\ \-\-re\-export\ ]"
+.B "[\ \-\-no\-spoof\-trace\ ]"
+.B "[\ \-\-version\ ]"
+.ad b
+.SH DESCRIPTION
+The
+.I mountd
+program is an NFS mount daemon. When receiving a MOUNT request from an
+NFS client, it checks the request against the list of exported file
+systems listen in
+.IR /etc/exports .
+If the client is permitted to mount the file system,
+.I mountd 
+creates a file handle for the requested directory, and adds an entry
+.IR /etc/rmtab .
+Upon receipt of an UMOUNT request, it removes the client's entry from
+.IR rmtab .
+Note, however, that a client may still be able to use the file handle
+after the UMOUNT request (for instance, if the client mounts the same
+remote file system on two different mount points). Similarly, if a client
+reboots without notifying
+.IR mountd ,
+a stale entry will remain in
+.IR rmtab .
+.SS Running from inetd
+.I mountd
+can be started from
+.I inetd
+rather than at system boot time by adding the following two lines to
+.IR /etc/inetd.conf :
+.PP
+.nf
+.ta +3i
+mount/1-2 dgram  rpc/udp wait  root  /usr/sbin/rpc.mountd rpc.mountd
+mount/1-2 stream rpc/tcp wait  root  /usr/sbin/rpc.mountd rpc.mountd
+.fi
+.PP
+When run from
+.IR inetd ,
+.I mountd
+will terminate after a certain period of inactivity.
+.SH OPTIONS
+.TP
+.BR \-f " or " \-\-exports\-file
+This option specifies the exports file, listing the clients that this server
+is prepared to serve and parameters to apply to each such mount (see
+exports(5)).
+By default exports are read from
+.IR /etc/exports .
+.TP
+.BR \-d " or " \-\-debug
+Log each transaction verbosely to standard error. Valid log facilities
+are
+.I call
+for the logging of all calls, 
+.I auth
+for client authentication, 
+.I fhcache
+for operations of the file handle cache, and
+.I rmtab
+for manipulation of 
+.IR /etc/rmtab .
+By default, log output is sent to
+syslogd unless the daemon runs in the foreground.
+.TP
+.BR \-F " or " \-\-foreground
+Unlike normal in operation,
+.I mountd
+will not detach from the terminal when given this option. When debugging is
+requested, it will be sent to standard error.
+.TP
+.BR \-h " or " \-\-help
+Provide a short help summary.
+.TP
+.BR \-n " or " \-\-allow\-non\-root
+Allow incoming mount requests to be honored even if they do not
+originate from reserved IP ports.  Some older NFS client implementations
+require this.  Some newer NFS client implementations don't believe
+in reserved port checking.
+.TP
+.BR "\-P portnum" " or " "\-\-port portnum"
+Makes 
+.I mountd
+listen on port
+.B portnum
+instead of some random port. By default,
+.I mountd
+will listen on the mount/udp port specified in
+.IR /etc/services ,
+or, if that is undefined, on some arbitrary port number below 1024.
+.TP
+.BR \-p " or " \-\-promiscuous
+Put the server into promiscuous mode where it will serve any host
+on the network.
+.TP
+.BR \-r " or " \-\-re\-export
+Allow imported NFS or SMB file-systems to be exported.  This can be used to
+turn a machine into an NFS/SMB multiplier.  Caution should be used when
+re-exporting loopback mounts because re-entering the mount point
+will result in deadlock between the client file system code and the server.
+.TP
+.BR \-t " or " \-\-no\-spoof\-trace
+By default,
+.I mountd
+logs every access by unauthorized clients. This option turns off logging
+of such spoof attempts for all hosts listed explicitly in the
+.I exports
+file.
+.TP
+.BR \-v " or " \-\-version
+Report the current version number of the program.
+.SS Access Control
+For enhanced security, access to
+.I mountd
+can be limited via the TCP wrapper library that's part of Wietse
+Venema's tcp_wrappers package. Support for this option must be selected
+at compile time. In order to restrict access to all hosts on
+your local network (say 192.168.1.0), you would add the following
+lines to your
+.I /etc/hosts.allow
+file:
+.PP
+.nf
+.ta +3i
+.I "rpc.mountd : 192.168.1. : allow
+.I "rpc.mountd : ALL        : deny
+.fi
+.PP
+'ne 9v
+This example assumes your TCP wrapper library was compiled with
+options support (which I highly recommend). If it has been compiled
+without options support, you need to add the following two lines
+to
+.I /etc/hosts.allow " and " /etc/hosts.deny,
+respectively:
+.PP
+.nf
+.ta +3i
+.I "# hosts.allow:
+.I "rpc.mountd : 192.168.1
+.I "# hosts.deny
+.I "rpc.mountd : ALL
+.fi
+.PP
+When changing this information, you must restart
+.I mountd
+for these changes to take effect, either by killing and restarting, or
+by sending it the HUP signal.
+.SH BUGS
+The information in
+.I /etc/rmtab
+is inaccurate more often than not.
+.SH SIGNALS
+When receiving a SIGHUP, 
+.I mountd
+will re-read the
+.I exports
+file and any access restrictions defined in the
+.I /etc/hosts.allow and /etc/hosts.deny
+file. Note that to make export changes take effect, you have to send
+.I nfsd
+a SIGHUP as well.
+.SH FILES
+.I /etc/exports
+.br
+.I /etc/rmtab
+.SH "SEE ALSO"
+exports(5), nfsd(8), ugidd(8C), showmount(8).

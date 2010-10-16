@@ -1,0 +1,336 @@
+.\" This page is originally in the SysVinit package.
+.\"
+.\" Translated Fri 14 Feb 1997
+.\"         by Kazuyoshi Furutaka <furutaka@Flux.tokai.jaeri.go.jp>
+.\" Updated Sun 14 May 2000 by Kentaro Shirakata <argrath@ub32.org>
+.\" Updated Fri 27 Sep 2002 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.\"{{{}}}
+.\"{{{  Title
+.TH INIT 8 "23 August 2001" "" "Linux System Administrator's Manual"
+.\"}}}
+.\"{{{  Name
+.SH 名前
+init, telinit \- プロセス制御の初期化
+.\"}}}
+.\"{{{  Synopsis
+.SH 書式
+.B /sbin/init
+.RB [ " -a " ]
+.RB [ " -s " ]
+.RB [ " -b " ]
+.RB [ " -z xxx " ]
+.RB [ " 0123456Ss " ]
+.br
+.B /sbin/telinit
+.RB [ " \-t sec " ]
+.RB [ " 0123456sSQqabcUu " ]
+.\"}}}
+.\"{{{  Description
+.SH 説明
+.\"{{{  init
+.B init
+は全てのプロセスの親である。
+その主な役割は、\fB/etc/inittab\fP (\fIinittab\fP(5) 参照)
+ファイルに書かれたスクリプトに従ってプロセスを作り出すことにある。
+通常このファイルには、ユーザがログイン可能な各接続ラインごとに
+\fBgetty\fP を生成させるためのエントリが記されている。
+また、特定のシステムが必要とする、自律的なプロセスの制御も行う。
+.\"{{{ Runlevels
+.SH ランレベル
+\fIランレベル\fP とはシステムのソフトウェア的な設定で、
+指定したプロセス群のみを存在させるようにするものである。
+それぞれのランレベルで \fBinit\fP が作り出すプロセスは
+\fB/etc/inittab\fP ファイルで定められている。
+\fBinit\fP は \fB0\(en6\fP, \fBS\fP, \fBs\fP という
+8 つのランレベルのうちの一つを取ることができる。
+ランレベルは特権ユーザが \fBtelinit\fP を実行することによって変更される。
+\fBtelinit\fP は \fBinit\fP に適切なシグナルを送り、
+どのランレベルに変更すべきかを指示する。
+.PP
+ランレベル \fB0\fP, \fB1\fP, \fB6\fP は予約されている。
+ランレベル 0 はシステムを停止するために、
+ランレベル 6 はシステムをリブートするために、
+ランレベル 1 はシステムをシングルユーザモードにするために用いられる。
+ランレベル \fBS\fP は直接用いるためのものではなく、
+ランレベル \fB1\fP になった時に実行されるスクリプトのために存在する。
+この詳細は \fBshutdown\fP(8) および \fBinittab\fP(5)
+各 man ページを参照のこと。
+.PP
+文書には書かれてはいないが、ランレベル 7-9 も使用できる。
+文書に書かれていないのは、「伝統的な」
+Unix の派生種はランレベル 7-9 を使用していないからである。
+参考のために言っておくと、実はランレベル \fIS\fP と \fIs\fP も同様である。
+内部的には、この 2 つは同一のランレベルのエイリアスになっている。
+.\"}}}
+.SH ブート
+カーネルブートの最後のステップとして \fBinit\fP が起動されると、
+\fBinit\fP は \fB/etc/inittab\fP ファイルを検索し、
+\fBinitdefault\fP というエントリが存在するか調べる
+(\fIinittab\fP(5) 参照)。
+\fBinitdefault\fP はシステムが最初に取るべきランレベルを定義する。
+\fB/etc/inittab\fP ファイル中にそのようなエントリがない場合、
+あるいは \fB/etc/inittab\fP ファイル自体が存在しない場合は、
+システムコンソールからランレベルを入力しなければならない。
+.PP
+ランレベルを \fBS\fP または \fBs\fP にすると、
+システムはシングルユーザモードに入る。
+この場合は \fB/etc/inittab\fP ファイルを必要としない。
+シングルユーザモードでは、\fB/dev/console\fP で
+\fB/sbin/sulogin\fP が起動される。
+.PP
+シングルユーザモードに入るとき、
+\fBinit\fP は \fB/etc/ioctl.save\fP からコンソールの
+\fIioctl\fP(2) の状態を読み込む。
+このファイルが存在しない場合は、\fBinit\fP
+はコンソールの接続ラインを
+\fB9600 baud\fP で \fBCLOCAL\fP という設定
+(訳注: ローカルに直接接続されている状態) に初期化する。
+シングルユーザモードを抜ける際には、
+次回のシングルユーザモードセッションでも同じ設定を利用できるよう、
+コンソールの \fIioctl\fP の状態を
+\fB/etc/ioctl.save\fP ファイルに保存する。
+.PP
+初めてマルチユーザモードに入るとき、
+\fBinit\fP は
+\fBboot\fP エントリと \fBbootwait\fP エントリを実行し、
+ユーザがログイン可能となる前にファイルシステムをマウントできるようにする。
+そして、ランレベルにマッチする全てのエントリを処理する。
+.PP
+新たなプロセスを起動するとき、
+\fBinit\fP はまず \fI/etc/initscript\fP ファイルが存在するかを調べ、
+存在する場合はそのスクリプトを用いてプロセスを起動する。
+.PP
+子プロセスが終了するごとに、
+\fBinit\fP はその旨と終了した理由とを、
+\fB/var/run/utmp\fP と \fB/var/log/wtmp\fP とに記録する
+(ただしこれらのファイルが存在する場合)。
+.SH ランレベルの変更
+指示された全てのプロセスを生成すると、\fBinit\fP は
+子孫のプロセスが死ぬか、powerfail シグナルが発せられるか、
+\fBtelinit\fP からランレベルを変更せよとのシグナルが送られるまで待機する。
+この 3 つのいずれかが起きた場合は、
+\fBinit\fP は \fB/etc/inittab\fP ファイルを再度調べる。
+このファイルには、いつでも新たなエントリを追加できる。
+しかし、上の 3 条件のどれかが起きるまでは、
+\fBinit\fP は待機状態を続ける。
+新たなエントリを即座に反映させるには、
+\fBtelinit Q\fP または \fBq\fP コマンドを用いて
+\fBinit\fP を目覚めさせ、
+\fB/etc/inittab\fP ファイルを再度調べさせればよい。
+.PP
+シングルユーザモードにない時に \fBinit\fP が powerfail シグナル (SIGPWR)
+を受け取ると、\fBinit\fP は \fB/etc/powerstatus\fP ファイルを読み込む。
+そしてこのファイルの内容に基づいてコマンドを実行する。
+.IP F(AIL)
+電源供給が途絶え、UPS が電源を供給している。
+\fBpowerwait\fP エントリと \fBpowerfail\fP エントリを実行する。
+.IP O(K)
+電源供給が回復している。\fBpowerokwait\fP エントリを実行する。
+.IP L(OW)
+電源供給が途絶え、UPS のバッテリー容量が少なくなっている。
+\fBpowerfailnow\fP エントリを実行する。
+.PP
+/etc/powerstatus が存在しないか、その内容が
+\fBF\fP, \fBO\fP, \fBL\fP のいずれでもない場合、
+init は \fBF\fP を読み込んだものとして動作する。
+.PP
+\fBSIGPWR\fP と \fB/etc/powerstatus\fP の利用は推奨されない。
+\fBinit\fP と通信したい場合は、
+制御チャネル \fB/dev/initctl\fP を使うべきである。
+これに関する詳しい記述は、
+\fBsysvinit\fP パッケージのソースコードを参照すること。
+.PP
+\fBinit\fP は、ランレベルを変更するよう要請を受けると、
+まず新たなランレベルでは定義されていない全てのプロセスに対して
+警告シグナル \s-1\fBSIGTERM\fP\s0 を送る。
+その後 5 秒間待機してから
+\s-1\fBSIGKILL\fP\s0 シグナルを送り、それらのプロセスを強制的に終了させる。
+\fBinit\fP は、
+これら全てのプロセス (およびそれらの子孫) の属するプロセスグループが、
+もともと \fBinit\fP が彼らのために生成したものと同じであると仮定している。
+あるプロセスが自分のプロセスグループ属性を変えてしまった場合は、
+上記のシグナルを受け取らない。
+したがって、そのようなプロセスは別の方法で終了させる必要がある。
+.\"}}}
+.\"{{{  telinit
+.SH telinit
+\fB/sbin/telinit\fP は \fB/sbin/init\fP にリンクされている。
+\fB/sbin/telinit\fP は一文字の引数を受け取り、
+\fBinit\fP にシグナルを送って適切な動作を行なわせる。
+\fBtelinit\fP への指示には、
+以下に示すような引数が利用できる。
+.IP "\fB0\fP,\fB1\fP,\fB2\fP,\fB3\fP,\fB4\fP,\fB5\fP,\fB6\fP"
+指定されたランレベルに変更するよう \fBinit\fP に伝える。
+.IP \fBa\fP,\fBb\fP,\fBc\fP
+\fB/etc/inittab\fP 中で、ランレベル \fBa\fP, \fBb\fP, \fBc\fP
+のいずれかを含むエントリだけを実行するよう \fBinit\fP に伝える。
+.IP "\fBQ\fP または \fBq\fP"
+\fB/etc/inittab\fP ファイルを調べ直すよう \fBinit\fP に伝える。
+.IP "\fBS\fP または \fBs\fP"
+シングルユーザモードに切り替えるよう \fBinit\fP に伝える。
+.IP "\fBU\fP または \fBu\fP"
+(状態はそのままで) 自分自身を再実行するよう \fBinit\fP に伝える。
+\fB/etc/inittab\fP は調べ直さない。
+ランレベルは \fBSs12345\fP のいずれかでなければならない。
+それ以外の場合は、この要求は黙って無視される。
+.PP
+\fBinit\fP がプロセスに TERM シグナルを送ってから
+KILL シグナルを送るまでの時間を、\fBtelinit\fP から指示することもできる。
+デフォルトでは 5 秒に設定されているが、\fB-t sec\fP オプションで変更できる。
+.PP
+\fBtelinit\fP は適切な特権を持ったユーザのみが実行できる。
+.PP
+\fBinit\fP のバイナリは、自分の \fIプロセスID\fP を見て、
+自分が \fBinit\fP なのか \fBtelinit\fP なのかを判断する。
+本物の \fBinit\fP のプロセス ID は常に \fB1\fP である。
+よって、\fBtelinit\fP を起動するかわりに \fBinit\fP を起動しても構わない。
+.\"}}}
+.\"}}}
+.SH 環境変数
+\fBinit\fP は子プロセスに以下のような環境変数を設定する:
+.IP \fBPATH\fP
+\fI/usr/local/sbin:/sbin:/bin:/usr/sbin:/usr/bin\fP
+.IP \fBINIT_VERSION\fP
+名前の通り。
+あるスクリプトが \fBinit\fP
+により直接実行されたのかどうかを見分けるのに便利。
+.IP \fBRUNLEVEL\fP
+システムの現在のランレベル。
+.IP \fBPREVLEVEL\fP
+直前のランレベル (ランレベルを変更した場合に便利)。
+.IP \fBCONSOLE\fP
+システムコンソール。これは実際はカーネルから継承したものである。
+しかしこれが設定されていなかった場合は、
+\fBinit\fP はデフォルトで \fB/dev/console\fP を設定する。
+.SH ブートフラグ
+ブートモニタ (例えば LILO) から \fBinit\fP
+に様々なフラグを渡すことが可能である。
+\fBinit\fP は以下のようなフラグを受け付ける:
+.TP 0.5i
+.B -s, S, single
+シングルユーザモードでブートする。
+このモードでは \fI/etc/inittab\fP を参照する。
+またシングルユーザモードのシェルが起動される前に 
+ブートアップ rc スクリプトが実行される。
+.TP 0.5i
+.B 1-5
+ブート時に入るべきランレベル。
+.TP 0.5i
+.B -b, emergency
+他の起動用スクリプトは実行せず、
+直接シングルユーザシェルへとブートする。
+.TP 0.5i
+.B -a, auto
+LILO ブートローダは、
+デフォルトのコマンドラインで (ユーザの介入なしに)
+カーネルを起動すると、
+コマンドラインに単語 "auto" を追加する。
+\fBinit\fP はこの単語を見つけると、"AUTOBOOT" 環境変数を "yes" に設定する。
+ただしこの機能をセキュリティの判断には使えない。
+あたりまえだが、
+ユーザーは "auto" や \-a を手動でコマンドラインに追加することもできる。
+.TP 0.5i
+.B -z xxx
+-z の引数は無視される。
+これを使うとコマンドラインが少し長くなるので、
+そのためにスタックを若干余分に使用するようになる。
+すると \fBinit\fP にコマンドラインを操作し、
+\fBps\fP(1) に現在のランレベルを表示させるようにできる。
+.SH インターフェース
+init はメッセージのやりとりのために、
+/dev にある FIFO である \fI/dev/initctl\fP を listen している。
+\fBtelinit\fP はこれを用いて init と通信する。
+このインターフェースは十分に文書化されていない。
+興味を持った人は、\fBinit\fP のソース tar アーカイブの
+\fIsrc/\fP サブディレクトリにある
+\fIinitreq.h\fP を調べてほしい。
+.SH シグナル
+init はいくつかのシグナルに反応する。
+.TP 0.5i
+.B SIGHUP
+init は
+.I /etc/initrunlvl 
+と
+.I /var/log/initrunlvl
+を探す。
+もしこれらのどちらかのファイルがあり、
+ランレベルが ASCII コードで書かれていたら、
+init はそのランレベルに切り替わる。
+\fIこれは過去との互換性のためだけに存在する!\fP
+通常の場合 (これらのファイルがない場合)、
+init は \fBtelinit q\fP が実行されたときと同じ動作をする。
+.TP 0.5i
+.B SIGUSR1
+このシグナルを受け取ると、init は制御用 FIFO である
+\fB/dev/initctl\fP を一旦クローズして再オープンする。
+ブートスクリプトが /dev を再マウントした時に便利である。
+.TP 0.5i
+.B SIGINT
+通常、カーネルは CTRL-ALT-DEL が押されるとこのシグナルを init に送る。
+これにより \fIctrlaltdel\fP アクションが実行される。
+.TP 0.5i
+.B SIGWINCH
+カーネルは \fIKeyboardSignal\fP キーが押されるとこのシグナルを送る。
+これにより \fIkbrequest\fP アクションが実行される。
+.SH 準拠
+\fBinit\fP は System V の init と互換である。
+\fBinit\fP は
+\fI/etc/init.d\fP ディレクトリや \fI/etc/rc{runlevel}.d\fP
+ディレクトリのスクリプトと密接に連係しながら動作する。
+あなたのシステムがこの規則に従っているなら、
+\fI/etc/init.d\fP ディレクトリに \fIREADME\fP があり、
+スクリプトがどのように動作するかが説明されているはずである。
+.\"}}}
+.\"{{{  Files
+.SH ファイル
+.nf
+/etc/inittab
+/etc/initscript
+/dev/console
+/etc/ioctl.save
+/var/run/utmp
+/var/log/wtmp
+/dev/initctl
+.fi
+.\"}}}
+.\"{{{  Warnings
+.SH 警告
+\fBinit\fP は、
+生成したプロセスとその子孫とが、
+それらのために作ったプロセスグループに留まっていると仮定している。
+プロセスグループが元々のものと変わっている場合は、
+\fBinit\fP はそのプロセスを kill できないので、
+異なる二つのプロセスが同一の端末ラインから入力を読み込む、
+といった現象が起きてしまう可能性がある。
+.\"}}}
+.\"{{{  Diagnostics
+.SH 返り値
+\fBinit\fP は、あるエントリが 2 分間に
+10 回以上繰り返して再生成されるのを発見すると、
+コマンド文字列に誤りがあるとみなし、
+システムコンソールにエラーメッセージを表示し、
+5 分以上経過するかシグナルを受け取るまで、
+それ以上そのエントリの再生成を拒否する。
+こうすることによって、\fB/etc/inittab\fP 中に書き間違いがあったり、
+そのエントリで使用するプログラムが削除されている場合に、
+システム資源を使い尽くしてしまうことを防いでいる。
+.\"}}}
+.\"{{{  Author
+.SH 著者
+Miquel van Smoorenburg (miquels@cistron.nl)。
+もとの man ページは
+Michael Haardt (u31b3hs@pool.informatik.rwth-aachen.de) による。
+.\"}}}
+.\"{{{  See also
+.SH 関連項目
+.BR getty (1),
+.BR login (1),
+.BR sh (1),
+.BR runlevel (8),
+.BR shutdown(8),
+.BR kill (1),
+.BR inittab (5),
+.BR initscript (5),
+.BR utmp (5)
+.\"}}}

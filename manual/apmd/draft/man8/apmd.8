@@ -1,0 +1,511 @@
+.\" apmd.8 -- 
+.\" Created: Wed Jan 10 15:07:25 1996 by faith@acm.org
+.\" Revised: Fri Dec 26 20:34:52 1997 by faith@acm.org
+.\" Revised: Wed Jun  2 18:47:02 1999 by db@post.harvard.edu
+.\" Copyright 1996, 1997 Rickard E. Faith (faith@acm.org)
+.\" Copyright 1999 David Brownell (db@post.harvard.edu)
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.\" Japanese Version Copyright (c) 2000 HAYAKAWA Hitoshi & NAKANO Takeo
+.\"   all rights reserved.
+.\" Translated Mon 29 May 2000 by HAYAKAWA Hitoshi <cz8cb01@linux.or.jp>
+.\"   and NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.TH APMD 8 "10 Jun 1999" "" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O apmd \- Advanced Power Management (APM) daemon
+.SH 名前
+apmd \- Advanced Power Management (APM) デーモン
+.\"O .SH SYNOPSIS
+.SH 書式
+.BI "apmd"
+.BI "[ \-c " check_seconds " ]
+.BI "[ \-P " proxy_cmd " ]"
+.BI "[ \-p " percent_to_log " ]"
+.BI "[ \-qVvW ]"
+.BI "[ \-w " warn_percent " ]
+.BI "[ \-? ]"
+.I "[deprecated options]"
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .B apmd
+.\"O is an APM monitoring daemon, and works in conjunction with the
+.\"O APM BIOS driver in the OS kernel.  It can execute a command (normally a shell
+.\"O script) when certain events are reported by the driver, and will log, via
+.\"O .BR syslogd (8),
+.\"O certain changes in system power status.  When the available battery power becomes
+.\"O very low, it can alert all users on the system using several methods.
+.B apmd
+は APM を監視するデーモンで、OS のカーネルの
+APM BIOS ドライバーを利用して動作する。
+.B apmd
+はドライバーからイベントの発生が通知された時にコマンド
+(通常はシェルスクリプト) を実行することができ、
+またシステムの電力状態が変化 (AC 電源供給のオン・オフなど) したときに
+.BR syslogd (8)
+を使ってログを残すことができる。
+電池の残量がわずかになった時には、
+システムの全ユーザーにいろいろな方法で警告を通知することもできる。
+.PP
+.\"O When the kernel APM driver notifies the daemon of
+.\"O a pending suspend or standby request,
+.\"O .B apmd
+.\"O will invoke the approprate command,
+.\"O log the event, 
+.\"O .BR sync (2)
+.\"O data to the disk,
+.\"O sleep briefly to help ensure all the data actually gets to the disk,
+.\"O and then tell the APM driver to continue its operation.
+.\"O However, for "critical" suspends (indicating an emergency shutdown)
+.\"O only the last step (telling the driver to continue) is performed.
+カーネルの APM ドライバーから
+サスペンドやスタンバイを行いたい旨の要求を受け取ると、
+.B apmd
+は適切なコマンドを実行し、
+そのイベントをログに書き、
+データをディスクに
+.BR sync (2)
+し、
+全てのデータがディスクに実際に書きこまれるように少しの間スリープし、
+その後 APM ドライバーに処理を続行するように通知する。
+しかし「クリティカル」なサスペンド (緊急シャットダウン) の場合には、
+途中の段階をすべて飛ばしてドライバーに処理の続行通知を送る。
+.PP
+.\"O Most uses of this daemon will use the
+.\"O .I proxy
+.\"O command to support power conservation activities.  This command is
+.\"O searched for by default in
+.\"O .I /etc/apmd_proxy
+.\"O and is invoked with one or two arguments:
+このデーモンの主な利用法は
+.I proxy
+コマンドを使用して電力の節約をすることである。
+このコマンドのデフォルトの検索場所は
+.I /etc/apmd_proxy
+であり、起動の際には 1 個または 2 個の引数が付けられる。
+.TP
+.B start
+.\"O Invoked when the daemon starts.  Normally sets system-wide power policy, such as
+.\"O IDE hard drive standby times, to account for whether battery power is in use.
+デーモンの起動時に呼びだされる。通常、システム全体の電力管理設定を行う。
+例えば電池使用時/非使用時の IDE ハードディスクのスタンバイ時間などである。
+.TP
+.B stop
+.\"O Invoked when the daemon stops.  Normally undoes any policy settings done when the
+.\"O daemon started.
+デーモンの停止時に呼びだされる。
+通常はデーモンの開始時に設定された電源の設定を元に戻す。
+.TP
+.B suspend "[ system | user ]"
+.\".B suspend "[ system | user | critical ]"
+.\"O Invoked when the APM driver reports that system suspension has been initiated.
+.\"O The second parameter indicates whether the BIOS or a user action (such as closing
+.\"O a laptop) initiated suspension.
+システムのサスペンド開始を APM ドライバーが通知した時に呼びだされる。
+二番目の引数は、サスペンドの開始が BIOS によるものか、
+ユーザーのアクション (ラップトップを閉じた時など) によるものかを示す。
+.ig
+.\"O A "critical" suspend is initiated by the BIOS when an emergency shutdown needs
+.\"O to happen.  Applications and device drivers are not be notified since there
+.\"O isn't enough time to safely do anything about the shutdown.
+「クリティカル」なサスペンドは、緊急シャットダウンの必要がある時に
+BIOS からの通知によって実行される。
+シャットダウンについて安全に通知する余裕はないので、
+アプリケーションやデバイスドライバーには通知されない。
+..
+.sp
+.\"O The BIOS "suspend" mode aggressively conserves power, and normally involves
+.\"O shutting off power to all devices except the CPU core and memory, which is kept
+.\"O in a very low power mode.  Most laptops can stay suspended, using battery power
+.\"O alone, for several days.  ("Hibernation" is a kind of super-suspend, where all
+.\"O that state is written to disk and the machine uses even less power bcause it
+.\"O can turn off that CPU core, using no battery power at all.  At this writing,
+.\"O Linux does not support hibernation.)
+.\"O PCMCIA devices should be manually suspended using
+.\"O .BR cardctl (8),
+.\"O and some modular drivers may need to be unloaded.
+BIOS の「サスペンド」モードは積極的に電力を節約する。
+通常は CPU のコア部分とメモリを除いて全てのデバイスの電源をカットし、
+これらも超低電力モード (very low power mode) にする。
+多くのラップトップでは、
+電池だけで数日間サスペンドし続けることができる。
+(「ハイバネーション」はさらなるサスペンドと言える。
+これは全ての状態がディスクに書きだされるので
+CPU のコアの電源供給もカットすることができ、
+電池から電源供給をする必要がまったくなくなる。
+現段階では Linux はハイバネーションをサポートしていない。)
+PCMCIA デバイスは
+.BR cardctl (8)
+を使って手動でサスペンドすべきである。
+またいくつかのドライバーモジュールもアンロードしておく必要があるかもしれない。
+.TP
+.B standby "[ system | user ]"
+.\"O Invoked when the APM driver reports that system standby has been initiated.
+.\"O The second parameter indicates whether the BIOS or a user action (such as
+.\"O invoking
+.\"O .IR "apm -s" )
+.\"O caused this.
+システムのスタンバイ開始を APM ドライバーが通知した時に呼びだされる。
+二番目の引数はスタンバイの開始が BIOS によるものか
+ユーザーのアクション
+.RI ( "apm -s" 
+の実行など) によるものかを示している。
+.sp
+.\"O The BIOS "standby" mode slightly conserves power, and leaves the
+.\"O machine able to respond almost immediately to user activity.
+.\"O Most laptops can't stay in standby mode for even a day, if they must
+.\"O rely on battery power.  Normally, nothing needs to be done beyond
+.\"O what the BIOS itself will do.
+BIOS の「スタンバイ」モードは多少電力の節約をする。
+マシンはユーザーの操作にほとんど即時に反応できる状態に保たれる。
+多くのラップトップではスタンバイモードのままだと
+電池だけでは一日ももたない。
+通常は、 BIOS がすること以外には何もしなくてよい。
+.TP
+.B resume "[ suspend | standby | critical ]"
+.\"O Invoked when the APM driver reports that system has resumed normal operation.
+.\"O The second parameter indicates what sort of mode it was in before, either
+.\"O the "suspend" mode (possibly a "critical" suspend) or else "standby" mode.
+システムの通常オペレーションへのレジュームを
+APM ドライバーが通知した時に呼びだされる。
+二番目の引数は、以前の状態が
+「サスペンド」モード(「クリティカル」なサスペンドの可能性もある) だったか 
+「スタンバイ」モードだったかを示している。
+.sp
+.\"O The system clock must be updated to match the hardware clock; this will
+.\"O normally have been handled by the kernel's APM driver.
+.\"O PCMCIA devices may need to be manually resumed from standby using
+.\"O .BR cardctl (8),
+.\"O and some modular drivers may need to be reloaded or otherwise reinitialized.
+.\"O In the case of a critical suspend, system state may not have been completely
+.\"O saved due to an emergency shutdown; applications and and drivers may be in
+.\"O a confused state.
+システムクロックをハードウェアクロックに一致するように更新する必要がある。
+これは通常カーネルの APM ドライバーによって処理される。
+PCMCIA デバイスは
+.BR cardctl (8)
+を使用して手動でレジュームする必要があるかもしれない。
+また再ロードや再初期化が必要になるドライバーモジュールも存在する。
+クリティカルなサスペンドの時には緊急シャットダウンにより、
+システムの状態が完全には保存されていないこともあるため、
+アプリケーションやドライバーの状態がおかしくなるかもしれない。
+.TP
+.B change power
+.\"O This presents a subset of the APM driver "power change" events, specifically
+.\"O those where AC power was added or removed.
+.\"O This will often modify the system wide power policy; for example, so that IDE
+.\"O hard drives aggressively enter standby mode when only battery power is available.
+APM ドライバーの「電源状態の変化」イベントのうちの幾つかに対応する
+(特に AC 電源の挿抜など)。
+これが起きるとシステム全体の電力管理設定を変更する場合が多い。
+例えば電池しか使えない場合に IDE HDD を
+積極的にスタンバイモードに入れるようにするなど。
+.ig
+.TP
+.B change time
+.\"O The system clock must be updated to match the hardware clock; this will
+.\"O normally have been handled by the kernel's APM driver.
+システムクロックをハードウェアクロックに併せて更新しなければならない。
+これは普通はカーネルの APM ドライバーによって処理される。
+..
+.TP
+.B change battery
+.\"O The APM driver has reported that the BIOS thinks the strength of one (or more)
+.\"O batteries is "low"; at least ten minutes of should power remain.
+少なくとも一つの (あるいは複数の) 電池の残量が "low" である、
+という BIOS の判断が APM ドライバーから通知された。
+ただし、少なくとも 10 分ぶんの電力は残っている。
+.TP
+.B change capability
+.\"O Some change in the power management capabilities of the system was reported.
+.\"O It may have been caused by operation of some setup utility, or by the arrival
+.\"O or removal of some devices.
+システムの電力管理設定機能のどれかが変更された旨が報告された。
+何らかのセットアップユーティリティの操作やデバイスの追加・取り外し
+などが考えられる。
+.PP
+.\"O This daemon issues a number of different log messages, most of which should
+.\"O be self explanatory.  The messages emitted for battery status need some
+.\"O explanation, however. 
+.\"O The information logged contains 4 fields after a "Battery" or "Charge" label:
+このデーモンはいろいろなログメッセージを発行する。
+ほとんどは見ればわかるだろうが、
+電池の状態に関するメッセージには少々説明が必要かもしれない。
+ログの "Battery" または "Charge" メッセージには、
+続いて 4 つのフィールドが記述される。
+.HP
+.\"O 1) Rate of discharge (percent/minute).  Negative rates indicate charging.
+1) 消費レート (パーセント/分)。負の場合は充電を示す。
+.HP
+.\"O 2) Time since total charge or total discharge (hh:mm:ss).  This value is
+.\"O only useful if it reflects the time since a 100% or 0% state has been
+.\"O reached.  Otherwise, this time is in parentheses, and reflects the time
+.\"O since the last "important"
+.\"O .B apmd
+.\"O status change such as starting the daemon, changing from AC power to battery
+.\"O power, and so on.
+2) 完全充電・完全消費状態からの経過時間 (hh:mm:ss)。
+この値は 100% または 0% になった状態からの経過時間を
+反映している場合にのみ意味がある。
+それ以外の場合には時間は括弧で括られ、
+最後に
+.B apmd
+の「重要な」状態変化 (デーモンの起動、AC 電源から電池駆動への移行など)
+が起きてからの経過時間を表す。
+.HP
+.\"O 3) Estimate of time left until total discharge (or total charge), assuming
+.\"O use similar to that since the last resume ( or since AC was connected).
+.\"O This time is calculated by
+.\"O .B apmd
+.\"O itself.
+3) 完全に電池を消費してしまうまで (あるいは完全に充電されるまで) の予測時間。
+最後にレジューム状態から復帰して以降 (あるいは AC 電源が接続されて移行) と
+同じような利用状態が続くと仮定している。
+この時間は
+.B apmd
+自身が計算している。
+.HP
+.\"O 4) Parenthetically, the percent and length of remaining battery life, as
+.\"O estimated by the APM BIOS (which is often a conservative estimate from an
+.\"O intelligent battery itself).  This particular information is provided with
+.\"O most messages from this daemon.
+4) 括弧に挟まれた、充電率と電池の寿命。
+これは APM BIOS の予測値である (インテリジェントな電池自身からの、
+やや控えめな見積りであることが多い)。
+この情報は、このデーモンからのメッセージのほとんどに追加される。
+.PP
+.\"O This daemon supports APM BIOS 1.2 events, though it does not support some
+.\"O of the advanced features such as multiple batteries.  Also,
+.\"O there is no interaction yet with ACPI support as found in newer PC hardware.
+このデーモンは APM BIOS 1.2 イベントをサポートしている。
+しかし複数の電池の取り扱いなど、より高度な機能はサポートしていない。
+また最近の PC ハードウェアにある ACPI サポートとの連携は、まだできない。
+.\"O .SH OPTIONS
+.SH オプション
+.TP
+.BR "\-c " seconds, " \--check " seconds
+.\"O Controls how many seconds to block on the \fI/dev/apm_bios\fR device.  Normally
+.\"O the daemon blocks until the APM driver reports an event; this number may be
+.\"O changed to cause battery charge or discharge rates to be checked more often.
+.I /dev/apm_bios
+デバイスを何秒間ブロックするかを制御する。
+通常デーモンは APM ドライバーがイベントを報告するまでブロックする。
+この数字を変えると、電池の充電速度・消費速度をより頻繁にチェックできる。
+.TP
+.BR "\-P " proxy_cmd, " \-\-apmd_proxy " proxy_cmd
+.\"O Identifies the command to invoke when certain APM driver events are reported.
+.\"O See above for information about the arguments to this script.
+APM ドライバーのイベントが報告されたときに起動するコマンドを指定する。
+このスクリプトに付加される引数に関する情報は上述の説明を見よ。
+.TP
+.BR "\-p " percent_change, " \--percentage " percent_change
+.\"O Every time the percentage of available power changes (discharge or recharge) by
+.\"O .IR percent_change ,
+.\"O log information.  The default is 5.  Use values greater than 100 to disable
+.\"O this feature.
+(消費や充電によって) 利用可能な電池残量が
+.I percent_change
+づつ変わるごとに、情報をログに送る。
+デフォルトは 5。この機能を無効にしたい場合は 100 より大きい値を指定する。
+.TP
+.B \-V, \-\-version
+.\"O Print the daemon's version and exit.
+デーモンのバージョンを表示して終了する。
+.TP
+.B \-v, \-\-verbose
+.\"O Enables verbose mode, where each event reported by the APM driver is logged.
+詳細出力モードを有効にする。
+APM ドライバーから報告される全てのイベントがログに送られる。
+.TP
+.B \-W, \-\-wall
+.\"O In addition to logging low battery status (as determined either by
+.\"O the \fB-w\fR level or by the APM BIOS) using
+.\"O .BR syslog (2),
+.\"O also use
+.\"O .BR wall (1)
+.\"O to alert all users.  This is most useful if
+.\"O .BR syslogd (8)
+.\"O is not set up to write ALERT messages to all users.  If both methods are
+.\"O used, more warnings will be made during the critical time period.
+電池の状態が
+.RB ( -w
+オプションや APM BIOS によって定められた)
+"low" になったとき、
+.BR syslog (2)
+を用いてログをとるだけでなく、
+.BR wall (1)
+を用いて全てのユーザーに警告を発する。
+これは
+.BR syslogd (8)
+の設定で、 ALERT メッセージがユーザに送られるようになっていない場合に
+非常に便利である。
+両方が用いられると、危険な状態になったときによりたくさんの警告が発せられる。
+.TP
+.BR "\-w " warn_percent, " \--warn " warn_percent
+.\"O When the battery is not being charged and the percentage of available power
+.\"O drops below
+.\"O .IR warn_percent ,
+.\"O log a warning at ALERT level to
+.\"O .BR syslog (2).
+.\"O If the
+.\"O .B \-W
+.\"O or
+.\"O .B \-\-wall
+.\"O flag was given, the daemon will also use
+.\"O .BR wall (1)
+.\"O to alert all users of impending doom.  Give the warning each time the
+.\"O percentage changes.  The default is 10.  Use negative values to disable
+.\"O this feature.
+電池が充電状態になく、かつ残量が
+.IR warn_percent
+以下になったときに ALERT レベルの警告を
+.BR syslog (2)
+に送る。
+.B \-W
+または
+.B \-\-wall
+フラグが与えられていると、デーモンは
+.BR wall (1)
+も使ってユーザーにいまそこにある危機を警告する。
+警告はパーセンテージが変わるごとに発せられる。デフォルトは 10。
+この機能を無効にするには負の値を指定する。
+.TP
+.B \-q, \-\-quiet
+.\"O Disables the warnings identified by the 
+.\"O .B -W
+.\"O and
+.\"O .B -w
+.\"O options.  (The APM BIOS on many machines will provide an audible warning
+.\"O when power is about to be used up, so those extra warnings may not be needed.)
+.B \-W
+オプションや
+.B \-w
+オプションから生じる警告メッセージを出さなくする。
+(多くのマシンでは、 APM BIOS は電力を使い切りそうになると
+警告音を発するので、それ以上の警告は必要ない。)
+.TP
+.B \-?, \-\-help
+.\"O Prints a usage message and exits.
+利用法を表示して終了する。
+.PP
+.\"O New software should only use the
+.\"O .I proxy
+.\"O script, rather than the following now-deprecated options (most of which
+.\"O have never appeared in a production release).
+.\"O If they are provided, they take precedence over any proxy command
+.\"O invocation for each event.
+これから書くソフトは、
+.I proxy
+スクリプトだけを使うようにすべきである。
+以下のオプションは今後は使うべきでない
+(これらのほとんどは正式リリースには存在しない)。
+指定されると、各イベントから起動されるどの proxy コマンドよりも優先される。
+.TP
+.BR "\-a " ac_online_cmd, " \-\-ac_online " ac_online_cmd
+.\"O Provides a command to be run when AC power becomes available, though not
+.\"O when the daemon first starts.
+AC 電源が利用できるようになったとき (ただしデーモンが最初に起動されたときは除く)
+に実行すべきコマンドを指定する。
+.TP
+.BR "\-b " ac_offline_cmd, " \-\-ac_offline " ac_offline_cmd
+.\"O Provides a command to be run when the machine is operating on
+.\"O battery power, though not when the daemon first starts.
+マシンが電池駆動になったとき (ただしデーモンが最初に起動されたときは除く)
+に実行すべきコマンドを指定する。
+.TP
+.BR "\-l " low_battery_cmd, " \-\-low_battery " low_battery_cmd
+.\"O Provides a command to be run when the APM BIOS judges that
+.\"O battery power is "low".
+電池の残量が "low" であると
+APM BIOS が判断した場合に実行すべきコマンドを指定する。
+.TP
+.BR "\-s " pre_suspend_cmd, " \-\-pre_suspend " pre_suspend_cmd
+.\"O Provides a command to be run before suspending through the driver. 
+ドライバ経由でサスペンドする前に実行すべきコマンドを指定する。
+.TP
+.BR "\-r " post_resume_cmd, " \-\-post_resume " post_resume_cmd
+.\"O Provides a command to be run after resuming through the driver. 
+ドライバ経由で復帰した後に実行すべきコマンドを指定する。
+.TP
+.B \-u, \-\-utc
+.\"O (This option is now completely ignored.)
+.\"O The BIOS clock is set to UTC (GMT), so the daemon should pass the -u option to the
+.\"O .I clock
+.\"O or
+.\"O .I hwclock
+.\"O program when coming out of suspend or resume mode, or when responding
+.\"O to the BIOS update time event.
+(このオプションは現在は完全に無視される。)
+BIOS クロックが UTC (GMT) にセットされている。
+したがってサスペンドモードやレジュームモードから復帰したり
+BIOS の update time イベントの際には、デーモンは
+.I clock
+や
+.I hwclock
+プログラムに -u オプションを渡さなければならない。
+.\"O .SH BUGS
+.SH バグ
+.\"O The first status report printed after a power change may be
+.\"O inaccurate because the power change occured at a fractional percentage that
+.\"O was rounded to a full percentage.  For example, say you are discharging the
+.\"O machine and have 50.9% power, which is reported as 50%.  When you start to
+.\"O charge the machine, it will only have 0.1% left before the percentage flips
+.\"O to 51%, and the charge rate will be dramatically over-estimated.
+電力状態が変わったあと、最初に出される報告は不正確かもしれない。
+なぜなら 1% 以下の変化は 1% に丸められるからである。例えば、
+ある程度マシンを使って 50.9% の電池が残っているとすると、
+これは 50% と報告される。
+マシンの充電が始まると、残量が 51% になるまでの変化は 0.1% だけである。
+したがって充電速度は劇的に大きな値になってしまう。
+.PP
+.\"O There needs to be a more general hook to let other applications participate
+.\"O in system power management decisions and policies.
+他のアプリケーションに、システムの電源管理方針決定に参画させるには、
+より一般的なフックが必要である。
+.PP
+.\"O Multiple batteries are currently treated as if they were just one large one.
+現在のところ、複数の電池は 1 つの大きな電池としてしか取り扱われない。
+.\"O .SH FILES
+.SH ファイル
+.I /dev/apm_bios
+.br
+.I /proc/apm
+.br
+.I /etc/apmd/apmd_proxy
+.\"O .SH AUTHOR
+.SH 著者
+.\"O This program was written by Rik Faith (faith@cs.unc.edu) and may be freely
+.\"O distributed under the terms of the GNU General Public License.  There is
+.\"O ABSOLUTELY NO WARRANTY for this program.  The current maintainer is Avery
+.\"O Pennarun (apenwarr@worldvisions.ca).
+このプログラムは Rik Faith (faith@cs.unc.edu) によって書かれ、
+GNU 一般公共使用許諾のもとで自由に再配布できる。
+このプログラムは「完全に無保証」である。現在の管理者は
+Avery Pennarun (apenwarr@worldvisions.ca) である。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.\"O .BR apm "(1), " xapm "(1), " cardctl "(8), " hdparm "(8), " syslogd "(8)"
+.BR apm (1),
+.BR xapm (1),
+.BR cardctl (8),
+.BR hdparm (8),
+.BR syslogd (8)

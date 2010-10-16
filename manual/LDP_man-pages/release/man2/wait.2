@@ -1,0 +1,644 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (c) 1993 by Thomas Koenig <ig25@rz.uni-karlsruhe.de>
+.\" and Copyright (c) 2004 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" License.
+.\"
+.\" Modified Sat Jul 24 13:30:06 1993 by Rik Faith <faith@cs.unc.edu>
+.\" Modified Sun Aug 21 17:42:42 1994 by Rik Faith <faith@cs.unc.edu>
+.\"          (Thanks to Koen Holtman <koen@win.tue.nl>)
+.\" Modified Wed May 17 15:54:12 1995 by Rik Faith <faith@cs.unc.edu>
+.\"           To remove *'s from status in macros (Thanks to Michael Shields).
+.\" Modified as suggested by Nick Duffek <nsd@bbc.com>, aeb, 960426
+.\" Modified Mon Jun 23 14:09:52 1997 by aeb - add EINTR.
+.\" Modified Thu Nov 26 02:12:45 1998 by aeb - add SIGCHLD stuff.
+.\" Modified Mon Jul 24 21:37:38 2000 by David A. Wheeler
+.\"          <dwheeler@dwheeler.com> - noted thread issues.
+.\" Modified 26 Jun 01 by Michael Kerrisk
+.\"          Added __WCLONE, __WALL, and __WNOTHREAD descriptions
+.\" Modified 2001-09-25, aeb
+.\" Modified 26 Jun 01 by Michael Kerrisk, <mtk.manpages@gmail.com>
+.\"	Updated notes on setting disposition of SIGCHLD to SIG_IGN
+.\" 2004-11-11, mtk
+.\"	Added waitid(2); added WCONTINUED and WIFCONTINUED()
+.\"	Added text on SA_NOCLDSTOP
+.\"	Updated discussion of SA_NOCLDWAIT to reflect 2.6 behavior
+.\"	Much other text rewritten
+.\" 2005-05-10, mtk, __W* flags can't be used with waitid()
+.\" 2008-07-04, mtk, removed erroneous text about SA_NOCLDSTOP
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya all rights reserved.
+.\" Japanese Version Copyright (c) 2005 Akihiro MOTOKI all rights reserved.
+.\" Translated 1997-03-04, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified 2000-09-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2001-06-25, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2001-10-15, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2001-12-13, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2002-10-21, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2003-01-27, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2003-09-12, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-03-19, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-12-26, Akihiro MOTOKI
+.\" Updated 2008-07-31, Akihiro MOTOKI, LDP v3.05
+.\"
+.\"WORD:	signal handling		シグナル処理
+.\"WORD:	suspend			停止(suspend)
+.\"WORD:	zombie			ゾンビ(zombie)
+.\"WORD:	child process		子プロセス
+.\"WORD:	process group		プロセス・グループ
+.\"WORD:	process group ID	プロセス・グループID
+.\"WORD:	stop			停止(stop)
+.\"WORD:	effective user ID	実効ユーザーID
+.\"WORD:	block			禁止(block)
+.\"
+.TH WAIT 2 2009-04-21 "Linux" "Linux Programmer's Manual"
+.SH 名前
+wait, waitpid, waitid \- プロセスの状態変化を待つ
+.SH 書式
+.B #include <sys/types.h>
+.br
+.B #include <sys/wait.h>
+.sp
+.BI "pid_t wait(int *" "status" );
+
+.BI "pid_t waitpid(pid_t " pid ", int *" status ", int " options );
+
+.BI "int waitid(idtype_t " idtype ", id_t " id \
+", siginfo_t *" infop ", int " options );
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR waitid ():
+_SVID_SOURCE || _XOPEN_SOURCE
+.SH 説明
+これらのシステムコールはいずれも、呼び出し元プロセスの子プロセスの
+状態変化を待ち、状態が変化したその子プロセスの情報を取得するのに
+使用される。
+状態変化とは以下のいずれかである:
+子プロセスの終了、シグナルによる子プロセスの停止、
+シグナルによる子プロセスの再開。
+子プロセスが終了した場合は、wait を実行することで、
+システムがその子プロセスに関連するリソースを解放できるようになる。
+wait が実行されなかった場合には、終了した子プロセスは
+「ゾンビ」状態で残り続ける (下記の注意の章を参照のこと)。
+
+子プロセスの状態変化がすでに発生していた場合、これらのコールは
+すぐに復帰する。それ以外の場合は、子プロセスの状態変化が起こるか、
+シグナルハンドラによりシステムコールが中断されるまで、
+停止 (block) する (後者は、
+.BR sigaction (2)
+の
+.B SA_RESTART
+フラグによりシステムコールが自動的に再スタートするようになっていない
+場合の動作である)。
+以下の説明では、状態変化が起こったがこれらのシステムコールのいずれかに
+よって待たれていない子プロセスを
+.I waitable
+(待ち可能) と呼ぶ。
+.SS "wait() と waitpid()"
+.BR wait ()
+システムコールは、子プロセスのいずれかが終了するまで
+呼び出し元のプロセスの実行を一時停止する。
+以下の二つの呼び出しは等価である:
+.nf
+
+    wait(&status);
+
+    waitpid(\-1, &status, 0);
+.fi
+
+.BR waitpid ()
+システムコールは、
+.I pid
+引き数で指定した子プロセスの状態変化が起こるまで、
+呼び出し元のプロセスの実行を一時停止する。デフォルトでは、
+.BR waitpid ()
+は子プロセスの終了だけを待つが、この動作は
+.I options
+引き数により変更可能である。
+
+.I pid
+に指定できる値は以下の通り:
+.IP "< \-1"
+プロセスグループID が
+.I pid
+の絶対値に等しい子プロセスのいずれかが終了するまでを待つ。
+.IP \-1
+子プロセスのどれかが終了するまで待つ。
+.IP 0
+プロセスグループID が呼び出したプロセスのものと等しい
+子プロセスを待つ。
+.IP "> 0"
+プロセスID が
+.I pid
+に等しい子プロセスを待つ。
+.PP
+.I options
+の値は次の定数の 0 個以上の論理和である:
+.TP 12
+.B WNOHANG
+状態変化が起こった子プロセスがない場合にすぐに復帰する。
+.TP
+.B WUNTRACED
+子プロセスが停止した場合にも復帰する (子プロセスが
+.BR ptrace (2)
+でトレースされている場合は除く)。
+このオプションが指定されていない場合でも、停止したプロセスが
+「トレース (traced)」されていれば、子プロセスの状態が報告される。
+.TP
+.BR WCONTINUED " (Linux 2.6.10 以降)"
+停止した子プロセスが
+.B SIGCONT
+の配送により再開した場合にも復帰する。
+.PP
+(Linux 専用オプションについては後述する)
+.PP
+.I status
+が NULL でなければ、
+.BR wait ()
+や
+.BR waitpid ()
+は
+.I status
+で指す \fIint\fP に状態情報を格納する。
+この整数は以下のマクロを使って検査できる。
+(これらのマクロの引き数には、
+.BR wait ()
+や
+.BR waitpid ()
+が書き込んだ整数そのものを指定する。ポインタではない!)
+.TP
+.BI WIFEXITED( status )
+子プロセスが正常に終了した場合に真を返す。
+「正常に」とは、
+.BR exit (3)
+か
+.BR _exit (2)
+が呼び出された場合、もしくは
+main() から復帰した場合である。
+.TP
+.BI WEXITSTATUS( status )
+子プロセスの終了ステータスを返す。
+終了ステータスは
+.I status
+引き数の下位 8ビットで構成されており、
+.BR exit (3)
+や
+.BR _exit (2)
+の呼び出し時に渡された値、もしくは main() の return 文の
+引き数として指定された値である。
+このマクロを使用するのは
+.B WIFEXITED
+が真を返した場合だけにすべきである。
+.TP
+.BI WIFSIGNALED( status )
+子プロセスがシグナルにより終了した場合に真を返す。
+.TP
+.BI WTERMSIG( status )
+子プロセス終了の原因となったシグナルの番号を返す。
+このマクロを使用するのは
+.B WIFSIGNALED
+が真を返した場合だけにすべきである。
+.TP
+.BI WCOREDUMP( status )
+子プロセスがコアダンプを生成した場合に真を返す。
+このマクロを使用するのは
+.B WIFSIGNALED
+が真を返した場合だけにすべきである。
+このマクロは POSIX.1-2001 では規定されておらず、
+(AIX, SunOS などの) いくつかの Unix の実装では利用できない。
+必ず #ifdef WCOREDUMP ... #endif で括って使用すること。
+.TP
+.BI WIFSTOPPED( status )
+子プロセスがシグナルの配送により停止した場合に真を返す。
+これが真になるのは、システムコールが
+.B WUNTRACED
+を指定して呼び出された場合か、子プロセスがトレースされている場合
+.RB ( ptrace (2)
+参照) だけである。
+.TP
+.BI WSTOPSIG( status )
+子プロセスを停止させたシグナルの番号を返す。
+このマクロを使用するのは
+.B WIFSTOPPED
+が 0 以外を返した場合だけにすべきである。
+.TP
+.BI WIFCONTINUED( status )
+(Linux 2.6.10 以降)
+子プロセスが
+.B SIGCONT
+の配送により再開した場合に真を返す。
+.SS "waitid()"
+.BR waitid ()
+システムコール (Linux 2.6.9 以降で利用可能) を使うと、
+子プロセスのどの状態変化を待つかについてより細かな制御ができる。
+
+引き数
+.I idtype
+と
+.I id
+でどの子プロセスを待つかを選択する:
+.IP "\fIidtype\fP == \fBP_PID\fP"
+プロセスID が
+.I id
+と一致する子プロセスを待つ。
+.IP "\fIidtype\fP == \fBP_PGID\fP"
+プロセスグループID が
+.I id
+と一致する子プロセスを待つ。
+.IP "\fIidtype\fP == \fBP_ALL\fP"
+子プロセス全部を対象に待つ。
+.I id
+は無視される。
+.PP
+子プロセスのどの状態変化を待つかは以下のフラグで指定する
+.RI ( options
+には 1個以上のフラグの論理和をとって指定する):
+.TP 12
+.B WEXITED
+子プロセスの終了を待つ。
+.TP
+.B WSTOPPED
+子プロセスがシグナルの配送により停止するのを待つ。
+.TP
+.B WCONTINUED
+(停止していた) 子プロセスが
+.B SIGCONT
+が配送されて再開するのを待つ。
+.PP
+さらに以下のフラグを論理和の形で
+.I options
+に指定できる:
+.TP 12
+.B WNOHANG
+.BR waitpid ()
+と同様。
+.TP
+.B WNOWAIT
+waitable 状態のプロセスをそのままにする。この後で wait コールを
+使って、同じ子プロセスの状態情報をもう一度取得することができる。
+.PP
+成功した場合には、
+.BR waitid ()
+は
+.I infop
+が指す
+.I siginfo_t
+構造体の以下のフィールドを設定する:
+.TP 12
+\fIsi_pid\fP
+子プロセスのプロセスID。
+.TP
+\fIsi_uid\fP
+子プロセスの実ユーザID
+(このフィールドは他のほとんどの実装では設定されない)。
+.TP
+\fIsi_signo\fP
+常に
+.B SIGCHLD
+が設定される。
+.TP
+\fIsi_status\fP
+.BR _exit (2)
+(か
+.BR exit (3))
+に指定された子プロセスの終了ステータス、もしくは
+子プロセスの終了、停止、再開の原因となったシグナルが設定される。
+このフィールドをどう解釈するかは、
+.I si_code
+フィールドを参照して決めることができる。
+.TP
+\fIsi_code\fP
+以下のいずれかが設定される:
+.B CLD_EXITED
+(子プロセスが
+.BR _exit (2)
+を呼び出した);
+.B CLD_KILLED
+(シグナルにより子プロセスが kill された);
+.B CLD_DUMPED
+(シグナルにより子プロセスが kill され、コア・ダンプが行われた);
+.B CLD_STOPPED
+(シグナルにより子プロセスが停止した);
+.BR CLD_TRAPPED
+(トレースされていた子プロセスがトラップを受信した);
+.B CLD_CONTINUED
+.RB ( SIGCONT
+により子プロセスが再開された)。
+.PP
+.B WNOHANG
+が
+.I options
+に指定されていて、
+waitable 状態の子プロセスがなかった場合には、
+.BR waitid ()
+はすぐに 0 を返す。このとき、
+.I infop
+が指す
+.I siginfo_t
+構造体の内容は不定である。
+.\" POSIX.1-2001 では、不定の可能性を残している。
+.\" (Linux を含む) ほとんどの実装では、この場合に構造体を 0 で埋めるが、
+.\" 少なくとも一つの実装 (AIX 5.1) ではそうならない。 -- MTK Nov 04
+この場合を waitable 状態の子プロセスがあった場合と区別するには、
+.BR waitid ()
+を呼び出す前に
+.I si_pid
+を 0 にしておき、コールが復帰した後でこのフィールドが 0 以外の値かどうか
+をチェックすればよい。
+.SH 返り値
+.BR wait ():
+成功すると、終了した子プロセスのプロセスID を返す。
+エラーの場合 \-1 を返す。
+
+.BR waitpid ():
+成功すると、状態が変化した子プロセスのプロセスID を返す。
+.B WNOHANG
+が指定されていて、
+.I pid
+で指示された子プロセスが一つ以上存在するが、どの子プロセスでも
+状態変化が起こっていなかった場合は、 0 を返す。
+エラーの場合 \-1 を返す。
+
+.BR waitid ():
+成功すると 0 を返す。
+.B WNOHANG
+が指定されていて、
+.I pid
+で指示された子プロセスで状態変化が起こっていなかった場合にも
+0 を返す。
+エラーの場合 \-1 を返す。
+.\" FIXME: As reported by Vegard Nossum, if infop is NULL, then waitid()
+.\" returns the PID of the child.  Either this is a bug, or it is intended
+.\" behavior that needs to be documented.  See my Jan 2009 LKML mail
+.\" "waitid() return value strangeness when infop is NULL".
+エラーの場合、これらのシステムコールはいずれも
+.I errno
+に適切な値を設定する。
+.SH エラー
+.TP
+.B ECHILD
+.RB ( wait ()
+の場合)
+呼び出し元プロセスには、wait を行っていない子プロセスはない。
+.TP
+.B ECHILD
+.RB ( waitpid ()
+か
+.BR waitid ()
+の場合)
+.I pid
+.RB ( waitpid ())
+か
+.I idtype
+と
+.I id
+.RB ( waitid ())
+で指定したプロセスが存在しないか、呼び出し元プロセスの子プロセスでない
+.RB ( SIGCHLD
+の動作に
+.B SIG_IGN
+を設定した場合には、自分自身の子プロセスでも起こりうる。
+スレッドに関しては「Linux での注意」の節も参照すること)。
+.TP
+.B EINTR
+.B WNOHANG
+が設定されておらず、禁止 (block) されていないシグナルや
+.B SIGCHLD
+を受信した。
+.BR signal (7)
+参照。
+.TP
+.B EINVAL
+.I options
+引き数が不正である。
+.SH 準拠
+SVr4, 4.3BSD, POSIX.1-2001.
+.SH 注意
+終了したが、wait されていない子プロセスは「ゾンビ」になる。
+後で親プロセスが wait を実行して子プロセスについての情報を取得できるように、
+カーネルはゾンビプロセスについて最小限の情報 (PID、終了ステータス、
+リソース使用状況) を保持する。
+ゾンビプロセスは、 wait によってシステムから削除されない限り、
+カーネルのプロセステーブルの 1 エントリを消費する。このプロセステーブルが
+一杯になると、新たにプロセスを作ることができなくなる。
+親プロセスが終了すると、その親プロセスの「ゾンビ」の
+子プロセスは (もしあれば)
+.BR init (8)
+の養子となる。
+.BR init (8)
+は wait を自動的に実行し、ゾンビを削除する。
+
+POSIX.1-2001 では以下のように規定されている。
+.B SIGCHLD
+の動作が
+.B SIG_IGN
+に設定されたか、
+.B SIGCHLD
+に対して
+.B SA_NOCLDWAIT
+フラグが設定された場合
+.RB ( sigaction (2)
+参照)、終了した子プロセスはゾンビにはならず、
+.BR wait ()
+や
+.BR waitpid ()
+の呼び出しは全ての子プロセスが終了するまで停止し、
+子プロセスが全部終了した後
+.I errno
+に
+.B ECHILD
+を設定して失敗する。
+(もともとの POSIX 標準は
+.B SIGCHLD
+に
+.B SIG_IGN
+を設定した場合の振る舞いを未規定のままにしている。
+.B SIGCHLD
+のデフォルトの動作が「無視」であるにもかかわらず、
+.B SIGCHLD
+の動作として
+.B SIG_IGN
+を明示的に設定した場合にはゾンビプロセスの子プロセスの扱いが
+異なる点に注意すること。)
+Linux 2.6 はこの仕様に準拠している。
+しかし、Linux 2.4 (とそれ以前のバージョン) はそうではない:
+.B SIGCHLD
+が無視される状態で
+.BR wait ()
+または
+.BR waitpid ()
+が呼び出された場合、
+.B SIGCHLD
+が無視されていないかのように振る舞う。
+つまり、呼び出しによって次の子プロセスの終了までブロックされ、
+終了した子プロセスの PID と状態が返される。
+.SS Linux での注意
+Linux カーネルでは、カーネルによってスケジュールされるスレッドは
+プロセスと明確に区別できる構成要素ではない。スレッドは Linux 固有の
+.BR clone (2)
+システムコールを使用して生成されるプロセスに過ぎない。
+移植性のある
+.BR pthread_create (3)
+コールのような他のルーチンは
+.BR clone (2)
+を使用して実装されている;
+これらでは
+.BR waitid ()
+を使うことはできない。
+Linux 2.4 より前では、スレッドは単に特殊なプロセスであったので、
+例え同じスレッドグループであっても、
+あるスレッドが別のスレッドの子プロセスが終了するのを待つことは出来なかった。
+しかし、POSIX ではこのような機能を規定しており、
+Linux 2.4 以降では、あるスレッドが同じスレッドグループの他のスレッドの
+子プロセスが終了するのを待つことができるようになった。
+そして将来はこれがデフォルトの動作になるであろう。
+.LP
+.BR clone (2)
+を用いて作られた子プロセスには、以下の Linux 固有の
+.I options
+が使用できる。
+.TP
+.B __WCLONE
+.\" since 0.99pl10
+"clone" な子プロセスだけを待つ。
+指定されなかった場合は非 "clone" な子プロセスだけを待つ
+("clone" な子プロセスは、終了時に親プロセスへ全くシグナルを送らないか、
+.B SIGCHLD
+以外のシグナルを送る)。
+このオプションは
+.B __WALL
+も指定された場合は無視される。
+.TP
+.BR __WALL " (Linux 2.4 以降)"
+.\" since patch-2.3.48
+"clone" であるかないかに関わらず、
+全ての子プロセスを待つ。
+.TP
+.BR __WNOTHREAD " (Linux 2.4 以降)"
+.\" since patch-2.4.0-test8
+同じスレッドグループの他のスレッドの子プロセスは待たない。
+Linux 2.4 より前ではデフォルトであった。
+.SH 例
+.\" fork.2 もこのサンプルプログラムを参照している。
+以下のプログラムは、
+.BR fork (2)
+と
+.BR waitpid ()
+の使用方法の例を示している。
+このプログラムでは子プロセスを生成する。
+コマンドライン引き数が指定されなかったときは、
+子プロセスは
+.BR pause (2)
+を使ってその実行を一時停止し、ユーザがその子プロセスに
+シグナルを送信できるようにする。
+コマンドライン引き数が指定された場合は、
+子プロセスは直ちに終了し、
+コマンドラインで指定された整数を終了ステータスとして使用する。
+親プロセスは、
+.BR waitpid ()
+を使って子プロセスを監視し、
+wait のステータス値を上記の W*() マクロを使って解析するという
+ループを実行する。
+
+下記ののシェル・セッションはプログラムの実行例である:
+.in +4n
+.nf
+
+.RB "$" " ./a.out &"
+Child PID is 32360
+[1] 32359
+.RB "$" " kill \-STOP 32360"
+stopped by signal 19
+.RB "$" " kill \-CONT 32360"
+continued
+.RB "$" " kill \-TERM 32360"
+killed by signal 15
+[1]+  Done                    ./a.out
+$
+.fi
+.in
+.SS プログラムのソース
+\&
+.nf
+#include <sys/wait.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+
+int
+main(int argc, char *argv[])
+{
+    pid_t cpid, w;
+    int status;
+
+    cpid = fork();
+    if (cpid == \-1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+
+    if (cpid == 0) {            /* Code executed by child */
+        printf("Child PID is %ld\\n", (long) getpid());
+        if (argc == 1)
+            pause();                    /* Wait for signals */
+        _exit(atoi(argv[1]));
+
+    } else {                    /* Code executed by parent */
+        do {
+            w = waitpid(cpid, &status, WUNTRACED | WCONTINUED);
+            if (w == \-1) {
+                perror("waitpid");
+                exit(EXIT_FAILURE);
+            }
+
+            if (WIFEXITED(status)) {
+                printf("exited, status=%d\\n", WEXITSTATUS(status));
+            } else if (WIFSIGNALED(status)) {
+                printf("killed by signal %d\\n", WTERMSIG(status));
+            } else if (WIFSTOPPED(status)) {
+                printf("stopped by signal %d\\n", WSTOPSIG(status));
+            } else if (WIFCONTINUED(status)) {
+                printf("continued\\n");
+            }
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        exit(EXIT_SUCCESS);
+    }
+}
+.fi
+.SH 関連項目
+.BR _exit (2),
+.BR clone (2),
+.BR fork (2),
+.BR kill (2),
+.BR ptrace (2),
+.BR sigaction (2),
+.BR signal (2),
+.BR wait4 (2),
+.BR pthread_create (3),
+.BR credentials (7),
+.BR signal (7)

@@ -1,0 +1,376 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" This manpage is Copyright (C) 2006 Silicon Graphics, Inc.
+.\"                               Christoph Lameter
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" FIXME Should programs normally be using this API directly, or should
+.\" they rather be using interfaces in the numactl package?
+.\" (e.g., compare with recommendation in mbind(2)).
+.\" 
+.\" Japanese Version Copyright (c) 2008  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2008-10-26, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" 
+.TH MOVE_PAGES 2 2008-10-06 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O move_pages \- move individual pages of a process to another node
+move_pages \- あるプロセスの個々のページを別のノードに移動する
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #include <numaif.h>
+.sp
+.BI "long move_pages(int " pid ", unsigned long count, void **" pages ,
+.BI "                const int *" nodes ", int *" status ", int " flags );
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .BR move_pages ()
+.\"O moves the specified
+.\"O .I pages
+.\"O of the process
+.\"O .I pid
+.\"O to the memory nodes specified by
+.\"O .IR nodes .
+.\"O The result of the move is reflected in
+.\"O .IR status .
+.\"O The
+.\"O .I flags
+.\"O indicate constraints on the pages to be moved.
+.BR move_pages ()
+は、プロセス
+.I pid
+の指定されたページ
+.I pages
+を
+.I nodes
+で指定されたメモリノードに移動する。
+移動の結果は
+.I status
+に反映される。
+.I flags
+では移動されるページに関する制約を指定する。
+
+.\"O .I pid
+.\"O is the ID of the process in which pages are to be moved.
+.\"O To move pages in another process,
+.\"O the caller must be privileged
+.\"O .RB ( CAP_SYS_NICE )
+.\"O or the real or effective user ID of the calling process must match the
+.\"O real or saved-set user ID of the target process.
+.\"O If
+.\"O .I pid
+.\"O is 0 then
+.\"O .BR move_pages ()
+.\"O moves pages of the calling process.
+.I pid
+は、移動されるページが属するプロセスの ID である。
+別のプロセスのページを移動するためには、呼び出し元が特権
+.RB ( CAP_SYS_NICE )
+を持っているか、呼び出したプロセスの実ユーザ ID か実効ユーザ ID が
+ページ移動対象のプロセスの実ユーザ ID か保存 set-user-ID のどちらかと
+一致しなければならない。
+.I pid
+が 0 の場合、
+.BR move_pages ()
+は呼び出したプロセスのページを移動する。
+
+.\"O .I count
+.\"O is the number of pages to move.
+.\"O It defines the size of the three arrays
+.\"O .IR pages ,
+.\"O .IR nodes ,
+.\"O and
+.\"O .IR status .
+.I count
+は移動するページ数である。
+.I count
+により
+.IR pages ,
+.IR nodes ,
+.I status
+の 3 つの配列の大きさが定義される。
+
+.\"O .I pages
+.\"O is an array of pointers to the pages that should be moved.
+.\"O These are pointers that should be aligned to page boundaries.
+.I pages
+は、移動すべきページへのポインタの配列であり、
+各ポインタはページ境界に揃えた値を指定すべきである。
+.\" FIXME what if they are not aligned?
+.\"O Addresses are specified as seen by the process specified by
+.\"O .IR pid .
+.I pid
+で指定されたプロセスで見えるアドレスを指定する。
+
+.\"O .I nodes
+.\"O is an array of integers that specify the desired location for each page.
+.\"O Each element in the array is a node number.
+.\"O .I nodes
+.\"O can also be NULL, in which case
+.\"O .BR move_pages ()
+.\"O does not move any pages but instead will return the node
+.\"O where each page currently resides, in the
+.\"O .I status
+.\"O array.
+.\"O Obtaining the status of each page may be necessary to determine
+.\"O pages that need to be moved.
+.I nodes
+は、各ページの希望の移動場所を示す整数値の配列であり、
+配列の各要素はノード番号である。
+.I nodes
+には NULL を指定することもでき、この場合には
+.BR move_pages ()
+はどのページも移動しないが、各ページが現在配置されているノードを配列
+.I status
+に格納して返す。どのページを移動する必要があるかを判断するために、
+各ページの状態の取得が必要な場合もある。
+
+.\"O .I status
+.\"O is an array of integers that return the status of each page.
+.\"O The array only contains valid values if
+.\"O .BR move_pages ()
+.\"O did not return an error.
+.I status
+は、各ページの状態を表す整数値の配列である。
+この配列に有効な値が格納されるのは、
+.BR move_pages ()
+がエラーを返さなかった場合だけである。
+
+.\"O .I flags
+.\"O specify what types of pages to move.
+.\"O .B MPOL_MF_MOVE
+.\"O means that only pages that are in exclusive use by the process
+.\"O are to be moved.
+.\"O .B MPOL_MF_MOVE_ALL
+.\"O means that pages shared between multiple processes can also be moved.
+.\"O The process must be privileged
+.\"O .RB ( CAP_SYS_NICE )
+.\"O to use
+.\"O .BR MPOL_MF_MOVE_ALL .
+.I flags
+には、どの種類のページを移動するかを指定する。
+.B MPOL_MF_MOVE
+は、そのプロセスが排他的に使用しているページだけを移動することを意味する。
+.B MPOL_MF_MOVE_ALL
+は、複数のプロセス間で共有されているページも移動できることを意味する。
+.B MPOL_MF_MOVE_ALL
+を使用するためには、そのプロセスが特権
+.RB ( CAP_SYS_NICE )
+を持っていなければならない。
+.\"O .SH Page states in the status array
+.SH status 配列に格納されるページ状態
+.\"O The following values can be returned in each element of the
+.\"O .I status
+.\"O array.
+.I status
+配列の各要素として、以下の値が返される。
+.TP
+.B 0..MAX_NUMNODES
+.\"O Identifies the node on which the page resides.
+そのページが配置されているノードを示す。
+.TP
+.B -EACCES
+.\"O The page is mapped by multiple processes and can only be moved if
+.\"O .B MPOL_MF_MOVE_ALL
+.\"O is specified.
+そのページは複数のプロセスによりマップされており、
+.B MPOL_MF_MOVE_ALL
+が指定された場合にのみ移動できる。
+.TP
+.B -EBUSY
+.\"O The page is currently busy and cannot be moved.
+.\"O Try again later.
+.\"O This occurs if a page is undergoing I/O or another kernel subsystem
+.\"O is holding a reference to the page.
+そのページが現在ビジーであり、移動できない。後でもう一度試すこと。
+この状況は、ページが I/O の実行中であったり、カーネルの他のサブシステム
+がそのページへの参照を保持している場合に発生する。
+.TP
+.B -EFAULT
+.\"O This is a zero page or the memory area is not mapped by the process.
+そのページが zero page であるか、そのメモリ領域はそのプロセスにより
+マップされていない。
+.TP
+.B -EIO
+.\"O Unable to write back a page.
+.\"O The page has to be written back
+.\"O in order to move it since the page is dirty and the file system
+.\"O does not provide a migration function that would allow the move
+.\"O of dirty pages.
+ページを書き戻す (write back) ことができない。
+ページが dirty で、ファイルシステムが dirty なページを移動できるような
+移動機能を提供していないため、そのページを移動するためにはページを
+書き戻さなければならない。
+.TP
+.B -EINVAL
+.\"O A dirty page cannot be moved.
+.\"O The file system does not
+.\"O provide a migration function and has no ability to write back pages.
+dirty なページを移動できない。
+ファイルシステムが dirty なページを移動するための機能を提供しておらず、
+ページを書き戻す能力もない。
+.TP
+.B -ENOENT
+.\"O The page is not present.
+ページが存在しない。
+.TP
+.B -ENOMEM
+.\"O Unable to allocate memory on target node.
+移動先のノードでメモリを確保することができない。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O On success
+.\"O .BR move_pages ()
+.\"O returns zero.
+成功すると、
+.BR move_pages ()
+は 0 を返す。
+.\" FIXME Is the following quite true: does the wrapper in numactl
+.\" do the right thing?
+.\"O On error, it returns \-1, and sets
+.\"O .I errno
+.\"O to indicate the error.
+エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B E2BIG
+.\"O Too many pages to move.
+移動すべきページが多過ぎる。
+.TP
+.B EACCES
+.\" FIXME Clarify "current cpuset".  Is that the cpuset of the caller
+.\" or the target?
+.\"O One of the target nodes is not allowed by the current cpuset.
+移動先のノードのいずれかが現在の CPU 集合では許可されていない。
+.TP
+.B EFAULT
+.\"O Parameter array could not be accessed.
+パラメータ配列にアクセスできなかった。
+.TP
+.B EINVAL
+.\"O Flags other than
+.\"O .B MPOL_MF_MOVE
+.\"O and
+.\"O .B MPOL_MF_MOVE_ALL
+.\"O was specified or an attempt was made to migrate pages of a kernel thread.
+.I flags
+に
+.B MPOL_MF_MOVE
+でも
+.B MPOL_MF_MOVE_ALL
+でもない値が指定されたか、カーネルスレッドのページを移動させようとした。
+.TP
+.B ENODEV
+.\"O One of the target nodes is not online.
+移動先のノードのいずれかがオンラインでない。
+.TP
+.B ENOENT
+.\"O No pages were found that require moving.
+.\"O All pages are either already
+.\"O on the target node, not present, had an invalid address or could not be
+.\"O moved because they were mapped by multiple processes.
+移動が必要なページが全く見つからなかった。
+指定された全てのページが、すでに移動先のノードに存在するか、存在しないか、
+無効なアドレスであったか、複数のプロセスによってマップされていて移動でき
+なかったか、のいずれかであった。
+.TP
+.B EPERM
+.\"O The caller specified
+.\"O .B MPOL_MF_MOVE_ALL
+.\"O without sufficient privileges
+.\"O .RB ( CAP_SYS_NICE ).
+.\"O Or, the caller attempted to move pages of a process belonging
+.\"O to another user but did not have privilege to do so
+.\"O .RB ( CAP_SYS_NICE ).
+呼び出し元は
+.B MPOL_MF_MOVE_ALL
+を指定したが、十分な特権
+.RB ( CAP_SYS_NICE )
+を持っていない。
+または、呼び出し元が他のユーザに属するプロセスのページを移動しようとしたが、
+それを行えるだけの特権
+.RB ( CAP_SYS_NICE )
+を持っていなかった。
+.TP
+.B ESRCH
+.\"O Process does not exist.
+プロセスが存在しない。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O .BR move_pages ()
+.\"O first appeared on Linux in version 2.6.18.
+.BR move_pages ()
+は、バージョン 2.6.18 で初めて Linux に登場した。
+.\"O .SH CONFORMING TO
+.SH 準拠
+.\"O This system call is Linux-specific.
+このシステムコールは Linux 固有である。
+.\"O .SH "NOTES"
+.SH 注意
+.\"O For information on library support, see
+.\"O .BR numa (7).
+ライブラリによるサポートについては
+.BR numa (7)
+を参照。
+
+.\"O Use
+.\"O .BR get_mempolicy (2)
+.\"O with the
+.\"O .B MPOL_F_MEMS_ALLOWED
+.\"O flag to obtain the set of nodes that are allowed by
+.\" FIXME Clarify "current cpuset".  Is that the cpuset of the caller
+.\" or the target?
+.\"O the current cpuset.
+.\"O Note that this information is subject to change at any
+.\"O time by manual or automatic reconfiguration of the cpuset.
+現在の CPU 集合で許可されているノードの集合を取得するには、フラグ
+.B MPOL_F_MEMS_ALLOWED
+を指定して
+.BR get_mempolicy (2)
+を使用すればよい。
+取得した情報は、CPU 集合の手動または自動での再構成により
+いつ何時変化してしまうか分からない。
+
+.\"O Use of this function may result in pages whose location
+.\"O (node) violates the memory policy established for the
+.\"O specified addresses (See
+.\"O .BR mbind (2)]
+.\"O and/or the specified process [See
+.\"O .BR set_mempolicy (2)).
+.\"O That is, memory policy does not constrain the destination
+.\"O nodes used by
+.\"O .BR move_pages ().
+この関数を使用すると、ページの位置 (ノード) が
+指定されたアドレスに対して設定されたメモリポリシー
+.RB ( mbind (2)
+参照) や指定されたプロセスに対して設定されたメモリポリシー
+.RB ( set_mempolicy (2)
+参照) に違反してしまう可能性がある。
+つまり、メモリポリシーは
+.BR move_pages ()
+で使われる移動先ノードを制限しないということである。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR get_mempolicy (2),
+.BR mbind (2),
+.BR set_mempolicy (2),
+.BR numa (3),
+.BR numa_maps (5),
+.BR cpuset (7),
+.BR numa (7),
+.BR migratepages (8),
+.BR numa_stat (8)

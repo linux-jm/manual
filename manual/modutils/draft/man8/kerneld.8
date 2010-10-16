@@ -1,0 +1,150 @@
+.\" Copyright (c) 1995 Bjorn Ekwall <bj0rn@blox.se>
+.\" This program is distributed according to the Gnu General Public License.
+.\" See the file COPYING in the kernel source directory /linux
+.\"
+.\" Translated Sun Aug 15 10:59:35 JST 1999
+.\"         by FUJIWARA Teruyoshi <fujiwara@linux.or.jp>
+.\" Updated & Modified Wed 11 Nov 2000
+.\"         by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.TH KERNELD 8 "May 14, 1995" Linux "Linux Extensions"
+.\"O .SH NAME
+.\"O kerneld \- perform kernel action in user space (such as on-demand loading of modules)
+.SH 名前
+kerneld \- ユーザ空間でカーネルの動作を実行する (モジュールのオンデマンドロードなど)
+.\"O .SH WARNING
+.\"O .B kerneld
+.\"O is obsolete as of Linux kernel 2.1.90, it was replaced by the kmod
+.\"O kernel thread and cron entries.  Do not even think of using kerneld
+.\"O unless you are running a 2.0 kernel.
+.SH 警告
+.B kerneld
+は Linux カーネル 2.1.90 の時点で obsolete となり、
+kmod カーネルスレッドと cron エントリによって置き換えられた。
+2.0 カーネルを使っているのでなければ、
+kerneld は使おうなどとも思わないほうがよい。
+.\"O .SH SYNOPSIS
+.SH 書式
+.B kerneld
+[ debug ] [ keep ] [ delay=<seconds> ] [ type=<message number> ]
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O Apart from automatically removing unused modules,
+.\"O .B kerneld
+.\"O also performs specific kernel tasks in user space by responding to requests
+.\"O from the kernel via a dedicated IPC message queue.
+.B kerneld
+は未使用モジュールを自動削除するほか、
+専用の IPC メッセージキューを経由してカーネルからのリクエストに応答し、
+カーネルの特定のタスクをユーザ空間で実行する。
+.\"O Access to this queue can be made from user space by opening the queue
+.\"O with:
+ユーザ空間からこのキューへのアクセスは、
+以下の操作でキューをオープンすることによって行える:
+.\"O 
+.sp
+.nf
+	qid = msgget(IPC_PRIVATE, 0600 | IPC_KERNELD);
+.\"O
+.fi
+.sp
+.\"O A specific task is requested with the message type,
+.\"O as specified in <linux/kerneld.h>.
+各タスクはメッセージタイプを使ってリクエストする。
+これは <linux/kerneld.h> で指定されている。
+.PP
+.\"O The structure of a kerneld message is:
+kerneld メッセージの構造体は以下の通り。
+.sp
+.nf
+	struct kerneld_msg {
+		long mtype;
+		long id;
+		char text[1];
+	};
+.fi
+.sp
+.\"O where the id field is used as the number of the response message
+.\"O from kerneld back to the kernel.
+.\"O If the id field is zero, there will be no response from kerneld.
+ここで id フィールドは kerneld
+ からカーネルへの応答メッセージの数として使われる。
+id フィールドが 0 ならば、kerneld からの応答はないということである。
+.br
+.\"O (Note that a new structure is proposed that will include the pid of
+.\"O the requester into the protocol header.)
+(なお、要求側の pid をプロトコルヘッダに入れる、
+新しい構造体が提案されている。)
+
+.\"O If a response was requested, the exit status of the kerneld action
+.\"O will be stored in the id field.
+応答が求められた場合には、kerneld の動作の終了ステータスが
+id フィールドに格納される。
+
+.\"O The text field us used to hold the parameters from the kernel
+.\"O to the specified kerneld action.
+.\"O In return messages, this field can contain the output from the action,
+.\"O to be used (if wanted) by the kernel.
+text フィールドは、特定の kerneld 動作に
+カーネルから渡されたパラメータを保持するために使われる。
+.PP
+.\"O The options are as follows:
+オプションを以下に示す:
+.TP 8
+debug
+.\"O With debugging enabled, you will be able to see the current status
+.\"O of kerneld as it performs its tasks.  Note that you can control
+.\"O debugging, as well as all the other parameters via the utility kdstat.
+デバッグ機能を有効にすると、タスクを実行する度に
+kerneld の現在のステータスを見ることができるようになる。
+デバッグ機能や他の全てのパラメータの制御は
+kdstat ユーティリティで行える。
+.TP 8
+keep
+.\"O The keep option makes kerneld ignore all requests for unloading modules.
+.\"O This option might be usable for systems where the modules should never
+.\"O be unloaded at all (for some reason or other).
+.\"O This option also inhibits the automatic removal of unused modules
+.\"O that kerneld performs every minute (or <delay> seconds).
+keep オプションを指定すると kerneld
+はアンロード中のモジュールに対する全てのリクエストを無視する。
+このオプションは、(何らかの理由で)
+モジュールがアンロードされることが全く起こらないシステムでは
+役立つかもしれない。
+このオプションは、毎分 (あるいは <delay> 秒ごとに)
+実行される未使用のモジュールの自動削除も禁止する。
+.TP 8
+delay=<seconds>
+.\"O The delay option will change the timeout in kerneld for delayed
+.\"O removal of modules from the default 60 seconds to whatever the choice was.
+delay オプションは未使用モジュールの削除に関する
+kerneld のタイムアウト時間を変更する。
+デフォルトの 60 秒から任意の時間に変更できる。
+.TP 8
+type=<message type>
+.\"O The default type is -255, which means that kerneld will listen for
+.\"O all messages where the type is less than or equal to 255.
+.\"O If a positive number is given, kerneld will only listen for that message type.
+デフォルトのタイプは -255 である。これは、kerneld がタイプの値が 255
+以下である全てのメッセージを監視するという意味である。
+正の数を指定すると、kerneld は指定されたタイプのメッセージだけを監視する。
+.PP
+.\"O kerneld sends error messages to the syslog facility LOG_DAEMON.
+kerneld はエラーメッセージを syslog の
+LOG_DAEMON ファシリティに送る。
+.\"O .SH SEE ALSO
+.SH 関連項目
+.\"O insmod(8), rmmod(8), modprobe(8), depmod(8), syslogd(8)
+.BR insmod (8),
+.BR rmmod (8),
+.BR modprobe (8),
+.BR depmod (8),
+.BR syslogd (8)
+.\"O .SH HISTORY
+.SH 履歴
+.\"O The kerneld support was inspired by discussions with Jacques Gelinas
+.\"O <jack@solucorp.qc.ca>
+kerneld のアイディアは Jacques Gelinas <jack@solucorp.qc.ca>
+との議論から思い付いた。
+
+

@@ -1,0 +1,167 @@
+.\" This is _*_ nroff _*_ source. Emacs, gimme all those colors :)
+.\"
+.\" Copyright (c) International Business Machines Corp., 2006
+.\"
+.\" This program is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+.\" the GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+.\" MA 02111-1307 USA
+.\"
+.\" HISTORY:
+.\" 2005-09-28, created by Arnd Bergmann <arndb@de.ibm.com>
+.\" 2006-06-16, revised by Eduardo M. Fleury <efleury@br.ibm.com>
+.\" 2007-07-10, some polishing by mtk
+.\"
+.TH SPU_CREATE 2 2007-07-10 "Linux" "Linux Programmer's Manual"
+.SH 名前
+spu_create \- 新しい SPU コンテキストを生成する
+.SH 書式
+.nf
+.B #include <sys/types.h>
+.B #include <sys/spu.h>
+
+.BI "int spu_create(const char *" pathname ", int " flags ", mode_t " mode ");"
+.fi
+.SH 説明
+.BR spu_create ()
+システムコールは、Cell Broadband Engine アーキテクチャを実装した
+PowerPC マシンにおいて、Synergistic Processor Unit (SPU) にアクセスする
+ために使用される。
+このシステムコールは、SPU に対する新しい論理コンテキストを
+.I pathname
+に生成し、そのコンテキストに関連付けられたファイルディスクリプタを返す。
+.I pathname
+は SPU ファイルシステム (SPUFS) のマウントポイント内の
+存在しないディレクトリを指していなければならない。
+.BR spu_create ()
+が成功すると、
+.I pathname
+にディレクトリが生成され、そのディレクトリに
+.BR spufs (7)
+で説明されているファイル群が配置される。
+
+返されたファイルハンドラは、
+.BR spu_run (2)
+に渡すか、クローズするかしかできない。
+他の操作は定義されていない。
+論理 SPU コンテキストが破棄されるのは、
+コンテキスト自身へのファイルディスクリプタがクローズされ、
+その中のファイルへのファイルディスクリプタが全てクローズされたときである。
+SPU コンテキストが破棄されると、SPUFS 内のそのディレクトリの全てのエントリ
+が削除される。
+
+引き数
+.I flags
+にはゼロか以下の定数を指定できる。
+.TP
+.B SPU_RAWIO
+SPU のハードウェアレジスタのいくつかをユーザ空間にマッピングすることを
+許可する。このフラグを指定するには
+.B CAP_SYS_RAWIO
+ケーパビリティが必要である。
+.PP
+SPUFS 内に新しく生成されたディレクトリとファイルのアクセス許可は、
+.I mode
+引き数からそのプロセスの
+.BR umask (2)
+を引いた値に設定される。
+各ファイルの実際のアクセス許可は、そのファイルが読み出しアクセスや
+書き込みアクセスをサポートしているかも考慮して決まる。
+.SH 返り値
+成功すると、
+.BR spu_create (2)
+は新しいファイルディスクリプタを返す。
+エラーの場合、\-1 を返し、
+.I errno
+に以下のリストに記載のエラーコードのいずれかを設定する。
+.SH エラー
+.TP
+.B EACCES
+現在のユーザが SPUFS のマウントポイントへの書き込み許可を持っていない。
+.TP
+.B EEXIST
+指定されたパス名の SPU コンテキストがすでに生成されている。
+.TP
+.B EFAULT
+.I pathname
+が現在のアドレス空間で有効な文字列ポインタではない。
+.TP
+.B EINVAL
+.I pathname
+が SPUFS マウントポインタ内のディレクトリではない。
+.TP
+.B ELOOP
+.I pathname
+を解決するまでに辿ったシンボリックリンクが多過ぎた。
+.TP
+.B EMFILE
+そのプロセスがオープンできるファイル数の上限に達していた。
+.TP
+.B ENAMETOOLONG
+.I pathname
+が長過ぎる。
+.TP
+.B ENFILE
+システム全体でオープンできるファイル数の上限に達していた。
+.TP
+.B ENOENT
+.I pathname
+の一部が解決できなかった。
+.TP
+.B ENOMEM
+カーネルが必要なリソースの全てを割り当てることができなかった。
+.TP
+.B ENOSPC
+新しいコンテキストを生成するのに十分な SPU リソースがなかった、
+または SPU コンテキスト数がそのユーザの特定の上限に達していた。
+.TP
+.B ENOSYS
+機能が動作中のシステムで提供されていない。理由は、
+ハードウェアで SPU が提供されていないか、
+spufs モジュールがロードされていないか、のどちらかである。
+.TP
+.B ENOTDIR
+.I pathname
+の一部がディレクトリではない。
+.SH ファイル
+.I pathname
+は SPUFS のマウントポイントの配下の場所を指していなければならない。
+慣例では、SPUFS は
+.I /spu
+にマウントされる。
+.SH バージョン
+.BR spu_create (2)
+システムコールはカーネル 2.6.16 で Linux に追加された。
+.SH 準拠
+このシステムコールは Linux 固有であり、
+ppc64 アーキテクチャでのみ実装されている。
+このシステムコールを使ったプログラムは移植性がない。
+.SH 注意
+glibc はこのシステムコールに対するラッパー関数を提供していない。
+.BR syscall (2)
+を使うこと。ただし、
+.BR spu_create ()
+は より抽象度の高い SPU へのインタフェースを実装するライブラリから
+利用されることを意図したものであり、通常のアプリケーションから
+使用は意図されていない。推奨のライブラリについては
+.I http://www.bsc.es/projects/deepcomputing/linuxoncell/
+を参照のこと。
+.SH バグ
+実際のコードではここで述べた全ての機能が完全に実装されているわけではない。
+.\" .SH AUTHOR
+.\" Arnd Bergmann <arndb@de.ibm.com>
+.SH 関連項目
+.BR close (2),
+.BR spu_run (2),
+.BR capabilities (7),
+.BR spufs (7)

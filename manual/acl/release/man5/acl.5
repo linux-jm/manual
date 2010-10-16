@@ -1,0 +1,509 @@
+.\" Access Control Lists manual pages
+.\"
+.\" (C) 2002 Andreas Gruenbacher, <a.gruenbacher@bestbits.at>
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Japanese Version Copyright (c) 2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Tue Apr  5 04:59:02 JST 2005
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\"
+.Dd March 23, 2002
+.Dt ACL 5
+.Os "Linux ACL"
+.Sh 名前
+.Nm acl
+.Nd アクセス制御リスト (Access Control Lists)
+.Sh 説明
+この man ページは POSIX アクセス制御リストについて説明している。
+ACL はファイルとディレクトリに対して、
+より洗練された任意アクセス権 (discretionary access right) を
+定義するのに使われる。
+.Sh ACL タイプ
+全てのオブジェクトは、そのオブジェクトに対する任意のアクセスを決定する
+ACL に関連付けられていると考えることができる。
+この ACL はアクセス AC と呼ばれる。
+これに加えて、ディレクトリに関連付けられた ACL がある。
+この ACL はディレクトリ内で作成されたオブジェクトの
+最初のアクセス ACL を決定する。
+この ACL はデフォルト ACL と呼ばれる。
+.Sh ACL エントリ
+ACL は ACL エントリの集合で構成される。
+ACL エントリは、それが関連付けられたオブジェクトの
+アクセス許可 (permission) を指定する。
+アクセス許可は、個々のユーザまたはユーザのグループに対する
+読み出し・書き込み・検索／実行の許可の組み合わせである。
+.Pp
+ACL エントリには、エントリタグ型・
+オプションとしてのエントリタグ修飾子 (qualifier)・許可の集合が含まれる。
+ここでは、修飾子という単語を ACL エントリのエントリタグ修飾子を表すのに使う。
+.Pp
+修飾子は、ACL_USER または ACL_GROUP というタグ型のエントリに対して、
+それぞれユーザまたはグループの識別子を表す。
+ACL_USER と ACL_GROUP 以外のタグ型のエントリは、
+定義された修飾子を持たない。
+.Pp
+以下のエントリタグ型が定義されている:
+.Bl -tag -offset indent -width ACL_GROUP_OBJ.
+.It ACL_USER_OBJ
+ACL_USER_OBJ エントリはファイル所有者に対するアクセス権を表す。
+.It ACL_USER
+ACL_USER エントリはエントリの修飾子で識別されるユーザに対するアクセス権を表す。
+.It ACL_GROUP_OBJ
+ACL_GROUP_OBJ エントリはファイルグループに対するアクセス権を表す。
+.It ACL_GROUP
+ACL_GROUP エントリはエントリの修飾子で識別される
+グループに対するアクセス権を表す。
+.It ACL_MASK
+ACL_MASK エントリは ACL_USER, ACL_GROUP_OBJ, ACL_GROUP 型のエントリで
+許可される最大のアクセス権を表す。
+.It ACL_OTHER
+ACL_OTHER エントリは ACL における他のどのエントリともマッチしない
+プロセスのアクセス権を表す。
+.El
+.Pp
+アクセスチェックが実行される場合、実効 (effective) ユーザ ID に対して
+ACL_USER_OBJ と ACL_USER エントリがテストされる。
+実効グループ ID は、全ての補助 (supplementary) グループ ID と同様に、
+ACL_GROUP_OBJ と ACL_GROUP エントリに対してテストされる。
+.Sh 有効な ACL
+有効な ACL には ACL_USER_OBJ, ACL_GROUP_OBJ, ACL_OTHER タグ型のうち
+何れか 1 つだけのエントリが含まれる。
+ACL_USER と ACL_GROUP タグ型のエントリは、
+0 回以上 ACL に出現することができる。
+ACL_USER または ACL_GROUP タグ型のエントリを含む ACL は、
+ACL_MASK タグ型のエントリを 1 つだけ含まなければならない。
+ACL_USER または ACL_GROUP タグ型のエントリが ACL に含まれない場合、
+ACL_MASK エントリはオプションである。
+.Pp
+全てのユーザ ID 修飾子は、ACL_USER タグ型の全てのエントリにおいて
+一意でなければならない。
+また全てのグループ ID 修飾子は、ACL_GROUP タグ型の全てのエントリにおいて
+一意でなければならない。
+.\"最小の ACL vs. 拡張された ACL
+.Pp
+.Fn acl_get_file
+関数は、ディレクトリにデフォルト ACL が関連付けられていない場合、
+ディレクトリのデフォルト ACL として、
+ACL エントリが 1 つも含まれない ACL を返す。
+.Fn acl_set_file
+関数も、ACL エントリが 1 つも含まない ACL を、
+ディレクトリに対する有効なデフォルト ACL として受け付ける。
+このような ACL はディレクトリに
+デフォルト ACL を関連付けないことを表す。
+これは
+.Fn acl_delete_def_file
+関数を使うのと等価である。
+.Sh ACL エントリとファイル許可ビットの対応
+ACL で定義される許可は、ファイル許可ビットで指定される許可の
+上位集合 (superset) である。
+ファイル所有者に対して定義される許可は、
+ACL_USER_OBJ エントリの許可に対応する。
+ACL に ACL_MASK エントリがない場合、ファイルグループに対して定義される許可は、
+ACL_GROUP_OBJ エントリの許可に対応する。
+ACL に ACL_MASK エントリがある場合、ファイルグループに対して定義される許可は、
+ACL_MASK エントリの許可に対応する。
+他のクラスに対して定義される許可は、
+ACL_OTHER_OBJ エントリの許可に対応する。
+.Pp
+ファイル許可ビットを変更すると、関連付けられた ACL エントリが変更される。
+ACL エントリの許可を変更すると、ファイル許可ビットが変更される。
+.Sh オブジェクトの作成とデフォルト ACL
+ファイルオブジェクトのアクセス ACL は、
+.Fn creat ,
+.Fn mkdir ,
+.Fn mknod ,
+.Fn mkfifo ,
+.Fn open
+関数のいずれかでオブジェクトが作られたときに初期化される。
+デフォルト ACL がディレクトリと関連付けられている場合、
+ファイルオブジェクトを作成する関数の
+.Va mode
+引き数とディレクトリのデフォルト ACL を使って、
+新しいオブジェクトの ACL が決定される:
+.Bl -enum
+.It
+新しいオブジェクトは、それが含まれるディレクトリのデフォルト ACL を
+アクセス ACL として継承する。
+.It
+ファイル許可ビットに対応するアクセス ACL エントリが修正され、
+.Va mode
+引き数で指定されていない許可ビットを含まないようにされる。
+.El
+.Pp
+ディレクトリにデフォルト ACL が関連付けられていない場合、
+ファイルオブジェクトを作成する関数の
+.Va mode
+引き数とファイル作成マスク
+.Xr ( umask 2
+を参照) を使って、新しいオブジェクトの ACL が決定される:
+.Bl -enum
+.It
+新しいオブジェクトには、タグ型 ACL_USER_OBJ, ACL_GROUP_OBJ, ACL_OTHER の
+エントリを含むアクセス ACL が割り当てられる。
+これらのエントリの許可は、ファイル作成マスクで指定された許可に設定される。
+.It
+ファイル許可ビットに対応するアクセス ACL エントリが修正され、
+.Va mode
+引き数で指定されていない許可ビットを含まないようにされる。
+.El
+.Sh アクセスチェックアルゴリズム
+プロセスは、ACL で保護されたファイルオブジェクトに対して、
+読み出し・書き込み・実行／検索を要求することができる。
+アクセスチェックアルゴリズムは
+オブジェクトへのアクセスを許可するか否かを決定する。
+.Bl -enum
+.It
+.Sy If
+プロセスの実効ユーザ ID がファイルオブジェクト所有者のユーザ ID と一致する。
+.Sy then
+.Pp
+.in +4
+.Bd -filled
+.Sy if
+要求された許可が ACL_USER_OBJ エントリに含まれるならば、アクセスは許可される。
+.Pp
+.Sy else
+アクセスは拒否される。
+.in -4
+.Ed
+.It
+.Sy "else if"
+プロセスの実効ユーザ ID が ACL_USER 型の何れかのエントリの修飾子と一致する。
+.Sy then
+.Pp
+.in +4
+.Bd -filled
+.Sy if
+一致した ACL_USER エントリと ACL_MASK エントリに
+要求された許可が含まれるならば、アクセスは許可される。
+.Pp
+.Sy else
+アクセスは拒否される。
+.in -4
+.Ed
+.It
+.Sy else if
+プロセスの実効グループ ID または何れかの補助グループ ID が、
+ファイルグループまたは ACL_GROUP 型の何れかのエントリの修飾子と一致する。
+.Sy then
+.Pp
+.in +4
+.Bd -filled
+.Sy if
+ACL が ACL_MASK エントリを含む。
+.Sy then
+.in +4
+.Bd -filled
+.Sy if
+ACL_MASK エントリおよび一致する ACL_GROUP_OBJ または ACL_GROUP エントリの
+何れかに、要求された許可が含まれるならば、アクセスは許可される。
+.Pp
+.Sy else
+アクセスは拒否される。
+.Pp
+.in -4
+.Ed
+.Sy else
+(ACL_MASK エントリを含まない ACL_GROUP エントリは存在しない点に注意すること)
+.in +4
+.Bd -filled
+.Sy if
+ACL_GROUP_OBJ エントリが要求された許可を含むならば、アクセスは許可される。
+.Ed
+.Pp
+.Sy else
+アクセスは拒否される。
+.Pp
+.in -4
+.Ed
+.in -4
+.It
+.Sy else if
+ACL_OTHER エントリが要求された許可を含むならば、アクセスは許可される。
+.It
+.Sy else
+アクセスは拒否される。
+.El
+.\".It
+.\"要求されたアクセスモードが、一致したエントリで許可されるかをチェックする。
+.\".El
+.Sh ACL テキスト形式
+ACL を表現するために長いテキスト形式と短いテキスト形式が定義されている。
+両方の形式において、ACL エントリはコロン区切られた 3 つのフィールド、
+ACL エントリタグ型・ACL エントリ修飾子・任意のアクセス許可で表現される。
+1 番目のフィールドは以下のエントリタグ型キーワードの何れかを含む:
+.Bl -tag -offset indent -width group.
+.It Li user
+.Li user
+ACL エントリは、ファイル所有者 (エントリタグ型 ACL_USER_OBJ) と
+指定されたユーザ (エントリタグ型 ACL_USER) に対して
+許可されるアクセスを指定する。
+.It Li group
+.Li group
+ACL エントリは、ファイルグループ (エントリタグ型 ACL_GROUP_OBJ) と
+指定されたグループ (エントリタグ型 ACL_GROUP) に対して
+許可されるアクセスを指定する。
+.It Li mask
+.Li mask
+ACL エントリは、ファイル所有者に対する
+.Li user
+エントリと
+.Li other
+エントリを除く、
+全ての ACL (エントリタグ型 ACL_MASK) に対して許可されるアクセスのうち
+最大のものを指定する。
+.It Li other
+.Li other
+ACL エントリは、どの
+.Li user
+ACL エントリにも
+.Li group
+ACL エントリにもマッチしない (エントリタグ型 ACL_OTHER) の
+プロセスに対して許可されるアクセスを指定する。
+.El
+.Pp
+2 番目のフィールドは、
+エントリタグ型 ACL_USER または ACL_GROUP のエントリの場合、
+ACL エントリに関連付けられているユーザまたはグループ識別子を含む。
+その他のエントリの場合、このフィールドは空になる。
+ユーザ識別子はユーザ名でも 10 進数のユーザ ID 番号でもよい。
+グループ識別子はグループ名でも 10 進数のグループ ID 番号でもよい。
+.Pp
+3 番目のフィールドは任意のアクセス許可を保持する。
+書き出し・読み込み・検索／実行の許可は、
+.Li r ,
+.Li w ,
+.Li x
+という文字でこの順番で表される。
+ACL エントリにこれらの許可がない場合、各文字は
+.Li \-
+文字で置き換えられる。
+テキスト形式から内部表現に変換する場合、
+保持していない許可は指定する必要がない。
+.Pp
+各 ACL エントリの始めと終わり、そして
+フィールド区切り文字 (コロン文字) の直前と直後には、
+空白を入れることができる。
+.Ss 長いテキスト形式
+長いテキスト形式では、1 行に 1 つの ACL エントリを保持する。
+さらにナンバー記号
+.No ( Li # )
+でコメントを開始することが可能で、行の終りまでがコメントになる。
+ACL_MASK エントリに含まれない許可が
+ACL_USER, ACL_GROUP_OBJ, ACL_GROUP ACL エントリに含まれる場合、
+そのエントリの後にはナンバー記号と文字列 \(lqeffective:\(rq と
+そのエントリで定義される実効アクセス許可が続く。
+以下は長いテキスト形式の例である:
+.Bd -literal -offset indent
+user::rw-
+user:lisa:rw-         #effective:r--
+group::r--
+group:toolies:rw-     #effective:r--
+mask::r--
+other::r--
+.Ed
+.Ss 短いテキスト形式
+短いテキスト形式は、コンマで区切られた ACL エントリの並びであり、
+入力として使われる。
+コメントはサポートされていない。
+エントリタグ型キーワードは省略されない完全な形式でも
+1 文字の省略形でも指定できる。
+.Li user
+の省略形は
+.Li u ,
+.Li group
+の省略形は
+.Li g ,
+.Li mask
+の省略形は
+.Li m ,
+.Li other
+の省略形は
+.Li o
+である。
+許可には、
+.Li r ,
+.Li w ,
+.Li x 
+という文字のうち 1 つ以上を、任意の順番で含めることができる。
+以下は短いテキスト形式の例である:
+.Bd -literal -offset indent
+u::rw-,u:lisa:rw-,g::r--,g:toolies:rw-,m::r--,o::r--
+g:toolies:rw,u:lisa:rw,u::wr,g::r,o::r,m::r
+.Ed
+.Sh 理論的根拠
+IEEE 1003.1e draft 17 は、
+タグ型 ACL_MASK のエントリを含むアクセス制御リストを定義しており、
+画一的ではないファイル許可ビット間の対応付けを定義している。
+標準化作業グループは、IEEE 1003.1 (\(lqPOSIX.1\(rq) と互換性のない
+アプリケーションが ACL を持つシステム上でも機能することを保証するために、
+比較的複雑なインタフェースを定義した。
+IEEE 1003.1e draft 17 には、このインタフェースを選択する理論的根拠が
+セクション B.23 に書かれている。
+.Sh ファイルユーティリティの変更
+ACL をサポートするシステムでは、ファイルユーティリティ
+.Xr ls 1 ,
+.Xr cp 1 ,
+.Xr mv 1
+は自身の動作を以下のように変更する:
+.Bl -bullet
+.It
+デフォルト ACL を持つファイル、または必要とされる 3 つ以上の ACL エントリを
+保持するアクセス ACL を持つファイルに対して、
+.Xr ls 1
+ユーティリティを長い形式
+.Ic "ls \-l"
+で実行すると、
+プラス記号
+.No ( Li + )
+が許可文字列の後に表示される。
+.It
+.Fl p
+フラグが指定された場合、
+.Xr cp 1
+ユーティリティは ACL も保存する。
+保存できない場合は警告が出される。
+.It
+.Xr mv 1
+ユーティリティは常に ACL を保存する。
+保存できない場合は警告が出される。
+.El
+.Pp
+.Xr chmod 1
+ユーティリティと
+.Xr chmod 2
+システムコールのアクセス ACL に対する影響については、
+.Sx "「ACL エントリとファイル許可ビットの対応」
+で説明されている。
+.Sh 準拠
+IEEE 1003.1e draft 17 (\(lqPOSIX.1e\(rq) は、
+IEEE 1003.1 標準に対するいくつかのセキュリティ拡張について記述している。
+1003.1e での作業は放棄されたが、多くの UNIX 系システムは
+POSIX.1e draft 17 またはそれ以前のドラフトの一部を実装している。
+.Pp
+Linux アクセス制御リストは、
+POSIX.1e のアクセス制御リストで定義されている全ての関数セットと
+いくつかの拡張を実装している。
+この実装は POSIX.1e draft 17 に完全に準拠する。
+拡張にはその旨が記されている。
+アクセス制御リストの操作関数は、
+ACL ライブラリ (libacl, \-lacl) で定義されている。
+POSIX 互換のインタフェースは
+.Li <sys/acl.h>
+ヘッダで宣言されている。
+これらの関数に対する Linux 固有の拡張は、
+.Li <acl/libacl.h>
+ヘッダで宣言されている。
+.Sh 関連項目
+.Xr chmod 1 ,
+.Xr creat 2 ,
+.Xr getfacl 1 ,
+.Xr ls 1 ,
+.Xr mkdir 2 ,
+.Xr mkfifo 2 ,
+.Xr mknod 2 ,
+.Xr open 2 ,
+.Xr setfacl 1 ,
+.Xr stat 2 ,
+.Xr umask 1
+.Ss POSIX 1003.1e DRAFT 17
+.Xr "http://www.guug.de/~winni/posix.1e/download.html"
+.Ss カテゴリによる POSIX 1003.1e 関数の分類
+.Bl -tag -width "MMM"
+.It Sy ACL ストレージの管理
+.Xr acl_dup 3 ,
+.Xr acl_free 3 ,
+.Xr acl_init 3
+.It Sy ACL エントリの操作
+.Xr acl_copy_entry 3 ,
+.Xr acl_create_entry 3 ,
+.Xr acl_delete_entry 3 ,
+.Xr acl_get_entry 3 ,
+.Xr acl_valid 3
+.Pp
+.Xr acl_add_perm 3 ,
+.Xr acl_calc_mask 3 ,
+.Xr acl_clear_perms 3 ,
+.Xr acl_delete_perm 3 ,
+.Xr acl_get_permset 3 ,
+.Xr acl_set_permset 3
+.Pp
+.Xr acl_get_qualifier 3 ,
+.Xr acl_get_tag_type 3 ,
+.Xr acl_set_qualifier 3 ,
+.Xr acl_set_tag_type 3
+.It Sy オブジェクトの ACL の操作
+.Xr acl_delete_def_file 3 ,
+.Xr acl_get_fd 3 ,
+.Xr acl_get_file 3 ,
+.Xr acl_set_fd 3 ,
+.Xr acl_set_file 3
+.It Sy ACL 形式の変換
+.Xr acl_copy_entry 3 ,
+.Xr acl_copy_ext 3 ,
+.Xr acl_from_text 3 ,
+.Xr acl_to_text 3 ,
+.Xr acl_size 3
+.El
+.Ss 有効性による POSIX 1003.1e 関数の分類
+最初の関数のグループは POSIX ライクなアクセス制御リストを持つ
+大部分のシステムでサポートされている。
+一方、2 番目の関数のグループをサポートしているシステムは少ない。
+移植を予定するアプリケーションでは、2 番目のグループを避けた方が良い。
+.Pp
+.Xr acl_delete_def_file 3 ,
+.Xr acl_dup 3 ,
+.Xr acl_free 3 ,
+.Xr acl_from_text 3 ,
+.Xr acl_get_fd 3 ,
+.Xr acl_get_file 3 ,
+.Xr acl_init 3 ,
+.Xr acl_set_fd 3 ,
+.Xr acl_set_file 3 ,
+.Xr acl_to_text 3 ,
+.Xr acl_valid 3
+.Pp
+.Xr acl_add_perm 3 ,
+.Xr acl_calc_mask 3 ,
+.Xr acl_clear_perms 3 ,
+.Xr acl_copy_entry 3 ,
+.Xr acl_copy_ext 3 ,
+.Xr acl_copy_int 3 ,
+.Xr acl_create_entry 3 ,
+.Xr acl_delete_entry 3 ,
+.Xr acl_delete_perm 3 ,
+.Xr acl_get_entry 3 ,
+.Xr acl_get_permset 3 ,
+.Xr acl_get_qualifier 3 ,
+.Xr acl_get_tag_type 3 ,
+.Xr acl_set_permset 3 ,
+.Xr acl_set_qualifier 3 ,
+.Xr acl_set_tag_type 3 ,
+.Xr acl_size 3
+.Ss LINUX 拡張
+これらの移植性のない拡張は、Linux システムでのみ有効である。
+.Pp
+.Xr acl_check 3 ,
+.Xr acl_cmp 3 ,
+.Xr acl_entries 3 ,
+.Xr acl_equiv_mode 3 ,
+.Xr acl_error 3 ,
+.Xr acl_extended_fd 3 ,
+.Xr acl_extended_file 3 ,
+.Xr acl_from_mode 3 ,
+.Xr acl_get_perm 3 ,
+.Xr acl_to_any_text 3
+.Sh 著者
+Andreas Gruenbacher, <a.gruenbacher@bestbits.at>

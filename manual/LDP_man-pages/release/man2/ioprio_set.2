@@ -1,0 +1,309 @@
+.\" This is _*_ nroff _*_ source. Emacs, gimme all those colors :)
+.\"
+.\" Copyright (c) International Business Machines orp., 2006
+.\"
+.\" This program is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+.\" the GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+.\" MA 02111-1307 USA
+.\"
+.\" HISTORY:
+.\" 2006-04-27, created by Eduardo M. Fleury <efleury@br.ibm.com>
+.\" with various additions by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Japanese Version Copyright (c) 2007 Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2007-01-09, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.43
+.\" Updated 2008-08-06, Akihiro MOTOKI, LDP v3.05
+.\"
+.TH IOPRIO_SET 2 2008-07-09 "Linux" "Linux Programmer's Manual"
+.SH 名前
+ioprio_get, ioprio_set \- I/O スケジューリングクラスと優先度の設定/取得
+.SH 書式
+.nf
+.BI "int ioprio_get(int " which ", int " who );
+.BI "int ioprio_set(int " which ", int " who ", int " ioprio );
+.fi
+.SH 説明
+システムコール
+.BR ioprio_get ()
+/
+.BR ioprio_set ()
+は、(1つ以上の) プロセスの I/O スケジューリングクラスと
+優先度の取得/設定を行う。
+
+.I which
+と
+.I who
+引き数でシステムコールの操作対象となるプロセスを指示する。
+.I which
+引き数は、
+.I who
+をどのように解釈するかを決めるもので、以下のいずれか一つを指定する。
+.TP
+.B IOPRIO_WHO_PROCESS
+.I who
+はプロセスID であり、指定された 1 プロセスが対象となる。
+.TP
+.B IOPRIO_WHO_PGRP
+.I who
+はプロセスグループID であり、プロセスグループの全メンバが対象となる。
+.TP
+.B IOPRIO_WHO_USER
+.I who
+はユーザID であり、実 UID に一致する全プロセスが対象となる。
+.PP
+.BR ioprio_get ()
+の呼び出し時に
+.I which
+に
+.B IOPRIO_WHO_PGRP
+か
+.B IOPRIO_WHO_USER
+が指定され、
+.I who
+に一致するプロセスが複数あった場合、
+一致するプロセス全体の中で最も高い優先度が返される。
+優先度が高いとは、より高い優先度クラスに属している
+.RB ( IOPRIO_CLASS_RT
+が最も高い優先度クラスで、
+.B IOPRIO_CLASS_IDLE
+が最も低い)、もしくは
+同じ優先度クラスに属しているが優先度レベルが高い
+(優先度番号が小さい方が優先度レベルが高いことを意味する)、
+ということである。
+
+.BR ioprio_set ()
+に渡す
+.I ioprio
+引き数は、対象となるプロセスに割り当てるスケジューリングクラスと
+優先度の両方を指定するビットマスクである。
+.I ioprio
+の値を組み立てたり解釈するのに、以下のマクロが利用できる。
+.TP
+.BI IOPRIO_PRIO_VALUE( class ", " data )
+スケジューリングクラス
+.I class
+と優先度
+.RI ( data )
+を与えると、このマクロは 2つの値を組み合わせて、
+.I ioprio
+値を生成し、マクロの結果として返す。
+.TP
+.BI IOPRIO_PRIO_CLASS( mask )
+.I mask
+.RI ( ioprio
+値) を与えると、このマクロは I/O クラス要素、つまり
+.BR IOPRIO_CLASS_RT ,
+.BR IOPRIO_CLASS_BE ,
+.B IOPRIO_CLASS_IDLE
+のいずれか一つの値を返す。
+.TP
+.BI IOPRIO_PRIO_DATA( mask )
+.I mask
+.RI ( ioprio
+値) を与えると、このマクロは優先度
+.RI ( data )
+要素を返す。
+.PP
+スケジューリングクラスと優先度に関する詳しい情報は、
+「備考」の節を参照のこと。
+
+I/O 優先度は読み出しと同期書き込み
+.RB ( O_DIRECT ,
+.BR O_SYNC )
+に対応している。
+I/O 優先度は非同期書き込みには対応していない。なぜなら、
+非同期書き込みはメモリ書き換えを行うプログラムの動作 (context) とは
+関係なく発行され、そのためプログラム単位の優先度は適用されないから
+である。
+.SH 返り値
+成功すると、
+.BR ioprio_get ()
+は、
+.I which
+と
+.I who
+で指定された基準に合致した全プロセスで最も高い I/O 優先度を持つプロセスの
+.I ioprio
+値を返す。
+エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.PP
+成功すると、
+.BR ioprio_set ()
+は 0 を返す。
+エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.SH エラー
+.TP
+.B EINVAL
+.I which
+か
+.I ioprio
+の値が不正である。
+.I ioprio
+用に指定可能なスケジューラクラスと優先度レベルについては
+「備考」を参照のこと。
+.TP
+.B EPERM
+呼び出し元プロセスが、指定されたプロセスに
+.I ioprio
+を割り当てるのに必要な権限を持っていない。
+.BR ioprio_set ()
+に必要な権限についての詳しい情報は「備考」の節を参照のこと。
+.TP
+.B ESRCH
+.I which
+と
+.I who
+で指定された基準に合致するプロセスが見つからなかった。
+.SH バージョン
+これらのシステムコールはカーネル 2.6.13 以降の Linux で利用可能である。
+.SH 準拠
+これらのシステムコールは Linux 独自である。
+.SH 備考
+glibc はこれらのシステムコールに対するラッパー関数を提供していない。
+.BR syscall (2)
+を使って呼び出すこと。
+
+これらのシステムコールは、I/O 優先度に対応した I/O スケジューラと
+組み合わせて使用された場合にのみ効果を持つ。
+カーネル 2.6.17 では、この条件を満たすスケジューラは
+Completely Fair Queuing (CFQ) I/O スケジューラだけである。
+.SS I/O スケジューラの選択
+I/O スケジューラの選択はデバイス単位に行われ、その選択は
+スペシャルファイル
+.I /sys/block/<device>/queue/scheduler
+経由で行われる。
+
+現在の I/O スケジューラは
+.I /sys
+ファイルシステム経由で参照できる。例えば、以下のコマンドを実行すると、
+現在カーネルでロードされているスケジューラの全リストが表示される。
+.sp
+.RS
+.nf
+.RB "$" " cat /sys/block/hda/queue/scheduler"
+noop anticipatory deadline [cfq]
+.fi
+.RE
+.sp
+括弧で囲まれたスケジューラがそのデバイス (上の例では
+.IR hda )
+について実際に使用されているスケジューラである。
+別のスケジューラを設定するには、このファイルに新しいスケジューラ名を
+書き込めばよい。例えば、以下のコマンドを実行すると、デバイス
+.I hda
+のスケジューラとして
+.I cfq
+が設定される。
+.sp
+.RS
+.nf
+.RB "$" " su"
+Password:
+.RB "#" " echo cfq > /sys/block/hda/queue/scheduler"
+.fi
+.RE
+.SS "Completely Fair Queuing (CFQ) I/O スケジューラ"
+バージョン 3 (別名 CFQ Time Sliced) 以降、
+CPU スケジューリングと同様の I/O nice レベルが CFQ に実装されている。
+これらの nice レベルは 3つのスケジューリングクラスに分類でき、
+各スケジューリングクラスにつき 1つ以上の優先度レベルが定義されている。
+.TP
+.BR IOPRIO_CLASS_RT " (1)"
+これはリアルタイム I/O クラスである。
+このスケジューリングクラスには他のクラスよりも高い優先度が与えられる。
+このクラスのプロセスには、常にディスクへのアクセスが優先して
+割り当てられる。そのため、この I/O クラスを使う際には、
+たった一つの リアルタイム I/O クラスのプロセスにより
+システム全体のディスクアクセスができなくなってしまうことがある
+という点に、注意を払う必要がある。
+このクラスには、8 段階の class data (優先度レベル) がある。
+この値は、そのプロセスが 1回のディスクアクセスにどれだけの
+時間が必要かを正確に決めるためのものである。
+最高のリアルタイム優先度レベルは 0 で、最低は 7 である。
+将来的には、優先度レベルは、希望するデータレートを渡すなど、
+より直接的に性能条件を反映できるように変更されるかもしれない。
+.TP
+.BR IOPRIO_CLASS_BE " (2)"
+これは ベストエフォート・スケジューリングクラスである。
+このクラスは、特定の I/O 優先度を設定していないプロセスの
+デフォルト値である。
+class data (優先度レベル) により、そのプロセスがどの程度の
+I/O 帯域を得られるかが決定される。
+ベストエフォート・優先度レベルは、CPU の nice 値
+.RB ( getpriority (2)
+参照) と同様のものである。
+優先度レベルは、ベストエフォート・スケジューリングクラスの中で
+他のプロセスとの相対的な優先度を決定する。
+優先度レベルの値の範囲は 0 (最高) から 7 (最低) である。
+.TP
+.BR IOPRIO_CLASS_IDLE " (3)"
+これは idle スケジューリングクラスである。
+このレベルで動作するプロセスは他にディスクアクセスをしようとする
+プロセスがない場合にのみ I/O 時間を取得する。
+idle クラスには class data (優先度) は用意されていない。
+プロセスにこの優先度を割り当てる際には注意が必要である。
+なぜなら、優先度の高いプロセスが常にディスクにアクセスしている場合には
+ディスクにアクセスできなくなる可能性があるからだ。
+.PP
+CFQ I/O スケジューラの更なる情報とサンプルプログラムについては
+.I Documentation/block/ioprio.txt
+を参照のこと。
+.SS "I/O 優先度の設定に必要な許可"
+プロセスの優先度を変更する許可が得られるかどうかは
+以下の 2つの条件に基いて決定される。
+.TP
+.B "プロセスの所有権"
+非特権プロセスは、プロセスの実 UID が呼び出し元プロセスの実 UID もしくは
+実効 UID と一致するプロセスの I/O 優先度のみを設定できる。
+.B CAP_SYS_NICE
+ケーパビリティを持つプロセスは、どのプロセスの優先度でも変更できる。
+.TP
+.B "どの優先度に設定しようとしているか"
+非常に高い優先度
+.RB ( IOPRIO_CLASS_RT )
+を設定しようとする場合、
+.B CAP_SYS_ADMIN
+ケーパビリティが必要である。
+カーネル 2.6.24 以前では、非常に低い優先度
+.RB ( IOPRIO_CLASS_IDLE )
+を設定するためにも
+.B CAP_SYS_ADMIN
+ケーパビリティが必要であったが、
+Linux 2.6.25 以降ではもはや必要なくなった。
+.PP
+.BR ioprio_set ()
+はこの両方のルールに従い、条件を満たさない場合、エラー
+.B EPERM
+で失敗する。
+.SH バグ
+.\" 6 May 07: Bug report raised:
+.\" http://sources.redhat.com/bugzilla/show_bug.cgi?id=4464
+.\" Ulriich Drepper replied that he wasn't going to add these
+.\" to glibc.
+glibc は、このページに記載された関数プロトタイプやマクロを定義する
+適切なヘッダファイルをまだ提供していない。
+必要な定義については
+.I linux/ioprio.h
+を見ればよい。
+.SH 関連項目
+.BR getpriority (2),
+.BR open (2),
+.BR capabilities (7)
+.sp
+カーネル・ソース内の Documentation/block/ioprio.txt

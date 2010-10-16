@@ -1,0 +1,200 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright 1995  James R. Van Zandt <jrv@vanzandt.mv.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Changed Tue Sep 19 01:49:29 1995, aeb: moved from man2 to man3
+.\"  added ref to /etc/utmp, added BUGS section, etc.
+.\" modified 2003 Walter Harms, aeb - added getlogin_r, note on stdin use
+.\"
+.\" Japanese Version Copyright (c) 1998 NAKANO Takeo all rights reserved.
+.\" Translated 1998-03-01, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified 1999-08-21, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified 2005-03-18, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH GETLOGIN 3 2008-06-29 "GNU" "Linux Programmer's Manual"
+.SH 名前
+getlogin, getlogin_r, cuserid \- ユーザー名を取得する
+.SH 書式
+.B #include <unistd.h>
+.sp
+.B "char *getlogin(void);"
+.br
+.BI "int getlogin_r(char *" buf ", size_t " bufsize );
+.sp
+.B #include <stdio.h>
+.sp
+.BI "char *cuserid(char *" string );
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR getlogin_r ():
+_REENTRANT || _POSIX_C_SOURCE\ >=\ 199506L
+.br
+.BR cuserid ():
+_XOPEN_SOURCE
+.SH 説明
+.BR getlogin ()
+は、現在のプロセスの制御端末にログインしているユーザー名の文字列への
+ポインタを返す。ユーザー名が決定できない場合は null ポインタを返す。
+文字列は静的領域に割り当てられており、この後でこの関数や
+.BR cuserid ()
+が呼び出された際に上書きされることがある。
+.PP
+.BR getlogin_r ()
+は、上記の同じユーザ名を、大きさ
+.I bufsize
+の配列
+.I buf
+に入れて返す。
+.PP
+.BR cuserid ()
+は、現在のプロセスの実効ユーザーID に対応するユーザー名の
+文字列へのポインタを返す。
+\fIstring\fP が null ポインタ以外の場合、\fIstring\fP は少なくとも
+\fBL_cuserid\fP 文字を保持できる配列でなければならない。
+\fIstring\fP が null ポインタの場合には、静的領域に置かれた文字列への
+ポインタが返される。この文字列は静的領域に割り当てられており、後で
+この関数や
+.BR getlogin ()
+が呼び出された際に上書きされることがある。
+.PP
+マクロ \fBL_cuserid\fP は integer の定数で、ユーザー名を保持するために
+必要な配列の長さを示す。 \fBL_cuserid\fP は \fBstdio.h\fP で宣言されて
+いる。
+.PP
+これらの関数を使うと、プログラムを実行しているユーザー
+.RB ( cuserid ())
+や
+このセッションにログインしているユーザー
+.RB ( getlogin ())
+を明確に特定することができる
+(ただし set-user-ID プログラムでは、状況が違うこともある)。
+.PP
+たいていの目的では、ユーザーの特定には環境変数 \fBLOGNAME\fP を調べ
+るほうが便利である。LOGNAME 変数はユーザーが自由に設定できるので
+より柔軟な対応が可能になる。
+.SH 返り値
+.BR getlogin ()
+は成功した場合はユーザ名へのポインタを返し、失敗した場合は NULL を返す。
+.BR getlogin_r ()
+は成功すると 0 を返し、失敗すると 0 以外を返す。
+.SH エラー
+POSIX では以下のエラーが規定されている:
+.TP
+.B EMFILE
+呼び出し元プロセスがオープンしているファイル数がすでにプロセスあたりの
+上限に達している。
+.TP
+.B ENFILE
+システム全体でオープンしているファイル数がすでに上限に達している。
+.TP
+.B ENXIO
+呼び出し元プロセスには制御端末がない。
+.TP
+.B ERANGE
+(getlogin_r)
+(終端の NULL バイトも含めた) ユーザ名の長さが
+.I bufsize
+よりも長い。
+.LP
+Linux/glibc には以下のエラーもある。
+.TP
+.B ENOENT
+utmp ファイルに対応するエントリがなかった。
+.TP
+.B ENOMEM
+passwd 構造体を割り当てるのに十分なメモリがない。
+.TP
+.B ENOTTY
+標準入力が端末を参照していない (「バグ」の節を参照)。
+.SH ファイル
+.TP
+\fI/etc/passwd\fP
+パスワードデータベースのファイル
+.TP
+\fI/var/run/utmp\fP
+(伝統的には \fI/etc/utmp\fP が使われている;
+libc の中には \fI/var/adm/utmp\fP を使うものもある)
+.SH 準拠
+.BR getlogin ()
+と
+.BR getlogin_r ()
+は POSIX.1-2001 で規定されている。
+
+System V にも
+.BR cuserid ()
+があるが、
+これは実効ユーザー ID ではなく、実ユーザー ID を使用する。
+.BR cuserid ()
+関数は 1988 年版の POSIX には含まれていたが、
+1990 年版では削除された。
+SUSv2 に存在したが、POSIX.1-2001 で削除された。
+.LP
+OpenBSD には
+.BR getlogin ()
+と
+.BR setlogin ()
+があり、
+セッションに対応したユーザ名がある。制御端末がない
+セッションの場合であっても、対応するユーザ名がある。
+.SH バグ
+残念ながら、
+.BR getlogin ()
+をだますのはそれほど難しいことではない。別のプログラムが utmp ファイルを
+壊してしまうと、全く動作しないこともある。またログイン名の最初の 8 文字
+しか返さないことも多い。またプログラムを制御している tty に
+現在ログインしているユーザーは、プログラムを実行した
+ユーザーでない場合もある。
+セキュリティの絡む用途には
+.BR getlogin ()
+を用いるべきではない。
+.LP
+glibc は POSIX 仕様には従っておらず、
+.I /dev/tty
+ではなく
+.I "標準入力 (stdin)"
+を使う。これはバグである。
+(SunOS 5.8 や HP-UX 11.11 や FreeBSD 4.8 といった他の最近のシステムはいずれも、
+.I 標準入力
+がリダイレクトされた場合でもログイン名を返す。)
+.LP
+.BR cuserid ()
+が何を行っているのか、実際のところを知っている者は誰もいない;
+移植性が求められるプログラムでは
+.BR cuserid ()
+は使うべきではない。
+というかどんなプログラムでも使うべきではない:
+代わりに
+.I getpwuid(geteuid())
+を用いるべきである
+(これが意図していることならば、だが)。
+.BR cuserid ()
+は「使わない」こと。
+.SH 関連項目
+.BR geteuid (2),
+.BR getuid (2),
+.BR utmp (5)

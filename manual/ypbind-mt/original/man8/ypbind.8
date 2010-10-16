@@ -1,0 +1,263 @@
+.\" -*- nroff -*-
+.\" Copyright 1998, 1999, 2002 Thorsten Kukuk, Germany
+.\"
+.\" This file is part of ypbind-mt.
+.\"
+.\" Author: Thorsten Kukuk <kukuk@suse.de>
+.\"
+.\" ypbind-mt is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of the
+.\" License, or (at your option) any later version.
+.\"
+.\" ypbind-mt is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with ypbind-mt; see the file COPYING.  If not,
+.\" write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+.\" Boston, MA 02111-1307, USA.
+.\"
+.TH ypbind 8 "April 2002" "ypbind-mt Version 1.16"
+.SH NAME
+ypbind - NIS binding process
+.SH SYNOPSIS
+.B
+ypbind
+[
+.BR \-c
+] [
+.BR \-d | \-debug
+] [
+.B \-broadcast
+] [
+.B \-broken-server
+] [
+.B \-ypset
+] [
+.B \-ypsetme
+] [
+.B \-no-ping
+] [
+.BR \-f " configfile"
+]
+.LP
+.B
+ypbind
+.BR \--version
+.SH DESCRIPTION
+.B ypbind
+finds the server for NIS domains and maintains the NIS binding
+information. The client (normaly the NIS routines in the standard C library)
+could get the information over RPC from
+.B ypbind
+or read the binding files. The binding files resides in the directory
+.B /var/yp/binding
+and are conventionally named
+.BR [domainname].[version] .
+The supported versions are 1 and 2.
+There could be several such files since it is possible for an NIS client
+to be bound to more then one domain.
+.LP
+After a binding has been established,
+.B ypbind
+will send YPPROC_DOMAIN requests to the current NIS server at 20 seconds
+intervals. If it doesn't get an response or the NIS server tells that he
+doesn't has this domain any longer,
+.B ypbind
+will search a new NIS server. All 15 minutes
+.B ypbind
+will check, if the current NIS server is the fastest. If it find
+a server which answers faster, it will switch to this server.
+You could tell
+.B ypbind
+to use network broadcasts to find a new server, what is insecure,
+or you could give it a list of known, secure servers.
+In this case
+.B ypbind
+will send a ping to all server and binds to first one which answers.
+.LP
+Unless the option
+.B \-debug
+is used, ypbind detaches itself from the controlling terminal and puts
+itself into background.
+.B ypbind
+uses
+.BR syslog (3)
+for logging errors and warnings.
+At startup or when receiving signal SIGHUP,
+.B ypbind
+parses the file
+.B /etc/yp.conf
+and tries to use the entries for its initial binding. Valid entries
+are
+
+.B domain
+.I nisdomain
+.B server
+.I hostname
+.RS
+Use server
+.I hostname
+for the domain
+.IR nisdomain .
+You could have more then one entry of this type for a single domain.
+.RE
+
+.B domain
+.I nisdomain
+.B broadcast
+.RS
+Use broadcast on the local net for domain
+.IR nisdomain .
+.RE
+
+.B ypserver
+.I hostname
+.RS
+Use server
+.I server
+for the local domain.
+.RE
+
+A broadcast entry in the configuration file will overwrite a ypserver/server
+entry and a ypserver/server entry broadcast. If all given server are down,
+.B ypbind
+will
+.B not
+switch to use broadcast.
+.B ypbind
+will try at first
+.B /etc/hosts
+and then
+.B DNS
+for resolving the hosts names from
+.BR /etc/yp.conf .
+If
+.B ypbind
+couldn't reconfigure the search order, it will use only
+.BR DNS .
+If
+.B DNS
+isn't available, you could only use IP-addresses in
+.BR /etc/hosts .
+.B ypbind
+could only reconfigure the search order with glibc 2.x.
+If the
+.B \-broadcast
+option is specified,
+.B ypbind
+will ignore the configuration file.
+If the file does not exist or if there are no valid entries,
+.B ypbind
+exit.
+.LP
+This
+.B ypbind
+is a special version which uses
+.BR pthreads .
+It will start 2 more threads.  The master process services RPC requests
+asking for binding info. The first thread initializes the binding and
+checks it periodically. Upon failure, the binding is invalidated and
+the process tries again to find a valid server. The second thread
+will handle all the signals.
+
+.SH OPTIONS
+.TP
+.B "\-broadcast"
+Send a broadcast to request the information needed to bind to a
+specific NIS server. With this option,
+.B /etc/yp.conf
+will be ignored.
+.TP
+.B "\-ypset"
+Allow
+.B root
+from any remote machine to change the binding for a domain via the
+.BR ypset (8)
+command. By default, no one can change the binding. This option is really
+insecure. If you change a binding for a domain, all the current known
+servers for this domain will be forgotten. If the new server goes down,
+.B ypbind
+will use the old searchlist.
+.TP
+.B "\-ypsetme"
+The same as
+.BR \-ypset ,
+but only
+.B root
+on the local machine is allowed to chang the binding. Such requests
+are only allowd from
+.BR loopback .
+.TP
+.B "\-c"
+.B ypbind
+only checks if the config file has syntax errors and exits.
+.TP
+.B "\-debug"
+starts
+.B ypbind
+in debug mode.
+.B ypbind
+will not put itself into background, and error messages and debug
+output are written to standard error.
+.TP
+.B "\-broken-server"
+lets
+.B ypbind
+accept answers from servers running on an illegal port number. This should
+usually be avoided, but is required by some
+.BR ypserv (8)
+versions.
+.TP
+.B "\-no-ping"
+.B ypbind
+will not check if the binding is alive. This option is for use with
+dialup connections to prevent
+.B ypbind
+from keeping the connection unnessecarily open or causing autodials.
+.TP
+.BR "\-f" " configfile"
+.B ypbind
+will use
+.B configfile
+and not
+.B /etc/yp.conf
+.TP
+.B "\--version"
+Prints the version number
+.LP
+.SH NOTES
+Binding to multiple domains is tested and works.
+Load sharing between multiple servers for a single domain is
+not supported.
+.B ypbind
+will always try to bind a domain to a server. If there is no valid
+server in the list or answers to a broadcast, the domain is unbounded.
+.LP
+.SH FILES
+.TP
+.B /etc/yp.conf
+configuration file.
+.TP
+.BI /var/yp/binding/[domainname].[version]
+binding file containing information about each NIS domain.
+.TP
+.B /var/run/ypbind.pid
+contains the process id of the currently running
+.B ypbind
+master process.
+.LP
+.SH "SEE ALSO"
+.BR syslog (3),
+.BR domainname (1),
+.BR ypdomainname (8),
+.BR ypwhich (1),
+.BR ypserv (8),
+.BR ypset (8)
+
+.SH AUTHOR
+.B ypbind-mt
+was written by Thorsten Kukuk <kukuk@suse.de>.

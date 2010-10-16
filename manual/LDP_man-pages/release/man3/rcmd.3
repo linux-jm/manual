@@ -1,0 +1,219 @@
+.\"	$NetBSD: rcmd.3,v 1.9 1996/05/28 02:07:39 mrg Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)rcmd.3	8.1 (Berkeley) 6/4/93
+.\"
+.\" Contributed as Linux man page by David A. Holland, 970908
+.\" I have not checked whether the Linux situation is exactly the same.
+.\"
+.\" 2007-12-08, mtk, Converted from mdoc to man macros
+.\"
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Translated Mon Mar 1 1999 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.\"WORD:	standard name		(ホストの) 標準名
+.\"WORD:	regular file		通常ファイル
+.\"
+.TH RCMD 3 2007-12-28 "Linux" "Linux Programmer's Manual"
+.SH 名前
+rcmd, rresvport, iruserok, ruserok \- リモートコマンドにストリームを返す関数群
+.SH 書式
+.nf
+.B #include <netdb.h> \ \ \fP/* Or <unistd.h> on some systems */
+.sp
+.BI "int rcmd(char **" ahost ", int " inport ", const char *" locuser ", "
+.BI "         const char *" remuser ", const char *" cmd ", int *" fd2p );
+.sp
+.BI "int rresvport(int *" port );
+.sp
+.BI "int iruserok(uint32_t " raddr ", int " superuser ", "
+.BI "             const char *" ruser ", const char *" luser );
+.sp
+.BI "int ruserok(const char *" rhost ", int " superuser ", "
+.BI "            const char *" ruser ", const char *" luser );
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR rcmd (),
+.BR rresvport (),
+.BR ruserok ():
+_BSD_SOURCE
+.SH 説明
+.BR rcmd ()
+関数は、スーパーユーザーがリモートマシンでコマンドを実行するために
+用いられる。このとき特権ポート番号をもとにした認証スキームが
+用いられる。
+.BR rresvport ()
+関数は、特権ポート空間のアドレスを持つソケットの
+ディスクリプターを返す。
+.BR iruserok ()
+関数と
+.BR ruserok ()
+関数は、
+.BR rcmd ()
+でサービス要求を行ったクライアントの認証を行うために
+サーバーが用いる関数である。
+以上の 4 つの関数は、すべて同じファイルに記述されており、
+.BR rshd (8)
+サーバーによって (他の関数とともに) 利用される。
+.PP
+.BR rcmd ()
+関数は
+.BR gethostbyname (3)
+を用いて
+.I *ahost
+の参照を行う。ホストが存在しない場合は \-1 を返す。
+見つかった場合は
+.I *ahost
+にホストの標準名 (standard name) をセットして、
+予約されているインターネットポート
+.I inport
+経由でサーバーへの接続を確立する。
+.PP
+接続に成功したら、インターネットドメインに存在するタイプ
+.B SOCK_STREAM
+のソケットが呼び出しもとに返される。
+このソケットの相手側はリモートコマンドの
+.I stdin
+および
+.I stdout
+に接続される。
+.I fd2p
+がゼロでない場合は、制御プロセスへの接続がもう一つ用意され、
+そのディスクリプターが
+.I *fd2p
+にセットされる。
+制御プロセスはリモートコマンドからの標準エラー出力 (unit 2) を
+このチャンネルに返す。
+また制御プロセスはこの接続から受け取ったバイトデータを
+Unix シグナルの番号として扱い、リモートコマンドのプロセス
+グループへとシグナルを送る。
+.I fd2p
+がゼロの場合は、
+.I stderr
+(リモートコマンドの unit 2) は
+.I stdout
+と一緒にまとめられる。またこの場合はリモートプロセスへ
+任意のシグナルを送ることはできなくなる。
+ただし帯域外 (out-of-band) データを用いれば、
+リモートプロセスの注意を引くことはできるかもしれない。
+.PP
+プロトコルの詳細は
+.BR rshd (8)
+に記述されている。
+.PP
+.BR rresvport ()
+関数は特権アドレスにバインドされたソケットを取得するために用いられる。
+このソケットは
+.BR rcmd ()
+などの関数での利用に適している。インターネットポートの特権ポートは、
+0 から 1023 の範囲である。スーパーユーザーだけがこれらのアドレスを
+ソケットにバインドすることができる。
+.PP
+.BR iruserok ()
+と
+.BR ruserok ()
+関数は、まず以下の引数を取る: リモートホスト (
+.BR iruserok ()
+は IP アドレスで、
+.BR ruserok ()
+はホスト名で指定)、 2 つのユーザー名、ローカルユーザーの名前が
+スーパーユーザーのものであるかどうかを示すフラグ、である。
+もしユーザーが\fBスーパーユーザーではない\fP場合は、これらの関数は
+.I /etc/hosts.equiv
+ファイルをチェックする。ファイルが見つからなかったり、
+内容のチェックに失敗した場合には、
+ローカルユーザーのホームディレクトリにある
+.I .rhosts
+ファイルをチェックして、サービス要求が許可されているかどうか調べる。
+.PP
+このファイルが存在しなかったり、
+通常ファイル (regular file) ではなかったり、
+指定ユーザーまたはスーパーユーザー以外の所有だったり、
+所有者以外から書き込み可能だったりした場合には、
+このチェックは自動的に失敗する。
+マシンの名前が
+.I hosts.equiv
+にリストされていたり、
+ホストとリモートユーザーの名前が
+.I .rhosts
+ファイルに書かれていた場合には 0 が返される。
+それ以外の場合には、
+.BR iruserok ()
+と
+.BR ruserok ()
+は \-1 を返す。
+.RB ( gethostname (2)
+によって取得される) ローカルドメインがリモートのドメインと同じ場合は、
+マシンの名前だけを指定すればよい。
+.PP
+リモートホストの IP アドレスがわかっている場合は、
+.BR ruserok ()
+よりも
+.BR iruserok () を用いる方が良いだろう。
+.BR ruserok ()
+はリモートホストの所属するドメインの DNS サーバーが信頼できなくても
+使用できるからである。
+.SH 返り値
+.BR rcmd ()
+関数は成功すると有効なソケットディスクリプターを返す。
+失敗すると \-1 を返し、標準エラー出力に診断メッセージを
+表示する。
+.PP
+.BR rresvport ()
+関数は、成功するとバインドされた有効なソケットディスクリプターを返す。
+失敗すると \-1 を返し、グローバル変数
+.I errno
+をエラーの原因に対応する値にセットする。
+エラーコード
+.B EAGAIN
+は、この関数においては「すべてのネットワークポートが使用中」
+という意味を表す。
+.SH 準拠
+POSIX.1-2001 にはない。
+BSD 系、Solaris や他の多くのシステムに存在する。
+これらの関数は 4.2BSD で登場した。
+.SH 関連項目
+.BR rlogin (1),
+.BR rsh (1),
+.BR intro (2),
+.BR rexec (3),
+.BR rexecd (8),
+.BR rlogind (8),
+.BR rshd (8)

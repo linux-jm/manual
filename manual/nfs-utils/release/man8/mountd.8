@@ -1,0 +1,184 @@
+.\"
+.\" mountd(8)
+.\"
+.\" Copyright (C) 1999 Olaf Kirch <okir@monad.swb.de>
+.\" Modified by Paul Clements, 2004.
+.\" 
+.\" Japanese Version Copyright (c) 2002-2005 Yuichi SATO 
+.\"         all rights reserved.
+.\" Translated Thu Jan  3 17:42:24 JST 2002
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified Tue Oct  1 03:56:25 JST 2002 by Yuichi SATO
+.\" Updated & Modified Fri Dec 30 06:52:11 JST 2005 by Yuichi SATO
+.\"
+.TH rpc.mountd 8 "31 Aug 2004"
+.SH 名前
+rpc.mountd \- NFS マウントデーモン
+.SH 書式
+.BI "/usr/sbin/rpc.mountd [" options "]"
+.SH 説明
+.B rpc.mountd
+プログラムは NFS のマウントプロトコルを実装している。
+.B rpc.mountd
+は NFS クライアントから MOUNT リクエストを受け取ると、
+現在エクスポートされているファイルシステムのリストを参照し、
+そのリクエストが正当なものかどうかをチェックする。
+クライアントがそのファイルシステムのマウントを許可されている場合には、
+.B rpc.mountd
+は要求されたディレクトリのファイルハンドルを取得し、
+それをクライアントに返す。
+.SS NFS ファイルシステムのエクスポート
+ファイルシステムを NFS クライアントが使用できるようにすることを、
+\fIエクスポート\fRという。
+.P
+通常 NFS の使用を許可するファイルシステムとホストは
+.B /etc/exports
+ファイルにリストされ、システムのブート時に
+.B exportfs -a
+で有効にされる。
+.BR exportfs (8)
+コマンドは、カーネル NFS サーバーモジュールと
+.B rpc.mountd
+デーモンとの両方に対して、エクスポート情報を利用可能にする。
+.P
+もしくは、
+.B exportfs
+の
+.IB host : /directory
+という書式を使って、個別のディレクトリを一時的にエクスポートすることもできる。
+.SS rmtab ファイル
+NFS クライアントからマウント・リクエストを受けとるごとに、
+.B rpc.mountd
+は
+.B /var/lib/nfs/rmtab
+ファイルにエントリを追加する。
+アンマウント・リクエストを受け取ると、そのエントリは削除される。
+.P
+ただし、このファイルはほとんど飾りのようなものである。
+ひとつには、
+.B rpc.mountd 
+の UMOUNT プロシージャが呼ばれた後でも
+クライアントはファイルハンドルを使い続けることができてしまうし、
+またもうひとつには、
+.B mountd
+に知らせずにリブートすると、
+.B rmtab
+に古いエントリが残ってしまう。
+.SH オプション
+.TP
+.B \-d kind " または " \-\-debug kind
+デバッグを有効にする。
+kind として指定可能な値は以下の通り: all, auth, call, parse.
+.TP
+.B \-F " または " \-\-foreground
+フォアグラウンドで実行する (デーモン化しない)。
+.TP
+.B \-f " または " \-\-exports-file
+このオプションはエクスポートファイルを指定する。
+エクスポートファイルには、このサーバーがサービスを提供するクライアントと、
+それぞれのマウントに対して適用されるパラメータがリストされている
+.RB ( exports (5)
+を見よ)。デフォルトのエクスポートファイルは
+.I /etc/exports
+である。
+.TP
+.B \-h " または " \-\-help
+使用法のメッセージを表示する。
+.TP
+.B \-o num " または " \-\-descriptors num
+オープンするファイルディスクリプタの上限を num にする。
+デフォルトでは上限を変更しない。
+.TP
+.B \-N " または " \-\-no-nfs-version
+このオプションを使うと、
+.B rpc.mountd
+に特定のバージョンの NFS を提供させないようにできる。
+.B rpc.mountd
+の現在のバージョンでは、NFS バージョン 2 と
+より新しいバージョン 3 の両方をサポートしている。
+NFS カーネルモジュールが NFSv3 に対応するようにコンパイルされていない場合、
+.B rpc.mountd
+をオプション
+.B "\-\-no-nfs-version 3"
+で起動しなければならない。
+.TP
+.B \-n " または " \-\-no-tcp
+mount の際に TCP に広報しない。
+.TP
+.B \-P
+無視される (unfsd との互換性のためにある)。
+.TP
+.B \-p " または " \-\-port num
+.B rpc.mountd
+を特定のポート num にバインドさせる。
+portmapper によって割り当てられるランダムなポートを使わない。
+.TP
+.B \-H " または " \-\-ha-callout prog
+高可用性コールアウトプログラムを指定する。
+このプログラムは全てのクライアントのマウント要求とアンマウント要求の
+コールアウトを受け付ける。
+これにより、高可用性 NFS (High Availability NFS, HA-NFS) 環境で
+.B rpc.mountd
+を使用することができる。
+このコールアウトは 2.6 以降のカーネルでは必要ない
+(使用すべきではない)。
+(代わりに、nfsd ファイルシステムを
+.B /proc/fs/nfsd
+にマウントすること)。
+このプログラムは 4 つの引き数を付けて呼ばれる。
+1 番目の引き数は
+.B mount
+または
+.B unmount
+である。これはコールアウトの理由に依存する。
+2 番目の引き数はマウントを実行しているクライアントの名前である。
+3 番目の引き数はクライアントがマウントしているパスである。
+最後の引き数は同時マウント数である。
+これは mountd が把握している、
+そのパスをマウントしているクライアントの数である。
+.TP
+.B \-V " または " \-\-nfs-version
+このオプションを使うと、
+.B rpc.mountd
+に特定のバージョンの NFS を提供させることができる。
+.B rpc.mountd
+の現在のバージョンでは、NFS バージョン 2 と
+より新しいバージョン 3 の両方に対応することができる。
+.TP
+.B \-v " または " \-\-version
+.B rpc.mountd
+のバージョンを表示して終了する。
+
+.SH TCP_WRAPPERS のサポート
+このバージョンの
+.B rpc.mountd
+は
+.B tcp_wrapper
+ライブラリによって保護することができる。
+クライアントに
+.B rpc.mountd
+の使用を許可するためには、アクセス権を与えなければならない。
+\&.bar.com ドメインのクライアントからの接続を許可するためには、
+以下の行を /etc/hosts.allow に記述する。
+
+mountd: .bar.com
+
+デーモン名としては (バイナリの名前がこれとは違っても)
+.B mountd
+を使わなければならない。
+
+より詳しい情報については、
+.BR tcpd (8),
+.BR hosts_access (5)
+の man ページを参照してほしい。
+
+.SH 関連項目
+.BR rpc.nfsd (8),
+.BR exportfs (8),
+.BR exports (5),
+.BR rpc.rquotad (8).
+.SH ファイル
+.BR /etc/exports ,
+.BR /var/lib/nfs/xtab .
+.SH 著者
+Olaf Kirch, H. J. Lu, G. Allan Morris III, その他の多くの人々。

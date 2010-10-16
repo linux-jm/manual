@@ -1,0 +1,192 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (c) 1992 Drew Eckhardt (drew@cs.colorado.edu), March 28, 1992
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified by Michael Haardt <michael@moria.de>
+.\" Modified 1993-07-24 by Rik Faith <faith@cs.unc.edu>
+.\" Modified 1995-07-22 by Michael Chastain <mec@duracef.shout.net>
+.\" Modified 1995-07-23 by aeb
+.\" Modified 1996-10-22 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified 1998-09-08 by aeb
+.\" Modified 2004-06-17 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Modified 2004-10-10 by aeb
+.\" 2004-12-14 mtk, Anand Kumria: added new errors
+.\" 2007-06-22 Ivana Varekova <varekova@redhat.com>, mtk
+.\"     Update text describing limit on number of swap files.
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated Mon Mar  3 23:54:56 JST 1997
+.\"         by HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified Tue Dec  1 00:08:07 JST 1998
+.\"         by HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated & Modified Fri Feb 11 07:40:12 JST 2005
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated 2007-09-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.64
+.\"
+.\"WORD:	swap			スワップ
+.\"WORD:	block device		ブロック・デバイス
+.\"WORD:	super-user		スーパー・ユーザー
+.\"WORD:	round robin		ラウンド・ロビン
+.\"WORD:	partition		パーティション
+.\"WORD:	page			ページ
+.\"WORD:	kernel			カーネル
+.\"
+.TH SWAPON 2 2007-06-22 "Linux" "Linux Programmer's Manual"
+.SH 名前
+swapon, swapoff \- ファイル/デバイスへのスワップを開始/停止する
+.SH 書式
+.B #include <unistd.h>
+.br
+.B #include <asm/page.h>     /* PAGE_SIZE を見つけるため */
+.br
+.B #include <sys/swap.h>
+.sp
+.BI "int swapon(const char *" path ", int " swapflags );
+.br
+.BI "int swapoff(const char *" path );
+.SH 説明
+.BR swapon ()
+は
+.I path
+で指定されたファイルやブロック・デバイスにスワップ領域を設定する。
+.BR swapoff ()
+は
+.I path
+で指定されたファイルやブロック・デバイスへのスワップを停止する。
+.PP
+.BR swapon ()
+は
+.I swapflags
+引き数を取る。
+.I swapflags
+に
+.B SWAP_FLAG_PREFER
+ビットが設定された場合は、新しいスワップ領域はデフォルトよりも高い
+優先度を持つ。
+優先度は
+.I swapflags
+に以下のようにコード化されている。
+.br
+.sp
+.I "    (prio << SWAP_FLAG_PRIO_SHIFT) & SWAP_FLAG_PRIO_MASK"
+.br
+.PP
+これらの関数は特権プロセス
+.RB ( CAP_SYS_ADMIN
+ケーパビリティ (capability) を持つプロセス) のみが使用できる。
+.SS 優先度
+それぞれのスワップ領域は高 (high) と低 (low) のどちらかの優先度を持つ。
+デフォルトの優先度は低である。
+低い優先度の領域において、新しい領域は古い領域よりさらに低い
+優先度を持つ。
+.PP
+.I swapflags
+が設定されたものは全て高い優先度となり、デフォルトよりも高い優先度を持つ。
+使用者はそれらに負でない値が指定できる。
+大きな数字は高い優先度を意味する。
+.PP
+高い優先度の領域から順にスワップ・ページとして使用される。
+より低い優先度の領域を使用する前により高い優先度の
+領域を使い切る。もし二つ以上の領域が同じ優先度を持ち、
+使える中で一番高い優先度であれば、それらのページは間で
+ラウンド・ロビン方式で配分される。
+.PP
+Linux 1.3.6 において、カーネルは通常はこれらの規則に従っている。
+しかし例外も存在している。
+.SH 返り値
+成功した場合は 0 が返される。エラーの場合は \-1 が返され、
+.I errno
+が適切に設定される。
+.SH エラー
+.TP
+.B EBUSY
+.RB ( swapon ()
+において) 指定された
+.I path
+が既にスワップ領域として使用されている。
+.TP
+.B EINVAL
+ファイル
+.I path
+は存在するが、通常のファイルもブロック・デバイスも参照していない。
+または
+.BR swapon ()
+において、指定された path のファイルが有効なスワップの署名 (signature) を
+含んでいないか、tmpfs のようなインメモリ (in-memory) のファイルシステム
+上にある。
+または
+.BR swapoff ()
+において、
+.I path
+が現在のところスワップ領域でない。
+.TP
+.B ENFILE
+オープンされたファイルの総数がシステムの制限に達した。
+.TP
+.B ENOENT
+ファイル
+.I path
+が存在しない。
+.TP
+.B ENOMEM
+スワップを開始するのに十分なメモリーがシステムにない。
+.TP
+.B EPERM
+使用者が
+.B CAP_SYS_ADMIN
+ケーパビリティを持っていない。
+もしくは、最大数のスワップファイルがすでに使用されている
+(下記の「注意」の節を参照)。
+.SH 準拠
+これらの関数は Linux 特有であり、移植を意図したプログラムでは
+使用してはいけない。
+二番目の
+.I swapflags
+引き数は Linux 1.3.2 から導入された。
+.SH 注意
+パーティションやパスは
+.BR mkswap (8)
+によって準備されていなければならない。
+
+使用できるスワップファイルの数には上限があり、その上限は
+カーネル定数
+.B MAX_SWAPFILES
+で定義される。
+.B MAX_SWAPFILES
+の値は、カーネル 2.4.10 より前では 8、
+カーネル 2.4.10 以降では 32 である。
+カーネル 2.6.18 以降では、カーネルが
+.B CONFIG_MIGRATION
+オプションを有効にして作成された場合、
+この上限が 2 少ない値 (つまり 30) となる
+(このカーネルでは、
+.BR mbind (2)
+と
+.BR migrate_pages (2)
+のページ・マイグレーション機能用にスワップ・テーブルのエントリーが
+二つ予約される)。
+.SH 関連項目
+.BR mkswap (8),
+.BR swapoff (8),
+.BR swapon (8)

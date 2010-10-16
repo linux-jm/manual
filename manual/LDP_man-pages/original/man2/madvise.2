@@ -1,0 +1,238 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (C) 2001 David Gómez <davidge@jazzfree.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Based on comments from mm/filemap.c. Last modified on 10-06-2001
+.\" Modified, 25 Feb 2002, Michael Kerrisk, <mtk.manpages@gmail.com>
+.\"	Added notes on MADV_DONTNEED
+.\" FIXME
+.\" 2.6.32 added MADV_HWPOISON, MADV_MERGEABLE, and MADV_UNMERGEABLE
+.\" 2.6.33 added MADV_SOFT_OFFLINE
+.\"
+.TH MADVISE 2 2008-04-22 "Linux" "Linux Programmer's Manual"
+.SH NAME
+madvise \- give advice about use of memory
+.SH SYNOPSIS
+.B #include <sys/mman.h>
+.sp
+.BI "int madvise(void *" addr ", size_t " length ", int " advice );
+.sp
+.in -4n
+Feature Test Macro Requirements for glibc (see
+.BR feature_test_macros (7)):
+.in
+.sp
+.BR madvise ():
+_BSD_SOURCE
+.SH DESCRIPTION
+The
+.BR madvise ()
+system call advises the kernel about how to handle paging input/output in
+the address range beginning at address
+.I addr
+and with size
+.I length
+bytes.
+It allows an application to tell the kernel how it expects to use
+some mapped or shared memory areas, so that the kernel can choose
+appropriate read-ahead and caching techniques.
+This call does not influence the semantics of the application
+(except in the case of
+.BR MADV_DONTNEED ),
+but
+may influence its performance.
+The kernel is free to ignore the advice.
+.LP
+The advice is indicated in the
+.I advice
+argument which can be
+.TP
+.B MADV_NORMAL
+No special treatment.
+This is the default.
+.TP
+.B MADV_RANDOM
+Expect page references in random order.
+(Hence, read ahead may be less useful than normally.)
+.TP
+.B MADV_SEQUENTIAL
+Expect page references in sequential order.
+(Hence, pages in the given range can be aggressively read ahead,
+and may be freed soon after they are accessed.)
+.TP
+.B MADV_WILLNEED
+Expect access in the near future.
+(Hence, it might be a good idea to read some pages ahead.)
+.TP
+.B MADV_DONTNEED
+Do not expect access in the near future.
+(For the time being, the application is finished with the given range,
+so the kernel can free resources associated with it.)
+Subsequent accesses of pages in this range will succeed, but will result
+either in reloading of the memory contents from the underlying mapped file
+(see
+.BR mmap (2))
+or zero-fill-on-demand pages for mappings
+without an underlying file.
+.TP
+.BR MADV_REMOVE " (Since Linux 2.6.16)"
+Free up a given range of pages
+and its associated backing store.
+Currently,
+.\" 2.6.18-rc5
+only shmfs/tmpfs supports this; other file systems return with the
+error
+.BR ENOSYS .
+.\" Databases want to use this feature to drop a section of their
+.\" bufferpool (shared memory segments) - without writing back to
+.\" disk/swap space.  This feature is also useful for supporting
+.\" hot-plug memory on UML.
+.TP
+.BR MADV_DONTFORK " (Since Linux 2.6.16)"
+.\" See http://lwn.net/Articles/171941/
+Do not make the pages in this range available to the child after a
+.BR fork (2).
+This is useful to prevent copy-on-write semantics from changing
+the physical location of a page(s) if the parent writes to it after a
+.BR fork (2).
+(Such page relocations cause problems for hardware that
+DMAs into the page(s).)
+.\" [PATCH] madvise MADV_DONTFORK/MADV_DOFORK
+.\" Currently, copy-on-write may change the physical address of
+.\" a page even if the user requested that the page is pinned in
+.\" memory (either by mlock or by get_user_pages).  This happens
+.\" if the process forks meanwhile, and the parent writes to that
+.\" page.  As a result, the page is orphaned: in case of
+.\" get_user_pages, the application will never see any data hardware
+.\" DMA's into this page after the COW.  In case of mlock'd memory,
+.\" the parent is not getting the realtime/security benefits of mlock.
+.\"
+.\" In particular, this affects the Infiniband modules which do DMA from
+.\" and into user pages all the time.
+.\"
+.\" This patch adds madvise options to control whether memory range is
+.\" inherited across fork. Useful e.g. for when hardware is doing DMA
+.\" from/into these pages.  Could also be useful to an application
+.\" wanting to speed up its forks by cutting large areas out of
+.\" consideration.
+.\"
+.\" SEE ALSO: http://lwn.net/Articles/171941/
+.\" "Tweaks to madvise() and posix_fadvise()", 14 Feb 2006
+.TP
+.BR MADV_DOFORK " (Since Linux 2.6.16)"
+Undo the effect of
+.BR MADV_DONTFORK ,
+restoring the default behavior, whereby a mapping is inherited across
+.BR fork (2).
+.SH "RETURN VALUE"
+On success
+.BR madvise ()
+returns zero.
+On error, it returns \-1 and
+.I errno
+is set appropriately.
+.SH ERRORS
+.TP
+.B EAGAIN
+A kernel resource was temporarily unavailable.
+.TP
+.B EBADF
+The map exists, but the area maps something that isn't a file.
+.TP
+.B EINVAL
+The value
+.I len
+is negative,
+.\" .I len
+.\" is zero,
+.I addr
+is not page-aligned,
+.I advice
+is not a valid value, or the application is attempting
+to release locked or shared pages (with
+.BR MADV_DONTNEED ).
+.TP
+.B EIO
+(for
+.BR MADV_WILLNEED )
+Paging in this area would exceed the process's
+maximum resident set size.
+.TP
+.B ENOMEM
+(for
+.BR MADV_WILLNEED )
+Not enough memory: paging in failed.
+.TP
+.B ENOMEM
+Addresses in the specified range are not currently
+mapped, or are outside the address space of the process.
+.SH "CONFORMING TO"
+POSIX.1b.
+POSIX.1-2001 describes
+.BR posix_madvise (3)
+.\" FIXME . Write a posix_fadvise(3) page.
+with constants
+.BR POSIX_MADV_NORMAL ,
+etc.,
+with a behavior close to that described here.
+There is a similar
+.BR posix_fadvise (2)
+for file access.
+
+.BR MADV_REMOVE ,
+.BR MADV_DONTFORK ,
+and
+.B MADV_DOFORK
+are Linux-specific.
+.SH NOTES
+.SS "Linux Notes"
+.LP
+The current Linux implementation (2.4.0) views this system call
+more as a command than as advice and hence may return an error
+when it cannot do what it usually would do in response to this
+advice.
+(See the ERRORS description above.)
+This is nonstandard behavior.
+.LP
+The Linux implementation requires that the address
+.I addr
+be page-aligned, and allows
+.I length
+to be zero.
+If there are some parts of the specified address range
+that are not mapped, the Linux version of
+.BR madvise ()
+ignores them and applies the call to the rest (but returns
+.B ENOMEM
+from the system call, as it should).
+.\" .SH HISTORY
+.\" The
+.\" .BR madvise ()
+.\" function first appeared in 4.4BSD.
+.SH "SEE ALSO"
+.BR getrlimit (2),
+.BR mincore (2),
+.BR mmap (2),
+.BR mprotect (2),
+.BR msync (2),
+.BR munmap (2)

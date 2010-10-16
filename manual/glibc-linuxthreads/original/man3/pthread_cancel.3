@@ -1,0 +1,209 @@
+.TH PTHREAD_CANCEL 3 LinuxThreads
+
+
+.SH NAME
+pthread_cancel, pthread_setcancelstate, pthread_setcanceltype, pthread_testcancel \- thread cancellation
+
+.SH SYNOPSIS
+.B #include <pthread.h>
+
+.BI "int pthread_cancel(pthread_t " thread ");"
+
+.BI "int pthread_setcancelstate(int " state ", int *" oldstate ");"
+
+.BI "int pthread_setcanceltype(int " type ", int *" oldtype ");"
+
+.BI "void pthread_testcancel(void);"
+
+.SH DESCRIPTION
+
+Cancellation is the mechanism by which a thread can terminate the
+execution of another thread. More precisely, a thread can send a
+cancellation request to another thread. Depending on its settings, the
+target thread can then either ignore the request, honor it
+immediately, or defer it till it reaches a cancellation point.
+
+When a thread eventually honors a cancellation request, it performs as
+if 
+.B "pthread_exit(PTHREAD_CANCELED)"
+has been called at that point:
+all cleanup handlers are executed in reverse order, finalization
+functions for thread-specific data are called, and finally the thread
+stops executing with the return value 
+.BR "PTHREAD_CANCELED" .
+See
+.BR "pthread_exit" (3)
+for more information.
+
+.B "pthread_cancel"
+sends a cancellation request to the thread denoted
+by the 
+.I "thread"
+argument.
+
+.B "pthread_setcancelstate"
+changes the cancellation state for the
+calling thread -- that is, whether cancellation requests are ignored
+or not. The 
+.I "state"
+argument is the new cancellation state: either
+.B "PTHREAD_CANCEL_ENABLE"
+to enable cancellation, or
+.B "PTHREAD_CANCEL_DISABLE"
+to disable cancellation (cancellation
+requests are ignored). If 
+.I "oldstate"
+is not 
+.BR "NULL" ,
+the previous
+cancellation state is stored in the location pointed to by 
+.IR "oldstate" ,
+and can thus be restored later by another call to
+.BR "pthread_setcancelstate" .
+
+.B "pthread_setcanceltype"
+changes the type of responses to cancellation
+requests for the calling thread: asynchronous (immediate) or deferred.
+The 
+.I "type"
+argument is the new cancellation type: either
+.B "PTHREAD_CANCEL_ASYNCHRONOUS"
+to cancel the calling thread as soon as
+the cancellation request is received, or 
+.B "PTHREAD_CANCEL_DEFERRED"
+to
+keep the cancellation request pending until the next cancellation
+point. If 
+.I "oldtype"
+is not 
+.BR "NULL" ,
+the previous
+cancellation state is stored in the location pointed to by 
+.IR "oldtype" ,
+and can thus be restored later by another call to
+.BR "pthread_setcanceltype" .
+
+Threads are always created by 
+.BR "pthread_create" (3)
+with cancellation
+enabled and deferred. That is, the initial cancellation state is
+.B "PTHREAD_CANCEL_ENABLE"
+and the initial type is
+.BR "PTHREAD_CANCEL_DEFERRED" .
+
+Cancellation points are those points in the program execution where a
+test for pending cancellation requests is performed and cancellation
+is executed if positive. The following POSIX threads functions
+are cancellation points:
+
+.BR "pthread_join" (3)
+.br
+.BR "pthread_cond_wait" (3)
+.br
+.BR "pthread_cond_timedwait" (3)
+.br
+.BR "pthread_testcancel" (3)
+.br
+.BR "sem_wait" (3)
+.br
+.BR "sigwait" (3)
+
+All other POSIX threads functions are guaranteed not to be
+cancellation points. That is, they never perform cancellation in
+deferred cancellation mode.
+
+.B "pthread_testcancel"
+does nothing except testing for pending
+cancellation and executing it. Its purpose is to introduce explicit
+checks for cancellation in long sequences of code that do not call
+cancellation point functions otherwise.
+
+.SH "RETURN VALUE"
+
+.BR "pthread_cancel" ,
+.B "pthread_setcancelstate"
+and
+.B "pthread_setcanceltype"
+return 0 on success and a non-zero error code
+on error.
+
+.SH ERRORS
+.B "pthread_cancel"
+returns the following error code on error:
+.RS
+.TP
+.B "ESRCH"
+no thread could be found corresponding to that specified by the 
+.I "thread"
+ID.
+.RE
+
+.B "pthread_setcancelstate"
+returns the following error code on error:
+.RS
+.TP
+.B "EINVAL"
+the 
+.I "state"
+argument is not 
+.B "PTHREAD_CANCEL_ENABLE"
+nor
+.B "PTHREAD_CANCEL_DISABLE"
+.RE
+
+.B "pthread_setcanceltype"
+returns the following error code on error:
+.RS
+.TP
+.B "EINVAL"
+the 
+.I "type"
+argument is not 
+.B "PTHREAD_CANCEL_DEFERRED"
+nor
+.B "PTHREAD_CANCEL_ASYNCHRONOUS"
+.RE
+
+.SH AUTHOR
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.SH "SEE ALSO"
+.BR "pthread_exit" (3),
+.BR "pthread_cleanup_push" (3),
+.BR "pthread_cleanup_pop" (3).
+
+.SH BUGS
+
+POSIX specifies that a number of system calls (basically, all
+system calls that may block, such as 
+.BR "read" (2),
+.BR "write" (2),
+.BR "wait" (2),
+etc.) and library functions that may call these system calls (e.g.
+.BR "fprintf" (3))
+are cancellation points.  LinuxThreads is not yet
+integrated enough with the C library to implement this, and thus none
+of the C library functions is a cancellation point.
+
+For system calls at least, there is a workaround. Cancellation
+requests are transmitted to the target thread by sending it a
+signal. That signal will interrupt all blocking system calls, causing
+them to return immediately with the 
+.B "EINTR"
+error. So, checking for
+cancellation during a 
+.B "read"
+system call, for instance, can be
+achieved as follows:
+
+.RS
+.ft 3
+.nf
+.sp
+pthread_testcancel();
+retcode = read(fd, buffer, length);
+pthread_testcancel();
+.ft
+.LP
+.RE
+.fi

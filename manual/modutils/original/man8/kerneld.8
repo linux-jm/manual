@@ -1,0 +1,80 @@
+.\" Copyright (c) 1995 Bjorn Ekwall <bj0rn@blox.se>
+.\" This program is distributed according to the Gnu General Public License.
+.\" See the file COPYING in the kernel source directory /linux
+.\"
+.TH KERNELD 8 "May 14, 1995" Linux "Linux Extensions"
+.SH NAME
+kerneld \- perform kernel action in user space (such as on-demand loading of modules)
+.SH WARNING
+.B kerneld
+is obsolete as of Linux kernel 2.1.90, it was replaced by the kmod
+kernel thread and cron entries.  Do not even think of using kerneld
+unless you are running a 2.0 kernel.
+.SH SYNOPSIS
+.B kerneld
+[ debug ] [ keep ] [ delay=<seconds> ] [ type=<message number> ]
+.SH DESCRIPTION
+Apart from automatically removing unused modules,
+.B kerneld
+also performs specific kernel tasks in user space by responding to requests
+from the kernel via a dedicated IPC message queue.
+Access to this queue can be made from user space by opening the queue
+with:
+
+	qid = msgget(IPC_PRIVATE, 0600 | IPC_KERNELD);
+
+A specific task is requested with the message type,
+as specified in <linux/kerneld.h>.
+.PP
+The structure of a kerneld message is:
+.nf
+	struct kerneld_msg {
+		long mtype;
+		long id;
+		char text[1];
+	};
+.fi
+where the id field is used as the number of the response message
+from kerneld back to the kernel.
+If the id field is zero, there will be no response from kerneld.
+.br
+(Note that a new structure is proposed that will include the pid of
+the requester into the protocol header.)
+
+If a response was requested, the exit status of the kerneld action
+will be stored in the id field.
+
+The text field us used to hold the parameters from the kernel
+to the specified kerneld action.
+In return messages, this field can contain the output from the action,
+to be used (if wanted) by the kernel.
+.PP
+The options are as follows:
+.TP 8
+debug
+With debugging enabled, you will be able to see the current status
+of kerneld as it performs its tasks.  Note that you can control
+debugging, as well as all the other parameters via the utility kdstat.
+.TP 8
+keep
+The keep option makes kerneld ignore all requests for unloading modules.
+This option might be usable for systems where the modules should never
+be unloaded at all (for some reason or other).
+This option also inhibits the automatic removal of unused modules
+that kerneld performs every minute (or <delay> seconds).
+.TP 8
+delay=<seconds>
+The delay option will change the timeout in kerneld for delayed
+removal of modules from the default 60 seconds to whatever the choice was.
+.TP 8
+type=<message type>
+The default type is -255, which means that kerneld will listen for
+all messages where the type is less than or equal to 255.
+If a positive number is given, kerneld will only listen for that message type.
+.PP
+kerneld sends error messages to the syslog facility LOG_DAEMON.
+.SH SEE ALSO
+insmod(8), rmmod(8), modprobe(8), depmod(8), syslogd(8)
+.SH HISTORY
+The kerneld support was inspired by discussions with Jacques Gelinas
+<jack@solucorp.qc.ca>

@@ -1,0 +1,122 @@
+.\" This man page is a part of util-linux.
+.\"
+.\" Japanese Version Copyright (c) 2000 NAKANO Takeo all rights reserved.
+.\" Translated Wed Jun 14 2000 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.TH PIVOT_ROOT 8 "Feb 23, 2000" "Linux" "Maintenance Commands"
+.\"O .SH NAME
+.\"O pivot_root \- change the root file system
+.SH 名前
+pivot_root \- root ファイルシステムを変更する
+.\"O .SH SYNOPSIS
+.SH 書式
+.B pivot_root
+.RB \fInew_root\fP
+.RB \fIput_old\fP
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O \fBpivot_root\fP moves the root file system of the current process to the
+.\"O directory \fIput_old\fP and makes \fInew_root\fP the new root file system.
+.\"O Since \fBpivot_root(8)\fP simply calls \fBpivot_root(2)\fP, we refer to
+.\"O the man page of the latter for further details.
+.B pivot_root
+はカレントプロセスの root ファイルシステムを
+.I put_old
+ディレクトリに移動し、
+.I new_root
+を新しい root ファイルシステムにする。
+.BR pivot_root (8)
+は
+.BR pivot_root (2)
+を呼び出しているだけなので、詳細は後者の man ページにあたって欲しい。
+
+.\"O Note that, depending on the implementation of \fBpivot_root\fP, root and
+.\"O cwd of the caller may or may not change. The following is a sequence for
+.\"O invoking \fBpivot_root\fP that works in either case, assuming that
+.\"O \fBpivot_root\fP and \fBchroot\fP are in the current \fBPATH\fP:
+呼び出しプロセスの root とカレントワーキングディレクトリ (cwd) は
+.B pivot_root
+の実装に依存して変わったり変わらなかったりする。
+以下はどちらの場合にも動作する
+.B pivot_root
+の起動方法だが、
+.BR pivot_root " と " chroot " の両方が現在の " PATH
+に入っている必要がある。
+.sp
+cd \fInew_root\fP
+.br
+pivot_root . \fIput_old\fP
+.br
+exec chroot . \fIcommand\fP
+.sp
+.\"O Note that \fBchroot\fP must be available under the old root and under the new
+.\"O root, because \fBpivot_root\fP may or may not have implicitly changed the
+.\"O root directory of the shell.
+.B chroot
+は古い root と新しい root の両方で使えなければならない。
+なぜなら
+.B pivot_root
+がシェルの root ディレクトリを暗黙のうちに変更するかどうかは
+わからないからである。
+
+.\"O Note that \fBexec chroot\fP changes the running executable, which is
+.\"O necessary if the old root directory should be unmounted afterwards.
+.\"O Also note that standard input, output, and error may still point to a
+.\"O device on the old root file system, keeping it busy. They can easily be
+.\"O changed when invoking \fBchroot\fP (see below; note the absence of
+.\"O leading slashes to make it work whether \fBpivot_root\fP has changed the
+.\"O shell's root or not).
+.B exec chroot
+は動作している実行ファイルを変更する。
+これは後で古い root ディレクトリがアンマウントされるために必要なのである。
+また標準入力・標準出力・標準エラー出力が古い root ファイルシステムの
+デバイスを指していて、 root ファイルシステムを
+busy 状態にするかもしれない。
+これらは
+.B chroot
+を実行するときに簡単に変更できる (以下を参照。
+先頭のスラッシュがないので (相対パスで指定しているので)、
+.B pivot_root
+がシェルの root を変更する場合でもしない場合でも動作することに注目。)
+.\"O .SH EXAMPLES
+.SH 例
+.\"O Change the root file system to /dev/hda1 from an interactive shell:
+対話シェルから root ファイルシステムを /dev/hda1 に変更する:
+.sp
+.nf
+mount /dev/hda1 /new-root
+cd /new-root
+pivot_root . old-root
+exec chroot . sh <dev/console >dev/console 2>&1
+umount /old-root
+.fi
+.sp
+.\"O Mount the new root file system over NFS from 10.0.0.1:/my_root and run
+.\"O \fBinit\fP:
+新しい root ファイルシステムを 10.0.0.1:/my_root から
+NFS でマウントし、
+.B init
+を起動する:
+.sp
+.nf
+ifconfig lo 127.0.0.1 up   # for portmap
+# configure Ethernet or such
+portmap   # for lockd (implicitly started by mount)
+mount -o ro 10.0.0.1:/my_root /mnt
+killall portmap   # portmap keeps old root busy
+cd /mnt
+pivot_root . old_root
+exec chroot . sh -c 'umount /old_root; exec /sbin/init' \\
+  <dev/console >dev/console 2>&1
+.fi
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.\"O .BR chroot(1),
+.\"O .BR mount(8),
+.\"O .BR pivot_root(2),
+.\"O .BR umount(8)
+.BR chroot (1),
+.BR mount (8),
+.BR pivot_root (2),
+.BR umount (8)
+

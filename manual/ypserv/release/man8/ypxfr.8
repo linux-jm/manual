@@ -1,0 +1,214 @@
+.\" Copyright (c) 1996, 1997, 1999 Thorsten Kukuk <kukuk@suse.de>
+.\" Copyright (c) 1996, 1997, 1999, 2001 Thorsten Kukuk <kukuk@suse.de>
+
+.\" $Id: ypxfr.8,v 1.4 2001/12/01 15:26:07 nakano Exp $
+.\" 
+.\" This manual page is a part of ypserv archive. 
+.\" README states the following
+.\"
+.\" See the file COPYING for copying restrictions. It is available under
+.\" the GNU General Public License.
+.\"
+.\" Japanese Version Copyright (c) 1998, 1999 NAKANO Takeo all rights reserved.
+.\" Translated Mon 23 Nov 1998 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated Fri 22 Oct 1999 by NAKANO Takeo
+.\"
+.TH YPXFR 8 "August 2001" "YP Server" ""
+.SH 名前
+ypxfr \- NIS データーベースをリモートサーバーからローカルホストに転送する
+.SH 書式
+.B /usr/lib/yp/ypxfr
+[
+.B \-f
+]
+[
+.B \-c
+]
+[
+.B \-d
+.I target domain
+]
+.if n .ti +5n
+[
+.B \-h
+.I source host
+]
+[
+.B \-s
+.I source domain
+]
+.if n .ti +5n
+[
+.B \-C
+.I taskid
+.I program-number
+.I ipaddr port
+]
+.if n .ti +5n
+[
+.B \-p
+.I yp_path
+]
+mapname ...
+
+.SH 説明
+.B ypxfr
+は NIS データーベースを NIS サーバーからローカルホストに
+NIS サービスを用いてコピーする。
+.B ypxfr
+は通常
+.B ypinit
+から起動されるか、
+.B yppush
+からマップ転送要求を受け取った
+.B ypserv
+によって起動される。
+.B ypxfr
+は一時的なマップを
+.B /var/yp/domain
+ディレクトリに生成し (このディレクトリは存在していなければならない。
+.I domain
+はローカルホストのデフォルトドメイン名である)、
+そのマップのエントリを取得して内容を書き込み、マップのパラメータ
+(マスターとオーダー番号) を取得する。
+転送が成功したら、古いバージョンのマップは削除され、
+この一時的なマップの内容がそこに書き込まれる。
+次に
+.B ypxfr
+は "clear current map" 要求をローカルの
+.B ypserv
+に送ろうと試みる。
+
+インタラクティブな形式で実行されると、
+.B ypxfr
+は出力を標準エラー出力に書き出す。しかし制御端末なしで
+起動された場合には、出力は syslog に記録される。
+
+.B ypxfr
+が用いられるのは、複数の NIS サーバーが用いられているような
+環境においてである。あらゆるマップに対して、そのマップの原本を
+保持している NIS マスターサーバーが一つだけ存在する。他のサーバは
+すべて NIS スレーブサーバーとなり、マスターサーバーでマップが
+更新されるたびに、新しい版のマップをコピーする。
+通常は一台の NIS サーバーにすべてのマップの管理を集中させる。
+
+これらすべての NIS サーバーの間でマップの内容を一致させておくためには、
+.B ypxfr
+を
+.B cron
+ジョブとして定期的に動作させると良い。あまり変更されないマップは
+一日に一回更新すればよいだろうし (システムの使用率が最低となるような
+夜遅くが好まれる)、頻繁に変更されるマップ (
+.IR passwd.byname " や " passwd.byuid
+など) は一時間に一回くらい更新する必要があるかもしれない。
+これらの例は
+.B /usr/lib/yp
+の
+.BR ypxfr_1perday ", " ypxfr_2perday ", " ypxfr_1perhour
+などに示してある。とりあえず動かしてみるには、
+これらを用いてみると良いだろう。
+
+NIS マスターサーバーで
+.B /var/yp/Makefile
+が実行されたら、
+通常はその更新内容を
+.B yppush
+を用いて伝播させるべきである。
+しかし大きなネットワークの場合には、通信障害などによって
+NIS スレーブの同期がマスターとずれることもあるだろうから、
+このように
+.B ypxfr
+を使うのは良いことである。
+
+.SH オプション
+以下のオプションがサポートされている。
+.TP
+.B \-f
+マップの転送を強制する。通常の動作では、
+NIS マスターにあるマップがローカルホストにすでに存在するコピーよりも
+新しくないと判断されると、
+.B ypxfr
+はマップの転送を行わない。このフラグを指定すると、
+どのサーバーの版が最新であるかを問わず、強制的に転送が行われる。
+.TP
+.B \-c
+ローカルで動作している
+.B ypserv
+プロセスに "clear current map" 要求を送らない。
+.B ypxfr
+が
+.B ypinit
+から起動された場合や、
+.B ypxfr
+の起動時に
+.B ypserv
+が動作していない場合などには通常このフラグを指定する。さもないと
+.B ypxfr
+はローカルの
+.B ypserv
+と通信できない旨のエラーを出し、転送は失敗する。
+.TP
+.BI \-d " domain"
+デフォルトの NIS ドメインの代わりに用いるドメインを指定する。
+.TP
+.BI \-h " source host"
+マップに書かれているマスターの情報を無視して、マップを
+.I host
+から取得する。
+.I host
+が指定されない場合には、
+.B ypxfr
+は
+.SM NIS
+サービスにマスターの名前を問い合わせて、そこからマップを取得しようとする。
+このオプションは
+.B ypxfr
+がマップの取得先とする NIS マスターサーバーを保証するために用いられる。
+.TP
+.BI \-s " source domain"
+マップの取得先とするソースドメインを指定する。
+そのマップをドメインを通して同じものとしたい場合に有効。
+.TP
+.BI \-C  " taskid progam-number ipaddr port"
+このオプションは
+.B ypserv
+によって\fBのみ\fP用いられる。
+.B ypserv
+が
+.B ypxfr
+を起動するときに、
+.B ypxfr
+が
+.B yppush
+プロセスをコールバックする先 (
+.SM IP
+アドレス
+.I ipaddr
+のホストの、予約済みプログラム番号
+.IR progam-number 、
+ポート番号
+.IR port
+が、トランザクション
+.I taskid
+へのレスポンスを待っている)
+を指定する。
+.TP
+.BI \-p " yp_path"
+マップのディレクトリを
+.I yp_path/[domainname]
+に変更する。デフォルトは
+.I /var/yp/[domainname]
+である。
+.TP
+.I mapname
+転送するマップの名前を指定する (複数指定可)。
+.SH ファイル
+/var/yp/[domainname]/[maps]
+.SH 関連項目
+.BR ypserv (8),
+.BR yppush (8),
+.BR ypinit (8),
+.BR cron (8),
+.BR crontab (5)
+.SH 著者
+Thorsten Kukuk <kukuk@suse.de>

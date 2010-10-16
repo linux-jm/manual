@@ -1,0 +1,375 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (C) Markus Kuhn, 1996
+.\" and Copyright (C) Linux Foundation, 2008, written by Michael Kerrisk
+.\"     <mtk.manpages@gmail.com>
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
+.\" USA.
+.\"
+.\" 1996-04-10  Markus Kuhn <mskuhn@cip.informatik.uni-erlangen.de>
+.\"             First version written
+.\" Modified, 2004-10-24, aeb
+.\" 2008-06-24, mtk
+.\"     Minor rewrites of some parts.
+.\"     NOTES: describe case where clock_nanosleep() can be preferable.
+.\"     NOTES: describe CLOCK_REALTIME versus CLOCK_NANOSLEEP
+.\"     Replace crufty discussion of HZ with a pointer to time(7).
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated, 1997-02-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 1999-02-27, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2003-09-15, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-02-10, Akihiro MOTOKI
+.\" Updated 2006-07-23, Akihiro MOTOKI, LDP v2.36
+.\" Updated 2006-08-13, Akihiro MOTOKI, LDP v2.39
+.\" Updated 2008-08-08, Akihiro MOTOKI, LDP v3.05
+.\"
+.\"WORD:	puase			停止
+.\"WORD:	sleep			停止
+.\"WORD:	signal			シグナル
+.\"WORD:	NULL			NULL
+.\"WORD:	block			禁止(block)
+.\"WORD:	kernel			カーネル
+.\"WORD:	real-time		リアル・タイム
+.\"WORD:	schedule		スケジュール
+.\"WORD:	busy wait		ビシー・ウェイト
+.\"
+.TH NANOSLEEP 2 2009-01-19 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O nanosleep \- high-resolution sleep
+nanosleep \- 高精度なスリープ
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #include <time.h>
+.sp
+.BI "int nanosleep(const struct timespec *" req ", struct timespec *" rem );
+.sp
+.in -4n
+.\"O Feature Test Macro Requirements for glibc (see
+.\"O .BR feature_test_macros (7)):
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR nanosleep ():
+_POSIX_C_SOURCE\ >=\ 199309L
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O .BR nanosleep ()
+.\"O suspends the execution of the calling thread
+.\"O until either at least the time specified in
+.\"O .IR *req
+.\"O has elapsed, or the delivery of a signal
+.\"O that triggers the invocation of a handler in the calling thread or
+.\"O that terminates the process.
+.BR nanosleep ()
+は、少なくとも
+.I *req
+で指定された時間の間、プログラムの実行を遅延させる。
+.BR nanosleep ()
+は、呼び出したスレッドの実行を、
+少なくとも
+.I *req
+で指定された時間の間、もしくは呼び出したスレッドでハンドラの起動の
+きっかけとなるシグナル、またはプロセスを終了させるシグナルの配送が
+行われるまで一時停止する。
+
+.\"O If the call is interrupted by a signal handler,
+.\"O .BR nanosleep ()
+.\"O returns \-1, sets \fIerrno\fP to
+.\"O .BR EINTR ,
+.\"O and writes the remaining time into the structure pointed to by
+.\"O .I rem
+.\"O unless
+.\"O .I rem
+.\"O is NULL.
+呼び出しがシグナルハンドラにより割り込まれた場合、
+.BR nanosleep
+は \-1 を返し、
+.I errno
+に
+.B EINTR
+を設定し、
+.I rem
+が NULL でなければ
+残りの時間を
+.I rem
+が指す構造体に格納する。
+.\"O The value of
+.\"O .I *rem
+.\"O can then be used to call
+.\"O .BR nanosleep ()
+.\"O again and complete the specified pause (but see NOTES).
+.I *rem
+の値を使うと、
+.BR nanosleep ()
+をもう一度呼び出して、指定した時間の停止を
+完了させることができる (但し、「注意」の節を参照のこと)。
+
+.\"O The structure
+.\"O .I timespec
+.\"O is used to specify intervals of time with nanosecond precision.
+.\"O It is defined as follows:
+ナノ秒刻みの時間間隔を指定するのに
+.I timespec
+構造体が使用される。この構造体は次のように定義されている。
+.sp
+.in +4n
+.nf
+.\"O struct timespec {
+.\"O     time_t tv_sec;        /* seconds */
+.\"O     long   tv_nsec;       /* nanoseconds */
+    time_t tv_sec;        /* 秒 */
+    long   tv_nsec;       /* ナノ秒 */
+};
+.fi
+.in
+.PP
+.\"O The value of the nanoseconds field must be in the range 0 to 999999999.
+ナノ秒のフィールドの値は 0 から 999999999 の範囲になければならない。
+
+.\"O Compared to
+.\"O .BR sleep  (3)
+.\"O and
+.\"O .BR usleep (3),
+.\"O .BR nanosleep ()
+.\"O has the following advantages:
+.\"O it provides a higher resolution for specifying the sleep interval;
+.\"O POSIX.1 explicitly specifies that it
+.\"O does not interact with signals;
+.\"O and it makes the task of resuming a sleep that has been
+.\"O interrupted by a signal handler easier.
+.BR sleep  (3)
+や
+.BR usleep (3)
+に比べると
+.BR nanosleep ()
+には以下のような利点がある:
+停止期間の指定に関して高い時間分解能が提供されている。
+シグナルと互いに影響を及ぼすことがないと
+POSIX.1 で明示的に規定されている。
+シグナルハンドラによって割り込まれた際に、停止を再開するのが
+より簡単にできる。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O On successfully sleeping for the requested interval,
+.\"O .BR nanosleep ()
+.\"O returns 0.
+.\"O If the call is interrupted by a signal handler or encounters an error,
+.\"O then it returns \-1, with
+.\"O .I errno
+.\"O set to indicate the error.
+要求された期間の停止に成功した場合、
+.BR nanosleep ()
+は 0 を返す。呼び出しがシグナルハンドラにより割り込まれたり、
+エラーが発生した場合は、\-1 を返し、
+.I errno
+にエラー内容を示す値を設定する。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EFAULT
+.\"O Problem with copying information from user space.
+ユーザ空間からの情報のコピーで問題があった。
+.TP
+.B EINTR
+.\"O The pause has been interrupted by a signal that was
+.\"O delivered to the thread.
+.\"O The remaining sleep time has been written
+.\"O into \fI*rem\fP so that the thread can easily call
+.\"O .BR nanosleep ()
+.\"O again and continue with the pause.
+そのスレッドに配送されたシグナルにより停止が中断された。
+スレッドが簡単に
+.BR nanosleep ()
+を再び呼び出して停止を続けることができるように、
+残りの停止時間が \fI*rem\fP に格納される。
+.TP
+.B EINVAL
+.\"O The value in the
+.\"O .I tv_nsec
+.\"O field was not in the range 0 to 999999999 or
+.\"O .I tv_sec
+.\"O was negative.
+.I tv_nsec
+フィールドの値が 0 から 999999999 までの範囲になかったか、
+.I tv_sec
+が負であった。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+POSIX.1-2001.
+.\"O .SH NOTES
+.SH 注意
+.\"O If the interval specified in
+.\"O .I req
+.\"O is not an exact multiple of the granularity underlying clock (see
+.\"O .BR time (7)),
+.\"O then the interval will be rounded up to the next multiple.
+.\"O Furthermore, after the sleep completes, there may still be a delay before
+.\"O the CPU becomes free to once again execute the calling thread.
+.I req
+で指定された期間が、内部で使用されるクロックの粒度の倍数になっていない
+場合、期間は一番近い倍数に切り上げられる。
+また、停止が完了した後、CPU が呼び出し元のスレッドを再び実行できるように
+なるまでには遅延が入る。
+
+.\"O The fact that
+.\"O .BR nanosleep ()
+.\"O sleeps for a relative interval can be problematic if the call
+.\"O is repeatedly restarted after being interrupted by signals,
+.\"O since the time between the interruptions and restarts of the call
+.\"O will lead to drift in the time when the sleep finally completes.
+.\"O This problem can be avoided by using
+.\"O .BR clock_nanosleep (2)
+.\"O with an absolute time value.
+シグナルによる割り込み後に繰り返し再開された場合、
+.BR nanosleep ()
+の停止が相対的な期間であることは問題となることがある。
+これは、呼び出しの割り込みから再開までの間の時間が原因で
+停止が最終的に完了した際に時間にずれが発生するからである。
+この問題は、絶対時刻が指定できる
+.BR clock_nanosleep (2)
+を使うことで回避できる。
+
+.\"O POSIX.1 specifies that
+.\"O .BR nanosleep ()
+.\"O should measure time against the
+.\"O .B CLOCK_REALTIME
+.\"O clock.
+.\"O However, Linux measures the time using the
+.\"O .B CLOCK_MONOTONIC
+.\"O clock.
+POSIX.1 は、
+.BR nanosleep ()
+は
+.B CLOCK_REALTIME
+に対して時刻を計測するべきだと規定している。
+しかしながら、Linux は
+.B CLOCK_MONOTONIC
+クロックを用いて時刻を計測している。
+.\" See also http://thread.gmane.org/gmane.linux.kernel/696854/
+.\" Subject: nanosleep() uses CLOCK_MONOTONIC, should be CLOCK_REALTIME?
+.\" Date: 2008-06-22 07:35:41 GMT
+.\"O This probably does not matter, since the POSIX.1 specification for
+.\"O .BR clock_settime ()
+.\"O says that discontinuous changes in
+.\"O .B CLOCK_REALTIME
+.\"O should not affect
+.\"O .BR nanosleep ():
+このことはおそらく問題にならないだろう。
+なぜなら、POSIX.1 の
+.BR clock_settime ()
+の仕様には、
+.B CLOCK_REALTIME
+の不連続な変化は
+.BR nanosleep ()
+に影響すべきではない、と書かれているからである。
+.RS
+.PP
+.\"O Setting the value of the
+.\"O .B CLOCK_REALTIME
+.\"O clock via
+.\"O .BR clock_settime ()
+.\"O shall
+.\"O have no effect on threads that are blocked waiting for a relative time
+.\"O service based upon this clock, including the
+.\"O .BR nanosleep ()
+.\"O function; ...
+.\"O Consequently, these time services shall expire when the requested relative
+.\"O interval elapses, independently of the new or old value of the clock.
+.BR clock_settime ()
+経由で
+.B CLOCK_REALTIME
+クロックの値を設定しても、
+.BR nanosleep ()
+関数などの
+.B CLOCK_REALTIME
+に基づくサービスにより相対的な期間だけ実行を停止するスレッドには影響はない。
+結果として、クロック値が更新前か後かに関わらず、要求された相対的な時間が
+経過すると満了することになる。
+.RE
+.\"O .SS "Old behavior"
+.SS 以前の動作
+.\"O In order to support applications requiring much more precise pauses
+.\"O (e.g., in order to control some time-critical hardware),
+.\"O .BR nanosleep ()
+.\"O would handle pauses of up to 2\ ms by busy waiting with microsecond
+.\"O precision when called from a thread scheduled under a real-time policy
+.\"O like
+.\"O .B SCHED_FIFO
+.\"O or
+.\"O .BR SCHED_RR .
+.\"O This special extension was removed in kernel 2.5.39,
+.\"O hence is still present in
+.\"O current 2.4 kernels, but not in 2.6 kernels.
+(例えば、時間が重要な意味を持つハードウェアを制御する場合など)
+より正確な停止を必要とするアプリケーションに対応するために、
+.BR nanosleep ()
+は、マイクロ秒精度のビジー・ウェイトを利用することで、
+2\ ms 以下の停止を行うことができた。
+但し、この機能を利用するには、呼び出し元のスレッドが
+.B SCHED_FIFO
+や
+.B SCHED_RR
+といったリアルタイム・ポリシーの元でスケジューリングされている
+必要があった。
+この特別な拡張はカーネル 2.5.39 で削除された。したがって、
+現在の 2.4 系列のカーネルにはこの機能が存在するが、
+2.6系列のカーネルにはない。
+.\"O .SH BUGS
+.SH バグ
+.\"O In Linux 2.4, if
+.\"O .BR nanosleep ()
+.\"O is stopped by a signal (e.g.,
+.\"O .BR SIGTSTP ),
+.\"O then the call fails with the error
+.\"O .B EINTR
+.\"O after the thread is resumed by a
+.\"O .B SIGCONT
+.\"O signal.
+.\"O If the system call is subsequently restarted,
+.\"O then the time that the thread spent in the stopped state is
+.\"O \fInot\fP counted against the sleep interval.
+Linux 2.4 では、
+.BR nanosleep ()
+が
+.RB ( SIGTSTP
+などの) シグナルにより停止された場合、
+.BR nanosleep ()
+の呼び出しは
+.B SIGCONT
+シグナルによるスレッドの再開後に
+.B EINTR
+エラーで失敗する。
+システムコールがこの後で再スタートされた場合、
+スレッドが停止状態にある間に経過した時間は
+停止期間としてカウント「されない」。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR clock_nanosleep (2),
+.BR sched_setscheduler (2),
+.BR sleep (3),
+.BR timer_create (2),
+.BR usleep (3),
+.BR time (7)

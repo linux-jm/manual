@@ -1,0 +1,280 @@
+.\" 
+.\" Japanese Version Copyright (c) 2001 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Mon Aug 20 07:04:42 JST 2001
+.\"         by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\"
+.TH SNMP_AGENT_API 3 "27 Oct 1999"
+.UC 5
+.\"O .SH NAME
+.SH 名前
+.\"O default_store \- generic storage of global data.
+default_store \- 大域データの一般的な格納場所
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+#include <ucd-snmp/ucd-snmp-config.h>
+#include <ucd-snmp/ucd-snmp-includes.h>
+
+int ds_set_boolean(int storeid, int which, int value);
+int ds_get_boolean(int storeid, int which);
+int ds_set_int(int storeid, int which, int value);
+int ds_get_int(int storeid, int which);
+int ds_set_string(int storeid, int which, const char *value);
+char *ds_get_string(int storeid, int which);
+int ds_register_config(u_char type, const char *ftype, const char *token,
+                       int storeid, int which);
+int ds_register_premib(u_char type, const char *ftype, const char *token,
+                       int storeid, int which);
+void ds_shutdown(void);
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The purpose of the default storage is three-fold:
+デフォルトのデータ格納場所の目的は、次の 3 つである:
+.IP 1)
+.\"O To create a global storage space without creating a whole bunch of
+.\"O globally accessible variables or a whole bunch of access functions to
+.\"O work with more privately restricted variables.
+大域的にアクセスできる変数や
+もっと公開の制限された変数にアクセスする関数群を作成したりせずに、
+大域的なデータ格納場所を作成する。
+.IP 2)
+.\"O To provide a single location where the thread locking needs to be
+.\"O implemented. At the time of this writing, however, thread locking is not
+.\"O yet in place.
+スレッド (thread) ロックを実装する必要がある格納場所を提供する。
+しかし、これを書いている時点では、スレッドロックはまだ実装されていない。
+.IP 3)
+.\"O To reduce the number of cross dependencies between code pieces that
+.\"O may or may not be linked together in the long run. This provides for a
+.\"O single location in which configuration data, for example, can be
+.\"O stored for a separate section of code that may not be linked in to
+.\"O the application in question.
+コード間の相互依存性の数を減らす
+(コードは最終的にリンクしてもしなくても良い)。
+問題としているアプリケーション内でリンクされない、
+別々のセクションのコードで使われる設定データのような
+データの格納場所を提供する。
+.PP
+.\"O The functions defined here implement these goals.
+ここで定義される関数は、以下の目的を (実現する機能を) 実装している。
+.PP
+.\"O Currently, three data types are supported: boolean's, integers, and
+.\"O strings. Each of based trade data types have separate storage
+.\"O spaces. In addition, the storage space for each data type is divided
+.\"O further by the application level.   Currently, there are two storage
+.\"O spaces. The first is reserved for the SNMP library itself. The second 
+.\"O is intended for use in applications and is not modified or checked by
+.\"O the library, and, therefore, this is the space usable by you.
+現在のところ真偽値 (boolean)・整数値 (integer)・
+文字列 (string) という 3 つのデータ型がサポートされている。
+各データ型のデータは、別々の格納場所に分けられている。
+さらに、各データ型の格納場所はアプリケーションレベルでも分割されている。
+現在のところ 2 つの格納場所がある。
+1 つ目の格納場所は、SNMP ライブラリ自身によって予約されている。
+2 つ目の格納場所は、アプリケーションによって使われることを意図しており、
+ライブラリによる変更やチェックが行われないので、
+ユーザーが使いやすいものになっている。
+.PP
+.\"O You can think of these storage spaces as being 3 arrays, something
+.\"O like bool_storage[storeid][which], int_storage[storeid][which], and
+.\"O string_storage[storeid][which].  The data is then accessed through the 
+.\"O functions defined below.  For data you wish to store, you should use a 
+.\"O storeid of DS_APPLICATION_ID.
+3 つの格納場所は、
+bool_storage[storeid][which], int_storage[storeid][which], 
+string_storage[storeid][which] 
+という 3 つの配列と考えることができる。
+データは以下で定義される関数でアクセスできる。
+格納したいデータがある場合は、
+DS_APPLICATION_ID という storeid を使えば良い。
+.PP
+.\"O The storage space used by the library is defined in the
+.\"O default_store.h file, which currently contains the following defines:
+ライブラリが使う格納場所は、default_store.h で定義されており、
+現在のところ以下のように定義されている。
+.PP
+.nf
+.\"O /* These definitions correspond with the "storid" argument to the API */
+/* 以下の定義は API の "storeid" 引き数として使われる。 */
+#define DS_LIBRARY_ID     0
+#define DS_APPLICATION_ID 1
+#define DS_TOKEN_ID       2
+
+.\"O /* These definitions correspond with the "which" argument to the API,
+.\"O    when the storeid argument is DS_LIBRARY_ID */
+/* storeid が DS_LIBRARY_ID の場合、
+   以下の定義は API の "which" 引き数として使われる。*/
+.\"O /* library booleans */
+/* 真偽値を操作するライブラリで使われるもの */
+#define DS_LIB_MIB_ERRORS          0
+#define DS_LIB_SAVE_MIB_DESCRS     1
+#define DS_LIB_MIB_COMMENT_TERM    2
+#define DS_LIB_MIB_PARSE_LABEL     3
+#define DS_LIB_DUMP_PACKET         4
+#define DS_LIB_LOG_TIMESTAMP       5
+#define DS_LIB_DONT_READ_CONFIGS   6
+.\"O #define DS_LIB_MIB_REPLACE         7  /* replace objects from latest module */
+#define DS_LIB_MIB_REPLACE         7  /* オブジェクトを最新のモジュールで置き換える */
+.\"O #define DS_LIB_PRINT_NUMERIC_ENUM  8  /* print only numeric enum values */
+#define DS_LIB_PRINT_NUMERIC_ENUM  8  /* 数値の列挙型 (enum) 値のみを表示する */
+.\"O #define DS_LIB_PRINT_NUMERIC_OIDS  9  /* print only numeric enum values */
+#define DS_LIB_PRINT_NUMERIC_OIDS  9  /* 数値の oid のみを表示する */
+.\"O #define DS_LIB_DONT_BREAKDOWN_OIDS 10 /* dont print oid indexes specially */
+#define DS_LIB_DONT_BREAKDOWN_OIDS 10 /* oid インデックスを特に表示しない */
+.\"O #define DS_LIB_ALARM_DONT_USE_SIG  11 /* don't use the alarm() signal */
+#define DS_LIB_ALARM_DONT_USE_SIG  11 /* alarm() シグナルを使わない */
+.\"O #define DS_LIB_PRINT_FULL_OID      12 /* print fully qualified oids */
+#define DS_LIB_PRINT_FULL_OID      12 /* 完全な oid を表示する */
+.\"O #define DS_LIB_QUICK_PRINT         13 /* print very brief output for parsing */
+#define DS_LIB_QUICK_PRINT         13 /* パースの際に非常に簡単な出力をする */
+.\"O #define DS_LIB_RANDOM_ACCESS	   14 /* random access to oid labels */
+#define DS_LIB_RANDOM_ACCESS	   14 /* oid ラベルにランダムにアクセスする */
+.\"O #define DS_LIB_REGEX_ACCESS	   15 /* regex matching to oid labels */
+#define DS_LIB_REGEX_ACCESS	   15 /* oid ラベルに regex によるマッチングを行う */
+.\"O #define DS_LIB_DONT_CHECK_RANGE    16 /* don't check values for ranges on send*/
+#define DS_LIB_DONT_CHECK_RANGE    16 /* send の値の範囲のチェックを行わない */
+.\"O #define DS_LIB_NO_TOKEN_WARNINGS   17 /* no warn about unknown config tokens */
+#define DS_LIB_NO_TOKEN_WARNINGS   17 /* config 関数の token が不明な場合でも警告を出さない */
+.\"O #define DS_LIB_NUMERIC_TIMETICKS   18 /* print timeticks as a number */
+#define DS_LIB_NUMERIC_TIMETICKS   18 /* timeticks を数値で表示する */
+.\"O #define DS_LIB_ESCAPE_QUOTES       19 /* shell escape quote marks in oids */
+#define DS_LIB_ESCAPE_QUOTES       19 /* oid の引用符をシェルにエスケープさせる */
+.\"O #define DS_LIB_REVERSE_ENCODE      20 /* encode packets from back to front */
+#define DS_LIB_REVERSE_ENCODE      20 /* バックからフロントへのパケットをエンコードする */
+.\"O #define DS_LIB_PRINT_BARE_VALUE	   21 /* just print value (not OID = value) */
+#define DS_LIB_PRINT_BARE_VALUE	   21 /* (OID = value でない場合の) value だけを表示する */
+.\"O #define DS_LIB_EXTENDED_INDEX	   22 /* print extended index format [x1][x2] */
+#define DS_LIB_EXTENDED_INDEX	   22 /* [x1][x2] という拡張形式でインデックスを表示する */
+
+.\"O /* library integers */
+/* 整数値を操作するライブラリで使われるもの */
+#define DS_LIB_MIB_WARNINGS  0
+#define DS_LIB_SECLEVEL      1
+#define DS_LIB_SNMPVERSION   2
+#define DS_LIB_DEFAULT_PORT  3
+.\"O #define DS_LIB_PRINT_SUFFIX_ONLY 4 /* print out only a single oid node  == 1.
+.\"O                                       like #1 but supply mib module too == 2. */
+#define DS_LIB_PRINT_SUFFIX_ONLY 4 /* oid node  == 1 のものを表示する。
+                                      1 番目と似ているが、mib モジュール
+                                      too == 2 のものを与える。 */
+
+
+.\"O /* library strings */
+/* 文字列を操作するライブラリで使われるもの */
+#define DS_LIB_SECNAME           0
+#define DS_LIB_CONTEXT           1
+#define DS_LIB_PASSPHRASE        2
+#define DS_LIB_AUTHPASSPHRASE    3
+#define DS_LIB_PRIVPASSPHRASE    4
+#define DS_LIB_OPTIONALCONFIG    5
+#define DS_LIB_APPTYPE           6
+#define DS_LIB_COMMUNITY         7
+#define DS_LIB_PERSISTENT_DIR    8
+#define DS_LIB_CONFIGURATION_DIR 9
+
+.fi
+.\"O .SH FUNCTIONS
+.SH 関数
+.IP "ds_set_boolean(int storeid, int which, int value)"
+.\"O Stores
+.\"O .I true
+.\"O if 
+.\"O .I value
+.\"O != 0 or else false into the bool_storage[storeid][which] slot.
+.I value
+!= 0 
+の場合は、bool_storage[storeid][which] のスロットに
+.I true
+を入れる。
+それ以外の場合は
+.I false
+を入れる。
+.IP "int ds_get_boolean(int storeid, int which)"
+.\"O Returns 1 if storage[storeid][which] is true, or 0 if false.
+storage[storeid][which] が true の場合は、1 を返す。
+それ以外の場合は、0 を返す。
+.IP "int ds_set_string(int storeid, int which, const char *value)"
+.\"O Stores
+.\"O .I value
+.\"O into the string_storage[storeid][which] slot.
+.I value
+をスロット string_storage[storeid][which] に入れる。
+.IP "char *ds_get_string(int storeid, int which)"
+.\"O Returns the string which has been stored in the
+.\"O string_storage[storeid][which] slot.
+スロット string_storage[storeid][which] に入っている文字列を返す。
+.IP "ds_set_int(int storeid, int which, int value)"
+.\"O Stores
+.\"O .I value
+.\"O into the int_storage[storeid][which] slot.
+.I value
+を
+スロット int_storage[storeid][which] に入れる。
+.IP "int ds_get_int(int storeid, int which)"
+.\"O Returns the integer which has been stored in the
+.\"O int_storage[storeid][which] slot.
+スロット int_storage[storeid][which] に入っている整数値を返す。
+.IP "void ds_shutdown(void)"
+.\"O Reclaims memory used to hold information gathered by
+.\"O ds_register_config and ds_register_premib.
+ds_register_config と ds_register_premib で集めた情報を
+保持しておくために使われているメモリを回収する。
+.IP "ds_register_config(u_char type, const char *ftype, const char *token, int storeid, int which)"
+.\"O This token registers a configuration file directive and attaches it to 
+.\"O a default storage type and slot.  Specifically,
+.\"O .I storeid
+.\"O and
+.\"O .I which
+.\"O indicate the storage slot in the data type indicated by
+.\"O .I type,
+.\"O where
+.\"O .I type
+.\"O is either one of the following constants: ASN_BOOLEAN, ASN_INTEGER, or
+.\"O ASN_OCTET_STR.  
+token は設定ファイルのディレクティブを登録し、
+デフォルトの格納タイプとスロットに関連づける。
+特に、
+.I storeid
+と
+.I which
+は
+.I type
+データ型の格納スロットを指す。
+.I type
+は定数 ASN_BOOLEAN, ASN_INTEGER, ASN_OCTET_STR のいずれか 1 つである。
+.\"O The
+.\"O .I ftype
+.\"O variable indicates the file name base string searched for the
+.\"O .I token
+.\"O keyword.  For example, the following call:
+.I ftype
+変数は
+.I token
+キーワードを探すためのファイル名のベース文字列である。
+例えば、
+.RS
+.IP
+ds_register_config(ASN_INTEGER, "snmp", "testtoken", DS_APPLICATION_ID, 5)
+.RE
+.IP
+.\"O would indicate that when the snmp.conf file(s) were found and parsed,
+.\"O that any line beginning with the word "testtoken" should be read and
+.\"O the value after "testtoken" should be stored into the
+.\"O int_storage[DS_APPLICATION_ID][5] slot.  For example the following
+.\"O line in the configuration file:
+という呼び出しでは、snmp.conf ファイルが見つかってパースされるときに、
+"testtoken" という語で始まる行が読まれ、
+"testtoken" の後にある値が
+スロット int_storage[DS_APPLICATION_ID][5] に格納される。
+例えば、設定ファイルの
+.RS
+.IP
+testtoken 42
+.RE
+.IP
+という行では、int_storage[DS_APPLICATION_ID][5] = 42 に設定される。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+snmp_config(5), read_config(3)

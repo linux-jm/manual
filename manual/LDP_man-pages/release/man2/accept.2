@@ -1,0 +1,415 @@
+.\" Copyright (c) 1983, 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Modified 1993-07-24 by Rik Faith <faith@cs.unc.edu>
+.\" Modified 1996-10-21 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified 1998-2000 by Andi Kleen to match Linux 2.2 reality
+.\" Modified 2002-04-23 by Roger Luethi <rl@hellgate.ch>
+.\" Modified 2004-06-17 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\" 2008-12-04, mtk, Add documentation of accept4()
+.\"
+.\" Japanese Version Copyright (c) 1998-2000 Shinya HANATAKA,
+.\"   Takeshi Hakamada and NAKANO Takeo
+.\"         all rights reserved.
+.\" Translated 1998-04-06, Shinya HANATAKA <shinya@abyss.rim.or.jp>
+.\"                        Takeshi Hakamada <hakamada@nsg.sgi.com>
+.\" Updated & Modified 2000-10-12, NAKANO Takeo <nakano@apm.seikei.ac.jp
+.\" Updated & Modified 2002-09-24, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated & Modified 2005-02-23, Akihiro MOTOKI
+.\" Updated & Modified 2006-04-14, Akihiro MOTOKI, LDP v2.29
+.\" Updated & Modified 2008-12-24, Akihiro MOTOKI, LDP v3.15
+.\" Updated 2008-04-13, Akihiro MOTOKI, LDP v3.20
+.\"
+.\"WORD:	pending			保留中の
+.\"WORD:	queue			キュー
+.\"WORD:	file descriptor		ファイル・ディスクリプタ
+.\"WORD:	nonblocking		非停止
+.\"WORD:	async			非同期
+.\"WORD:	communication layer	通信層
+.\"WORD:	value-result argument	入出力両用の引き数
+.\"WORD:	confirmation		接続確認
+.\"WORD:	dequeue			キューから取り出す
+.\"WORD:	rejection		接続拒否
+.\"
+.TH ACCEPT 2 2009-02-23 "Linux" "Linux Programmer's Manual"
+.SH 名前
+accept \- ソケットへの接続を受ける
+.SH 書式
+.nf
+.BR "#include <sys/types.h>" "          /* 「注意」参照 */"
+.B #include <sys/socket.h>
+
+.BI "int accept(int " sockfd ", struct sockaddr *" addr ", socklen_t *" addrlen );
+
+.B #define _GNU_SOURCE
+.B #include <sys/socket.h>
+
+.BI "int accept4(int " sockfd ", struct sockaddr *" addr ,
+.BI "            socklen_t *" addrlen ", int " flags );
+.fi
+.SH 説明
+.BR accept ()
+システムコールは、接続指向のソケット型
+.RB ( SOCK_STREAM ", " SOCK_SEQPACKET )
+で用いられる。
+この関数は、接続待ちソケット
+.I socket
+宛ての保留状態の接続要求が入っているキューから
+先頭の接続要求を取り出し、接続済みソケットを新規に生成し、
+そのソケットを参照する新しいファイル・ディスクリプタを返す。
+新規に生成されたソケットは、接続待ち (listen) 状態ではない。
+もともとのソケット
+.I sockfd
+はこの呼び出しによって影響を受けない。
+.PP
+引き数
+.I sockfd
+は、
+.BR socket (2)
+によって生成され、
+.BR bind (2)
+によってローカルアドレスにバインドされ、
+.BR listen (2)
+を経て接続を待っているソケットである。
+
+.I addr
+引き数は
+.I sockaddr
+構造体へのポインタである。
+この構造体には接続相手のソケットのアドレスが入っている。
+.I addr
+引き数で返されるアドレスの正確なフォーマットは、
+ソケットのアドレス種別によって変わる
+.RB ( socket (2)
+およびそれぞれのプロトコルの man ページを参照)。
+.I addr
+が NULL の場合、
+.I addr
+には何も入らない。この場合、
+.I addrlen
+は使用されず、この引き数は NULL にしておくべきである。
+
+.I addrlen
+引き数は入出力両用の引き数である。呼び出し時には、呼び出し元が
+.I addr
+が指す構造体のサイズ (バイト単位) で初期化しておかなければならない。
+返ってくる時には、接続相手のアドレスの実際の大きさが格納される。
+
+渡されたバッファが小さ過ぎる場合には、返されるアドレスの末尾は
+切り詰められる。この場合には、
+.I addrlen
+では、呼び出し時に渡された値よりも大きな値が返される。
+.PP
+キューに保留となっている接続要求がなく、
+かつソケットが非停止になっていないときは、
+.BR accept ()
+は接続が発生するまで呼び出し元を停止 (block) する。
+ソケットが非停止になっていて、
+待ち状態の接続要求がキューに無いときは、
+.BR accept ()
+はエラー
+.B EAGAIN
+か
+.B EWOULDBLOCK
+で失敗する。
+.PP
+ソケットへの接続到着を知るには、
+.BR select (2)
+または
+.BR poll (2)
+を用いればよい。
+新しい接続要求が来るとソケットは読み込み可能になるので、
+そうしたら
+.BR accept ()
+を呼んでその接続に対するソケットを取得すればよい。
+あるいはソケットに設定を行い、何らかのアクションがあったときに
+.B SIGIO
+を配送 (deliver) させるようにすることもできる。詳細は
+.BR socket (7)
+を参照のこと。
+.PP
+明示的な接続確認 (confirmation) を必要とするようなプロトコル
+(DECNet など) では、
+.BR accept ()
+は単に次の接続要求をキューから取り出すだけであり、
+接続確認は行わないことに注意せよ。接続確認は、
+新しいファイル・ディスクリプタに対する
+通常の読み取り/書き込みによってなされ、接続拒否 (rejection)
+は新しいソケットをクローズすることによってなされる。
+現在のところ、
+Linux 上でこれらのセマンティクスを持つのは DECNet だけである。
+
+.I flags
+が 0 の場合、
+.BR accept4 ()
+は
+.BR accept ()
+と同じである。
+.I flags
+に以下の値をビット毎の論理和 (OR) で指定することで、
+異なる動作をさせることができる。
+.TP 16
+.B SOCK_NONBLOCK
+新しく生成されるオープンファイル記述 (open file description) の
+.B O_NONBLOCK
+ファイルステータスフラグをセットする。
+このフラグを使うことで、
+.B O_NONBLOCK
+をセットするために
+.BR fcntl (2)
+を追加で呼び出す必要がなくなる。
+.TP
+.B SOCK_CLOEXEC
+新しいファイルディスクリプタに対して
+close-on-exec
+.RB ( FD_CLOEXEC )
+フラグをセットする。
+このフラグが役に立つ理由については、
+.BR open (2)
+の
+.B O_CLOEXEC
+フラグの説明を参照のこと。
+.SH 返り値
+成功した場合、これらのシステムコールは
+受け付けたソケットのディスクリプタである非負の整数値を返す。
+エラーが発生した場合は \-1 を返し、
+.I errno
+を適切に設定する。
+.SS エラー処理
+Linux の
+.BR accept ()
+(と
+.BR accept4 ())
+は、新しいソケットにおける、発生済みのネットワークエラーを
+.BR accept ()
+からのエラーコードとして渡す。
+この振舞いは BSD ソケットの実装とは異なる。
+信頼性の高い動作を行うためには、
+アプリケーションはプロトコルで定義されているネットワークエラーの検知を
+.BR accept ()
+のあとに行い、それらのエラーを
+.B EAGAIN
+と同じように扱い、再試行 (retry) を行うべきである。
+TCP/IP では、以下のエラーが該当する:
+.BR ENETDOWN ,
+.BR EPROTO ,
+.BR ENOPROTOOPT ,
+.BR EHOSTDOWN ,
+.BR ENONET ,
+.BR EHOSTUNREACH ,
+.BR EOPNOTSUPP ,
+.B ENETUNREACH
+.SH エラー
+.TP
+.BR EAGAIN " または " EWOULDBLOCK
+.\" Actually EAGAIN on Linux
+ソケットが非停止になっていて、
+かつ受付け対象の接続が存在しない。
+POSIX.1-2001 は、この場合にどちらのエラーを返すことも認めており、
+これら 2 つの定数が同じ値を持つことも求めていない。
+したがって、移植性が必要なアプリケーションでは、両方の可能性を
+確認すべきである。
+.TP
+.B EBADF
+ディスクリプタが不正。
+.TP
+.B ECONNABORTED
+接続が中止された。
+.TP
+.B EFAULT
+.I addr
+引き数がユーザアドレス空間の書き込み可能領域にない。
+.TP
+.B EINTR
+有効な接続が到着する前に捕捉されたシグナルによって
+システムコールが中断された。
+.BR signal (7)
+参照。
+.TP
+.B EINVAL
+ソケットが接続待ち状態ではない。もしくは、
+.I addrlen
+が不正である (例えば、負の場合など)。
+.TP
+.B EINVAL
+.RB ( accept4 ())
+.I flags
+に不正な値が指定されている。
+.TP
+.B EMFILE
+1プロセスがオープンできるファイル・ディスクリプタ数の上限に達した。
+.TP
+.B ENFILE
+オープンされたファイルの総数がシステム全体の上限に達した。
+.TP
+.BR ENOBUFS ", " ENOMEM
+メモリが足りない。
+多くの場合は、システムメモリが足りないわけではなく、
+ソケットバッファの大きさによるメモリ割り当ての制限である。
+.TP
+.B ENOTSOCK
+ディスクリプタはソケットではなくファイルを参照している。
+.TP
+.B EOPNOTSUPP
+参照しているソケットの型が
+.B SOCK_STREAM
+でない。
+.TP
+.B EPROTO
+プロトコル・エラー。
+.PP
+上記に加えて、Linux の
+.BR accept ()
+は以下のエラーで失敗する:
+.TP
+.B EPERM
+ファイアウォールのルールにより接続が禁止された。
+.PP
+この他に、新しいソケットに対するネットワークエラーが返されることもある。
+これらはそれぞれのプロトコルで定義されている。
+いろいろな Linux カーネルでは、
+以下に示すようなエラーを返すこともある。
+.BR ENOSR ,
+.BR ESOCKTNOSUPPORT ,
+.BR EPROTONOSUPPORT ,
+.BR ETIMEDOUT .
+.B ERESTARTSYS
+がトレースの最中に現れることもある。
+.SH バージョン
+.BR accept4 ()
+システムコールは Linux 2.6.28 以降で利用可能である。
+glibc でのサポートはバージョン 2.10 以降で利用可能である。
+.SH 準拠
+.BR accept ():
+POSIX.1-2001,
+SVr4, 4.4BSD,
+.RB ( accept ()
+は 4.2BSD で初めて実装された).
+.\" BSD の man ページには、 5 つのエラーが返されうると書かれている
+.\" (EBADF, ENOTSOCK, EOPNOTSUPP, EWOULDBLOCK, EFAULT)。
+.\" POSIX.1-2001 では、
+.\" EAGAIN, EBADF, ECONNABORTED, EINTR, EINVAL, EMFILE,
+.\" ENFILE, ENOBUFS, ENOMEM, ENOTSOCK, EOPNOTSUPP, EPROTO, EWOULDBLOCK
+.\" がエラーとして記述されている。
+.\" さらに、SUSv2 には EFAULT, ENOSR も記述されている。
+
+.BR accept4 ()
+は非標準の Linux による拡張である。
+.LP
+Linux では、
+.BR accept ()
+が返す新しいソケットは listen を行っているソケットの
+ファイル状態フラグ
+.RB ( O_NONBLOCK
+や
+.B O_ASYNC
+など) を継承「しない」。
+この動作は標準的な BSD ソケットの実装とは異なっている。
+.\" いくつか実験したところでは Tru64 5.1 と HP-UX 11 も
+.\" ファイル状態フラグを継承しないようである。 -- MTK Jun 05
+移植性を考慮したプログラムではファイル状態フラグが継承されるかどうかは
+前提にせず、常に
+.BR accept ()
+が返したソケットに対して全ての必要なフラグを明示的に設定するように
+すべきである。
+
+.SH 注意
+POSIX.1-2001 では
+.I <sys/types.h>
+のインクルードは必須とされておらず、
+Linux ではこのヘッダファイルは必要ではない。
+しかし、歴史的には、いくつかの実装 (BSD 系) でこのヘッダファイルが
+必要であり、移植性が必要なアプリケーションではこのファイルを
+インクルードするのが賢明であろう。
+
+.B SIGIO
+が届けられた後や、
+.BR select (2)
+または
+.BR poll (2)
+が読み込み可能イベントを返した後に、
+必ずしも待機中の接続があるとは限らない。
+なぜならその接続は、
+.BR accept ()
+が呼ばれる前に、非同期的なネットワークエラーや
+他のスレッドから呼ばれた (別の) accept によって
+削除されているかもしれないからである。
+この場合、その
+.BR accept ()
+呼び出しは停止 (block) し、次の接続の到着を待ちつづける。
+.BR accept ()
+に停止を行わせないようにするには、引き数に渡すソケット
+.I sockfd
+に
+.B O_NONBLOCK
+フラグをセットしておく必要がある
+.RB ( socket (7)
+を見よ)。
+.SS socklen_t 型
+.BR accept ()
+の第 3 引き数は、もともと \fIint *\fP と宣言されていた
+(libc4 や libc5, 4.x BSD, SunOS 4, SGI など多くのシステムではそうなっている)。
+POSIX.1g draft 標準は、
+これを \fIsize_t *\fP に変更しようとし、SunOS 5 ではそう宣言されている。
+後に POSIX drafts には \fIsocklen_t *\fP が含まれるようになり、
+Single Unix Specification や glibc2 ではこのように宣言されるようになった。
+Linus Torvald の発言を引用する:
+
+.\" .I fails: only italicizes a single line
+「まともなライブラリを作りたければ、 "socklen_t"
+のサイズは int と同じにしなきゃならない。
+さもないと BSD ソケット層を破壊することになっちゃう。
+POSIX は最初こいつを size_t にしたんで、
+ぼくは彼らに文句をがなりたてた
+(多分そういう人は他にもいたと思う。多くはなかったようだけど)。
+こいつを size_t にするのは完全にいかれてる。
+例えば 64 ビットアーキテクチャでは、
+size_t が "int" と同じサイズだなんてことはほとんどないからね。
+このサイズは "int" と 同じでなきゃ『ダメ』なんだ。
+BSD ソケットインターフェースっていうのはそういうものなんだから。
+まあともかく POSIX の人たちも、
+"socklen_t" を作るという解決策をなんとかひねり出した。
+そもそも最初から放っておけば良かったんだが、
+いじっちゃった以上、
+名前付きの型を持たせなきゃならない、と思ったみたいだね。
+なんでかはわかんないけど
+(きっと最初にやっちまった馬鹿な間違いで顔をつぶしたくなかったから、
+こっそり名前を付け替えて自分たちの大失敗をごまかそうとしたんだろう)。」
+.SH 例
+.BR bind (2)
+参照。
+.SH 関連項目
+.BR bind (2),
+.BR connect (2),
+.BR listen (2),
+.BR select (2),
+.BR socket (2),
+.BR socket (7)

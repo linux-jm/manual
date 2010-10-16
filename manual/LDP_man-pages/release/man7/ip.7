@@ -1,0 +1,1074 @@
+'\" t
+.\" Don't change the line above. it tells man that tbl is needed.
+.\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\" $Id: ip.7,v 1.19 2000/12/20 18:10:31 ak Exp $
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Translated 1999-12-06, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated 2001-02-14, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2001-04-04, Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated & Modified 2003-10-16, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2005-01-22, Yuichi SATO
+.\" Updated & Modified 2005-09-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated & Modified 2005-10-06, Akihiro MOTOKI
+.\" Updated 2007-01-05, Akihiro MOTOKI, Catch up to LDP man-pages 2.43
+.\" Updated 2007-05-28, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.48
+.\" Updated 2008-12-26, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.14
+.\"
+.\"WORD		ancillary message	補助メッセージ
+.\"WORD		... oriented		〜指向の
+.\"WORD		capability		権限
+.\"WORD		payload			ペイロード
+.\"WORD		drop(ped)	(パケットを) 落とす、(受動の場合) 到着しない
+.\"WORD		tap			タップ(する)
+.\"
+.TH IP  7 2009-02-28 "Linux" "Linux Programmer's Manual"
+.SH 名前
+ip \- Linux IPv4 プロトコルの実装
+.SH 書式
+.B #include <sys/socket.h>
+.br
+.\" .B #include <net/netinet.h> -- does not exist anymore
+.\" .B #include <linux/errqueue.h> -- never include <linux/foo.h>
+.B #include <netinet/in.h>
+.br
+.B #include <netinet/ip.h>        \fR/* 上記のスーパーセット */
+.sp
+.IB tcp_socket " = socket(AF_INET, SOCK_STREAM, 0);"
+.br
+.IB udp_socket " = socket(AF_INET, SOCK_DGRAM, 0);"
+.br
+.IB raw_socket " = socket(AF_INET, SOCK_RAW, " protocol ");"
+.SH 説明
+Linux は RFC\ 791 と RFC\ 1122 で記述されている
+Internet Protocol, version 4 を実装している。
+.B ip
+には RFC\ 1112 に準拠した level 2 マルチキャストの実装が含まれている。
+またパケットフィルタ機能を含む IP ルーターも実装されている。
+.\" FIXME has someone verified that 2.1 is really 1812 compliant?
+.PP
+プログラミング・インターフェースは BSD ソケットと互換である。
+ソケットに関するより詳細な情報は
+.BR socket (7)
+を参照のこと。
+.PP
+IP ソケットは、
+.BR socket (2)
+関数を
+.B "socket(AF_INET, socket_type, protocol)"
+のように呼び出すことで生成される。
+指定できるソケットタイプは 3 つあり、
+.BR tcp (7)
+ソケットをオープンする場合
+.BR SOCK_STREAM 、
+.BR udp (7)
+ソケットをオープンする場合
+.BR SOCK_DGRAM 、
+IP プロトコルに直接アクセスするために
+.BR raw (7)
+ソケットをオープンする場合には
+.B SOCK_RAW
+である。
+.I protocol
+は送受信される IP ヘッダに書かれる IP プロトコルである。
+指定できる値は、
+TCP ソケットには 0 か
+.BR IPPROTO_TCP 、
+UDP ソケットには 0 か
+.B IPPROTO_UDP
+に限られる。
+.B SOCK_RAW
+に対しては、 RFC\ 1700 で定義されている有効な IANA IP プロトコルを、
+割り当てられている番号で指定することができる。
+.PP
+.\" FIXME ip current does an autobind in listen, but I'm not sure
+.\" if that should be documented.
+あるプロセスで、やってくるパケットを受信したり
+接続要求を受けたりしたい場合には、
+そのプロセスはローカルなインターフェースアドレスに、
+.BR bind (2)
+を用いてソケットをバインドしなければならない。
+あるローカルな「アドレスとポート」のペアに対してバインドできる
+IP ソケットは一つに限られる。
+.BR bind (2)
+の呼び出しで
+.B INADDR_ANY
+が指定されていた場合は、ソケットはローカルなインターフェースの
+\fIすべて\fPにバインドされる。
+.BR listen (2)
+または
+.BR connect (2)
+がバインドされていないソケットでコールされると、
+そのソケットは自動的にローカルなアドレスを
+.B INADDR_ANY
+にセットし、空いているポートをランダムに選んでバインドする。
+
+.B SO_REUSEADDR
+フラグがセットされていない場合には、
+バインドされていた TCP ローカルソケットアドレスは
+クローズされた後しばらくの間使えなくなる。
+.B SO_REUSEADDR
+フラグを使うと TCP の信頼性を低下させるので、
+使うときには注意が必要である。
+.SS アドレスのフォーマット
+IP ソケットアドレスは、 IP インターフェースアドレスと
+16ビットのポート番号の組み合わせで定義される。
+IP プロトコルそのものはポート番号を扱わない。
+ポート番号は、
+.BR udp (7)
+や
+.BR tcp (7)
+といった、上位のプロトコルで実装される。
+raw ソケットでは、
+.I sin_port
+が IP プロトコルにセットされる。
+.PP
+.in +4n
+.nf
+struct sockaddr_in {
+    sa_family_t    sin_family; /* address family: AF_INET */
+    in_port_t      sin_port;   /* port in network byte order */
+    struct in_addr sin_addr;   /* internet address */
+};
+
+/* Internet address. */
+struct in_addr {
+    uint32_t       s_addr;     /* address in network byte order */
+};
+.fi
+.in
+.PP
+.I sin_familiy
+には常に
+.B AF_INET
+をセットする。これは必須である。 Linux 2.2 では、このセットを忘れると
+ほとんどのネットワーク関数は
+.B EINVAL
+を返すようになっている。
+.I sin_port
+にはポート番号をネットワークバイトオーダーで指定する。
+1024 未満のポート番号は
+.I "特権ポート (privileged ports)"
+と呼ばれる
+.RI ( "予約ポート (reserved ports)"
+とも時々呼ばれる)。
+特権プロセス
+.RB ( CAP_NET_BIND_SERVICE
+ケーパビリティを持つプロセス) 以外のプロセスは、これらのポートには
+.BR bind (2)
+できない。 IPv4 プロトコルそのものにはポートに関する概念がない。
+ポートは、
+.BR tcp (7)
+や
+.BR udp (7)
+といった、上位のプロトコルにおいて実装される。
+.PP
+.I sin_addr
+は IP ホストアドレスである。
+.I struct in_addr
+の
+.I s_addr
+メンバには、ホストのインターフェースアドレスを
+ネットワークバイトオーダーで指定する。
+.I in_addr
+は、INADDR_* の一つ (例えば
+.BR INADDR_ANY )
+を代入する、
+ライブラリ関数
+.BR inet_aton (3),
+.BR inet_addr (3),
+.BR inet_makeaddr (3)
+を用いる、あるいは名前解決機構 (name resolver)
+を直接用いる、のどれかで設定すべきである。
+.RB ( gethostbyname (3)
+を見よ)。
+
+IPv4 アドレスには、ユニキャストアドレス、
+ブロードキャストアドレス、マルチキャストアドレスがある。
+ユニキャストアドレスは、あるホストの一つのアドレスを指定する。
+ブロードキャストアドレスは、あるネットワーク上の全てのホストを指定する。
+マルチキャストアドレスは、マルチキャストグループに所属する
+全てのホストを指定する。ブロードキャストアドレスへのデータグラムは、
+.B SO_BROADCAST
+ソケットフラグがセットされていないと送信・受信できない。
+現在の実装では、接続指向のソケットにはユニキャストアドレスしか使えない。
+.\" Leave a loophole for XTP @)
+
+アドレスとポートは常にネットワークバイトオーダーで格納されることに注意せよ。
+具体的には、ポートを指定する数値には
+.BR htons (3)
+を呼び出す必要がある。
+標準ライブラリにあるアドレス/ポート操作関数は
+すべてネットワークバイトオーダーで動作する。
+
+特別なアドレスがいくつか存在する:
+.TP
+.BR INADDR_LOOPBACK (127.0.0.1)
+loopback デバイスを通して常にローカルなホストを参照する。
+.TP
+.BR INADDR_ANY (0.0.0.0)
+バインドに用いる任意のアドレス。
+.TP
+.BR INADDR_BROADCAST (255.255.255.255)
+任意のホスト。歴史的理由から、バインドの際には
+.B INADDR_ANY
+と同じ効果になる。
+.SS ソケットオプション
+IP にはプロトコル固有のソケットオプションがいくつか存在し、
+.BR setsockopt (2)
+で設定が、
+.BR getsockopt (2)
+で取得ができる。 IP のソケットオプションレベルは
+.B IPPROTO_IP
+.\" Linux では SOL_IP も可
+である。
+ブール整数値のフラグでは、 0 は偽、それ以外は真を意味する。
+.\"
+.\" FIXME Document IP_FREEBIND
+.\" Boolean
+.\" Since Linux 2.4.0-test10
+.\"
+.TP
+.BR IP_ADD_MEMBERSHIP " (Linux 1.2 以降)"
+マルチキャストグループに参加する。
+引き数は
+.I ip_mreqn
+構造体である。
+.sp
+.in +4n
+.nf
+struct ip_mreqn {
+    struct in_addr imr_multiaddr; /* IP multicast group
+                                     address */
+    struct in_addr imr_address;   /* IP address of local
+                                     interface */
+    int            imr_ifindex;   /* interface index */
+};
+.fi
+.in
+.sp
+.I imr_multiaddr
+には、アプリケーションが参加または撤退したい
+マルチキャストグループのアドレスが入る。
+指定するアドレスは有効なマルチキャストアドレスでなければならない
+.\" (つまり、224.0.0.0-239.255.255.255 の範囲内)
+(さもなければ
+.BR setsockopt (2)
+がエラー
+.B EINVAL
+で失敗する)。
+.I imr_address
+はシステムがマルチキャストグループに参加する際に用いる
+ローカルなインターフェースのアドレスである。
+これが
+.B INADDR_ANY
+であった場合には、適切なインターフェースがシステムによって選択される。
+.I imr_ifindex
+は
+.I imr_multiaddr
+グループに参加/撤退するインターフェースの interface index である。
+どのインターフェースでもよい場合は 0 にする。
+.IP
+.I ip_mreqn
+は Linux 2.2 以降でのみ利用可能である。
+互換性のため、古い
+.I ip_mreq
+構造体 (Linux 1.2 以降で存在する) もまだサポートされている。
+.I ip_mreqn
+との違いは、
+.I imr_ifindex
+フィールドを含まないことだけである。
+.BR setsockopt (2)
+でのみ使える。
+.\"
+.TP
+.BR IP_DROP_MEMBERSHIP " (Linux 1.2 以降)"
+マルチキャストグループから抜ける。引き数は
+.B IP_ADD_MEMBERSHIP
+と同様に
+.I ip_mreqn
+または
+.I ip_mreq
+構造体である。
+.TP
+.BR IP_HDRINCL " (Linux 2.0 以降)"
+有効になっていると、ユーザは IP ヘッダをユーザーデータの前に与える。
+.B SOCK_RAW
+ソケットでのみ有効である。詳細は
+.BR raw (7)
+を見よ。このフラグが有効になっていると、
+.BR IP_OPTIONS ,
+.BR IP_TTL ,
+.B IP_TOS
+は無視される。
+.\" FIXME Document IP_IPSEC_POLICY
+.\" Since Linux 2.5.47
+.\" Needs CAP_NET_ADMIN
+.TP
+.BR IP_MTU " (Linux 2.2 以降)"
+.\" Precisely: 2.1.124
+ソケットの、既知の path MTU を取得する。
+ソケットが接続している場合のみ有効である。
+.BR getsockopt (2)
+でのみ使える。
+.TP
+.BR IP_MTU_DISCOVER " (Linux 2.2 以降)"
+.\" Precisely: 2.1.124
+ソケットの Path MTU Discovery の設定をセット・取得する。
+有効になっていると、 Linux はこのソケットに対して
+RFC\ 1191 で定義されている Path MTU Discovery を行う。
+発信データグラムには、全て「フラグメント不許可」フラグがセットされる。
+システム全体に対するデフォルトは、
+.B SOCK_STREAM
+ソケットに対しては
+.I /proc/sys/net/ipv4/ip_no_pmtu_disc
+ファイルにより制御できる。
+その他については無効となっている。
+.B SOCK_STREAM
+でないソケットに対しては、
+ユーザーがデータを MTU のサイズの塊にパケット化したり、
+必要な場合には再送したりしなければならない。
+このフラグがセットされていると、
+カーネルは既知の path MTU より大きなパケットを拒否する
+.RB ( EMSGSIZE
+となる)。
+.TS
+tab(:);
+c l
+l l.
+Path MTU discovery フラグ:意味
+IP_PMTUDISC_WANT:ルートごとの設定を用いる。
+IP_PMTUDISC_DONT:Path MTU Discovery を行わない。
+IP_PMTUDISC_DO:常に Path MTU Discovery を行う。
+IP_PMTUDISC_PROBE:DFビットをセットするが、Path MTU を無視する。
+.TE
+
+path MTU discovery が有効になっていると、カーネルは宛先ホストごとに
+自動的に path MTU を処理する。特定の相手に
+.BR connect (2)
+で接続した場合には、
+.B IP_MTU
+ソケットオプションを用いれば、既知の path MTU の取得に便利である
+(たとえば
+.B EMSGSIZE
+エラーが起きた後など)。これは時間とともに変化するかもしれない。
+宛先がたくさんあるコネクションレスなソケットでは、
+与えられた宛先に対する新しい MTU にも、
+エラーキューを用いてアクセスすることができる
+.RB ( IP_RECVERR
+を見よ)。
+MTU 更新が到着するごとに、新たなエラーがキューイングされる。
+
+MTU discovery の進行中には、データグラムソケットからの初期パケットは
+到着しないかもしれない。 UDP を用いるアプリケーションでは、
+このことを気にかけておき、
+パケットの再送アルゴリズムにこの分を除外させるべきである。
+
+接続していないソケットに対して
+path MTU discovery プロセスを立ち上げるには、
+大きなデータグラムサイズ (最大 64K ヘッダバイト長) からはじめて、
+path MTU が更新されるまでサイズを縮めていくことも可能である。
+.\" FIXME this is an ugly hack
+
+path MTU の値をまず見積もってみるには、宛先アドレスに
+.BR connect (2)
+を使ってデータグラムソケットを接続し、
+.BR getsockopt (2)
+を
+.B IP_MTU
+オプションとともに呼び、 MTU を取得することである。
+
+.B IP_PMTUDISC_PROBE
+(Linux 2.6.22 以降で利用可能) を設定することで、
+.B SOCK_DGRAM
+や
+.B SOCK_RAW
+のソケットで RFC 4821 の MTU 探索を実装することが可能である。
+また、この機能は、
+.BR tracepath (8)
+のような診断ツールで特に有用である。これらのツールでは、
+観測された Path MTU よりも大きな探索パケットを意図的に
+送信しようとする。
+.TP
+.BR IP_MULTICAST_IF " (Linux 1.2 以降)"
+ローカルデバイスをマルチキャストソケットとして設定する。引き数は
+.B IP_ADD_MEMBERSHIP
+と同様に
+.I ip_mreqn
+または
+.I ip_mreq
+構造体である。
+.IP
+不正なソケットオプションが渡されると、
+.B ENOPROTOOPT
+が返される。
+.TP
+.BR IP_MULTICAST_LOOP " (Linux 1.2 以降)"
+マルチキャストパケットをローカルなソケットにループバックするかどうかを
+定めるブール値の整数引き数を設定・取得する。
+.TP
+.BR IP_MULTICAST_TTL " (Linux 1.2 以降)"
+このソケットから発信されるマルチキャストパケットの
+time-to-live 値を設定・取得する。
+マルチキャストパケットに対しては、できるだけ小さな
+TTL に設定することがとても重要である。デフォルトは 1 で、
+ユーザープログラムが明示的に要求しない限り
+マルチキャストパケットはローカルなネットワークから出ないことになる。
+引き数に整数を取る。
+.TP
+.BR IP_OPTIONS " (Linux 2.0 以降)"
+.\" Precisely: 1.3.30
+このソケットから送られるパケット全てに付随する IP オプションを
+設定・取得する。オプションを保存しているメモリバッファへのポインタと
+オプションの長さとを引き数に取る。
+.BR setsockopt (2)
+を呼び出すと、ソケットに関連づけられる IP オプションを設定できる。
+IPv4 におけるオプションのサイズの最大値は 40 バイトである。
+用いることのできるオプションについては RFC\ 791 を見よ。
+.B SOCK_STREAM
+ソケットに対する初期接続要求パケットに IP オプションが含まれていると、
+ルーティングヘッダを付けて戻されてくる初期パケットの
+IP オプションに同じオプションがセットされる。接続が確立された後、
+やってきたパケットのオプションを変更することはできない。
+デフォルトでは。外部から受信したパケットの全ての source routing オプション
+の処理は無効となっており、
+.I /proc
+インタフェースの
+.I accept_source_route
+を使うとこれを有効にできる。これを無効にしていても timestamps など
+の他のオプションの処理は行われる。データグラムソケットでは、
+IP オプションはローカルユーザーしか設定できない。
+.BR getsockopt (2)
+を
+.B IP_OPTIONS
+をつけて呼ぶと、現在送信に用いられている IP オプションを
+引き数に与えたバッファに取得できる。
+.\" FIXME Document IP_PASSSEC
+.\" Boolean
+.\" Since Linux 2.6.17
+.\" commit 2c7946a7bf45ae86736ab3b43d0085e43947945c
+.\" Author: Catherine Zhang <cxzhang@watson.ibm.com>
+.TP
+.BR IP_PKTINFO " (Linux 2.2 以降)"
+.\" Precisely: 2.1.68
+.B IP_PKTINFO
+補助メッセージを渡す。これには到着パケットに関する情報を提供する
+.I pktinfo
+構造体が含まれている。
+データグラム指向のソケットでしか動作しない。
+引き数は
+.B IP_PKTINFO
+メッセージを通過させるかどうかをソケットに知らせるフラグである。
+メッセージ自身は
+.BR recvmsg (2)
+または
+.BR sendmsg (2)
+を用いたパケットの制御メッセージとしてのみ送受信できる。
+
+.IP
+.in +4n
+.nf
+struct in_pktinfo {
+    unsigned int   ipi_ifindex;  /* Interface index */
+    struct in_addr ipi_spec_dst; /* Local address */
+    struct in_addr ipi_addr;     /* Header Destination
+                                    address */
+};
+.fi
+.in
+.IP
+.\" FIXME elaborate on that.
+.I ipi_ifindex
+はパケットが受信されたインターフェースの、他と重ならないインデックスである。
+.I ipi_spec_dst
+はパケットのローカルアドレスである。
+.I ipi_addr
+はパケットヘッダにある宛先アドレスである。
+.B IP_PKTINFO
+が
+.BR sendmsg (2)
+に渡されて、かつ
+.\" このフィールドは、名前の付け方が明らかに間違っているのだが
+.I ipi_spec_dst
+が 0 以外の場合、
+.I ipi_spec_dst
+はルーティングテーブルを検索する際にローカルな送信元アドレスとして使用され、
+IP source route オプションを設定するのにも使用される。
+.I ipi_ifindex
+が 0 以外の場合、このインデックスによって指定されるインターフェースの
+プライマリローカルアドレスで
+.I ipi_spec_dst
+を上書きし、ルーティングテーブルを検索する。
+.TP
+.BR IP_RECVERR " (Linux 2.2 以降)"
+.\" Precisely: 2.1.15
+エラーメッセージの受け渡しに、信頼性の高い拡張された方法を有効にする。
+データグラムソケットに対して有効になっていると、
+発生したエラーは全てソケットごとのエラーキューに保存される。
+ユーザーはソケット操作からエラーを受け取ったとき、
+.BR recvmsg (2)
+を
+.B MSG_ERRQUEUE
+フラグとともに呼べばそのエラーを取得できる。
+そのエラーを記述する
+.I sock_extended_err
+構造体が、タイプ
+.BR IP_RECVERR ・
+レベル
+.B IPPROTO_IP
+.\" Linux では SOL_IP も可
+の補助メッセージとして渡される。
+これは接続志向でないソケットで信頼性の高いエラー処理を行いたい場合に
+有用である。エラーキューの受信データフラグメントには
+エラーパケットが含まれる。
+.\"NAKANO portion をフラグメントって言っちゃっていいのか？
+.IP
+.B IP_RECVERR
+制御メッセージには
+.I sock_extended_err
+構造体が含まれる:
+.IP
+.in +4n
+.ne 18
+.nf
+#define SO_EE_ORIGIN_NONE    0
+#define SO_EE_ORIGIN_LOCAL   1
+#define SO_EE_ORIGIN_ICMP    2
+#define SO_EE_ORIGIN_ICMP6   3
+
+struct sock_extended_err {
+    uint32_t ee_errno;   /* error number */
+    uint8_t  ee_origin;  /* where the error originated */
+    uint8_t  ee_type;    /* type */
+    uint8_t  ee_code;    /* code */
+    uint8_t  ee_pad;
+    uint32_t ee_info;    /* additional information */
+    uint32_t ee_data;    /* other data */
+    /* More data may follow */
+};
+
+struct sockaddr *SO_EE_OFFENDER(struct sock_extended_err *);
+.fi
+.in
+.IP
+.I ee_errno
+にはキューに入っているエラーの
+.I errno
+番号が入る。
+.I ee_origin
+にはエラーが発生した場所を示すコードが入る。
+その他のフィールドはプロトコル依存である。
+.B SO_EE_OFFENDER
+マクロは与えられた補助メッセージへのポインタから
+エラーの発生したネットワークオブジェクトのアドレスへのポインタを返す。
+アドレスが不明な場合、
+.I sockaddr
+構造体の
+.I sa_family
+フィールドは
+.B AF_UNSPEC
+となり、その他のフィールド値は不定である。
+.IP
+IP は以下のような
+.I sock_extended_err
+構造体を用いる:
+.I ee_origin
+は、
+エラーが ICMP パケットとして受信された場合には
+.B SO_EE_ORIGIN_ICMP
+にセットされ、ローカルで起こった場合には
+.B SO_EE_ORIGIN_LOCAL
+にセットされる。
+不明な値は無視される。
+.I ee_type
+と
+.I ee_code
+は ICMP ヘッダの type フィールドと code フィールドの値にセットされる。
+.I ee_info
+には
+.B EMSGSIZE
+エラーに対する discover された MTU が入る。
+メッセージにはエラーを引き起こしたノードの
+.I sockaddr_in
+構造体も含まれる。
+これには
+.B SO_EE_OFFENDER
+マクロを使ってアクセスできる。
+ソースが不明の場合、
+SO_EE_OFFENDER アドレスの
+.I sin_family
+フィールドは
+.B AF_UNSPEC
+となる。
+エラーがネットワークで起きた場合には、
+ソケットで有効になっていたすべての IP オプション
+.RB ( IP_OPTIONS ", " IP_TTL
+など) とエラーパケットに含まれていたすべての IP オプションとが、
+制御メッセージとして渡される。
+エラーを起こしたパケットのペイロード (payload) は
+普通のペイロードとして返される。
+.\" FIXME . is it a good idea to document that? It is a dubious feature.
+.\" .B SOCK_STREAM
+.\" ソケットでは、
+.\" .B IP_RECVERR
+.\" はやや異なる意味を持つ。次のタイムアウトまでデータを保持するのでなく、
+.\" やってきたエラーは全てただちにユーザーに渡される。これは、
+.\" 高速なエラー処理が必要となるような、極端に寿命の短い
+.\" TCP 接続に対して有用である。このオプションは注意して用いること。
+.\" 経路が変わったり、その他通常の状況に対して、適切な回復が不可能となり、
+.\" TCP の信頼性を低くしてしまう。またプロトコルの仕様に反してしまう。
+TCP にはエラーキューがないことに注意してほしい。
+.B MSG_ERRQUEUE
+は
+.B SOCK_STREAM
+ソケットに対しては使えない。
+TCP では
+.B IP_RECVERR
+だけが有効だが、ソケット関数から返されるエラーは
+.B SO_ERROR
+だけになる。
+.IP
+raw ソケットに対して
+.B IP_RECVERR
+を指定すると、受信したすべての ICMP エラーをアプリケーションに
+渡すようになる。指定しないと、
+接続済みのソケットに対するエラーだけを報告する。
+.IP
+このオプションはブール値のフラグを設定・取得する。
+.B IP_RECVERR
+はデフォルトではオフになっている。
+.TP
+.BR IP_RECVOPTS " (Linux 2.2 以降)"
+.\" Precisely: 2.1.15
+到着した全ての IP オプションを
+.B IP_OPTION
+コントロールメッセージに入れてユーザーに渡す。
+ルーティングヘッダとその他のオプションとは、
+ローカルホストに対してはあらかじめ記入されている。
+.B SOCK_STREAM
+ソケットではサポートされていない。
+.TP
+.BR IP_RECVTOS " (Linux 2.2 以降)"
+.\" Precisely: 2.1.68
+有効になっていると、
+.B IP_TOS
+補助メッセージが到着パケットとともに渡される。
+これにはパケットヘッダの Service/Precedence
+フィールドのタイプを指定するバイトデータが含まれている。
+ブール整数値のフラグをとる。
+.TP
+.BR IP_RECVTTL " (Linux 2.2 以降)"
+.\" Precisely: 2.1.68
+このフラグがセットされていると、
+.B IP_TTL
+コントロールメッセージが受信パケットの
+time-to-live フィールドのバイトデータとともに渡される。
+.B SOCK_STREAM
+ソケットではサポートされていない。
+.TP
+.B IP_RETOPTS
+.BR IP_RETOPTS " (Linux 2.2 以降)"
+.\" Precisely: 2.1.15
+.B IP_RECVOPTS
+と等価だが、未処理の生のオプションを、
+この hop では記入されない timestamp レコードと route レコードとともに返す。
+.\"NAKANO 意味不明...(^^;
+.TP
+.BR IP_ROUTER_ALERT " (Linux 2.2 以降)"
+.\" Precisely: 2.1.68
+フォワードすべきパケットを IP Router Alert オプションをつけて
+このソケットに渡す。
+raw ソケットに対してのみ有効である。これはたとえばユーザー空間の
+RSVP デーモンに対して便利である。タップされたパケットは
+カーネルによってはフォワードされないので、これらを再送するのは
+ユーザーの責任となる。ソケットのバインドは無視され、
+このようなパケットはプロトコルによってのみフィルタリングされる。
+整数値のフラグを取る。
+.\"NAKANO Socket binding... の文、意味わからん。
+.TP
+.BR IP_TOS " (Linux 1.0 以降)"
+このソケットから送信されるすべての IP パケットに適用される
+Type-Of-Service (TOS) フィールドを設定・取得する。
+これはネットワーク上でのパケットの優先度を決めるために用いられる。
+TOS はバイトデータである。標準の TOS フラグがいくつか定義されている。
+.B IPTOS_LOWDELAY
+はインタラクティブなトラフィックの遅延を最小にする。
+.B IPTOS_THROUGHPUT
+はスループットを最大にする。
+.B IPTOS_RELIABILITY
+は信頼性を最高にする。
+.B IPTOS_MINCOST
+は転送速度が遅くてもかまわないとき、「データを詰め込む」のに用いられる。
+これらのうち、 1 つまでだけを設定できる。
+他のビットは無効で、クリアされる。
+.\"NAKANO ↑訳あってる？
+Linux はデフォルトでは
+.B IPTOS_LOWDELAY
+データグラムを最初に送信する。
+しかし、正確な振る舞いはキュー処理の設定に依存する。
+.\" FIXME elaborate on this
+高い優先度にするにはスーパーユーザー権限
+.RB ( CAP_NET_ADMIN
+ケーパビリティ) が必要となるかもしれない。
+優先度は
+.RB ( SOL_SOCKET ", " SO_PRIORITY )
+ソケットオプションを用いれば、
+プロトコルに依存しない形でも設定できる
+.RB ( socket (7)
+を見よ)。
+.\" FIXME Document IP_TRANSPARENT
+.\" Needs CAP_NET_ADMIN
+.\" Boolean
+.\" Since Linux 2.6.27
+.\" commit f5715aea4564f233767ea1d944b2637a5fd7cd2e
+.\" Author: KOVACS Krisztian <hidden@sch.bme.hu>
+.TP
+.BR IP_TTL " (Linux 1.0 以降)"
+time-to-live フィールドの値を設定または取得する。
+この値はこのソケットから送信されるすべてのパケットに用いられる。
+.\" FIXME Document IP_XFRM_POLICY
+.\" Since Linux 2.5.48
+.\" Needs CAP_NET_ADMIN
+.SS /proc インタフェース
+IP プロトコルでは、いくつかのグローバルパラメータを設定するための
+.I /proc
+ファイル群が用意されている。
+これらのパラメータには、
+.I /proc/sys/net/ipv4/
+ディレクトリ内のファイルの読み書きでアクセスできる。
+.\" FIXME As at 2.6.12, 14 Jun 2005, the following are undocumented:
+.\"	ip_queue_maxlen
+.\"	ip_conntrack_max
+.I Boolean
+と書かれたインタフェースは整数値をとり、
+0 以外の値 ("true") は対応するオプションが有効、
+0 値 ("false") は無効、であることを意味する。
+.\"
+.TP
+.IR ip_always_defrag " (Boolean; Linux 2.2.13 以降)"
+[2.2.13 で新規登場。以前のバージョンのカーネルでは、この機能は
+コンパイル時に
+.B CONFIG_IP_ALWAYS_DEFRAG
+オプションによって制御されていた;
+このファイルは 2.4.x 以降では存在しない]
+
+このブール値のフラグが有効になっている (0 以外になっている) と、
+到着したフラグメント (IP パケットの一部で、
+発信元と発信先の間のどこかのホストで、そのパケットが
+大きすぎると判断され、分割された場合に生じる)
+は、たとえフォワードされる場合であっても
+処理前に再構築 (デフラグメント) される。
+
+ファイアウォールがローカル側のネットワークに唯一のリンクを持っている
+場合や、透過プロクシの場合に限って有効にすべきである。
+通常のルーターやホストでは決して使用することのないように。
+さもないとフラグメントが別のリンクを経由して伝わる場合に、
+通信のフラグメント化ができなくなってしまう。
+またフラグメント再構築処理はメモリと CPU 時間のコストが非常に大きい。
+
+これはマスカレードや透過プロクシが設定されると、
+不思議な仕組みによって自動的に有効になる。
+.\"
+.TP
+.IR ip_autoconfig " (Linux 2.2 以降 2.6.17 まで)"
+.\" Precisely: since 2.1.68
+.\" FIXME document ip_autoconfig
+まだ記述していない。
+.\"
+.TP
+.IR ip_default_ttl " (integer; default: 64; Linux 2.2 以降)"
+.\" Precisely: 2.1.15
+送出されるパケットの time-to-live 値のデフォルトをセットする。
+これは
+.B IP_TTL
+オプションを用いれば、パケットごとに変えることもできる。
+.\"
+.TP
+.IR ip_dynaddr " (Boolean; default: disabled; Linux 2.0.31 以降)"
+動的ソケットアドレスと、インターフェースアドレスが変更された際の
+マスカレードエントリの再書き込みを有効にする。
+ダイアルアップインターフェースで、
+IP アドレスが変更される場合に便利である。
+.\"
+.TP
+.IR ip_forward " (Boolean; default: disabled; Linux 1.2 以降)"
+IP forwarding を有効にするかどうかのブール値フラグ。
+IP forwarding するかどうかはインターフェースごとにも設定できる。
+.\"
+.TP
+.IR ip_local_port_range " (Linux 2.2 以降)"
+.\" Precisely: since 2.1.68
+ソケットに割り当てられているデフォルトのローカルポートの範囲を定める
+二つの整数を与える。割り当ては 1 番目の番号から始まり、 2 番目の番号で終わる。
+これらはマスカレードで用いられているポートと重なってはならない
+(その場合も取り扱われるが)。
+ファイアウォールのパケットフィルターが「利用中のローカルポート」
+について何らかの仮定をしている場合には、
+番号を勝手に決めてしまうと問題が起きるかもしれない。
+1 番目の番号は少なくとも 1024 より大きくすべきである。
+良く使われるポートとの衝突を避けたり、ファイアウォールの問題を
+回避したければ、 4096 よりも大きくするほうが良いだろう。
+.\"
+.TP
+.IR ip_no_pmtu_disc " (Boolean; default: disabled; Linux 2.2 以降)"
+.\" Precisely: 2.1.15
+有効になっていると、デフォルトで TCP ソケットに対する
+Path MTU Discoverty を行わない。
+Path MTU Discovery は、
+正しく設定されていない (ICMP パケットを全てドロップする) ファイアウォールや、
+(point-to-point リンクで双方の MTU が一致していない場合など)
+正しく設定されていないインターフェースが経路上に存在すると失敗してしまう。
+Path MTU Discovery をグローバルに無効にするよりは、
+壊れているルータを直すほうが良い。
+Path MTU Discovery を無効にするとネットワークのコストが
+大きくなってしまうからである。
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+.TP
+.IR ip_nonlocal_bind " (Boolean; default: disabled; Linux 2.4 以降)"
+.\" Precisely: patch-2.4.0-test10
+セットされていれば、プロセスが自分以外の IP アドレスを
+.BR bind (2)
+できるようになる。これはかなり便利だが、うまく動かないアプリケーションもある。
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+.TP
+.IR ip6frag_time " (integer; default 30)"
+IPv6 フラグメントをメモリに保持しておく時間 (秒単位)。
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+.TP
+.IR ip6frag_secret_interval " (integer; default 600)"
+IPv6 フラグメントの hash secret の生成間隔 (hash secret の寿命)
+(秒単位)。
+.TP
+.IR ipfrag_high_thresh " (integer), " ipfrag_low_thresh " (integer)"
+キューイングされている IP フラグメントの量が
+.I ipfrag_high_thresh
+に達すると、キューの内容は
+.I ipfrag_low_thresh
+にまで切り捨てられる。それぞれの大きさを
+バイト単位で表す整数値が入っている。
+.TP
+.I neigh/*
+.BR arp (7)
+を見よ。
+.\" FIXME Document the conf/*/* interfaces
+.\" FIXME Document the route/* interfaces
+.\" FIXME document them all
+.SS ioctl
+.BR socket (7)
+に記述されている ioctl は、すべて
+.B ip
+にも適用される。
+.\" 2006-04-02, mtk
+.\" commented out the following because ipchains is obsolete
+.\" .PP
+.\" ファイアウォール関係の設定に関する ioctl については
+.\" .B ipchains
+.\" パッケージの
+.\" .BR ipfw (4)
+.\" に記述されている。
+.PP
+ジェネリックデバイスのパラメータを設定する ioctl については
+.BR netdevice (7)
+に記述されている。
+.\" FIXME Add a discussion of multicasting
+.SH エラー
+.\" FIXME document all errors.
+.\"     We should really fix the kernels to give more uniform
+.\"     error returns (ENOMEM vs ENOBUFS, EPERM vs EACCES etc.)
+.TP
+.B EACCES
+必要な権限のないユーザーが操作を実行しようとした。
+以下のような場合が考えられる:
+.B SO_BROADCAST
+フラグを設定していない状態でブロードキャストアドレスに
+パケットを送ろうとした。
+.I prohibit
+なルートを通してパケットを送ろうとした。
+スーパーユーザー権限
+.RB ( CAP_NET_ADMIN
+ケーパビリティ) なしでファイアウォールの設定を変更しようとした。
+スーパーユーザー権限
+.RB ( CAP_NET_BIND_SERVICE
+ケーパビリティ) なしで特権ポートにバインドしようとした。
+.TP
+.B EADDRINUSE
+既に使われているアドレスにバインドしようとした。
+.TP
+.B EADDRNOTAVAIL
+存在しないソケットが要求された。または要求された
+ソースアドレスがローカルでない。
+.TP
+.B EAGAIN
+非ブロッキングソケットに対してブロックする操作を行った。
+.TP
+.B EALREADY
+非ブロッキングソケットに対する接続操作が既に実行中である。
+.TP
+.B ECONNABORTED
+.BR accept (2)
+の最中に接続がクローズされた。
+.TP
+.B EHOSTUNREACH
+宛先アドレスにマッチする有効なエントリがルーティングテーブルに
+存在しない。このエラーはリモートルータからの、
+あるいはローカルルーティングテーブルへの
+ICMP メッセージによって引き起こされることがある。
+.TP
+.B EINVAL
+不正な引き数が渡された。送信操作において、
+.I blackhole
+ルートに送信しようとするとこのエラーが起こることがある。
+.TP
+.B EISCONN
+.BR connect (2)
+が、既に接続済みのソケットに対して呼ばれた。
+.TP
+.B EMSGSIZE
+データグラムが path MTU よりも大きく、フラグメント化もできない。
+.TP
+.BR ENOBUFS ", " ENOMEM
+空きメモリが足りない。
+このエラーは、メモリアロケーションがソケットバッファの
+大きさによって制限されていることを意味しているのが通常であるが、
+100% そうだというわけではない。
+.TP
+.B ENOENT
+パケットが全く到着していないソケットに対して
+.B SIOCGSTAMP
+が呼ばれた。
+.TP
+.B ENOPKG
+カーネルサブシステムが設定されていない。
+.TP
+.BR ENOPROTOOPT " と " EOPNOTSUPP
+不正なソケットオプションが渡された。
+.TP
+.B ENOTCONN
+接続されていないソケットに対して、
+接続状態でしか定義されていない操作を行おうとした。
+.TP
+.B EPERM
+高い優先度を設定したり、設定を変更したり、要求されたプロセスや
+プロセスグループにシグナルを送ったりするのに必要な権限を、
+ユーザーが持っていない。
+.TP
+.B EPIPE
+接続が先方から期待していなかったやり方で
+クローズあるいはシャットダウンされた。
+.TP
+.B ESOCKTNOSUPPORT
+ソケットが未設定であるか、知らないソケットタイプが要求された。
+.PP
+他のエラーが上層のプロトコルによって生じるかもしれない。
+.BR tcp (7),
+.BR raw (7),
+.BR udp (7),
+.BR socket (7)
+などを参照のこと。
+.SH 注意
+.BR IP_MTU ,
+.BR IP_MTU_DISCOVER ,
+.BR IP_PKTINFO ,
+.BR IP_RECVERR ,
+.B IP_ROUTER_ALERT
+は Linux 固有であり、移植性を考慮したプログラムでは
+用いるべきではない。
+.\" IP_PASSSEC is Linux-specific
+.\" IP_TRANSPARENT is Linux-specific
+.\" IP_FREEBIND is Linux-specific
+.\" IP_XFRM_POLICY is Linux-specific
+.\" IP_IPSEC_POLICY is a nonstandard extension, also present on some BSDs
+.B SO_BROADCAST
+オプションの利用には、くれぐれも注意すること。
+これは Linux では特権操作ではない。
+不注意なブロードキャストを行うと、ネットワークは簡単に過負荷状態になる。
+新しいアプリケーションプロトコルには、ブロードキャストではなく
+マルチキャストグループを用いるほうがよい。
+ブロードキャストは推奨されない。
+.PP
+他の BSD のソケット実装では、
+.B IP_RCVDSTADDR
+と
+.B IP_RECVIF
+といったソケットオプションがサポートされており、
+宛先アドレスや受信データグラムのインターフェースが取得できるように
+なっていることもある。
+Linux で同じことをやらせるには、より一般的な
+.B IP_PKTINFO
+が使える。
+.PP
+いくつかの BSD のソケット実装では
+.B IP_RECVTTL
+オプションも提供されているが、タイプ
+.B IP_RECVTTL
+の補助メッセージは受信パケットとともに渡される。
+これは Linux で使われている
+.B IP_TTL
+オプションとは異なる動作である。
+.PP
+.B SOL_IP
+ソケットオプションレベルは移植性がない。
+BSD ベースのプロトコルスタックでは
+.B IPPROTO_IP
+レベルが使用されている。
+.SS 移植性
+Linux 2.0 との互換性のために、 obsolete な
+.BI "socket(AF_INET, SOCK_PACKET, " protocol )
+という書式でも
+.BR packet (7)
+をオープンできるようになっているが、これはお勧めできない。今後は
+.BI "socket(AF_PACKET, SOCK_RAW, " protocol )
+を代わりに用いるべきである。主な違いは、ジェネリックなリンク層用の
+.I sockaddr_ll
+アドレス構造体が、古い
+.B sockaddr_pkt
+に変わって用いられるようになったことである。
+.SH バグ
+エラーの値が全く首尾一貫していない。
+.PP
+IP 固有のインターフェースオプションを指定するための ioctl と
+ARP テーブルのことが記述されていない。
+.PP
+glibc のバージョンによっては
+.I in_pktinfo
+の定義を忘れているものがある。
+現時点でのとりあえずの対策としては、この man ページにある定義をプログラム中に
+コピーすることである。
+.PP
+.BR recvmsg (2)
+で
+.I msg_name
+に
+.B MSG_ERRQUEUE
+を指定して、受信パケットに入っていた宛先アドレスを取得する方法は
+2.2 カーネルの一部でうまく動かない。
+.\" .SH 著者
+.\" この man ページは Andi Kleen が書いた。
+.SH 関連項目
+.BR recvmsg (2),
+.BR sendmsg (2),
+.BR byteorder (3),
+.BR ipfw (4),
+.BR capabilities (7),
+.BR netlink (7),
+.BR raw (7),
+.BR socket (7),
+.BR tcp (7),
+.BR udp (7)
+.PP
+.BR RFC\ 791 :
+オリジナルの IP の仕様
+.br
+.BR RFC\ 1122 :
+IPv4 ホストの必要条件
+.br
+.BR RFC\ 1812 :
+IPv4 ルータの必要条件
+.\" FIXME autobind INADDR REUSEADDR

@@ -1,0 +1,239 @@
+.\" Copyright (c) 1994, 1995 Jacques Gelinas (jacques@solucorp.qc.ca)
+.\" Copyright (c) 1995, 1999 Bjorn Ekwall (bj0rn@blox.se)
+.\" This program is distributed according to the Gnu General Public License.
+.\" See the file COPYING in the base distribution directory
+.\"
+.TH DEPMOD 8 "January 26, 2002" Linux "Linux Module Support"
+.SH NAME
+depmod \- handle dependency descriptions for loadable kernel modules
+.SH SYNOPSIS
+.B depmod
+[\-aA] [\-ehnqrsuvV]
+.RI [\-C\  configfile "] [\-F\ " kernelsyms "] [\-b " basedirectory ]
+.RI [ forced_version ]
+.br
+.B depmod \fR[\-enqrsuv] [\-F \fIkernelsyms\fR] module1.o module2.o ...
+.SH DESCRIPTION
+The
+.B depmod
+and
+.B modprobe
+utilities are intended
+to make a Linux modular kernel manageable for all users,
+administrators and distribution maintainers.
+.PP
+.B Depmod
+creates a "Makefile"-like dependency file, based on the symbols it finds
+in the set of modules mentioned on the command line
+or from the directories specified in the configuration file.
+This dependency file is later used by
+.B modprobe
+to automatically load the correct module or stack of modules.
+.PP
+The normal use of
+.B depmod
+is to include the line
+
+.br
+.B "/sbin/depmod \-a"
+.br
+
+somewhere in the rc-files
+in
+.IR /etc/rc.d ,
+so that the correct module dependencies will be available
+immediately after booting the system.
+Note that the option
+.B \-a
+is now optional.
+For boot-up purposes, the option
+.B \-q
+might be more appropriate since that makes depmod silent about
+unresolved symbols.
+.PP
+It is also possible to create the dependency file immediately
+after compiling a new kernel.
+If you do "\fBdepmod\ -a\ 2.2.99\fR"
+when you have compiled kernel 2.2.99 and
+its modules the first time, while still running e.g. 2.2.98, the file will
+be created in the correct place.
+In this case however,
+the dependencies on the kernel will not be guaranteed to be correct.
+See the options
+.BR \-F ,\  \-C\  and\  \-b
+above for more information on handling this.
+.PP
+While building the relationship between modules and the symbols
+exported by other modules,
+.B depmod
+does not consider the GPL status of the modules nor of the exported
+symbols.  That is, depmod will not flag an error if a module without a
+GPL compatible license refers to a GPL only symbol (EXPORT_SYMBOL_GPL
+in the kernel).  However insmod will refuse to resolve GPL only symbols
+for non-GPL modules so the actual load will fail.
+.SH OPTIONS
+.TP
+.BR \-a ", " \-\-all
+Search for modules in all directories specified in the (optional)
+configuration file
+.IR "/etc/modules.conf" .
+.TP
+.BR \-A ", " \-\-quick
+Compare file timestamps and, if necessary, act like
+.BR "depmod \-a" .
+This option only updates the dependency file if anything has changed.
+.TP
+.BR \-e ", " \-\-errsyms
+Show all the unresolved symbols for each module.
+.TP
+.BR \-h ", " \-\-help
+Display a summary of options and immediately exit.
+.TP
+.BR \-n ", " \-\-show
+Write the dependency file on stdout instead of in the \fI/lib/modules\fR tree.
+.TP
+.BR \-q ", " \-\-quiet
+Tell depmod to keep quiet and not to complain about missing symbols.
+.TP
+.BR \-r ", " \-\-root
+Some users compile modules under a non-root userid then install the
+modules as root.  This process can leave the modules owned by the
+non-root userid, even though the modules directory is owned by root.
+If the non-root userid is compromised, an intruder can overwrite
+existing modules owned by that userid and use this exposure to
+bootstrap up to root access.
+.TP
+.I ""
+By default, modutils will reject attempts to use a module that is not
+owned by root.  Specifying \fB\-r\fR will suppress the error and allow root to
+load modules that are not owned by root.
+.TP
+.I ""
+.B Use of -r is a major security exposure and is not recommended.
+.TP
+.BR \-s ", " \-\-syslog
+Write all error messages via the syslog daemon instead of stderr.
+.TP
+.BR \-u ", " \-\-unresolved-error
+\fBdepmod\fR 2.4 does not set a return code when there are any unresolved
+symbols.  The next major release of modutils (2.5) will set a return
+code for unresolved symbols.  Some distributions want a non-zero return
+code in modutils 2.4 but that change might cause problems for users who
+expect the old behaviour.  If you want a non-zero return code in depmod
+2.4, specify \fB\-u\fR.  \fBdepmod\fR 2.5 will silently ignore the
+\fB\-u\fR flag and will always give a non-zero return code for unresolved
+symbols.
+.TP
+.BR \-v ", " \-\-verbose
+Show the name of each module as it is being processed.
+.TP
+.BR \-V ", " \-\-version
+Display the version of \fBdepmod\fR.
+.PP
+The following options are useful for people managing distributions:
+.TP
+\fB\-b \fIbasedirectory\fR, \fB\-\-basedir \fIbasedirectory
+If the directory tree
+.I /lib/modules
+containing the sub-trees of modules is moved somewhere else in order to
+handle modules for a different environment, the
+.B \-b
+option tells depmod where to find the moved image of the
+.I /lib/modules
+tree.
+The file references in the depmod output file that is built,
+.IR modules.dep ,
+will not contain the
+.I basedirectory
+path.
+This means that when the file tree is moved back from
+.I basedirectory/lib/modules
+into
+.I /lib/modules
+in the final distribution, all references will be correct.
+.TP
+\fB\-C \fIconfigfile\fR, \fB\-\-config \fIconfigfile
+Use the file
+.I configfile
+instead of
+.IR /etc/modules.conf .
+The environment variable
+.B MODULECONF
+can also be used to select a different
+configuration file from the default
+.I /etc/modules.conf
+(or
+.I /etc/conf.modules
+(deprecated)).
+.TP
+When environment variable
+.B UNAME_MACHINE
+is set, modutils will use its value instead of the machine field from
+the uname() syscall.
+This is mainly of use when you are compiling 64 bit modules in 32 bit
+user space or vice versa, set
+.B UNAME_MACHINE
+to the type of the modules being built.
+Current modutils does not support full cross build mode for modules, it
+is limited to choosing between 32 and 64 bit versions of the host
+architecture.
+.TP
+\fB\-F kernelsyms\fR,\fB\-\-filesyms \fIkernelsyms
+When building dependency files for a different kernel than the currently
+running kernel, it is important that
+.B depmod
+uses the correct set of kernel symbols to resolve the kernel references
+in each module.
+These symbols can either be a copy of
+.I System.map
+from the other kernel,
+or a copy of the output from
+.IR /proc/ksyms .
+If your kernel uses versioned symbols, it is best to
+use a copy of the
+.I /proc/ksyms
+output, since that file contains the symbol versions of the kernel
+symbols.  However you can use a
+.I System.map
+even with versioned symbols.
+.SH CONFIGURATION
+The behavior of
+.B depmod
+and
+.B modprobe
+can be adjusted by the (optional) configuration file
+.IR /etc/modules.conf .
+.br
+See
+.BR modprobe (8)
+and
+.BR modules.conf (5)
+for a complete description.
+.PP
+.SH STRATEGY
+Each time you compile a new kernel, the command "\fBmake modules_install\fR"
+will create a new directory, but won't change the default.
+.PP
+When you get a module unrelated to the kernel distribution
+you should place it in one of the version-independent directories
+under
+.IR /lib/modules .
+.PP
+This is the default strategy, which can be overridden in
+.IR /etc/modules.conf .
+.SH FILES
+.nf
+.IR /etc/modules.conf\  "(alternatively but deprecated\ " /etc/conf.modules )
+.IR /lib/modules/*/modules.dep ,
+.I /lib/modules/*
+.fi
+.SH SEE ALSO
+.BR modules.conf "(5), " modprobe "(8), "  modinfo "(8), "
+.BR lsmod "(8), " ksyms "(8) "
+.SH BUGS
+\fBdepmod\fR [ \-V | \-\-version ] should exit immediately.  Instead, it
+prints the version information and behaves as if no options were given.
+.SH AUTHORS
+Jacques Gelinas (jack@solucorp.qc.ca)
+.br
+Bjorn Ekwall (bj0rn@blox.se)

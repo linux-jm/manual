@@ -1,0 +1,1747 @@
+=head1 NAME
+
+Zebedee --- a simple, free, secure TCP and UDP tunnel program
+
+=head1 SYNOPSIS
+
+=over 4
+
+=item Server:
+
+B<zebedee> B<-s> [B<-dDtu>] [B<-c> I<host>] [B<-f> I<file>] [B<-k>
+I<keybits>] [B<-n> I<name>] [B<-o> I<logfile>] [B<-r> I<ports>]
+[B<-T> I<port>] [B<-v> I<level>] [B<-x> I<config>] [B<-z> I<level>]
+[I<target> ...]
+
+=item Client:
+
+B<zebedee> [B<-dDlmtu>] [B<-e> I<command>] [B<-f> I<file>]
+[B<-k> I<keybits>] [B<-n> I<name>] [B<-o> I<log>] [B<-T> I<port>] [B<-v>
+I<level>] [B<-x> I<config>] [B<-z> I<level>] [server] [I<tunnel-spec> ...]
+
+=item Key generation:
+
+B<zebedee> B<-p> [B<-f> I<file>]
+
+B<zebedee> B<-P> [B<-p>] [B<-f> I<file>]
+
+=item Hash generation:
+
+B<zebedee> B<-h> [I<file ...>]
+
+B<zebedee> B<-H> I<string> ...
+
+=item Windows Service:
+
+B<zebedee> [B<-n> I<name>] B<-S> [install[=I<file>] | remove | run]
+
+=back
+
+=head1 DESCRIPTION
+
+B<Zebedee> is a simple program to establish an encrypted, compressed "tunnel"
+for TCP/IP or UDP traffic between two systems. This allows data from, for
+example, B<telnet>, B<ftp> and B<X> sessions to be protected from snooping.
+You can also use compression, either with or without data encryption, to gain
+performance over low-bandwidth networks.
+
+The main goals for B<Zebedee> are to:
+
+=over 4
+
+=item *
+
+Provide client and server functionality under both UNIX and Windows 95/98/NT.
+
+=item *
+
+Be easy to install, use and maintain with little or no configuration required.
+
+=item *
+
+Have a small footprint, low wire protocol overhead and give significant
+traffic reduction by the use of compression.
+
+=item *
+
+Use only algorithms that are either unpatented or for which the patent has
+expired.
+
+=item *
+
+Be entirely free for commercial or non-commercial use and distributed under
+the term of the GNU General Public Licence (see L<CREDITS AND LEGALITIES>).
+
+=back
+
+Of course, B<Zebedee> is by no means the first, or only secure tunnel program
+available. It does not pretend to compete with the likes of B<ssh> or B<SSL>
+in terms of breadth of function but if you want something quick, simple and
+I<completely free> then it may be the tool for you.
+
+This document describes the features of B<Zebedee> as at release 2.1.0.
+
+=head2 What's in a name?
+
+In case you were wondering, or even if you weren't, B<Zebedee> is named after
+its three main components:
+
+=over 4
+
+=item *
+
+B<Z>lib compression
+
+=item *
+
+B<B>lowfish encryption and
+
+=item *
+
+B<D>iffie-Hellman key agreement.
+
+=back
+
+So now you know!
+
+=head2 Basic Usage
+
+To set up a secure connection between your local machine and a remote host you
+need first to run B<Zebedee> in server mode on the remote system. The easiest
+way to do this is to run B<Zebedee> with the B<-s> option. Like this:
+
+ zebedee -s
+
+If all goes well (and it should!) B<Zebedee> will detach from the terminal (or
+console window under Windows) and run in the background. It will then be
+listening for incoming requests from clients.
+
+On your local machine you then run B<Zebedee> in client mode. You need to
+specify the name of the remote machine and the name of the service or number
+of the port to which the tunnel should be established --- we will call this
+the "target" port. If the remote machine is called C<remhost> and you want to
+set up a secure B<telnet> session then you would run:
+
+ zebedee remhost:telnet
+
+In fact, if you don't specify a service or port the default is B<telnet> so
+
+ zebedee remhost
+
+would do just as well in this instance. When you run this command it will
+print out a message telling you the port number which is the local end of the
+tunnel. B<Zebedee> will then detach from the terminal and run in the
+background waiting for you to connect to the local port. If, for example, the
+port number it printed out was 1234 then to connect to C<remhost> using the
+secure tunnel you would run:
+
+ telnet localhost 1234
+
+By default, B<Zebedee> will continue to listen for connections and tunnel
+them, handling multiple simultaneous connections if necessary, until you
+terminate the process.
+
+Sometimes you will want to start B<Zebedee> and then run a command that
+connects to the port straight away. You can do this in a single invocation of
+B<Zebedee> as follows:
+
+ zebedee -e "telnet localhost %d" remhost
+
+The "C<%d>" in the string is automatically replaced with the local port number
+so there is no need for B<Zebedee> to print it out. If you specify a command
+like this then the local B<Zebedee> client will exit once the command closes
+its connection.
+
+You may want or need to control the local port number that the client uses.
+This is necessary if the command whose connection you are trying to protect
+expects to connect only to a specific port. In this case you can also specify
+the local port number by invoking B<Zebedee> as follows:
+
+ zebedee clientport:hostname:targetport
+
+So, for example, the command:
+
+ zebedee 8000:webhost:80
+
+will allow you to secure all HTTP connections to B<webhost> if accessed via
+port 8000 on the client system. See L<EXAMPLES> for more details.
+
+You can also use a single B<Zebedee> client to handle multiple simultaneous
+tunnels to different target ports on the same remote host. In this case the
+client and target port specifications are lists of ports. For example:
+
+ zebedee 9001,9002,9003:somehost:daytime,telnet,ftp
+
+This will tunnel traffic on the clientport 9001 to the B<daytime> port on the
+remote target system, traffic on 9002 to the B<telnet> port and traffic on
+9003 to the B<ftp> port.
+
+This combination of client listening ports, target host and destination
+ports is called a "tunnel speciification". See the
+B<L<tunnel|/item_tunnel>> keyword for more details.
+
+=head2 UDP Tunnelling
+
+Originally B<Zebedee> was designed only to be able to handle TCP/IP traffic.
+As of version 2.0.0 it can also handle connectionless UDP data. To enable
+this start B<Zebedee> with the B<-u> option (or use the
+B<L<udpmode|/item_udpmode>> keyword). For example:
+
+ zebedee -s -u
+
+on the server host and
+
+ zebedee -u 10000:somehost:echo
+
+on the client. Note that a single client or server can only handle TCP or UDP
+data, not both. If you need to tunnel both types of data you must run two
+separate instances. It is safe run both a TCP-mode and a UDP-mode server on
+the same system because they use different ports.
+
+The tunnel between B<Zebedee> clients and servers still uses a TCP/IP
+connection even in UDP-mode. This connection is timed out after a certain
+period of inactivity.  It must be re-established if more data arrives. For
+this reason the performance in UDP mode may appear poor, depending on the
+nature of the application using it. You should note that there is also a limit
+on the size of UDP datagrams that can be handled.
+
+For further details see the B<L<maxbufsize|/item_maxbufsize>>,
+B<L<udpmode|/item_udpmode>> and B<L<udptimeout|/item_udptimeout>> keywords.
+
+=head2 Some Terminology
+
+Usually there will only be two systems involved when you set up a tunnel
+using B<Zebedee>. You will run a client on one and communicate with it
+via connections to local ports. On the other you will run a server which
+will speak to services local to that machine.  However, there can be up
+to four different systems involved, as shown below:
+
+ [source] <===> [client] <=====> [server] <===> [target]
+            |               |               |
+            +- insecure     |               + insecure
+               connection   |                 connection
+                            +- secure tunnel
+
+The B<Zebedee> client runs on the "client" system and the server runs on the
+"server" host. The inital connection that causes a tunnel to be established
+between client and server originates from the "source" machine. This could be
+a different system than where the B<Zebedee> client is running, although it is
+usually the same. The server will ultimately communicate with the "target"
+system. Again, this is usually the local machine but does not have to be.
+
+Most of the time you will not have to be concerned with the distinction
+between source and client and server and target. The terminology is, however,
+reflected in a number of the keywords described in the following section so
+you should bear it in mind when reading their descriptions.
+
+In addition to the different systems involved in B<Zebedee> tunnel there are
+also several different types of keys used to secure connection. The client and
+server generate or are provided with B<private key> values. These are used to
+calculate public values which are exchanged and used to derive a B<shared
+secret key> using the Diffie-Hellman key agreement mechanism.  From this
+shared key a unique B<session key> is derived to secure an individual
+connections between client and server.
+
+=head2 Multiple Destinations
+
+Prior to version 2.1.0 a single B<Zebedee> client/server pair could only
+handle tunnels to a single target system. It is now possible, however,
+to direct tunnels to multiple targets.
+
+When a server is started it can be given a list of valid targets either
+on the command-line or by using the B<L<target|/item_target>> keyword.
+Each target is a host name optionally followed by a list of ports to
+which connections may be made. Consider the following command run on a
+machine called B<serverhost>:
+
+ zebedee -s target1:daytime,telnet target2:telnet target3
+
+the server will allow connections to the B<daytime> and B<telnet> ports
+on B<target1>, the B<telnet> port on B<target2> and any port on
+B<target3>.
+
+Given this server invocation, a client may be started as follows:
+
+ zebedee serverhost 10000:target1:telnet 20000:target3:telnet
+
+This will connect to the B<Zebedee> server on B<serverhost> and use it
+to establish tunnels to the B<telnet> port on B<target1> via the client
+port 10000 and tunnels to the B<telnet> port on B<target2> via 20000.
+Note that the name of the host on which the server is running is given
+as the first parameter. If the server name is omitted it is determined
+from the first tunnel specification. So if the server had been running
+on B<target3> then the above command could have been given as:
+
+ zebedee 20000:target3:telnet 10000:target1:telnet
+
+In fact, a server also maintains a notion of a default target. This is the
+host name of the I<last> target specified. In the example above the default
+target becomes B<target3>. This is the target used when the server and target
+names specified by the client are the same. Be careful of this because you
+may get results that you not expect. For example, if the server was started
+as:
+
+ zebedee -s target2:telnet target3 target1:daytime,telnet
+
+then the previous client invocation would result in connections to port
+20000 being tunnelled to B<target1> and not B<target3>. This is because
+when the server and target specified by the client are the same then the
+traffic goes to the server's default target. To avoid confusion, if you
+want to include the server host in a list of multiple destinations then
+always name it last. Note that as well as a default target host it is also
+possible to specify a list of default target ports where none are otherwise
+given. See the B<L<redirect|/item_redirect>> keyword for more details.
+
+As with the B<L<target|/item_target>> keyword for the server, the
+equivalent of the command-line parameter for the client is the
+B<L<tunnel|/item_tunnel>> keyword (and B<L<serverhost|/item_serverhost>>
+in order to specify the server host explictly).
+
+=head2 Server-Initiated Connections
+
+In normal use a B<Zebedee> client inititates connections to the server when a
+connection has been made to it from a source system. Sometimes, for example
+when using B<Zebedee> through a restrictive firewall, it may be necessary for
+the server to initiate the connection back to the client --- to operate in
+"reverse." For details on how to do this see the
+B<L<clienthost|/item_clienthost>> and B<L<listenmode|/item_listenmode>>
+keywords.
+
+=head2 Configuration File
+
+The behaviour of B<Zebedee> is probably best controlled through the use
+of a configuration file. A configuration file can be specified using the B<-f>
+command-line option. The file is read at the point at which the option is
+encountered so later command-line options may override the contents of the
+file.
+
+Lines are of the form:
+
+ keyword value # optional comment
+
+The I<keyword> is a single, case-insensitive word. The value is either a single
+word or a string. Strings are enclosed either in double quotes (C<"like
+this">) or single quotes (C<'like this'>). Double quotes may appear in single
+quoted strings and vice versa (C<"here's an example">). Case is preserved in
+the values where appropriate.
+
+Blank lines and lines beginning with a "C<#>" (after any leading whitespace)
+are ignored. Long strings may be continued onto the next line by ending the
+line with a "C<\>" character. This character is eliminated and the next line
+is joined on to the end. Note that there is a limit of a total of 1024
+characters on any line and its continuations. Line continuation happens before
+anything else, including comment recognition so the lines:
+
+ server false
+ # This comment continues on the next line \
+ server true
+
+will leave the value of B<server> as B<false>.
+
+The keywords and their meanings are as described below. There is a brief
+description of all the keywords in the L<Quick-Reference Summary>
+section. Some, but not all, keywords have equivalent command-line
+options. These are shown where available.  There are also a few
+command-line options that have no equivalent in the configuration file.
+These are described at the end of this section.
+
+If a keyword is described as being a boolean then its value must be one of the
+words B<true> or B<false>.
+
+Several keywords require a list of ports to be specfied. Where this the case
+the value is string that consists of a comma or white-space delimited list of
+port names, numbers or numeric ranges. For example "C<telnet, ftp 5900-5903>".
+This is equivalent to the list "C<23,21,5900,5901,5902,5903>".
+
+A number of the keywords are either only applicable to clients or only
+applicable to servers. The same B<Zebedee> program runs as either client or
+server and will silently ignore inappropriate options for the current type of
+usage. The choice of client or server behaviour is controlled by the
+B<L<server|/item_server>> keyword:
+
+=over 4
+
+=item B<server> (command-line B<-s>)
+
+This is a boolean indicating whether the program should run as a client or a
+server. The default is to run as a client if this keyword is not specified. The
+command-line B<-s> option is equivalent to setting this keyword to B<true>.
+
+=back
+
+=head3 Client-Only Keywords
+
+The following keywords apply only to B<Zebedee> clients:
+
+=over 4
+
+=item B<command> (command-line B<-e>)
+
+When running as a client, this is a command that will be spawned to run
+connected to the tunnel. If the value contains the character sequence "C<%d>"
+this will be replaced at run-time with the local port number (see the
+B<L<tunnel|/item_tunnel>> keyword). As this is done using B<sprintf>
+the conventions of that routine apply with regards to escaping "C<%>"
+characters (i.e. use "C<%%>" to generate a single "C<%>"). In addition,
+specifying more that one "C<%d>" or other format sequence will very likely
+crash the program.
+
+Once the command closes its connection B<Zebedee> will exit. Using this
+keyword or option implicitly turns off multi-use mode (see
+B<L<multiuse|/item_multiuse>>). You can not use automatic command spawning
+when a single B<Zebedee> client is handling multiple connections in
+B<L<multiuse|/item_multiuse>> mode or when a list of ports has been specified
+with the B<L<tunnel|/item_tunnel>> keyword or on the command-line.
+
+=item B<listenmode> (command-line B<-l>)
+
+In normal use a B<Zebedee> client inititates connections to the server when a
+connection has been made to it from a source system. Sometimes, for example
+when using B<Zebedee> through a restrictive firewall, it may be necessary for
+the server to initiate the connection with a client --- to operate in
+"reverse."
+
+The B<listenmode> keyword, if true, causes a B<Zebedee> client to listen for
+connections initiated by the server rather than to connect directly. A
+connection from a server will not be accepted until a matching connection from
+the source system has been made. However, server connections could originate
+from arbitrary addresses when giving the client no control over the
+destination of the tunnel. To avoid this the client will validate that the
+address of the server's connection matches that specified, whether on the
+command-line, via the B<L<serverhost|/item_serverhost>> keyword or as part of
+the first tunnel specification.
+
+As a special case, if the server name is "C<*>" then connections will be
+accepted from any server address. Use of the L<identity checking|Identity
+Checking> features is also recommended to ensure that the correct server
+connects.
+
+If a connection from a server is not received within a certain period
+then the connection back to the source system will be closed and the
+process abandoned. This timeout is controlled by the
+B<L<connecttimeout|/item_connecttimeout>> keyword. The default is 300
+seconds.
+
+See the B<L<clienthost|/item_clienthost>> keyword for the description of the
+server side of this process.
+
+=item B<localsource>
+
+If this value is B<true> then the client will only accept connections
+originating from the local machine. In other words the "source" system must be
+the same as the "client" system.
+
+The default is for this value to be B<false> and for connections to be allowed
+from any arbitrary source machine.
+
+=item B<multiuse> (command-line B<-m>)
+
+If this value is B<true>, which is the default, then the B<Zebedee> client will
+handle multiple (potentially simultaneous) connection requests and will
+establish a new tunnel to the server for each one. If it is false, the client
+runs in "single-use" mode and exits after the first connection to the server
+has been closed.
+
+The command-line B<-m> option is equivalent to setting this to B<true>.  This
+is the default behaviour in the current version of B<Zebedee> and the option
+is retained only for backwards-compatibility reasons.
+
+Any client listening on multiple ports will automatically run in "multi-use"
+mode, even if this is set B<false> (see B<L<clientport|/item_clientport>>).
+
+=item B<serverhost>
+
+This is the name of the host on which a B<Zebedee> server is running and to
+which a tunnel is to be connected.  There is no default and a host name must
+be specified either in a configuration file or on the command line.
+
+See the B<L<listenmode|/item_listenmode>> keyword for the treatment of this
+value when using server-initiated connections.
+
+Prior to version 2.0.0 this was known as the B<remotehost> keyword. This
+is still recognised for backwards compatibility.
+
+=item B<tunnel>
+
+This is a string that consists of three parts separated by colons, for
+example:
+
+ 10000-10002:targethost:echo,telnet,daytime
+
+The first part is the list of ports on which the B<Zebedee> client will listen
+for connections.  The second part is the name of the target host to which the
+tunnelled data should be directed. The final part is the list of target ports
+that correspond to the ports on which the client is listening. The numbers of
+entries in the client and target port lists must match.
+
+As a special case, if only a single tunnel specification is given with only a
+single target port then the client port list (and separating colon) may be
+omitted. The client port will be assigned automatically (and a message will be
+printed to the terminal giving the port number). This is to allow for
+backwards compatibility and for use with the B<L<command|/item_command>>
+keyword. If the target port is also omitted then it will default to B<telnet>
+(port 23).
+
+As described in the section L<Multiple Destinations> if the B<Zebedee> server
+host is not explicitly specified, either as the first argument on the
+command-line or via the B<L<serverhost|/item_serverhost>> keyword, then it
+will be taken from the first tunnel specification found.
+
+There is also one final variant of the tunnel specification. In this case the
+targethost is replaced by a "C<*>". This wild-card form is used either with
+the client running in "listen-mode" (see B<l<listenmode|/item_listenmode>> for
+further details) or when you want to specify tunnelling to the server's
+default target, whatever it may be. This latter form is useful in a
+configuration file when you want the file to be generically applicable to any
+server. For example, a file like this:
+
+ server false
+ tunnel 10000:*:daytime
+ tunnel 20000:*:echo
+ tunnel 30000:*:telnet
+
+can be used to set up tunnels on ports 10000, 20000 and 30000 to whatever host
+may be specified on the command-line like this:
+
+ zebedee -f configfile serverhost
+
+=back
+
+=head3 Server-Only Keywords
+
+The following keywords apply only when running as a server:
+
+=over 4
+
+=item B<clienthost> (command-line B<-c>)
+
+If a B<clienthost> value is specified then the server will
+immediately attempt to connect to the specified host (on the port given by
+B<L<serverport|/item_serverport>>). There must already be a client running in
+"listen-mode" (see B<L<listenmode|/item_listenmode>>) at that address.
+Once a connection to the client has been established the protocol exchanges
+proceed as normal. 
+
+Each time a connection has been accepted by the client the server
+tentatively opens up another one so that the client could establish
+further tunnels if necessary. If the connection is not accepted within a
+certain period then it will be closed and the server will exit once all
+currently active tunnels have been closed. The timeout is controlled by
+the B<L<connecttimeout|/item_connecttimeout>> keyword. The default is
+300 seconds.
+
+Note that B<Zebedee> does not itself provide a mechanism for co-ordinating the
+starting of client and server to set up a "reverse" tunnel. That must be
+handled by some "out-of-band" mechanism.
+
+=item B<redirect> (command-line B<-r>)
+
+This is a list of the ports on the target system to which the server will
+accept requests to redirect data. For example "C<telnet, ftp, 5900-5910>".
+If no B<redirect> keyword is specified then requests to redirect traffic to
+any port will be accepted. While this is convenient for testing it may pose a
+security risk so you should specify an explict list of allowed ports if at all
+possible.
+
+The keyword (or B<-r> option) may be specified multiple times in which case
+redirection will be allowed to any of the ports specified.
+
+=back
+
+=head3 Compression and Encryption Keywords
+
+The following keywords control the compression and encryption of data passing
+through the tunnel. They apply to both clients and servers:
+
+=over 4
+
+=item B<compression> (command-line B<-z>)
+
+B<Zebedee> can support both B<zlib> and, if enabled when it is built, B<bzip2>
+compression. This keyword specifies the type and level of compression to be
+used. The value is of the form I<type:level> where I<type> is either "C<zlib>"
+or "C<bzip2>" and I<level> is an integer from 0 to 9. As a special case an
+integer without any prefix implicitly selects a B<zlib> compression level.
+
+The level specifies the maximum compression level to used (9 is the maximum
+and 0 is no compression). The actual compression level used will be the
+minimum of the client's and server's values. For these purposes all B<bzip2>
+levels (except 0) are considered to be greater than all B<zlib> levels so if
+either client or server does not support B<bzip2> the protocol degrades
+gracefully to using B<zlib>. The default compression value is "C<zlib:6>".
+
+Note that, because of the way that B<bzip2> compression works and the buffer
+sizes that B<Zebedee> uses, B<bzip> will probably only be useful if continuous
+streams of data are flowing. On smaller transfers, such as those in a normal
+B<telnet> session, B<zlib> will usually win. You will have to experiment to
+see what works best for you. In addition, because the buffer size is small
+there is no gain from using B<bzip2> levels above 1 and B<Zebedee> will round
+any higher values down to this level.
+
+You can see exactly how much compression is gaining you at verbosity levels 2
+and above when basic statistics are printed out on connection termination. For
+example:
+
+ zebedee(232/210):   read 166 bytes (265 expanded) in 3 messages
+ zebedee(232/210):   wrote 20969 bytes (30499 expanded) in 247 messages
+
+=item B<generator>
+
+This is the "generator" for the Diffie-Hellman key exchange and is a
+hexadecimal string. The default value is "2". I recommend that you don't mess
+with this unless you know what you are doing.
+
+=item B<keygencommand>
+
+If this key is specified its value is a command string that will be executed
+in order to generate a private key. The command should write a single line of
+hexadecimal digits to F<stdout>. This line must be a string of at least 10
+hexadecimal digits.
+
+=item B<keygenlevel>
+
+This is an integer between 0 and 2 inclusive that determines how strong the
+private key generation in B<Zebedee> should be. The default is 2 (the
+strongest) and you should generally not change this unless connection set-up
+performance becomes unacceptable.
+
+Briefly, on UNIX-like systems the level-2 key generation mechanism uses
+C</dev/urandom> or C</dev/random>, if either of these devices is available, to
+obtain good pseudo-random data based on the state of the running kernel. If no
+random-data device is available or the level is set to 1 then data from the
+current contents of the C</proc> file-system, if there is one, will be used
+otherwise at level 0 only data from the current process will be used.
+
+On Windows systems there is currently no distinction between different key
+generation strength levels and this keyword is effectively ignored.
+
+=item B<keylength> (command-line B<-k>)
+
+This is an integer specifying the maximum key length (in bits) for the
+Blowfish encryption. It should be a multiple of 4 between 4 and 576.
+The key length used will be the minimum of the client's and server's
+values (subject to any setting of B<L<minkeylength|/item_minkeylength>>).
+
+The default valuse is 128. As a special case setting this value to 0 will turn
+off key negotiation and encryption.
+
+=item B<keylifetime>
+
+If the value of this parameter is non-zero it causes the client to request the
+re-use of a previously established shared secret key for deriving session keys
+for subsequent connections. This means that on the first connection between a
+B<Zebedee> client and server the full key exchange dialogue will take place to
+establish a shared secret key. On subsequent connections, until the key
+expires, the same secret key will be reused to generate a new session key.
+Once the key expires a new key exchange will automatically be performed when
+necessary.
+
+This keyword specifies how long a shared secret key is valid
+before it must be renegotiated. This does not affect connections that have
+already been established, only new connections.
+
+The value is in seconds and must be less than or equal to 65535, which is a
+little over 18 hours. By default it is set to 3600 seconds (one hour). Setting
+this value to zero effectively disables the use of reusable keys and a full
+negotiation of a shared key will be performed for each connection --- assuming
+that both client and server also generate a new private key each time. This
+will impact performance and is recommended only if you have a very high
+paranoia level!
+
+=item B<minkeylength>
+
+If supplied this specified the minimum acceptable key length to be used by
+client or server. If a client requests a lower level of a server the server
+will reply with this minimum. If a server replies with a lower level to a
+client then the client will terminate the connection.
+
+The default value is zero.
+
+=item B<modulus>
+
+The value of this key is a hexadecimal string specifying the modulus value for
+the Diffie-Hellman key exchange. Don't alter this unless you are both paranoid
+and know what you are doing.
+
+The default modulus is the 1024-bit prime:
+
+ f488fd584e49dbcd 20b49de49107366b 336c380d451d0f7c 88b31c7c5b2d8ef6
+ f3c923c043f0a55b 188d8ebb558cb85d 38d334fd7c175743 a31d186cde33212c
+ b52aff3ce1b12940 18118d7c84a70a72 d686c40319c80729 7aca950cd9969fab
+ d00a509b0246d308 3d66a45d419f9c7c bd894b221926baab a25ec355e92f78c7
+
+This was taken from the file F<testdh.h> in Peter Gutman's B<CryptLib>. The
+comment in this code says that the value was among those "generated by Colin
+Plumb for SKIP". It further says that "these values were chosen as
+representative well-known public values to allay fears of possible trapdoors
+in self-generated values.  The generation method and actual values can be
+checked against the SKIP standards document."
+
+=item B<privatekey>
+
+By default B<Zebedee> will generate a new private key each time one is
+required. If, however, you wish to use a fixed key then it can be specified
+as a string of hexadecimal digits. You will definitely need to do this if you
+wish to use the L<identity checking|Identity Checking> feature. Note that the
+key must be at least 10 digits long.
+
+=back
+
+=head3 Miscellaneous Keywords
+
+The following keywords apply equally to clients and servers:
+
+=over 4
+
+=item B<checkidfile>
+
+This names a file that contains a set of identities that will be checked
+before allowing a connection to be completed. This is described further in the
+description of L<identity checking|Identity Checking>. You may specify
+only one identity file. If this keyword appears multiple times only the
+last value will be used.
+
+If a B<L<keylength|/item_keylength>> of zero
+has been agreed then no identity checking will be performed.
+
+=item B<connecttimeout>
+
+When B<Zebedee> is used in "reverse-mode" (see
+B<L<listenmode|/item_listenmode>> and B<L<clienthost|/item_clienthost>>)
+the timeout on waiting for connections to be accepted is controlled by
+this keyword. Its value is in seconds and may be no greater than 65535.
+The default is 300 seconds.
+
+=item B<debug> (command-line B<-D>)
+
+This is a boolean indicating that B<Zebedee> should run in "debug" mode. In
+this case a server (or client running in B<L<multiuse|/item_multiuse>> mode)
+only accepts and handles a single connection at a time and does so "inline"
+without creating another process or thread. This is useful when running the
+program under the control of a debugger. It is false by default. The
+command-line option B<-D> is equivalent to setting this to B<true>.
+
+Note that this setting will not work correctly in UDP mode, so don't bother
+trying it!
+
+=item B<detached> (command-line B<-d>)
+
+This is a boolean indicating whether the process should detach itself from the
+controlling terminal and run in the background (in UNIX terms, to run as a
+"daemon").  This is valid for both client and server and is true by default.
+The command-line option B<-d> is equivalent to setting this to B<false>.
+
+Note that this does not always seem to work from an interactive command prompt
+under Windows systems. The symptom is that output to the console window will
+stop and interrupt signals will be ignored but the console prompt will not be
+issued until B<Zebedee> terminates. In order to work around this you can use
+the "start" command as in the following example:
+
+ DOS> start zebedee -f server.zbd
+
+This will start B<Zebedee> in a new console session from which it will then
+detach. You may see a console window appear briefly before it detaches but
+B<Zebedee> should be running in the background when it disappears.
+
+=item B<include> (command-line B<-f>)
+
+This specifies the name of another configuration file to read and parse at
+this point before continuing with the remainder of the file. It might be used,
+for example, where a private key is stored in a separate, more tightly
+protected file. There is a limit of 5 levels deep of include processing
+(counting the initial configuration file as level 1). This avoids
+unintentional recursion.
+
+=item B<maxbufsize>
+
+This specifies the size, in bytes, of the buffer B<Zebedee> will use to read
+data from applications. The actual size of buffer used will be the minimum of
+the client's and server's values.
+
+By default B<Zebedee> attempts to read data from the client or server programs
+at each end of the tunnel in chunks of 8192 bytes. There may be occasions when
+you want to decrease this if, for example, you have a highly interactive
+application and the response seems sluggish because you end up waiting for
+large data transfers.  You can reduce the buffer size to one byte, but unless
+you are trying to debug misbehaviour or have time to waste I don't recommend
+it!  Conversely, you may increase the buffer size up to a maximum of 16383
+bytes to attempt to gain the most from data compression where large blocks of
+data are being transferred. Note that the B<maxbufsize> value does not affect
+how much memory is allocated by B<Zebedee>, only the size of data chunks read.
+
+When running in UDP mode this buffer size will also affect the maximum size of
+any datagram that can be handled. Datagrams larger than the current buffer
+size will be fragmented, which will likely cause whatever application is
+consuming them to fail. Datagrams larger than 16383 bytes can not be handled
+at all.
+
+=item B<message>
+
+The specifies a string that will be logged at verbosity level 1 when it is
+encountered in the configuration file.
+
+=item B<name> (command-line B<-n>)
+
+This is the name of the program that is to be used in messages rather than the
+executable file name. Under Windows it is also the name of any service to be
+installed or removed.
+
+=item B<logfile> (command-line B<-o>)
+
+This is the name of the file to which messages will be written. If it is not
+specified then messages are written to F<stderr>.
+
+Two special "file names" are also recognised as valid values. If the name is
+B<NULL> the all messages will be turned off. If the name is B<SYSLOG> then
+messages will be written to the host system log. On Windows systems this is
+the system application event log. Elsewhere messages are written to the
+B<syslog> service.
+
+=item B<serverport> (command-line <-T>)
+
+This is the port on which the B<Zebedee> server will listen for tunnel
+connections. The default is 11965 (0x2EBD) when running in TCP mode and 11230
+(0x2BDE) in UDP mode. The keyword causes a server to listen on this port and a
+client to attempt to connect to this port on the server system.
+
+If using server-initiated connections (see B<L<listenmode|/item_listenmode>>
+and B<L<clienthost|/item_clienthost>>) then this is also the port on which the
+client listens for the server's incoming connections.
+
+=item B<timestamplog> (command-line B<-t>)
+
+This is a boolean value indicating whether log messages should contain a
+time-stamp. The default is not to do so. The command-line option B<-t> is
+equivalent to setting this to B<true>.
+
+=item B<udpmode> (command-line B<-u>)
+
+By default B<Zebedee> handles connection-oriented TCP/IP traffic. If this
+keyword is set true handles UDP/IP connectionless traffic instead.
+
+The tunnel between B<Zebedee> clients and servers still uses a TCP/IP
+connection. A separate connection is established for each different
+originating UDP network endpoint. Because UDP is connectionless there is no
+easy way to tell when the data traffic has been completed. For this reason the
+B<Zebedee> connection must be timed out after a period of inactivity. This
+period is controlled by the B<L<udptimeout|/item_udptimeout>> value.
+
+If more data subsequently arrives from a source the tunnel for which has been
+timed out, the connection must be re-established.  For this reason the
+performance in UDP mode may appear poor, depending on the nature of the
+application using it. Altering the B<L<keylifetime|/item_keylifetime>> value
+may improve this by minimizing connection setup times and changing the
+B<L<udptimeout|/item_udptimeout>> value may also help.
+
+The command-line B<-u> option is equivalent to setting this to B<true>.
+
+=item B<udptimeout>
+
+By default, UDP-mode tunnels will shut down after 300 seconds of inactivty.
+This value can be changed by using this keyword to specify the timeout in
+seconds. It must be no greater than 65535. Setting it to zero is legal but may
+result in no data being transferred!
+
+=item B<verbosity> (command-line B<-v>)
+
+This is an integer specifying the level of message logging with 0 being just
+error messages and 5 giving excruciating detail of the message
+traffic. The default (and generally most useful level) is 1.
+
+Messages are written to F<stderr> (unless redirected using the B<-o>
+command-line option or B<L<logfile|/item_logfile>> keyword). The general form
+of messages is something like:
+
+ zebedee(54/119):  Listening on local port 1172
+
+The numbers in brackets represent the process and thread identifiers of the
+code logging the message. All error messages are logged at level 0 and are
+preceded by the word C<ERROR>, as follows:
+
+ zebedee(54/119): ERROR: failed to connect to localhost:11965
+
+Messages are indented according to the level at which they are logged.
+
+=back
+
+=head3 Obsolete Keywords
+
+As B<Zebedee> has evolved over time some of the keywords have been changed to
+reflect this. In a few cases keywords have been superseded and made obsolete.
+These obsolete keywords are still recognised in order to retain backwards
+compatibility with old configuration files but they should not be used in new
+ones.
+
+=over 4
+
+=item B<clientport>
+
+This keyword has been superseded by the more general B<L<tunnel|/item_tunnel>>
+keyword.
+
+This is the port or list of ports on which the B<Zebedee> client will listen
+for connections. It is equivalent to the first part of a
+B<L<tunnel|/item_tunnel>> specification.
+
+=item B<localport>
+
+This was the name of the B<L<clientport|/item_clientport> keyword prior to
+version 2.0.0 of B<Zebedee>.
+
+=item B<redirecthost>
+
+This was the name of the B<L<targethost|/item_targethost> keyword prior to
+version 2.0.0 of B<Zebedee>.
+
+=item B<remoteport>
+
+This was the name of the B<L<targetport|/item_targetport> keyword prior to
+version 2.0.0 of B<Zebedee>.
+
+=item B<targethost>
+
+This keyword has been superseded by the more general B<L<target|/item_target>>
+keyword.
+
+This keyword gives the name of a host to which a B<Zebedee> server will
+redirect all incoming tunnelled data, rather than to ports on the local
+machine.
+
+=item B<targetport>
+
+This keyword has been superseded by the more general B<L<tunnel|/item_tunnel>>
+keyword.
+
+It gives the port or list of ports to which the client will request that
+B<Zebedee> server should establish connections on the target host. It is
+equivalent to the final part of a B<L<tunnel|/item_tunnel>> specification.
+
+=back
+
+=head3 Other Options
+
+There are a few command-line options that have no equivalent in the
+configuration file. These are described below.
+
+=over 4
+
+=item -p
+
+This causes B<Zebedee> to generate a private key value and to write
+it to standard output in a form that can be used in a configuration
+file (see B<L<privatekey|/item_privatekey>>). For example:
+
+ privatekey "c480bd48f707c69dec54c9e7b6e22dd04cac659e"
+
+=item -P
+
+This causes B<Zebedee> to generate a public "identity" suitable for use by
+the L<identity checking|Identity Checking> feature. The result is written
+to standard output. For example:
+
+ ef8153a0e392df005f67321ca2f0ace5bb8c5a1f myhostname
+
+This option must either be specified with a configuration file that contains a
+private key value or must be used in conjunction with B<-p> to generate
+private and public keys simultaneously.
+
+=item -h
+
+This option causes the remaining command-line arguments to be treated as the
+names of files. Each file is read in 8192 byte chunks and the SHA hash is
+calculated. If no arguments are specified or the argument is "C<->" then the
+standard input is read and the hash of that is calculated. For example:
+
+ $ zebedee -h /etc/passwd
+ bb1e734aeffd2111417761f5938dea3b53759598 /etc/passwd
+ $ zebedee -h < /etc/passwd
+ bb1e734aeffd2111417761f5938dea3b53759598 -
+
+=item -H
+
+This is similar to the B<-h> option except that each argument is treated
+as a literal string and the SHA hash of the string is calculated and
+printed:
+
+ $ zebedee -H hello world
+ ac62a630ca850b4ea07eda664eaecf9480843152 hello
+ 86bf25ecb8a40b40b885c097c683b6e236fc8085 world
+
+=item -S (Windows only)
+
+On Windows systems B<Zebedee> can be installed and run as a "service" --- an
+independently running process that is started automatically at system boot
+time.
+
+B<Zebedee> can be installed as a service by specifying the B<install>
+parameter with the name of a configuration file, for example:
+
+ zebedee -Sinstall=c:\zebedee\service.zbd
+
+You should always specify the full path to the configuration file. This will
+be read at service start-up and must contain all the parameters required for
+the service to run.
+
+By default, the name of the installed service will be taken from the name of
+the program file, and hence is usually B<zebedee>, but you can change this by
+using the B<-n> option:
+
+ zebedee -n "Zebedee Client Service" -Sinstall=c:\zebedee\clientsvc.zbd
+
+Once the service has been installed it will be automatically started the next
+time that the system reboots. Alternatively you can start it manually using
+the Service Control Panel (under Windows NT).
+
+To remove the service specify first stop it and then use the B<remove>
+parameter to the B<-S> option, along with any necessary service name using
+B<-n>. For example:
+
+ zebedee -n "Zebedee Client Service" -Sremove
+
+There is one further valid parameter to the B<-S> option and this is B<run>.
+This is used internally by B<Zebedee> to invoke the service start-up code and
+should not be used directly.
+
+=item -x
+
+This option can be used to set those configuration parameters that do not have
+any other direct command-line equivalent. It takes a string as an argument and
+this string is treated as if it were a line read from a configuration files
+(including comments but without "\" line continuation). So, for example:
+
+ zebedee -x " server true # It's a server!"
+
+is a rather perverse way of achieving the same effect as:
+
+ zebedee -s
+
+=back
+
+=head3 Quick-Reference Summary
+
+The following table lists the recognised keywords, their argument types,
+command-line equivalents, validity for client, server or both and a
+brief description.
+
+ checkidfile    filename       CS  Checks peer identities against the 
+ clienthost     hostname  -c   S   Server initiates connection to client host
+ command        string    -e   C   Specified command to run connected to tunnel
+ compression    level     -z   CS  Requested maximum compression level
+ connecttimeout seconds        CS  Timeout for connections to be accepted
+ debug          boolean        CS  Run in single-threaded "debug" mode
+ detached       boolean   -d   CS  Detach from the terminal/console
+ generator      string         CS  Hexadecimal Diffie-Hellman generator value
+ include        filename  -f   CS  Read in the named configuration file
+ keygencommand  string         CS  Command to run to generate key
+ keygenlevel    level          CS  Key generation strength level (0 to 2)
+ keylength      bits           CS  Requested maximum keylength in bits
+ keylifetime    seconds        CS  Lifetime of shared secret keys
+ listenmode     boolean   -l   C   Client listens for server connections
+ localsource    boolean        C   Only accepts connections from local machine
+ logfile        filename  -o   CS  Set the output log file
+ maxbufsize     bytes          CS  Specify buffer size for data reads
+ message        string         CS  Output the specified string
+ minkeylength   bits           CS  Acceptable minimum keylength in bits
+ modulus        string         CS  Hexadecimal Diffie-Hellman modulus value
+ multiuse       boolean   -m   C   Handle multiple connections
+ name           string         CS  Specify the name of the program
+ privatekey     string         CS  Hexadecimal private key string
+ redirect       ports     -r   S   Ports to which server will redirect traffic
+ server         boolean   -s   CS  Selects server-mode or client-mode
+ serverhost     hostname       C   Name of server host to which to connect
+ serverport     port      -T   CS  Set the port on which the server listens
+ target         spec           S   Specifies allowed target host and ports
+ timestamplog   boolean   -t   CS  Add timestamps to the log file
+ tunnel         spec           C   Specifies client ports and matching targets
+ udpmode        boolean   -u   CS  Handle UDP traffic
+ udptimeout     seconds        CS  Inactivity timeout for UDP tunnels
+ verbosity      level     -v   CS  Set the message logging level
+
+Other options that have no keyword equivalents:
+
+ -p  Generate a private key
+ -P  Generate a public "identity"
+ -h file ...
+     Hash file contents and print results
+ -H string ...
+     Hash string arguments and print results
+ -Sinstall=file
+     Install Windows service with specified configuration file
+ -Sremove
+     Remove Windows service
+ -x string
+     Parse option string
+
+=head2 Identity Checking
+
+By default B<Zebedee> just establishes an encrypted channel between two
+points. While you know that the data is protected from snooping "on the wire"
+there is no guarantee that the channel ends up where you think it does. It is
+open to "man-in-the-middle" attacks. If you are concerned primarily with using
+data compression or protecting against casual "network sniffing" then you may
+be happy with this situation. If, however, you want more assurance that your
+connection is not being redirected then B<Zebedee> provides some basic
+facilities for doing so.
+
+If the same modulus, generator and private key are used they will always
+generate the same public value for use in the Diffie-Hellman key exchange
+protocol. If you use a fixed private key (specified using the
+B<L<privatekey|/item_privatekey>>)
+keyword in a configuration file) then B<Zebedee> can generate a key
+"fingerprint" by hashing together the modulus, generator and public key value.
+This is done using the B<-P> option, for example, if the file F<server.key>
+contains the following value:
+
+ privatekey "1e34d6769502bae1087c18d2e8c8776e4a17ddaf"
+
+then the command
+
+ $ zebedee -P -f server.key > server.id
+
+will generate output something like this:
+
+ 135f04050961d37553731250d5c6f7495f088b32 myhostname
+
+The initial string of hexadecimal digits is the "fingerprint". Anything else
+on the line is a comment describing the owner of the identity. By default it
+is the name of the host on which the identity string was generated.
+
+If the B<L<checkidfile|/item_checkidfile>> keyword is specified in a
+configuration file then its value is the name of a file containing
+"fingerprint" lines. If the identity of the system at the other end of the
+connection does not match any of those in the file then the connection will be
+closed.
+
+=head2 Notes on Other Security Issues
+
+=over 4
+
+=item Message Integrity
+
+In keeping with the desire to keep the protocol overhead as low as possible,
+B<Zebedee> does not perform any data integrity validation on the transmitted
+data stream. It is, therefore, possible for an attacker to alter data packets
+in transit. The encryption used should make it extremely hard for someone to
+transform them arbitrarily at will --- for example turning "C<ls -l>" into
+"C<rm -f>" --- but do not depend on B<Zebedee> to protect your application from
+the effects of being fed random data!
+
+=item Replay and Insertion Attacks
+
+One possible attack on many networked systems is that of capturing data
+streams that have a known effect --- for example, a B<telnet>
+session during which an administrator was known to be performing certain
+"dangerous" actions --- and then replaying it at some later time. This does not
+require cracking the encrypted data stream itself, merely knowing that the
+same network packets sent to a server will elicit the same response.
+
+When B<Zebedee> is operating in "anonymous" mode the risk of such an attack
+being successful is low because different keys will be generated and used for
+every session. However, if the L<identity checking|Identity Checking> features
+are used the keys will be fixed and replay could be a possibility. B<Zebedee>
+protects against this by generating a unique session key for each connection.
+Following that, the final part of the connection setup also involves a
+challenge-response exchange that verifies that the system at the other end of
+the connection really knows the shared secret key and is not just parrotting
+back previously recorded data.
+
+In addition, B<Zebedee> uses Blowfish encryption in "cipher feedback" mode
+which means that decryption of any part of the data depends upon successful
+decryption of all the data packets that have gone before it. The
+challenge-response exchange "salts" the data-stream so even if the protocol
+being tunnelled is determined a "known plain-text" attack is made more
+difficult.
+
+=item Key Generation
+
+A poorly-chosen key can compromise even the strongest encryption mechanism.
+When generating keys B<Zebedee> attempts to gather as much hard-to-guess state
+data as possible and then "stir" it using the SHA hashing algorithm. On modern
+UNIX systems this generation process should give pretty good keys.
+
+On Windows the available state data is somewhat more predictable, particularly
+if an attacker has access to the system. Having said that, it should be quite
+acceptable for most purposes. The comments in the code explain this in more
+detail if you are interested.
+
+If you are unhappy with the key generation mechanisms then you should call out
+to an external key generation program using the
+B<L<keygencommand|/item_keygencommand>> option in a configuration file.
+Suggestions for improving the built-in capabilities will also be gratefully
+received!
+
+=back
+
+=head1 TROUBLESHOOTING
+
+Although B<Zebedee> should work "out of the box" you might encounter some
+problems. These are most likely during connection setup --- once that has been
+accomplished the data transfer generally goes smoothly. The eaisest way to see
+what is happening during the setup process is to use the B<-v> option. You
+will usually want to combine this with the B<-d> and B<-D> options to stop
+B<Zebedee> from the terminal and to force it to handle only a single
+connection at a time. So, for example, you might use the following command to
+start up a server:
+
+ zebedee -dD -v 3 -s
+
+Setting the logging level to 3 should show you the main exchanges during
+connection setup. If you believe there is a problem after this then levels 4
+and 5 will show you what message traffic is being exchanged.
+
+=head1 EXAMPLES
+
+In the B<Zebedee> distribution there are a number of example configuration
+files. The following sections describe how they can be used as well as how
+to use B<Zebedee> to tunnel some specific protocols.
+
+=head2 Example Server Configuration
+
+There is an example server configuration file (F<server.zbd>) shipped with the
+B<Zebedee> distribution. This shows most of the common options.
+
+ #
+ # Sample Zebedee server configuration file
+ #
+ # This shows the use of many, but not all, of the configuration file
+ # options available for use by a server.
+ #
+ 
+ verbosity 2            # Slightly more than basic messages
+ 
+ server true            # Yes, it's a server!
+ detached true          # Run detached from terminal
+ udpmode false          # Are we operating in UDP mode?
+ 
+ # Uncomment the following line to log messages to a file
+ #
+ #  logfile './server.log'
+ #
+ # Or to log to the system logging facility uncomment this:
+ #
+ #  logfile SYSLOG
+ 
+ # Uncomment the following line if you want to use a fixed private
+ # key stored in a static file. The file should contain a line of
+ # the form "privatekey hexadecimal-key-string"
+ #
+ #  include './server.key'
+ 
+ keygenlevel 2          # Generate maximum strength private keys
+ 
+ # To validate the identity of clients uncomment the following
+ # line:
+ #
+ #  checkidfile './clients.id'
+ 
+ # Set up allowed redirection ports.
+ # These should be pretty safe -- but it's not a good idea
+ # to open up all ports.
+ 
+ redirect "telnet ftp"          # Basic services
+ redirect 5900-5999             # VNC traffic
+ redirect 6000-6010             # X Window System
+ redirect "daytime chargen"     # Ports useful for testing
+ 
+ targethost localhost           # Redirection is to the local machine
+ 
+ compression zlib:9             # Allow maximum zlib compression
+ keylength 256                  # Allow keys up to 256 bits
+ keylifetime 36000              # Shared keys last 10 hours
+ maxbufsize 16383               # Allow maximum possible buffer size
+
+To test the identity checking facilities you can uncomment the
+B<L<checkidfile|/item_checkidfile>> line and then use one of the supplied
+F<client1.key> or F<client2.key> files on the client side.
+
+=head2 Use with VNC
+
+One of the reasons behind writing B<Zebedee> was to use it over dial-up lines
+with VNC. VNC is a free system to provide remote display capabilities using a
+"remote frame-buffer" concept. You can use it to display Windows desktops
+remotely or, with an "Xvnc" server to access an "X desktop" from any
+VNC client machine, or even a Java-enabled browser! See
+http://www.uk.research.att.com/vnc/ for more details.
+
+The supplied sample server configuration file F<server.zbd> is configured to
+allow redirection of ports 5900-5999 which will allow tunnelling of VNC
+sessions. This file can be used on both UNIX and Windows but note that on
+Windows you must set the "AllowLoopback" flag in the registry in order for
+tunnelling to work. Saving the following snippet (without any leading spaces)
+in file a and then importing it into B<regedit> will do the trick:
+
+ REGEDIT4
+ 
+ [HKEY_LOCAL_MACHINE\SOFTWARE\ORL\WinVNC3]
+ "AllowLoopback"=dword:00000001
+ 
+ [HKEY_LOCAL_MACHINE\SOFTWARE\ORL\WinVNC3\Default]
+ "AllowLoopback"=dword:00000001
+
+You will find a file with these contents in the B<Zebedee> distribution by the
+name F<vncloopback.reg>. Having set these registry entries then the file
+F<vncviewer.zbd> can be used to invoke a VNC viewer tunnelled to the host
+named on the command line. Here are the contents of the file F<vncviewer.zbd>:
+
+ #
+ # Zebedee configuration file to start up a tunnelled VNC session
+ #
+ # Usage: zebedee -f vncviewer.zbd remote-host:vnc-port
+ #
+ 
+ verbosity 1         # Basic messages only
+ 
+ server false        # It's a client
+ detached true       # Detach from terminal
+ 
+ message "Starting VNC viewer"
+ 
+ # On Windows systems you might use the following:
+ 
+ command '"c:\Program Files\ORL\VNC\vncviewer.exe" localhost:%d'
+ 
+ # On UNIX systems you might use the following:
+ 
+ # command 'vncviewer localhost:%d'
+ 
+ compression 6       # Request normal Zlib compression
+
+So using this file as follows:
+
+ zebedee -f vncviewer.zbd somehost:5901
+
+will start a VNC viewer tunnelled to the VNC server on I<somehost> port 5901
+(the server you would usually refer to in VNC-parlance as "B<somehost:1>").
+
+VNC also supports a Java viewer. If the server is running on port 59xx then
+the viewer can be downloaded via port 58xx. However, it appears that the
+Java viewer communicates the main VNC port number to the client. So, to
+tunnel traffic when using the Java viewer you must make sure that the
+local and remote ports use the same numbers. So, for example, to tunnel
+traffic to a VNC server using port 5901 you should do something like:
+
+ zebedee 5801,5901:remotehost:5801,5901
+
+This will be problematic if you already have a VNC server running locally on
+port 5901, but you can usually arrange local and remote VNC servers so that
+there is no clash.
+
+There is one last point worth mentioning. If you are using compression
+with VNC it is worth experimenting a bit with the VNC protocol encoding. I
+have found that "raw" encoding often compresses best and sometimes gives better
+performance with B<Zebedee> over slow links. But, as they say, your mileage
+may vary!
+
+=head2 Use with the X Window System
+
+The X Window System uses ports in the range 6000 onwards.
+
+Let's assume that your local machine called B<xlocal> is running an X server
+on port 6000. This would be the port normally used by the display known as
+B<xlocal:0>. You now want to send a secure B<xterm> session back to your local
+display from a machine called B<xremote>. To do this you might run the
+following command on B<xlocal>:
+
+ zebedee -r 6000 -s
+
+Then on B<xremote> you could run:
+
+ zebedee 6001:xlocal:6000
+
+This means that if the B<DISPLAY> environment variable on B<xremote> is set to
+C<localhost:1> then X traffic will end up on B<xlocal>. So, for example, to
+send a secured B<xterm> session from B<xremote> to B<xterm> you would run a
+command like this on B<xremote>:
+
+ xterm -display localhost:1
+
+Note that in order for this to work correctly you must also add an entry for
+B<localhost> to the access control list for the X server on B<xlocal>. You
+can do this by running the following command on B<xlocal>:
+
+ xhost +localhost
+
+=head2 Securing HTTP traffic
+
+B<Zebedee> can be used to secure or just compress all traffic to and from a
+Web server. So, for example, if a Web server is running on the machine
+B<webhost> on port 80 and it is also running a B<Zebedee> server then the
+command:
+
+ zebedee 8000:webhost:80
+
+will set up a tunnel via port 8000 on the client host. Now any URLs that
+previously were addressed via B<webhost>, for example:
+
+ http://webhost/private/index.html
+
+can now be accessed securely as follows:
+
+ http://localhost:8000/private/index.html
+
+You could redirect all HTTP traffic via the secure tunnel by setting
+"C<localhost:8000>" as your proxy. Be careful, however, only to set this as
+the proxy for HTTP connections --- other protocols (including Secure HTTP)
+should be directed elsewhere. It is also possible to configure most browsers
+to use different proxies for different domains and so secure connections
+selectively. Consult your browser's documentation for details on how to do
+this.
+
+=head2 Securing FTP traffic
+
+It is possible to protect the FTP control connection (over which the username
+and password are sent) for many FTP servers using B<Zebedee> "out of the box"
+by following the instructions below. It is also possible to protect the
+control connection for other servers and even "passive-mode" data connections
+by using B<Zebedee> in conjunction with the B<ftpgw.tcl> script in the
+B<Zebedee> distribution.
+
+The simplest approach, which works with some FTP servers, is to run the
+B<Zebedee> server as follows:
+
+ zebedee -s -r ftp ftpserverhost
+
+Note that even if you are running B<Zebedee> on the same machine as the FTP
+server you should explictly name it on the command line (or using the
+B<L<redirecthost|/item_redirecthost>> keyword). Do not refer to it as
+B<localhost>. On the client system you could then run B<Zebedee> as follows to
+set up a tunnel via port 10000:
+
+ zebedee 10000:ftpserverhost:ftp
+
+To connect to the FTP server you would then use a command like:
+
+ ftp clienthost 10000
+
+Again, use the local client host name not, B<localhost>. If your FTP client
+does not support specifying the port on the command line, as is the case with
+the standard Windows FTP client program, you may be able to use the command
+"C<open clienthost 10000>" from within the program. If you are not running
+an FTP server on the client machine you could also try running B<Zebedee> as:
+
+ zebedee ftp:ftpserverhost:ftp
+
+and then just invoking the FTP client program as:
+
+ ftp clienthost
+
+The approach just described will work for FTP servers that do not check that
+the FTP control and data connections appear to come from the same source.
+However, some servers such as the widely-used B<wu-ftpd> are more strict about
+this --- for good security reasons. If you can apparently establish a
+connection to the server but directory listing and file retrievals fail or
+hang then it is likely that your server is one of the strict ones.
+
+To help overcome this problem there is an "FTP gateway" script in the
+B<Zebedee> distribution called B<ftpgw.tcl>. This is a program, written using
+the freely-available B<Tcl> scripting language (see http://www.scriptics.com)
+that intercepts FTP requests and re-writes them so that a server is shielded
+from the presence of B<Zebedee>. You should run this on the same system as the
+B<Zebedee> server.  Assuming that the FTP server is also running on the same
+system you can just run this as:
+
+ tclsh ftpgw.tcl
+
+This will start the gateway listening on port 2121. Obviously, in real usage
+you will probably want to start this in the background. You then start the
+B<Zebedee> server as:
+
+ zebedee -s -r 2121
+
+Note that in this case you do not have to specify the local host name,
+although you may do so if you wish. On the client side you can now run:
+
+ zebedee 2121:ftpserverhost:2121
+
+followed by:
+
+ ftp clienthost 2121
+
+You must still, however, use the client host name here.
+
+This configuration will allow you to tunnel the FTP control connection but
+will not affect any data connections. Using B<ftpgw.tcl> it is, however,
+also possible to secure the data channels provided that your FTP client can
+operate in "passive" mode. Examples of clients that can do this are Netscape
+Navigator and the Windows program WS_FTP.
+
+To secure passive-mode data connections you must choose a range of ports on
+the server that will be used for data connections. In this example we will use
+30000 to 30100. You then start B<ftpgw.tcl> with the B<-p> option to specify
+this port range:
+
+ tclsh ftpgw.tcl -p 30000-30100
+
+The B<Zebedee> server would then be started as:
+
+ zebedee -s -r 2121,30000-30100
+
+and the client as
+
+ zebedee 2121,30000-30100:ftpserverhost:2121,30000-30100
+
+To access the server with both control and data connections secured using
+Netscape you would then supply a URL of the form:
+
+ ftp://username@clienthost:2121/
+
+where I<username> is your user-name on the FTP server host.
+
+=head1 CREDITS AND LEGALITIES
+
+The following information can also be found in the file F<LICENCE.txt> in the
+B<Zebedee> distribution.
+
+ Copyright (c) 1999, 2000 by Neil Winton. All Rights Reserved.
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307,
+ USA.
+
+A copy of the GNU General Public License can be found in the file F<GPL2.txt>.
+
+You may obtain the latest copy of B<Zebedee>, including full source code from
+http://www.winton.org.uk/zebedee/ and other enquiries about B<Zebedee>
+can be e-mailed to the author at zebedee@winton.org.uk
+
+B<Zebedee> would not have been possible without the use of a large amount of
+freely-available software to do all the really hard stuff. I gratefully
+acknowledge the contributions made by the authors of the following software
+packages.
+
+B<Zebedee> uses the "Blowfish" encryption algorithm devised by Bruce Schneier.
+For more information on Blowfish see http://www.counterpane.com/blowfish.html .
+The implementation used is by Eric Young and is covered by the following
+copyright:
+
+ Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+ All rights reserved.
+ 
+ This package is an Blowfish implementation written
+ by Eric Young (eay@mincom.oz.au).
+ 
+ This library is free for commercial and non-commercial use as long as
+ the following conditions are aheared to.  The following conditions
+ apply to all code found in this distribution.
+ 
+ Copyright remains Eric Young's, and as such any Copyright notices in
+ the code are not to be removed.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 1. Redistributions of source code must retain the copyright
+ notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+ 3. All advertising materials mentioning features or use of this software
+ must display the following acknowledgement:
+ This product includes software developed by Eric Young (eay@mincom.oz.au)
+ 
+ THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ SUCH DAMAGE.
+ 
+ The license and distribution terms for any publically available version or
+ derivative of this code cannot be changed.  i.e. this code cannot simply be
+ copied and put under another distrubution license
+ [including the GNU Public License.]
+ 
+ The reason behind this being stated in this direct manner is past
+ experience in code simply being copied and the attribution removed
+ from it and then being distributed as part of other packages. This
+ implementation was a non-trivial and unpaid effort.
+
+B<Zebedee> uses the B<zlib> compression library by Jean-loup Gailly and
+Mark Adler. It is covered by the following copyright notice:
+
+ (C) 1995-1998 Jean-loup Gailly and Mark Adler
+
+ This software is provided 'as-is', without any express or implied
+ warranty.  In no event will the authors be held liable for any damages
+ arising from the use of this software.
+
+ Permission is granted to anyone to use this software for any purpose,
+ including commercial applications, and to alter it and redistribute it
+ freely, subject to the following restrictions:
+
+ 1. The origin of this software must not be misrepresented; you must not
+ claim that you wrote the original software. If you use this software
+ in a product, an acknowledgment in the product documentation would be
+ appreciated but is not required.
+ 2. Altered source versions must be plainly marked as such, and must not be
+ misrepresented as being the original software.
+ 3. This notice may not be removed or altered from any source distribution.
+
+ Jean-loup Gailly        Mark Adler
+ jloup@gzip.org          madler@alumni.caltech.edu
+
+B<Zebedee> may use the B<bzip2> compression library by Julian Seward which is
+covered by the following licence:
+
+ This program, "bzip2" and associated library "libbzip2", are
+ copyright (C) 1996-1999 Julian R Seward.  All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+ 
+ 2. The origin of this software must not be misrepresented; you must 
+    not claim that you wrote the original software.  If you use this 
+    software in a product, an acknowledgment in the product 
+    documentation would be appreciated but is not required.
+ 
+ 3. Altered source versions must be plainly marked as such, and must
+    not be misrepresented as being the original software.
+ 
+ 4. The name of the author may not be used to endorse or promote 
+    products derived from this software without specific prior written 
+    permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+ OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ Julian Seward, Cambridge, UK.
+ jseward@acm.org
+ bzip2/libbzip2 version 0.9.5 of 24 May 1999
+
+By default B<Zebedee> is built using an aribtrary precision integer arithmetic
+library derived from the sources to C<mirrordir-0.10.49> which in turn derived
+this from the B<Python> sources. The copyright is as follows:
+
+ huge-number.c: arbitrary precision integer library from Python sources
+ This has nothing to do with cryptography.
+ Copyright (C) 1998 Paul Sheer
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ 
+ This file was taken from the Python source for `long' type
+ integers. I have changed it to compile independently of the
+ Python source, and added the optimisation that GNU C can
+ use 31 bit digits instead of Python's 15 bit. You can download
+ the original from www.python.org. This file bears little
+ resemblance to the original though - paul
+ 
+ Copyright 1991-1995 by Stichting Mathematisch Centrum, Amsterdam,
+ The Netherlands.
+ 
+                         All Rights Reserved
+ 
+ Permission to use, copy, modify, and distribute this software and its
+ documentation for any purpose and without fee is hereby granted,
+ provided that the above copyright notice appear in all copies and that
+ both that copyright notice and this permission notice appear in
+ supporting documentation, and that the names of Stichting Mathematisch
+ Centrum or CWI or Corporation for National Research Initiatives or
+ CNRI not be used in advertising or publicity pertaining to
+ distribution of the software without specific, written prior
+ permission.
+ 
+ While CWI is the initial source for this software, a modified version
+ is made available by the Corporation for National Research Initiatives
+ (CNRI) at the Internet address ftp://ftp.python.org.
+ 
+ STICHTING MATHEMATISCH CENTRUM AND CNRI DISCLAIM ALL WARRANTIES WITH
+ REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF
+ MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL STICHTING MATHEMATISCH
+ CENTRUM OR CNRI BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL
+ DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ PERFORMANCE OF THIS SOFTWARE.
+
+B<Zebedee> uses the Secure Hash Algorith (SHA) the code for which was derived
+from Uwe Hollerbach's SHA module for B<perl>. The code contains the following
+statement:
+
+ NIST Secure Hash Algorithm
+ heavily modified by Uwe Hollerbach <uh@alumni.caltech edu>
+ from Peter C. Gutmann's implementation as found in
+ Applied Cryptography by Bruce Schneier
+
+ This code is in the public domain
+
+Under Windows, B<Zebedee> uses an implementation of the F<getopt> function
+covered by the following copyright:
+
+ Copyright (c) 1987, 1993, 1994
+ 	The Regents of the University of California.  All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 1. Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+ 3. All advertising materials mentioning features or use of this software
+ must display the following acknowledgement:
+ 	This product includes software developed by the University of
+ 	California, Berkeley and its contributors.
+ 4. Neither the name of the University nor the names of its contributors
+ may be used to endorse or promote products derived from this software
+ without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ SUCH DAMAGE.
+
+=head2 Thanks
+
+Special thanks go to those people who have taken the trouble to give me
+feedback and suggestions for improvement!
+
+ $Id: zebedee.pod,v 1.3 2000/09/27 05:58:18 tnaka Exp $

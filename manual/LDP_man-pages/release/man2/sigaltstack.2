@@ -1,0 +1,242 @@
+'\" t
+.\" Copyright (c) 2001, Michael Kerrisk (mtk.manpages@gmail.com)
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" aeb, various minor fixes
+.\"
+.\" Japanese Version Copyright (c) 2001 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated 2001-11-04, Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated 2001-12-09, Yuichi SATO
+.\" Updated 2005-11-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2006-01-04, Akihiro MOTOKI, Catch up to LDP 2.20
+.\"
+.\"WORD:	alternate signal stack	代替シグナルスタック
+.\"WORD:	establish	(スタックの) 確立
+.\"
+.TH SIGALTSTACK 2 2008-10-04 "Linux" "Linux Programmer's Manual"
+.SH 名前
+sigaltstack \- シグナルスタックのコンテキストを設定・取得する
+.SH 書式
+.B #include <signal.h>
+.sp
+.BI "int sigaltstack(const stack_t *" ss ", stack_t *" oss );
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR sigaltstack ():
+_BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500
+.\" .br
+.\" .BR sigstack ():
+.\" _BSD_SOURCE || _XOPEN_SOURCE >= 500
+.SH 説明
+.BR sigaltstack ()
+を使うと、
+プロセスは新しい代替シグナルスタックを定義したり、
+既存の代替シグナルスタックの状態を取得できる。
+シグナルハンドラが代替シグナルスタックを要求するように設定されていると
+.RB ( sigaction (2)
+参照)、ハンドラの実行中はそのシグナルスタックが使われる。
+
+代替シグナルスタックを使う際の一般的な手順は、以下の通りである:
+.TP 3
+1.
+代替シグナルスタックで使うメモリ領域を確保する。
+.TP
+2.
+.BR sigaltstack ()
+を使って、
+代替シグナルスタックの存在と場所をシステムに知らせる。
+.TP
+3.
+.BR sigaction (2)
+を使ってシグナルハンドラを確立する際、
+\fBSA_ONSTACK\fP フラグを指定することにより、
+そのシグナルハンドラを代替シグナルスタック上で実行することを
+システムに知らせる。
+.P
+\fIss\fP 引き数は、新しいシグナルスタックを指定するために使う。
+また \fIoss\fP 引き数は、現在確立されている
+シグナルスタックの情報を取得するために使う。
+この操作のうち 1 つだけを実行させるには、
+使用しない引き数を NULL に指定すればよい。
+引き数となる構造体は、以下のような型である:
+.sp
+.in +4n
+.nf
+typedef struct {
+    void  *ss_sp;     /* スタックのベースアドレス */
+    int    ss_flags;  /* フラグ */
+    size_t ss_size;   /* スタックのバイト数 */
+} stack_t;
+.fi
+.in
+
+新規の代替シグナルスタックを確立するには、
+\fIss.ss_flags\fP を 0 に設定し、
+\fIss.ss_sp\fP と \fIss.ss_size\fP に
+スタックの開始アドレスとスタックサイズを指定する。
+定数 \fBSIGSTKSZ\fP は、代替シグナルスタックが通常必要する
+サイズよりも充分大きく定義されている。
+また定数 \fBMINSIGSTKSZ\fP は、
+シグナルハンドラの実行に必要な最小サイズに定義されている。
+
+代替スタックでシグナルハンドラが起動された場合には、
+カーネルにより自動的に、\fIss.ss_sp\fP で指定されたアドレスは
+動作しているハードウェアアーキテクチャに適したアドレス境界に
+調整される。
+
+既存のスタックを無効にするには、
+\fIss.ss_flags\fP を \fBSS_DISABLE\fP に指定する。
+この場合、\fIss\fP の他のフィールドは無視される。
+
+\fIoss\fP が NULL 以外の場合、
+\fIoss\fP に代替シグナルスタックの情報が返される。
+これは (実質的に)
+.BR sigaltstack ()
+の呼び出しより先に行われる。
+\fIoss.ss_sp\fP と \fIoss.ss_size\fP フィールドに
+スタックの開始アドレスとスタックサイズが返される。
+\fIoss.ss_flags\fP には以下のどちらかの値が返される:
+.TP
+.B SS_ONSTACK
+プロセスが代替シグナルスタック上で実行されている
+(プロセスが既にそのシグナルスタック上で実行されている場合は、
+それと同じシグナルスタックには変更できない点に注意すること)。
+.TP
+.B SS_DISABLE
+代替シグナルスタックが現在無効になっている。
+.SH 返り値
+.BR sigaltstack ()
+は成功した場合 0 を返す。
+失敗した場合は \-1 を返して、
+エラーを示す値に \fIerrno\fP を設定する。
+.SH エラー
+.TP
+.B EFAULT
+\fIss\fP または \fIoss\fP のどちらが、NULL 以外で、
+かつプロセスのアドレス空間の外を指している。
+.TP
+.B EINVAL
+\fIss\fP が NULL 以外で、\fIss_flags\fP フィールドが
+.B SS_DISABLE
+以外の 0 でない値になっている。
+.TP
+.B ENOMEM
+新しい代替シグナルスタック (\fIss.ss_size\fP) に指定したサイズが
+\fBMINSTKSZ\fP より小さい。
+.TP
+.B EPERM
+代替シグナルスタックが有効であるときに変更を行おうとした
+(つまり、プロセスが既に現在の代替シグナルスタック上で実行されていた)。
+.SH 準拠
+SUSv2, SVr4, POSIX.1-2001.
+.SH 注意
+代替シグナルスタックを使用する最もよくある場面は、
+.B SIGSEGV
+シグナルを扱うときである。
+.B SIGSEGV
+はプロセスの通常のスタックが利用できる空間が使い果たされた際に
+生成されるシグナルである。この場合には、
+.B SIGSEGV
+用のシグナルハンドラをプロセスのスタック上では起動することができない。
+そのため、このシグナルを扱おうとする場合には、
+代替シグナルスタックを使用しなければならない。
+.P
+プロセスが標準のシグナルスタックを使い果たすことが予想される場合は、
+代替シグナルスタックを確立すると便利である。
+例えば、スタックが最上位アドレスから
+下位アドレス方向に非常にたくさん積まれてしまうことで、
+最下位アドレスから上位アドレス方向に積まれるヒープとぶつかってしまう場合や、
+\fBsetrlimit(RLIMIT_STACK, &rlim)\fP の呼び出しで確立された
+制限に達してしまった場合に、この様な事が起こる。
+標準のスタックを使い果たしてしまうと、
+カーネルはプロセスに \fBSIGSEGV\fP シグナルを送る。
+このような状況では、代替シグナルスタック上でしかシグナルをキャッチできない。
+.P
+Linux がサポートする多くのハードウェアアーキテクチャでは、
+スタックは下位アドレス方向に積まれる。
+.BR sigaltstack ()
+はスタックが積まれる方向を自動的に決定する。
+.P
+代替シグナルスタック上で実行されている
+シグナルハンドラから呼ばれる関数も、代替シグナルハンドラを使う
+(プロセスが代替シグナルスタック上で実行されている場合、
+他のシグナルで呼び出されるハンドラもこの代替シグナルハンドラを使う)。
+標準のスタックとは異なり、
+システムは代替シグナルスタックを自動的に拡張しない。
+代替シグナルスタック用に確保したサイズを越えた場合、
+結果は予想できない。
+.P
+.BR execve (2)
+の呼び出しが成功すると、
+既存の全ての代替シグナルスタックが削除される。
+.BR fork ()
+経由で作成された子プロセスは、親プロセスの代替シグナルスタックの
+設定のコピーを継承する。
+.P
+.BR sigaltstack ()
+は以前の
+.BR sigstack ()
+を置き換えるものである。
+過去プログラムとの互換性のため、glibc では
+.BR sigstack ()
+も提供している。
+新しいのアプリケーションは全て
+.BR sigaltstack ()
+を使って書くべきである。
+.SS 歴史
+4.2BSD には
+.BR sigstack ()
+システムコールがあった。
+この関数は少し異なった構造体を使っており、
+呼び出した側がスタックの積まれる方向を知っていなければならないという
+大きな欠点があった。
+.SH 例
+以下のコードで
+.BR sigaltstack ()
+の使用法の一部を示す:
+
+.in +4n
+.nf
+stack_t ss;
+
+ss.ss_sp = malloc(SIGSTKSZ);
+if (ss.ss_sp == NULL)
+    /* ハンドルエラー */;
+ss.ss_size = SIGSTKSZ;
+ss.ss_flags = 0;
+if (sigaltstack(&ss, NULL) == \-1)
+    /* ハンドルエラー */;
+.fi
+.in
+.SH 関連項目
+.BR execve (2),
+.BR setrlimit (2),
+.BR sigaction (2),
+.BR siglongjmp (3),
+.BR sigsetjmp (3),
+.BR signal (7)

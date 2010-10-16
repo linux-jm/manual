@@ -1,0 +1,948 @@
+.\" Copyright (c) 2002 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" 6 Aug 2002 - Initial Creation
+.\" Modified 2003-05-23, Michael Kerrisk, <mtk.manpages@gmail.com>
+.\" Modified 2004-05-27, Michael Kerrisk, <mtk.manpages@gmail.com>
+.\" 2004-12-08, mtk Added O_NOATIME for CAP_FOWNER
+.\" 2005-08-16, mtk, Added CAP_AUDIT_CONTROL and CAP_AUDIT_WRITE
+.\" 2008-07-15, Serge Hallyn <serue@us.bbm.com>
+.\"     Document file capabilities, per-process capability
+.\"     bounding set, changed semantics for CAP_SETPCAP,
+.\"     and other changes in 2.6.2[45].
+.\"     Add CAP_MAC_ADMIN, CAP_MAC_OVERRIDE, CAP_SETFCAP.
+.\" 2008-07-15, mtk
+.\"     Add text describing circumstances in which CAP_SETPCAP
+.\"     (theoretically) permits a thread to change the
+.\"     capability sets of another thread.
+.\"     Add section describing rules for programmatically
+.\"     adjusting thread capability sets.
+.\"     Describe rationale for capability bounding set.
+.\"     Document "securebits" flags.
+.\"     Add text noting that if we set the effective flag for one file
+.\"     capability, then we must also set the effective flag for all
+.\"     other capabilities where the permitted or inheritable bit is set.
+.\"
+.\" Japanese Version Copyright (c) 2005 Akihiro MOTOKI all rights reserved.
+.\" Translated 2005-03-09, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-11-04, Akihiro MOTOKI
+.\" Updated 2006-04-16, Akihiro MOTOKI, LDP v2.29
+.\" Updated 2006-07-20, Akihiro MOTOKI, LDP v2.34
+.\" Updated 2007-01-05, Akihiro MOTOKI, LDP v2.43
+.\" Updated 2008-12-24, Akihiro MOTOKI, LDP v3.15
+.\" Updated 2009-02-27, Akihiro MOTOKI, LDP v3.19
+.\" Updated 2010-04-11, Akihiro MOTOKI, LDP v3.24
+.\"
+.TH CAPABILITIES 7 2010-01-31 "Linux" "Linux Programmer's Manual"
+.SH 名前
+capabilities \- Linux のケーパビリティ (capability) の概要
+.SH 説明
+権限のチェックを行う観点から見ると、伝統的な Unix の実装では
+プロセスは二つのカテゴリに分類できる:
+.I 特権
+プロセス (実効ユーザID が 0 のプロセス。ユーザID 0 は
+スーパーユーザや root と呼ばれる) と
+.I 非特権
+プロセス (実効ユーザID が 0 以外のプロセス) である。
+非特権プロセスでは、プロセスの資格情報 (通常は、実効UID 、実効GID
+と追加のグループリスト) に基づく権限チェックが行われるのに対し、
+特権プロセスでは全てのカーネルの権限チェックがバイパスされる。
+
+バージョン 2.2 以降の Linux では、
+これまでスーパーユーザに結び付けられてきた権限を、
+いくつかのグループに分割している。これらのグループは
+.IR ケーパビリティ (capability)
+と呼ばれ、グループ毎に独立に有効、無効を設定できる。
+ケーパビリティはスレッド単位の属性である。
+.\"
+.SS ケーパビリティのリスト
+以下のリストは、
+Linux で実装されているケーパビリティと
+各ケーパビリティが許可する操作と動作をまとめたものである。
+.TP
+.BR CAP_AUDIT_CONTROL " (Linux 2.6.11 以降)"
+カーネル監査 (audit) の有効無効の切り替え、
+監査のフィルタ・ルールの変更、
+監査の状況やフィルタ・ルールの取得ができる。
+.TP
+.BR CAP_AUDIT_WRITE " (Linux 2.6.11 以降)"
+カーネル監査のログにレコードを書き込む。
+.TP
+.B CAP_CHOWN
+ファイルの UID とGID を任意に変更する
+.RB ( chown (2)
+参照)。
+.TP
+.B CAP_DAC_OVERRIDE
+ファイルの読み出し、書き込み、実行の権限チェックをバイパスする
+(DAC は "discretionary access control (任意のアクセス制御)" の略である)。
+.TP
+.B CAP_DAC_READ_SEARCH
+ファイルの読み出し権限のチェックとディレクトリの読み出しと実行
+の権限チェックをバイパスする。
+.TP
+.B CAP_FOWNER
+.PD 0
+.RS
+.IP * 2
+通常、プロセスのファイルシステム UID がファイルの UID に一致することが
+要求される操作 (例えば
+.BR chmod (2),
+.BR utime (2))
+における権限チェックをバイパスする。
+但し、
+.B CAP_DAC_OVERRIDE
+か
+.B CAP_DAC_READ_SEARCH
+によりチェックが行われる操作は除く。
+.IP *
+任意のファイルに対して拡張ファイル属性を設定する
+.RB ( chattr (1)
+参照)。
+.IP *
+任意のファイルに対してアクセス制御リスト (ACL) を設定する。
+.IP *
+ファイルの削除の際にディレクトリのスティッキービットを無視する。
+.IP *
+.BR open (2)
+や
+.BR fcntl (2)
+で任意のファイルに対して
+.B O_NOATIME
+を指定する。
+.RE
+.PD
+.TP
+.B CAP_FSETID
+ファイルが変更されたときに set-user-ID とset-group-ID の許可ビットをクリア
+しない。呼び出し元プロセスのファイルシステム GID と追加の GID のいずれとも
+GID が一致しないファイルに対して set-group-ID ビットを設定する。
+.TP
+.B CAP_IPC_LOCK
+メモリーのロック
+.RB ( mlock (2),
+.BR mlockall (2),
+.BR mmap (2),
+.BR shmctl (2))
+を行う。
+.TP
+.B CAP_IPC_OWNER
+System V IPC オブジェクトに対する操作に関して権限チェックをバイパスする。
+.TP
+.B CAP_KILL
+シグナルを送信する際に権限チェックをバイパスする
+.RB ( kill (2)
+参照)。これには
+.BR ioctl (2)
+の
+.B KDSIGACCEPT
+操作の使用も含まれる。
+.\" FIXME CAP_KILL also has an effect for threads + setting child
+.\"       termination signal to other than SIGCHLD: without this
+.\"       capability, the termination signal reverts to SIGCHLD
+.\"       if the child does an exec().  What is the rationale
+.\"       for this?
+.TP
+.BR CAP_LEASE " (Linux 2.4 以降)"
+任意のファイルに対して
+ファイルリースを設定する
+.RB ( fcntl (2)
+参照)。
+.TP
+.B CAP_LINUX_IMMUTABLE
+拡張ファイル属性
+.B FS_APPEND_FL
+と
+.B FS_IMMUTABLE_FL
+を設定する
+.RB ( chattr (1)
+参照)。
+.\" これらの属性は ext2, ext3, Reiserfs, XFS, JFS で利用可能である。
+.TP
+.BR CAP_MAC_ADMIN " (Linux 2.6.25 以降)"
+強制アクセス制御 (MAC) を上書きする。
+Smack Linux Security Module (LSM) 用に実装されている。
+.TP
+.BR CAP_MAC_OVERRIDE " (Linux 2.6.25 以降)"
+MAC の設定や状態を変更する。
+Smack LSM 用に実装されている。
+.TP
+.BR CAP_MKNOD " (Linux 2.4 以降)"
+(Linux 2.4 以降)
+.BR mknod (2)
+を使用してスペシャル・ファイルを作成する。
+.TP
+.B CAP_NET_ADMIN
+各種のネットワーク関連の操作を実行する。
+(例えば、特権が必要なソケットオプションを設定する、マルチキャストを有効にする、
+インターフェースを設定する、ルーティングテーブルを変更するなど)
+.TP
+.B CAP_NET_BIND_SERVICE
+インターネットドメインの特権ポート (ポート番号が 1024 番未満)
+をバインドできる。
+.TP
+.B CAP_NET_BROADCAST
+(未使用) ソケットのブロードキャストと、マルチキャストの待ち受けを行う。
+.TP
+.B CAP_NET_RAW
+RAW ソケットと PACKET ソケットを使用する。
+.\" また、各種の IP オプションと SO_BINDTODEVICE ソケットオプションを使用できる。
+.TP
+.B CAP_SETGID
+プロセスの GID と追加の GID リストに対する任意の操作を行う。
+Unix ドメインソケット経由でソケットの資格情報 (credential) を渡す際に
+偽の GID を渡すことができる。
+.TP
+.BR CAP_SETFCAP " (Linux 2.6.24 以降)"
+ファイルケーパビリティを設定する。
+.TP
+.B CAP_SETPCAP
+ファイルケーパビリティがサポートされていない場合:
+呼び出し元が許可されているケーパビリティセットに含まれる任意のケーパビリティを、
+他のプロセスに付与したり、削除したりできる。
+(カーネルがファイルケーパビリティをサポートしている場合、
+.B CAP_SETPCAP
+はこの役割を持たない。
+なぜなら、ファイルケーパビリティをサポートしているカーネルでは
+.B CAP_SETPCAP
+は全く別の意味を持つからである。)
+
+ファイルケーパビリティがサポートされている場合:
+呼び出し元スレッドのバウンディングセットの任意のケーパビリティを
+自身の継承可能ケーパビリティセットに追加できる。
+.RB ( prctl (2)
+.BR PR_CAPBSET_DROP
+を使って)
+バウンディングセットからケーパビリティを削除できる。
+.I securebits
+フラグを変更できる。
+.TP
+.B CAP_SETUID
+プロセスの UID に対する任意の操作
+.RB ( setuid (2),
+.BR setreuid (2),
+.BR setresuid (2),
+.BR setfsuid (2))
+を行う。
+Unix ドメインソケット経由でソケットの資格情報 (credential) を渡す際に
+偽の UID を渡すことができる。
+.\" FIXME CAP_SETUID also an effect in exec(); document this.
+.TP
+.B CAP_SYS_ADMIN
+.PD 0
+.RS
+.IP * 2
+以下のシステム管理用の操作を実行する:
+.BR quotactl (2),
+.BR mount (2),
+.BR umount (2),
+.BR swapon (2),
+.BR swapoff (2),
+.BR sethostname (2),
+.BR setdomainname (2).
+.IP *
+任意の System V IPC オブジェクトに対する
+.B IPC_SET
+と
+.B IPC_RMID
+操作を実行する。
+.IP *
+拡張属性
+.I trusted
+と
+.I security
+に対する操作を実行する
+.RB ( attr (5)
+参照)。
+.IP *
+.BR lookup_dcookie (2)
+を呼び出す。
+.IP *
+.BR ioprio_set (2)
+を使って I/O スケジューリングクラス
+.BR IOPRIO_CLASS_RT ,
+.B IOPRIO_CLASS_IDLE
+を割り当てる
+.RB ( IOPRIO_CLASS_IDLE
+は Linux 2.6.25 より前のバージョンのみ)。
+.IP *
+ソケットの資格情報 (credential) を渡す際に偽の UID を渡す。
+.IP *
+ファイルをオープンするシステムコール (例えば
+.BR accept (2),
+.BR execve (2),
+.BR open (2),
+.BR pipe (2))
+でシステム全体でオープンできるファイル数の上限
+.I /proc/sys/fs/file-max
+を超過する。
+.IP *
+.BR clone (2)
+と
+.BR unshare (2)
+で
+.B CLONE_NEWNS
+フラグを利用する。
+.IP *
+.BR keyctl (2)
+の
+.B KEYCTL_CHOWN
+と
+.B KEYCTL_SETPERM
+操作を実行する。
+.RE
+.PD
+.TP
+.B CAP_SYS_BOOT
+.BR reboot (2)
+と
+.BR kexec_load (2)
+を呼び出す。
+.TP
+.B CAP_SYS_CHROOT
+.BR chroot (2).
+を呼び出す。
+.TP
+.B CAP_SYS_MODULE
+カーネルモジュールのロード、アンロードを行う
+.RB ( init_module (2)
+と
+.BR delete_module (2)
+を参照のこと)。
+バージョン 2.6.25 より前のカーネルで、
+システム全体のケーパビリティバウンディングセット (capability bounding set)
+からケーパビリティを外す。
+.TP
+.B CAP_SYS_NICE
+.PD 0
+.RS
+.IP * 2
+プロセスの nice 値の引き上げ
+.RB ( nice (2),
+.BR setpriority (2))
+や、任意のプロセスの nice 値の変更を行う。
+.IP *
+呼び出し元プロセスに対するリアルタイム・スケジューリングポリシーと、
+任意のプロセスに対するスケジューリングポリシーと優先度を設定する
+.RB ( sched_setscheduler (2),
+.BR sched_setparam (2))。
+.IP *
+任意のプロセスに対する CPU affinity を設定できる
+.RB ( sched_setaffinity (2))。
+.IP *
+任意のプロセスに対して I/O スケジューリングクラスと優先度を設定できる
+.RB ( ioprio_set (2))。
+.IP *
+.BR migrate_pages (2)
+を任意のプロセスに適用し、プロセスを任意のノードに移動する。
+.\" FIXME CAP_SYS_NICE also has the following effect for
+.\" migrate_pages(2):
+.\"     do_migrate_pages(mm, &old, &new,
+.\"         capable(CAP_SYS_NICE) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
+.IP *
+.BR move_pages (2)
+を任意のプロセスに対して行う。
+.IP *
+.BR mbind (2)
+と
+.BR move_pages (2)
+で
+.B MPOL_MF_MOVE_ALL
+フラグを使用する。
+.RE
+.PD
+.TP
+.B CAP_SYS_PACCT
+.BR acct (2)
+を呼び出す。
+.TP
+.B CAP_SYS_PTRACE
+.BR ptrace (2)
+を使って任意のプロセスをトレースする。
+.TP
+.B CAP_SYS_RAWIO
+I/O ポート操作を実行する
+.RB ( iopl (2)
+、
+.BR ioperm (2))。
+.I /proc/kcore
+にアクセスできる。
+.TP
+.B CAP_SYS_RESOURCE
+.PD 0
+.RS
+.IP * 2
+ext2 ファイルシステム上の予約されている領域を使用する。
+.IP *
+ext3 のジャーナル機能を制御する
+.BR ioctl (2)
+を使用する。
+.IP *
+ディスク quota の上限を上書きする。
+.IP *
+リソース上限を増やす
+.RB ( setrlimit (2))。
+.IP *
+.B RLIMIT_NPROC
+リソース制限を上書きする。
+.IP *
+メッセージキューに関する上限
+.I msg_qbytes
+を
+.I /proc/sys/kernel/msgmnb
+に指定されている上限よりも大きく設定する
+.RB ( msgop (2)
+と
+.BR msgctl (2)
+参照)。
+.RE
+.PD
+.TP
+.B CAP_SYS_TIME
+システムクロックを変更する
+.RB ( settimeofday (2),
+.BR stime (2),
+.BR adjtimex (2))。
+リアルタイム (ハードウェア) クロックを変更する。
+.TP
+.B CAP_SYS_TTY_CONFIG
+.BR vhangup (2)
+を呼び出す。
+.\"
+.SS 過去と現在の実装
+完全な形のケーパビリティを実装するには、以下の要件を満たす必要がある：
+.IP 1. 3
+全ての特権操作について、カーネルはそのスレッドの実効ケーパビリティセットに
+必要なケーパビリティがあるかを確認する。
+.IP 2.
+カーネルで、あるスレッドのケーパビリティセットを変更したり、
+取得したりできるシステムコールが提供される。
+.IP 3.
+ファイルシステムが、実行可能ファイルにケーパビリティを付与でき、ファイル
+実行時にそのケーパビリティをプロセスが取得できるような機能をサポートする。
+.PP
+カーネル 2.6.24 より前では、最初の 2つの要件のみが満たされている。
+カーネル 2.6.24 以降では、3つの要件すべてが満たされている。
+.\"
+.SS スレッドケーパビリティセット
+各スレッドは以下の 3種類のケーパビリティセットを持つ。各々のケーパビリティセットは
+上記のケーパビリティの組み合わせである (全てのケーパビリティが無効でもよい)。
+.TP
+.IR "許可 (permitted)" :
+そのスレッドが持つことになっている実効ケーパビリティの
+限定的なスーパーセットである。
+これは、実効ケーパビリティセットに
+.B CAP_SETPCAP
+ケーパビリティを持っていないスレッドが継承可能ケーパビリティセットに
+追加可能なケーパビリティの限定的なスーパーセットでもある。
+
+許可ケーパビリティセットから削除してしまったケーパビリティは、
+(set-user-ID-root プログラムか、
+そのケーパビリティをファイルケーパビリティで許可しているプログラムを
+.BR execve (2)
+しない限りは) もう一度獲得することはできない。
+.TP
+.IR "継承可能 (inheritable)" :
+.BR execve (2)
+を前後で保持されるケーパビリティセットである。
+この仕組みを使うことで、あるプロセスが
+.BR execve (2)
+を行う際に新しいプログラムの許可ケーパビリティセットとして
+割り当てるケーパビリティを指定することができる。
+.TP
+.IR "実効 (effective)" :
+カーネルがスレッドの権限 (permission) をチェックするときに
+使用するケーパビリティセットである。
+.PP
+.BR fork (2)
+で作成される子プロセスは、親のケーパビリティセットのコピーを継承する。
+.BR execve (2)
+中のケーパビリティの扱いについては下記を参照のこと。
+.PP
+.BR capset (2)
+を使うと、プロセスは自分自身のケーパビリティセット
+を操作することができる (下記参照)。
+.\"
+.SS ファイルケーパビリティ
+カーネル 2.6.24 以降では、
+.BR setcap (8)
+を使って実行ファイルにケーパビリティセットを対応付けることができる。
+ファイルケーパビリティセットは
+.I "security.capability"
+という名前の拡張属性に保存される
+.RB ( setxattr (2)
+参照)。この拡張属性への書き込みには
+.B CAP_SETFCAP
+ケーパビリティが必要である。
+ファイルケーパビリティセットとスレッドのケーパビリティセットの両方が
+考慮され、
+.BR execve (2)
+後のスレッドのケーパビリティセットが決定される。
+
+3 つのファイルケーパビリティセットが定義されている。
+.TP
+.IR "許可 (Permitted)" " (以前の" "強制 (Forced)" "):"
+スレッドの継承可能ケーパビリティに関わらず、そのスレッドに自動的に
+認められるケーパビリティ。
+.TP
+.IR "継承可能 (Inheritable)" " (以前の " "許容 (Allowed)" "):"
+このセットと、スレッドの継承可能ケーパビリティセットとの
+論理積 (AND) がとられ、
+.BR execve (2)
+の後にそのスレッドの許可ケーパビリティセットで有効となる
+継承可能ケーパビリティが決定される。
+.TP
+.IR "実効 (Effective)" :
+これは集合ではなく、1 ビットの情報である。
+このビットがセットされていると、
+.BR execve (2)
+実行中に、そのスレッドの新しい許可ケーパビリティが全て
+実効ケーパビリティ集合においてもセットされる。
+このビットがセットされていない場合、
+.BR execve (2)
+後には新しい許可ケーパビリティのどれも新しい実効ケーパビリティ集合
+にセットされない。
+
+ファイルの実効ケーパビリティビットを有効にするというのは、
+.BR execve (2)
+実行時に、ファイルの許可ケーパビリティと継承ケーパビリティに対応するものが
+スレッドの許可ケーパビリティセットとしてセットされるが、
+これが実効ケーパビリティセットにもセットされるということである
+(ケーパビリティの変換ルールは下記参照)。
+したがって、ファイルにケーパビリティを割り当てる際
+.RB ( setcap (8),
+.BR cap_set_file (3),
+.BR cap_set_fd (3))、
+いずれかのケーパビリティに対して実効フラグを有効と指定する場合、
+許可フラグや継承可能フラグを有効にした他の全てのケーパビリティ
+についても実効フラグを有効と指定しなければならない。
+.\"
+.SS "execve() 中のケーパビリティの変換"
+.PP
+.BR execve (2)
+実行時に、カーネルはプロセスの新しいケーパビリティを次の
+アルゴリズムを用いて計算する：
+.in +4n
+.nf
+
+P'(permitted) = (P(inheritable) & F(inheritable)) |
+                (F(permitted) & cap_bset)
+
+P'(effective) = F(effective) ? P'(permitted) : 0
+
+P'(inheritable) = P(inheritable)    [つまり、変更されない]
+
+.fi
+.in
+各変数の意味は以下の通り:
+.RS 4
+.IP P 10
+.BR execve (2)
+前のスレッドのケーパビリティセットの値
+.IP P'
+.BR execve (2)
+後のスレッドのケーパビリティセットの値
+.IP F
+ファイルケーパビリティセットの値
+.IP cap_bset
+ケーパビリティバウンディングセットの値 (下記参照)
+.RE
+.\"
+.SS ケーパビリティと、ルートによるプログラムの実行
+.BR execve (2)
+時に、ケーパビリティセットを使って、全ての権限を持った
+.I root
+を実現するには、以下のようにする。
+.IP 1. 3
+set-user-ID-root プログラムが実行される場合、
+またはプロセスの実ユーザ ID が 0 (root) の場合、
+ファイルの継承可能セットと許可セットを全て 1
+(全てのケーパビリティが有効) に定義する。
+.IP 2.
+set-user-ID-root プログラムが実行される場合、
+ファイルの実効ケーパビリティビットを 1 (enabled) に定義する。
+.PP
+上記のルールにケーパビリティ変換を適用した結果をまとめると、
+プロセスが set-user-ID-root プログラムを
+.BR execve (2)
+する場合、または実効 UID が 0 のプロセスがプログラムを
+.BR execve (2)
+する場合、許可と実効のケーパビリティセットの全ケーパビリティ
+(正確には、ケーパビリティバウンディングセットによるマスクで除外されるもの
+以外の全てのケーパビリティ) を取得するということである。
+.\" 実 UID が 0 で実効 UID が 0 以外のプロセスが exec () を行うと、
+.\" 許可ケーパビリティセットに含まれる全てのケーパビリティ
+.\" が取得され、実効ケーパビリティは取得されない。
+これにより、伝統的な Unix システムと同じ振る舞いができるようになっている。
+.SS ケーパビリティ・バウンディングセット
+ケーパビリティ・バウンディングセット (capability bounding set) は、
+.BR execve (2)
+時に獲得できるケーパビリティを制限するために使われる
+セキュリティ機構である。
+バウンディングセットは以下のように使用される。
+.IP * 2
+.BR execve (2)
+実行時に、ケーパビリティ・バウンディングセットと
+ファイルの許可ケーパビリティセットの論理和 (AND) を取ったものが、
+そのスレッドの許可ケーパビリティセットに割り当てられる。
+つまり、ケーパビリティ・バウンディングセットは、
+実行ファイルが認めている許可ケーパビリティに対して
+制限を課す働きをする。
+.IP *
+(Linux 2.6.25 以降)
+ケーパビリティ・バウンディングセットは、スレッドが
+.BR capset (2)
+により自身の継承可能セットに追加可能なケーパビリティの母集団を
+制限する役割を持つ。
+スレッドに許可されたケーパビリティであっても、バウンディングセットに
+含まれていなければ、スレッドはそのケーパビリティは自身の継承可能セットに
+追加できず、その結果、継承可能セットにそのケーパビリティを含むファイルを
+.BR execve (2)
+する場合、そのケーパビリティを許可セットに持ち続けることができない、
+ということである。
+.PP
+バウンディングセットがマスクを行うのは、継承可能ケーパビリティではなく、
+ファイルの許可ケーパビリティのマスクを行う点に注意すること。
+あるスレッドの継承可能セットにそのスレッドのバウンディングセットに
+存在しないケーパビリティが含まれている場合、そのスレッドは、
+継承可能セットに含まれるケーパビリティを持つファイルを実行することにより、
+許可セットに含まれるケーパビリティも獲得できるということである。
+.PP
+カーネルのバージョンにより、ケーパビリティ・バウンディングセットは
+システム共通の属性の場合と、プロセス単位の属性の場合がある。
+.PP
+.B "Linux 2.6.25 より前のケーパビリティ・バウンディングセット"
+.PP
+2.6.25 より前のカーネルでは、ケーパビリティ・バウンディングセットは
+システム共通の属性で、システム上の全てのスレッドに適用される。
+バウンディングセットは
+.I /proc/sys/kernel/cap-bound
+ファイル経由で参照できる。
+(間違えやすいが、このビットマスク形式のパラメータは、
+.I /proc/sys/kernel/cap-bound
+では符号付きの十進数で表現される。)
+
+.B init
+プロセスだけがケーパビリティ・バウンディングセットで
+ケーパビリティをセットすることができる。
+それ以外では、スーパーユーザ (より正確には、
+.B CAP_SYS_MODULE
+ケーパビリティを持ったプログラム) が、
+ケーパビリティ・バウンディングセットのケーパビリティのクリアが
+できるだけである。
+
+通常のシステムでは、ケーパビリティ・バウンディングセットは、
+.B CAP_SETPCAP
+が無効になっている。
+この制限を取り去るには (取り去るのは危険!)、
+.I include/linux/capability.h
+内の
+.B CAP_INIT_EFF_SET
+の定義を修正し、カーネルを再構築する必要がある。
+
+システム共通のケーパビリティ・バウンディングセット機能は、
+カーネル 2.2.11 以降で Linux に追加された。
+.\"
+.PP
+.B "Linux 2.6.25 以降のケーパビリティ・バウンディングセット"
+.PP
+Linux 2.6.25 以降では、
+「ケーパビリティ・バウンディングセット」はスレッド単位の属性である
+(システム共通のケーパビリティ・バウンディングセットはもはや存在しない)。
+
+バウンディングセットは
+.BR fork (2)
+時にはスレッドの親プロセスから継承され、
+.BR execve (2)
+の前後では保持される。
+
+スレッドが
+.B CAP_SETPCAP
+ケーパビリティを持っている場合、そのスレッドは
+.BR prctl (2)
+の
+.BR PR_CAPBSET_DROP
+操作を使って自身のケーパビリティ・バウンディングセットから
+ケーパビリティを削除することができる。
+いったんケーパビリティをバウンディングセットから削除してしまうと、
+スレッドはそのケーパビリティを再度セットすることはできない。
+.BR prctl (2)
+の
+.B PR_CAPBSET_READ
+操作を使うことで、スレッドがあるケーパビリティが自身のバウンディングセット
+に含まれているかを知ることができる。
+
+バウンディングセットからのケーパビリティの削除がサポートされるのは、
+カーネルのコンパイル時にファイルケーパビリティが有効になっている場合
+(CONFIG_SECURITY_FILE_CAPABILITIES) だけである。
+この場合には、 (全てのプロセスの先祖である) 
+.I init
+プロセスはバウンディングセットで全てのケーパビリティが
+セットされた状態で開始する。
+ファイルケーパビリティが有効になっていない場合には、
+.I init
+はバウンディングセットで
+.B CAP_SETPCAP
+以外の全てのケーパビリティがセットされた状態で開始する。
+このようになっているのは、
+.B CAP_SETPCAP
+ケーパビリティがファイルケーパビリティがサポートされていない場合には
+違った意味を持つからである。
+
+バウンディングセットからケーパビリティを削除しても、
+スレッドの継承可能セットからはそのケーパビリティは削除されない。
+しかしながら、バウンディングセットからの削除により、
+この先そのケーパビリティをスレッドの継承可能セットに追加すること
+はできなくなる。
+.\"
+.\"
+.SS "ユーザ ID 変更のケーパビリティへの影響"
+ユーザ ID が 0 と 0 以外の間で変化する際の振る舞いを従来と同じにするため、
+スレッドの実 UID、実効 UID、保存 set-user-ID、ファイルシステム UID が
+.RB ( setuid (2),
+.BR setresuid (2)
+などを使って) 変更された際に、カーネルはそのスレッドのケーパビリティセットに
+以下の変更を行う:
+.IP 1. 3
+UID の変更前には実 UID、実効 UID、保存 set-user-ID のうち
+少なくとも一つが 0 で、変更後に実 UID、実効 UID、保存 set-user-ID が
+すべて 0 以外の値になった場合、許可と実効のケーパビリティセットの
+全ケーパビリティをクリアする。
+.IP 2.
+実効 UID が 0 から 0 以外に変更された場合、
+実効ケーパビリティセットの全ケーパビリティをクリアする。
+.IP 3.
+実効 UID が 0 以外から 0 に変更された場合、
+許可ケーパビリティセットの内容を実効ケーパビリティセットにコピーする。
+.IP 4.
+ファイルシステム UID が 0 から 0 以外に変更された場合
+.RB ( setfsuid (2)
+参照)、実効ケーパビリティセットの以下のケーパビリティがクリアされる:
+.BR CAP_CHOWN ,
+.BR CAP_DAC_OVERRIDE ,
+.BR CAP_DAC_READ_SEARCH ,
+.BR CAP_FOWNER ,
+.BR CAP_FSETID ,
+.B CAP_LINUX_IMMUTABLE
+(Linux 2.2.30 以降),
+.BR CAP_MAC_OVERRIDE ,
+.B CAP_MKNOD
+(Linux 2.2.30 以降)。
+ファイルシステム UID が 0 以外から 0 に変更された場合、
+上記のケーパビリティのうち許可ケーパビリティセットで有効になっているものが
+実効ケーパビリティセットで有効にされる。
+.PP
+各種 UID のうち少なくとも一つが 0 であるスレッドが、
+その UID の全てが 0 以外になったときに許可ケーパビリティセットが
+クリアされないようにしたい場合には、
+.BR prctl (2)
+の
+.B PR_SET_KEEPCAPS
+操作を使えばよい。
+.\"
+.SS プログラムでケーパビリティセットを調整する
+各スレッドは、
+.BR capget (2)
+や
+.BR capset (2)
+を使って、自身のケーパビリティセットを取得したり変更したりできる。
+ただし、これを行うには、
+.I libcap
+パッケージで提供されている
+.BR cap_get_proc (3)
+や
+.BR cap_set_proc (3)
+を使うのが望ましい。
+スレッドのケーパビリティセットの変更には以下のルールが適用される。
+.IP 1. 3
+呼び出し側が
+.B CAP_SETPCAP
+ケーパビリティを持っていない場合、新しい継承可能セットは、
+既存の継承可能セットと許可セットの積集合 (AND) の部分集合で
+なければならない。
+.IP 2.
+(カーネル 2.6.25 以降)
+新しい継承可能セットは、既存の継承可能セットとケーパビリティ・
+バウンディングセットの積集合 (AND) の部分集合でなければならない。
+.IP 3.
+新しい許可セットは、既存の許可セットの部分集合でなければならない
+(つまり、そのスレッドが現在持っていない許可ケーパビリティを
+獲得することはできない)。
+.IP 4.
+新しい実効ケーパビリティセットは新しい許可ケーパビリティセットの
+部分集合になっていなければならない。
+.SS securebits フラグ: ケーパビリティだけの環境を構築する
+.\" For some background:
+.\"       see http://lwn.net/Articles/280279/ and
+.\"       http://article.gmane.org/gmane.linux.kernel.lsm/5476/
+カーネル 2.6.26 以降で、
+ファイルケーパビリティが有効になったカーネルでは、
+スレッド単位の
+.I securebits
+フラグが実装されており、このフラグを使うと UID 0
+.RI ( root )
+に対するケーパビリティの特別扱いを無効することができる。
+以下のようなフラグがある。
+.TP
+.B SECBIT_KEEP_CAPS
+このフラグをセットされている場合、UID が 0 のスレッドの UID が 0 以外の値に
+切り替わる際に、そのスレッドはケーパビリティを維持することができる。
+このフラグがセットされていない場合には、UID が 0 から 0 以外の値に
+切り替わると、そのスレッドは全てのケーパビリティを失う。
+このフラグは
+.BR execve (2)
+時には全てクリアされる
+(このフラグは、以前の
+.BR prctl (2)
+の
+.B PR_SET_KEEPCAPS
+操作と同じ機能を提供するものである)。
+.TP
+.B SECBIT_NO_SETUID_FIXUP
+このフラグをセットすると、スレッドの実効 UID とファイルシステム UID が
+0 と 0 以外の間で切り替わった場合に、
+カーネルはケーパビリティセットの調整を行わなくなる
+(「ユーザ ID 変更のケーパビリティへの影響」の節を参照)。
+.TP
+.B SECBIT_NOROOT
+このビットがセットされている場合、
+set-user-ID-root プログラムの実行時や、
+実効 UID か 実 UID が 0 のプロセスが
+.BR execve (2)
+を呼び出した時に、カーネルはケーパビリティを許可しない
+(「ケーパビリティと、ルートによるプログラムの実行」の節を参照)。
+.PP
+上記の "base" フラグの各々には対応する "locked" フラグが存在する。
+いずれの "locked" フラグも一度セットされると戻すことはできず、
+それ以降は対応する "base" フラグを変更することができなくなる。
+"locked" フラグは
+.BR SECBIT_KEEP_CAPS_LOCKED ,
+.BR SECBIT_NO_SETUID_FIXUP_LOCKED ,
+.BR SECBIT_NOROOT_LOCKED
+という名前である。
+.PP
+.I securebits
+フラグは、
+.BR prctl (2)
+の操作
+.B PR_SET_SECUREBITS
+や
+.B PR_GET_SECUREBITS
+を使うことで変更したり取得したりできる。
+フラグを変更するには
+.B CAP_SETPCAP
+ケーパビリティが必要である。
+
+.I securebits
+フラグは子プロセスに継承される。
+.BR execve (2)
+においては、
+.B SECURE_KEEP_CAPS
+が常にクリアされる以外は、全てのフラグが保持される。
+
+アプリケーションは、以下の呼び出しを行うことにより、
+自分自身および子孫となるプロセス全てに対して、
+必要なファイルケーパビリティを持ったプログラムを実行しない限り、
+対応するケーパビリティを獲得できないような状況に閉じこめることができる。
+.in +4n
+.nf
+
+prctl(PR_SET_SECUREBITS,
+        SECBIT_KEEP_CAPS_LOCKED |
+        SECBIT_NO_SETUID_FIXUP |
+        SECBIT_NO_SETUID_FIXUP_LOCKED |
+        SECBIT_NOROOT |
+        SECBIT_NOROOT_LOCKED);
+.fi
+.in
+.SH 準拠
+.PP
+ケーパビリティに関する標準はないが、 Linux のケーパビリティは廃案になった
+POSIX.1e 草案に基づいて実装されている。
+.I http://wt.xpilot.org/publications/posix.1e/
+を参照。
+.SH 注意
+カーネル 2.5.27 以降、ケーパビリティは選択式のカーネルコンポーネント
+となっており、カーネル設定オプション CONFIG_SECURITY_CAPABILITIES
+により有効/無効を切り替えることができる。
+
+.I /proc/PID/task/TID/status
+ファイルを使うと、スレッドのケーパビリティセットを見ることができる。
+.I /proc/PID/status
+ファイルには、プロセスのメインスレッドのケーパビリティセットが表示される。
+
+.I libcap
+パッケージは、ケーパビリティを設定・取得するための
+ルーチン群を提供している。これらのインタフェースは、
+.BR capset (2)
+と
+.BR capget (2)
+が提供するインターフェースと比べて、より使いやすく、変更される可能性が少ない。
+このパッケージでは、
+.BR setcap (8),
+.BR getcap (8)
+というプログラムも提供されている。
+パッケージは
+.I http://www.kernel.org/pub/linux/libs/security/linux-privs
+で入手できる。
+
+バージョン 2.6.24 より前、およびファイルケーパビリティが
+有効になっていない2.6.24 以降のカーネルでは、
+.B CAP_SETPCAP
+ケーパビリティを持ったスレッドは自分以外のスレッドの
+ケーパビリティを操作できる。
+しかしながら、これは理論的に可能というだけである。
+以下のいずれかの場合においても、どのスレッドも
+.BR CAP_SETPCAP
+ケーパビリティを持つことはないからである。
+.IP * 2
+2.6.25 より前の実装では、システム共通のケーパビリティ・バウンディングセット
+.I /proc/sys/kernel/cap-bound
+ではこのケーパビリティは常に無効になっており、
+ソースを変更してカーネルを再コンパイルしない限り、
+これを変更することはできない。
+.IP *
+現在の実装ではファイルケーパビリティが無効になっている場合、
+プロセス毎のバウンディングセットからこのケーパビリティを抜いて
+.B init
+は開始され、
+システム上で生成される他の全てのプロセスでこのバウンディングセットが
+継承される。
+.SH 関連項目
+.BR capget (2),
+.BR prctl (2),
+.BR setfsuid (2),
+.BR cap_clear (3),
+.BR cap_copy_ext (3),
+.BR cap_from_text (3),
+.BR cap_get_file (3),
+.BR cap_get_proc (3),
+.BR cap_init (3),
+.BR capgetp (3),
+.BR capsetp (3),
+.BR credentials (7),
+.BR pthreads (7),
+.BR getcap (8),
+.BR setcap (8)
+.PP
+カーネルソース内の
+.I include/linux/capability.h

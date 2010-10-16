@@ -1,0 +1,305 @@
+.\" -*- nroff -*-
+.TH REQUEST_IRQ 9 "1997/08/14 07:53:47" "Linux DDI 2.1.47" "Linux Kernel Functions"
+.\" copyright (C) 1997 Neil Moore <amethyst@maxwell.ml.org>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+
+.\" Turn off hyphentation
+.hlm 0
+.\" Turn off adjustment
+.na
+.SH NAME
+request_irq, free_irq \- register an interrupt handler
+.SH SYNOPSIS
+.B #include <asm/irq.h>
+.br
+.B #include <linux/signal.h>
+.br
+.B #include <linux/sched.h>
+.br
+.B #include <linux/interrupt.h>
+.\" To keep all components of a declaration together, escape all white
+.\" space except after a comma.  In case the proc name plus the first
+.\" declaration is too long for one line, allow a break after '(' by
+.\" adding '\%'.
+.HP
+.BI "int request_irq(unsigned\ int\ " irq ","
+.BI "void\ (*" handler ")(int,\ void\ *,\ struct\ pt_regs\ *),"
+.BI "unsigned\ long " irqflags ", const\ char\ *" devname ","
+.BI "void\ *" dev_id ");"
+.\" We don't want an inter-paragraph space between the two declarations,
+.\" but we have to end the paragraph to stop the hanging indent.  .PD 0
+.\" gets rid of inter-paragraph spacing
+.PD 0
+.PP
+.BI "void\ free_irq(unsigned\ int " irq ", void\ *" dev_id ");"
+.\" And set it back to normal now
+.PD 1
+.\" Back to standard adjustment
+.ad
+.\" Allow hypenation, omit if you want no hyphenation in the man page
+.hlm 1
+.SH DESCRIPTION
+.SS Usage
+The
+.B request_irq()
+function requests that a specified function (the handler) be called
+whenever the kernel receives a given interrupt.  The handler may
+in turn register a bottom half, which is usually a slower part of
+the handler which does not need to be executed as soon as the interrupt
+is received.  See
+.BR init_bh "(9) "
+for more information on bottom halves.
+.PP
+The
+.I irq
+parameter is the interrupt number you want to handle.  It must be less
+than
+.B NR_IRQS
+(16 on Intel systems), and there may be additional limitations on the
+value.  See
+.IR arch/*/kernel/irq.c " (" intr.c
+on m68k machines) for
+more information.
+.PP
+.I handler
+is a pointer to the a pointer to the function that will handle the
+interrupt.  The handler is passed the following parameters:
+.RS
+.TP
+.BI int " irq"
+The interrupt number.  By testing the value of this parameter, it is
+possible for a single function to handle multiple IRQs.
+.TP
+.BI "void *" dev_id
+The device ID of this handler (see below).
+.TP
+.BI "struct pt_regs *" regs
+The registers stored on the stack of the process that was interrupted.
+Normally, one shouldn't mess with these, although they can be read to
+determine, for example, whether the interrupted process was in kernel
+or user mode.
+.RE
+.PP
+.I irqflags
+is, as the name suggests, a bitmask of flags pertaining to this interrupt
+handler.  Legal bits are:
+.RS
+.TP
+.B SA_INTERRUPT
+This bit indicates that you are registering a fast interrupt handler.
+The semantics of this are discussed below.
+.TP
+.B SA_SHIRQ
+This bit indicates that your handler supports sharing an IRQ with other
+handlers (see also
+.RI * dev_id
+below).
+.TP
+.B SA_SAMPLE_RANDOM
+This bit indicates that this IRQ may be used as an entropy source for
+.I /dev/random
+and
+.I /dev/urandom
+(see
+.IR "drivers/char/random.c" ")."
+.TP
+.B SA_PROBE
+This bit indicates that the IRQ is being probed and that the handler
+being installed is not a real one.  It was intended that this value
+be used internally by
+.B probe_irq_on()
+(q.v.), but it is no longer used in 2.1.x kernels.  In fact, even with
+2.0.x kernels, it is only used by the MIPS architecture.  You should not
+be using this value unless you know what you are doing.
+.TP
+.B SA_STATIC_ALLOC
+(Sparc/Sparc64 only)  This bit requests that your
+.B struct irqaction
+(see below) be added to a statically allocated array of four handlers,
+rather than the normal
+.B irq_action[]
+table.  This is used for IRQs that must be requested early in the boot
+process, before
+.B kmalloc_init()
+has been called.
+.RE
+.PP
+The
+.I devname
+parameter is a short name for the device and is displayed in the
+.I "/proc/interrupts"
+list.
+.PP
+The
+.I dev_id
+parameter is the device ID.  This parameter is usually set to NULL, but should
+be non-null if you wish to do IRQ sharing.  This doesn't matter when hooking
+the interrupt, but is required so that, when
+.B free_irq()
+is called, the correct driver is unhooked.  Since this is a
+.BR "void *" ","
+it can point to anything (such as a device-specific structure, or even empty
+space), but make sure you pass the same pointer to
+.BR free_irq() "."
+.PP
+The
+.B free_irq()
+function releases an interrupt handler from operation.  It takes as parameters
+the IRQ to unregister, and the device ID of the handler to be unregistered.
+You should pass the same values here as you did to
+.BR request_irq() ". "
+You probably shouldn't unregister other people's interrupt handlers unless you
+know what you are doing.
+.SS Operation
+.PP
+For most architectures,
+.B request_irq()
+operates by allocating memory for a
+.BR "struct irqaction" ", "
+filling out the fields thereof, and adding it to the
+.B irq_action[]
+table.
+.B enable_irq()
+is then called, which simply tells the kernel to start delivering interrupts
+to the installed handler.  This process is vastly different on m68k machines,
+where it varies depending on what type of machine (Amiga, Atari, etc.) one is
+using.
+.B free_irq()
+simply removes the entries that
+.B request_irq()
+added. Note that some of these names differ depending on the architecture (for
+example,
+.B "struct irqaction"
+is known as
+.B "struct irq_action"
+on the Power PC).  If you need to know more about the internal workings of
+these functions, you are best off reading the source, as some of this
+information may have changed by the time you read this (if so, tell me, so
+I can try to update this page).
+.SS
+Fast Interrupt Handlers
+.PP
+A `fast' interrupt handler (one with
+.B SA_INTERRUPT
+set) has the following
+differences from normal `slow' interrupt handlers:
+.PP
+.RS
+On the ix86 and MIPS, the handler is called with interrupts disabled
+(they are enabled by default on these machines; on other machines,
+they are disabled by default).
+.PP
+On the MIPS, a faster return is used.
+.PP
+On the Alpha, MIPS, Sparc, and Sparc64, a fast and a slow handler
+may not share the same IRQ.
+.PP
+On all architectures except the m68k and the ix86, a `+' is displayed
+between the interrupt count and the device name in
+.IR /proc/interrupts ". "
+.RE
+.PP
+The slow-versus-fast interrupt distinction is slowly being phased out.  For
+example, under 2.0.x on the ix86,
+.B SA_INTERRUPT
+enabled a fast return as it still does on the MIPS; this distiction was
+removed in 2.1.x.
+.SH "RETURN VALUE"
+On success,
+.B request_irq()
+returns 0 if everything goes as planned.  Your interrupt handler will start
+receiving its interrupts immediately.  On failure,
+.B request_irq()
+returns:
+.RS
+.TP
+.B -EINVAL
+The IRQ number you requested was either invalid or reserved, or your passed a NULL
+pointer for the
+.I handler()
+parameter.
+.TP
+.B -ENOMEM
+.B request_irq()
+could not allocate enough memory for something (probably the
+.BR "struct irqaction" ")."
+.TP
+.B -EBUSY
+The IRQ you requested is already being handled, and the IRQ cannot be
+shared.  This can occur because either the handler being registered or
+the handler already present does not have
+.B SA_SHIRQ
+in its
+.I irqflags
+field.
+In addition, on most architectures, all handlers sharing a single IRQ must be
+of the same speed; i.e., either all or none of them may have the
+.B SA_INTERRUPT
+flag set.  Finally, it is possible that your architecture may not support sharing
+of the IRQ you are attempting to use.
+.TP
+.B -ENXIO
+The m68k returns this value for an invalid IRQ number.
+.RE
+.PP
+.B free_irq()
+does not return a value.
+.SH AVAILABILITY
+Linux 2.1+.  The information on this page should work for 2.0.x, but there
+may be subtle differences (for example, the semantics of
+.B SA_INTERRUPT
+on Intel-based machines).  Versions earlier than 2.0 had these functions,
+but the
+.I dev_id
+parameter was missing.  If you want your code to work with versions both earlier
+and later than 2.0, you should protect your code with preprocessor macros using
+.BR LINUX_VERSION_CODE ". "
+.SH "SEE ALSO"
+.BR init_bh "(9), " probe_irq_on "(9), "
+.IR "arch/*/kernel/irq.c" ", " "arch/*/kernel/entry.S" ", "
+.IR "include/linux/interrupt.h" ", " "include/asm*/signal.h" "."
+.SH AUTHOR
+.RI "Neil Moore <" amethyst@maxwell.ml.org ">"
+.SH BUGS
+It's not exactly a bug, but
+.B request_irq()
+on the m68k is
+.I very
+strange compared to the same function on the other supported architectures.
+You should really read
+.IR "arch/m68k/kernel/ints.c" ", " "arch/m68k/atari/ataints.c" ", "
+.IR "arch/m68k/amiga/amiints.c" ", and " "arch/m68k/amiga/cia.c"
+if you plan on writing drivers for any of these systems.
+.\" request_irq.9,v
+.\" Revision 1.3  1997/08/14 07:53:47  amethyst
+.\" Formatting changes.
+.\"
+.\" Revision 1.2  1997/07/27 09:52:24  amethyst
+.\" Changed some wording.
+.\" Fixed a few typographical warts.
+.\" Added email address to copyright notice.
+.\" Changed one occurence of ``i386'' to ``ix86''.
+.\" Changed ``Parameters'' subsection to ``Usage''.
+.\"
+.\" Revision 1.1  1997/07/27 09:28:25  amethyst
+.\" Initial revision
+.\"

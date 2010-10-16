@@ -1,0 +1,295 @@
+'\" t
+.\" Don't change the first line, it tells man that tbl is needed.
+.\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\" $Id: netdevice.7,v 1.10 2001/08/15 18:01:06 hanataka Exp $
+.\"
+.\" Modified, 2004-11-25, mtk, formatting and a few wording fixes
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Translated Mon 6 Dec 1999 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated Wed 14 Feb 2001 by Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2009-02-12 by Kentaro Shirakata <argrath@ub32.org>
+.\"
+.\"WORD		load balancing bundle	負荷分散グループ
+.\"WORD		file descriptor		ファイルディスクリプタ
+.\"WORD		capability		権限
+.\"
+.TH NETDEVICE  7 2009-01-14 "Linux" "Linux Programmer's Manual"
+.SH 名前
+netdevice \- Linux ネットワークデバイスへの低レベルアクセス
+.SH 書式
+.B "#include <sys/ioctl.h>"
+.br
+.B "#include <net/if.h>"
+.SH 説明
+この man ページでは、ネットワークデバイスを設定するために
+用いるソケットインターフェースについて解説する。
+
+Linux はネットワークデバイスを設定するための標準的な ioctl を
+いくつか備えている。これらはどんなソケットのファイルディスクリプタにも
+用いることができる。ファミリーやタイプは何でもよい。
+これらの ioctl は
+.I ifreq
+構造体を渡す。
+
+.in +4n
+.nf
+struct ifreq {
+    char ifr_name[IFNAMSIZ]; /* Interface name */
+    union {
+        struct sockaddr ifr_addr;
+        struct sockaddr ifr_dstaddr;
+        struct sockaddr ifr_broadaddr;
+        struct sockaddr ifr_netmask;
+        struct sockaddr ifr_hwaddr;
+        short           ifr_flags;
+        int             ifr_ifindex;
+        int             ifr_metric;
+        int             ifr_mtu;
+        struct ifmap    ifr_map;
+        char            ifr_slave[IFNAMSIZ];
+        char            ifr_newname[IFNAMSIZ];
+        char           *ifr_data;
+    };
+};
+
+struct ifconf {
+    int                 ifc_len; /* size of buffer */
+    union {
+        char           *ifc_buf; /* buffer address */
+        struct ifreq   *ifc_req; /* array of structures */
+    };
+};
+.fi
+.in
+
+通常、ユーザーによる設定対象デバイスの指定は、
+.I ifr_name
+にインターフェースの名前をセットすることによって行う。
+他の構造体の全てのメンバは、メモリを共有する。
+.SS ioctl
+「特権が必要」と記述されている ioctl を実行するには、
+実効ユーザー ID が 0 か、
+.B CAP_NET_ADMIN
+権限が必要である。これが満たされていない場合は
+.B EPERM
+が返される。
+.TP
+.B SIOCGIFNAME
+.I ifr_ifindex
+を受け取り、インターフェースの名前を
+.I ifr_name
+に入れて返す。これは結果を
+.I ifr_name
+として返す唯一の ioctl である。
+.TP
+.B SIOCGIFINDEX
+インターフェースの interface index を取得し、
+.I ifr_ifindex
+に入れて返す。
+.TP
+.BR SIOCGIFFLAGS ", " SIOCSIFFLAGS
+デバイスの active フラグワードを取得または設定する。
+.I ifr_flags
+には以下の値のビットマスクが入る。
+.TS
+tab(:);
+c s
+l l.
+デバイスフラグ
+IFF_UP:インターフェースは動作中。
+IFF_BROADCAST:T{
+有効なブロードキャストアドレスがセットされている。
+T}
+IFF_DEBUG:内部のデバッグフラグ。
+IFF_LOOPBACK:インターフェースはループバックである。
+IFF_POINTOPOINT:T{
+インターフェースは point-to-point リンクである。
+T}
+IFF_RUNNING:リソースが割り当て済み。
+IFF_NOARP:arp プロトコルがない。
+IFF_PROMISC:インターフェースは promiscuous モードである。
+IFF_NOTRAILERS:trailer の利用を避ける。
+IFF_ALLMULTI:全てのマルチキャストパケットを受信する。
+IFF_MASTER:負荷分散グループのマスターである。
+IFF_SLAVE:負荷分散グループのスレーブである。
+IFF_MULTICAST:マルチキャストをサポートしている。
+IFF_PORTSEL:ifmap によってメディアタイプを選択できる。
+IFF_AUTOMEDIA:自動メディア選択が有効になっている。
+IFF_DYNAMIC:T{
+このインターフェースが閉じると、アドレスは失われる。
+T}
+IFF_LOWER_UP:ドライバからの L1 アップの通知 (Linux 2.6.17 以降)
+IFF_DORMANT:ドライバからの休止状態の通知 (Linux 2.6.17 以降)
+IFF_ECHO:送られたパケットをエコーする (Linux 2.6.25 以降)
+
+
+.TE
+active フラグワードの設定は特権が必要な操作である。
+しかし読み出しはどんなプロセスからも可能である。
+.TP
+.BR SIOCGIFMETRIC ", " SIOCSIFMETRIC
+デバイスのメトリックを
+.I ifr_metric
+を用いて取得・設定する。
+これはまだ実装されていない。読み出そうとすると
+.I ifr_metric
+に 0 をセットして返り、設定しようとすると
+.B EOPNOTSUPP
+が返る。
+.TP
+.BR SIOCGIFMTU ", " SIOCSIFMTU
+デバイスの MTU (Maximum Transfer Unit) を
+.I ifr_mtu
+を用いて取得・設定する。 MTU の設定は特権が必要な操作である。
+MTU の値を小さくしすぎるとカーネルがクラッシュするかもしれない。
+.TP
+.BR SIOCGIFHWADDR ", " SIOCSIFHWADDR
+デバイスのハードウェアアドレスを
+.I ifr_hwaddr
+を用いて取得・設定する。
+ハードウェアアドレスは
+.I sockaddr
+構造体に設定される。
+.I sa_family
+には ARPHRD_* デバイスタイプが入り、
+.I sa_data
+にはバイト 0 から始まる L2 ハードウェアアドレスが入る。
+ハードウェアアドレスの設定は特権が必要な操作である。
+.TP
+.B SIOCSIFHWBROADCAST
+デバイスのハードウェアブロードキャストアドレスを
+.I ifr_hwaddr
+の値に設定する。この操作には特権が必要である。
+.TP
+.BR SIOCGIFMAP ", " SIOCSIFMAP
+インターフェースのハードウェアのパラメータを
+.I ifr_map
+を用いて取得・設定する。
+パラメータの設定は特権が必要な操作である。
+
+.in +4n
+.nf
+struct ifmap {
+    unsigned long   mem_start;
+    unsigned long   mem_end;
+    unsigned short  base_addr;
+    unsigned char   irq;
+    unsigned char   dma;
+    unsigned char   port;
+};
+.fi
+.in
+
+ifmap 構造体の解釈はデバイスドライバとアーキテクチャに依存する。
+.TP
+.BR SIOCADDMULTI ", " SIOCDELMULTI
+デバイスのリンク層のマルチキャストフィルターから、
+.I ifr_hwaddr
+のアドレスを追加・削除する。これらの操作には特権が必要である。
+別の方法が
+.BR packet (7)
+で解説されている。
+.TP
+.BR SIOCGIFTXQLEN ", " SIOCSIFTXQLEN
+デバイスの送信キューの長さを
+.I ifr_qlen
+に取得・設定する。送信キューの長さの設定には特権が必要である。
+.TP
+.B SIOCSIFNAME
+.I ifr_name
+で指定したインターフェースの名前を
+.I ifr_newname
+に変更する。この操作には特権が必要である。インターフェースが up していない
+時にのみ使用できる。
+.TP
+.B SIOCGIFCONF
+インターフェース(トランスポート層)アドレスのリストを返す。
+現在のところ、互換性のために
+.B AF_INET
+(IPv4) ファミリーのアドレスのみである。
+ユーザーは
+.I ifconf
+構造体を ioctl の引数として渡す。
+.I ifconf
+構造体には、
+.I ifreq
+構造体の配列へのポインタである
+.I ifc_req
+と、バイト単位の配列の長さを指定する
+.I ifc_len
+が含まれる。
+カーネルは ifreqs を現在動作している全ての L3 インターフェースアドレスで埋める。
+.I ifr_name
+にはインターフェース名 (eth0:1 など) が入り、
+.I ifr_addr
+にはアドレスが入る。
+カーネルは実際の長さを
+.I ifc_len
+に返す。
+.I ifc_len
+が元のバッファの長さと同じだった場合、
+オーバーフローを起こしている可能性があるので、
+全てのアドレスを取得するためにより大きなバッファで再試行するべきである。
+エラーがなかった場合は ioctl は 0 を返す。
+エラーがあった場合は \-1 を返す。
+オーバーフローはエラーとは見なされない。
+.\" Slaving isn't supported in 2.2
+.\" .
+.\" .TP
+.\" .BR SIOCGIFSLAVE ", " SIOCSIFSLAVE
+.\" Get or set the slave device using
+.\" .IR ifr_slave .
+.\" Setting the slave device is a privileged operation.
+.\" .PP
+.\" FIXME add amateur radio stuff.
+.PP
+ほとんどのプロトコルには、専用のインターフェースオプションを
+設定するための独自の ioctl が存在する。
+説明は各プロトコルの man ページを見よ。
+.PP
+さらに、デバイスによってはプライベートな ioctl がある。
+これらはここでは説明しない。
+.SH 注意
+厳密にいうと、
+.B SIOCGIFCONF
+は IP 固有であり、
+.BR ip (7)
+に属する。
+.LP
+アドレスがなかったり、
+.B IFF_RUNNING
+フラグがセットされていないインターフェースの名前は
+.I /proc/net/dev
+で知ることができる。
+.LP
+ローカル IPV6 IP アドレスは
+.I /proc/net
+か
+.BR rtnetlink (7)
+で知ることができる。
+.SH バグ
+glibc 2.1 では
+.I <net/if.h>
+に
+.I ifr_newname
+マクロがない。
+とりあえずの対応策として、以下のコードを追加しておくこと。
+.sp
+.in +4n
+.nf
+#ifndef ifr_newname
+#define ifr_newname     ifr_ifru.ifru_slave
+#endif
+.fi
+.in
+.RE
+.SH 関連項目
+.BR proc (5),
+.BR capabilities (7),
+.BR ip (7),
+.BR rtnetlink (7)

@@ -1,0 +1,249 @@
+.\"	$OpenBSD: lpd.8,v 1.5 1997/07/17 07:43:07 deraadt Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)lpd.8	8.3 (Berkeley) 4/19/94
+.\"
+.\" Japanese Version Copyright (c) 2000 Hirohisa AMAN,
+.\"     <aman@soft.comp.kyutech.ac.jp> all right reserved.
+.\"
+.Dd April 19, 1994
+.Dt LPD 8
+.Os BSD 4.4
+.Sh 名前
+.Nm lpd
+.Nd ラインプリンタ スプーラー デーモン
+.Sh 書式
+.Nm lpd
+.Op Fl l
+.Sh 説明
+.Nm lpd
+は、ラインプリンタデーモン (スプール領域ハンドラー) であり、起動時に
+.Xr rc 8
+ファイルから呼び出されるのが普通である。
+これは、
+.Xr printcap 5
+ファイルをひととおり調べてプリンタ情報を入手し、クラッシュ後に残されていた
+ファイルがあればそれらをすべて印刷する。そして、システムコール
+.Xr listen 2
+及び
+.Xr accept 2
+を利用して、キュー内にあるファイルの印刷要求受付、
+スプール領域へのファイル転送、キューの表示、
+ならびにキュー内のジョブの削除を行なう。
+いずれの場合も、子プロセスをフォーク(fork)して要求を処理し、
+親プロセスは引き続いて他の要求を受け入れれるようにしている。
+.Pp
+オプション :
+.Bl -tag -width Ds
+.It Fl l
+.Fl l
+フラグを立てると、
+.Nm lpd
+はネットワークから受け取った有効な要求のログをとる。
+これは、デバッグを行なうのに有用である。
+.El
+.Pp
+アクセス制御には 2 つの方法がある。まず 1 つ目は、
+.Pa /etc/hosts.equiv
+若しくは
+.Pa /etc/hosts.lpd
+ファイルに列挙されているマシンからの要求のみを受け付けるというものである。
+2 つ目の方法は、もし
+.Li rs
+がアクセスされようとしているプリンタの
+.Xr printcap
+エントリに指定してあれば、
+そのプリンタが接続されているマシンにアカウントを持ったユーザーに限り，
+.Em lpr
+要求が受理されるというものである。
+.Pp
+ラインプリンタキューがディスクを全て使い果たすことのないよう、
+各スプールディレクトリ内のファイル
+.Em minfree
+には、空きとして残しておくディスクブロックの数が書き込まれる。
+この
+.Em minfree
+の編集には、いかなるエディタを使っても構わない。
+.Pp
+デーモンは、排他的アクセスのためのロック(後述)をセットした後、
+ファイルの処理を開始し、スプールディレクトリを調べ、
+.Em cf
+で始まるファイルをさがす。
+各
+.Em cf
+ファイルでは、印刷されるべきファイルや(印刷以外で)実行される
+べき動作が指定されている。そのそれぞれの行は、一つのキー文字で始まっ
+ており、それはその行の残りの部分とともに何をするべきかを表している。
+.Bl -tag -width Ds
+.It J
+ジョブの名前。バーストページにおいてジョブ名として使われる文字列。
+.It C
+分類。バーストページにおいて分類行に使われる文字列。
+.It L
+リテラル。パスワードファイルから得られた識別情報。
+これは、バナーページを印刷させる。
+.It T
+タイトル。
+.Xr pr 1
+のタイトルとして使われる文字列。
+.It H
+ホスト名。
+.Xr lpr
+が呼び出されたマシンの名前。
+.It P
+人。
+.Xr lpr
+を呼び出した人のログイン名。
+これは、所有権を確認するために
+.Xr lprm
+によって利用される。
+.It M
+現在のプリントジョブが完了した時点で、指定されたユーザーに対してメールを送る。
+.It f
+整形されたファイル。印刷するファイル(これは，既に整形してある)の名前。
+.It l
+``f'' に似ているが、これは制御文字を通し、改ページをさせない。
+.It p
+.Xr pr 1
+をフィルタとして使うことで印刷されるべきファイルの名前。
+.It t
+troff ファイル。その内容は
+.Xr troff 1
+(cat 写植コマンド)の出力である。
+.It n
+ditroff ファイル。その内容はデバイス非依存 troff 出力である。
+.It r
+DVI ファイル。その内容は
+.Tn Tex 
+出力である。
+DVI フォーマットは、スタンフォード大学で開発されたものである。
+.It g
+グラフファイル。その内容は
+.Xr plot 3
+によって作成されたデータである。
+.It c
+cifplot ファイル。その内容は
+.Em cifplot
+によって作成されたデータである。
+.It v
+ラスタイメージ(raster image)ファイル。
+.It r
+FORTRAN キャリッジ制御文字(FORTRAN carriage control characters)を含んだテキストデータからなるファイル。
+.It \&1
+troff のフォント R 。
+デフォルトの代わりに使用するフォントファイルの名前。
+.It \&2
+troff のフォント I 。
+デフォルトの代わりに使用するフォントファイルの名前。
+.It \&3
+troff のフォント B 。
+デフォルトの代わりに使用するフォントファイルの名前。
+.It \&4
+troff のフォント S 。
+デフォルトの代わりに使用するフォントファイルの名前。
+.It W
+横幅。
+.Xr pr 1
+やテキストフィルタで使用されるページ幅(文字数で指定)を変更する。
+.It I
+インデント。出力に施すインデントの(アスキー文字での)文字数。
+.It U
+アンリンク(unlink)。印刷終了時に削除されるファイル名。
+.It N
+ファイル名。印刷されるファイル名。標準入力(
+.Xr lpr
+がパイプラインにおいて呼び出された場合)の場合は空白。
+.El
+.Pp
+もしファイルをオープンできないときは、
+.Em LOG_LPR
+機能を使い、
+.Xr syslog 3
+を通じてメッセージが記録される。
+.Nm lpd
+は、そのファイルの印刷を見送るまでに最大 20 回まで再オープンを試みる。
+.Pp
+.Nm lpd
+は、
+.Xr flock 2
+を使ってロックファイルへの排他的アクセスを提供し、
+複数のデーモンが同時にアクティブになるのを防ぐ。
+もし、不意にデーモンが殺されたり死んだりしても、ロックファイルを削除する
+必要はない。
+ロックファイルは、読むことの可能な
+.Tn ASCII
+形式で保持され、2 つの行をその内容としている。
+1 行目はデーモンのプロセス id であり、2 行目は現在の印刷ジョブの
+制御ファイル名である。
+2 行目は、
+.Xr lpq 1
+と
+.Xr lprm 1
+に使われるため、
+.Nm lpd
+の現在の状態を反映するよう更新される。
+.Sh ファイル
+.Bl -tag -width "/var/spool/*/minfree" -compact
+.It Pa /etc/printcap
+プリンタ記述ファイル
+.It Pa /var/spool/*
+スプールディレクトリ(の集まり)
+.It Pa /var/spool/*/minfree
+最低限残しておくべき空き領域
+.It Pa /dev/lp*
+ラインプリンタデバイス
+.It Pa /var/run/printer
+ローカルでの要求に対するソケット(socket)
+.It Pa /etc/hosts.equiv
+プリンタへのアクセスが許可されているマシンの名前のリスト
+.It Pa /etc/hosts.lpd
+プリンタへのアクセスは許可されているが、同じ管理制御の下には置かれていない
+マシンの名前のリスト
+.El
+.Sh 関連項目
+.Xr lpc 8 ,
+.Xr pac 8 ,
+.Xr lpr 1 ,
+.Xr lpq 1 ,
+.Xr lprm 1 ,
+.Xr syslog 3 ,
+.Xr printcap 5
+.Rs
+
+.%T "BSD 4.3 ラインプリンタマニュアル"
+.Re
+.Sh 履歴
+.Nm
+デーモンは、Version 6 AT&T UNIX で登場した。
+
+

@@ -1,0 +1,1779 @@
+.\" This page was taken from the 4.4BSD-Lite CDROM (BSD license)
+.\"
+.\" @(#)rpc.3n	2.4 88/08/08 4.0 RPCSRC; from 1.19 88/06/24 SMI
+.\"
+.\" 2007-12-30, mtk, Convert function prototypes to modern C syntax
+.\"
+.\" Japanese Version Copyright (c) 1999 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated Tue Jan  4 20:48:23 JST 2000
+.\"         by HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated & Modified Sun Oct 21 01:07:09 JST 2001
+.\"         by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\"
+.TH RPC 3 2008-07-17 "" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O rpc \- library routines for remote procedure calls
+rpc \- 遠隔手続き呼び出し(RPC)のためのライブラリ・ルーティン
+.\"O .SH SYNOPSIS AND DESCRIPTION
+.SH 書式と説明
+.\"O These routines allow C programs to make procedure
+.\"O calls on other machines across the network.
+.\"O First, the client calls a procedure to send a data packet to the server.
+.\"O Upon receipt of the packet, the server calls a dispatch routine
+.\"O to perform the requested service, and then sends back a reply.
+.\"O Finally, the procedure call returns to the client.
+これらのルーティンは C プログラムでネットワークを通して
+他のマシンにアクセスするプロシジャを作成することを可能にする。
+最初にクライアントはデータパケットをサーバに送るために
+プロシジャを呼び出す。
+サーバはパケットを受け取ると、配分ルーチンを呼び出して
+要求されたサービスに実行し、返答を送り返す。
+最後にプロシジャ・コールはクライアントへと戻る。
+.\" .LP
+.\"O .\" We don't have an rpc_secure.3 page at the moment -- MTK, 19 Sep 05
+.\"O .\" Routines that are used for Secure RPC (DES authentication) are described in
+.\"O .\" .BR rpc_secure (3).
+.\"O .\" Secure RPC can be used only if DES encryption is available.
+.\" 今現在は rpc_secure.3 は入っていない -- MTK, 19 Sep 05
+.\" (DES 認証による) Secure RPC で使用されるルーティンについての説明は
+.\" .BR rpc_secure (3)
+.\" に存在する。 Secure RPC は DES 認証が利用可能な場合にのみ使用できる。
+.LP
+.\"O To take use of these routines, include the header file
+.\"O .IR "<rpc/rpc.h>" .
+これらのルーティンを使用するには、ヘッダファイル
+.I "<rpc/rpc.h>"
+をインクルードすること。
+
+.\"O The prototypes below make use of the following types:
+下記のプロトタイプでは次の型を使用している。
+.in +4n
+.nf
+
+typedef int \fIbool_t\fP;
+
+typedef bool_t (*\fIxdrproc_t\fP) (XDR *, void *,...);
+
+typedef bool_t (*\fIresultproc_t\fP) (caddr_t resp,
+                                struct sockaddr_in *raddr);
+.fi
+.in
+.LP
+.\"O See the header files for the declarations of the
+.\"O .IR AUTH ,
+.\"O .IR CLIENT ,
+.\"O .IR SVCXPRT ,
+.\"O and
+.\"O .IR XDR
+.\"O types.
+型
+.IR AUTH ,
+.IR CLIENT ,
+.IR SVCXPRT ,
+.IR XDR
+の宣言についてはヘッダファイルを参照。
+.LP
+.nf
+.BI "void auth_destroy(AUTH *" auth );
+.fi
+.IP
+.\"O A macro that destroys the authentication information associated with
+.\"O .IR auth .
+.\"O Destruction usually involves deallocation of private data structures.
+.\"O The use of
+.\"O .I auth
+.\"O is undefined after calling
+.\"O .BR auth_destroy ().
+このマクロは
+.I auth
+に関連付けられた認証情報を破壊する。破壊は通常は私的なデータ構造の
+破棄を含んでいる。
+.BR auth_destroy ()
+を呼び出した後に
+.I auth
+を使用することは未定義である。
+.LP
+.nf
+.BI "AUTH *authnone_create(void);"
+.fi
+.IP
+.\"O Create and returns an RPC
+.\"O authentication handle that passes nonusable authentication
+.\"O information with each remote procedure call.
+.\"O This is the default authentication used by RPC.
+各リモート・プロシジャ・コールで使用できない仮の認証情報として渡される
+RPC 認証ハンドルを作成して返す。
+これは RPC で使用されるデフォルトの認証である。
+.LP
+.nf
+.BI "AUTH *authunix_create(char *" host ", int " uid ", int " gid ,
+.BI "                      int " len ", int *" aup_gids );
+.fi
+.IP
+.\"O Create and return an RPC authentication handle that contains
+.\"O authentication information.
+.\"O The parameter
+.\"O .I host
+.\"O is the name of the machine on which the information was created;
+.\"O .I uid
+.\"O is the user's user ID;
+.\"O .I gid
+.\"O is the user's current group ID;
+.\"O .I len
+.\"O and
+.\"O .I aup_gids
+.\"O refer to a counted array of groups to which the user belongs.
+.\"O It is easy to impersonate a user.
+認証情報を含んだ RPC 認証ハンドルを作成して返す。
+.I host
+パラメーターは情報が作成されたマシンの名前である。
+.I uid
+はそのユーザのユーザ
+.SM ID
+、
+.I gid
+はそのユーザの現在のグループ
+.SM ID
+である。
+.I len
+と
+.I aup_gids
+はそのユーザが所属するグループの配列を参照している。
+他のユーザになりすますことは簡単である。
+.LP
+.nf
+.BI "AUTH *authunix_create_default(void);"
+.fi
+.IP
+.\"O Calls
+.\"O .BR authunix_create ()
+.\"O with the appropriate parameters.
+適切なパラメーターで
+.BR authunix_create ()
+を呼び出す。
+.LP
+.nf
+.BI "int callrpc(char *" host ", unsigned long " prognum ,
+.BI "            unsigned long " versnum ", unsigned long " procnum ,
+.BI "            xdrproc_t " inproc ", char *" in ,
+.BI "            xdrproc_t " outproc ", char *" out );
+.fi
+.IP
+.\"O Call the remote procedure associated with
+.\"O .IR prognum ,
+.\"O .IR versnum ,
+.\"O and
+.\"O .I procnum
+.\"O on the machine,
+.\"O .IR host .
+.\"O The parameter
+.\"O .I in
+.\"O is the address of the procedure's argument(s), and
+.\"O .I out
+.\"O is the address of where to place the result(s);
+.\"O .I inproc
+.\"O is used to encode the procedure's parameters, and
+.\"O .I outproc
+.\"O is used to decode the procedure's results.
+.\"O This routine returns zero if it succeeds, or the value of
+.\"O .B "enum clnt_stat"
+.\"O cast to an integer if it fails.
+.\"O The routine
+.\"O .BR clnt_perrno ()
+.\"O is handy for translating failure statuses into messages.
+マシン
+.I host
+上で
+.IR prognum ,
+.IR versnum ,
+.I procnum
+に関連付けられたリモート・プロシジャを呼び出す。
+パラメーター
+.I in
+はプロシジャの引き数のアドレスであり
+.I out
+は結果を格納するアドレスである。
+.I inproc
+はプロシジャのパラメーターをエンコードするのに使用され、
+.I outproc
+は結果をデコードするのに使用される。
+このルーティンは成功した場合にはゼロを返す。失敗した場合には
+.B "enum clnt_stat"
+を整数にキャストした値を返す。
+.BR clnt_perrno ()
+ルーティンが失敗の状態をメッセージに変換するのに使用できる。
+.IP
+.\"O Warning: calling remote procedures with this routine
+.\"O uses UDP/IP as a transport; see
+.\"O .BR clntudp_create ()
+.\"O for restrictions.
+.\"O You do not have control of timeouts or authentication using this routine.
+警告: このルーティンでリモート・プロシジャを呼び出すと通信には
+UDP/IP が使用される。この際の制限については
+.BR clntudp_create ()
+を参照すること。このルーティンを使用して認証や時間切れの制御を
+することはできない。
+.LP
+.nf
+.BI "enum clnt_stat clnt_broadcast(unsigned long " prognum ,
+.BI "                     unsigned long " versnum ", unsigned long " procnum ,
+.BI "                     xdrproc_t " inproc ", char *" in ,
+.BI "                     xdrproc_t " outproc ", char *" out ,
+.BI "                     resultproc_t " eachresult );
+.fi
+.IP
+.\"O Like
+.\"O .BR callrpc (),
+.\"O except the call message is broadcast to all locally
+.\"O connected broadcast nets.
+.\"O Each time it receives a response, this routine calls
+.\"O .BR eachresult (),
+.\"O whose form is:
+.BR callrpc ()
+と同様であるが、メッセージがローカルのブロードキャスト・ネットワーク
+全体へとブロードキャストされる点が異っている。回答を受け取る度に
+このルーティンは以下の形式の
+.BR eachresult ()
+を呼び出す。
+.IP
+.in +4n
+.nf
+.BI "eachresult(char *" out ", struct sockaddr_in *" addr );
+.fi
+.in
+.IP
+.\"O where
+.\"O .I out
+.\"O is the same as
+.\"O .I out
+.\"O passed to
+.\"O .BR clnt_broadcast (),
+.\"O except that the remote procedure's output is decoded there;
+.\"O .I addr
+.\"O points to the address of the machine that sent the results.
+.\"O If
+.\"O .BR eachresult ()
+.\"O returns zero,
+.\"O .BR clnt_broadcast ()
+.\"O waits for more replies; otherwise it returns with appropriate status.
+ここで
+.I out
+は
+.BR clnt_broadcast ()
+に渡される
+.I out
+と同じであるが、リモート・プロシジャからの出力がデコードされている
+点のみが異っている。
+.I addr
+は結果を送って来たマシンのアドレスを指している。
+.BR eachresult ()
+がゼロを返した場合、
+.BR clnt_broadcast ()
+はさらなる回答を待つ。そうでなければ適切な状態で終了する。
+.IP
+.\"O Warning: broadcast sockets are limited in size to the
+.\"O maximum transfer unit of the data link.
+.\"O For ethernet, this value is 1500 bytes.
+警告: ブロードキャスト・ソケットはデータリンク層の最大転送単位に
+制限されている。イーサネットの場合、最大値は 1500 バイトである。
+.LP
+.nf
+.BI "enum clnt_stat clnt_call(CLIENT *" clnt ", unsigned long " procnum ,
+.BI "                    xdrproc_t " inproc ", char *" in ,
+.BI "                    xdrproc_t " outproc ", char *" out ,
+.BI "                    struct timeval " tout );
+.fi
+.IP
+.\"O A macro that calls the remote procedure
+.\"O .I procnum
+.\"O associated with the client handle,
+.\"O .IR clnt ,
+.\"O which is obtained with an RPC client creation routine such as
+.\"O .BR clnt_create ().
+このマクロはクライアント・ハンドル
+.I clnt
+に関連付けられた
+.I procnum
+リモート・プロシジャを呼び出す。
+クライアント・ハンドルは
+.BR clnt_create ()
+のような
+.SM RPC
+クライアント作成ルーティンによって得られる。
+.\"O The parameter
+.\"O .I in
+.\"O is the address of the procedure's argument(s), and
+.\"O .I out
+.\"O is the address of where to place the result(s);
+.\"O .I inproc
+.\"O is used to encode the procedure's parameters, and
+.\"O .I outproc
+.\"O is used to decode the procedure's results;
+.\"O .I tout
+.\"O is the time allowed for results to come back.
+パタメータ
+.I in
+はプロシジャの引き数のアドレスである。
+.I out
+はプロシジャの返り値を格納するアドレスである。
+.I inproc
+はプロシジャのパラメーターをエンコードするのに使用される。
+.I outproc
+はプロシジャの返り値をデコードするのに使用される。
+.I tout
+は結果が返されるのを待つ時間である。
+.LP
+.nf
+.BI "clnt_destroy(CLIENT *" clnt );
+.fi
+.IP
+.\"O A macro that destroys the client's RPC handle.
+.\"O Destruction usually involves deallocation
+.\"O of private data structures, including
+.\"O .I clnt
+.\"O itself.
+.\"O Use of
+.\"O .I clnt
+.\"O is undefined after calling
+.\"O .BR clnt_destroy ().
+.\"O If the RPC library opened the associated socket, it will close it also.
+.\"O Otherwise, the socket remains open.
+このマクロはクライアントの RPC ハンドルを破壊する。破壊には通常は
+.I clnt
+自身も含めて私的なデータ構造体の破棄が含まれている。
+.BR clnt_destroy ()
+の呼び出しの後に
+.I clnt
+を使用することは未定義である。
+RPC ライブラリが関連するソケットをオープンした場合には、
+それも閉じられる。それ以外の場合にはソケットはオープンされたままである。
+.LP
+.nf
+.BI "CLIENT *clnt_create(char *" host ", unsigned long " prog ,
+.BI "                    unsigned long " vers ", char *" proto );
+.fi
+.IP
+.\"O Generic client creation routine.
+.\"O .I host
+.\"O identifies the name of the remote host where the server is located.
+.\"O .I proto
+.\"O indicates which kind of transport protocol to use.
+.\"O The currently supported values for this field are \(lqudp\(rq
+.\"O and \(lqtcp\(rq.
+.\"O Default timeouts are set, but can be modified using
+.\"O .BR clnt_control ().
+一般的なクライアントの作成ルーティンである。
+.I host
+はサーバのあるリモートホストの名前を指定する。
+.I proto
+どのような通信プロトコルを使用するかを指定する。現在ここに
+使用できる値は \(lqudp\(rq と \(lqtcp\(rq である。
+デフォルトの時間切れが設定されるが、
+.BR clnt_control ()
+を使用して変更可能である。
+.IP
+.\"O Warning: Using UDP has its shortcomings.
+.\"O Since UDP-based RPC messages can only hold up to 8 Kbytes of encoded data,
+.\"O this transport cannot be used for procedures that take
+.\"O large arguments or return huge results.
+警告:
+UDP を使用した場合には欠点がある。
+UDP に基づいた RPC メッセージは
+最大でも 8 KByte のエンコードデータしか保持する
+ことができないため、大きな引き数や巨大な結果を取るプロシジャに
+は使用することができない。
+.LP
+.nf
+.BI "bool_t clnt_control(CLIENT *" cl ", int " req ", char *" info );
+.fi
+.IP
+.\"O A macro used to change or retrieve various information
+.\"O about a client object.
+.\"O .I req
+.\"O indicates the type of operation, and
+.\"O .I info
+.\"O is a pointer to the information.
+.\"O For both UDP and TCP, the supported values of
+.\"O .I req
+.\"O and their argument types and what they do are:
+このマクロは各種クライアントについて情報を変更したり、取得したり
+するのに使用する。
+.I req
+は操作の種類を指定する。
+.I info
+は情報へのポインターである。
+UDP と TCP どちらの場合も使用可能な
+.I req
+の値と、その引き数の型、およびその内容は以下の通りである:
+.IP
+.in +4n
+.nf
+.ta +2.0i +2.0i +2.0i
+.\"O \fBCLSET_TIMEOUT\fP  \fIstruct timeval\fP // set total timeout
+.\"O \fBCLGET_TIMEOUT\fP  \fIstruct timeval\fP // get total timeout
+\fBCLSET_TIMEOUT\fP  \fIstruct timeval\fP // 時間切れを設定する
+\fBCLGET_TIMEOUT\fP  \fIstruct timeval\fP // 時間切れを取得する
+.fi
+.in
+.IP
+.\"O Note: if you set the timeout using
+.\"O .BR clnt_control (),
+.\"O the timeout parameter passed to
+.\"O .BR clnt_call ()
+.\"O will be ignored in all future calls.
+注意:
+.BR clnt_control ()
+を使用して時間切れを設定した場合にはそれ以後は
+.BR clnt_call ()
+に渡される時間切れパラメーターは全て無視される。
+.IP
+.in +4n
+.nf
+.\"O \fBCLGET_SERVER_ADDR\fP  \fIstruct sockaddr_in \fP // get server's address
+\fBCLGET_SERVER_ADDR\fP  \fIstruct sockaddr_in \fP // サーバアドレスを取得する
+.fi
+.in
+.IP
+.\"O The following operations are valid for UDP only:
+以下の操作は UDP の場合にのみ有効である:
+.IP
+.in +4n
+.nf
+.\"O \fBCLSET_RETRY_TIMEOUT\fP  \fIstruct timeval\fP // set the retry timeout
+.\"O \fBCLGET_RETRY_TIMEOUT\fP  \fIstruct timeval\fP // get the retry timeout
+\fBCLSET_RETRY_TIMEOUT\fP  \fIstruct timeval\fP // 再送間隔を設定する
+\fBCLGET_RETRY_TIMEOUT\fP  \fIstruct timeval\fP // 再送間隔を取得する
+.fi
+.in
+.IP
+.\"O The retry timeout is the time that "UDP RPC"
+.\"O waits for the server to reply before
+.\"O retransmitting the request.
+再送間隔は次に要求を再送する前に
+"UDP RPC" がサーバの回答を待つ時間である。
+.LP
+.nf
+.BI "clnt_freeres(CLIENT * " clnt ", xdrproc_t " outproc ", char *" out );
+.fi
+.IP
+.\"O A macro that frees any data allocated by the RPC/XDR
+.\"O system when it decoded the results of an RPC call.
+.\"O The parameter
+.\"O .I out
+.\"O is the address of the results, and
+.\"O .I outproc
+.\"O is the XDR routine describing the results.
+.\"O This routine returns one if the results were successfully freed,
+.\"O and zero otherwise.
+このマクロは RPC 呼び出しの結果のデコードの際に
+RPC/XDR システムによって割当てられたデータを解放する。
+パラメーター
+.I out
+は結果のアドレスである。
+.I outproc
+は結果を記述している XDR ルーティンである。
+このルーティンは結果の解放に成功した場合には 1 を返す。
+失敗した場合にはゼロを返す。
+.LP
+.nf
+.BI "void clnt_geterr(CLIENT *" clnt ", struct rpc_err *" errp );
+.fi
+.IP
+.\"O A macro that copies the error structure out of the client
+.\"O handle to the structure at address
+.\"O .IR errp .
+このマクロはクライアント・ハンドルのエラー構造体を
+.I errp
+アドレスで指定された構造体へコピーする。
+.LP
+.nf
+.BI "void clnt_pcreateerror(char *" s );
+.fi
+.IP
+.\"O Print a message to standard error indicating why a client RPC
+.\"O handle could not be created.
+.\"O The message is prepended with string
+.\"O .I s
+.\"O and a colon.
+.\"O Used when a
+.\"O .BR clnt_create (),
+.\"O .BR clntraw_create (),
+.\"O .BR clnttcp_create (),
+.\"O or
+.\"O .BR clntudp_create ()
+.\"O call fails.
+標準エラー出力に、なぜクライアント RPC ハンドルの作成が
+できなかったかについてのメッセージを表示する。
+メッセージの前に文字列
+.I s
+とコロン(:)が表示される。
+.BR clnt_create (),
+.BR clntraw_create (),
+.BR clnttcp_create (),
+.BR clntudp_create ()
+の呼び出しが失敗した時に使用すること。
+.LP
+.nf
+.BI "void clnt_perrno(enum clnt_stat " stat );
+.fi
+.IP
+.\"O Print a message to standard error corresponding
+.\"O to the condition indicated by
+.\"O .IR stat .
+.\"O Used after
+.\"O .BR callrpc ().
+標準エラー出力に
+.I stat
+によって指示されるエラー状態に対応するメッセージを表示する。
+.BR callrpc ()
+の後に使用すること。
+.LP
+.nf
+.BI "clnt_perror(CLIENT *" clnt ", char *" s );
+.fi
+.IP
+.\"O Print a message to standard error indicating why an RPC call failed;
+.\"O .I clnt
+.\"O is the handle used to do the call.
+.\"O The message is prepended with string
+.\"O .I s
+.\"O and a colon.
+.\"O Used after
+.\"O .BR clnt_call ().
+標準エラー出力に、なぜ RPC 呼び出しが失敗したかについてのメッセージを表示する。
+.I clnt
+はコールに使用したハンドルである。
+メッセージの前に文字列
+.I s
+とコロン(:)が表示される。
+.BR clnt_call ()
+が失敗した後に使用すること。
+.LP
+.nf
+.BI "char *clnt_spcreateerror(char *" s );
+.fi
+.IP
+.\"O Like
+.\"O .BR clnt_pcreateerror (),
+.\"O except that it returns a string instead of printing to the standard error.
+.BR clnt_pcreateerror ()
+と同様であるが、標準エラー出力へ表示するかわりに文字列を返す点が異っている。
+.IP
+.\"O Bugs: returns pointer to static data that is overwritten on each call.
+バグ: 静的な領域へのポインターを返すため、呼び出しごとに上書きされる。
+.LP
+.nf
+.BI "char *clnt_sperrno(enum clnt_stat " stat );
+.fi
+.IP
+.\"O Take the same arguments as
+.\"O .BR clnt_perrno (),
+.\"O but instead of sending a message to the standard error indicating why an RPC
+.\"O call failed, return a pointer to a string which contains the message.
+.\"O The string ends with a NEWLINE.
+.BR clnt_perrno ()
+と同じ引き数を取るが、なぜ
+RPC 呼び出しが失敗したかについてのメッセージを標準エラー出力に表示する
+かわりに、メッセージを格納している文字列へのポインターを返す。
+文字列は NEWLINE(改行) で終っている。
+.IP
+.\"O .BR clnt_sperrno ()
+.\"O is used instead of
+.\"O .BR clnt_perrno ()
+.\"O if the program does not have a standard error (as a program
+.\"O running as a server quite likely does not), or if the programmer
+.\"O does not want the message to be output with
+.\"O .BR printf (3),
+.\"O or if a message format different than that supported by
+.\"O .BR clnt_perrno ()
+.\"O is to be used.
+.\"O Note: unlike
+.\"O .BR clnt_sperror ()
+.\"O and
+.\"O .BR clnt_spcreaterror (),
+.\"O .BR clnt_sperrno ()
+.\"O returns pointer to static data, but the
+.\"O result will not get overwritten on each call.
+.BR clnt_sperrno ()
+はプログラムが標準エラー出力を持っていない場合(プログラムがサーバとし
+て走っている場合にはよくありえる)や、プログラマーがメッセージを
+.BR printf (3)
+で出力することを望まない場合や、メッセージの形式が
+.BR clnt_perrno ()
+がサポートするものとは異っている場合などに
+.BR clnt_perrno ()
+のかわりに使用される。
+注意:
+.BR clnt_sperror ()
+や
+.BR clnt_spcreaterror ()
+とは違って
+.BR clnt_sperrno ()
+は静的データへのポインターを返す。しかし呼び出しごとに上書きされることはない。
+.LP
+.nf
+.BI "char *clnt_sperror(CLIENT *" rpch ", char *" s );
+.fi
+.IP
+.\"O Like
+.\"O .BR clnt_perror (),
+.\"O except that (like
+.\"O .BR clnt_sperrno ())
+.\"O it returns a string instead of printing to standard error.
+.BR clnt_perror ()
+と同様であるが、標準エラー出力に表示する代りに
+.RB ( clnt_sperrno ()
+のように) 文字列へのポインターを返す点が異っている。
+.IP
+.\"O Bugs: returns pointer to static data that is overwritten on each call.
+バグ: 呼び出しごとに上書きされる静的データへのポインターを返す。
+.LP
+.nf
+.BI "CLIENT *clntraw_create(unsigned long " prognum \
+", unsigned long " versnum );
+.fi
+.IP
+.\"O This routine creates a toy RPC client for the remote program
+.\"O .IR prognum ,
+.\"O version
+.\"O .IR versnum .
+.\"O The transport used to pass messages to the service is
+.\"O actually a buffer within the process's address space, so the
+.\"O corresponding RPC server should live in the same address space; see
+.\"O .BR svcraw_create ().
+.\"O This allows simulation of RPC and acquisition of RPC
+.\"O overheads, such as round trip times, without any kernel interference.
+.\"O This routine returns NULL if it fails.
+このルーティンはリモート・プログラム
+.IR prognum 、
+バージョン
+.I versnum
+のための擬似 RPC クライアントを作成する。メッセージをサービスに渡すために使用する
+通信は実際にはそのプロセスのアドレス空間にあるバッファーである。
+それで、対応する RPC サーバが同じアドレス空間の中にいなければならない。
+.BR svcraw_create ()
+を参照すること。
+これにより RPC のシミュレーションや、カーネル・インターフェースに影響されずに
+応答時間などの RPC オーバヘッドの獲得ができる。
+失敗した場合にはこのルーティンは NULL を返す。
+.LP
+.nf
+.BI "CLIENT *clnttcp_create(struct sockaddr_in *" addr ,
+.BI "                unsigned long " prognum ", unsigned long " versnum ,
+.BI "                int *" sockp ", unsigned int " sendsz \
+", unsigned int " recvsz );
+.fi
+.IP
+.\"O This routine creates an RPC client for the remote program
+.\"O .IR prognum ,
+.\"O version
+.\"O .IR versnum ;
+.\"O the client uses TCP/IP as a transport.
+.\"O The remote program is located at Internet
+.\"O address
+.\"O .IR *addr .
+このルーティンはリモート・プログラム
+.IR prognum 、
+バージョン
+.I versnum
+のための RPC クライアントを作成する。クライアントは通信に
+TCP/IP を使用する。リモート・プログラムはインターネット・アドレスの
+.I *addr
+にある。
+.\"O If
+.\"The following inline font conversion is necessary for the hyphen indicator
+.\"O \fIaddr\->sin_port\fR
+.\"O is zero, then it is set to the actual port that the remote
+.\"O program is listening on (the remote
+.\"O .B portmap
+.\"O service is consulted for this information).
+.\"O The parameter
+.\"O .I sockp
+.\"O is a socket; if it is
+.\"O .BR RPC_ANYSOCK ,
+.\"O then this routine opens a new one and sets
+.\"O .IR sockp .
+\fIaddr\->sin_port\fR がゼロならば、実際にリモート・プログラムが
+listen しているポートが設定される。(この情報のためにリモートの
+.B portmap
+サービスが利用される。) パラメーター
+.I sockp
+はソケットである。もしこれが
+.B RPC_ANYSOCK
+に設定されている場合は、このルーティンが新しいソケットをオープンして
+.I sockp
+に設定する。
+.\"O Since TCP-based RPC uses buffered I/O,
+.\"O the user may specify the size of the send and receive buffers
+.\"O with the parameters
+.\"O .I sendsz
+.\"O and
+.\"O .IR recvsz ;
+.\"O values of zero choose suitable defaults.
+.\"O This routine returns NULL if it fails.
+TCP に基づいた RPC はバッファされた I/O
+を使用するため、ユーザはパラメーター
+.I sendsz
+と
+.I recvsz
+を使用して送信バッファと受信バッファのサイズを指定することができる。
+ゼロを指定した場合には適切なデフォルトが選択される。
+このルーティンは失敗した場合は NULL を返す。
+.LP
+.nf
+.BI "CLIENT *clntudp_create(struct sockaddr_in *" addr ,
+.BI "                unsigned long " prognum ", unsigned long " versnum ,
+.BI "                struct timeval " wait ", int *" sockp );
+.fi
+.IP
+.\"O This routine creates an RPC client for the remote program
+.\"O .IR prognum ,
+.\"O version
+.\"O .IR versnum ;
+.\"O the client uses use UDP/IP as a transport.
+.\"O The remote program is located at Internet address
+.\"O .IR addr .
+このルーティンはリモート・プログラム
+.IR prognum 、
+バージョン
+.I versnum
+のための RPC クライアントを作成する。クライアントは通信に
+UDP/IP を使用する。リモート・プログラムはインターネット・アドレスの
+.I *addr
+にある。
+.\"O If
+.\"O \fIaddr\->sin_port\fR
+.\"O is zero, then it is set to actual port that the remote
+.\"O program is listening on (the remote
+.\"O .B portmap
+.\"O service is consulted for this information).
+.\"O The parameter
+.\"O .I sockp
+.\"O is a socket; if it is
+.\"O .BR RPC_ANYSOCK ,
+.\"O then this routine opens a new one and sets
+.\"O .IR sockp .
+\fIaddr\->sin_port\fR がゼロならば、実際にリモート・プログラムが
+listen しているポートが設定される。(この情報のためにリモートの
+.B portmap
+サービスが利用される。) パラメーター
+.I sockp
+はソケットである。もしこれが
+.B RPC_ANYSOCK
+に設定されている場合は、このルーティンが新しいソケットをオープンして
+.I sockp
+に設定する。
+.\"O The UDP transport resends the call message in intervals of
+.\"O .B wait
+.\"O time until a response is received or until the call times out.
+.\"O The total time for the call to time out is specified by
+.\"O .BR clnt_call ().
+UDP 通信は回答があるか、時間切れが起こるまで
+.B wait
+間隔で呼び出しメッセージを再送する。時間切れが起こるまでの合計時間は
+.BR clnt_call ()
+で指定する。
+.IP
+.\"O Warning: since UDP-based RPC messages can only hold up to 8 Kbytes
+.\"O of encoded data, this transport cannot be used for procedures
+.\"O that take large arguments or return huge results.
+警告: UDP に基づいた
+RPC メッセージは最大でも 8 Kbyte までのエンコードされたデータしか
+保持できないため、この通信は大きな引き数や巨大な結果を取る
+プロシジャには使用できない。
+.LP
+.nf
+.BI "CLIENT *clntudp_bufcreate(struct sockaddr_in *" addr ,
+.BI "            unsigned long " prognum ", unsigned long " versnum ,
+.BI "            struct timeval " wait ", int *" sockp ,
+.BI "            unsigned int " sendsize ", unsigned int "recosize );
+.fi
+.IP
+.\"O This routine creates an RPC client for the remote program
+.\"O .IR prognum ,
+.\"O on
+.\"O .IR versnum ;
+.\"O the client uses use UDP/IP as a transport.
+.\"O The remote program is located at Internet address
+.\"O .IR addr .
+このルーティンはリモート・プログラム
+.IR prognum 、
+バージョン
+.I versnum
+のための RPC クライアントを作成する。クライアントは通信に
+UDP/IP を使用する。リモート・プログラムはインターネット・アドレスの
+.I *addr
+にある。
+.\"O If
+.\"O \fIaddr\->sin_port\fR
+.\"O is zero, then it is set to actual port that the remote
+.\"O program is listening on (the remote
+.\"O .B portmap
+.\"O service is consulted for this information).
+.\"O The parameter
+.\"O .I sockp
+.\"O is a socket; if it is
+.\"O .BR RPC_ANYSOCK ,
+.\"O then this routine opens a new one and sets
+.\"O .I sockp .
+\fIaddr\->sin_port\fR がゼロならば、実際にリモート・プログラムが
+listen しているポートが設定される。(この情報のためにリモートの
+.B portmap
+サービスが利用される。) パラメーター
+.I sockp
+はソケットである。もしこれが
+.B RPC_ANYSOCK
+に設定されている場合は、このルーティンが新しいソケットをオープンして
+.I sockp
+に設定する。
+.\"O The UDP transport resends the call message in intervals of
+.\"O .I wait
+.\"O time until a response is received or until the call times out.
+.\"O The total time for the call to time out is specified by
+.\"O .BR clnt_call ().
+UDP 通信は回答があるか、時間切れが起こるまで
+.B wait
+間隔で呼び出しメッセージを再送する。時間切れが起こるまでの合計時間は
+.BR clnt_call ()
+で指定する。
+.IP
+.\"O This allows the user to specify the maximum packet
+.\"O size for sending and receiving UDP-based RPC messages.
+これを使用すると UDP に基づいた RPC メッセージにおいて送信パケットや
+受信パケットの最大サイズを指定することが可能になる。
+.LP
+.nf
+.BI "void get_myaddress(struct sockaddr_in *" addr );
+.fi
+.IP
+.\"O Stuff the machine's IP address into
+.\"O .IR *addr ,
+.\"O without consulting the library routines that deal with
+.\"O .IR /etc/hosts .
+.\"O The port number is always set to
+.\"O .BR htons(PMAPPORT) .
+このマシンの IP アドレスを
+.I *addr
+に格納する。
+.I /etc/hosts
+を扱うライブラリ・ルーティンは使用しない。ポート番号は常に
+.B htons(PMAPPORT)
+に設定される。
+.LP
+.nf
+.BI "struct pmaplist *pmap_getmaps(struct sockaddr_in *" addr );
+.fi
+.IP
+.\"O A user interface to the
+.\"O .B portmap
+.\"O service, which returns a list of the current RPC
+.\"O program-to-port mappings on the host located at IP address
+.\"O .IR *addr .
+.\"O This routine can return NULL.
+.\"O The command
+.\"O .IR "rpcinfo\ \-p"
+.\"O uses this routine.
+.B portmap
+サービスのためのユーザインターフェースであり、
+IP アドレス
+.I *addr
+にあるホストの現在の RPC プログラムからポート番号へのマッピングの一覧を返す。
+このルーティンが NULL を返す場合もある。
+.RB ` "rpcinfo \-p" '
+コマンドはこのルーティンを使用している。
+.LP
+.nf
+.BI "unsigned short pmap_getport(struct sockaddr_in *" addr ,
+.BI "                    unsigned long " prognum ", unsigned long " versnum ,
+.BI "                    unsigned int " protocol );
+.fi
+.IP
+.\"O A user interface to the
+.\"O .B portmap
+.\"O service, which returns the port number
+.\"O on which waits a service that supports program number
+.\"O .IR prognum ,
+.\"O version
+.\"O .IR versnum ,
+.\"O and speaks the transport protocol associated with
+.\"O .IR protocol .
+.B portmap
+サービスのためのユーザ・インターフェースで、
+プログラム番号
+.IR prognum 、
+バージョン
+.IR versnum 、
+関連付けられた通信プロトコル
+.I protocol
+をサポートするサービスが待っているポート番号を返す。
+.\"O The value of
+.\"O .I protocol
+.\"O is most likely
+.\"O .B IPPROTO_UDP
+.\"O or
+.\"O .BR IPPROTO_TCP .
+.\"O A return value of zero means that the mapping does not exist
+.\"O or that the RPC system failed to contact the remote
+.\"O .B portmap
+.\"O service.
+.\"O In the latter case, the global variable
+.\"O .I rpc_createerr
+.\"O contains the RPC status.
+.I protocol
+の値はほとんどの場合 IPPROTO_UDP か IPPROTO_TCP である。
+返り値ゼロはマッピングが存在しないか、
+RPC システムがリモートの
+.B portmap
+サービスの参照に失敗したことを意味する。後者の場合は大域変数
+.I rpc_createerr
+が RPC 状態を保持している。
+.LP
+.nf
+.BI "enum clnt_stat pmap_rmtcall(struct sockaddr_in *" addr ,
+.BI "                    unsigned long " prognum ", unsigned long " versnum ,
+.BI "                    unsigned long " procnum ,
+.BI "                    xdrproc_t " inproc ", char *" in ,
+.BI "                    xdrproc_t " outproc ", char *" out ,
+.BI "                    struct timeval " tout ", unsigned long *" portp );
+.fi
+.IP
+.\"O A user interface to the
+.\"O .B portmap
+.\"O service, which instructs
+.\"O .B portmap
+.\"O on the host at IP address
+.\"O .I *addr
+.\"O to make an RPC call on your behalf to a procedure on that host.
+.B portmap
+サービスのためのユーザ・インターフェースで、
+IP アドレス
+.I *addr
+のホストの
+.B portmap
+を参照して、
+RPC 呼び出しを生成し、そのホスト上のプロシジャを呼び出す。
+.\"O The parameter
+.\"O .I *portp
+.\"O will be modified to the program's port number if the procedure succeeds.
+.\"O The definitions of other parameters are discussed
+.\"O in
+.\"O .BR callrpc ()
+.\"O and
+.\"O .BR clnt_call ().
+.\"O This procedure should be used for a \(lqping\(rq and nothing else.
+.\"O See also
+.\"O .BR clnt_broadcast ().
+パラメーター
+.I *portp
+はプロシジャが成功した場合にはプログラムのポート番号に修正される。
+他のパラメーターの定義については
+.BR callrpc ()
+や
+.BR clnt_call ()
+で説明してある。
+このプロシジャは \(lqping\(rq のみに使用すべきである。
+.BR clnt_broadcast ()
+も参照すること。
+.LP
+.nf
+.BI "bool_t pmap_set(unsigned long " prognum ", unsigned long " versnum ,
+.BI "                unsigned int " protocol ", unsigned short " port );
+.fi
+.IP
+.\"O A user interface to the
+.\"O .B portmap
+.\"O service, which establishes a mapping between the triple
+.\"O .RI [ prognum , versnum , protocol\fR]
+.\"O and
+.\"O .I port
+.\"O on the machine's
+.\"O .B portmap
+.\"O service.
+.\"O The value of
+.\"O .I protocol
+.\"O is most likely
+.\"O .B IPPROTO_UDP
+.\"O or
+.\"O .BR IPPROTO_TCP .
+.\"O This routine returns one if it succeeds, zero otherwise.
+.\"O Automatically done by
+.\"O .BR svc_register ().
+.B portmap
+サービスのためのユーザ・インターフェースで、
+.RI [ prognum , versnum , protocol\fR]
+の組み合わせと
+.I port
+との間のマッピングを、そのマシン上の
+.B portmap
+サービスに登録する。
+.I protocol
+はほとんどの場合
+.B IPPROTO_UDP
+か
+.B IPPROTO_TCP
+のどちらかである。
+このルーティンは成功した場合には 1 を返す。失敗した場合にはゼロを返す。
+.BR svc_register ()
+によって自動的に実行される。
+.LP
+.nf
+.BI "bool_t pmap_unset(unsigned long " prognum ", unsigned long " versnum );
+.fi
+.IP
+.\"O A user interface to the
+.\"O .B portmap
+.\"O service, which destroys all mapping between the triple
+.\"O .RI [ prognum , versnum , *\fR]
+.\"O and
+.\"O .B ports
+.\"O on the machine's
+.\"O .B portmap
+.\"O service.
+.\"O This routine returns one if it succeeds, zero otherwise.
+.B portmap
+サービスのためのユーザ・インターフェースで、
+.RI [ prognum , versnum , *\fR]
+の組み合わせと
+.B ports
+の間のマッピングをそのマシン上の
+.B portmap
+サービスから削除する。このルーティンは成功した場合は 1 を返す。
+失敗した場合には 0 を返す。
+.LP
+.nf
+.BI "int registerrpc(unsigned long " prognum ", unsigned long " versnum ,
+.BI "                unsigned long " procnum ", char *(*" procname ")(char *),"
+.BI "                xdrproc_t " inproc ", xdrproc_t " outproc );
+.fi
+.IP
+.\"O Register procedure
+.\"O .I procname
+.\"O with the RPC service package.
+.\"O If a request arrives for program
+.\"O .IR prognum ,
+.\"O version
+.\"O .IR versnum ,
+.\"O and procedure
+.\"O .IR procnum ,
+.\"O .I procname
+.\"O is called with a pointer to its parameter(s);
+.\"O .I progname
+.\"O should return a pointer to its static result(s);
+.\"O .I inproc
+.\"O is used to decode the parameters while
+.\"O .I outproc
+.\"O is used to encode the results.
+.\"O This routine returns zero if the registration succeeded, \-1 otherwise.
+RPC サービスパッケージを使用して
+.I procname
+プロシジャを登録する。プログラム
+.IR prognum 、
+バージョン
+.IR versnum 、
+プロシジャ
+.I procnum
+への要求が届いた場合、
+.I procname
+がパラメーターへのポインターを持って呼び出される。
+.I progname
+は静的な結果へのポインターを返す必要がある。
+.I inproc
+はパラメーターをデコードするために使用される。
+.I outproc
+は結果をエンコードするために使用される。
+このルーティンは登録に成功した場合にはゼロを返す。
+失敗した場合には \-1 を返す。
+.IP
+.\"O Warning: remote procedures registered in this form
+.\"O are accessed using the UDP/IP transport; see
+.\"O .BR svcudp_create ()
+.\"O for restrictions.
+警告: この形式で登録されたリモート・プロシジャは
+UDP/IP 通信を使用する。制限に関しては
+.BR svcudp_create ()
+を参照すること。
+.LP
+.nf
+.BI "struct rpc_createerr " rpc_createerr ;
+.fi
+.IP
+.\"O A global variable whose value is set by any RPC client creation routine
+.\"O that does not succeed.
+.\"O Use the routine
+.\"O .BR clnt_pcreateerror ()
+.\"O to print the reason why.
+成功しなかった RPC クライアント生成ルーティンによって設定される大域変数。
+.BR clnt_pcreateerror ()
+ルーティンが理由を表示するために使用する。
+.LP
+.nf
+.BI "void svc_destroy(SVCXPRT *" xprt );
+.fi
+.IP
+.\"O A macro that destroys the RPC service transport handle,
+.\"O .IR xprt .
+.\"O Destruction usually involves deallocation
+.\"O of private data structures, including
+.\"O .I xprt
+.\"O itself.
+.\"O Use of
+.\"O .I xprt
+.\"O is undefined after calling this routine.
+このマクロは通信ハンドル
+.I xprt
+の RPC サービスを破壊する。破壊には通常、
+.I xprt
+を含めて、私的なデータ構造体の破棄が含まれている。
+このルーティンを呼び出した後に
+.I xprt
+を使用することは未定義である。
+.LP
+.nf
+.BI "fd_set " svc_fdset ;
+.fi
+.IP
+.\"O A global variable reflecting the RPC service side's
+.\"O read file descriptor bit mask; it is suitable as a parameter to the
+.\"O .BR select (2)
+.\"O system call.
+.\"O This is only of interest if a service implementor does not call
+.\"O .BR svc_run (),
+.\"O but rather does his own asynchronous event processing.
+.\"O This variable is read-only (do not pass its address to
+.\"O .BR select (2)!),
+.\"O yet it may change after calls to
+.\"O .BR svc_getreqset ()
+.\"O or any creation routines.
+RPC サービス側のファイル・ディスクリプターのビットマスクを反映した大域変数。
+.BR select (2)
+システムコールのパラメーターのために利用できる。これは
+サービスの実装者が
+.BR svc_run ()
+を呼び出さなずに、独自の非同期イベント処理を用いる場合にのみ意味がある。
+この変数は読み込み専用で (そのまま
+.BR select (2)
+へ渡してはならない!)、
+.BR svc_getreqset ()
+呼び出しや生成ルーティンの後に変更されているかもしれない。
+.LP
+.nf
+.BI "int " svc_fds ;
+.fi
+.IP
+.\"O Similar to
+.\"O .BR svc_fdset ,
+.\"O but limited to 32 descriptors.
+.\"O This interface is obsoleted by
+.\"O .BR svc_fdset .
+.B svc_fdset
+に似ているが、32 ディスクリプターに制限されている。
+このインターフェースは
+.B svc_fdset
+によって置き換えられた。
+.LP
+.nf
+.BI "svc_freeargs(SVCXPRT *" xprt ", xdrproc_t " inproc ", char *" in );
+.fi
+.IP
+.\"O A macro that frees any data allocated by the RPC/XDR
+.\"O system when it decoded the arguments to a service procedure using
+.\"O .BR svc_getargs ().
+.\"O This routine returns 1 if the results were successfully
+.\"O freed,
+.\"O and zero otherwise.
+このマクロはサービス・プロシジャが
+.BR svc_getargs ()
+を使用して引き数をデコードした時に
+RPC/XDR システムによって割り当てられたデータを解放する。
+このルーティンは解放に成功した場合には 1 を返す。
+失敗した場合にはゼロを返す。
+.LP
+.nf
+.BI "svc_getargs(SVCXPRT *" xprt ", xdrproc_t " inproc ", char *" in );
+.fi
+.IP
+.\"O A macro that decodes the arguments of an RPC request
+.\"O associated with the RPC service transport handle,
+.\"O .IR xprt .
+.\"O The parameter
+.\"O .I in
+.\"O is the address where the arguments will be placed;
+.\"O .I inproc
+.\"O is the XDR routine used to decode the arguments.
+.\"O This routine returns one if decoding succeeds, and zero otherwise.
+このマクロは RPC サービス通信ハンドル
+.I xprt
+に関連付けられた RPC 要求の引き数をデコードする。パラメーター
+.I in
+は引き数の格納されたアドレスである。
+.I inproc
+は引き数をデコードするための XDR ルーティンである。
+このルーティンはデコードに成功した場合は 1 を返す。
+失敗した場合はゼロを返す。
+.LP
+.nf
+.BI "struct sockaddr_in *svc_getcaller(SVCXPRT *" xprt );
+.fi
+.IP
+.\"O The approved way of getting the network address of the caller
+.\"O of a procedure associated with the RPC service transport handle,
+.\"O .IR xprt .
+RPC サービス通信ハンドル
+.I xprt
+に関連付けられたプロシジャの呼び出し元のネットワーク・アドレスを
+取得するための標準的な手段。
+.LP
+.nf
+.BI "void svc_getreqset(fd_set *" rdfds );
+.fi
+.IP
+.\"O This routine is only of interest if a service implementor does not call
+.\"O .BR svc_run (),
+.\"O but instead implements custom asynchronous event processing.
+.\"O It is called when the
+.\"O .BR select (2)
+.\"O system call has determined that an RPC request has arrived on some
+.\"O RPC socket(s);
+.\"O .I rdfds
+.\"O is the resultant read file descriptor bit mask.
+.\"O The routine returns when all sockets associated with the value of
+.\"O .I rdfds
+.\"O have been serviced.
+このルーティンはサービスの実装者が
+.BR svc_run ()
+を呼び出さず、独自の非同期イベント処理を実装する場合にのみ意味がある。
+これは
+.BR select (2)
+システムコールが RPC ソケットに
+RPC 要求が到着したと返した場合にのみ呼び出される。
+.I rdfds
+は結果の読み込みファイル・ディスクリプターのビットマスクである。
+このルーティンは
+.I rdfds
+の値に関連付けられた全てのソケットのサービスが行なわれた時に
+返ってくる。
+.LP
+.nf
+.BI "void svc_getreq(int " rdfds );
+.fi
+.IP
+.\"O Similar to
+.\"O .BR svc_getreqset (),
+.\"O but limited to 32 descriptors.
+.\"O This interface is obsoleted by
+.\"O .BR svc_getreqset ().
+.BR svc_getreqset ()
+に似ているがディスクリプターの数が 32 に制限されている。
+このインターフェースは
+.BR svc_getreqset ()
+によって置き換えられた。
+.LP
+.nf
+.BI "bool_t svc_register(SVCXPRT *" xprt ", unsigned long " prognum ,
+.BI "                    unsigned long " versnum ,
+.BI "                    void (*" dispatch ")(svc_req *, SVCXPRT *),"
+.BI "                    unsigned long " protocol );
+.fi
+.IP
+.\"O Associates
+.\"O .I prognum
+.\"O and
+.\"O .I versnum
+.\"O with the service dispatch procedure,
+.\"O .IR dispatch .
+.I prognum
+と
+.I versnum
+をサービス配分プロシジャ
+.I dispatch
+で関連付ける。
+.\"O If
+.\"O .I protocol
+.\"O is zero, the service is not registered with the
+.\"O .B portmap
+.\"O service.
+.\"O If
+.\"O .I protocol
+.\"O is nonzero, then a mapping of the triple
+.\"O .RI [ prognum , versnum , protocol\fR]
+.\"O to
+.\"O \fIxprt\->xp_port\fR
+.\"O is established with the local
+.\"O .B portmap
+.\"O service (generally
+.\"O .I protocol
+.\"O is zero,
+.\"O .B IPPROTO_UDP
+.\"O or
+.\"O .BR IPPROTO_TCP ).
+.I protocol
+がゼロの場合、サービスは
+.B portmap
+サービスには登録されない。
+.I protocol
+がゼロ以外の場合、
+.RI [ prognum , versnum , protocol\fR]
+の組み合わせと \fIxprt\->xp_port\fR とのマッピングがローカルの
+.B portmap
+サービスに登録される。(一般的に
+.I protocol
+はゼロ、
+.BR IPPROTO_UDP 、
+.B IPPROTO_TCP
+のどれかである。)
+.\"O The procedure
+.\"O .I dispatch
+.\"O has the following form:
+プロシジャ
+.I dispatch
+は以下の形式である:
+.in +4n
+.nf
+
+dispatch(struct svc_req *request, SVCXPRT *xprt);
+.fi
+.in
+.IP
+.\"O The
+.\"O .BR svc_register ()
+.\"O routine returns one if it succeeds, and zero otherwise.
+.BR svc_register ()
+ルーティンは成功した場合は 1 を返す。失敗した場合はゼロを返す。
+.LP
+.nf
+.B "void svc_run(void);"
+.fi
+.IP
+.\"O This routine never returns.
+.\"O It waits for RPC requests to arrive, and calls the appropriate service
+.\"O procedure using
+.\"O .BR svc_getreq ()
+.\"O when one arrives.
+.\"O This procedure is usually waiting for a
+.\"O .BR select (2)
+.\"O system call to return.
+このルーティンは戻ってこない。これは
+.SM RPC
+要求の到着を待ち、どれかが届いた場合に
+.BR svc_getreq ()
+を使用して適切なサービス・プロシジャを呼び出す。
+このプロシジャは通常は
+.BR select (2)
+システムコールから返るのを待っている。
+.LP
+.nf
+.BI "bool_t svc_sendreply(SVCXPRT *" xprt ", xdrproc_t " outproc \
+", char *" out );
+.fi
+.IP
+.\"O Called by an RPC service's dispatch routine to send the results of a
+.\"O remote procedure call.
+.\"O The parameter
+.\"O .I xprt
+.\"O is the request's associated transport handle;
+.\"O .I outproc
+.\"O is the XDR routine which is used to encode the results; and
+.\"O .I out
+.\"O is the address of the results.
+.\"O This routine returns one if it succeeds, zero otherwise.
+RPC サービス配分ルーティンによってリモート・プロシジャ・コールの結果を
+返すために呼び出される。
+パラメーター
+.I xprt
+はその要求に関連付けられた通信ハンドルである。
+.I outproc
+は結果をエンコードするために使用する XDR ルーティンである。
+.I out
+は結果のアドレスである。このルーティンは成功した場合は 1 を返す。
+失敗した場合はゼロを返す。
+.LP
+.nf
+.BI "void svc_unregister(unsigned long " prognum ", unsigned long " versnum );
+.fi
+.IP
+.\"O Remove all mapping of the double
+.\"O .RI [ prognum , versnum ]
+.\"O to dispatch routines, and of the triple
+.\"O .RI [ prognum , versnum , *\fR]
+.\"O to port number.
+配分ルーティンから
+.RI [ prognum , versnum ]
+および
+.RI [ prognum , versnum , *\fR]
+の組み合わせからポート番号へのマッピングを全て削除する。
+.LP
+.nf
+.BI "void svcerr_auth(SVCXPRT *" xprt ", enum auth_stat " why );
+.fi
+.IP
+.\"O Called by a service dispatch routine that refuses to perform
+.\"O a remote procedure call due to an authentication error.
+認証エラーによりリモート・プロシジャ・コールの実行を拒否された
+場合にサービス配分ルーティンによって呼び出される。
+.LP
+.nf
+.BI "void svcerr_decode(SVCXPRT *" xprt );
+.fi
+.IP
+.\"O Called by a service dispatch routine that cannot successfully
+.\"O decode its parameters.
+.\"O See also
+.\"O .BR svc_getargs ().
+パラメータのデコードに失敗した場合に
+サービス配分ルーティンによって呼び出される。
+.BR svc_getargs ()
+も参照すること。
+.LP
+.nf
+.BI "void svcerr_noproc(SVCXPRT *" xprt );
+.fi
+.IP
+.\"O Called by a service dispatch routine that does not implement
+.\"O the procedure number that the caller requests.
+要求のあったプロシジャ番号が実装されていない場合に
+サービス配分ルーティンより呼び出される。
+.LP
+.nf
+.BI "void svcerr_noprog(SVCXPRT *" xprt );
+.fi
+.IP
+.\"O Called when the desired program is not registered with the RPC package.
+.\"O Service implementors usually do not need this routine.
+RPC パッケージに要求されたプログラムが登録されていない場合に呼び出される。
+サービスの実装には通常、このルーティンは必要ない。
+.LP
+.nf
+.BI "void svcerr_progvers(SVCXPRT *" xprt );
+.fi
+.IP
+.\"O Called when the desired version of a program is not registered
+.\"O with the RPC package.
+.\"O Service implementors usually do not need this routine.
+RPC パッケージに要求されたバージョンのプログラムが登録されていない場合に
+呼び出される。サービスの実装には通常、このルーティンは必要ない。
+.LP
+.nf
+.BI "void svcerr_systemerr(SVCXPRT *" xprt );
+.fi
+.IP
+.\"O Called by a service dispatch routine when it detects a system
+.\"O error not covered by any particular protocol.
+.\"O For example, if a service can no longer allocate storage,
+.\"O it may call this routine.
+特定のプロトコルによってカバーされていなシステム・エラーが
+検出された場合にサービス配分ルーティンによって呼び出される。
+例えば、サービスがそれ以上、記憶装置を割り当てることができない場合には
+このルーティンが呼び出されるかもしれない。
+.LP
+.nf
+.BI "void svcerr_weakauth(SVCXPRT *" xprt );
+.fi
+.IP
+.\"O Called by a service dispatch routine that refuses to perform
+.\"O a remote procedure call due to insufficient authentication parameters.
+.\"O The routine calls
+.\"O .BR "svcerr_auth(xprt, AUTH_TOOWEAK)" .
+認証パラメータが足りないためにリモート・プロシジャ・コールの実行を
+拒否された場合にサービス配分ルーティンによって呼び出される。
+このルーティンは
+.B "svcerr_auth(xprt, AUTH_TOOWEAK)"
+を呼び出す。
+.LP
+.nf
+.BI "SVCXPRT *svcfd_create(int " fd ", unsigned int " sendsize ,
+.BI "                      unsigned int " recvsize );
+.fi
+.IP
+.\"O Create a service on top of any open descriptor.
+.\"O Typically, this descriptor is a connected socket for a stream protocol such
+.\"O as TCP.
+.\"O .I sendsize
+.\"O and
+.\"O .I recvsize
+.\"O indicate sizes for the send and receive buffers.
+.\"O If they are zero, a reasonable default is chosen.
+任意のオープンされたディスクリプター上にサービスを作成する。
+典型的に、ディスクリプターは
+TCP のようなストリーム・プロトコルで接続されたソケットである。
+.I sendsize
+と
+.I recvsize
+には送信バッファと受信バッファの大きさを指定する。もしゼロが指定された
+場合は適切なデフォルトが選択される。
+.LP
+.nf
+.BI "SVCXPRT *svcraw_create(void);"
+.fi
+.IP
+.\"O This routine creates a toy RPC
+.\"O service transport, to which it returns a pointer.
+.\"O The transport is really a buffer within the process's address space,
+.\"O so the corresponding RPC client should live in the same address space; see
+.\"O .BR clntraw_create ().
+このルーティンは擬似 RPC サービス通信を生成して、そのポインターを返す。
+通信は実際にはそのプロセスのアドレス空間にあるバッファなので
+対応する RPC クライアントは同じアドレス空間にいる必要がある。
+.BR clntraw_create ()
+を参照すること。
+.\"O This routine allows simulation of RPC and acquisition of RPC
+.\"O overheads (such as round trip times), without any kernel interference.
+.\"O This routine returns NULL if it fails.
+このルーティンで
+RPC のシミュレーションや、カーネル・インターフェースに影響されずに応答時間などの
+RPC オーバヘッドを取得ができる。このルーティンは失敗した場合は NULL を返す。
+.LP
+.nf
+.BI "SVCXPRT *svctcp_create(int " sock ", unsigned int " send_buf_size ,
+.BI "                       unsigned int " recv_buf_size );
+.fi
+.IP
+.\"O This routine creates a TCP/IP-based RPC
+.\"O service transport, to which it returns a pointer.
+.\"O The transport is associated with the socket
+.\"O .IR sock ,
+.\"O which may be
+.\"O .BR RPC_ANYSOCK ,
+.\"O in which case a new socket is created.
+このルーティンは TCP/IP に基づく
+RPC サービス通信を作成し、それへのポインターを返す。
+通信はソケット
+.I sock
+に結びつけられる。
+.I sock
+は
+.B RPC_ANYSOCK
+でも良い。この場合は新しいソケットが作成される。
+.\"O If the socket is not bound to a local TCP
+.\"O port, then this routine binds it to an arbitrary port.
+.\"O Upon completion,
+.\"O \fIxprt\->xp_sock\fR
+.\"O is the transport's socket descriptor, and
+.\"O \fIxprt\->xp_port\fR
+.\"O is the transport's port number.
+もしソケットがローカルな TCP ポートに bind されていない場合は、
+このルーティンが適当なポートに bind する。
+補完された場合、\fIxprt\->xp_sock\fR には通信のソケット・
+ディスクリプターが、\fIxprt\->xp_port\fR には通信のポート番号が
+設定される。
+.\"O This routine returns NULL if it fails.
+.\"O Since TCP-based RPC uses buffered I/O,
+.\"O users may specify the size of buffers; values of zero
+.\"O choose suitable defaults.
+このルーティンは失敗した場合は NULL を返す。
+TCP に基づいた RPC はバッファされた I/O を使用するため、
+ユーザはバッファの大きさを指定できる。
+ゼロを指定した場合は適切なデフォルトが選択される。
+.LP
+.nf
+.BI "SVCXPRT *svcudp_bufcreate(int " sock ", unsigned int " sendsize ,
+.BI "                          unsigned int " recosize );
+.fi
+.IP
+.\"O This routine creates a UDP/IP-based RPC
+.\"O service transport, to which it returns a pointer.
+.\"O The transport is associated with the socket
+.\"O .IR sock ,
+.\"O which may be
+.\"O .BR RPC_ANYSOCK ,
+.\"O in which case a new socket is created.
+.\"O If the socket is not bound to a local UDP
+.\"O port, then this routine binds it to an arbitrary port.
+.\"O Upon completion,
+.\"O \fIxprt\->xp_sock\fR
+.\"O is the transport's socket descriptor, and
+.\"O \fIxprt\->xp_port\fR
+.\"O is the transport's port number.
+.\"O This routine returns NULL if it fails.
+このルーティンは UDP/IP に基づいた RPC サービス通信を作成し、
+そのポインターを返す。通信はソケット
+.I sock
+に関連付けられる。
+.I sock
+は
+.B RPC_ANYSOCK
+でも良い。この場合は新しいソケットが作成される。
+ソケットがローカルの UDP ポートに bind されていない場合には
+このルーティンは適当なポートに bind する。
+補完された場合、\fIxprt\->xp_sock\fR に通信のソケットの
+ディスクリプターが、\fIxprt\->xp_port\fR に通信のポート番号が
+設定される。このルーティンは失敗した場合には NULL を返す。
+.IP
+.\"O This allows the user to specify the maximum packet size for sending and
+.\"O receiving UDP-based RPC messages.
+これによりユーザは UDP に基づいた RPC メッセージで
+使用できる送信パケットおよび受信パケットの最大サイズを指定できる。
+.LP
+.nf
+.BI "SVCXPRT *svcudp_create(int " sock );
+.fi
+.IP
+.\"O This call is equivalent to
+.\"O \fIsvcudp_bufcreate(sock,SZ,SZ)\fP
+.\"O for some default size \fISZ\fP.
+送信パケットと受信パケットのサイズを同じデフォルトの値 \fISZ\fP に指定した
+\fIsvcudp_bufcreate(sock,SZ,SZ)\fP と等価である。
+.LP
+.nf
+.BI "bool_t xdr_accepted_reply(XDR *" xdrs ", struct accepted_reply *" ar );
+.fi
+.IP
+.\"O Used for encoding RPC reply messages.
+.\"O This routine is useful for users who wish to generate
+.\"O RPC-style messages without using the RPC package.
+RPC 応答メッセージをエンコードするのに使用する。このルーティンは
+RPC パッケージを用いずに
+RPC-形式のメッセージを作成しようとする場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_authunix_parms(XDR *" xdrs ", struct authunix_parms *" aupp );
+.fi
+.IP
+.\"O Used for describing Unix credentials.
+.\"O This routine is useful for users
+.\"O who wish to generate these credentials without using the RPC
+.\"O authentication package.
+Unix 形式の証明書を記述するために使用する。このルーティンは
+RPC 認証パッケージを使用せずにこれらの証明書を作成しようとする場合に便利である。
+.LP
+.nf
+.BI "void xdr_callhdr(XDR *" xdrs ", struct rpc_msg *" chdr );
+.fi
+.IP
+.\"O Used for describing RPC call header messages.
+.\"O This routine is useful for users who wish to generate
+.\"O RPC-style messages without using the RPC package.
+RPC 呼び出しのヘッダー・メッセージを記述するために使用する。
+このルーティンは RPC パッケージを使用せずに
+RPC-形式のメッセージを作成しようとする場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_callmsg(XDR *" xdrs ", struct rpc_msg *" cmsg );
+.fi
+.IP
+.\"O Used for describing RPC call messages.
+.\"O This routine is useful for users who wish to generate RPC-style
+.\"O messages without using the RPC package.
+RPC 呼び出しメッセージを記述するのに使用する。
+このルーティンは RPC パッケージを使用せずに
+RPC-形式のメッセージを作成しようとする場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_opaque_auth(XDR *" xdrs ", struct opaque_auth *" ap );
+.fi
+.IP
+.\"O Used for describing RPC authentication information messages.
+.\"O This routine is useful for users who wish to generate
+.\"O RPC-style messages without using the RPC package.
+PRC 認証情報メッセージを記述するために使用する。
+このルーティンは RPC パッケージを使用せずに
+RPC-形式のメッセージを作成しようとする場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_pmap(XDR *" xdrs ", struct pmap *" regs );
+.fi
+.IP
+.\"O Used for describing parameters to various
+.\"O .B portmap
+.\"O procedures, externally.
+.\"O This routine is useful for users who wish to generate
+.\"O these parameters without using the
+.\"O .B pmap
+.\"O interface.
+各種の
+.B portmap
+プロシジャへのパラメーターを外部的に記述するために使用する。
+このルーティンは
+.B pmap
+インターフェースを使用せずに、これらのパラメーターを
+作成したい場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_pmaplist(XDR *" xdrs ", struct pmaplist **" rp );
+.fi
+.IP
+.\"O Used for describing a list of port mappings, externally.
+.\"O This routine is useful for users who wish to generate
+.\"O these parameters without using the
+.\"O .B pmap
+.\"O interface.
+ポートのマッピングのリストを外部的に記述するために使用する。
+このルーティンは
+.B pmap
+インターフェースを使用せずに、これらのパラメーターを
+作成したい場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_rejected_reply(XDR *" xdrs ", struct rejected_reply *" rr );
+.fi
+.IP
+.\"O Used for describing RPC reply messages.
+.\"O This routine is useful for users who wish to generate
+.\"O RPC-style messages without using the RPC package.
+RPC 応答メッセージを記述するために使用する。このルーティンは
+RPC パッケージを使用せずに、
+RPC-形式のメッセージを作成したい場合に便利である。
+.LP
+.nf
+.BI "bool_t xdr_replymsg(XDR *" xdrs ", struct rpc_msg *" rmsg );
+.fi
+.IP
+.\"O Used for describing RPC reply messages.
+.\"O This routine is useful for users who wish to generate
+.\"O RPC style messages without using the RPC package.
+RPC 応答メッセージを記述するために使用する。
+このルーティンは RPC パッケージを使用せずに、
+RPC 形式のメッセージを作成したい場合に便利である。
+.LP
+.nf
+.BI "void xprt_register(SVCXPRT *" xprt );
+.fi
+.IP
+.\"O After RPC service transport handles are created,
+.\"O they should register themselves with the RPC service package.
+.\"O This routine modifies the global variable
+.\"O .IR svc_fds .
+.\"O Service implementors usually do not need this routine.
+RPC サービス通信ハンドルを生成した後に、それら自身を
+RPC サービス・パッケージに登録する必要がある。
+このルーティンは大域変数
+.I svc_fds
+を修正する。サービスの実装者は通常、このルーティンは必要ない。
+.LP
+.nf
+.BI "void xprt_unregister(SVCXPRT *" xprt );
+.fi
+.IP
+.\"O Before an RPC service transport handle is destroyed,
+.\"O it should unregister itself with the RPC service package.
+.\"O This routine modifies the global variable
+.\"O .IR svc_fds .
+.\"O Service implementors usually do not need this routine.
+RPC サービス通信ハンドルを破壊する前に、それを
+RPC 通信パッケージから登録解除する必要がある。
+このルーティンは大域変数
+.I svc_fds
+を修正する。サービスの実装者は通常、このルーティンは必要ない。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.\"O .\" We don't have an rpc_secure.3 page in the set at the moment -- MTK, 19 Sep 05
+.\"O .\" .BR rpc_secure (3),
+.\" 今現在は、この配布物 (LDP_man-pages) には rpc_secure.3 は入っていない
+.\" -- MTK, 19 Sep 05
+.\" .BR rpc_secure (3),
+.BR xdr (3)
+.br
+.\"O The following manuals:
+以下のマニュアル:
+.RS
+Remote Procedure Calls: Protocol Specification
+.br
+Remote Procedure Call Programming Guide
+.br
+rpcgen Programming Guide
+.br
+.RE
+.IR "RPC: Remote Procedure Call Protocol Specification" ,
+RFC\ 1050, Sun Microsystems, Inc.,
+USC-ISI.

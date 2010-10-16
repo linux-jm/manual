@@ -1,0 +1,152 @@
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)rexecd.8	6.5 (Berkeley) 3/16/91
+.\"	$Id: rexecd.8,v 1.1.1.1 2000/10/19 08:22:16 ysato Exp $
+.\"
+.\"
+.\" Japanese Version Copyright (c) 2001 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Sun Jan 14 20:53:52 JST 2001
+.\"         by Yuichi SATO <sato@complex.eng.hokudai.ac.jp>
+.\"
+.\"WORD:	facility	機能
+.\"
+.Dd March 16, 1991
+.Dt REXECD 8
+.Os "Linux NetKit (0.17)"
+.Sh 名前
+.Nm rexecd
+.Nd リモート実行サーバ
+.Sh 書式
+.Nm rexecd
+.Sh 説明
+.Nm rexecd
+は
+.Xr rexec 3
+ルーチンのためのサーバである。
+このサーバは、ユーザー名とパスワードによる認証に基づいた、
+リモート実行機能を提供する。
+.Pp
+.Nm rexecd
+は ``exec'' サービスの仕様で指示されたポートへのサービス要求を監視する。
+.Xr services 5
+を参照すること。
+サービス要求を受信すると、以下のプロトコルが開始される。
+.Bl -enum
+.It
+サーバはソケットから
+NUL 文字のバイト
+.Pq Ql \e0
+を受信するまで文字を読み取る。
+受信した文字は
+.Tn ASCII
+文字からなる 10 進数の数字として解釈される。
+.It 
+ステップ 1 で受信された番号が 0 でない場合、
+その番号は
+.Em stderr
+のために使われる 2 次ストリームのポート番号であると解釈される。
+その後、第 2 の接続がクライアントマシン上の
+指定されたポートとの間に生成される。
+.It
+NUL 文字で終端された最大 16 文字のユーザー名が、
+最初のソケットから取得される。
+.It
+NUL 文字で終端され、暗号化されていない最大 16 文字のパスワードが、
+最初のソケットから取得される。
+.It
+NUL 文字で終端されたシェルに渡されるコマンドが、
+最初のソケットから取得される。
+コマンドの長さは、システムの引き数リストの上限を越えない長さに制限される。
+.It
+その後、
+.Nm rexecd
+はログイン時と同様のユーザー認証を行う。
+認証が成功した場合、ユーザーのホームディレクトリに移動し、
+そのユーザーに対してユーザーとグループの保護を行う。
+これらのステップのどれかで失敗した場合、
+接続を切断し、診断メッセージを返す。
+.It
+NUL 文字のバイトが最初のソケットに返され、
+コマンドラインがユーザーの通常のログインシェルに渡される。
+シェルは
+.Nm rexecd
+によって確立されたネットワーク接続を継承する。
+.El
+.Sh 返り値
+以下のリストの一番最後のものを除き、全ての診断メッセージは、
+他のネットワーク接続が閉じられた後に、
+最初のソケットを経由して返される。
+エラーは最初のバイトの値が 1 であることで示される
+(コマンド実行に先立つ全てのステップが正常に終了した場合、
+上記のステップ 7 で値 0 が返される)。
+.Pp
+.Bl -tag -width Ds
+.It Sy username too long
+ユーザー名が 16 文字を越えている。
+.It Sy password too long
+パスワードが 16 文字を越えている。
+.It Sy command too long
+渡されたコマンドラインが
+(システムで設定されている) 引き数リストのサイズを越えている。
+.It Sy Login incorrect.
+パスワードファイルにそのユーザー名のエントリが存在しない。
+あるいは、間違ったパスワードが送られた。
+.It Sy \&No remote directory.
+ホームディレクトリへの
+.Xr chdir
+コマンドが失敗した。
+.It Sy Try again.
+サーバーによる
+.Xr fork
+が失敗した。
+.It Sy <shellname>: ...
+ユーザーのログインシェルを起動することができない。
+このメッセージは
+.Em stderr
+に関係づけられた接続を用いて返される。
+このメッセージの先頭には、フラグになるバイトが付かない。
+.El
+.Sh 関連項目
+.Xr rexec 3
+.Sh バグ
+通信される全てのデータとパスワードについて、
+暗号化を可能にする機能が用意されるべきである。
+.Sh 履歴
+.Nm
+コマンドは
+.Bx 4.2
+で登場した。
+.Sh 翻訳者謝辞
+この man ページの翻訳にあたり、
+FreeBSD jpman project <http://www.jp.freebsd.org/man-jp/>
+による翻訳を参考にさせていただいた。

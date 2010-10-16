@@ -1,0 +1,418 @@
+.\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\" $Id: packet.7,v 1.12 2001/06/19 07:07:38 argrath Exp $
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Translated 1999-12-06, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated 2001-02-13, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-02-21, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.\"WORD		physical layer		物理層
+.\"WORD		link level header(s)	リンクレベルヘッダ
+.\"WORD		phyxical header(s)	物理ヘッダ
+.\"WORD		effective user id	実効ユーザー ID
+.\"WORD		capability		ケーパビリティ
+.\"WORD		pending error		遅延エラー
+.\"WORD		promiscuous mode	無差別モード
+.\"
+.TH PACKET  7 2008-08-08 "Linux" "Linux Programmer's Manual"
+.SH 名前
+packet, AF_PACKET \- デバイスレベルのパケットインターフェース
+.SH 書式
+.nf
+.B #include <sys/socket.h>
+.br
+.B #include <netpacket/packet.h>
+.br
+.B #include <net/ethernet.h>     /* the L2 protocols */
+.sp
+.BI "packet_socket = socket(AF_PACKET, int " socket_type ", int "protocol );
+.fi
+.SH 説明
+packet ソケットは、デバイスドライバ (OSI レイヤ 2) レベルで
+生のパケット (raw packet) を送受信するために用いられる。
+packet ソケットを使うと、ユーザー空間で物理層の上に
+プロトコルモジュールを実装することができる。
+
+.I socket_type
+には
+.B SOCK_RAW
+と
+.B SOCK_DGRAM
+のいずれかを指定する。
+.B SOCK_RAW
+はリンクレベルヘッダを含む raw パケットを、
+.B SOCK_DGRAM
+はリンクレベルヘッダが削除された加工済みパケットを示す。
+リンクレベルヘッダ情報は
+.I sockaddr_ll
+で共通のフォーマットで入手できる。
+.I protocol
+には IEEE 802.3 プロトコル番号を
+ネットワークバイトオーダーで指定する。
+指定できるプロトコルのリストは、インクルードファイル
+.I <linux/if_ether.h>
+を参照。プロトコルを
+.B htons(ETH_P_ALL)
+にすると、全てのプロトコルが受信される。
+外部から来たパケットのうち指定したプロトコルのものは、
+カーネルに実装されているプロトコルに渡される前の段階で、
+packet ソケットに渡される。
+
+packet ソケットをオープンできるのは、
+実効ユーザーID が 0 のプロセスか、
+.B CAP_NET_RAW
+ケーパビリティを持つプロセスだけである。
+
+.B SOCK_RAW
+パケットでは、パケットをデバイスドライバと受け渡しする際、
+パケットデータに変更が行われることはない。
+パケットの受信時には、アドレスの解析だけは行われ、
+標準的な
+.I sockaddr_ll
+アドレス構造体に渡される。パケットの送信時には、ユーザが指定する
+バッファに物理層のヘッダが含まれている必要がある。
+パケットはそのまま修正を受けずに、行き先アドレスから決定される
+インターフェースのネットワークドライバにキューイングされる。
+デバイスドライバによっては、他のヘッダを常に追加するものもある。
+.B SOCK_RAW
+は Linux 2.0 の obosolete な
+.B AF_INET/SOCK_PACKET
+と似ているが、互換性があるわけではない。
+
+.B SOCK_DGRAM
+はやや高位のレベルで動作する。物理ヘッダは、パケットがユーザーに
+渡される前に削除される。
+.B SOCK_DGRAM
+の packet ソケットを通して送られるパケットは、
+.I sockaddr_ll
+の行き先アドレスの情報に基づき、適切な物理層のヘッダが付加されてから、
+キューに送られる。
+
+デフォルトでは、指定したプロトコル型のパケットはすべて packet
+ソケットに送られる。特定のインターフェースからのパケットだけを
+取得したい場合には、
+.I struct sockaddr_ll
+にアドレスを指定して
+.BR bind (2)
+を呼び、 packet ソケットをそのインターフェースに結び付ける (バインドする)。
+バインドの際には、アドレスフィールドのうち
+.I sll_protocol
+と
+.I sll_ifindex
+だけが用いられる。
+
+.BR connect (2)
+操作は packet ソケットではサポートされていない。
+
+.B MSG_TRUNC
+フラグが
+.BR recvmsg (2),
+.BR recv (2),
+.BR recvfrom (2)
+に渡されると、 (バッファサイズより大きかったとしても) 常に実際に通信された
+パケットの長さが返される。
+.SS アドレスのタイプ
+sockaddr_ll はデバイスに依存しない物理層のアドレスである。
+
+.in +4n
+.nf
+struct sockaddr_ll {
+    unsigned short sll_family;   /* 常に AF_PACKET */
+    unsigned short sll_protocol; /* 物理層のプロトコル */
+    int            sll_ifindex;  /* インターフェース番号 */
+    unsigned short sll_hatype;   /* ヘッダ種別 */
+    unsigned char  sll_pkttype;  /* パケット種別 */
+    unsigned char  sll_halen;    /* アドレスの長さ */
+    unsigned char  sll_addr[8];  /* 物理層のアドレス */
+};
+.fi
+.in
+
+.I sll_protocol
+は標準的なイーサネットプロトコルのタイプで、
+ネットワークバイトオーダーで記述する。
+インクルードファイル
+.I <linux/if_ether.h>
+で定義されている。
+これがこのソケットのプロトコルのデフォルトとなる。
+
+.I sll_ifindex
+はそのインターフェースの interface index である
+.RB ( netdevice (7)
+を参照)。
+0 は (バインドが許可されている)  任意のインターフェースにマッチする。
+
+.I sll_hatype
+は、インクルードファイル
+.I <linux/if_arp.h>
+で定義されている ARP 種別である。
+
+.I sll_pkttype
+はパケット種別である。指定できる種別は以下のいずれかである:
+.B PACKET_HOST
+(ローカルホスト向けのパケット)、
+.B PACKET_BORADCAST
+(物理層のブロードキャストパケット)、
+.B PACKET_MULTICAST
+(物理層のマルチキャストアドレスに送るパケット)、
+.B PACKET_OTHERHOST
+(他のホストに向けられたパケットのうち、
+無差別モード (promiscuous mode: 後述) のデバイスドライバにより補足されたもの)、
+.B PACKET_OUTGOING
+(ローカルホストから発信され、
+packet ソケットにループバックしてきたパケット)。
+これらの種別が意味を持つのは受信時のみである。
+
+.I sll_addr
+と
+.I sll_halen
+は、物理層の (つまり IEEE 802.3 の) アドレスとその長さである。
+厳密な解釈はデバイスに依存する。
+
+パケットを送る場合は、
+.IR sll_family ,
+.IR sll_addr ,
+.IR sll_halen ,
+.I sll_ifindex
+を指定すれば十分である。
+その他のフィールドは 0 にしておくべきである。
+.I sll_hatype
+と
+.I sll_pkttype
+には受信したパケットの情報が設定される。
+バインドの際には、
+.I sll_protocol
+と
+.I sll_ifindex
+だけが使用される。
+.SS ソケットオプション
+packet ソケットは、物理層のマルチキャストや
+無差別モード (promiscuous mode) を設定して使うことができる。
+これには
+.B SOL_PACKET
+と以下のオプションのいずれかを指定して
+.BR setsockopt (2)
+を呼べばよい。
+バインドを追加する場合は
+.B PACKET_ADD_MEMBERSHIP
+であり、取り去る場合は
+.B PACKET_DROP_MEMBERSHIP
+である。これらはいずれも
+.B packet_mreq
+構造体を引き数に取る。
+
+.in +4n
+.nf
+struct packet_mreq {
+    int            mr_ifindex;    /* インターフェース番号 */
+    unsigned short mr_type;       /* 動作 */
+    unsigned short mr_alen;       /* アドレスの長さ */
+    unsigned char  mr_address[8]; /* 物理層のアドレス */
+};
+.fi
+.in
+
+.I mr_ifindex
+は、ステータスを変更したいインターフェースの
+インターフェース番号である。
+.I mr_type
+パラメータは実行する動作を指定する:
+.B PACKET_MR_PROMISC
+は、共有している媒体からの全てのパケットを受信できるようにする
+(しばしば "無差別モード (promiscuous mode)" と呼ばれる)。
+.B PACKET_MR_MULTICAST
+は、そのソケットを、
+.I mr_address
+と
+.I mr_alen
+で指定される物理層のマルチキャストブループにバインドする。
+.B PACKET_MR_ALLMULTI
+は socket を up にして、そのインターフェースに到達したすべての
+マルチキャストパケットを受信できるようにする。
+
+昔からある ioctl だけでなく、
+.BR SIOCSIFFLAGS ,
+.BR SIOCADDMULTI ,
+.B SIOCDELMULTI
+を同じ目的に用いることができる。
+.SS ioctl
+.B SIOCGSTAMP
+を用いると、最後に受信したパケットのタイムスタンプを得ることができる。
+引き数は
+.I struct timeval
+である。
+
+さらに、
+.BR netdevice (7)
+および
+.BR socket (7)
+で定義されている標準の ioctl はいずれも
+packet ソケットに指定可能である。
+.SS エラー処理
+packet ソケットは、パケットをデバイスドライバに渡すときに
+起きたエラーしか処理しない。遅延エラー (pending error)
+に関する概念は持っていない。
+.SH エラー
+.TP
+.B EADDRNOTAVAIL
+不明なマルチキャストグループアドレスが渡された。
+.TP
+.B EFAULT
+ユーザが渡したメモリアドレスが不正。
+.TP
+.B EINVAL
+引き数が不正。
+.TP
+.B EMSGSIZE
+パケットがインターフェースの MTU より大きい。
+.TP
+.B ENETDOWN
+インターフェースが up でない。
+.TP
+.B ENOBUFS
+パケットに割り当てるメモリが足りない。
+.TP
+.B ENODEV
+デバイス名が不明。あるいはインターフェースアドレスで指定された
+インターフェースインデックスが不明。
+.TP
+.B ENOENT
+パケットを一つも受信していない。
+.TP
+.B ENOTCONN
+インターフェースアドレスが渡されなかった。
+.TP
+.B ENXIO
+インターフェースアドレスに不正なインターフェースインデックスが含まれている。
+.TP
+.B EPERM
+この操作を行うのに必要な権限をユーザが持っていない。
+
+上記以外のエラーが、低レベルのドライバで生成されることがある。
+.SH バージョン
+.B AF_PACKET
+は Linux 2.2 の新機能である。これより古いバージョンの Linux では
+.B SOCK_PACKET
+のみをサポートしていた。
+.PP
+インクルードファイル
+.I <netpacket/packet.h>
+が存在するのは glibc 2.1 以降である。
+それ以前のシステムでは以下のようにする必要がある:
+.sp
+.in +4n
+.nf
+#include <asm/types.h>
+#include <linux/if_packet.h>
+#include <linux/if_ether.h>  /* The L2 protocols */
+.fi
+.in
+.SH 注意
+移植性の必要なプログラムでは、
+.BR pcap (3)
+経由で
+.B AF_PACKET
+を用いることをお薦めする。ただし、この方法では
+.B AF_PACKET
+の機能すべてを利用することはできない。
+
+.B SOCK_DGRAM
+packet ソケットは、IEEE 802.3 フレームの IEEE 802.2 LLC ヘッダの
+生成や解析を行おうとしない。
+.B ETH_P_802_3
+が送信プロトコルに指定されると、カーネルは 802.3 フレームを
+生成して length フィールドに書き込む。
+完全に準拠したパケットを得るためにはユーザーが LLC ヘッダを
+与える必要がある。到着した 802.3 パケットでは、
+DSAP/SSAP protocol の各フィールドは多重化 (multiplex) されていない。
+代わりにこれらは LLC ヘッダが前置された
+.B ETH_P_802_2
+プロトコルとして与えられる。したがって、
+.B ETH_P_802_3
+にバインドすることはできない。かわりに
+.B ETH_P_802_2
+にバインドし、自分自身でプロトコルの多重化を行うこと。
+送信のデフォルトは、プロトコルフィールドを持つ
+標準の Ethernet DIX encapsulation である。
+
+packet ソケットは入出力の firewall chain に影響をうけない。
+.SS 移植性
+Linux 2.0 では、 packet ソケットを得る方法は
+.BI "socket(AF_INET, SOCK_PACKET, " protocol )\fR
+を呼ぶやり方しかなかった。この方法はまだサポートされているが、
+用いないことを強く推奨する。現在の方法との主な違いは、
+.B SOCK_PACKET
+ではインターフェースの指定に古い
+.I struct sockaddr_pkt
+を用いる点である。これには物理層からの独立性がない。
+
+.in +4n
+.nf
+struct sockaddr_pkt {
+    unsigned short spkt_family;
+    unsigned char  spkt_device[14];
+    unsigned short spkt_protocol;
+};
+.fi
+.in
+
+.I spkt_family
+はデバイスのタイプ、
+.I spkt_protocol
+は
+.I <sys/if_ether.h>
+で定義されている IEEE 802.3 プロトコルタイプ、
+.I spkt_device
+はデバイスの名前を NULL 終端された文字列で与えたもの (例: eth0) である。
+
+この構造体は obsolete であり、
+新しくコードを書く時には用いるべきでない。
+.SH バグ
+glibc 2.1 には
+.B SOL_PACKET
+の定義がない。回避策としては、以下のようにするとよい。
+.in +4n
+.nf
+
+#ifndef SOL_PACKET
+#define SOL_PACKET 263
+#endif
+
+.fi
+.in
+この問題は新しいバージョンの glibc では修正されている。
+libc5 のシステムにはこの問題はない。
+
+IEEE 802.2/803.3 の LLC の扱い方は、バグと考えても良いだろう。
+
+ソケットフィルターについて記載されていない。
+
+.B MSG_TRUNC
+.BR recvmsg (2)
+拡張は非常にまずい対処であり、制御メッセージで置き換えるべきである。
+今のところ
+.B SOCK_DGRAM
+経由でパケットについていた宛先アドレスを得る方法がない。
+.\" .SH 著者
+.\" この man ページは Matthew Wilcox の助力のもとに Andi Kleen が書いた。
+.\" Linux 2.2 の AF_PACKET は、
+.\" Alan Cox たちのコードをもとにして Alexey Kuznetsov が実装した。
+.SH 関連項目
+.BR socket (2),
+.BR pcap (3),
+.BR capabilities (7),
+.BR ip (7),
+.BR raw (7),
+.BR socket (7)
+
+標準 IP Ethernet encapsulation に関する情報は RFC\ 894 にある。
+
+IEEE 802.3 IP encapsulation に関する情報は RFC\ 1700 にある。
+
+物理層のプロトコルに関する記述は
+.I <linux/if_ether.h>
+インクルードファイルにある。

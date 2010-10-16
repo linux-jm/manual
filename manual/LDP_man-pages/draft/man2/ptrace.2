@@ -1,0 +1,973 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (c) 1993 Michael Haardt
+.\" (michael@moria.de),
+.\" Fri Apr  2 11:32:09 MET DST 1993
+.\"
+.\" changes Copyright 1999 Mike Coleman (mkc@acm.org)
+.\" -- major revision to fully document ptrace semantics per recent Linux
+.\"    kernel (2.2.10) and glibc (2.1.2)
+.\" Sun Nov  7 03:18:35 CST 1999
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
+.\" USA.
+.\"
+.\" Modified Fri Jul 23 23:47:18 1993 by Rik Faith <faith@cs.unc.edu>
+.\" Modified Fri Jan 31 16:46:30 1997 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified Thu Oct  7 17:28:49 1999 by Andries Brouwer <aeb@cwi.nl>
+.\" Modified, 27 May 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on capability requirements
+.\"
+.\" 2006-03-24, Chuck Ebbert <76306.1226@compuserve.com>
+.\"    Added    PTRACE_SETOPTIONS, PTRACE_GETEVENTMSG, PTRACE_GETSIGINFO,
+.\"        PTRACE_SETSIGINFO, PTRACE_SYSEMU, PTRACE_SYSEMU_SINGLESTEP
+.\"    (Thanks to Blaisorblade, Daniel Jacobowitz and others who helped.)
+.\"
+.\" Japanese Version Copyright (c) 1997-1999 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1999-11-20, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2003-10-11, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2006-07-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.28
+.\" Updated 2007-01-07, Akihiro MOTOKI, LDP v2.43
+.\" Updated 2007-05-01, Akihiro MOTOKI, LDP v2.46
+.\" Updated 2008-08-06, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2009-04-13, Akihiro MOTOKI, LDP v3.20
+.\"
+.\"WORD:	child process		子プロセス
+.\"WORD:	parent process		親プロセス
+.\"WORD:	core image		メモリ・イメージ
+.\"WORD:	break point		ブレーク・ポイント
+.\"WORD:	single step		シングル・ステップ実行
+.\"WORD:	trap flag		トラップ・フラグ
+.\"WORD:	attach			接続
+.\"WORD:	detach			分離
+.\"WORD:	process ID		プロセスID
+.\"
+.TH PTRACE 2 2009-03-30 "Linux" "Linux Programmer's Manual"
+.SH 名前
+.\"O ptrace \- process trace
+ptrace \- プロセスのトレース
+.SH 書式
+.nf
+.B #include <sys/ptrace.h>
+.sp
+.BI "long ptrace(enum __ptrace_request " request ", pid_t " pid ", "
+.BI "            void *" addr ", void *" data );
+.fi
+.SH 説明
+.\"O The
+.\"O .BR ptrace ()
+.\"O system call provides a means by which a parent process may observe
+.\"O and control the execution of another process,
+.\"O and examine and change its core image and registers.
+.\"O It is primarily used to implement breakpoint debugging and system
+.\"O call tracing.
+.BR ptrace ()
+システムコールは、親プロセスが、別のプロセスの実行の監視/制御を
+行ったり、コアイメージ (core image) やレジスタの調査/変更を
+行ったりする手段を提供する。
+.BR ptrace ()
+は、主にブレークポイントによるデバッグやシステムコールのトレースを
+実装するのに用いられる。
+.LP
+.\"O The parent can initiate a trace by calling
+.\"O .BR fork (2)
+.\"O and having the resulting child do a
+.\"O .BR PTRACE_TRACEME ,
+.\"O followed (typically) by an
+.\"O .BR exec (3).
+.\"O Alternatively, the parent may commence trace of an existing process using
+.\"O .BR PTRACE_ATTACH .
+トレースを開始するには、まず親プロセスで
+.BR fork (2)
+を呼び出す。生成された子プロセスで
+.B PTRACE_TRACEME
+を行い、続いて (典型的には)
+.BR exec (3)
+を行なう。
+別の方法としては、
+親プロセスが既存のプロセスに対して
+.B PTRACE_ATTACH
+を使用し、トレースを開始する。
+.LP
+.\"O While being traced, the child will stop each time a signal is delivered,
+.\"O even if the signal is being ignored.
+.\"O (The exception is
+.\"O .BR SIGKILL ,
+.\"O which has its usual effect.)
+.\"O The parent will be notified at its next
+.\"O .BR wait (2)
+.\"O and may inspect and modify the child process while it is stopped.
+.\"O The parent then causes the child to continue,
+.\"O optionally ignoring the delivered signal
+.\"O (or even delivering a different signal instead).
+トレースの実行中、子プロセスはシグナルが配送されるたびに、
+たとえそのシグナルが無視すべきものであっても停止する
+.RB ( SIGKILL
+は例外で、通常どおりの効果をもたらす)。
+親プロセスには次の
+.BR wait (2)
+で通知され、停止している間に子プロセスを調べたり修正したりすることができる。
+そして親プロセスは子プロセスの実行を再開させるが、配送された
+シグナルを無視することもできる (あるいは代わりに別のシグナルを
+配送することもできる) 。
+.LP
+.\"O When the parent is finished tracing, it can terminate the child with
+.\"O .B PTRACE_KILL
+.\"O or cause it to continue executing in a normal, untraced mode
+.\"O via
+.\"O .BR PTRACE_DETACH .
+親プロセスがトレースを終了する際には、
+.B PTRACE_KILL
+を使用して子プロセスを終了させることもできるし、
+.B PTRACE_DETACH
+を用いて通常のトレースなしのモードにして、
+実行を継続させることもできる。
+.LP
+.\"O The value of \fIrequest\fP determines the action to be performed:
+\fIrequest\fP の値がこのシステムコールの動作を決定する:
+.TP
+.B PTRACE_TRACEME
+.\"O Indicates that this process is to be traced by its parent.
+.\"O Any signal
+.\"O (except
+.\"O .BR SIGKILL )
+.\"O delivered to this process will cause it to stop and its
+.\"O parent to be notified via
+.\"O .BR wait (2).
+.\"O Also, all subsequent calls to
+.\"O .BR execve (2)
+.\"O by this process will cause a
+.\"O .B SIGTRAP
+.\"O to be sent to it,
+.\"O giving the parent a chance to gain control before the new program
+.\"O begins execution.
+.\"O A process probably shouldn't make this request if its parent
+.\"O isn't expecting to trace it.
+.\"O (\fIpid\fP, \fIaddr\fP, and \fIdata\fP are ignored.)
+このプロセスが親プロセスによってトレースされることを表す。
+このプロセスに
+.RB ( SIGKILL
+以外の) シグナルが配送されると、
+プロセスは停止し、親プロセスに
+.BR wait (2)
+を通じて通知される。
+また、これ以降はこのプロセスが
+.BR execve (2)
+を呼び出す度に
+.B SIGTRAP
+が送信されるようになる。
+これによって、親プロセスは
+新しいプログラムが実行を開始する前に制御することができる。
+親プロセスが自プロセスをトレースするつもりがない場合には、
+おそらくこのプロセスは本要求を行うべきではないだろう。
+(\fIpid\fP, \fIaddr\fP, \fIdata\fP は無視される。)
+.LP
+.\"O The above request is used only by the child process;
+.\"O the rest are used only by the parent.
+.\"O In the following requests, \fIpid\fP specifies the child process
+.\"O to be acted on.
+.\"O For requests other than
+.\"O .BR PTRACE_KILL ,
+.\"O the child process must
+.\"O be stopped.
+上記の要求は子プロセスだけが行なうものである。
+残りは親プロセスだけが行なうものである。
+以下の要求では、\fIpid\fP で操作の対象となる
+子プロセスを指定する。
+.B PTRACE_KILL
+を除き、要求を行なうためには
+子プロセスは停止していなければならない。
+.TP
+.BR PTRACE_PEEKTEXT ", " PTRACE_PEEKDATA
+.\"O Reads a word at the location
+.\"O .I addr
+.\"O in the child's memory, returning the word as the result of the
+.\"O .BR ptrace ()
+.\"O call.
+.\"O Linux does not have separate text and data address spaces, so the two
+.\"O requests are currently equivalent.
+.\"O (The argument \fIdata\fP is ignored.)
+子プロセスのメモリの
+.I addr
+の位置から 1 ワードを読み出す。読み出したワードは
+.BR ptrace ()
+の返り値として返される。 Linux ではテキスト (text) とデータ (data) で
+同じアドレス空間を使用するため、この 2 つの要求は現在のところ
+同じものである。 (引き数 \fIdata\fP は無視される。)
+.TP
+.B PTRACE_PEEKUSER
+.\" PTRACE_PEEKUSR in kernel source, but glibc uses PTRACE_PEEKUSER,
+.\" and that is the name that seems common on other systems.
+.\"O Reads a word at offset
+.\"O .I addr
+.\"O in the child's USER area,
+.\"O which holds the registers and other information about the process
+.\"O (see \fI<sys/user.h>\fP).
+.\"O The word is returned as the result of the
+.\"O .BR ptrace ()
+.\"O call.
+.\"O Typically the offset must be word-aligned, though this might vary by
+.\"O architecture.
+.\"O See NOTES.
+.\"O (\fIdata\fP is ignored.)
+子プロセスの USER 領域のオフセット
+.I addr
+の位置から 1 ワードを読み込む。USER 領域にはそのプロセスの
+レジスタ (registers) などの情報が保持されている
+(\fI<sys/user.h>\fP を参照)。読み込んだワードは
+.BR ptrace ()
+コールの結果として返される。
+たいていはオフセットはワード境界になければならないが、
+アーキテクチャによってはその必要はない。
+「注意」の節を参照。
+(\fIdata\fP は無視される。 )
+.TP
+.BR PTRACE_POKETEXT ", " PTRACE_POKEDATA
+.\"O Copies the word
+.\"O .I data
+.\"O to location
+.\"O .I addr
+.\"O in the child's memory.
+.\"O As above, the two requests are currently equivalent.
+ワード
+.I data
+を子プロセスのメモリの
+.I addr
+の位置へコピーする。上と同様に、現在のところ二つの
+要求は同じものである。
+.TP
+.B PTRACE_POKEUSER
+.\" PTRACE_POKEUSR in kernel source, but glibc uses PTRACE_POKEUSER,
+.\" and that is the name that seems common on other systems.
+.\"O Copies the word
+.\"O .I data
+.\"O to offset
+.\"O .I addr
+.\"O in the child's USER area.
+.\"O As above, the offset must typically be word-aligned.
+.\"O In order to maintain the integrity of the kernel,
+.\"O some modifications to the USER area are disallowed.
+ワード
+.I data
+を子プロセスの USER 領域のオフセット
+.I addr
+の位置にコピーする。
+上と同様に、通常、オフセットはワード境界になければならない。
+カーネルの完全性 (integrity) を維持するため、
+変更内容によっては USER 領域の変更は禁止されている。
+.TP
+.BR PTRACE_GETREGS ", " PTRACE_GETFPREGS
+.\"O Copies the child's general purpose or floating-point registers,
+.\"O respectively, to location \fIdata\fP in the parent.
+.\"O See \fI<sys/user.h>\fP for information on
+.\"O the format of this data.
+.\"O (\fIaddr\fP is ignored.)
+それぞれ、子プロセスの汎用レジスタ、浮動小数点レジスタを親プロセスの
+\fIdata\fP の位置にコピーする。この data の書式に関しては
+\fI<sys/user.h>\fP を参照すること。(\fIaddr\fP は無視される。)
+.TP
+.\"O .BR PTRACE_GETSIGINFO " (since Linux 2.3.99-pre6)"
+.BR PTRACE_GETSIGINFO " (Linux 2.3.99-pre6 以降)"
+.\"O Retrieve information about the signal that caused the stop.
+.\"O Copies a \fIsiginfo_t\fP structure (see
+.\"O .BR sigaction (2))
+.\"O from the child to location \fIdata\fP in the parent.
+.\"O (\fIaddr\fP is ignored.)
+停止の原因となったシグナルに関する情報を取得する。
+\fIsiginfo_t\fP 構造体
+.RB ( sigaction (2)
+参照) を子プロセスから親プロセスの \fIdata\fP の位置にコピーする。
+(\fIaddr\fP は無視される。)
+.TP
+.BR PTRACE_SETREGS ", " PTRACE_SETFPREGS
+.\"O Copies the child's general purpose or floating-point registers,
+.\"O respectively, from location \fIdata\fP in the parent.
+.\"O As for
+.\"O .BR PTRACE_POKEUSER ,
+.\"O some general
+.\"O purpose register modifications may be disallowed.
+.\"O (\fIaddr\fP is ignored.)
+それぞれ、子プロセスの汎用レジスタ、浮動小数点レジスタに
+親プロセスの \fIdate\fP の位置からコピーする。
+.B PTRACE_POKEUSER
+と同様に、汎用レジスタによっては
+変更が禁止されている場合がある。 (\fIaddr\fP は無視される。)
+.TP
+.\"O .BR PTRACE_SETSIGINFO " (since Linux 2.3.99-pre6)"
+.BR PTRACE_SETSIGINFO " (Linux 2.3.99-pre6 以降)"
+.\"O Set signal information.
+.\"O Copies a \fIsiginfo_t\fP structure from location \fIdata\fP in the
+.\"O parent to the child.
+.\"O This will only affect signals that would normally be delivered to
+.\"O the child and were caught by the tracer.
+.\"O It may be difficult to tell
+.\"O these normal signals from synthetic signals generated by
+.\"O .BR ptrace ()
+.\"O itself.
+.\"O (\fIaddr\fP is ignored.)
+シグナル情報を設定する。
+\fIsiginfo_t\fP 構造体を親プロセスのデータ \fIdata\fP の位置から
+子プロセスにコピーする。
+この処理を行うことができるのは、子プロセスに通常は配送されるはずで
+トレーサに捕捉されたシグナルについてだけである。
+これらの通常のシグナルと
+.BR ptrace ()
+自身が発生するシグナルを見分けるのは難しいかもしれない。
+(\fIaddr\fP は無視される。)
+.TP
+.\"O .BR PTRACE_SETOPTIONS " (since Linux 2.4.6; see BUGS for caveats)"
+.BR PTRACE_SETOPTIONS " (Linux 2.4.6 以降; バグの章にある警告も参照)"
+.\"O Sets ptrace options from \fIdata\fP in the parent.
+.\"O (\fIaddr\fP is ignored.)
+.\"O \fIdata\fP is interpreted
+.\"O as a bit mask of options, which are specified by the following flags:
+親プロセスの \fIdata\fP に基づいて ptrace のオプションを設定する
+(\fIaddr\fP は無視される)。
+\fIdata\fP はオプションのビットマスクとして解釈され、
+オプションには以下のフラグを指定できる:
+.RS
+.TP
+.\"O .BR PTRACE_O_TRACESYSGOOD " (since Linux 2.4.6)"
+.BR PTRACE_O_TRACESYSGOOD " (Linux 2.4.6 以降)"
+.\"O When delivering syscall traps, set bit 7 in the signal number
+.\"O (i.e., deliver \fI(SIGTRAP | 0x80)\fP
+.\"O This makes it easy for the tracer to tell the difference
+.\"O between normal traps and those caused by a syscall.
+.\"O .RB ( PTRACE_O_TRACESYSGOOD
+.\"O may not work on all architectures.)
+システムコールのトラップが配送されたときに、シグナル番号のビット 7
+を設定する (すなわち、\fI(SIGTRAP | 0x80)\fP を配送する)。
+これにより、トレーサが通常のトラップとシステムコールによるトラップを
+区別しやすくなる。
+.RB ( PTRACE_O_TRACESYSGOOD
+はどのアーキテクチャでも動作しない可能性がある。)
+.TP
+.\"O .BR PTRACE_O_TRACEFORK " (since Linux 2.5.46)"
+.BR PTRACE_O_TRACEFORK " (Linux 2.5.46 以降)"
+.\"O Stop the child at the next
+.\"O .BR fork (2)
+.\"O call with \fISIGTRAP | PTRACE_EVENT_FORK\ <<\ 8\fP and automatically
+.\"O start tracing the newly forked process,
+.\"O which will start with a
+.\"O .BR SIGSTOP .
+.\"O The PID for the new process can be retrieved with
+.\"O .BR PTRACE_GETEVENTMSG .
+次の
+.BR fork (2)
+呼び出し時に \fISIGTRAP | PTRACE_EVENT_FORK\ <<\ 8\fP で
+子プロセスの動作を停止させ、
+新たに fork されたプロセスのトレースを自動的に開始し、
+.B SIGSTOP
+でそのプロセスの実行を開始する。
+新しいプロセスの PID は
+.B PTRACE_GETEVENTMSG
+で取得できる。
+.TP
+.\"O .BR PTRACE_O_TRACEVFORK " (since Linux 2.5.46)"
+.BR PTRACE_O_TRACEVFORK " (Linux 2.5.46 以降)"
+.\"O Stop the child at the next
+.\"O .BR vfork (2)
+.\"O call with \fISIGTRAP | PTRACE_EVENT_VFORK\ <<\ 8\fP and automatically start
+.\"O tracing the newly vforked process, which will start with a
+.\"O .BR SIGSTOP .
+.\"O The PID for the new process can be retrieved with
+.\"O .BR PTRACE_GETEVENTMSG .
+次の
+.BR vfork (2)
+呼び出し時に \fISIGTRAP | PTRACE_EVENT_VFORK\ <<\ 8\fP で
+子プロセスの動作を停止させ、
+新たに vfork されたプロセスのトレースを自動的に開始し、
+.B SIGSTOP
+でそのプロセスの実行を開始する。
+新しいプロセスの PID は
+.B PTRACE_GETEVENTMSG
+で取得できる。
+.TP
+.\"O .BR PTRACE_O_TRACECLONE " (since Linux 2.5.46)"
+.BR PTRACE_O_TRACECLONE " (Linux 2.5.46 以降)"
+.\"O Stop the child at the next
+.\"O .BR clone (2)
+.\"O call with \fISIGTRAP | PTRACE_EVENT_CLONE\ <<\ 8\fP and automatically start
+.\"O tracing the newly cloned process, which will start with a
+.\"O .BR SIGSTOP .
+.\"O The PID for the new process can be retrieved with
+.\"O .BR PTRACE_GETEVENTMSG .
+.\"O This option may not catch
+.\"O .BR clone (2)
+.\"O calls in all cases.
+.\"O If the child calls
+.\"O .BR clone (2)
+.\"O with the
+.\"O .B CLONE_VFORK
+.\"O flag,
+.\"O .B PTRACE_EVENT_VFORK
+.\"O will be delivered instead
+.\"O if
+.\"O .B PTRACE_O_TRACEVFORK
+.\"O is set; otherwise if the child calls
+.\"O .BR clone (2)
+.\"O with the exit signal set to
+.\"O .BR SIGCHLD ,
+.\"O .B PTRACE_EVENT_FORK
+.\"O will be delivered
+.\"O if
+.\"O .B PTRACE_O_TRACEFORK
+.\"O is set.
+次の
+.BR clone (2)
+呼び出し時に \fISIGTRAP | PTRACE_EVENT_CLONE\ << \8\fP で
+子プロセスの動作を停止させ、
+新たに clone で作成されたプロセスのトレースを自動的に開始し、
+.B SIGSTOP
+でプロセスの実行を開始する。
+新しいプロセスの PID は
+.B PTRACE_GETEVENTMSG
+で取得できる。
+このオプションで全ての
+.BR clone (2)
+コールを捕まえられるわけではない。
+子プロセスが
+.B CLONE_VFORK
+フラグ付きで
+.BR clone (2)
+を呼び出した場合、
+.B PTRACE_O_TRACEVFORK
+が設定されていれば代わりに
+.B PTRACE_EVENT_VFORK
+が配送される。
+また、子プロセスが終了シグナルを
+.B SIGCHLD
+に設定して
+.BR clone (2)
+を呼び出した場合は、
+.B PTRACE_O_TRACEFORK
+が設定されていれば
+.B PTRACE_EVENT_FORK
+が配送される。
+.TP
+.\"O .BR PTRACE_O_TRACEEXEC " (since Linux 2.5.46)"
+.BR PTRACE_O_TRACEEXEC " (Linux 2.5.46 以降)"
+.\"O Stop the child at the next
+.\"O .BR execve (2)
+.\"O call with \fISIGTRAP | PTRACE_EVENT_EXEC\ <<\ 8\fP.
+次の
+.BR execve (2)
+呼び出し時に
+\fISIGTRAP | PTRACE_EVENT_EXEC\ <<\ 8\fP
+で子プロセスの動作を停止させる。
+.TP
+.\"O .BR PTRACE_O_TRACEVFORKDONE " (since Linux 2.5.60)"
+.BR PTRACE_O_TRACEVFORKDONE " (Linux 2.5.60 以降)"
+.\"O Stop the child at the completion of the next
+.\"O .BR vfork (2)
+.\"O call with \fISIGTRAP | PTRACE_EVENT_VFORK_DONE\ <<\ 8\fP.
+次の
+.BR vfork (2)
+呼び出し時に
+\fISIGTRAP | PTRACE_EVENT_VFORK_DONE\ <<\ 8\fP
+で子プロセスの動作を停止させる。
+.TP
+.\"O .BR PTRACE_O_TRACEEXIT " (since Linux 2.5.60)"
+.BR PTRACE_O_TRACEEXIT " (Linux 2.5.60 以降)"
+.\"O Stop the child at exit with \fISIGTRAP | PTRACE_EVENT_EXIT\ <<\ 8\fP.
+.\"O The child's exit status can be retrieved with
+.\"O .BR PTRACE_GETEVENTMSG .
+.\"O This stop will be done early during process exit when registers
+.\"O are still available, allowing the tracer to see where the exit occurred,
+.\"O whereas the normal exit notification is done after the process
+.\"O is finished exiting.
+.\"O Even though context is available, the tracer cannot prevent the exit from
+.\"O happening at this point.
+終了 (exit) 時に \fISIGTRAP | PTRACE_EVENT_EXIT\ <<\ 8\fP
+で子プロセスの動作を停止させる。子プロセスの終了ステータスは
+.B PTRACE_GETEVENTMSG
+で取得できる。
+この停止はレジスタがまだ参照可能であるプロセス終了処理の初期に行われ、
+トレーサはどこで終了が発生したかを知ることができる。
+通常の終了通知 (exit notification) はプロセスの終了処理が完了した後に
+行われる。コンテキストを参照することはできるにも関わらず、
+トレーサはこの時点から終了を止めることはできない。
+.RE
+.TP
+.\"O .BR PTRACE_GETEVENTMSG " (since Linux 2.5.46)"
+.BR PTRACE_GETEVENTMSG " (Linux 2.5.46 以降)"
+.\"O Retrieve a message (as an
+.\"O .IR "unsigned long" )
+.\"O about the ptrace event
+.\"O that just happened, placing it in the location \fIdata\fP in the parent.
+.\"O For
+.\"O .B PTRACE_EVENT_EXIT
+.\"O this is the child's exit status.
+.\"O For
+.\"O .BR PTRACE_EVENT_FORK ,
+.\"O .B PTRACE_EVENT_VFORK
+.\"O and
+.\"O .B PTRACE_EVENT_CLONE
+.\"O this
+.\"O is the PID of the new process.
+.\"O Since Linux 2.6.18, the PID of the new process is also available
+.\"O for
+.\"O .BR PTRACE_EVENT_VFORK_DONE .
+.\"O (\fIaddr\fP is ignored.)
+発生したばかりの ptrace イベントに関するメッセージを
+.RI ( "unsigned long"
+型で) 取得する。
+取得したメッセージは親プロセスの \fIdata\fP の位置に格納される。
+得られる内容は、
+.B PTRACE_EVENT_EXIT
+の場合は子プロセスの終了ステータスであり、
+.BR PTRACE_EVENT_FORK ,
+.BR PTRACE_EVENT_VFORK ,
+.B PTRACE_EVENT_CLONE
+の場合は新しいプロセスの PID である。
+Linux 2.6.18 以降では、新しいプロセスの PID は
+.B PTRACE_EVENT_VFORK_DONE
+で入手できる。
+(\fIaddr\fP は無視される。)
+.TP
+.B PTRACE_CONT
+.\"O Restarts the stopped child process.
+.\"O If \fIdata\fP is nonzero and not
+.\"O .BR SIGSTOP ,
+.\"O it is interpreted as a signal to be delivered to the child;
+.\"O otherwise, no signal is delivered.
+.\"O Thus, for example, the parent can control
+.\"O whether a signal sent to the child is delivered or not.
+.\"O (\fIaddr\fP is ignored.)
+停止した子プロセスの実行を再開させる。
+\fIdata\fP がゼロでなく、
+.B SIGSTOP
+でもなければ、
+子プロセスに配送されるシグナルと解釈される。
+ゼロや
+.B SIGSTOP
+の場合はシグナルは配送されない。
+これを使うと、例えば、親プロセスは
+子プロセスに送られたシグナルを実際に配送するかどうかを
+制御することができる。(\fIaddr\fP は無視される。)
+.TP
+.BR PTRACE_SYSCALL ", " PTRACE_SINGLESTEP
+.\"O Restarts the stopped child as for
+.\"O .BR PTRACE_CONT ,
+.\"O but arranges for
+.\"O the child to be stopped at the next entry to or exit from a system call,
+.\"O or after execution of a single instruction, respectively.
+.\"O (The child will also, as usual, be stopped upon receipt of a signal.)
+.\"O From the parent's perspective, the child will appear to have been
+.\"O stopped by receipt of a
+.\"O .BR SIGTRAP .
+.\"O So, for
+.\"O .BR PTRACE_SYSCALL ,
+.\"O for example, the idea is to inspect
+.\"O the arguments to the system call at the first stop,
+.\"O then do another
+.\"O .B PTRACE_SYSCALL
+.\"O and inspect the return value of
+.\"O the system call at the second stop.
+.\"O The
+.\"O .I data
+.\"O argument is treated as for
+.\"O .BR PTRACE_CONT .
+.\"O (\fIaddr\fP is ignored.)
+.B PTRACE_CONT
+と同様に停止した子プロセスを再開する。ただし、
+.B PTRACE_SYSCALL
+の場合は子プロセスが
+次にシステムコールに入るかシステムコールから抜けるかする時に、
+.B PTRACE_SINGLESTEP
+の場合は 1 命令 (instruction) 実行した後に停止させる
+(通常どおり、子プロセスはシグナルを受け取った場合にも停止する)。
+親プロセスから見ると、子プロセスは
+.B SIGTRAP
+を受信して停止したように見える。そのため、例えば
+.B PTRACE_SYSCALL
+を使うと、1回目の停止で引き数を調べて
+.B PTRACE_SYSCALL
+を実行し、 2回目の停止でシステムコールの返り値を調べる、
+というようなことができる。
+引き数
+.I data
+は
+.B PTRACE_CONT
+の場合と同じ様に解釈される。
+(\fIaddr\fP は無視される。)
+.TP
+.\"O .BR PTRACE_SYSEMU ", " PTRACE_SYSEMU_SINGLESTEP " (since Linux 2.6.14)"
+.BR PTRACE_SYSEMU ", " PTRACE_SYSEMU_SINGLESTEP " (Linux 2.6.14 以降)"
+.\"O For
+.\"O .BR PTRACE_SYSEMU ,
+.\"O continue and stop on entry to the next syscall,
+.\"O which will not be executed.
+.\"O For
+.\"O .BR PTRACE_SYSEMU_SINGLESTEP ,
+.\"O do the same
+.\"O but also singlestep if not a syscall.
+.\"O This call is used by programs like
+.\"O User Mode Linux that want to emulate all the child's syscalls.
+.\"O The
+.\"O .I data
+.\"O argument is treated as for
+.\"O .BR PTRACE_CONT .
+.\"O (\fIaddr\fP is ignored;
+.\"O not supported on all architectures.)
+.B PTRACE_SYSEMU
+は、実行を再開し、次のシステムコールに入る時に停止させる。
+システムコールは実行されない。
+.B PTRACE_SYSEMU_SINGLESTEP
+も同様だが、システムコールでない場合には
+1 命令 (singlestep) だけ実行した時点でも停止させる。
+このコールは User Mode Linux のように子プロセスのシステムコールを全て
+エミュレートしようとするプログラムで使用される。
+引き数
+.I data
+は
+.B PTRACE_CONT
+の場合と同じ様に解釈される。
+(\fIaddr\fP は無視される。
+全てのアーキテクチャでサポートされているわけではない。)
+.TP
+.B PTRACE_KILL
+.\"O Sends the child a
+.\"O .B SIGKILL
+.\"O to terminate it.
+.\"O (\fIaddr\fP and \fIdata\fP are ignored.)
+子プロセスに
+.B SIGKILL
+を送り終了させる。(\fIaddr\fP と \fIdata\fP は無視される。)
+.TP
+.B PTRACE_ATTACH
+.\"O Attaches to the process specified in
+.\"O .IR pid ,
+.\"O making it a traced "child" of the calling process;
+.\"O the behavior of the child is as if it had done a
+.\"O .BR PTRACE_TRACEME .
+.\"O The calling process actually becomes the parent of the child
+.\"O process for most purposes (e.g., it will receive
+.\"O notification of child events and appears in
+.\"O .BR ps (1)
+.\"O output as the child's parent), but a
+.\"O .BR getppid (2)
+.\"O by the child will still return the PID of the original parent.
+.\"O The child is sent a
+.\"O .BR SIGSTOP ,
+.\"O but will not necessarily have stopped
+.\"O by the completion of this call; use
+.\"O .BR wait (2)
+.\"O to wait for the child to stop.
+.\"O (\fIaddr\fP and \fIdata\fP are ignored.)
+.I pid
+で指定されたプロセスに接続 (attach) し、それを呼び出し元のプロセスの
+子プロセスとしてトレースできるようにする。子プロセスは
+.B PTRACE_TRACEME
+したかのように振舞う。呼び出し元のプロセスはそのほとんどの目的において、
+その子プロセスの実際の親になる (例えば、子プロセスのイベントの
+通知を受けとったり、
+.BR ps (1)
+で親として表示されたりする)。しかし、子プロセスで
+.BR getppid (2)
+を実行した場合には元の親プロセスの PID が返される。
+子プロセスには
+.B SIGSTOP
+が送られるが、この呼び出しが完了するまでに
+必ずしも停止するとは限らない。子プロセスの停止を待つには
+.BR wait (2)
+を使用すること。(\fIaddr\fP と \fIdata\fP は無視される。)
+.TP
+.B PTRACE_DETACH
+.\"O Restarts the stopped child as for
+.\"O .BR PTRACE_CONT ,
+.\"O but first detaches
+.\"O from the process, undoing the reparenting effect of
+.\"O .BR PTRACE_ATTACH ,
+.\"O and the effects of
+.\"O .BR PTRACE_TRACEME .
+.\"O Although perhaps not intended, under Linux a traced child can be
+.\"O detached in this way regardless of which method was used to initiate
+.\"O tracing.
+.\"O (\fIaddr\fP is ignored.)
+.B PTRACE_CONT
+と同様に停止した子プロセスを再開する。ただし
+まずそのプロセスからの分離 (detach) を行い、
+.B PTRACE_ATTACH
+での親の切り換えによる効果と
+.B PTRACE_TRACEME
+の効果を取り消す。意図したものではないだろうが、
+Linux では、トレースされている子プロセスはどのような方法でトレースを
+開始されたとしても、この方法で分離 (detach) することができる。
+(\fIaddr\fP は無視される。)
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O On success,
+.\"O .B PTRACE_PEEK*
+.\"O requests return the requested data,
+.\"O while other requests return zero.
+.\"O On error, all requests return \-1, and
+.\"O .I errno
+.\"O is set appropriately.
+.\"O Since the value returned by a successful
+.\"O .B PTRACE_PEEK*
+.\"O request may be \-1, the caller must check
+.\"O .I errno
+.\"O after such requests to determine whether or not an error occurred.
+成功すると、
+.B PTRACE_PEEK*
+の場合は要求したデータを返し、
+それ以外の場合は 0 を返す。
+エラーの場合は \-1 を返し、
+.I errno
+が適切に設定される。
+.B PTRACE_PEEK*
+が成功して返す値も　\-1 になることがあるため、
+そのような要求の場合には、呼び出し元は
+.I errno
+を調べ、エラーか発生したのかどうかを判断しなければならない。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EBUSY
+.\"O (i386 only) There was an error with allocating or freeing a debug
+.\"O register.
+(i386 のみ) デバッグレジスタの確保または解放でエラーが発生した。
+.TP
+.B EFAULT
+.\"O There was an attempt to read from or write to an invalid area in
+.\"O the parent's or child's memory,
+.\"O probably because the area wasn't mapped or accessible.
+.\"O Unfortunately, under Linux, different variations of this fault
+.\"O will return
+.\"O .B EIO
+.\"O or
+.\"O .B EFAULT
+.\"O more or less arbitrarily.
+親プロセスまたは子プロセスのメモリの不正な領域に読み書きしようとした。
+おそらくその領域がマッピングされていないか、
+その領域へのアクセスが許されていないかである。
+不運なことに、Linux ではこのようなエラーの場合、多かれ少なかれ
+恣意的に
+.B EIO
+を返したり
+.B EFAULT
+を返したりすることがある。
+.TP
+.B EINVAL
+.\"O An attempt was made to set an invalid option.
+不正なオプションを設定しようとした。
+.TP
+.B EIO
+.\"O \fIrequest\fP is invalid, or an attempt was made to read from or
+.\"O write to an invalid area in the parent's or child's memory,
+.\"O or there was a word-alignment violation,
+.\"O or an invalid signal was specified during a restart request.
+\fIrequest\fP が不正である。
+または、親プロセスまたは子プロセスのメモリの
+不正な領域に読み書きしようとした。
+または、ワード境界違反があった。
+または、実行再開の要求で不正なシグナルを指定した。
+.TP
+.B EPERM
+.\"O The specified process cannot be traced.
+.\"O This could be because the
+.\"O parent has insufficient privileges (the required capability is
+.\"O .BR CAP_SYS_PTRACE );
+.\"O unprivileged processes cannot trace processes that they
+.\"O cannot send signals to or those running
+.\"O set-user-ID/set-group-ID programs, for obvious reasons.
+.\"O Alternatively, the process may already be being traced, or be
+.\"O .BR init (8)
+.\"O (PID 1).
+指定したプロセスをトレースすることができない。これは親プロセスが
+必要な権限 (必要なケーパビリティは
+.BR CAP_SYS_PTRACE )
+を持っていないことが原因の場合がある。
+分かりやすい理由を挙げるなら、
+非特権プロセスはシグナルを送ることができないプロセスをトレースできないし、
+set-user-ID/set-group-ID プログラムを実行しているプロセスはトレースできない。
+または、プロセスはすでにトレース中である、
+または
+.BR init (8)
+プロセス (PID が 1) である。
+.TP
+.B ESRCH
+.\"O The specified process does not exist, or is not currently being traced
+.\"O by the caller, or is not stopped (for requests that require that).
+指定したプロセスが存在しない。
+または、指定したプロセスは呼び出したプロセスが
+現在トレース中の子プロセスではない。
+または、指定したプロセスが停止していない (停止していることが必要な要求の場合)。
+.\"O .SH "CONFORMING TO"
+.SH 準拠
+SVr4, 4.3BSD.
+.\"O .SH NOTES
+.SH 注意
+.\"O Although arguments to
+.\"O .BR ptrace ()
+.\"O are interpreted according to the prototype given,
+.\"O glibc currently declares
+.\"O .BR ptrace ()
+.\"O as a variadic function with only the \fIrequest\fP argument fixed.
+.\"O This means that unneeded trailing arguments may be omitted,
+.\"O though doing so makes use of undocumented
+.\"O .BR gcc (1)
+.\"O behavior.
+.BR ptrace ()
+の引き数は上のようなプロトタイプに基づいて解釈されるが、
+glibc では、現在のところ
+.BR ptrace ()
+は \fIrequest\fP 引き数だけが固定の可変長引き数関数として
+宣言されている。
+これは必要なければ残りの引き数は省略可能であることを意味するが、
+それは
+.BR gcc (1)
+の明文化されていない動作を利用していることになる。
+.LP
+.\"O .BR init (8),
+.\"O the process with pid 1, may not be traced.
+.BR init (8)
+すなわち PID が 1 のプロセスはトレースすることができない。
+.LP
+.\"O The layout of the contents of memory and the USER area are quite OS- and
+.\"O architecture-specific.
+メモリや USER 領域の内容や配置は OS ごと、アーキテクチャごとに
+非常に依存する。
+.\"O The offset supplied, and the data returned,
+.\"O might not entirely match with the definition of
+.\"O .IR "struct user" .
+.\"O .\" See http://lkml.org/lkml/2008/5/8/375
+オフセットが指定された場合、返されるデータは
+.I "struct user"
+の定義と完全に一致しないこともありえる。
+.\" http://lkml.org/lkml/2008/5/8/375 参照。
+.LP
+.\"O The size of a "word" is determined by the OS variant
+.\"O (e.g., for 32-bit Linux it is 32 bits, etc.).
+「ワード (word) 」の大きさは OS によって決まる。
+(例えば、32 ビットの Linux では 32 ビットである、など。)
+.LP
+.\"O Tracing causes a few subtle differences in the semantics of
+.\"O traced processes.
+.\"O For example, if a process is attached to with
+.\"O .BR PTRACE_ATTACH ,
+.\"O its original parent can no longer receive notification via
+.\"O .BR wait (2)
+.\"O when it stops, and there is no way for the new parent to
+.\"O effectively simulate this notification.
+トレースすることによってトレースされるプロセスの動作に些細な違いが
+起こることがある。例えば、プロセスが
+.B PTRACE_ATTACH
+によって接続された場合には、そのプロセスが停止した時でも本来の親は
+.BR wait (2)
+を使って通知を受けることができず、新しい親が効率よく
+この通知を真似る方法もない。
+.LP
+.\"O When the parent receives an event with
+.\"O .B PTRACE_EVENT_*
+.\"O set,
+.\"O the child is not in the normal signal delivery path.
+.\"O This means the parent cannot do
+.\"O .BR ptrace (PTRACE_CONT)
+.\"O with a signal or
+.\"O .BR ptrace (PTRACE_KILL).
+.\"O .BR kill (2)
+.\"O with a
+.\"O .B SIGKILL
+.\"O signal can be used instead to kill the child process
+.\"O after receiving one of these messages.
+親プロセスが
+.B PTRACE_EVENT_*
+がセットされたイベントを受信した場合、
+子プロセスは通常通りのシグナル配送が行われる状態にない。
+つまり、親プロセスが、
+シグナルにより
+.BR ptrace (PTRACE_CONT)
+を行ったり、
+.BR ptrace (PTRACE_KILL)
+を行ったりできないということである。
+こららのメッセージの受信後は、子プロセスを終了 (kill) するのに、
+シグナル
+.B SIGKILL
+を指定して
+.BR kill (2)
+を行う方法を代わりに使用できる。
+.LP
+.\"O This page documents the way the
+.\"O .BR ptrace ()
+.\"O call works currently in Linux.
+.\"O Its behavior differs noticeably on other flavors of Unix.
+.\"O In any case, use of
+.\"O .BR ptrace ()
+.\"O is highly OS- and architecture-specific.
+このマニュアルは現在の Linux における
+.BR ptrace ()
+コールの動作について記述している。他の Unix では
+その動作は著しく異なる。
+いかなる場合も
+.BR ptrace ()
+を使うと OS やアーキテクチャに非常に依存したものになる。
+.LP
+.\"O The SunOS man page describes
+.\"O .BR ptrace ()
+.\"O as "unique and arcane", which it is.
+.\"O The proc-based debugging interface
+.\"O present in Solaris 2 implements a superset of
+.\"O .BR ptrace ()
+.\"O functionality in a more powerful and uniform way.
+SunOS のマニュアル・ページには
+.BR ptrace ()
+は「独特で不可解」と記述されており、まさしくそうである。
+Solaris 2 では proc ベースの
+デバッグのインターフェースとして
+.BR ptrace ()
+の上位互換関数が実装され、より強力で一貫性のあるものとなっている。
+.\"O .SH BUGS
+.SH バグ
+.\"O On hosts with 2.6 kernel headers,
+.\"O .B PTRACE_SETOPTIONS
+.\"O is declared
+.\"O with a different value than the one for 2.4.
+.\"O This leads to applications compiled with such
+.\"O headers failing when run on 2.4 kernels.
+.\"O This can be worked around by redefining
+.\"O .B PTRACE_SETOPTIONS
+.\"O to
+.\"O .BR PTRACE_OLDSETOPTIONS ,
+.\"O if that is defined.
+カーネル 2.6 のヘッダがインストールされたホストでは、
+.B PTRACE_SETOPTIONS
+はカーネル 2.4 のヘッダとは異なる値で宣言される。
+このため、カーネル 2.6 のヘッダでコンパイルされたアプリケーションは
+カーネル 2.4 では正しく動作しない。
+この問題は、
+.B PTRACE_SETOPTIONS
+が定義されていた際は、
+.B PTRACE_SETOPTIONS
+を
+.B PTRACE_OLDSETOPTIONS
+に定義し直すことで対処できる。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR gdb (1),
+.BR strace (1),
+.BR execve (2),
+.BR fork (2),
+.BR signal (2),
+.BR wait (2),
+.BR exec (3),
+.BR capabilities (7)

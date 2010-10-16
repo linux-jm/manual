@@ -1,0 +1,232 @@
+.\" Michael Haardt (michael@cantor.informatik.rwth.aachen.de)
+.\"     Sat Sep  3 22:00:30 MET DST 1994
+.\"
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, write to the Free
+.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
+.\" USA.
+.\"
+.\" Sun Feb 19 21:32:25 1995, faith@cs.unc.edu edited details away
+.\"
+.\" TO DO: This manual page should go more into detail how DES is perturbed,
+.\" which string will be encrypted, and what determines the repetition factor.
+.\" Is a simple repetition using ECB used, or something more advanced?  I hope
+.\" the presented explanations are at least better than nothing, but by no
+.\" means enough.
+.\"
+.\" added _XOPEN_SOURCE, aeb, 970705
+.\" added GNU MD5 stuff, aeb, 011223
+.\"
+.\" Japanese Version Copyright (c) 1998 Hiroaki Nagoya and MAEHARA Kouichi all rights reserved.
+.\" Translated Sun Sep 27 JST 1998 by Hiroaki Nagoya <nagoya@cc.hit-u.ac.jp> and MAEHARA Kouichi <maeharak@kw.netlaputa.ne.jp>
+.\" Updated 2002-01-19 by Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2007-01-01 by Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2008-07-30 by Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2009-09-28 by Kentaro Shirakata <argrath@ub32.org>
+.\"
+.\"WORD: encryption 暗号化
+.\"WORD: key 鍵
+.\" "
+.TH CRYPT 3 2008-08-25 "" "Linux Programmer's Manual"
+.SH 名前
+crypt, crypt_r \- パスワードとデータの暗号化
+.SH 書式
+.nf
+.B #define _XOPEN_SOURCE
+.br
+.B #include <unistd.h>
+.sp
+.BI "char *crypt(const char *" key ", const char *" salt );
+.sp
+.BI "char *crypt_r(const char *" key ", const char *" salt ,
+.BI "              struct crypt_data *" data );
+.fi
+.sp
+\fI\-lcrypt\fP でリンクする。
+.SH 説明
+.BR crypt ()
+はパスワード暗号化関数である。
+鍵探索のハードウェアによる実装を妨げるように(その他にもいろいろ)
+変更した Data Encryption Standard アルゴリズムを元にしている。
+.PP
+.I key
+はユーザが入力するパスワードである。
+.PP
+.I salt
+は集合
+[\fBa\fP\(en\fBzA\fP\(en\fBZ0\fP\(en\fB9./\fP]
+から選ばれた 2 文字の文字列である。
+この文字列はアルゴリズムの出力を 4096 通りにかき乱すのに使われる。
+.PP
+.I key
+の最初の 8 文字の各文字から下位 7 ビットをとって 56 ビットの鍵が得られる。
+この 56 ビットの鍵は特定の文字列(ふつうはすべて 0 の文字列)
+を繰り返し暗号化するのに用いられる。
+返り値は暗号化されたパスワードへのポインタで、13 の印字可能な ASCII 文字
+からなる(最初の 2 文字は salt そのもの)。
+返り値は、関数呼出しのたびに上書きされる静的なデータへのポインタである。
+.PP
+警告: 鍵空間は
+.if t 2\s-2\u56\s0\d
+.if n 2**56
+= 7.2e16 の可能な値から成る。
+この鍵空間の全探索は強力な並列計算機を使えば可能である。また
+.BR crack (1)
+のようなソフトウェアはこの鍵空間の中で、多くの人にパスワードとして
+使われるような鍵についての全探索が可能である。
+それゆえ、パスワードを選択するときには、すくなくとも、
+一般的に使われる単語と名前は避けるべきである。
+.BR passwd (1)
+を使う時にはクラックされうるパスワードについての検査をすることが
+推奨される。
+.PP
+DES アルゴリズムにはいくつかの癖があり、それによってパスワード認証以外に
+.BR crypt ()
+を使うのはたいへんよくない選択となっている。もし
+.BR crypt ()
+を暗号プロジェクトに使おうという案をもっているならば、それはやめたほうが
+よい。暗号化についてのよい本と誰でも入手できる DES ライブラリのひとつを
+手にいれるべきだ。
+
+.BR crypt_r ()
+は
+.BR crypt ()
+の再入可能版である。
+.I data
+で示される構造体は結果データの保存と情報の管理に使われる。
+この構造体に対して(メモリを割り当てること以外に)呼び出し元がするべき唯一の
+ことは、
+.BR crypt_r ()
+の初回の呼び出しの前に
+.I data->initialized
+をゼロにすることだけである。
+.SH 返り値
+成功の場合には、暗号化されたパスワードへのポインターが返される。
+エラーの場合には NULL が返される。
+.SH エラー
+.TP
+.B ENOSYS
+.BR crypt ()
+関数が実装されていない。多分アメリカの輸出規制のために。
+.\" このレベルの詳細はこのマニュアルには必要ないだろう…
+.\" (訳注: 以下は MAEHARA Kouichi <maeharak@kw.netlaputa.ne.jp> さんの訳)
+.\" .PP
+.\"平文 P を鍵 K でもって DES を用いて暗号化したときの結果の暗号文
+.\"を C とするならば、P に対する 2 の補数的な平文 P' を鍵 K
+.\"に対する同様に補数的な鍵 K' を用いて暗号化すると C に対してやはり補
+.\"数的な暗号文 C' となる。
+.\".PP
+.\"DES による鍵の変形において、常に攻撃に対して弱い鍵が存在する。よく
+.\"知られた四つの弱い鍵は 0101010101010101、fefefefefefefefe、
+.\"1f1f1f1f0e0e0e0e、e0e0e0e0f1f1f1f1 でありこれらの使用は避けなければ
+.\"ならない。
+.\".PP
+.\"同一の暗号化結果を導いてしまう六組のやや弱い鍵もある。こうしたいく
+.\"つかの鍵の使用はやはり避けるべきである。
+.\"申しわけないことだが、これにどんな鍵が該当するのかは調べきれなかっ
+.\"た。
+.\".PP
+.\"極端に冗長化であるデータは、
+.\".BR crypt ()
+.\"のように
+.\".I "暗号表(codebook)"
+.\"モードで実装されている DES による暗号化においてはトラブルのもととな
+.\"る。
+.\".BR crypt ()
+.\"はその想定通り、パスワードの認証の目的にのみ利用すべきものであり、
+.\"データの暗号化ツールとして用いてはならない。
+.\".PP
+.\"第四 S-box の、先頭と末尾三つの出力 bit 群は、その入力 bit 群の関数
+.\"として表わすことができる。このような S-box 群は同じ入力に対しては部
+.\"分的に同じ暗号化結果を生成してしまうことが実験によってあきらかにさ
+.\"れている。これは、国家安全保障局(NSA)が DES による暗号データの解読を可能
+.\"にするために設けた裏口なのではないかと疑われている。
+.\".PP
+.\"こういった理由により、crypt() を使用した暗号化データを公開すること
+.\"は安全ではないと認識するべきなのである。
+.SH 準拠
+.BR crypt ():
+SVr4, 4.3BSD, POSIX.1-2001.
+.BR crypt_r ()
+は GNU 拡張である。
+.SH 注意
+.SS glibc での注意
+この関数の glibc2 版は追加の暗号化アルゴリズムに対応している。
+
+もし
+.I salt
+の文字列が "$\fIid\fP$" で始まっていて、"$" で終わっている文字列が
+続いている場合:
+.RS
+
+$\fIid\fP$\fIsalt\fP$\fIencrypted\fP
+
+.RE
+DES を使う代わりに、
+.I id
+で使用する暗号化手法を識別し、これがパスワード文字列の残りの部分を解釈する
+方法を決定する。
+.I id
+の値として、以下の値に対応している:
+.RS
+.TS
+l l.
+ID  | Method
+_
+1   | MD5
+2a  | Blowfish (本流の glibc には入っていない;
+    | いくつかの Linux ディストリビューションで追加されている)
+.\" openSUSE has Blowfish, but AFAICS, this option is not supported
+.\" natively by glibc -- mtk, Jul 08
+.\"
+.\" md5 | Sun MD5
+.\" glibc doesn't appear to natively support Sun MD5; I don't know
+.\" if any distros add the support.
+5   | SHA-256 (glibc 2.7 以降)
+6   | SHA-512 (glibc 2.7 以降)
+.TE
+.RE
+
+従って、$5$\fIsalt\fP$\fIencrypted\fP は SHA-256 でエンコードされた
+パスワードであり、$6$\fIsalt\fP$\fIencrypted\fP は SHA-512 で
+エンコードされたパスワードである。
+
+"\fIsalt\fP" は salt における "$\fIid\fP$" に引き続く 16 文字以下の
+文字列である。
+パスワード文字列の暗号化部分は実際に計算されたパスワードである。
+この文字列のサイズは固定である:
+.TS
+l l.
+MD5     | 22 characters
+SHA-256 | 43 characters
+SHA-512 | 86 characters
+.TE
+
+"\fIsalt\fP" と "\fIencrypted\fP" の文字は
+[\fBa\fP\(en\fBzA\fP\(en\fBZ0\fP\(en\fB9./\fP] の集合から
+選ばれる。
+SHA 実装では、(最初の 8 文字ではなく)
+.I キー
+全体が意味がある。
+.SH 関連項目
+.BR login (1),
+.BR passwd (1),
+.BR encrypt (3),
+.BR getpass (3),
+.BR passwd (5),
+.BR feature_test_macros (7)

@@ -1,0 +1,308 @@
+.\"
+.\"  epoll by Davide Libenzi ( efficient event notification retrieval )
+.\"  Copyright (C) 2003  Davide Libenzi
+.\"
+.\"  This program is free software; you can redistribute it and/or modify
+.\"  it under the terms of the GNU General Public License as published by
+.\"  the Free Software Foundation; either version 2 of the License, or
+.\"  (at your option) any later version.
+.\"
+.\"  This program is distributed in the hope that it will be useful,
+.\"  but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"  GNU General Public License for more details.
+.\"
+.\"  You should have received a copy of the GNU General Public License
+.\"  along with this program; if not, write to the Free Software
+.\"  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+.\"
+.\"  Davide Libenzi <davidel@xmailserver.org>
+.\"
+.\" 2007-04-30: mtk, Added description of epoll_pwait()
+.\"
+.\" Japanese Version Copyright (c) 2004-2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Wed Jun 16 03:05:40 JST 2004
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified Tue Apr 19 07:05:42 JST 2005 by Yuichi SATO
+.\" Updated 2007-06-02, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.51
+.\" Updated 2009-02-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.18
+.\"
+.TH EPOLL_WAIT 2 2009-01-17 "Linux" "Linux Programmer's Manual"
+.\"O .SH NAME
+.SH 名前
+.\"O epoll_wait, epoll_pwait \- wait for an I/O event on an epoll file descriptor
+epoll_wait, epoll_pwait \- epoll ファイルディスクリプタの I/O イベントを待つ
+.\"O .SH SYNOPSIS
+.SH 書式
+.nf
+.B #include <sys/epoll.h>
+.sp
+.BI "int epoll_wait(int " epfd ", struct epoll_event *" events ,
+.BI "               int " maxevents ", int " timeout );
+.BI "int epoll_pwait(int " epfd ", struct epoll_event *" events ,
+.BI "               int " maxevents ", int " timeout ,
+.BI "               const sigset_t *" sigmask );
+.fi
+.\"O .SH DESCRIPTION
+.SH 説明
+.\"O The
+.\"O .BR epoll_wait ()
+.\"O system call waits for events on the
+.\"O .B epoll
+.\"O instance referred to by the file descriptor
+.\"O .IR epfd .
+.\"O The memory area pointed to by
+.\"O .I events
+.\"O will contain the events that will be available for the caller.
+.BR epoll_wait ()
+システムコールは、
+ファイルディスクリプタ
+.I epfd
+で参照される
+.B epoll
+インスタンスに対するイベントを待つ。
+.I events
+が指すメモリ領域には、呼び出し側が利用可能なイベントが格納される。
+.\"O Up to
+.\"O .I maxevents
+.\"O are returned by
+.\"O .BR epoll_wait ().
+最大
+.I maxevents
+個のイベントが
+.BR epoll_wait ()
+によって返される。
+.\"O The
+.\"O .I maxevents
+.\"O argument must be greater than zero.
+.I maxevents
+引き数は 0 より大きくなければならない。
+
+.\"O The call waits for a maximum time of
+.\"O .I timeout
+.\"O milliseconds.
+.\"O Specifying a
+.\"O .I timeout
+.\"O of \-1 makes
+.\"O .BR epoll_wait ()
+.\"O wait indefinitely, while specifying a
+.\"O .I timeout
+.\"O equal to zero makes
+.\"O .BR epoll_wait ()
+.\"O to return immediately even if no events are available
+.\"O (return code equal to zero).
+最大で
+.I timeout
+ミリ秒間イベントを待つ。
+.I timeout
+を \-1 に指定すると、
+.BR epoll_wait ()
+は無限に待つ。
+また
+.I timeout
+を 0 に指定すると、
+.BR epoll_wait ()
+はイベントが利用可能でなくても、すぐに返る (返り値は 0 である)。
+
+.\"O The
+.\"O .I struct epoll_event
+.\"O is defined as :
+.I struct epoll_event
+は以下のように定義される:
+.sp
+.in +4n
+.nf
+typedef union epoll_data {
+    void    *ptr;
+    int      fd;
+    uint32_t u32;
+    uint64_t u64;
+} epoll_data_t;
+
+.\"O struct epoll_event {
+.\"O     uint32_t     events;    /* Epoll events */
+.\"O     epoll_data_t data;      /* User data variable */
+.\"O };
+struct epoll_event {
+    uint32_t     events;    /* epoll イベント */
+    epoll_data_t data;      /* ユーザデータ変数 */
+};
+.fi
+.in
+
+.\"O The
+.\"O .I data
+.\"O of each returned structure will contain the same data the user set with an
+.\"O .BR epoll_ctl (2)
+.\"O .RB ( EPOLL_CTL_ADD , EPOLL_CTL_MOD )
+.\"O while the
+.\"O .I events
+.\"O member will contain the returned event bit field.
+返される構造体の
+.I data
+メンバには、ユーザが
+.BR epoll_ctl (2)
+.RB ( EPOLL_CTL_ADD ", " EPOLL_CTL_MOD )
+で指定したデータが格納される。
+一方、
+.I events
+メンバには返された利用可能なイベントのビットフィールドが格納される。
+.SS epoll_pwait()
+.\"O The relationship between
+.\"O .BR epoll_wait ()
+.\"O and
+.\"O .BR epoll_pwait ()
+.\"O is analogous to the relationship between
+.\"O .BR select (2)
+.\"O and
+.\"O .BR pselect (2):
+.\"O like
+.\"O .BR pselect (2),
+.\"O .BR epoll_pwait ()
+.\"O allows an application to safely wait until either a file descriptor
+.\"O becomes ready or until a signal is caught.
+.BR epoll_wait ()
+と
+.BR epoll_pwait ()
+の関係は、
+.BR select (2)
+と
+.BR pselect (2)
+の関係と同様である。
+.BR pselect (2)
+同様、
+.BR epoll_pwait ()
+を使うと、アプリケーションは、ファイルディスクリプタが準備できた状態になるか、
+シグナルが捕捉されるまで、安全に待つことができる。
+
+.\"O The following
+.\"O .BR epoll_pwait ()
+.\"O call:
+以下の
+.BR epoll_pwait ()
+の呼び出しは、
+.nf
+
+    ready = epoll_pwait(epfd, &events, maxevents, timeout, &sigmask);
+
+.fi
+.\"O is equivalent to
+.\"O .I atomically
+.\"O executing the following calls:
+次の呼び出しを
+.I atomic
+に実行するのと等価である。
+.nf
+
+    sigset_t origmask;
+
+    sigprocmask(SIG_SETMASK, &sigmask, &origmask);
+    ready = epoll_wait(epfd, &events, maxevents, timeout);
+    sigprocmask(SIG_SETMASK, &origmask, NULL);
+.fi
+.PP
+.\"O The
+.\"O .I sigmask
+.\"O argument may be specified as NULL, in which case
+.\"O .BR epoll_pwait ()
+.\"O is equivalent to
+.\"O .BR epoll_wait ().
+.I sigmask
+引き数には NULL を指定してもよい。
+その場合には、
+.BR epoll_pwait ()
+は
+.BR epoll_wait ()
+と等価となる。
+.\"O .SH "RETURN VALUE"
+.SH 返り値
+.\"O When successful,
+.\"O .BR epoll_wait ()
+.\"O returns the number of file descriptors ready for the requested I/O, or zero
+.\"O if no file descriptor became ready during the requested
+.\"O .I timeout
+.\"O milliseconds.
+.\"O When an error occurs,
+.\"O .BR epoll_wait ()
+.\"O returns \-1 and
+.\"O .I errno
+.\"O is set appropriately.
+成功した場合、
+.BR epoll_wait ()
+は要求された I/O に対して準備ができているファイルディスクリプタの数を返す。
+また要求された
+.I timeout
+ミリ秒の間にファイルディスクリプタが準備できない場合は、0 を返す。
+エラーが起こった場合、
+.BR epoll_wait ()
+は \-1 を返し、
+.I errno
+を適切に設定する。
+.\"O .SH ERRORS
+.SH エラー
+.TP
+.B EBADF
+.\"O .I epfd
+.\"O is not a valid file descriptor.
+.I epfd
+が有効なファイルディスクリプタでない。
+.TP
+.B EFAULT
+.\"O The memory area pointed to by
+.\"O .I events
+.\"O is not accessible with write permissions.
+.I events
+で指されるメモリ領域に書き込み権限でアクセスできない。
+.TP
+.B EINTR
+.\"O The call was interrupted by a signal handler before any of the
+.\"O requested events occurred or the
+.\"O .I timeout
+.\"O expired; see
+.\"O .BR signal (7).
+要求されたどのイベントも発生せず、かつ
+.I timeout
+の期限が切れる前に、システムコールがシグナルハンドラによって割り込まれた。
+.BR signal (7)
+参照。
+.TP
+.B EINVAL
+.\"O .I epfd
+.\"O is not an
+.\"O .B epoll
+.\"O file descriptor, or
+.\"O .I maxevents
+.\"O is less than or equal to zero.
+.I epfd
+が
+.B epoll
+ファイルディスクリプタでない。
+または
+.I maxevents
+が 0 以下である。
+.\"O .SH VERSIONS
+.SH バージョン
+.\"O .BR epoll_pwait ()
+.\"O was added to Linux in kernel 2.6.19.
+.BR epoll_pwait ()
+はカーネル 2.6.19 で Linux に追加された。
+
+.\"O Glibc support for
+.\"O .BR epoll_pwait ()
+.\"O is provided starting with glibc 2.6.
+.BR epoll_pwait ()
+の glibc でのサポートは glibc 2.6 以降で提供されている。
+.\"O .SH CONFORMING TO
+.SH 準拠
+.\"O .BR epoll_wait ()
+.\"O is Linux-specific, and was introduced in kernel 2.5.44.
+.BR epoll_wait ()
+は Linux 独自であり、カーネル 2.5.44 で導入された。
+.\"O .\" The interface should be finalized by Linux kernel 2.5.66.
+.\" インタフェースは Linux カーネル 2.5.66 で確定されるべきである。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR epoll_create (2),
+.BR epoll_ctl (2),
+.BR epoll (7)

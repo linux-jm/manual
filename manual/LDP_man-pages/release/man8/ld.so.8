@@ -1,0 +1,401 @@
+.\" This is in the public domain
+.\"
+.\" Japanese Version Copyright (c) 1998 NAKANO Takeo all rights reserved.
+.\" Translated 1998-05-23, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified 1999-09-14, NAKANO Takeo
+.\" Updated & Modified 2002-01-17, Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated & Modified 2002-07-15, Yuichi SATO
+.\" Updated 2007-06-13, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.55
+.\" Updated 2010-04-23, Akihiro MOTOKI, LDP v3.24
+.\"
+.TH LD.SO 8 2009-01-12 "GNU" "Linux Programmer's Manual"
+.SH 名前
+ld.so, ld-linux.so* \- 動的なリンカ/ローダ
+.SH 書式
+動的リンカは、動的にリンクされたプログラムやライブラリの実行によって
+間接的に実行することができる
+(ELF の場合、動的リンカにコマンドラインオプションを渡すことはできず、
+プログラムの
+.B .interp
+セクションに入っている動的リンカが実行される)。
+また以下のように直接実行することもできる
+.P
+.I /lib/ld-linux.so.*
+[OPTIONS] [PROGRAM [ARGUMENTS]]
+.SH 説明
+プログラム
+.B ld.so
+と
+.B ld-linux.so*
+はプログラムに必要な共有ライブラリを見つけてロードし、
+プログラムの実行を準備してから起動させる。
+.LP
+Linux のバイナリは、コンパイルの時に
+.BR ld (1)
+に対して
+.B \-static
+オプションが指定されていない限り、動的リンク (実行時リンク) が必要となる。
+.LP
+プログラム
+.B ld.so
+は a.out バイナリを扱う。
+これはずっと昔に使われていたフォーマットである。
+.B ld-linux.so*
+(libc5 では \fI/lib/ld-linux.so.1\fP,
+glibc2 では \fI/lib/ld-linux.so.2\fP)
+は ELF バイナリを扱う。
+このフォーマットは多くの人が最近何年も使っている。
+それ以外の点では両方とも同じように動作し、
+同じサポートファイルとプログラム
+.BR ldd (1),
+.BR ldconfig (8),
+.I /etc/ld.so.conf
+を使用する。
+.LP
+プログラムで必要とされる共有ライブラリは、
+以下の順序で検索される。
+.IP o 3
+(ELF のみ)
+バイナリの動的セクション属性 DT_RPATH が存在し、
+DT_RUNPATH 属性が存在しない場合は、
+DT_RPATH で指定されたディレクトリを使用する。
+DT_RPATH の使用は推奨されない。
+.IP o
+環境変数
+.B LD_LIBRARY_PATH
+を用いる。
+ただし実行ファイルが set-user-ID/set-group-ID バイナリの場合、
+これは無視される。
+.IP o
+(ELF のみ)
+バイナリの動的セクション属性 DT_RUNPATH が存在すれば、
+DT_RUNPATH で指定されたディレクトリを使用する。
+.IP o
+キャッシュファイル
+.I /etc/ld.so.cache
+を探す。このファイルは、
+(ld.so.conf で追加指定されたものも含めた) ライブラリ検索パスから
+見つかったライブラリファイルの情報を集めたものである。
+ただしバイナリがリンカオプション
+.B \-z nodeflib
+でリンクされている場合は、デフォルトのライブラリパスにある
+ライブラリはスキップされる。
+.IP o
+デフォルトパスである
+.IR /lib 、
+次いで
+.I /usr/lib
+を用いる。
+バイナリがリンカオプション
+.B \-z nodeflib
+でリンクされている場合、このステップはスキップされる。
+.SS $ORIGIN と rpath
+.PP
+.B ld.so
+では、rpath 指定 (DT_RPATH や DT_RUNPATH) 中に
+.I $ORIGIN
+という文字列
+.RI ( ${ORIGIN}
+も等価) を使うことができる。
+.I $ORIGIN
+はアプリケーションの実行ファイルが入っているディレクトリを表す。
+これを使って
+.I somedir/app
+に置かれたアプリケーションを
+.I gcc -Wl,-rpath,'$ORIGIN/../lib'
+でコンパイルすると、
+.I somedir
+がディレクトリ階層のどこにあっても、アプリケーションは
+.I somedir/lib
+にある対応する共有ライブラリを見つけることができる。
+この機能を使うと、
+特別なディレクトリではなく任意のディレクトリにインストールしても
+"ややこしい設定なしで"
+独自の共有ライブラリを使えるアプリケーションを作成することができる。
+.\" ld.so also understands $LIB, with the same meaning as $ORIGIN/lib,
+.\" it appears.
+.\"
+.\" There is also $PLATFORM.  This is a kind of wildcard
+.\" of directories related at AT_HWCAP.  To get an idea of the
+.\" places that $PLATFORM would match, look at the output of the
+.\" following:
+.\"
+.\" mkdir /tmp/d
+.\" LD_LIBRARY_PATH=/tmp/d strace -e open /bin/date 2>&1 | grep /tmp/d
+.\"
+.\" ld.so lets names be abbreviated, so $O will work for $ORIGIN;
+.\" Don't do this!!
+.SH オプション
+.TP
+.B \-\-list
+全ての依存関係とその解決法をリストする。
+.TP
+.B \-\-verify
+プログラムが動的にリンクされているかと、
+動的リンカがそのプログラムを扱えるかを検証する。
+.TP
+.B \-\-library\-path PATH
+.B LD_LIBRARY_PATH
+環境変数の設定を上書きする (下記参照)。
+.TP
+.B \-\-inhibit\-rpath LIST
+LIST にあるオブジェクト名の RPATH と RUNPATH の情報を無視する。
+.B ld.so
+が set-user-ID か set-group-ID されている場合、
+このオプションは無視される。
+.SH 環境変数
+4 つの重要な環境変数がある。
+.TP
+.B LD_BIND_NOW
+(libc5; glibc 2.1.1 以降)
+空文字列でない場合、
+動的リンカはプログラムの開始時に全てのシンボルを解決する。
+空文字列の場合、解決しなければならない関数呼び出しが
+最初に参照された時点で解決する。
+デバッガを使っているときに役立つ。
+.TP
+.B LD_LIBRARY_PATH
+コロン区切りのディレクトリリスト。
+実行時に ELF ライブラリを検索するディレクトリを指定する。
+.B PATH
+環境変数と同じように指定する。
+.TP
+.B LD_PRELOAD
+スペース区切りで ELF 共有ライブラリを指定する。
+これはユーザーが指定でき、すべてのライブラリに先立ってロードされる。
+他の共有ライブラリにある関数を選択的に置き換えるために用いることができる。
+set-user-ID/set-group-ID された ELF バイナリに対して、
+標準的な検索パスにあるライブラリのうち set-user-ID されているものはロードしない。
+.TP
+.B LD_TRACE_LOADED_OBJECTS
+(ELF のみ)
+空文字列でない場合、
+プログラムを普通に実行するのではなく、
+.BR ldd (1)
+を実行したときのように動的ライブラリの依存関係をリスト表示させる。
+.LP
+そして、それほど知られていない環境変数もある。
+多くは廃れてしまったものか内部でのみ使用される環境変数である。
+.TP
+.B LD_AOUT_LIBRARY_PATH
+(libc5)
+a.out バイナリにのみ使われる環境変数で、
+.B LD_LIBRARY_PATH
+と同じ役割をする。
+ld\-linux.so.1 の古いバージョンでは
+.B LD_ELF_LIBRARY_PATH
+もサポートしていた。
+.TP
+.B LD_AOUT_PRELOAD
+(libc5)
+a.out バイナリにのみ使われる環境変数で、
+.B LD_PRELOAD
+と同じ役割をする。
+ld\-linux.so.1 の古いバージョンでは
+.B LD_ELF_PRELOAD
+もサポートしていた。
+.TP
+.B LD_AUDIT
+(glibc 2.4 以降)
+他のオブジェクトよりも前に、別のリンカ名前空間 (そのプロセスで行われる
+通常のシンボル結合 (symbol bindigns) には関与しない名前空間) で
+ロードされる、ユーザ指定の ELF 共有オブジェクトのコロン区切りのリスト。
+これらのライブラリを使って、動的リンカの動作を監査することができる。
+set-user-ID/set-group-ID されたバイナリでは、
+.B LD_AUDIT
+は無視される。
+
+動的リンカは、いわゆる監査チェックポイント (auditing checkpoints)
+において、監査 (audit) ライブラリの適切な関数を呼び出すことで、
+監査ライブラリへの通知を行う。監査チェックポイントの例としては、
+新たなライブラリのロード、シンボルの解決、別の共有オブジェクト
+からのシンボルの呼び出し、などがある。
+詳細は
+.BR rtld-audit (7)
+を参照してほしい。
+audit インタフェースは、Solaris で提供されているものと
+大部分は互換性がある。Solaris の audit インタフェースについては、
+.I "Linker and Libraries Guide"
+の
+.I "Runtime Linker Auditing Interface"
+の章に説明がある。
+.TP
+.B LD_BIND_NOT
+(glibc 2.1.95 以降)
+シンボルを解決した後、GOT (global offset table) と
+PLT (procedure linkage table) を更新しない。
+.TP
+.B LD_DEBUG
+(glibc 2.1 以降)
+動的リンカの詳細なデバッグ情報を出力する。
+.B all
+に設定した場合、全ての動的リンカが持つデバッグ情報を表示する。
+.B help
+に設定した場合、この環境変数で指定されるカテゴリのヘルプ情報を表示する。
+glibc 2.3.4 以降、
+set-user-ID/set-group-ID されたバイナリでは
+.B LD_DEBUG
+は無視される。
+.TP
+.B LD_DEBUG_OUTPUT
+(glibc 2.1 以降)
+.B LD_DEBUG
+の出力を書き込むファイル。
+デフォルトは標準出力である。
+set-user-ID/set-group-ID されたバイナリでは、
+.B LD_DEBUG_OUTPUT
+は無視される。
+.TP
+.B LD_DYNAMIC_WEAK
+(glibc 2.1.19 以降)
+上書きされる弱いシンボル (昔の glibc の挙動を逆にする)。
+セキュリティ上の理由から、glibc 2.3.4 以降、
+set-user-ID/set-group-ID されたバイナリでは
+.B LD_DYNAMIC_WEAK
+は無視される。
+.TP
+.B LD_HWCAP_MASK
+(glibc 2.1 以降)
+ハードウェア機能のマスク。
+.TP
+.B LD_KEEPDIR
+(a.out のみ)(libc5)
+ロードする a.out ライブラリの名前において、ディレクトリを無視しない。
+このオプションは用いるべきではない。
+.TP
+.B LD_NOWARN
+(a.out のみ)(libc5)
+a.out ライブラリにおけるマイナーバージョン番号の非互換に
+対する警告メッセージを抑制する。
+.TP
+.B LD_ORIGIN_PATH
+(glibc 2.1 以降)
+バイナリへのパス (set-user-ID されていないプログラムについて)。
+セキュリティ上の理由から、glibc 2.3.4 以降、
+set-user-ID/set-group-ID されたバイナリでは
+.B LD_ORIGIN_PATH
+は無視される。
+.\" Only used if $ORIGIN can't be determined by normal means
+.\" (from the origin path saved at load time, or from /proc/self/exe)?
+.TP
+.B LD_POINTER_GUARD
+(glibc 2.4 以降)
+0 に設定すると、ポインタ保護 (pointer guarding) が無効になる。
+それ以外の値の場合はポインタ保護が有効になる。
+デフォルトはポインタ保護有効である。
+ポインタ保護はセキュリティ機構の一つで、書き込み可能なプログラムメモリ
+に格納されたコードへのポインタをほぼランダム化することで、
+攻撃者がバッファオーバーランやスタック破壊 (stack-smashing) 攻撃の際に
+ポインタを乗っ取ることを困難にするものである。
+.TP
+.B LD_PROFILE
+(glibc 2.1 以降)
+プロファイルを行う共有オブジェクト。
+パス名か共有オブジェクト名 (soname) で指定される。
+プロフィールの出力は
+"\fI$LD_PROFILE_OUTPUT\fP/\fI$LD_PROFILE\fP.profile" という名前の
+ファイルに書き込まれる。
+.TP
+.B LD_PROFILE_OUTPUT
+(glibc 2.1 以降)
+.B LD_PROFILE
+の出力が書き込まれるディレクトリ。
+この変数が定義されていないか、空の文字列が定義されている場合、
+デフォルト値は
+.I /var/tmp
+となる。
+set-user-ID/set-group-ID されたプログラムでは、
+LD_PROFILE_OUTPUT は無視される。
+出力ファイルは常に
+.I /var/profile
+が使用される。
+.TP
+.B LD_SHOW_AUXV
+(glibc 2.1 以降)
+カーネルから渡される補助的な (パラメータの) 配列を表示する。
+セキュリティ上の理由から、glibc 2.3.4 以降、
+set-user-ID/set-group-ID されたバイナリでは
+.B LD_SHOW_AUXV
+は無視される。
+.\" FIXME
+.\" Document LD_TRACE_PRELINKING (e.g.: LD_TRACE_PRELINKING=libx1.so ./prog)
+.\" Since glibc 2.3
+.\" Also enables DL_DEBUG_PRELINK
+.TP
+.B LD_USE_LOAD_BIAS
+.\" http://sources.redhat.com/ml/libc-hacker/2003-11/msg00127.html
+.\" Subject: [PATCH] Support LD_USE_LOAD_BIAS
+.\" Jakub Jelinek
+デフォルトでは (つまり、この変数が定義されていない場合)、
+実行ファイルと prelink された共有オブジェクトでは、それらが依存する
+ライブラリのベースアドレスが尊重される一方、
+(prelink されていない) position-independent executables (PIEs) と
+他の共有オブジェクトでは依存するライブラリのベースアドレスは
+尊重されない。
+.B LD_USE_LOAD_BIAS
+に値が定義された場合、実行ファイルと PIE のどちらでも
+ベースアドレスが尊重される。
+.B LD_USE_LOAD_BIAS
+が値 0 で定義された場合、実行ファイルと PIE のどちらでも
+ベースアドレスは尊重されない。
+set-user-ID や set-group-ID されたプログラムでは、
+この変数は無視される。
+.TP
+.B LD_VERBOSE
+(glibc 2.1 以降)
+空文字列でない場合に、
+.RB ( LD_TRACE_LOADED_OBJECTS
+を設定するか、
+.B \-\-list
+または
+.B \-\-verify
+オプションを動的リンカに指定することにより)
+プログラムについての情報を問い合わせると、
+プログラムのシンボルバージョン情報を表示する。
+.TP
+.B LD_WARN
+(ELF のみ)(glibc 2.1.3 以降)
+空文字列でない場合、解決されていないシンボルがあれば警告を出す。
+.TP
+.B LDD_ARGV0
+(libc5)
+.BR ldd (1)
+の引き数がない場合に、
+.IR argv [0]
+として使われる値。
+.SH ファイル
+.PD 0
+.TP
+.I /lib/ld.so
+a.out の動的リンカ/ローダ
+.TP
+.IR /lib/ld\-linux.so. { 1 , 2 }
+ELF の動的リンカ/ローダ
+.TP
+.I /etc/ld.so.cache
+ライブラリを検索するディレクトリを集めたリストと、
+共有ライブラリの候補の整列リストを含むファイル。
+.TP
+.I /etc/ld.so.preload
+プログラムの前にロードすべき ELF 共有ライブラリを
+スペースで区切ったリストが書かれているファイル。
+.TP
+.B lib*.so*
+共有ライブラリ
+.PD
+.SH 注意
+.B ld.so
+の機能は libc のバージョン 4.4.3 以上を用いてコンパイルされた
+実行ファイルで使用可能である。
+ELF の機能は Linux 1.1.52 以降と libc5 以降で使用可能である。
+.SH 関連項目
+.BR ldd (1),
+.BR rtld-audit (7),
+.BR ldconfig (8)
+.\" .SH 著者
+.\" ld.so: David Engel, Eric Youngdale, Peter MacDonald, Hongjiu Lu, Linus
+.\"  Torvalds, Lars Wirzenius and Mitch D'Souza
+.\" ld-linux.so: Roland McGrath, Ulrich Drepper, その他の人々
+.\"
+.\" 上記の説明において、(libc5) は David Engel の
+.\" ld.so/ld-linux.so を表している。

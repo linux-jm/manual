@@ -1,0 +1,543 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)dbopen.3	8.5 (Berkeley) 1/2/94
+.\"
+.\" Japanese Version Copyright (c) 1999 Shouichi Saito
+.\"	all rights reserved.
+.\" Translated Thu Jul 22 00:00:00 JST 1999
+.\"	by Shouichi Saito <ss236rx@ymg.urban.ne.jp>
+.\" Proofed Tue Aug 19 1999 by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"
+.\"WORD:	descriptor	デスクリプタ
+.TH DBOPEN 3 1994-01-02 "" "Linux Programmer's Manual"
+.UC 7
+.SH 名前
+dbopen \- データベースアクセスメソッド
+.SH 書式
+.nf
+.B #include <sys/types.h>
+.B #include <limits.h>
+.B #include <db.h>
+
+.BI "DB *dbopen(const char *" file ", int " flags ", int " mode \
+", DBTYPE " type ,
+.BI "           const void *" openinfo );
+.fi
+.SH 説明
+.BR dbopen ()
+はデータベースファイルに対するライブラリインターフェースである。
+サポートされているファイルフォーマットは btree, hash,
+UNIX ファイルに指向したフォーマット, の 3 つである。
+btree フォーマットは、ソートされたバランスツリー構造である。
+hashed フォーマットは、拡張可能な動的 hash スキームである。
+フラットファイル (flat-file) フォーマットは、
+固定長/可変長のレコードからなるバイトストリームファイルである。
+それぞれのフォーマットと、ファイルフォーマットに特有の情報は
+それぞれ対応するマニュアルページ
+.BR btree (3),
+.BR hash (3),
+.BR recno (3)
+に詳細に記述されている。
+.PP
+.BR dbopen ()
+は
+.I file
+を読み込み (読み書き) するためにオープンする。
+.I file
+引き数を NULL にすれば、
+ディスク上に保存したくないファイルを作ることもできる。
+.PP
+.I flags
+と
+.I mode
+引き数は
+.BR open (2)
+ルーチンで指定するのと同様である。ただし
+意味を持つフラグは
+.BR O_CREAT ,
+.BR O_EXCL ,
+.BR O_EXLOCK ,
+.BR O_NONBLOCK ,
+.BR O_RDONLY ,
+.BR O_RDWR ,
+.BR O_SHLOCK ,
+.B O_TRUNC
+だけである。
+(注意:
+.B O_WRONLY
+でデータベースファイルを開く事は出来ない)
+.\"Three additional options may be specified by
+.\".IR or 'ing
+.\"them into the
+.\".I flags
+.\"argument.
+.\".TP
+.\"DB_LOCK
+.\"Do the necessary locking in the database to support concurrent access.
+.\"If concurrent access isn't needed or the database is read-only this
+.\"flag should not be set, as it tends to have an associated performance
+.\"penalty.
+.\".TP
+.\"DB_SHMEM
+.\"Place the underlying memory pool used by the database in shared
+.\"memory.
+.\"Necessary for concurrent access.
+.\".TP
+.\"DB_TXN
+.\"Support transactions in the database.
+.\"The DB_LOCK and DB_SHMEM flags must be set as well.
+.PP
+.I type
+引き数は
+.I DBTYPE
+型である (インクルードファイル
+.I <db.h>
+で定義されている)。
+.BR DB_BTREE ,
+.BR DB_HASH ,
+.B DB_RECNO
+のいずれかをセットできる。
+.PP
+.I openinfo
+引き数はアクセスメソッドに固有な構造体へのポインタである。
+それぞれの構造体に関しては各アクセスメソッドの
+マニュアルページに記述されている。
+.I openinfo
+が NULL の場合、それぞれのアクセスメソッドとシステムとに適合した
+デフォルトが用いられる。
+.PP
+.BR dbopen ()
+は、成功した場合
+.I DB
+構造体へのポインタを、エラーの場合 NULL を返す。
+.I DB
+構造体は
+.I <db.h>
+インクルードファイルの中で定義されており、
+少なくとも以下のようなフィールドを持っている。
+.sp
+.in +4n
+.nf
+typedef struct {
+    DBTYPE type;
+    int (*close)(const DB *db);
+    int (*del)(const DB *db, const DBT *key, unsigned int flags);
+    int (*fd)(const DB *db);
+    int (*get)(const DB *db, DBT *key, DBT *data,
+               unsigned int flags);
+    int (*put)(const DB *db, DBT *key, const DBT *data,
+               unsigned int flags);
+    int (*sync)(const DB *db, unsigned int flags);
+    int (*seq)(const DB *db, DBT *key, DBT *data,
+               unsigned int flags);
+} DB;
+.fi
+.in
+.PP
+各要素には、データベースのタイプと、
+様々な動作をする関数のセットが記述されている。
+これらの関数は
+.BR dbopen ()
+によって返される構造体へのポインタを引き数にとる。
+キー/データ構造体へのポインタやフラグ値を取るものもある。
+.TP
+.I type
+用いられているアクセスメソッド (とファイルフォーマット) の型。
+.TP
+.I close
+キャッシュされた情報をディスクに掃きだすためのルーチンへのポインタ。
+割り当てられたリソースを解放し、利用したファイル(群)をクローズする。
+キー/データ対がメモリにキャッシュされている場合、
+.I close
+や
+.I sync
+関数での同期に失敗すると、情報に矛盾が生じるか情報を失う可能性がある。
+.I close
+ルーチンはエラーの場合 \-1 を返し
+.RI ( errno
+をセットする)、成功すると 0 を返す。
+.TP
+.I del
+データベースからキー/データ対を削除するルーチンへのポインタ。
+.IP
+.I flag
+引き数は次の値がセットできる。
+.RS
+.TP
+.B R_CURSOR
+カーソル (cursor) が参照しているレコードを削除する。
+カーソルは前もって初期化されていなくてはならない。
+.RE
+.IP
+.I delete
+ルーチンはエラーの場合 \-1 を返し
+.RI ( errno
+をセットする)、成功すると 0 を返す。また指定の
+.I key
+がファイル中に無い場合 1 を返す。
+.TP
+.I fd
+用いているデータベースのファイルデスクリプタを返すルーチン
+へのポインタ。
+同じファイル名
+.I file
+で
+.BR dbopen ()
+を呼び出した全てのプロセスに対して、
+そのファイルを示す単一のファイルデスクリプタが返される。
+このファイルデスクリプタはロック関数
+.BR fcntl (2)
+と
+.BR flock (2)
+への引き数として安全に使用できる。
+このファイルデスクリプタは、必ずしもアクセスメソッドで
+用いられているファイルのいずれかに関連づけられていなくても良い。
+メモリ内のデータベースにはファイルデスクリプタは無い。
+.I fd
+ルーチンはエラーの場合 \-1 を返し
+.RI ( errno
+をセットする)、成功するとファイルデスクリプタを返す。
+.TP
+.I get
+データベースからキーを用いてデータを取り出すための
+ルーチンへのポインタ。
+指定した
+.I key
+に関連づけられたデータのアドレスと長さが
+.I data
+が参照する構造体に返される。
+.I get
+ルーチンはエラーの場合 \-1 を返し
+.RI ( errno
+をセットする)、成功すると 0 を返す。また
+.I key
+がファイル中に無い場合 1 を返す。
+.TP
+.I put
+キー/データ対をデータベースに納めるルーチンへのポインタ。
+.IP
+.I flag
+引き数には次の値のうちのどれか一つがセットできる。
+.RS
+.TP
+.B R_CURSOR
+カーソルが参照しているキー/データ対を置き換える。
+カーソルは前もって初期化されている必要がある。
+.TP
+.B R_IAFTER
+.I key
+で参照されるデータの直後に、
+新しいキー/データ対を作ってデータを追加する。
+追加されたキー/データ対のレコード番号は
+.I key
+構造体に返される。
+.RB ( DB_RECNO
+アクセス方法でのみ使える。)
+.TP
+.B R_IBEFORE
+.I key
+で参照されるデータの直前に、
+新しいキー/データ対を作ってデータを挿入する。
+追加されたキー/データ対のレコード番号は
+.I key
+構造体に返される。
+.RB ( DB_RECNO
+アクセスメソッドでのみ使える。)
+.TP
+.B R_NOOVERWRITE
+キーがあらかじめ存在しない場合に限り、新しいキー/データ対をいれる。
+.TP
+.B R_SETCURSOR
+キー/データ対を納め、それを指すようにカーソル位置をセットあるいは初期
+化する。
+.RB ( DB_BTREE
+と
+.B DB_RECNO
+アクセスメソッドでのみ使える。)
+.RE
+.IP
+.B R_SETCURSOR
+は
+.B DB_BTREE
+と
+.B DB_RECNO
+アクセスメソッドでしか利用できない。
+なぜなら
+.B R_SETCURSOR
+を用いるには、変更される事の無い固有の順序をキー
+が持っていなければならないからである。
+.IP
+.B R_IAFTER
+と
+.B R_IBEFORE
+は
+.B DB_RECNO
+アクセスメソッドでしか利用できない。
+これらを実現するには、アクセスメソッドが
+新しいキーを作れなければならないからである。
+これが成立するのは、例えば、順序づけらた独立なレコード番号が
+キーになっているような場合だけである。
+.IP
+.I put
+ルーチンのデフォルトの動作は、新しいキー/データ対を
+既に存在するキーを置き換える事て格納する動作である。
+.IP
+.I put
+ルーチンはエラーの場合 \-1 を返し
+.RI ( errno
+をセットする)、成功すると 0 を返す。また
+.I flag
+に
+.B R_NOOVERWRITE
+がセットされていてキーが既に存在する場合 1 を返す。
+.TP
+.I seq
+データベースからシーケンシャルにデータを取り出すための
+ルーチンへのポインタ。
+キーのアドレスと長さが
+.I key
+が参照する構造体に返される。データのアドレスと長さが
+.I data
+が参照する構造体に返される。
+.IP
+シーケンシャルなキー/データ対の取得はいつでも行える。また
+「カーソル」の位置は
+.IR del ,
+.IR get ,
+.IR put ,
+.I sync
+ルーチンの呼び出しには影響されない。
+シーケンシャルなスキャンの途中に行われたデータベースへの変更は
+スキャンに反映される。すなわち、カーソルの後ろに挿入されたレコードは
+返されないが、カーソルの前に挿入されたレコードは返される。
+.IP
+フラグ値には\fB必ず\fP以下に示すうちの
+どれか一つをセットしなければならない。
+.RS
+.TP
+.B R_CURSOR
+指定したキーに関連づけられたデータが返される。
+.I get
+ルーチンとの違いは、カーソルがキーの位置にセットあるいは
+初期化される点である。
+(注意:
+.B DB_BTREE
+アクセス方法では、返されたキーが
+必ずしも指定したキーに正しくマッチしないかもしれない。
+返されたキーは、指定されたキーに等しいかより大きいもののうち
+最小のものになる
+(部分キーマッチか範囲検索が許可されている場合)。)
+.TP
+.B R_FIRST
+データベースの最初のキー/データ対が返される。
+カーソルはそれを参照するようにセットまたは初期化される。
+.TP
+.B R_LAST
+データベースの最後のキー/データ対が返される。カーソルはそれを参照する
+ようにセットまたは初期化される。
+.RB ( DB_BTREE
+と
+.B DB_RECNO
+アクセスメソッドだけで使える。)
+.TP
+.B R_NEXT
+カーソル直後のキー/データ対を取得する。
+カーソルがセットされていない場合は
+.B R_FIRST
+フラグと同じ。
+.TP
+.B R_PREV
+カーソル直前のキー/データ対を取得する。
+カーソルがセットされていない場合は
+.B R_LAST
+フラグと同じ。
+.RB ( DB_BTREE
+と
+.B DB_RECNO
+アクセスメソッドだけで使える。)
+.RE
+.IP
+.B R_LAST
+と
+.B R_PREV
+は、
+.B DB_BTREE
+と
+.B DB_RECNO
+アクセス方法でしか使えない。
+なぜなら
+.B R_SETCURSOR
+を用いるには、変更される事の無い固有の順序をキーが持っていなければならないからである。
+.IP
+.I seq
+ルーチンはエラーの場合 \-1 を返し
+.RI ( errno
+をセットする)、
+成功の場合 0 を返す。
+指定したキーやカレントキーよりも大きい/小さいキー/データ対がない場合は
+1 を返す。
+.B DB_RECNO
+アクセスメソッドを使っていて、
+かつデータベースファイルが文字型のスペシャルファイルで、
+完成しているキー/データ対が無い場合には、
+.I seq
+ルーチンは 2 を返す。
+.TP
+.I sync
+キャッシュされた情報をディスクに掃き出すルーチンへのポインタ。
+データベースがメモリの中だけにある場合、
+.I sync
+ルーチンは何の効果もなく常に成功する。
+.IP
+flag には以下の値がセットできる。
+.RS
+.TP
+.B R_RECNOSYNC
+.B DB_RECNO
+アクセスメソッドを使っている場合に
+このフラグをセットすると、
+recno ファイルそのものにではなく、
+そのベースになっている btree ファイルに sync が行われる。
+(詳細は
+.BR recno (3)
+マニュアルページで
+.I bfname
+フィールドを説明している部分を参照のこと。)
+.RE
+.IP
+.I sync
+ルーチンはエラーの場合 \-1 を返し
+.RI ( errno
+をセットする)、成功すると 0 を返す。
+.SS キー/データ対
+全てのファイルタイプにおいて、
+キー/データ対をベースにしてアクセスが行われる。
+キーとデータのいずれも、次のデータ構造で記述される。
+.in +4n
+.nf
+
+typedef struct {
+    void  *data;
+    size_t size;
+} DBT;
+.fi
+.in
+.I DBT
+構造体の各要素は次のように定義されている。
+.TP
+.I data
+バイト文字列へのポインタ。
+.TP
+.I size
+バイト文字列の長さ。
+.PP
+キーとデータのバイト文字列は、
+基本的には無制限の長さの文字列を参照できるが、
+しかしいずれも使用可能なメモリに収まっていなくてはならない。
+アクセスメソッドはバイト文字列のアラインメントについては
+何も保証していない事に注意すること。
+.SH エラー
+.BR dbopen ()
+ルーチンは失敗するとライブラリルーチン
+.BR open (2)
+と
+.BR malloc (3)
+で指定されているエラーに応じた
+.I errno
+をセットする。あるいは以下をセットする。
+.TP
+.B [EFTYPE]
+ファイルが正しくフォーマットされていない。
+.TP
+.B [EINVAL]
+指定したパラメータ(ハッシュ関数、バイト埋めなど)が現在のファイル仕様に
+合っていない、パラメータが関数にとって無意味
+(例えばあらかじめ初期化しないでカーソルを使うとか)、
+ファイルとソフトウェアのバージョンが合っていない。
+.PP
+.I close
+ルーチンは失敗するとライブラリルーチン
+.BR close (2),
+.BR read (2),
+.BR write (2),
+.BR free (3),
+.BR fsync (2)
+で指定されているエラーに応じた
+.I errno
+をセットする。
+.PP
+.IR del ,
+.IR get ,
+.I put
+と
+.I seq
+ルーチンは失敗するとライブラリルーチン
+.BR read (2),
+.BR write (2),
+.BR free (3),
+.BR malloc (3)
+で指定されているエラーに応じた
+.I errno
+をセットする。
+.PP
+.I fd
+ルーチンはメモリ内データベースに対し失敗すると
+.I errno
+に
+.B ENOENT
+をセットする。
+.PP
+.I sync
+ルーチンは失敗するとライブラリルーチン
+.BR fsync (2)
+で指定されているエラーに応じた
+.I errno
+をセットする。
+.SH バグ
+typedef
+.I DBT
+は ``data base thang''の略語であるが、これが使われているのは、
+まだ使われていない妥当な名前が思い付かなかったためである。
+.PP
+ファイルデスクリプタを使ったやりとりはひどい代物であり、
+将来のバージョンでは削除されるだろう。
+.PP
+どのアクセスメソッドも、同時アクセス、ロック、トランザクション
+の仕組みは備えていない。
+.SH 関連項目
+.BR btree (3),
+.BR hash (3),
+.BR mpool (3),
+.BR recno (3)
+.sp
+.IR "LIBTP: Portable, Modular Transactions for UNIX" ,
+Margo Seltzer, Michael Olson, USENIX proceedings, Winter 1992.

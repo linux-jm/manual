@@ -1,0 +1,301 @@
+.\" Copyright 2003,2004 Andi Kleen, SuSE Labs.
+.\" and Copyright 2007 Lee Schermerhorn, Hewlett Packard
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" 2006-02-03, mtk, substantial wording changes and other improvements
+.\" 2007-08-27, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+.\"     more precise specification of behavior.
+.\"
+.\" Translated 2006-08-14, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.39
+.\" Updated 2007-01-07, Akihiro MOTOKI, LDP v2.43
+.\" Updated 2008-02-13, Akihiro MOTOKI, LDP v2.77
+.\" Updated 2008-08-06, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2008-08-21, Akihiro MOTOKI, LDP v3.07
+.\" Updated 2008-09-02, Akihiro MOTOKI, LDP v3.08
+.\" Updated 2008-11-19, Akihiro MOTOKI, LDP v3.13
+.\"
+.\"WORD:	anonymous memory	無名メモリ
+.\"
+.TH SET_MEMPOLICY 2 2008-08-15 Linux "Linux Programmer's Manual"
+.SH 名前
+set_mempolicy \- プロセスとその子プロセスの NUMA メモリの
+デフォルトポリシーを設定する
+.SH 書式
+.nf
+.B "#include <numaif.h>"
+.sp
+.BI "int set_mempolicy(int " mode ", unsigned long *" nodemask ,
+.BI "                  unsigned long " maxnode );
+.sp
+\fI\-lnuma\fP でリンクする。
+.fi
+.SH 説明
+.BR set_mempolicy ()
+は、呼び出し元プロセスの NUMA ポリシーを
+.I policy
+に設定する。
+NUMA ポリシーはポリシーモードと 0 個以上のノードから構成され、
+設定内容は引き数
+.IR mode ,
+.IR nodemask ,
+.I maxnode
+により指定される。
+
+NUMA (非対称メモリアクセス) マシンでは、CPU により
+メモリコントローラが異なり、距離も異なっている。
+メモリポリシーは、どのノードからメモリをそのプロセスに
+割り当てられるかを定めるものである。
+
+.BR set_mempolicy ()
+は、プロセスのデフォルトポリシーを定める。
+プロセスのポリシーは、
+.BR mbind (2)
+で設定される特定のポリシーにより制御されるメモリ領域以外の
+プロセスのアドレス空間におけるページの割り当てに適用される。
+プロセスのデフォルトポリシーは、
+.B MAP_PRIVATE
+フラグを指定した
+.BR mmap (2)
+を使ってマップされたメモリマップ・ファイルに対する読み出し専用
+(ロードされるだけ) のページの割り当てにも適用される。
+また、
+.B MAP_SHARED
+フラグを指定した
+.BR mmap (2)
+を使ってマップされたメモリマップ・ファイルに対するページの割り当てにも
+適用される (この場合はページのアクセス種別に関わらず適用される) 。
+設定したポリシーは、プロセスに新規のページが割り当てられるときにのみ
+適用される。無名メモリ (anonymous memory) の場合、新規ページの割り当ては
+アプリケーションが初めてページにアクセスした際に行われる。
+
+.I mode
+引き数には
+.BR MPOL_DEFAULT ,
+.BR MPOL_BIND ,
+.BR MPOL_INTERLEAVE ,
+.B MPOL_PREFERRED
+のいずれか一つを指定してしなければならない。
+.B MPOL_DEFAULT
+以外のポリシーの場合、呼び出し元は
+.I nodemask
+引き数で一つ以上のノードを指定する必要がある。
+
+.I mode
+引き数には、追加で
+.I "モードフラグ"
+を含めることもできる。
+サポートされている
+.I "モードフラグ"
+は以下の通りである。
+.TP
+.BR MPOL_F_STATIC_NODES " (Linux 2.6.26 以降)"
+空でない
+.I nodemask
+は、物理ノード ID である。
+Linux では、そのプロセスが異なる CPU 集合コンテキスト (cpuset context)
+に移動した場合でも、そのプロセスの現在の CPU 集合コンテキストで
+許可されているノード集合が変化した場合でも、
+.I nodemask
+をマッピングし直すことはない。
+.TP
+.BR MPOL_F_RELATIVE_NODES " (Linux 2.6.26 以降)"
+空でない
+.I nodemask
+は、そのプロセスの現在の CPU 集合で許可されているノード ID 集合
+における相対的なノード ID である。
+.PP
+.I nodemask
+は、最大で
+.I maxnode
+ビットから構成されるノード ID のビットマスクを指す。
+ビットマスクの大きさは、直近の
+.I sizeof(unsigned long)
+の倍数に切り上げられるが、カーネルが使用するのは
+.I maxnode
+個までのビットだけである。
+NULL 値の
+.I nodemask
+もしくは値が 0 の
+.I maxnode
+はノードの空集合を表す。
+.I maxnode
+の値が 0 の場合、
+.I nodemask
+引き数は無視される。
+
+.I nodemask
+が必須の場面では、
+.I nodemask
+に、オンラインで、そのプロセスの現在の CPU 集合コンテキストで
+許可されており
+.RB ( MPOL_F_STATIC_NODES
+モードフラグが指定されていない場合)、メモリがあるノードが
+少なくとも一つ入っていなければならない。
+.I mode
+に
+.B MPOL_F_STATIC_NODES
+がセットされ、
+.I nodemask
+が必須の場面で、
+.I nodemask
+に、そのプロセスの現在の CPU 集合コンテキストで許可されたノードが
+一つも含まれていない場合には、メモリのポリシーとしてデフォルトの
+「ローカルから割り当て (local allocation)」が適用される。
+そのプロセスの CPU 集合コンテキストが
+.I nodemask
+で指定されたノードを少なくとも一つ含むようになるまでは、
+結果的に指定された動作が上書きされることになる。
+
+.B MPOL_DEFAULT
+モードは、デフォルトではないプロセスのメモリポリシーを削除することを
+指定するものである。これにより、メモリポリシーはシステムの
+デフォルトポリシーに「戻る」ことになる。
+システムのデフォルトポリシーは「ローカルからの割り当て (local allocation)」、
+つまりメモリ割り当てのきっかけとなった CPU のノードのメモリが割り当てられる。
+.I nodemask
+には NULL を指定しなければならない。
+「自ノード (local node)」に空きメモリが全くない場合、システムは
+「近くの (near by) ノード」からメモリを割り当てようと試みる。
+
+.B MPOL_BIND
+モードは厳密なポリシーで、メモリ割り当ては
+.I nodemask
+に指定されたノードに限定される。
+.I nodemask
+に 2 個以上のノードが指定された場合、ページの割り当ては
+ノード ID が数字として最小のノードから開始され、
+そのノードに空きメモリがなくなるまでそのノードから
+ページ割り当てが行われる。そのノードに空きメモリがなくなったら、
+.\"motoki: the next highest は the next lowest の間違い？
+次に小さなノード ID を持つノードからページ割り当てが行われる。
+これを、
+.I nodemask
+で指定された全てのノードで空きメモリがなくなるまで繰り返す。
+.I nodemask
+で指定された以外のノードからはページの割り当ては行われない。
+
+.B MPOL_INTERLEAVE
+では、ページ割り当てを
+.I nodemask
+に指定されたノードの間でノード ID の数字順で交互に行う。
+このポリシーでは、複数のノードにページを広げて配置し、これらのページへのメモリ
+アクセスを分散することで、遅延ではなく、帯域を最適化する。
+ただし、一つのページへのアクセスに関しては依然として一つのノードのメモリ帯域
+が上限となる。
+.\" NOTE:  the following sentence doesn't make sense in the context
+.\" of set_mempolicy() -- no memory area specified.
+.\" To be effective the memory area should be fairly large,
+.\" at least 1MB or bigger.
+
+.B MPOL_PREFERRED
+は、割り当て時に優先されるノード (preferred node) を設定する。
+カーネルはまず優先ノードからページ割り当てを行おうとし、
+優先ノードに空きメモリが少ない場合に「近くの (near by)」ノードから
+割り当てを行う。
+.I nodemask
+に複数のノード ID が指定された場合は、
+.I nodemask
+内の最初のノードが優先ノードとして選択される。
+引き数
+.IR nodemask ,
+.I maxnode
+で空集合が指定された場合は、ポリシーは (上述のシステムの
+デフォルトポリシーと同様に) 「ローカルからの割り当て」となる。
+
+プロセスのメモリポリシーは
+.BR execve (2)
+の前後で保持され、
+.BR fork (2)
+や
+.BR clone (2)
+を使って作成された子プロセスに継承される。
+.SH 返り値
+成功すると、
+.BR set_mempolicy ()
+は 0 を返す。エラーの場合、\-1 を返し、
+.I errno
+にエラーを示す値を設定する。
+.SH エラー
+.TP
+.B EFAULT
+.\"motoki: Part of all of the memory は Part or all .. の間違い？
+.I nodemask
+と
+.I maxnode
+で指定されたメモリ領域の一部または全部が、
+呼び出し元がアクセス可能なアドレス空間外を指している。
+.TP
+.B EINVAL
+.I mode
+が不正である。
+.I mode
+が
+.B MPOL_DEFAULT
+で、
+.I nodemask
+が空ではない。
+.I mode
+が
+.B MPOL_BIND
+か
+.B MPOL_INTERLEAVE
+で、
+.I nodemask
+が空である。
+.I maxnode
+で実際に意味があるビット数より多くのビット数が指定された。
+.I nodemask
+に、サポートされている最大ノード ID より大きいノードが指定された。
+.I nodemask
+に、オンラインで、かつそのプロセスの現在の CPU 集合コンテキストで
+許可されているノードが一つも含まれていないか、
+メモリを含むノードが一つも指定されていない。
+.I mode
+引き数に
+.B MPOL_F_STATIC_NODES
+と
+.B MPOL_F_RELATIVE_NODES
+の両方が指定された。
+.TP
+.B ENOMEM
+利用可能なカーネルメモリが十分でなかった。
+.SH バージョン
+.BR set_mempolicy ()
+システムコールはバージョン 2.6.7 で Linux カーネルに追加された。
+.SH 準拠
+このシステムコールは Linux 独自である。
+.SH 注意
+ページがスワップ・アウトされる場合には、
+プロセスポリシーの設定は推奨されない。
+スワップ・アウトされたページがページ・インする際にも、
+ページ割り当て時に適用されるプロセスポリシーやメモリ領域ポリシーが
+使用される。
+
+ライブラリによるサポートについては
+.BR numa (7)
+を参照。
+.SH 関連項目
+.BR get_mempolicy (2),
+.BR getcpu (2),
+.BR mbind (2),
+.BR mmap (2),
+.BR numa (3),
+.BR cpuset (7),
+.BR numa (7),
+.BR numactl (8)

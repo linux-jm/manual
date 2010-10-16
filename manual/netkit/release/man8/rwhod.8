@@ -1,0 +1,165 @@
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)rwhod.8	6.5 (Berkeley) 3/16/91
+.\"	$Id: rwhod.8,v 1.16 2000/07/30 23:57:06 dholland Exp $
+.\"
+.\" Japanese Version Copyright (c) 2000 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Thu Nov  2 18:23:49 JST 2000
+.\"         by Yuichi SATO <sato@complex.eng.hokudai.ac.jp>
+.\"
+.\"WORD:	load average	平均負荷
+.\"WORD:	byte order	バイトオーダー
+.\"
+.Dd May 13, 1997
+.Dt RWHOD 8
+.Os "Linux NetKit (0.17)"
+.Sh 名前
+.Nm rwhod
+.Nd システムステータスサーバ
+.Sh 書式
+.Nm rwhod
+.Op Fl bpa
+.Op Fl u Ar user
+.Sh 説明
+.Nm rwhod
+は、
+.Xr rwho 1
+と
+.Xr ruptime 1
+プログラムで使用されるデータベースを管理するサーバである。
+このサーバの運用は、ネットワーク上で
+.Em ブロードキャスト
+メッセージが使用できることを前提としている。
+.Pp
+.Nm rwhod
+は、ステータス情報の作成側としても、利用側としても動作する。
+情報の作成側としては、システム状態を定期的に問い合わせ、
+ネットワークにブロードキャストされるステータスメッセージを作成する。
+情報の利用側としては、他の
+.Nm rwhod
+サーバのステータスメッセージを受け取り、確認した後、
+.Pa /var/spool/rwho
+ディレクトリに作られたファイルに記録する。
+.Pp
+サーバは、``rwho'' サービスの指定で指示されているポートを使って
+メッセージの送受信を行う。
+.Xr services 5
+を参照すること。
+.Pp
+.Fl b
+フラグが指定された場合、
+イーサネットのようなブロードキャストインターフェースのみが使われる。
+.Fl p
+フラグが指定された場合、
+point-to-point のインターフェースのみが使われる。
+.Fl a
+フラグが指定された場合、またはフラグが何も指定されない場合、
+全てのインターフェースが使われる。
+.Pp
+.Fl u
+フラグが指定された場合、
+rwhod は root ではなく指定されたユーザーとして実行される。
+.Pp
+送受信されるメッセージは以下の形式である。
+.Bd -literal -offset indent
+struct	outmp {
+	char	out_line[8];		/* tty の名前 */
+	char	out_name[8];		/* ユーザー ID */
+	long	out_time;		/* 時間 */
+};
+
+struct	whod {
+	char	wd_vers;
+	char	wd_type;
+	char	wd_fill[2];
+	int	wd_sendtime;
+	int	wd_recvtime;
+	char	wd_hostname[32];
+	int	wd_loadav[3];
+	int	wd_boottime;
+	struct	whoent {
+		struct	outmp we_utmp;
+		int	we_idle;
+	} wd_we[1024 / sizeof (struct whoent)];
+};
+.Ed
+.Pp
+全てのフィールドは、送信の前にネットワークバイトオーダーに変換される。
+平均負荷は
+.Xr w 1
+プログラムによって計算され、
+サーバが送信する前の 5, 10, 15 分間隔の平均負荷を表す。
+平均負荷は 100 を掛けて整数で表される。
+使用されるホスト名は、
+.Xr gethostname 2
+システムコールによって返されたもので、ドメイン名は省略される。
+メッセージの最後の配列には、メッセージを送信したマシンにログインしている
+ユーザーの情報が含まれている。
+この情報には、アイドルでない端末ラインの
+.Xr utmp 5
+エントリと端末ラインから最後に文字が受信されてからの秒数が入っている。
+.Pp
+.Xr rwho
+サーバに受信されるメッセージは、
+.Xr rwho
+サーバのポートから送信されたものでなければ、破棄される。
+さらに、メッセージ中で指定されたホスト名が表示できない
+.Tn ASCII
+文字を含んでいる場合も、メッセージは破棄される。
+.Nm rwhod
+に受信された有効なメッセージは、ディレクトリ
+.Pa /var/spool/rwho
+にある
+.Pa whod.hostname
+というファイルに入れられる。
+これらのファイルには、
+最新のメッセージのみが上で説明したフォーマットで格納されている。
+.Pp
+ステータスメッセージは、約 3 分に 1 回作成される。
+.Nm rwhod
+はシステムのブート時刻を 30 分毎に再計算する。
+なぜなら、(Linux 以外の) システムの中には、
+ブート時刻の計算が完全に信用のおけるプロセスではない
+システムも存在するためである。
+.Sh 関連項目
+.Xr rwho 1 ,
+.Xr ruptime 1
+.Sh バグ
+ネットワーク間でステータス情報を中継する方法が必要である。
+サーバが死んでいる場合やネットワーク通信が失敗している場合に、
+マシンがダウンしていると解釈してしまうことがある。
+.Sh 履歴
+.Nm
+コマンドは
+.Bx 4.2
+で登場した。

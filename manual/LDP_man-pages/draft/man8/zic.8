@@ -1,0 +1,658 @@
+.\" This page is in the public domain
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Translated Sat Aug 14 1999
+.\"       by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated Wed Apr 4 2001 
+.\"       by Yuichi SATO <ysato@h4.dion.ne.jp>
+.\"
+.\"WORD:	time value		時刻値
+.\"WORD:	rule line		ルール行
+.\"WORD:	zone line		ゾーン行
+.\"WORD:	link line		リンク行
+.\"WORD:	continuation line	継続行
+.\"WORD:	wall clock (time)	壁時計 (時刻)
+.\"WORD:	standard (time)		標準 (時刻)
+.\"
+.TH ZIC 8 2010-02-25 "" "Linux System Administration"
+.\"O .SH NAME
+.SH 名前
+.\"O zic \- timezone compiler
+zic \- タイムゾーンコンパイラ
+.\"O .SH SYNOPSIS
+.SH 書式
+.B zic
+[
+.B \-v
+] [
+.B \-d
+.I directory
+] [
+.B \-l
+.I localtime
+] [
+.B \-p
+.I posixrules
+] [
+.B \-L
+.I leapsecondfilename
+] [
+.B \-s
+] [
+.B \-y
+.I command
+] [
+.I filename
+\&... ]
+.\"O .SH DESCRIPTION
+.SH 説明
+.if t .ds lq ``
+.if t .ds rq ''
+.if n .ds lq \&"\"
+.if n .ds rq \&"\"
+.de q
+\\$3\*(lq\\$1\*(rq\\$2
+..
+.\"O .I Zic
+.\"O reads text from the file(s) named on the command line
+.\"O and creates the time conversion information files specified in this input.
+.\"O If a
+.\"O .I filename
+.\"O is
+.\"O .BR \- ,
+.\"O the standard input is read.
+.I zic
+はコマンドラインで指定されたファイル (複数指定可) からテキストを読み、
+時刻変換情報ファイルを生成する。ファイル名も読み込みテキストで指定しておく。
+.I filename
+が
+.B \-
+の場合は、標準入力から読み込む。
+.PP
+.\"O These options are available:
+以下のオプションを指定できる:
+.TP
+.BI "\-d " directory
+.\"O Create time conversion information files in the named directory rather than
+.\"O in the standard directory named below.
+時刻変換情報ファイルを生成するディレクトリを、標準のディレクトリ
+(以下を参照) ではなく指定したディレクトリにする。
+.TP
+.BI "\-l " timezone
+.\"O Use the given timezone as local time.
+.\"O .I Zic
+.\"O will act as if the input contained a link line of the form
+指定したタイムゾーンをローカルタイムに用いる。
+.I zic
+は入力に以下の書式のリンク行が含まれているかのように振る舞う。
+.sp
+.ti +.5i
+Link	\fItimezone\fP		localtime
+.TP
+.BI "\-p " timezone
+.\"O Use the given timezone's rules when handling POSIX-format
+.\"O timezone environment variables.
+.\"O .I Zic
+.\"O will act as if the input contained a link line of the form
+POSIX 形式のタイムゾーン環境変数を扱うとき、
+指定したタイムゾーンのルールを用いる。
+.I zic
+は入力に以下の書式のリンク行が含まれているかのように振る舞う。
+.sp
+.ti +.5i
+Link	\fItimezone\fP		posixrules
+.TP
+.BI "\-L " leapsecondfilename
+.\"O Read leap second information from the file with the given name.
+.\"O If this option is not used,
+.\"O no leap second information appears in output files.
+閏秒情報を与えられた名前のファイルから読み込む。
+このオプションが指定されなかった場合には、
+出力ファイルには閏秒の情報は含まれない。
+.TP
+.B \-v
+.\"O Complain if a year that appears in a data file is outside the range
+.\"O of years representable by
+.\"O .BR time (2)
+.\"O values.
+データファイルに現れる年が
+.BR time (2)
+で表記できる範囲を越えている場合に文句を言う。
+.TP
+.B \-s
+.\"O Limit time values stored in output files to values that are the same
+.\"O whether they're taken to be signed or unsigned.
+.\"O You can use this option to generate SVVS-compatible files.
+出力ファイルに格納される時刻の値を、 signed で評価しても unsigned で
+評価しても同じ値になるような範囲に制限する。
+このオプションを使うと SVVS 互換なファイルを生成することができる。
+.TP
+.BI "\-y " command
+.\"O Use the given
+.\"O .I command
+.\"O rather than
+.\"O .B yearistype
+.\"O when checking year types (see below).
+年の型のチェック (以下参照) に
+.B yearistype
+ではなく指定した
+.I command
+を用いる。
+.PP
+.\"O Input lines are made up of fields.
+.\"O Fields are separated from one another by any number of white space characters.
+.\"O Leading and trailing white space on input lines is ignored.
+.\"O An unquoted sharp character (#) in the input introduces a comment which extends
+.\"O to the end of the line the sharp character appears on.
+.\"O White space characters and sharp characters may be enclosed in double quotes
+.\"O (") if they're to be used as part of a field.
+.\"O Any line that is blank (after comment stripping) is ignored.
+.\"O Nonblank lines are expected to be of one of three types:
+.\"O rule lines, zone lines, and link lines.
+入力行はフィールドからなる。
+フィールド間は、連続した任意の個数の空白文字によって区切られる。
+行頭・行末の空白文字は無視される。
+クォートされていないシャープ文字 (#) が入力行に現れた場合は、
+そこから行末まではコメントとして扱われる。
+空白文字やシャープ文字をダブルクォート (") で囲めば、
+フィールドの一部として用いることができる。
+(コメント除去処理を行った後のものを含めて) 空行は無視される。
+空行以外の行は、 3 種類あるタイプの行のいずれかであるとみなされる。
+3 つのタイプとは、ルール行 (rule line)、ゾーン行 (zone line)、
+リンク行 (link line) である。
+.PP
+.\"O A rule line has the form
+ルール行の書式は以下のようなものである。
+.nf
+.ti +.5i
+.ta \w'Rule\0\0'u +\w'NAME\0\0'u +\w'FROM\0\0'u +\w'1973\0\0'u +\w'TYPE\0\0'u +\w'Apr\0\0'u +\w'lastSun\0\0'u +\w'2:00\0\0'u +\w'SAVE\0\0'u
+.sp
+Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+.sp
+.\"O For example:
+例:
+.ti +.5i
+.sp
+Rule	US	1967	1973	\-	Apr	lastSun	2:00	1:00	D
+.sp
+.fi
+.\"O The fields that make up a rule line are:
+ルール行を構成するフィールドは以下の通り:
+.TP "\w'LETTER/S'u"
+.B NAME
+.\"O Gives the (arbitrary) name of the set of rules this rule is part of.
+このルールが所属するルールセットの名前を与える (任意)。
+.TP
+.B FROM
+.\"O Gives the first year in which the rule applies.
+.\"O Any integer year can be supplied; the Gregorian calendar is assumed.
+.\"O The word
+.\"O .I minimum
+.\"O (or an abbreviation) means the minimum year representable as an integer.
+.\"O The word
+.\"O .I maximum
+.\"O (or an abbreviation) means the maximum year representable as an integer.
+.\"O Rules can describe times that are not representable as time values,
+.\"O with the unrepresentable times ignored; this allows rules to be portable
+.\"O among hosts with differing time value types.
+このルールが適用される最初の年を与える。
+任意の整数を年として与えることができる。グレゴリオ暦が仮定される。
+.I minimum
+(あるいはその短縮) は整数表記できる最小の年を意味する。
+.I maximum
+(あるいはその短縮) は整数表記できる最大の年を意味する。
+ルールでは時刻値 (time value) では表記できない時刻も記述できる。
+表記できない時刻は無視される。つまりルールは
+異なった時刻値の型を持つホスト間でポータブルである。
+.TP
+.B TO
+.\"O Gives the final year in which the rule applies.
+.\"O In addition to
+.\"O .I minimum
+.\"O and
+.\"O .I maximum
+.\"O (as above),
+.\"O the word
+.\"O .I only
+.\"O (or an abbreviation)
+.\"O may be used to repeat the value of the
+.\"O .B FROM
+.\"O field.
+このルールが適用される最後の年を与える。
+.I minimum
+と
+.I maximum
+(上述) に加え、
+.I only
+(またはその短縮) を用いることができ、この場合は
+.B FROM
+フィールドに指定した値と同じ値が用いられる。
+.TP
+.B TYPE
+.\"O Gives the type of year in which the rule applies.
+.\"O If
+.\"O .B TYPE
+.\"O is
+.\"O .B \-
+.\"O then the rule applies in all years between
+.\"O .B FROM
+.\"O and
+.\"O .B TO
+.\"O inclusive.
+.\"O If
+.\"O .B TYPE
+.\"O is something else, then
+.\"O .I zic
+.\"O executes the command
+ルールの適用される年のタイプを与える。
+.B TYPE
+が
+.B \-
+であれば、このルールは
+.B FROM
+から
+.B TO
+に挟まれた (両端含む) 全ての年に適用される。
+.B TYPE
+がそれ以外の場合には、
+.I zic
+は以下のコマンドを実行して年のタイプをチェックする。
+.ti +.5i
+\fByearistype\fP \fIyear\fP \fItype\fP
+.br
+.\"O to check the type of a year:
+.\"O an exit status of zero is taken to mean that the year is of the given type;
+.\"O an exit status of one is taken to mean that the year is not of the given type.
+返り値が 0 の場合は、その年は与えられたタイプに含まれ、
+返り値が 1 の場合は含まれないことになる。
+.TP
+.B IN
+.\"O Names the month in which the rule takes effect.
+.\"O Month names may be abbreviated.
+ルールが効力を持つ月の名前を指定する。
+月名は短縮できる。
+.TP
+.B ON
+.\"O Gives the day on which the rule takes effect.
+.\"O Recognized forms include:
+ルールが効力を持つ日の名前を指定する。
+以下のような書式を認識する:
+.nf
+.in +.5i
+.sp
+.ta \w'Sun<=25\0\0'u
+.\"O 5	the fifth of the month
+.\"O lastSun	the last Sunday in the month
+.\"O lastMon	the last Monday in the month
+.\"O Sun>=8	first Sunday on or after the eighth
+.\"O Sun<=25	last Sunday on or before the 25th
+5	その月の第 5 日
+lastSun	その月の最後の日曜日
+lastMon	その月の最後の月曜日
+Sun>=8	第 8 日以降の最初の日曜日
+Sun<=25	第 25 日以前の最後の日曜日
+.fi
+.in -.5i
+.sp
+.\"O Names of days of the week may be abbreviated or spelled out in full.
+.\"O Note that there must be no spaces within the
+.\"O .B ON
+.\"O field.
+曜日の名前は短縮できる。全部綴っても良い。
+.B ON
+フィールドの内部にはスペースを入れてはいけないことに注意。
+.TP
+.B AT
+.\"O Gives the time of day at which the rule takes effect.
+.\"O Recognized forms include:
+ルールが効力を持つ一日のうちの時刻を与える。
+以下のような書式を認識する:
+.nf
+.in +.5i
+.sp
+.ta \w'1:28:13\0\0'u
+.\"O 2	time in hours
+.\"O 2:00	time in hours and minutes
+.\"O 15:00	24-hour format time (for times after noon)
+.\"O 1:28:14	time in hours, minutes, and seconds
+.\"O \-	equivalent to 0
+2	時間での表記
+2:00	時間と分での表記
+15:00	24 時間形式の時間 (正午以降)
+1:28:14	時間・分・秒での表記
+\-	0 と同じ
+.fi
+.in -.5i
+.sp
+.\"O where hour 0 is midnight at the start of the day,
+.\"O and hour 24 is midnight at the end of the day.
+.\"O Any of these forms may be followed by the letter
+.\"O .I w
+.\"O if the given time is local
+.\"O .q "wall clock"
+.\"O time,
+.\"O .I s
+.\"O if the given time is local
+.\"O .q standard
+.\"O time, or
+.\"O .I u
+.\"O (or
+.\"O .I g
+.\"O or
+.\"O .IR z )
+.\"O if the given time is universal time;
+.\"O in the absence of an indicator,
+.\"O wall clock time is assumed.
+ここで 0 時はその日のはじまりであり、
+24 時はその日の終わりである。
+これらの書式のあとには、以下の文字のいずれかを指定することができる。
+.I w
+与えられた時刻がローカルな
+.q "壁時計 (wall clock)"
+時刻である;
+.I s
+与えられた時刻がローカルな
+.q "標準 (standard)"
+時刻である;
+.I u
+(または
+.I g
+または
+.IR z )
+与えられた時刻が標準時 (universal time) である。
+これらの表意文字がいずれも指定されなかった場合は、
+壁時計時刻が仮定される。
+.TP
+.B SAVE
+.\"O Gives the amount of time to be added to local standard time when the rule is in
+.\"O effect.
+.\"O This field has the same format as the
+.\"O .B AT
+.\"O field
+.\"O (although, of course, the
+.\"O .I w
+.\"O and
+.\"O .I s
+.\"O suffixes are not used).
+ルールが効力を持っているとき、ローカルな標準時刻に追加すべき
+時間の量を与える。このフィールドの書式は
+.B AT
+フィールドのものと同じである (ただしもちろん
+.I w
+と
+.I s
+の後置文字は用いられない)。
+.TP
+.B LETTER/S
+.\"O Gives the
+.\"O .q "variable part"
+.\"O (for example, the
+.\"O .q S
+.\"O or
+.\"O .q D
+.\"O in
+.\"O .q EST
+.\"O or
+.\"O .q EDT )
+.\"O of timezone abbreviations to be used when this rule is in effect.
+.\"O If this field is
+.\"O .BR \- ,
+.\"O the variable part is null.
+このルールが効力を持っている場合に用いられるタイムゾーン短縮型の
+.q "可変部 (variable part)
+を与える (例えば
+.q EST
+や
+.q EDT
+における
+.q S
+や
+.q D
+など)。
+このフィールドが
+.B \-
+であった場合には、
+可変部は存在しない。
+.PP
+.\"O A zone line has the form
+ゾーン行の書式は以下のようなものである。
+.sp
+.nf
+.ti +.5i
+.ta \w'Zone\0\0'u +\w'Australia/Adelaide\0\0'u +\w'UTCOFF\0\0'u +\w'RULES/SAVE\0\0'u +\w'FORMAT\0\0'u
+Zone	NAME	UTCOFF	RULES/SAVE	FORMAT	[UNTIL]
+.sp
+.\"O For example:
+例:
+.sp
+.ti +.5i
+Zone	Australia/Adelaide	9:30	Aus	CST	1971 Oct 31 2:00
+.sp
+.fi
+.\"O The fields that make up a zone line are:
+ゾーン行を構成するフィールドは以下の通り:
+.TP "\w'UTCOFF'u"
+.B NAME
+.\"O The name of the timezone.
+.\"O This is the name used in creating the time conversion information file for the
+.\"O zone.
+タイムゾーンの名前。この名前がこのゾーンの時刻変換情報ファイルを
+生成するときに用いられる。
+.TP
+.B UTCOFF
+.\"O The amount of time to add to UTC to get standard time in this zone.
+.\"O This field has the same format as the
+.\"O .B AT
+.\"O and
+.\"O .B SAVE
+.\"O fields of rule lines;
+.\"O begin the field with a minus sign if time must be subtracted from UTC.
+このゾーンの標準時刻を得るために、 UTC に加える時間。
+このフィールドの書式は、ルール行の
+.B AT
+および
+.B SAVE
+フィールドのものと同じである。時間を UTC から引く必要がある場合は
+マイナス記号を前置する。
+.TP
+.B RULES/SAVE
+.\"O The name of the rule(s) that apply in the timezone or,
+.\"O alternately, an amount of time to add to local standard time.
+.\"O If this field is
+.\"O .B \-
+.\"O then standard time always applies in the timezone.
+タイムゾーンに適用されるルールの名前か、あるいは
+ローカル標準時刻に加えるべき時間の量を指定する。
+このフィールドが
+.B \-
+ならば、常に標準時刻がこのゾーンに対して用いられる。
+.TP
+.B FORMAT
+.\"O The format for timezone abbreviations in this timezone.
+.\"O The pair of characters
+.\"O .B %s
+.\"O is used to show where the
+.\"O .q "variable part"
+.\"O of the timezone abbreviation goes.
+.\"O Alternately,
+.\"O a slash (/)
+.\"O separates standard and daylight abbreviations.
+このタイムゾーンに対するタイムゾーン短縮名の書式。
+2 文字の文字列
+.B %s
+を用いて、どこが
+.q 可変部
+になるかを指定できる。あるいはスラッシュ文字 (/) を用いて
+標準の短縮名とサマータイム短縮名を区切ることができる。
+.TP
+.B UNTIL
+.\"O The time at which the UTC offset or the rule(s) change for a location.
+.\"O It is specified as a year, a month, a day, and a time of day.
+.\"O If this is specified,
+.\"O the timezone information is generated from the given UTC offset
+.\"O and rule change until the time specified.
+.\"O The month, day, and time of day have the same format as the IN, ON, and AT
+.\"O columns of a rule; trailing columns can be omitted, and default to the
+.\"O earliest possible value for the missing columns.
+UTC に対するオフセットか、その場所におけるルールが変更される時刻。
+年・月・日・時刻で指定する。
+これが指定された場合には、タイムゾーンの情報は与えられている
+UTC オフセットから生成され、ルールは指定時刻になると変更される。
+月・日・時刻は、ルールの IN, ON, AT カラムと同じ書式で指定する。
+この後に続くカラムは省略できる。
+省略されたカラムに対しては、
+可能性のあるもののうち最も早い値がデフォルトで用いられる。
+.IP
+.\"O The next line must be a
+.\"O .q continuation
+.\"O line; this has the same form as a zone line except that the
+.\"O string
+.\"O .q Zone
+.\"O and the name are omitted, as the continuation line will
+.\"O place information starting at the time specified as the
+.\"O .B UNTIL
+.\"O field in the previous line in the file used by the previous line.
+.\"O Continuation lines may contain an
+.\"O .B UNTIL
+.\"O field, just as zone lines do, indicating that the next line is a further
+.\"O continuation.
+この行には必ず
+.q 継続 (continuation)
+行が続く。
+継続行はゾーン行と同じ書式を持つが、
+.q Zone
+と名前は省略される。なぜなら継続行は直前の行の
+.B UNTIL
+フィールドで指定された時刻以降の情報を与えるものだからである。
+継続行にもゾーン行と同じように
+.B UNTIL
+フィールドを指定することができ、この場合はその次の行が
+さらなる継続行になることとなる。
+.PP
+.\"O A link line has the form
+リンク行の書式は以下のようなものである。
+.sp
+.nf
+.ti +.5i
+.ta \w'Link\0\0'u +\w'Europe/Istanbul\0\0'u
+Link	LINK-FROM	LINK-TO
+.sp
+.\"O For example:
+例:
+.sp
+.ti +.5i
+Link	Europe/Istanbul	Asia/Istanbul
+.sp
+.fi
+.\"O The
+.\"O .B LINK-FROM
+.\"O field should appear as the
+.\"O .B NAME
+.\"O field in some zone line;
+.\"O the
+.\"O .B LINK-TO
+.\"O field is used as an alternate name for that zone.
+.PP
+.\"O Except for continuation lines,
+.\"O lines may appear in any order in the input.
+.B LINK-FROM
+フィールドはゾーン行の
+.B NAME
+フィールドが記述される。
+.B LINK-TO
+フィールドはそのゾーンの別名である。
+.PP
+.\"O Lines in the file that describes leap seconds have the following form:
+ファイル中で閏秒を記述する行は以下のような書式を持つ。
+.nf
+.ti +.5i
+.ta \w'Leap\0\0'u +\w'YEAR\0\0'u +\w'MONTH\0\0'u +\w'DAY\0\0'u +\w'HH:MM:SS\0\0'u +\w'CORR\0\0'u
+.sp
+Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S
+.sp
+.\"O For example:
+例:
+.ti +.5i
+.sp
+Leap	1974	Dec	31	23:59:60	+	S
+.sp
+.fi
+.\"O The
+.\"O .BR YEAR ,
+.\"O .BR MONTH ,
+.\"O .BR DAY ,
+.\"O and
+.\"O .B HH:MM:SS
+.\"O fields tell when the leap second happened.
+.\"O The
+.\"O .B CORR
+.\"O field
+.\"O should be
+.\"O .q +
+.\"O if a second was added
+.\"O or
+.\"O .q -
+.\"O if a second was skipped.
+.BR YEAR ,
+.BR MONTH ,
+.BR DAY ,
+.B HH:MM:SS
+は閏秒の生じた瞬間を示す。
+.B CORR
+フィールドには、秒が挿入された場合
+.q +
+を、秒がスキップされた場合
+.q -
+を指定する。
+.\" There's no need to document the following, since it's impossible for more
+.\" than one leap second to be inserted or deleted at a time.
+.\" The C Standard is in error in suggesting the possibility.
+.\" See Terry J Quinn, The BIPM and the accurate measure of time,
+.\" Proc IEEE 79, 7 (July 1991), 894-905.
+.\"	or
+.\"	.q ++
+.\"	if two seconds were added
+.\"	or
+.\"	.q --
+.\"	if two seconds were skipped.
+.\"O The
+.\"O .B R/S
+.\"O field
+.\"O should be (an abbreviation of)
+.\"O .q Stationary
+.\"O if the leap second time given by the other fields should be interpreted as UTC
+.\"O or
+.\"O (an abbreviation of)
+.\"O .q Rolling
+.\"O if the leap second time given by the other fields should be interpreted as
+.\"O local wall clock time.
+.B R/S
+フィールドには、他のフィールドが記述している閏秒の時刻が
+UTC ならば
+.q Stationary
+(あるいはその短縮形) を、ローカルな壁時計時刻なら
+.q Rolling
+(あるいはその短縮形) を指定する。
+.\"O .SH FILES
+.SH ファイル
+.\"O /usr/local/etc/zoneinfo	standard directory used for created files
+/usr/local/etc/zoneinfo		生成されたファイル用の標準ディレクトリ
+.\"O .SH NOTES
+.SH 注意
+.\"O For areas with more than two types of local time,
+.\"O you may need to use local standard time in the
+.\"O .B AT
+.\"O field of the earliest transition time's rule to ensure that
+.\"O the earliest transition time recorded in the compiled file is correct.
+二つ以上のローカルタイムを持っている地域では、
+ローカルな標準時を
+最も早い方の時刻変換ルールの
+.B AT
+フィールドに用いる必要があるだろう。さもないと
+コンパイルされたファイルに記録された最も早い変換時刻が
+正しいことが保証されない。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR tzfile (5),
+.BR zdump (8)
+.\" @(#)zic.8	7.19

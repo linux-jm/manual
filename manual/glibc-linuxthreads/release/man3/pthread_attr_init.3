@@ -1,0 +1,443 @@
+.\"   Copyright (C) 1996-1999 Free Software Foundation, Inc.
+.\"
+.\"   Permission is granted to make and distribute verbatim copies of
+.\" this manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\"   Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\"   Permission is granted to copy and distribute translations of this
+.\" manual into another language, under the above conditions for modified
+.\" versions, except that this permission notice may be stated in a
+.\" translation approved by the Foundation.
+.\"
+.\" Copyright (C) 1996 Xavier Leroy.
+.\"
+.\" Japanese Version Copyright (C) 2002-2003 Suzuki Takashi
+.\"         all rights reserved.
+.\" Translated Wed Jan  1 20:52:15 JST 2003
+.\"         by Suzuki Takashi.
+.\"
+.\"WORD:    thread attribute    スレッド属性
+.\"WORD:    thread attribute object スレッド属性オブジェクト
+.\"WORD:    joinable            合流可能
+.\"WORD:    detached            デタッチ
+.\"
+.\"
+.TH PTHREAD_ATTR_INIT 3 LinuxThreads
+
+
+.SH "名前"
+pthread_attr_init, pthread_attr_destroy, pthread_attr_setdetachstate, pthread_attr_getdetachstate, 
+pthread_attr_setschedparam, pthread_attr_getschedparam, pthread_attr_setschedpolicy, pthread_attr_getschedpolicy, 
+pthread_attr_setinheritsched, pthread_attr_getinheritsched, pthread_attr_setscope, pthread_attr_getscope 
+\- スレッド生成時の属性
+
+.SH "書式"
+.B #include <pthread.h>
+
+.BI "int pthread_attr_init(pthread_attr_t *" attr ");"
+
+.BI "int pthread_attr_destroy(pthread_attr_t *" attr ");"
+
+.BI "int pthread_attr_setdetachstate(pthread_attr_t *" attr ", int " detachstate ");"
+
+.BI "int pthread_attr_getdetachstate(const pthread_attr_t *" attr ", int *" detachstate ");"
+
+.BI "int pthread_attr_setschedpolicy(pthread_attr_t *" attr ", int " policy ");"
+
+.BI "int pthread_attr_getschedpolicy(const pthread_attr_t *" attr ", int *" policy ");"
+
+.BI "int pthread_attr_setschedparam(pthread_attr_t *" attr ", const struct sched_param *" param ");"
+
+.BI "int pthread_attr_getschedparam(const pthread_attr_t *" attr ", struct sched_param *" param ");"
+
+.BI "int pthread_attr_setinheritsched(pthread_attr_t *" attr ", int " inherit ");"
+
+.BI "int pthread_attr_getinheritsched(const pthread_attr_t *" attr ", int *" inherit ");"
+
+.BI "int pthread_attr_setscope(pthread_attr_t *" attr ", int " scope ");"
+
+.BI "int pthread_attr_getscope(const pthread_attr_t *" attr ", int *" scope ");"
+
+.SH "説明"
+
+スレッドの属性を設定するには、
+.B "pthread_attr_t"
+型のスレッド属性オブジェクト
+.I "attr"
+に値を格納し、
+.BR "pthread_create" (3)
+の第 2 引数として渡せばよい。
+.B "NULL"
+を渡すことは、
+すべての属性がデフォルトに設定されたスレッド属性オブジェクトを
+渡すのと同等である。
+
+.B "pthread_attr_init"
+はスレッド属性オブジェクト
+.I "attr"
+を初期化して、各属性のデフォルトの値を格納する。
+( 各属性のデフォルト値は下を参照のこと。 )
+
+それぞれの属性
+.I "attrname"
+( 全属性のリストは下を参照のこと ) は、
+関数
+.BI "pthread_attr_set" "attrname"
+で個別に設定したり、
+.BI "pthread_attr_get" "attrname"
+で個別に取得したりすることが可能である。
+
+.B "pthread_attr_destroy"
+はスレッド属性オブジェクトを破壊する。
+破壊したオブジェクトは、再初期化するまでは
+再び使用してはならない。
+.B "pthread_attr_destroy"
+は LinuxThreads の実装では何もしない。
+
+属性オブジェクトは新しいスレッドを生成するときにだけ参照される。
+複数のスレッドの生成に同じ属性オブジェクトを使用することもできる。
+.B "pthread_create"
+の呼び出しの後に属性オブジェクトを変更しても、
+すでに生成されたスレッドの属性は変化しない。
+
+次のようなスレッド属性に対応している:
+
+.SS detachstate (デタッチ状態)
+
+スレッドが合流可能な状態で生成される (
+.BR "PTHREAD_CREATE_JOINABLE" )
+か、デタッチ状態で生成される (
+.BR "PTHREAD_CREATE_DETACHED" )
+かを制御する。
+
+デフォルト値: 
+.B "PTHREAD_CREATE_JOINABLE"
+。
+
+合流可能な状態の場合、
+別のスレッドが
+.BR "pthread_join" (3)
+を呼び出すことによって、そのスレッドの終了に同期して
+終了コードを取得することができる。
+しかし、スレッドの資源の一部はスレッドが終了した後も
+確保されたまま残り、
+別のスレッドがそのスレッドに対して
+.BR "pthread_join" (3)
+を呼び出したときに限って解放される。
+
+デタッチ状態の場合、スレッドの資源は終了した時に直ちに解放される。
+しかし、
+.BR "pthread_join" (3)
+を使用してスレッドの終了に同期することはできない。
+
+合流可能な状態で生成されたスレッドは、
+.BR "pthread_detach" (3)
+を呼び出してデタッチスレッドに変更することができる。
+
+.SS schedpolicy (スケジューリングポリシー)
+
+スレッドのスケジューリングポリシーを選択する。
+とりうる値は
+.B "SCHED_OTHER"
+(通常の、リアルタイムでないスケジューリング) 、
+.B "SCHED_RR"
+(ラウンドロビン方式のリアルタイムスケジューリング) 、
+.B "SCHED_FIFO"
+(先入れ先出し (FIFO) 方式のリアルタイムスケジューリング) のいずれかである。
+スケジューリングポリシーに関するさらなる情報については
+.BR "sched_setpolicy" (2)
+を参照のこと。
+
+デフォルト値:
+.B "SCHED_OTHER"
+。
+
+リアルタイムスケジューリングポリシーである
+.B "SCHED_RR"
+と
+.B "SCHED_FIFO"
+は、スーパーユーザ権限のプロセスに限って使用できる。
+
+スレッドのスケジューリングポリシーは、
+生成後に
+.BR "pthread_setschedparam" (3)
+を用いて変更することができる。
+
+.SS schedparam (スケジューリングパラメータ)
+
+スレッドのスケジューリングパラメータ (特に、スケジューリング優先度) を
+指定する。
+スケジューリングパラメータに関するさらなる情報については
+.BR "sched_setparam" (2)
+を参照のこと。
+
+デフォルト値: 優先度は 0 。
+
+この属性はスケジューリングポリシーが
+.BR "SCHED_OTHER"
+の時には意味を持たず、
+リアルタイムポリシー
+.B "SCHED_RR"
+と
+.B "SCHED_FIFO"
+に対してのみ有効である。
+
+スレッドのスケジューリング優先度は、
+生成後に
+.BR "pthread_setschedparam" (3)
+を用いて変更することができる。
+
+.SS inheritsched (スケジューリングの継承)
+
+新しく生成されるスレッドの
+スケジューリングポリシーとスケジューリングパラメータが
+属性
+.I "schedpolicy"
+および
+.I "schedparam"
+の値で決定される (
+.BR "PTHREAD_EXPLICIT_SCHED" )
+か、親スレッドから継承される (
+.BR "PTHREAD_INHERIT_SCHED" )
+かを指定する。
+
+デフォルト値: 
+.B "PTHREAD_EXPLICIT_SCHED"
+。
+
+.SS scope (スコープ)
+
+生成されるスレッドのスケジューリング競争スコープを定義する。
+LinuxThreads の実装で唯一対応している値は
+.B "PTHREAD_SCOPE_SYSTEM"
+で、
+スレッドは同じ計算機で実行中のすべてのプロセスと CPU 時間を取り合う。
+詳しくいえば、スレッドの優先度は計算機上の他のすべてのプロセスの優先度と
+同列のものと解釈される。
+POSIX 標準で規定されるもう 1 つの値
+.B "PTHREAD_SCOPE_PROCESS"
+は、
+スケジューリングの競争は実行中のプロセス中のスレッド間だけで
+起こることを意味する。
+すなわち、スレッドの優先度はプロセス中の他のスレッドの優先度と
+同列のものと解釈され、他のプロセスの優先度とは関わりがない。
+LinuxThreads は
+.B "PTHREAD_SCOPE_PROCESS"
+に対応していない。
+
+デフォルト値: 
+.B "PTHREAD_SCOPE_SYSTEM"
+。
+
+.SH "返り値"
+
+すべての関数は成功すると 0 を返し、
+エラーならば非 0 のエラーコードを返す。
+成功の場合、
+関数群
+.BI "pthread_attr_get" "attrname"
+は属性
+.I "attrname"
+の現在の値を第 2 引数で指し示される領域に格納する。
+
+.SH "エラー"
+
+関数
+.B "pthread_attr_setdetachstate"
+はエラーの場合、次のようなエラーコードを返す:
+.RS
+.TP
+.B "EINVAL"
+指定された
+.I "detachstate"
+が
+.B "PTHREAD_CREATE_JOINABLE"
+および
+.BR "PTHREAD_CREATE_DETACHED"
+のいずれでもない。
+.RE
+
+関数
+.B "pthread_attr_setschedparam"
+はエラーの場合、次のようなエラーコードを返す:
+.RS
+.TP
+.B "EINVAL"
+.I "param"
+で指定された優先度が
+現在の
+.I "attr"
+のスケジューリングポリシーに対する許容範囲 (
+.B "SCHED_FIFO"
+および
+.B "SCHED_RR"
+の場合は 1 から 99 まで、
+.B "SCHED_OTHER"
+の場合は 0 のみ )
+を超えている。
+.RE
+
+関数
+.B "pthread_attr_setschedpolicy"
+はエラーの場合次のようなエラーコードを返す:
+.RS
+.TP
+.B "EINVAL"
+指定された
+.I "policy"
+が
+.B "SCHED_OTHER"
+および
+.B "SCHED_FIFO"
+、
+.B "SCHED_RR"
+のいずれでもない
+
+.TP
+.B "ENOTSUP"
+.I "policy"
+が
+.B "SCHED_FIFO"
+または
+.B "SCHED_RR"
+であって、呼び出しプロセスの実効ユーザがスーパーユーザではない。
+.RE
+
+関数
+.B "pthread_attr_setinheritsched"
+はエラーの場合次のようなエラーコードを返す:
+.RS
+.TP
+.B "EINVAL"
+指定された
+.I "inherit"
+が
+.B "PTHREAD_INHERIT_SCHED"
+および
+.B "PTHREAD_EXPLICIT_SCHED"
+のいずれでもない。
+.RE
+
+関数
+.B "pthread_attr_setscope"
+はエラーの場合次のようなエラーコードを返す:
+.RS
+.TP
+.B "EINVAL"
+指定された
+.I "scope"
+が
+.B "PTHREAD_SCOPE_SYSTEM"
+および
+.B "PTHREAD_SCOPE_PROCESS"
+のいずれでもない。
+
+.TP
+.B "ENOTSUP"
+指定された
+.I "scope"
+が
+.B "PTHREAD_SCOPE_PROCESS"
+(未対応) である。
+.RE
+
+.SH "著者"
+Xavier Leroy <Xavier.Leroy@inria.fr>
+
+.SH "関連項目"
+.BR "pthread_create" (3),
+.BR "pthread_join" (3),
+.BR "pthread_detach" (3),
+.BR "pthread_setschedparam" (3).
+
+[訳注] glibc-linuxthreads の最新のドキュメントは Texinfo形式で提供されている。
+以下は glibc-linuxthreads-2.3.1 の Texinfo ファイルからの引用で、
+「説明」に追記されている。
+glibc-linuxthreads-2.1 以降 guardsize および stackaddr 、 stacksize が、
+glibc-linuxthreads-2.2 以降 stack が追加された。
+
+.BI "int pthread_attr_setstackaddr(pthread_attr_t *" attr ", void *" stackaddr ");"
+
+.BI "int pthread_attr_getstackaddr(const pthread_attr_t *" attr ", void **" stackaddr ");"
+
+.SS stackaddr (スタックアドレス)
+アプリケーション管理スタックのアドレスを指定する。
+スタックのサイズは
+.B "PTHREAD_STACK_MIN"
+以上でなければならない。
+
+.BI "int pthread_attr_setstacksize(pthread_attr_t *" attr ", size_t " stacksize");"
+
+.BI "int pthread_attr_getstacksize(const pthread_attr_t *" attr ", size_t *" stacksize ");"
+
+.SS stacksize (スタックサイズ)
+スレッドに対して確保されるスタックのサイズを変更する。
+最小スタックサイズが指定した値に設定される。単位はバイトである。
+
+指定した値がシステムの最大スタックサイズを超える場合、
+または
+.B "PTHREAD_STACK_MIN"
+よりも小さい場合、
+.B "pthread_attr_setstacksize"
+は失敗し、
+.B "EINVAL"
+を返す。
+
+.BI "int pthread_attr_setstack(pthread_attr_t *" attr ", void *" stackaddr ", size_t " stacksize ");"
+
+.BI "int pthread_attr_getstack(const pthread_attr_t *" attr ", void **" stackaddr ", size_t *" stacksize ");"
+
+.SS stack (スタック)
+生成されるスレッドに用いられるアプリケーション管理スタックの
+アドレスとサイズの両方を指定する。
+メモリ領域のベースを
+.I "stackaddr"
+に、メモリ領域のサイズをバイト単位で
+.I "stacksize"
+に指定する。
+
+.I "stacksize"
+の値が
+.B "PTHREAD_STACK_MIN"
+よりも小さいか、
+システムの最大スタックサイズを超える場合、
+または
+.I "stackaddr"
+の値が適切なアライメントでない場合、
+.B "pthread_attr_setstack"
+は失敗し、
+.B "EINVAL"
+を返す。
+
+.BI "int pthread_attr_setguardsize(pthread_attr_t *" attr ", size_t " guardsize ");"
+
+.BI "int pthread_attr_getguardsize(const pthread_attr_t *" attr ", size_t *" guardsize ");"
+
+.SS guardsize (保護サイズ)
+スレッドのスタックの保護領域の最小のサイズをバイト単位で変更する。
+デフォルトのサイズは 1 ページである。
+この値が設定された場合、指定した値以上の最も近いページサイズに丸められる。
+この値が 0 に設定された場合、このスレッドには保護領域は作成されない。
+保護領域として確保された領域は、スタックオーバーフローを検出するのに
+用いられる。したがって、大きな構造体の領域をスタック内に確保する場合、
+スタックオーバーフローを検出するためにはそれよりも
+大きい保護領域を指定する必要がある。
+
+スレッドが独自のスタックを使用している場合(
+.I "stackaddr"
+属性が設定されている場合) 、
+.I "guardsize"
+属性は無視される。
+
+指定した値が
+.I "stacksize"
+を超える場合、
+.B "pthread_attr_setguardsize"
+は失敗し、
+.B "EINVAL"
+を返す。

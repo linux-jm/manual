@@ -1,0 +1,138 @@
+.\" Copyright 2002 Walter Harms (walter.harms@informatik.uni-oldenburg.de)
+.\" Distributed under GPL
+.\" Heavily based on glibc documentation
+.\" Polished, added docs, removed glibc doc bug, 2002-07-20, aeb
+.\"
+.\" FIXME
+.\" According to a Fedora downstream patch, malloc hooks are deprecated
+.\" https://bugzilla.redhat.com/show_bug.cgi?id=450187
+.\" Integrate this upstream?
+.\"
+.\" Japanese Version Copyright (c) 2002 Akihiro MOTOKI all rights reserved.
+.\" Translated Thu 05 Dec 2002 by Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH MALLOC_HOOK 3 2002-07-20 "GNU" "Linux Programmer's Manual"
+.SH 名前
+__malloc_hook, __malloc_initialize_hook,
+__memalign_hook, __free_hook, __realloc_hook,
+__after_morecore_hook \- malloc デバッグ用の変数
+.SH 書式
+.nf
+.B "#include <malloc.h>"
+.sp
+.BI "void *(*__malloc_hook)(size_t " size ", const void *" caller );
+.sp
+.BI "void *(*__realloc_hook)(void *" ptr ", size_t " size \
+", const void *" caller );
+.sp
+.BI "void *(*__memalign_hook)(size_t " alignment ", size_t " size ,
+.BI "                         const void *" caller );
+.sp
+.BI "void (*__free_hook)(void *" ptr ", const void *" caller );
+.sp
+.B "void (*__malloc_initialize_hook)(void);"
+.sp
+.B "void (*__after_morecore_hook)(void);"
+.fi
+.SH 説明
+GNU C ライブラリでは、適切なフック関数 (hook function) を指定することで
+.BR malloc (3),
+.BR realloc (3),
+.BR free (3)
+の動作を変更することができる。例えば、動的にメモリ割り当てを行う
+プログラムのデバッグにこれらのフックを使うことができる。
+.LP
+変数
+.B __malloc_initialize_hook
+は malloc の実装が初期化される際に一度だけ呼ばれる関数へのポインタである。
+この変数は書き換え可能 (weak) であり、アプリケーション内で
+以下のような定義で上書きできる:
+
+.nf
+    void (*__malloc_initialize_hook)(void) = my_init_hook;
+.fi
+
+なお、関数
+.IR my_init_hook ()
+で全てのフックの初期化をすることができる。
+.LP
+.BR __malloc_hook ,
+.BR __realloc_hook ,
+.BR __memalign_hook ,
+.B __free_hook
+で指される 4 つの関数は、各々
+.BR malloc (3),
+.BR realloc (3),
+.BR memalign (3),
+.BR free (3)
+とよく似たプロトタイプを持っているが、
+一番最後の引き数
+.I caller
+をとる点が異なる。
+引き数
+.I caller
+には、
+.BR malloc (3)
+などの呼び出し元 (caller) のアドレスが格納される。
+.LP
+変数
+.B __after_morecore_hook
+は、領域の追加要求があり
+.BR sbrk (2)
+が呼ばれた後で毎回呼び出される関数へのポインタである。
+.SH 準拠
+これらの関数は GNU による拡張である。
+.SH 例
+これらの変数の使い方の簡単な例を以下に示す。
+.sp
+.nf
+#include <stdio.h>
+#include <malloc.h>
+
+/* 使おうとするフックのプロトタイプ宣言 */
+static void my_init_hook(void);
+static void *my_malloc_hook(size_t, const void *);
+
+/* 元々のフックを保存するための変数 */
+static void *(*old_malloc_hook)(size_t, const void *);
+
+/* C ライブラリから呼ばれる初期化フックを上書きする */
+void (*__malloc_initialize_hook) (void) = my_init_hook;
+
+static void
+my_init_hook(void)
+{
+    old_malloc_hook = __malloc_hook;
+    __malloc_hook = my_malloc_hook;
+}
+
+static void *
+my_malloc_hook(size_t size, const void *caller)
+{
+    void *result;
+
+    /* 元々のフックを全て戻す */
+    __malloc_hook = old_malloc_hook;
+
+    /* malloc の再帰的呼び出し */
+    result = malloc(size);
+
+    /* 現在設定されているフック (underlying hook) を保存する */
+    old_malloc_hook = __malloc_hook;
+
+    /* printf() は malloc() を呼び出す可能性があるので
+        ここでもガードを行う (元々のフックのままにしておく) */
+    printf("malloc(%u) called from %p returns %p\\n",
+            (unsigned int) size, caller, result);
+
+    /* ユーザが使おうとするフックを再設定する */
+    __malloc_hook = my_malloc_hook;
+
+    return result;
+}
+.fi
+.SH 関連項目
+.BR mallinfo (3),
+.BR malloc (3),
+.BR mcheck (3),
+.BR mtrace (3)
