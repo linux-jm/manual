@@ -1,0 +1,174 @@
+#! /usr/bin/perl
+#
+# $Id: mktrlist,v 1.1 1999/12/24 17:26:09 argrath Exp $
+#
+# 新しいパッケージをレポジトリに入れた時に
+# translation_listを自動作成するスクリプト
+#
+# original/ディレクトリ以下にファイルを揃えてから、
+# translation_listがあるべきディレクトリで実行して下さい。
+# パッケージ名はディレクトリから、バージョンはlsmファイルから
+# 所得します。
+# 標準出力に結果を出力するので、適当にリダイレクトして下さい。
+#
+# BUG:
+# ・シンボリックリンクには対応していません。
+# ・manページの日付所得に失敗することがあります。
+#
+use Text::ParseWords;
+use Cwd;
+
+sub detectdate
+{
+	local ($time, $year, $month, $day);
+	local ($pattern) = $_[0];
+	@monthstr = ('Jan','Feb','Mar','Apr','May','Jun',
+		     'Jul','Aug','Sep','Oct','Nov','Dec');
+
+	$year = "????";
+	$month = "??";
+	$day = "??";
+
+	@pat = split (/\s+/, $pattern);
+
+	for($x = 0; $x <= $#pat; $x++){
+		$dd = $pat[$x];
+		if($dd =~ /\d+/) {
+			if($dd <= 31){
+				$day = sprintf("%02d", $dd);
+			} else {
+				$year = sprintf("%04d", $dd);
+			}
+
+		} else {
+			for($i = 0; $i <= $#monthstr; $i++){
+				if($dd =~ /$monthstr[$i].*/i){
+					$month = sprintf("%02d", $i + 1);
+					last;
+				}
+			}
+		}
+	}
+	return "$year/$month/$day";
+}
+
+sub packagename
+{
+	local @p = split('/', cwd());
+	local $pname = $p[$#p];
+
+	$pname =~ tr/_/ /;
+
+	return $pname;
+}
+
+
+sub lsmversion
+{
+	local $ret;
+
+	opendir DH, 'original';
+	@files = grep /.*\.lsm/, readdir DH;
+	closedir DH;
+
+	open FF, "original/$files[0]";
+	while(<FF>){
+		if(/Version:\s+(.+)$/){
+			$ret = $1;
+			last;
+		}
+	}
+	close FF;
+	return $ret;
+}
+
+sub parseman {
+	local ($dir, $name) = @_;
+	local($key, $datestr);
+	
+	open FF, "original/$dir/$name";
+	while(<FF>){
+		if(/^\.\\\"/) { next; }
+		if(/^\.SO/i){
+			local($src, $dist);
+			m@/(\w+)\.(\w+)@;
+			$src = sprintf("%-2s %s", $2, $1);
+			$name =~ /(\w+)\.(\w+)/;
+			$dist = sprintf("%-2s %s", $2, $1);
+			$alias{$dist} = $src;
+			last;
+		}
+		if(/^\.TH/i){
+			@words = quotewords('\\s+', 0, $_);
+			$manname = $words[1];
+			$manname =~ tr/[A-Z]/[a-z]/;
+			$section = $words[2];
+			$datestr = &detectdate($words[3]);
+			$key = sprintf("%-2s %s", $section, $manname);
+			$otime{$key} = $datestr;
+			last;
+		}
+		if(/^\.DD/i){
+			/^\.DD\s+(.+)/i;
+			$datestr = &detectdate($1);
+			next;
+		}
+		if(/^\.DT/i){
+			@words = split;
+			$name = $words[1];
+			$name =~ tr/[A-Z]/[a-z]/;
+			$sec = $words[2];
+			$key = sprintf("%-2s %s", $sec, $name);
+			$otime{$key} = $datestr;
+			last;
+		}
+	}
+	close FF;
+}
+
+
+sub searchman
+{
+	opendir DH, 'original';
+	@mandirs = grep /man.+/, readdir DH;
+	closedir DH;
+
+	foreach $d (@mandirs) {
+		opendir DH, "original/$d";
+		@manfiles = grep /.+\..+/, readdir DH;
+		closedir DH;	
+		foreach $f (@manfiles) {
+			&parseman($d, $f);
+#print "$f\n";
+		}
+	}
+	
+}
+
+sub expandalias {
+	foreach $k (keys %alias){
+		$otime{$k} = $otime{$alias{$k}};
+	}
+}
+
+
+sub printlist {
+	local($name, $sec);
+	foreach $k (sort keys %otime){
+		($sec, $name) = split / +/, $k;
+		if($alias{$k} ne ''){
+			local($osec, $oname) = split / +/, $alias{$k};
+			print join ':', '※', $package, $ver, $otime{$k},
+				$name, $sec, $oname, $osec, "\n";
+		} else {
+			print join ':', '×', $package, $ver, $otime{$k},
+				$name, $sec, '', '', '', '', "\n";
+		}
+	}
+}
+		
+	$package = &packagename();
+	$ver = &lsmversion();
+	&searchman();
+	&expandalias();
+	&printlist();

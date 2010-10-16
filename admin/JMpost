@@ -1,0 +1,164 @@
+#!/usr/bin/bash
+#
+# $Id: JMpost,v 1.8 2003/06/20 13:28:24 tsekine Exp $
+#
+# JM にステータスその他をポストするコマンド
+# パスの通ったディレクトリに tr と nkf が必要です.
+#
+#
+# ***初期設定***
+#
+# もし bash コマンドが /usr/bin/bash でない場合は、
+# 一行目を適宜書き換えてください。
+
+# 名前とメールアドレス。自分専用で使うときには
+# 以下の変数を設定しておいてください。
+#
+#name="JM Project"
+#mail="JM@linux.or.jp"
+
+# sendmail コマンド。置き場所が違う場合は書き換えてください。
+#
+sendmail="/usr/lib/sendmail"
+
+# 送信先
+#
+jmaddr="JMpost@linux.or.jp"
+
+# 一時ファイルの置き場所
+#
+TMPF="/var/tmp/jm.$$.tmp"
+
+while getopts 'S:P:F:D:M:R:p:' opt; do
+	case $opt in
+	'S') stat=$OPTARG ;;
+	'P') ppkg=$OPTARG ;;
+	'F') page=$OPTARG ;;
+	'D') date=$OPTARG ;;
+	'M') mail=$OPTARG ;;
+	'R') name=$OPTARG ;;
+	'p') post=$OPTARG ;;
+	'?') cat << EOB > /dev/stderr
+usage: `basename $0` [-S stat] [-P pkg] [-F page] [-D date]
+	[-M mail] [-R name] filename [-post]
+  -S: page status (one of: TR, DO, DP, PR, RO)
+  -P: package name the page belongs to (please quote if space is included)
+  -F: filename of the manual
+  -D: date string YYYY/MM/DD (today, if ommited)
+  -M: Posters mail address
+  -R: Posters real name (please quote if space is included)
+
+filename can be ommitted when status is "TR" or "PR".
+
+if -post flag is specified at last, output is post to JM-ML.
+Otherwise, output is sent to stdout.
+EOB
+	exit 0
+	;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ ${stat:=undef} = "undef" ]; then
+	echo "Input Page Status"                               > /dev/stderr
+	echo " TR: Translation Reservation"                    > /dev/stderr
+	echo " DO: Draft Only (without proof reservation)"     > /dev/stderr
+	echo " DP: Draft and Proof reservation"                > /dev/stderr
+	echo " PR: Proof Reservation"                          > /dev/stderr
+	echo " RO: Release"				       > /dev/stderr
+	echo -n "Input a one ov above   : " > /dev/stderr
+	read stat
+fi
+stat=`echo $stat | tr a-z A-Z`
+
+#
+# File check
+#
+if (echo $stat | egrep -q '^[DR]'); then
+	if [ ! -f "$1" ]; then
+		echo "Sorry, file $1 does not exist"
+		exit 2;
+	fi
+fi
+
+#
+# page information
+#
+if [ "${ppkg:=undef}" = "undef" ]; then
+	echo -n "Package name of the page?  : " > /dev/stderr
+	read ppkg
+fi
+
+if [ ${page:=undef} = "undef" ]; then
+	echo -n "Page Filename (as hoge.1)? : " > /dev/stderr
+	read page
+fi
+
+if [ ${date:=undef} = "undef" ]; then
+	date=`date "+%Y/%m/%d"`
+fi
+
+#
+# poster's information
+#
+if [ ${mail:=undef} = "undef" ]; then
+	echo -n "Your email address?        : " > /dev/stderr
+	read mail
+fi
+
+if [ "${name:=undef}" = "undef" ]; then
+	echo -n "Your Real Name?            : " > /dev/stderr
+	read name
+fi
+
+cat << EOB > $TMPF
+From: $mail
+To: $jmaddr
+Subject: [POST:$stat] $ppkg $page
+
+<STATUS>
+stat: $stat
+ppkg: $ppkg
+page: $page
+date: $date
+mail: $mail
+name: $name
+</STATUS>
+
+EOB
+
+if (echo $stat | egrep -q '^[DR]'); then
+	cat $1 >> $TMPF
+fi
+
+#
+# 入力に . だけの行があったらエラーメッセージを出して終了する.
+#
+if (grep -q "^\.$" $TMPF); then
+	cat << EOL > /dev/stderr
+The input contains the line which has a period solely.
+It will break the sendmail, and will not be formatted
+by groff as you want.  Please use "\&." instead.
+EOL
+	rm -f $TMPF
+	exit 1
+fi
+
+#
+# 最後の argument まで shift する。
+#
+while [ "$#" -gt 1 ]; do
+	shift;
+done
+
+#
+# write to file or post:
+#
+if [ "$1" = "-post" -o "$post" = "ost" ]; then
+	nkf -j $TMPF | $sendmail $jmaddr
+else
+	nkf -j $TMPF
+fi
+
+rm -f $TMPF
+

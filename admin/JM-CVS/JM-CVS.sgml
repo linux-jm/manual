@@ -1,0 +1,820 @@
+<!doctype linuxdoc system>
+<article>
+
+<!--
+$Id: JM-CVS.sgml,v 1.21 2001/04/01 00:00:17 nakano Exp $
+-->
+
+<title>JM CVS committers HOWTO
+<author>JM Project &lt;JM@linux.or.jp&gt;
+<date>$Revision: 1.21 $ $Date: 2001/04/01 00:00:17 $
+
+<abstract>
+新たに JM の CVS コミッターになった人のために、
+CVS そのものの使い方や、
+JM プロジェクトで利用している
+CVS リポジトリの管理ルールをまとめました。
+一部分は「提案」ですので、今後の議論をお願いします。
+</abstract>
+
+<toc>
+
+<!-- - - - - - - - - - - section breaker - - - - - - - - - - -->
+<sect>はじめに
+<p>
+JM project では、
+専用の CVS リポジトリを cvs.linux.or.jp に設けてもらい、
+そこで文書の管理をしています。
+この文書では、まず CVS の利用法に対する簡単なガイダンスを記述し、
+次いで CVS のシステムを用いてどのように
+JM の文書群を管理していくかに関して述べていきます。
+
+この文書の著作権は JM Project に所属するものとします。
+文書の改変は自由ですが、改変した最新の文書は何らかの方法で
+JM の CVS リポジトリに commit されなければならないものとします。
+
+本文書のテキスト版、 html 版は
+<URL URL="http://surf.ap.seikei.ac.jp/~nakano/JMC/">
+以下に置いておきますので、適宜利用して下さい。
+
+この文書に手を入れた人は、
+<itemize>
+ <item>中野武雄 nakano@apm.seikei.ac.jp
+</itemize>
+です。(改変した人は自分の名前を追加してください :-)
+
+<!-- - - - - - - - - - - section breaker - - - - - - - - - - -->
+<sect>JM committer になるまで
+<sect1>CVS のインストール
+<p>
+まず CVS 本体を手元のマシンにインストールしましょう。
+バイナリでのインストールが可能な人は、
+<ref id="cvsrc" name="[→共通の設定]">
+だけ見てください。
+
+<sect2>Linux の場合
+<p>
+ソースで入れる人は、まず GNU のミラーのどこかから
+CVS-1.10.tar.gz を取ってきましょう。
+<url url="ftp://ftp.ring.gr.jp/pub/GNU/cvs/">
+などが良いでしょう。
+展開したら cvs-1.10/ から、
+いつもの <tt>./configure → make → make install</tt>
+で入れましょう。
+
+<sect2>Windows 95/98/NT の場合
+<p>
+まず実行ファイルを入手しましょう。1999/07/04 現在は
+<url url="http://download.cyclic.com/pub/cvs-1.10/windows/cvs-1.10-win.zip"> 
+にあるようですので、ここから入手します。
+
+<p>
+適当なディレクトリを掘って PATH を通し、
+中身を全て展開すればインストール作業は終了です。
+基本的には Linux 版と使い方は変わりませんので、以後の説明は
+Linux 版／Windows 版ともに共通です。
+
+<sect2>共通の設定項目<label id="cvsrc">
+<p>
+CVS 本体がインストールできたら以下のような内容の
+&tilde;/.cvsrc (Windows 版なら $HOME\.cvsrc)
+ を用意します。
+
+<code>
+cvs		-z3
+checkout	-P
+update		-dP
+diff		-u
+log		-N
+</code>
+
+
+<sect1>pcl-cvs のインストール
+<p>
+Emacs の CVS フロントエンド pcl-cvs を
+ソースからインストールする方法です。
+Windows の Meadow などで使えるかどうかはちょっとわかりません。
+以下はとりあえず Linux でのお話です。
+<p>
+pcl-cvs には elib が必要なので、
+まずこれからインストールします。
+
+<enum>
+ <item>elib-1.0.tar.gz を入手します。
+  cvs ソースの contrib/elib/ にもありますのでこれでも OK。
+
+ <item>
+  展開して Makefile の locallisppath, infodir, EMACS の各行を編集。
+
+ <item>
+  make install
+
+ <item>
+  $(emacslib)/site-lisp/site-start.el に elib-startup.el
+  の内容を追加します。
+</enum>
+
+<p>
+最後に pcl-cvs 本体をインストールします。
+
+<enum>
+ <item>
+  cvs-1.10.tar.gz を展開。
+
+ <item>
+  cvs-1.10/ で ./configure して tools/pcl-cvs/ に移動。
+
+ <item>
+  Makefile の infodir, lispdir, EMACS の各行を編集。
+
+ <item>
+  emacs 19.29 以前には format-time-string がないので、
+  この環境を使っている人は pcl-cvs.el の
+  3292-3296 行目をコメントアウトする。
+
+ <item>
+  make install する。
+  $(emacslib)/site-lisp/ には *.elc しかコピーされないので、
+  手動で *.el の方もコピーしておくと良いでしょう。
+
+ <item>
+  $(emacslib)/site-lisp/site-start.el に pcl-cvs-startup.el
+  の内容を追加する。
+</enum>
+
+&tilde;/.emacs には以下の行を追加します.
+
+<code>
+(define-program-coding-system nil "cvs" *euc-japan*unix)
+(setq user-mail-address "username@your.domain")
+(setq add-log-time-format 'current-time-string)
+</code>
+
+後の二行は pcl-cvs が作成する ChangeLog のエントリの
+フォーマットに対する指定です。
+emacs のバージョンによっては文句を言われるかもしれませんが、
+その場合は適宜外してください。
+
+
+<sect1>リポジトリのアカウントをもらう
+<p>
+CVS の環境が整ったら、リポジトリの管理者
+(<htmlurl url="mailto:cvs-admin@cvs.linux.or.jp"
+name="cvs-admin@cvs.linux.or.jp">)
+に連絡して JM リポジトリのアカウントをもらいましょう。
+cvs.linux.or.jp を使っているのは JM だけではないので、
+「JM の cvs アカウント」であることを明記してください。
+
+ここには JM からの参加者もいますので、
+JM-ML に何回か投稿したことがあるなら、
+問題なく登録されるはずです。
+
+申込にあたっては、
+以下のコマンド (written by 高林さん) の実行結果を添付してください。
+<code>
+#!/usr/bin/perl -w
+#
+# usage: cvsadduser >> $CVSROOT/CVSROOT/passwd
+#
+use strict;
+
+main();
+
+sub main () {
+    srand(time() ^ ($$ << 15));
+
+    print STDERR "cvs account: ";
+    my $cvs_account = <STDIN>;
+    chomp $cvs_account;
+
+    print STDERR "password: ";
+    system "stty -echo";
+    my $passwd = <STDIN>;
+    system "stty echo";
+    chomp $passwd;
+    print STDERR "\n";
+
+    print STDERR "Re-enter password: ";
+    system "stty -echo";
+    my $tmp_passwd = <STDIN>;
+    system "stty echo";
+    chomp $tmp_passwd;
+    print STDERR "\n";
+
+    unless ($passwd eq $tmp_passwd) {
+        print STDERR "ERROR! They don't match.\n";
+        exit 1;
+    }
+
+    print STDERR "real account (can be omitted): ";
+    my $real_account = <STDIN>;
+    chomp $real_account;
+
+    my $salt = draw_salt();
+    my $encoded_passwd = crypt($passwd, $salt);
+
+    print "$cvs_account:$encoded_passwd";
+    print ":$real_account" unless $real_account eq "";
+    print "\n";
+}
+
+sub draw_salt () {
+    my $salt_chars =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./';
+
+    my $idx1 = int(rand() * length($salt_chars));
+    my $idx2 = int(rand() * length($salt_chars));
+
+    my $chr1 = substr($salt_chars, $idx1, 1);
+    my $chr2 = substr($salt_chars, $idx2, 1);
+
+    return ($chr1 . $chr2);
+}
+</code>
+
+この Perl スクリプトを例えば cvsadduser という名前で保存し、
+以下のように実行した結果をメールします。
+<tscreen><verb>
+% perl cvsadduser
+cvs account: foobar   # アカウント名を入力
+password:             # パスワードを入力
+Re-enter password:    # もう一度
+real account (can be omitted):  # そのままリターン
+foobar:5/tS5Rk4UzvCM:   # これが出力
+</verb></tscreen>
+
+
+
+<sect1>ツリーを手元に引いてくる
+<p>
+まず環境変数 <tt/CVSROOT/ を定義しておきましょう。
+<tscreen><verb>
+sh 系:
+$ export CVSROOT=":pserver:username@cvs.linux.or.jp:/JM"
+csh 系:
+% setenv CVSROOT ":pserver:username@cvs.linux.or.jp:/JM"
+</verb></tscreen>
+username は先程連絡したアカウント名に置き換えてください。
+なお、この環境変数の値は cvs コマンドのコマンドラインの
+最初に -d オプションを指定すれば上書き可能です。
+詳細は cvs の man ページを読んでください。
+
+次に cvs committer としてのログインを行います。
+<tscreen><verb>
+% cvs login
+</verb></tscreen>
+と実行するとパスワードを尋ねられますので、
+cvsadduser を実行したときに入力したものを入れてください。
+パスワードなどの設定は &tilde;/.cvspass というファイルに書き込まれます。
+CVS パスワードがほとんど素通しに近い状態で書かれるので、
+chmod 600 しておくといいでしょう。
+
+cvs の認証に使うパスワードはネットワークを生で流れちゃいますし、
+&tilde;/.cvspass でも一応暗号化はされるものの、
+セキュリティとしては非常に甘いものなので
+普段お使いの大事なパスワードとは別のものを使うようにしてください。
+
+なお、長期にわたって CVS の編集を行わない場合は
+"cvs logout" コマンドを実行すれば &tilde;/.cvspass
+のエントリも削除されます。
+普通は login したままでかまわないでしょう。
+
+ではリポジトリツリーを持ってきましょう。
+適当なディレクトリを掘って移動してから
+以下のコマンドを実行します。
+<tscreen><verb>
+% cvs co JM
+</verb></tscreen>
+
+こうするとカレントディレクトリ下に
+JM/ というディレクトリが作成され、
+リポジトリから現在のファイルが送られて来ます。
+
+ちなみにこの文書を書いている 1999/7 現在の
+JM リポジトリの大きさは 5.4M 程です。
+CVS ファイルの転送は実際には圧縮して行われるはずですので、
+実際の転送量はこれよりも小さくなります (多分 1.5 M くらい)。
+
+
+<!-- - - - - - - - - - - section breaker - - - - - - - - - - -->
+<sect>CVS ツリーを変更・更新する<label id="cvs-usage">
+<sect1>コマンドラインから cvs を用いる方法
+<sect2>既存ファイルの編集・ファイルの追加
+<p>
+<enum>
+ <item>
+  編集したいディレクトリやファイルを、
+  あらかじめ cvs update しておきます。
+<tscreen><verb>
+% cvs upd some-dir
+% cvs upd some-file1 some-file2 ...
+</verb></tscreen>
+  などとすれば良いでしょう。引数にディレクトリを指定した場合は、
+  そのディレクトリ以下のツリーが再帰的に update されます。
+  引数を省略すると、カレントディレクトリを指定したことになります。
+
+ <item>
+  編集します。
+
+ <item>
+  編集した内容を ChangeLog に記述します。
+  emacs を使っている場合は、件のファイルを編集している最中に
+  C-x 4 a すれば ChageLog のエントリが開きますので、
+  適宜記述を加えてください。
+
+ <item>
+  新規追加したファイルがある場合は、
+<tscreen><verb>
+% cvs add ファイル名
+</verb></tscreen>
+  によってリポジトリへの追加を行います。
+  ただしバイナリファイルを追加するときには、
+  pcl-cvs からではなくコマンドラインから
+<tscreen><verb>
+% cvs add -kb (binaryfile)
+</verb></tscreen>
+  とするほうが良いでしょう。
+
+ <item>
+  編集が終わったら、
+<tscreen><verb>
+% cvs commit -m '(comment)' (ファイル名1) (ファイル名2) ...
+</verb></tscreen>
+  によってファイルを追加します。 -m を指定しないと
+  コメントを尋ねるバッファが開きますので、適宜指示にしたがって下さい。
+  <p>
+  ファイル名指定を省略すると、カレントディレクトリ以下で
+  変更が加えられたファイルが全て対象となります。
+</enum>
+
+<sect2>ファイルの削除・名前変更
+<p>
+作業前の cvs update、作業後の ChangeLog 編集・
+cvs commit は共通です。
+
+ファイルを削除する場合は二つやり方があります。
+一つめは、まず削除したいファイルを rm し、続いて
+削除したファイル・ディレクトリの共通の親ディレクトリに行き、
+"% cvs remove" する方法です。
+もう一つは、 "cvs remove -f *.1" のように -f オプションをつける
+方法です。これはファイルの削除も同時にやってくれます。
+
+名前変更は「変更前のファイル名のファイルを削除して、
+変更後のファイル名のファイルを新規 add する」という手順と
+等価になります。
+<tscreen><verb>
+% mv foo bar
+% cvs remove
+% cvs add bar
+% cvs commit -m '(comment)' foo bar
+</verb></tscreen>
+のようなかんじでしょうか。
+info cvs の
+"* Removing files::",
+"* Removing directories::" も参考にしてください。
+
+
+<sect1>pcl-cvs を用いる方法
+<p>
+pcl-cvs を使って編集作業と commit を行う場合には
+以下のような流れになります。
+
+<enum>
+ <item>
+  check out してきたファイルツリーのうち、
+  編集を行うファイルやディレクトリの最新版を取ってきます。
+<tscreen><verb>
+% cvs upd some-dir
+% cvs upd some-file1 some-file2 ...
+</verb></tscreen>
+  とすれば良いでしょう。引数にディレクトリを指定した場合は、
+  そのディレクトリ以下のツリーが再帰的に update されます。
+  引数を省略すると、カレントディレクトリを指定したことになります。
+
+ <item>
+  編集作業を行い、一段落付いたら emacs/mule から M-x cvs-update します。
+
+ <item>
+  自分が変更したファイルが *cvs* バッファにリストされます。
+  リストの上では C-p, C-n で移動できます。
+
+ <item>
+  新規に追加したファイルがある場合、これらは
+  "Unknown" と表示されますので、その上で "a" キーを押して
+  cvs add します。
+  <p>
+  バイナリファイルを追加する際には、上述のように -kb オプションを
+  追加して下さい。
+
+ <item>
+  追加ファイル、変更ファイルの上に移動して "A" キーを押します。
+  Changelog のバッファが現われ,
+<tscreen><verb>
+* foo.1
+</verb></tscreen>
+  のような行ができていますので、そこにコメントを書きます。
+  <p>
+  なお中野の現在の環境ですと、サブディレクトリのファイルについては、
+  ディレクトリ名を foo.html の前に手動で補う必要があるようです。
+
+ <item>
+  *cvs* バッファと Changelog のバッファを行き来して、
+  コメントをすべて追加しおわったら、
+  Changelog バッファを C-x C-s でセーブします。
+
+ <item>
+  *cvs* バッファで "g" を押すと、変更された
+  Changelog が現われると思います。
+  その後 "M" "m" で commit するファイルを選択して "C" キーを押します。
+
+ <item>
+  *cvs-commit-message* のバッファに、
+  Changelog に新たに加えたメッセージが現われると思います。
+  確認後 C-c C-c すれば commit されます。
+
+</enum>
+
+
+<!-- - - - - - - - - - - section breaker - - - - - - - - - - -->
+<sect>JM リポジトリの構造
+<P>
+この節の内容は
+<URL url="http://www.linux.or.jp/JM/guidance/repository.html">
+に引っ越しました。
+
+ただし上記ページに書いていない内容として、
+obsolete になったページの扱いがあります。
+つまり、以前の版では入っていたマニュアルページが、
+ある版からなくなったような場合です。
+
+この場合、 <tt>obsolete/</tt> というディレクトリを作成し、
+そこに <tt>man?/</tt> を掘って、 obsolete になったファイルを
+移動します。またルートに <tt/obsolete_list/ というファイルを作成し、
+<tt/translation_list/ のエントリをそちらに移動します。
+例としては <tt>util-linux/</tt> などを見てください。
+
+
+<!-- - - - - - - - - - - section breaker - - - - - - - - - - -->
+<sect>translation_list の書式<label id="translation_list">
+<P>
+(この節の内容は
+<URL url="http://www.linux.or.jp/JM/guidance/repository.html#translation_list">
+に引っ越しました。)
+
+
+<!-- - - - - - - - - - - section breaker - - - - - - - - - - -->
+<sect>マニュアル翻訳作業の流れ<label id="procedure">
+<p>
+一般作業者の作業手順は
+<URL url="http://www.linux.or.jp/JM/guidance/#flow">
+にまとめましたので、ここでは committer にしか
+できない作業、すなわちオリジナルのマニュアルを
+ツリーに追加する手順と、
+自分の作業をリポジトリに登録する作業に関して記述します。
+
+<sect1>翻訳するマニュアルをインポートする<label id="import_original">
+<P>
+最初にお断りしておきますが、
+実際のツリーのファイルをそのまま置き換えて
+add → commit するほうが楽でしたら、
+そちらの方法をとっていただいてもかまいません
+(ただし add を用いる場合も -ko オプションをつけてください)。
+以下は「インポート (import)」というやり方で、
+CVS 的にはこちらのほうが一般的になるかと思います。
+
+翻訳したいマニュアルの一次配布元は、
+ソースパッケージであることが多いでしょう。
+ソースパッケージの探し方は中野の書いた
+<url url="http://surf.ap.seikei.ac.jp/~nakano/linux/roff-trans.html"
+   name="roff ページ翻訳の Tips">
+なども参考にしてください。見付からない場合は
+JM ML で相談してみましょう。
+
+以下では、中野が行った
+<htmlurl
+url="ftp://sunsite.sut.ac.jp/pub/archives/linux/sunsite-unc/utils/disk-management/fdutils-5.3.tar.gz"
+name="fdutils-5.3.tar.gz">
+の場合を例に取ります。
+
+まずアーカイブからマニュアルファイルを取り出して、
+<verb>
+~/import -+- translation_list
+          +- ChangeLog
+          +- original -+- fdutils.lsm
+                       +- man1 -+- diskd.1
+                       |        +- diskseekd.1
+                       :            :
+                       +- man4 -+- fd.4
+</verb>
+のようなかたちに並べます (これがインポートツリーです)。
+ChangeLog は touch で作り、
+translation_list は当初はステータス×で作っておけばいいでしょう。
+この段階での translation_list は
+以下のような内容になるはずです。
+<code>
+×:fdutils:5.3:1999/07/02:diskd:1:::::::
+×:fdutils:5.3:1999/07/02:diskseekd:1:::::::
+</code>
+translation_list の作成には、admin/mktrlist
+スクリプトが役に立つでしょう。
+使い方はスクリプト本文のヘッダを読んでください。
+
+fdutils.lsm というのはいわゆる LSM ファイルと呼ばれるもので、
+ソフトウェアに関する情報がまとめられているファイルです。
+Linux 向けソフトウェアのアーカイブには大抵入っていると思いますので、
+存在していたら入れておきましょう。
+なければ readme のようなファイルを作って、
+ファイルの入手先やその他メモなどを書いておいてください。
+
+ここで &tilde;/import に移動して、
+<tscreen><verb>
+cvs import -ko JM/manual/fdutils/ JMsrc FDUTILS_5_3
+</verb></tscreen>
+のように入力します。 JMsrc は「ベンダータグ」と呼ばれるもので、
+とりあえず JMsrc に固定でいいと思います。
+FDUTILS_5_3 は「ブランチタグ」というもので、
+(basename)_(version) という書式で書くのが良いでしょう。
+ただし . は使えないので、_ で代替してください。
+このあたりの詳細は、 info cvs の "Tracking third-party sources"
+の部分を参照してください。
+-ko は「元ファイルの rcs キーワードを書き換えない」
+ために必要なオプションです。
+
+インポートが終わったら ML に translation_list を流して、
+作業者を募ると良いでしょう。
+
+<sect1>upstream の更新に追随する
+<p>
+初回にインポートするときも、
+upstream の更新に追随してインポートするときも、
+手順はほとんど同じです。
+ただし更新の時には、後述するインポートツリーに
+ChangeLog と translation_list を用意する必要はありません。
+その代わり import したあと手元のリポジトリに
+cvs update をかけ、 conflict を解消し、
+translation_list や ChangeLog を適宜修正してください。
+
+translation_list の更新には、 admin/upd_tl.perl
+を用いると多少作業が楽になるかもしれません。
+利用法は同スクリプトにコメントとして書いてあります。
+
+<sect1>ML に流れたポストの登録
+<P>
+ML に流すポストは、
+<URL url="http://www.linux.or.jp/JM/guidance/mailformat.html#JMpost"
+name="JMpost">
+を使って投稿してもらうように協力をお願いしています。
+
+この形式に従ったポストは、中野の管理するホスト上で
+MH の slocal コマンドによって特定のフォルダに保存され、
+<tt>JM/admin/ciJMpost.pl</tt> スクリプトによって
+自動的に CVS リポジトリに commit されます。
+このコマンドは cron 実行されており、タイミングは
+<tscreen><verb>
+0 */6 * * *
+</verb></tscreen>
+です。
+
+<!--
+この形式に従ったポストを CVS リポジトリの admin/ ディレクトリにある
+<tt/ml2cvs/ コマンドの標準入力に食わせれば、
+リポジトリにあるファイルが必要に応じて更新されます。
+
+MH 形式のメールボックスを使っている人は、
+以下のようなスクリプトを使うといいかもしれません。
+<code>
+#!/bin/sh
+show -showproc cat $1 | ~/JM/admin/ml2cvs
+</code>
+scan コマンドでメールボックスのファイル番号を見つけ、
+これを引数に指定して実行すればいいです。
+
+更新されたファイルは標準出力にリストされますから、
+これらのファイルに対して (必要なら cvs add と)
+cvs update をかけてください。
+リリースされた場合には www/news.m4 も更新されますので、
+見逃さないようにしてください :-)
+-->
+
+<sect1>自分の作業をローカルにリリースする
+<p>
+committer が自分で翻訳作業をする場合、
+draft は ML に流すことが推奨されますが、
+release は特に ML には流さなくてもいいでしょう。
+
+手元で release 版を登録するときは、
+draft/ で作業していたファイルを一回どこかにコピーします。
+そしてそのファイルに対して JMpost コマンドを -post フラグ
+無しで実行し、 admin/ml2cvs コマンドにパイプでつなぐと良いでしょう。
+
+後は標準出力に出されたファイルを cvs add, commit
+してください。
+
+<sect1>あるパッケージからの最初のリリース
+<p>
+新たにパッケージを CVS ツリーに登録するときと、
+その中にあるマニュアルページを初めてリリースするときには、
+手作業で行わなければならないことがそれぞれひとつづつあります。
+
+<descrip>
+<tag><tt>www/INDEX</tt> の <tt/*.list/ に登録する</tag>
+<tt>www/INDEX</tt> にあるインデックスページを作る際には、 
+そのディレクトリにある <tt/*.list/ というファイルを参照します。
+パッケージの種別に応じて、 <tt/gnu.list/, <tt/linux.list/,
+<tt/misc.list/ のいずれかに、パッケージのディレクトリ名を
+追加してください。
+
+<tag><tt>dist/script/pkgs.list</tt> に登録する</tag>
+配布アーカイブにで <tt/make config/ するとき、
+参照するリストが <tt>script/pkgs.list</tt> です。
+ここに書いてある順番に、インストールするかどうかの
+質問がされますので、適当な位置にパッケージディレクトリ名を
+挿入してください。デフォルトの Y/N も決めておいてください。
+</descrip>
+
+<!-- - - - - - - - - - - section breaker - - - - - - - - - - -->
+<sect>他プロジェクトの成果のインポート<label id="import_contrib">
+<P>
+他のプロジェクトの成果を寄贈していただいた場合は、
+<URL url="http://www.linux.or.jp/JM/guidance/repository.html">
+のようなかたちで cvs ツリーに  add(ないしは import) してください。
+その場合 rcs キーワードが書き換わらないよう、
+<tscreen><verb>
+cvs add -ko hoge.1; cvs ci hoge.1
+</verb></tscreen>
+や
+<tscreen><verb>
+cvs import -ko
+</verb></tscreen>
+のように -ko オプションをつけてください。
+
+ファイルのインポートが終わったら、
+translation_list のエントリを編集してください。
+<URL url="http://www.linux.or.jp/JM/guidance/repository.html#translation_list">
+を参照してください。
+
+その後、適宜 www/news.m4 に記述をしてください。
+
+<!-- - - - - - - - - - - section breaker - - - - - - - - - - -->
+<sect>ビルドと公開
+<sect1>JM の利用しているリソース
+<p>
+CVS リポジトリの内容は、後節で説明するようにビルド・公開されます。
+ここでは、この作業に関るサーバ群を紹介します。
+
+これらのリソースは JLA システム管理部会から提供されています。
+なにか問題があったら、 <tt/JLA-admin@linux.or.jp/
+までメールするようにしてください。
+
+なお、以下に示す URI には、パスワードがかかっていることがあります。
+もしユーザ名とパスワードを訪ねられたら、
+<itemize>
+ <item>user: jm
+ <item>pass: bayoe-n
+</itemize>
+を入力してください。
+
+CVS リポジトリの内容そのものは
+cvs.linux.or.jp という CVS サーバにあります。
+<URL URL="http://cvs.linux.or.jp/JM/">
+にて閲覧できます。また変更履歴などを見やすいかたちにした
+CVSWEB という閲覧形式もあります。これは
+<URL URL="http://cvs.linux.or.jp/cgi-bin/cvsweb/?cvsroot=JM">
+から見ることができます。
+
+CVS から WWW コンテンツをビルドする作業は
+master.linux.or.jp というマシンで行われます。
+ビルドのタイミングは
+<tscreen><verb>
+25 * * * *     コンテンツのビルド
+0  6 * * *     namazu インデックスの生成
+</verb></tscreen>
+となっています。
+
+ビルドのログは
+<URL URL="http://master.linux.or.jp/~jm/">
+から、
+ビルドされた内容は
+<URL URL="http://master.linux.or.jp/JM/">
+からそれぞれ見ることができます。
+後者は
+<tscreen><verb>
+13,28,43,58 * * *
+</verb></tscreen>
+のタイミングで、公開サーバである
+<URL URL="http://www.linux.or.jp/JM">
+に転送されています。
+
+<sect1>ビルドの仕組み
+<p>
+cvs リポジトリのトップディレクトリから
+<tscreen><verb>
+make
+</verb></tscreen>
+とすると、 tarball アーカイブ (.tar.gz) と rpm ファイルを除く
+Web コンテンツができます。
+
+<tscreen><verb>
+make tarball
+</verb></tscreen>
+とすると、アーカイブだけができます。
+
+<tscreen><verb>
+make rpm
+</verb></tscreen>
+とすると、 rpm ファイルができます。 rpm は
+tarball をソースにしているので、同時に tarball もできます。
+
+<tscreen><verb>
+make all
+</verb></tscreen>
+とすると、アーカイブを含めた全てのコンテンツができます。
+
+あとはすみません、Makefile を追ってみてください(^^;
+タイムスタンプを保存し、
+ビルドのキーになるファイルを、以下にいくつかあげておきます。
+<descrip>
+<tag/cvs-release-modified/
+ manual/*/release 以下のファイルが変更されると
+ このファイルが touch されます。 html ツリーや、
+ man.cgi のデータベースの再生成の ignition になります。
+
+<tag/cvs-status-modified/
+ manual/ 以下のファイルが変更されると
+ このファイルが touch されます。
+ roff ツリーの再生成 (って mirrordir してるだけですが) や
+ www/INDEX/ 以下のページの再生成の ignition になります。
+
+<tag/www-html-modified/
+ html ツリーを最終更新した日付を保存します。
+ これが cvs-release-modified より古いと、
+ ツリーの再生成が行われます。
+
+<tag/www-roff-modified/
+ roff ツリーを最終更新した日付を保存します。
+ これと cvs-status-modified より古いと、
+ ツリーの再生成が行われます。
+
+<tag/latest-archives-modified/
+ tarball, rpm が最終更新された日付を保存します。
+ www/download.m4 から download.html を作成するときなどに参照します。
+</descrip>
+
+環境に依存する make のマクロは、
+<tt/JM.rules/ にまとめてあります。これらを適宜定義しなおして
+make を実行すれば良いでしょう。
+例えば中野は手元で実験的にビルドを行うときには、
+以下のようなスクリプトを使っています。
+<code>
+#!/bin/sh
+make WWWROOT=/home/nakano/public_html/JMwww\
+        CGIROOT=/home/nakano/public_html/cgi-bin $*
+</code>
+
+デフォルトの設定では 、rpm のトップディレクトリは
+$(TMPDIR)/RPM となるので、rpm の生成を行うためには:
+<itemize>
+<item>3.0 以前の rpm なら、 &tilde;/.rpmrc ファイルに
+<code>
+topdir /home/jm/tmp/RPM
+</code>
+<item>3.0 以降の rpm コマンドなら、 &tilde;/.rpmmacros に
+<code>
+%_topdir /home/jm/tmp/RPM
+</code>
+</itemize>
+のような指定が必要になります。
+
+<!-- - - - - - - - - - - section breaker - - - - - - - - - - -->
+<sect>参考文献
+<sect1>CVS 一般:
+<p>
+<itemize>
+ <item><url url="http://www.cyclic.com/">
+ <item><url url="http://www-vox.dj.kit.ac.jp/nishi/cvs/cvs.html">
+</itemize>
+
+<sect1>JM の文書
+<p>
+<itemize>
+ <item><url url="http://www.linux.or.jp/JM/guidance/">
+ <item><url url="http://surf.ap.seikei.ac.jp/~nakano/linux/roff-trans.html">
+</itemize>
+
+<sect1>JF の CVS 関連文書
+<p>
+<itemize>
+ <item><url url="http://www.linux.or.jp/JF/workshop/guidance.html">
+ <item><url url="http://www.linet.gr.jp/&tilde;fuku/JF-CVS-README/JF-CVS-README.html">
+</itemize>
+
+<sect1>www.linux.or.jp の CVS 関連文書
+<p>
+<itemize>
+ <item><url url="http://www.linux.or.jp/column/19990210.html">
+ <item><url url="http://www.linux.or.jp/column/20000308.html">
+ <item><url url="http://cvs.linux.or.jp/webmaster/howto/cvs-memo.txt">
+ <item><url url="http://cvs.linux.or.jp/webmaster/howto/commiter-howto.txt">
+</itemize>
+
+</article>
