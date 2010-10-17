@@ -18,7 +18,7 @@ fi
 
 if [ ! -f $SM ]; then
 	touch $SM
-elif (find manual -newer $SM | grep -q "."); then
+elif (find manual -name translation_list -newer $SM | grep -q "."); then
 	touch $SM
 fi
 
