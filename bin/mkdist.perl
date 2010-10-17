@@ -16,8 +16,8 @@ use strict 'vars';
 
 my ($idx_header, $idx_footer);
 #
-# $CVSROOT ¤Ï CVS ¥ê¥İ¥¸¥È¥ê¤Î root,
-# $DISTROOT ¤ÏÇÛÉÛ¥¢¡¼¥«¥¤¥Ö¥¤¥á¡¼¥¸¤Î root.
+# $CVSROOT ã¯ CVS ãƒªãƒã‚¸ãƒˆãƒªã® root,
+# $DISTROOT ã¯é…å¸ƒã‚¢ãƒ¼ã‚«ã‚¤ãƒ–ã‚¤ãƒ¡ãƒ¼ã‚¸ã® root.
 #
 if (@ARGV < 3) {die "$0 srcroot dstroot pod2man\n"};
 
@@ -35,7 +35,7 @@ unless (-x $POD2MAN) {die "$POD2MAN is not executable\n"};
 #my $DISTROOT = "/var/tmp/JM/man-pages-ja";
 
 #
-# ¤¤¤Ã¤¿¤ó $DISTROOT/manual ¤ò¤ªÁİ½ü¡£
+# ã„ã£ãŸã‚“ $DISTROOT/manual ã‚’ãŠæƒé™¤ã€‚
 #
 if (-d "$DISTROOT/manual") {
     system("rm -rf $DISTROOT/manual");
@@ -44,7 +44,7 @@ system("mkdir -p $DISTROOT/manual");
 
 my (%roff_hash, %link_hash);
 #
-# $CVSROOT/manual/$pkg/translation_list ¤Î scan.
+# $CVSROOT/manual/$pkg/translation_list ã® scan.
 #
 print "scanning translation_list's...\n";
 open RL,"find $CVSROOT/manual -name translation_list|";
@@ -93,7 +93,7 @@ while(<RL>){
 close RL;
 
 #
-# copy ³«»Ï
+# copy é–‹å§‹
 #
 foreach my $fkey (sort keys %roff_hash){
     my ($pkg,$name,$sec)=split /,/, $fkey;
@@ -124,12 +124,12 @@ foreach my $fkey (sort keys %link_hash){
 }
 
 #
-# pod ¥Ç¡¼¥¿¼ı½¸
+# pod ãƒ‡ãƒ¼ã‚¿åé›†
 #
 print "TRANSLATING pod -> man\n";
 my (%pod_hash);
 #
-# $CVSROOT/pod/$pkg/translation_list ¤Î scan.
+# $CVSROOT/pod/$pkg/translation_list ã® scan.
 #
 print "scanning translation_list's...\n";
 open RL,"find $CVSROOT/pod -name translation_list|";
@@ -163,7 +163,7 @@ while(<RL>){
 close RL;
 
 #
-# ÊÑ´¹³«»Ï
+# å¤‰æ›é–‹å§‹
 #
 foreach my $fkey (sort keys %pod_hash){
     my ($pkg,$name)=split /,/, $fkey;

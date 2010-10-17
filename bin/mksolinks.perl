@@ -3,9 +3,9 @@
 # $Id: mksolinks.perl,v 1.2 2000/08/02 10:00:22 nakano Exp $
 #
 # mksolinks.perl:
-#   $MANROOT (ÁÛÄê¤·¤Æ¤¤¤ë¤Î¤Ï checkout ¤·¤Æ¤­¤¿ JM CVS ¥ê¥İ¥¸¥È¥ê ¤Î
-#   (JM/manual/) °Ê²¼¤Ë¤¢¤ë */translation_list ¤ò¸«¤Æ¡¢ */release/man?
-#   °Ê²¼¤Ë .so ¥ê¥ó¥¯¤Î¥Õ¥¡¥¤¥ë¤òºî¤ë¥¹¥¯¥ê¥×¥È.
+#   $MANROOT (æƒ³å®šã—ã¦ã„ã‚‹ã®ã¯ checkout ã—ã¦ããŸ JM CVS ãƒªãƒã‚¸ãƒˆãƒª ã®
+#   (JM/manual/) ä»¥ä¸‹ã«ã‚ã‚‹ */translation_list ã‚’è¦‹ã¦ã€ */release/man?
+#   ä»¥ä¸‹ã« .so ãƒªãƒ³ã‚¯ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ä½œã‚‹ã‚¹ã‚¯ãƒªãƒ—ãƒˆ.
 #
 $TRANSLIST = "translation_list";
 
@@ -19,9 +19,9 @@ unless (-d $MANROOT) {die "$MANROOT does not exist\n"};
 open(RL,"cat `find $MANROOT -name $TRANSLIST` |");
 while(<RL>){
 	chop;
-	unless (/^¡÷/) {next};
+	unless (/^ï¼ /) {next};
 
-# ¢¨:yp-tools:2.3:1998/05/??:ypchfn:1:yppasswd:1:
+# â€»:yp-tools:2.3:1998/05/??:ypchfn:1:yppasswd:1:
 #
 	@lf = split /:/;
 	$pkg = $lf[1];

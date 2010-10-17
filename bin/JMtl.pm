@@ -5,44 +5,44 @@
 package JMtl;
 
 #
-# JMtl.pm: JM translation_list ¥Ç¡¼¥¿¥Ù¡¼¥¹ÍÑ perl module.
-# translation_list ¤Î¥¨¥ó¥È¥ê¤È hash ¤ÎÁê¸ßÊÑ´¹¤ò¤¹¤ë
+# JMtl.pm: JM translation_list ãƒ‡ãƒ¼ã‚¿ãƒ™ãƒ¼ã‚¹ç”¨ perl module.
+# translation_list ã®ã‚¨ãƒ³ãƒˆãƒªã¨ hash ã®ç›¸äº’å¤‰æ›ã‚’ã™ã‚‹
 # subroutines.
 #
-# hash ¤Î¥¨¥ó¥È¥ê¤Ï°Ê²¼¤ÎÄÌ¤ê.
-#  mark: translation_list ÀèÆ¬¤ÎÁ´³ÑÊ¸»ú¤Î¥Ş¡¼¥¯.
-#  kind: .so ¥ê¥ó¥¯¤Î¥Õ¥¡¥¤¥ë¤Ê¤é "link", ¤½¤ì°Ê³°¤Ê¤é "roff"
-#  stat: Ê¸½ñ¤Î¥¹¥Æ¡¼¥¿¥¹. °Ê²¼¤Î¤¤¤º¤ì¤«.
+# hash ã®ã‚¨ãƒ³ãƒˆãƒªã¯ä»¥ä¸‹ã®é€šã‚Š.
+#  mark: translation_list å…ˆé ­ã®å…¨è§’æ–‡å­—ã®ãƒãƒ¼ã‚¯.
+#  kind: .so ãƒªãƒ³ã‚¯ã®ãƒ•ã‚¡ã‚¤ãƒ«ãªã‚‰ "link", ãã‚Œä»¥å¤–ãªã‚‰ "roff"
+#  stat: æ–‡æ›¸ã®ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹. ä»¥ä¸‹ã®ã„ãšã‚Œã‹.
 #    1st_non, 1st_rsv, 1st_dft, 1st_prf
 #    upd_non, upd_rsv, upd_dft, upd_prf
 #    up2date, up2datR
 #    cnt_upd, cnt_old
-#  pkg:  ¥Ñ¥Ã¥±¡¼¥¸Ì¾.
-#  over: ¥ª¥ê¥¸¥Ê¥ë¤Î¥Ğ¡¼¥¸¥ç¥ó.
-#  dver: ËİÌõÃæ¥Ú¡¼¥¸¤Î¥Ğ¡¼¥¸¥ç¥ó.
-#  rver: ¥ê¥ê¡¼¥¹ÈÇËİÌõ¥Ú¡¼¥¸¤Î¥Ğ¡¼¥¸¥ç¥ó.
-#  odat: ¥ª¥ê¥¸¥Ê¥ëÊ¸½ñ¤Î¹¹¿·ÆüÉÕ.
-#  fname: ¥Ú¡¼¥¸¥Õ¥¡¥¤¥ë¥Õ¥¡¥¤¥ë¤Î basename ÉôÊ¬
-#  sec:   ¥Ú¡¼¥¸¥Õ¥¡¥¤¥ë¤Î¥»¥¯¥·¥ç¥ó 
-#  newsec:  ¥ª¥ê¥¸¥Ê¥ë¥Ú¡¼¥¸¤Î¥»¥¯¥·¥ç¥ó (¥»¥¯¥·¥ç¥ó¤¬ÊÑ¤ï¤Ã¤¿¾ì¹ç)
-#  comment: ¥³¥á¥ó¥È.
+#  pkg:  ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸å.
+#  over: ã‚ªãƒªã‚¸ãƒŠãƒ«ã®ãƒãƒ¼ã‚¸ãƒ§ãƒ³.
+#  dver: ç¿»è¨³ä¸­ãƒšãƒ¼ã‚¸ã®ãƒãƒ¼ã‚¸ãƒ§ãƒ³.
+#  rver: ãƒªãƒªãƒ¼ã‚¹ç‰ˆç¿»è¨³ãƒšãƒ¼ã‚¸ã®ãƒãƒ¼ã‚¸ãƒ§ãƒ³.
+#  odat: ã‚ªãƒªã‚¸ãƒŠãƒ«æ–‡æ›¸ã®æ›´æ–°æ—¥ä»˜.
+#  fname: ãƒšãƒ¼ã‚¸ãƒ•ã‚¡ã‚¤ãƒ«ãƒ•ã‚¡ã‚¤ãƒ«ã® basename éƒ¨åˆ†
+#  sec:   ãƒšãƒ¼ã‚¸ãƒ•ã‚¡ã‚¤ãƒ«ã®ã‚»ã‚¯ã‚·ãƒ§ãƒ³ 
+#  newsec:  ã‚ªãƒªã‚¸ãƒŠãƒ«ãƒšãƒ¼ã‚¸ã®ã‚»ã‚¯ã‚·ãƒ§ãƒ³ (ã‚»ã‚¯ã‚·ãƒ§ãƒ³ãŒå¤‰ã‚ã£ãŸå ´åˆ)
+#  comment: ã‚³ãƒ¡ãƒ³ãƒˆ.
 #
-# (°Ê²¼¤Ï kind ¤¬ roff ¤Î¥Ú¡¼¥¸¤Î¤ß)
-#  tdat: ËİÌõºî¶È¤ÎºÇ½ª¹¹¿·Æü
-#  copy: ¥Ú¡¼¥¸¤Î¥³¥Ô¡¼¥é¥¤¥È¤Î¼ïÎà (G, B, M)
-#  tmail: ºî¶È¼Ô¤Î¥á¡¼¥ë¥¢¥É¥ì¥¹
-#  tname: ºî¶È¼Ô¤Î Real Name
+# (ä»¥ä¸‹ã¯ kind ãŒ roff ã®ãƒšãƒ¼ã‚¸ã®ã¿)
+#  tdat: ç¿»è¨³ä½œæ¥­ã®æœ€çµ‚æ›´æ–°æ—¥
+#  copy: ãƒšãƒ¼ã‚¸ã®ã‚³ãƒ”ãƒ¼ãƒ©ã‚¤ãƒˆã®ç¨®é¡ (G, B, M)
+#  tmail: ä½œæ¥­è€…ã®ãƒ¡ãƒ¼ãƒ«ã‚¢ãƒ‰ãƒ¬ã‚¹
+#  tname: ä½œæ¥­è€…ã® Real Name
 #
-# (°Ê²¼¤Ï kind ¤¬ link ¤Î¥Ú¡¼¥¸¤Î¤ß)
-#  lname: ¥ê¥ó¥¯Àè¥Ú¡¼¥¸¤Î basename
-#  lsec:  ¥ê¥ó¥¯Àè¥Ú¡¼¥¸¤Î¥»¥¯¥·¥ç¥ó
+# (ä»¥ä¸‹ã¯ kind ãŒ link ã®ãƒšãƒ¼ã‚¸ã®ã¿)
+#  lname: ãƒªãƒ³ã‚¯å…ˆãƒšãƒ¼ã‚¸ã® basename
+#  lsec:  ãƒªãƒ³ã‚¯å…ˆãƒšãƒ¼ã‚¸ã®ã‚»ã‚¯ã‚·ãƒ§ãƒ³
 #
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(line2hash hash2line);
 
 #
-# entry ¢ª hash.
+# entry â†’ hash.
 #
 sub line2hash($) {
     my ($entry) = @_;
@@ -57,22 +57,22 @@ sub line2hash($) {
     my $kind = 'roff';
 
   SW1: {
-      if ($mark eq '¡ß') {$stat = '1st_non'; last SW1;}
-      if ($mark eq '¢¥') {$stat = '1st_rsv'; last SW1;}
-      if ($mark eq '¢¤') {$stat = '1st_dft'; last SW1;}
-      if ($mark eq '¡ü') {$stat = '1st_prf'; last SW1;}
-      if ($mark eq '¡ù') {$stat = 'upd_non'; last SW1;}
-      if ($mark eq '¢£') {$stat = 'upd_rsv'; last SW1;}
-      if ($mark eq '¢¢') {$stat = 'upd_dft'; last SW1;}
-      if ($mark eq '¢¡') {$stat = 'upd_prf'; last SW1;}
-      if ($mark eq '¡û') {$stat = 'up2date'; last SW1;}
-      if ($mark eq '¡ı') {$stat = 'up2datR'; last SW1;}
-      if ($mark eq '£Ã') {$stat = 'cnt_upd'; last SW1;}
-      if ($mark eq '£ã') {$stat = 'cnt_old'; last SW1;}
+      if ($mark eq 'Ã—') {$stat = '1st_non'; last SW1;}
+      if ($mark eq 'â–²') {$stat = '1st_rsv'; last SW1;}
+      if ($mark eq 'â–³') {$stat = '1st_dft'; last SW1;}
+      if ($mark eq 'â—') {$stat = '1st_prf'; last SW1;}
+      if ($mark eq 'â˜†') {$stat = 'upd_non'; last SW1;}
+      if ($mark eq 'â– ') {$stat = 'upd_rsv'; last SW1;}
+      if ($mark eq 'â–¡') {$stat = 'upd_dft'; last SW1;}
+      if ($mark eq 'â—†') {$stat = 'upd_prf'; last SW1;}
+      if ($mark eq 'â—‹') {$stat = 'up2date'; last SW1;}
+      if ($mark eq 'â—') {$stat = 'up2datR'; last SW1;}
+      if ($mark eq 'ï¼£') {$stat = 'cnt_upd'; last SW1;}
+      if ($mark eq 'ï½ƒ') {$stat = 'cnt_old'; last SW1;}
       
       $kind = 'link';
-      if ($mark eq '¡÷') {$stat = 'up2date'; last SW1;}
-      if ($mark eq '¢¨') {$stat = '1st_non'; last SW1;}
+      if ($mark eq 'ï¼ ') {$stat = 'up2date'; last SW1;}
+      if ($mark eq 'â€»') {$stat = '1st_non'; last SW1;}
   }
 
     $thash{'mark'} = $mark;
@@ -84,28 +84,28 @@ sub line2hash($) {
     my @vers = split /=>/, $member[2];
   SW2: {
 
-      # original version ¤Ï¾ï¤Ë°ìÈÖºÇ¸å.
+      # original version ã¯å¸¸ã«ä¸€ç•ªæœ€å¾Œ.
       #
       $thash{'over'} = $vers[$#vers];
 
       if ($stat eq /1st_(non|rsv)/) {last SW2;}
 
-      # ºÇ½é¤ÎËİÌõ¤Ç¤Ï¡¢ÀèÆ¬¤¬ draft version.
+      # æœ€åˆã®ç¿»è¨³ã§ã¯ã€å…ˆé ­ãŒ draft version.
       #
       if ($stat =~ /1st_/) {
 	  $thash{'dver'} = $vers[0];
 	  last SW2;
       }
 
-      # ¤½¤ì°Ê³°, release version ¤Ï¾ï¤ËÀèÆ¬.
+      # ãã‚Œä»¥å¤–, release version ã¯å¸¸ã«å…ˆé ­.
       #
       $thash{'rver'} = $vers[0];
 
       if ($stat =~ /up2dat/) { last SW2; }
       if ($stat eq /upd_(non|rsv)/) { last SW2; }
 
-      # update ºî¶ÈÃæ¡¢draft version ¤Ï
-      # release version ¤Î°ì¤ÄÀè
+      # update ä½œæ¥­ä¸­ã€draft version ã¯
+      # release version ã®ä¸€ã¤å…ˆ
       #
       $thash{'dver'} = $vers[1];
   }
@@ -141,7 +141,7 @@ sub line2hash($) {
 }
 
 #
-# hash ¢ª line. hash ¤Ï¥ê¥Õ¥¡¥ì¥ó¥¹¤ÇÅÏ¤¹¤³¤È.
+# hash â†’ line. hash ã¯ãƒªãƒ•ã‚¡ãƒ¬ãƒ³ã‚¹ã§æ¸¡ã™ã“ã¨.
 #
 sub hash2line (\%){
     my ($arg) = @_;
@@ -151,8 +151,8 @@ sub hash2line (\%){
     my $stat = $thash{'stat'};
     
     if ($thash{'kind'} eq 'link') {
-	if ($stat eq 'up2date') {$entry = '¡÷'}
-	elsif ($stat eq '1st_non') {$entry = '¢¨'}
+	if ($stat eq 'up2date') {$entry = 'ï¼ '}
+	elsif ($stat eq '1st_non') {$entry = 'â€»'}
         else {die "$stat is not permitted for link"}
 
 	$entry .= ":$thash{'pkg'}:$thash{'over'}:$thash{'odat'}";
@@ -171,18 +171,18 @@ sub hash2line (\%){
     # roff page case
     #
   SW3: {
-      if ($stat eq '1st_non') {$entry = '¡ß';last SW3;}
-      if ($stat eq '1st_rsv') {$entry = '¢¥';last SW3;}
-      if ($stat eq '1st_dft') {$entry = '¢¤';last SW3;}
-      if ($stat eq '1st_prf') {$entry = '¡ü';last SW3;}
-      if ($stat eq 'upd_non') {$entry = '¡ù';last SW3;}
-      if ($stat eq 'upd_rsv') {$entry = '¢£';last SW3;}
-      if ($stat eq 'upd_dft') {$entry = '¢¢';last SW3;}
-      if ($stat eq 'upd_prf') {$entry = '¢¡';last SW3;}
-      if ($stat eq 'up2date') {$entry = '¡û';last SW3;}
-      if ($stat eq 'up2datR') {$entry = '¡ı';last SW3;}
-      if ($stat eq 'cnt_upd') {$entry = '£Ã';last SW3;}
-      if ($stat eq 'cnt_old') {$entry = '£ã';last SW3;}
+      if ($stat eq '1st_non') {$entry = 'Ã—';last SW3;}
+      if ($stat eq '1st_rsv') {$entry = 'â–²';last SW3;}
+      if ($stat eq '1st_dft') {$entry = 'â–³';last SW3;}
+      if ($stat eq '1st_prf') {$entry = 'â—';last SW3;}
+      if ($stat eq 'upd_non') {$entry = 'â˜†';last SW3;}
+      if ($stat eq 'upd_rsv') {$entry = 'â– ';last SW3;}
+      if ($stat eq 'upd_dft') {$entry = 'â–¡';last SW3;}
+      if ($stat eq 'upd_prf') {$entry = 'â—†';last SW3;}
+      if ($stat eq 'up2date') {$entry = 'â—‹';last SW3;}
+      if ($stat eq 'up2datR') {$entry = 'â—';last SW3;}
+      if ($stat eq 'cnt_upd') {$entry = 'ï¼£';last SW3;}
+      if ($stat eq 'cnt_old') {$entry = 'ï½ƒ';last SW3;}
   }
     $entry .= ":$thash{'pkg'}";
 

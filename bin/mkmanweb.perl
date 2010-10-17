@@ -17,9 +17,9 @@ use strict 'vars';
 my ($idx_header, $idx_footer);
 
 #
-# $MANROOT ¤Ï CVS ¥ê¥İ¥¸¥È¥ê¤Î JM/manual,
-# $WWWROOT ¤Ï web ¤Î html ¥³¥ó¥Æ¥ó¥Ä¤Î¥È¥Ã¥×,
-# $MAN2HTML ¤Ï man2html ¥³¥Ş¥ó¥É¤òÁÛÄê.
+# $MANROOT ã¯ CVS ãƒªãƒã‚¸ãƒˆãƒªã® JM/manual,
+# $WWWROOT ã¯ web ã® html ã‚³ãƒ³ãƒ†ãƒ³ãƒ„ã®ãƒˆãƒƒãƒ—,
+# $MAN2HTML ã¯ man2html ã‚³ãƒãƒ³ãƒ‰ã‚’æƒ³å®š.
 #
 if (@ARGV < 4) {die "$0 srcroot destroot man2html yaman2html\n"};
 
@@ -32,7 +32,7 @@ my $MAN2HTML = $ARGV[2];
 unless (-x $MAN2HTML) {die "$MAN2HTML does not executable\n"};
 
 #
-# man2html ¤À¤È¥Ğ¥°¤Î½Ğ¤ë¥Ú¡¼¥¸ÍÑ¤ÎÀ°·Á¥³¥Ş¥ó¥É
+# man2html ã ã¨ãƒã‚°ã®å‡ºã‚‹ãƒšãƒ¼ã‚¸ç”¨ã®æ•´å½¢ã‚³ãƒãƒ³ãƒ‰
 #
 my $YAMAN2HTML = $ARGV[3];
 unless (-x $YAMAN2HTML) {die "$YAMAN2HTML does not executable\n"};
@@ -46,7 +46,7 @@ unless (-x $YAMAN2HTML) {die "$YAMAN2HTML does not executable\n"};
 #my $YAMAN2HTML = "/home/nakano/text/JM/head/admin/tools/yaman2html.perl";
 
 #
-# man2html ½ĞÎÏ¤ËÂĞ¤·¤ÆÃÖ´¹¤¹¤ë³Æ¥ê¥ó¥¯ (·è¤áÂÇ¤Á(^^;)
+# man2html å‡ºåŠ›ã«å¯¾ã—ã¦ç½®æ›ã™ã‚‹å„ãƒªãƒ³ã‚¯ (æ±ºã‚æ‰“ã¡(^^;)
 #
 my $MANWROOT='../../../manual';
 my $MAIN='<A HREF="../../../index.html">JM Home Page</A>';
@@ -58,7 +58,7 @@ my $SELECT='0MultiFileIdx';
 
 my (%roff_hash, %page_name, %link_hash, %cont_link);
 #
-# $MANROOT/$pkg/translation_list ¤Î scan.
+# $MANROOT/$pkg/translation_list ã® scan.
 #
 print "scanning translation_list's...\n";
 open RL,"find $MANROOT -name translation_list|";
@@ -99,8 +99,8 @@ while(<RL>){
 	    push @{$page_name{"$name,$sec"}}, "$page";
 	    $cont_link{$page} = <<EOM;
 <DIV ALIGN="right">
-ËÜ¥Ú¡¼¥¸¤Ï <A HREF="$ti{comment}">$ti{tname}</A>
-($ti{tmail}) ¤è¤ê´óÂ£¤¤¤¿¤À¤­¤Ş¤·¤¿¡£
+æœ¬ãƒšãƒ¼ã‚¸ã¯ <A HREF="$ti{comment}">$ti{tname}</A>
+($ti{tmail}) ã‚ˆã‚Šå¯„è´ˆã„ãŸã ãã¾ã—ãŸã€‚
 </DIV>
 EOM
 
@@ -117,11 +117,11 @@ foreach my $key (sort keys %page_name){
     print "$key: $num\n";
 }
 #
-# ÊÑ´¹³«»Ï¡£
+# å¤‰æ›é–‹å§‹ã€‚
 #
 
 #
-# ½ÅÊ£¥Ú¡¼¥¸ÍÑ¤Î index.
+# é‡è¤‡ãƒšãƒ¼ã‚¸ç”¨ã® index.
 #
 print "creating index for pages with identical names...\n";
 foreach my $fkey (sort keys %page_name){
@@ -166,15 +166,15 @@ foreach my $fkey (sort keys %roff_hash){
     print "converting $pkg/$name.$sec...";
     my $roffpage = "$MANROOT/$roff_hash{$fkey}";
 
-    # man2html ¤Ï fetchmail.1 ¤Î .TS - .TE ¥Ş¥¯¥íÆâÉô¤ò
-    # Àµ¤·¤¯°·¤¨¤Ê¤¤¤Î¤Ç¡¢¤È¤ê¤¢¤¨¤º workaround.
+    # man2html ã¯ fetchmail.1 ã® .TS - .TE ãƒã‚¯ãƒ­å†…éƒ¨ã‚’
+    # æ­£ã—ãæ‰±ãˆãªã„ã®ã§ã€ã¨ã‚Šã‚ãˆãš workaround.
 
     if("$name.$sec" eq "fetchmail.1"){
 	system "$YAMAN2HTML $roffpage | nkf -j > $hfile";
 	next;
     }
 
-    # roff page ¤Ø¤Î link.
+    # roff page ã¸ã® link.
     my $ROFF = "<A HREF=\"$MANWROOT/$roff_hash{$fkey}\">roff page</A>";
     my $NAVI = "$MAIN\n$ROFF";
 
@@ -198,7 +198,7 @@ foreach my $fkey (sort keys %roff_hash){
 	s/<A HREF=\"http:\/\/localhost\/cgi-bin\/man\/man2html\">Return to Main Contents<\/A>/$NAVI/ge;
 	s/<A HREF=\"http:\/\/localhost\/cgi-bin\/man\/man2html\">man2html<\/A>/$MAN2HTMLPAGE/ge;
 
-	# ÊÌ¥Ú¡¼¥¸¤Ø¤Î¥ê¥ó¥¯¥¢¥ó¥«¡¼¤Î½èÍı.
+	# åˆ¥ãƒšãƒ¼ã‚¸ã¸ã®ãƒªãƒ³ã‚¯ã‚¢ãƒ³ã‚«ãƒ¼ã®å‡¦ç†.
 	#
 	while (m/<A HREF=\"http:\/\/localhost\/cgi-bin\/man\/man2html\?([1-9])[a-zA-Z]?\+([^\"]+)/){
 	    my $lpage = "$2,$1";
@@ -261,7 +261,7 @@ foreach my $fkey (sort keys %link_hash){
 }
 
 #
-# ¥¤¥ó¥Ç¥Ã¥¯¥¹¥Ú¡¼¥¸¤Î¥Ø¥Ã¥À¡¦¥Õ¥Ã¥¿
+# ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ãƒšãƒ¼ã‚¸ã®ãƒ˜ãƒƒãƒ€ãƒ»ãƒ•ãƒƒã‚¿
 #
 BEGIN{
    $idx_header = <<'EOM';
@@ -280,7 +280,7 @@ BEGIN{
 </HEAD>
 <BODY>
  <H1>_PAGENAME_</H1>
- <P>Æ±Ì¾¤Î¥Ú¡¼¥¸¤¬Ê£¿ô¤¢¤ê¤Ş¤¹¡£°Ê²¼¤Î¸õÊä¤«¤éÁª¤ó¤Ç¤¯¤À¤µ¤¤</P>
+ <P>åŒåã®ãƒšãƒ¼ã‚¸ãŒè¤‡æ•°ã‚ã‚Šã¾ã™ã€‚ä»¥ä¸‹ã®å€™è£œã‹ã‚‰é¸ã‚“ã§ãã ã•ã„</P>
  <UL>
 EOM
 
@@ -288,7 +288,7 @@ EOM
  </UL>
  <P>
  <IMG SRC="../../../images/grey.png" WIDTH="14" HEIGHT="14" ALT="*">
- <A HREF="../../../index.html">JM Project ¤Î¥á¥¤¥ó¥Ú¡¼¥¸¤ØÌá¤ë</A>
+ <A HREF="../../../index.html">JM Project ã®ãƒ¡ã‚¤ãƒ³ãƒšãƒ¼ã‚¸ã¸æˆ»ã‚‹</A>
  </P>
 </BODY>
 </HTML>

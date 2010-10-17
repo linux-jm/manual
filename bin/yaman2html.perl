@@ -47,8 +47,8 @@ BEGIN{
  <H1>%PAGENAME%</H1>
 
  <BLOCKQUOTE>
-  ���Υڡ����� man2html �ǤϤ��ޤ���������ʤ����ᡢ
-  roff ��Ȥä����������ƥ����Ȥ�Ž�����Ǥ��ޤ���
+  このページは man2html ではうまく整形されないため、
+  roff を使って生成したテキストを貼り込んでいます。
  </BLOCKQUOTE>
 
  <A HREF="../../../index.html">JM Home Page</A>
@@ -58,13 +58,13 @@ EOM
     $footer = <<'EOM';
  </PRE>
  <HR><ADDRESS>
-  JM Project �˴ؤ�뤴�ո�����˾��
+  JM Project に関わるご意見ご要望は
   <A HREF="mailto:JM@linux.or.jp">JM@linux.or.jp</A>
-  �ޤǤ��ꤤ���ޤ���
+  までお願いします。
  </ADDRESS><HR>
 <P>
 <IMG SRC="%URLROOT%/images/grey.png" WIDTH="14" HEIGHT="14" ALT="*">
-<A HREF="%URLROOT%/">JM Project �Υᥤ��ڡ��������</A>
+<A HREF="%URLROOT%/">JM Project のメインページへ戻る</A>
 </P>
 </body>
 </html>

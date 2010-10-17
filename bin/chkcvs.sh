@@ -2,9 +2,9 @@
 #
 # $Id: chkcvs.sh,v 1.2 2000/08/02 10:00:22 nakano Exp $
 #
-# CVS ¥ê¥İ¥¸¥È¥ê¤òÄ´¤Ù¤ë¥¹¥¯¥ê¥×¥È.
-# JM/cvs-release-modified ¢ª release/, contrib/ °Ê²¼¤Î¥Ú¡¼¥¸¤¬ÊÑ¤ï¤Ã¤¿¤«¤É¤¦¤«
-# JM/cvs-status-modified ¢ª translation_list ¤¬ÊÑ¤ï¤Ã¤¿¤«¤É¤¦¤«
+# CVS ãƒªãƒã‚¸ãƒˆãƒªã‚’èª¿ã¹ã‚‹ã‚¹ã‚¯ãƒªãƒ—ãƒˆ.
+# JM/cvs-release-modified â†’ release/, contrib/ ä»¥ä¸‹ã®ãƒšãƒ¼ã‚¸ãŒå¤‰ã‚ã£ãŸã‹ã©ã†ã‹
+# JM/cvs-status-modified â†’ translation_list ãŒå¤‰ã‚ã£ãŸã‹ã©ã†ã‹
 #
 RM=cvs-release-modified
 SM=cvs-status-modified

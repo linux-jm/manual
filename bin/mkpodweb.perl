@@ -14,9 +14,9 @@ use strict 'vars';
 my ($idx_header, $idx_footer);
 
 #
-# $PODROOT ¤Ï CVS ¥ê¥İ¥¸¥È¥ê¤Î JM/pod,
-# $WWWROOT ¤Ï web ¤Î html ¥³¥ó¥Æ¥ó¥Ä¤Î¥È¥Ã¥×,
-# $POD2HTML ¤Ï pod2html ¥³¥Ş¥ó¥É¤òÁÛÄê.
+# $PODROOT ã¯ CVS ãƒªãƒã‚¸ãƒˆãƒªã® JM/pod,
+# $WWWROOT ã¯ web ã® html ã‚³ãƒ³ãƒ†ãƒ³ãƒ„ã®ãƒˆãƒƒãƒ—,
+# $POD2HTML ã¯ pod2html ã‚³ãƒãƒ³ãƒ‰ã‚’æƒ³å®š.
 #
 if (@ARGV < 3) {die "$0 srcroot destroot pod2html\n"};
 
@@ -37,7 +37,7 @@ unless (-x $POD2HTML) {die "$POD2HTML does not executable\n"};
 #my $YAMAN2HTML = "/home/nakano/text/JM/head/admin/tools/yaman2html.perl";
 
 #
-# man2html ½ĞÎÏ¤ËÂĞ¤·¤ÆÃÖ´¹¤¹¤ë³Æ¥ê¥ó¥¯ (·è¤áÂÇ¤Á(^^;)
+# man2html å‡ºåŠ›ã«å¯¾ã—ã¦ç½®æ›ã™ã‚‹å„ãƒªãƒ³ã‚¯ (æ±ºã‚æ‰“ã¡(^^;)
 #
 my $PODWROOT='../../pod';
 my $MAIN='<A HREF="../../index.html">JM Home Page</A>';
@@ -45,7 +45,7 @@ my $CSS='<LINK REL="stylesheet" TYPE="text/css" HREF="../../jmpod.css">';
 
 my (%pod_hash, %page_name);
 #
-# $PODROOT/$pkg/translation_list ¤Î scan.
+# $PODROOT/$pkg/translation_list ã® scan.
 #
 print "scanning translation_list's...\n";
 open RL,"find $PODROOT -name translation_list|";
@@ -87,7 +87,7 @@ foreach my $key (sort keys %page_name){
     print "$key: $num\n";
 }
 #
-# ÊÑ´¹³«»Ï¡£
+# å¤‰æ›é–‹å§‹ã€‚
 #
 
 #
@@ -104,7 +104,7 @@ foreach my $fkey (sort keys %pod_hash){
     print "converting $pkg/$name.pod...";
     my $podpage = "$PODROOT/$pod_hash{$fkey}";
 
-    # pod page ¤Ø¤Î link.
+    # pod page ã¸ã® link.
     my $PODP = "<A HREF=\"$PODWROOT/$pod_hash{$fkey}\">pod page</A>";
     my $NAVI = "$MAIN\n$PODP";
 

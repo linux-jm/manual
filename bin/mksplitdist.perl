@@ -3,11 +3,11 @@
 # $Id: mksplitdist.perl,v 1.2 2000/08/02 10:00:22 nakano Exp $
 #
 # mksplitdist.perl:
-#   $DISTROOT ¤ò¸«¤Æ package Ëè¤ËÊ¬³ä¤µ¤ì¤¿ tar ball ¤òºîÀ®¤¹¤ë
-#   ¥¹¥¯¥ê¥×¥È¡£
-#   $DISTROOT ¤Ï MKDIST, MKSO ¤µ¤ì¤¿¸å¤Î directory ¤òÁÛÄê¤·¤Æ¤¤¤ë
+#   $DISTROOT ã‚’è¦‹ã¦ package æ¯ã«åˆ†å‰²ã•ã‚ŒãŸ tar ball ã‚’ä½œæˆã™ã‚‹
+#   ã‚¹ã‚¯ãƒªãƒ—ãƒˆã€‚
+#   $DISTROOT ã¯ MKDIST, MKSO ã•ã‚ŒãŸå¾Œã® directory ã‚’æƒ³å®šã—ã¦ã„ã‚‹
 #
-# µ¯Æ°Îã
+# èµ·å‹•ä¾‹
 #   mksplitdist.perl /var/tmp/JM/man-pages-ja-19991123
 #
 
