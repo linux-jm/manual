@@ -194,17 +194,17 @@ foreach my $fkey (sort keys %roff_hash){
 #	s/(\&\#([0-9]+)\;)/pack("C",$1)/ge;
 	s///g;
 
-	s/<\/HEAD><BODY>/$START/ge;
-	s/<A HREF=\"http:\/\/localhost\/cgi-bin\/man\/man2html\">Return to Main Contents<\/A>/$NAVI/ge;
-	s/<A HREF=\"http:\/\/localhost\/cgi-bin\/man\/man2html\">man2html<\/A>/$MAN2HTMLPAGE/ge;
+	s|</HEAD><BODY>|$START|ge;
+	s|<A HREF=\"/cgi-bin/man/man2html\">Return to Main Contents</A>|$NAVI|ge;
+	s|<A HREF=\"/cgi-bin/man/man2html\">man2html</A>|$MAN2HTMLPAGE|ge;
 
 	# 別ページへのリンクアンカーの処理.
 	#
-	while (m/<A HREF=\"http:\/\/localhost\/cgi-bin\/man\/man2html\?([1-9])[a-zA-Z]?\+([^\"]+)/){
+	while (m|<A HREF=\"/cgi-bin/man/man2html\?([1-9])[a-zA-Z]?\+([^\"]+)|){
 	    my $lpage = "$2,$1";
 
 	    if ($#{$page_name{$lpage}} == -1){
-		s/<A HREF=\"http:[^>]+>([^<]+)<\/A>/$1/;
+		s|<A HREF=\"/cgi-bin/man/man2html[^>]+>([^<]+)</A>|$1|;
 
 	    } elsif ($#{$page_name{$lpage}} == 0){
                 my $repl;
@@ -215,7 +215,7 @@ foreach my $fkey (sort keys %roff_hash){
 		} else {
 		    $repl = "../../$lpkg/man$lsec/$lname.$lsec.html";
 		}
-	        s/http:\/\/[^\"]+/$repl/;
+	        s|/cgi-bin/[^\"]+|$repl|;
 
 	    } else {
                 my $repl;
@@ -228,9 +228,8 @@ foreach my $fkey (sort keys %roff_hash){
 			$repl = "../man$lsec/$lname.$lsec.html";
 		    }
                 }
-                s/http:\/\/[^\"]+/$repl/;
+                s|/cgi-bin/[^\"]+|$repl|;
             }
-
 	} #end of while(m/../).
         print WL;
     }
