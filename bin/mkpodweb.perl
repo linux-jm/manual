@@ -108,12 +108,12 @@ foreach my $fkey (sort keys %pod_hash){
     my $PODP = "<A HREF=\"$PODWROOT/$pod_hash{$fkey}\">pod page</A>";
     my $NAVI = "$MAIN\n$PODP";
 
-    open P2H, "$POD2HTML $podpage |";
+    open P2H, "nkf -w $podpage | $POD2HTML |";
     open WL,"| nkf -j > $hfile";
 
     while(<P2H>){
-	s/\<\/HEAD\>/$CSS\n<HEAD>\n/;
-	s/<BODY>/<BODY>$NAVI\n<HR>\n/;
+	s/\<\/HEAD\>/$CSS\n<\/HEAD>\n/i;
+	s/<BODY>/<BODY>$NAVI\n<HR>\n/i;
 
 	# Fix double quotes
 	s/\`\`/\&#147;/g;
@@ -126,7 +126,7 @@ foreach my $fkey (sort keys %pod_hash){
 	# s/---/\&#151;/g;
 
 	# Add </P> to the end of paragraphs
-	if (/^\<P\>/ .. /^$/)
+	if (/^\<P\>/i .. /^$/)
 	{
 	    print WL "</P>\n" if (/^$/);
 	}
