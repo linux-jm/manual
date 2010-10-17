@@ -66,7 +66,7 @@ while(<RL>){
     print;
     chomp;
     my $tl = $_;
-    unless(/.*manual\/([^\/]*)\/translation_list/){next;}
+    unless(m|.*manual/([^/]*)/translation_list|){next;}
     my $pkg=$1;
 
     open TL, $tl || die "cannot open $tl";
@@ -179,7 +179,7 @@ foreach my $fkey (sort keys %roff_hash){
     my $NAVI = "$MAIN\n$ROFF";
 
     my $START = "$MLANG\n";
-    if ($roffpage =~ /\/contrib\//){
+    if ($roffpage =~ m|/contrib/|){
 	$START .= "$CONTCSS\n</HEAD>\n<BODY>\n$cont_link{$fkey}\n";
     } else {
 	$START .= "$JMCSS\n</HEAD>\n<BODY>\n";
