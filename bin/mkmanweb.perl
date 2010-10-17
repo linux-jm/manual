@@ -21,7 +21,7 @@ my ($idx_header, $idx_footer);
 # $WWWROOT は web の html コンテンツのトップ,
 # $MAN2HTML は man2html コマンドを想定.
 #
-if (@ARGV < 4) {die "$0 srcroot destroot man2html yaman2html\n"};
+if (@ARGV < 3) {die "$0 srcroot destroot man2html\n"};
 
 my $MANROOT = $ARGV[0];
 unless (-d $MANROOT) {die "$MANROOT does not exist\n"};
@@ -32,18 +32,11 @@ my $MAN2HTML = $ARGV[2];
 unless (-x $MAN2HTML) {die "$MAN2HTML does not executable\n"};
 
 #
-# man2html だとバグの出るページ用の整形コマンド
-#
-my $YAMAN2HTML = $ARGV[3];
-unless (-x $YAMAN2HTML) {die "$YAMAN2HTML does not executable\n"};
-
-#
 # for debugging purpose:
 #
 #my $MANROOT = "/home/nakano/text/JM/imp/manual";
 #my $WWWROOT = "/home/nakano/public_html/JMwww/html";
 #my $MAN2HTML = "/home/nakano/bin/man2html";
-#my $YAMAN2HTML = "/home/nakano/text/JM/head/admin/tools/yaman2html.perl";
 
 #
 # man2html 出力に対して置換する各リンク (決め打ち(^^;)
@@ -165,14 +158,6 @@ foreach my $fkey (sort keys %roff_hash){
 
     print "converting $pkg/$name.$sec...";
     my $roffpage = "$MANROOT/$roff_hash{$fkey}";
-
-    # man2html は fetchmail.1 の .TS - .TE マクロ内部を
-    # 正しく扱えないので、とりあえず workaround.
-
-    if("$name.$sec" eq "fetchmail.1"){
-	system "$YAMAN2HTML $roffpage | nkf -j > $hfile";
-	next;
-    }
 
     # roff page への link.
     my $ROFF = "<A HREF=\"$MANWROOT/$roff_hash{$fkey}\">roff page</A>";

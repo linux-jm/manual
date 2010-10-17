@@ -14,7 +14,6 @@ MKPWWW=bin/mkpodweb.perl
 MKDIST=bin/mkdist.perl
 MKSPDIST=bin/mksplitdist.perl
 CHKCVS=bin/chkcvs.sh
-YAM2H=bin/yaman2html.perl
 
 ROFFSRC=./manual
 PODSRC=./pod
@@ -63,7 +62,7 @@ html: www-html-modified
 www-html-modified: cvs-release-modified
 	-$(RM) -rf $(WWWHTML)
 	mkdir -p $(WWWHTML)
-	$(MKRWWW) $(ROFFSRC) $(WWWHTML) $(MAN2HTML) $(YAM2H)
+	$(MKRWWW) $(ROFFSRC) $(WWWHTML) $(MAN2HTML)
 	$(MKPWWW) $(PODSRC) $(WWWHTML) $(POD2HTML)
 	touch $@
 
