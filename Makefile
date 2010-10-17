@@ -50,11 +50,9 @@ roff: www-roff-modified
 
 www-roff-modified: cvs-status-modified
 	@mkdir -p $(WWWROFF)
-	$(MIRRORDIR) -v --no-netrc --exclude-regexp '*CVS*' \
-		$(ROFFSRC) $(WWWROFF)
+	$(RSYNC) -a $(ROFFSRC) $(WWWROFF)
 	@mkdir -p $(WWWPOD)
-	$(MIRRORDIR) -v --no-netrc --exclude-regexp '*CVS*' \
-		$(PODSRC) $(WWWPOD)
+	$(RSYNC) -a $(PODSRC) $(WWWPOD)
 	touch $@
 
 #
