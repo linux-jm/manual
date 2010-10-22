@@ -30,10 +30,10 @@ open(FL,"ls $DISTROOT/manual|");
 while($tmp=<FL>){
 	$tmp=~s/[\r\n]//g;
 	$dist="man-pages-ja-$tmp-$date";
-	system("rm -r $dist");
+	system("rm -rf $dist");
 	system("mkdir $dist");
 	system("cp -pr $DISTROOT/manual/$tmp/* $dist");
-	system("cp -pr $DISTROOT/README $dist");
+	system("cp -pr $DISTROOT/dist/README $dist");
 	system("tar czf $dist.tar.gz $dist");
 }
 close(FL);
