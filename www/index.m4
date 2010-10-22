@@ -197,7 +197,7 @@ _LINK(http://www.namazu.org/,Namazu)
  日本語の文書やマニュアルを配布している個人/プロジェクトへのリンクです。
 </P>
 <UL>
- <LI>_LINK(../JF/,JF Project)</LI>
+ <LI>_LINK(http://www.linux.or.jp/JF/,JF Project)</LI>
  <LI>_LINK(http://www.jp.freebsd.org/man-jp/,Japanese Manual Project for FreeBSD)</LI>
  <LI>_LINK(http://xjman.dsl.gr.jp/,X Japanese Documentation Project)</LI>
  <LI>_LINK(http://www.samba.gr.jp/,日本 SAMBA ユーザ会)</LI>
