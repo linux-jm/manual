@@ -109,7 +109,7 @@ done
 
 %files
 %defattr(-,root,root)
-%doc INSTALL README translation_list
+%doc dist/INSTALL dist/README translation_list
 %{_mandir}/%{lang}/*/*
 
 %changelog
