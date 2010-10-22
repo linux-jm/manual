@@ -58,7 +58,7 @@ for $j (0 .. $#pl){
 
     print "<H3><A NAME=\"$dir\">$pkg</A></H3>\n";
 
-    open TL, "sort -t : +4 $PODROOT/$dir/translation_list |" or die "cannot open $dir/translation_list";
+    open TL, "sort -t : -k 5 $PODROOT/$dir/translation_list |" or die "cannot open $dir/translation_list";
     while (<TL>){
 	chomp;
 	my %ti = line2hash($_);

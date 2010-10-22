@@ -55,7 +55,7 @@ for $j (0 .. $#pl){
     my %ps;
     my $version;
 
-    open TL, "sort -t : +4 $MANROOT/$dir/translation_list |" or die "cannot open $dir/translation_list";
+    open TL, "sort -t : -k 5 $MANROOT/$dir/translation_list |" or die "cannot open $dir/translation_list";
     while (<TL>){
 	chomp;
 	my %ti = line2hash($_);

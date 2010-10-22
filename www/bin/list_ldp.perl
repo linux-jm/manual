@@ -31,7 +31,7 @@ my %ps;
 my $splitmin = 40;
 my $version;
 
-open TL, "sort -t : +4 $MANROOT/LDP_man-pages/translation_list |";
+open TL, "sort -t : -k 5 $MANROOT/LDP_man-pages/translation_list |";
 while (<TL>){
     chomp;
     my %ti = line2hash($_);
