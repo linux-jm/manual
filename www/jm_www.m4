@@ -48,8 +48,8 @@ m4_define(`_EDIT_WARNING',`
  -->')
 
 
-m4_define(`_MANCGI',`http://search.linux.or.jp/cgi-bin/JM/man.cgi')
-m4_define(`_NAMAZU',`http://search.linux.or.jp/cgi-bin/namazu.cgi')
+m4_define(`_MANCGI',`http://linuxjm.sourceforge.jp/cgi-bin/man.cgi')
+m4_define(`_NAMAZU',`http://linuxjm.sourceforge.jp/cgi-bin/namazu.cgi')
 
 m4_define(`_EMAIL_ADDRESS',JM@linux.or.jp)
 
