@@ -71,7 +71,7 @@ www-html-modified: cvs-release-modified
 #
 web:
 	$(MAKE) -C www/\
-		WWWROOT=$(WWWROOT) CGIROOT=$(CGIROOT)\
+		WWWROOT=$(WWWROOT) CGIROOT=$(CGIROOT) WORKDIR=$(TMPDIR)\
 		install
 
 cgi:
