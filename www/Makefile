@@ -61,13 +61,12 @@ clean:
 
 install: all
 	$(MAKE) -C guidance  WWWROOT=$(WWWROOT) install
-	$(MIRRORDIR) -v --no-netrc --keep-files \
-	--exclude 'bin' \
-	--exclude-regexp '*CVS*' \
-	--exclude-regexp '*.m4' \
-	--exclude-regexp '*.perl' \
-	--exclude-regexp '*.list' \
-	--exclude-regexp '*Makefile' \
-	--exclude-regexp '*ChangeLog' \
+	$(RSYNC) -a -v \
+	--exclude='bin' \
+	--exclude='*.m4' \
+	--exclude='*.perl' \
+	--exclude='*.list' \
+	--exclude='Makefile' \
+	--exclude='ChangeLog' \
 	. $(WWWROOT)
 
