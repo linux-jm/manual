@@ -37,8 +37,7 @@ progress.html: ../bin/list_progress.perl
 	make -C ../.. chkcvs
 
 clean:
-	@rm -f index.html ldp.html linux.html gnu.html\
-	misc.html pod.html progress.html
+	rm -f index.html ldp.html linux.html gnu.html misc.html pod.html progress.html
 
 install: all
 
