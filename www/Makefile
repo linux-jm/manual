@@ -69,5 +69,5 @@ install: all
 	--exclude='*.list' \
 	--exclude='Makefile' \
 	--exclude='ChangeLog' \
-	. $(WWWROOT)
+	* $(WWWROOT)
 
