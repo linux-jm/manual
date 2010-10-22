@@ -105,14 +105,15 @@ _MIRROR_LIST
 </FORM>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<!--
 <H2>全文検索</H2>
 <P>
 _LINK(http://www.namazu.org/,Namazu)
 を使った html ページの全文検索です。
 </P>
 
-<FORM METHOD="GET" ACTION="_NAMAZU">
-<!--hidden parameters-->
+<FORM METHOD="GET" ACTION="_NAMAZU"> -->
+<!--hidden parameters--> <!--
 <INPUT TYPE="HIDDEN" NAME="whence" VALUE="0">
 <INPUT TYPE="HIDDEN" NAME="sort"   VALUE="score">
 <INPUT TYPE="HIDDEN" NAME="dbname" VALUE="JM">
@@ -147,6 +148,7 @@ _LINK(http://www.namazu.org/,Namazu)
  </TR>
 </TABLE>
 </FORM>
+-->
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="ABOUTJM">JM Project について</A></H2>
