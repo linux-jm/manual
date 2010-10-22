@@ -15,7 +15,7 @@ _HEADER(`JM Project')
   m4_esyscmd(`env -u LANG date')
  </DIV>
 
-_MIRROR_LIST
+m4_dnl _MIRROR_LIST
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>

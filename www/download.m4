@@ -11,7 +11,7 @@ m4_include(jm_www.m4)
 _EDIT_WARNING(index)
 _HEADER(`マニュアルアーカイブのダウンロード')
 
-_MIRROR_LIST(download.html)
+m4_dnl _MIRROR_LIST(download.html)
 
 <P>
  roff ページのアーカイブです。
