@@ -152,7 +152,7 @@ m4_define(`_CREDITS',`
  <HR><!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
  <ADDRESS>
   _JM_ や配布マニュアルページに関わるご意見ご要望は
-  _EMAILME(JM@linux.or.jp)
+  _EMAILME(linuxjm-discuss@lists.sourceforge.jp)
   までお願いします。
  </ADDRESS>
  <HR><!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
