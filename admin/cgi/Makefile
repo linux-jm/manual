@@ -33,7 +33,7 @@ install: all
 	@mkdir -p $(CGIROOT)
 	install -m 555 man.cgi $(CGIROOT)
 	install -m 644 $(MANDB) $(CGIROOT)
-	install -m 644 .htaccess $(CGIROOT)
+#	install -m 644 .htaccess $(CGIROOT)
 
 clean:
 	@rm -f .htaccess $(MANDB) man.cgi
