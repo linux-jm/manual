@@ -53,7 +53,8 @@ download.html: download.m4 ../latest-archive-modified
 
 clean:
 	@rm -f $(CONTENTS) *.tar.gz
-	-$(RM) -rf rpm/ per-pkg/
+	-$(RM) -rf per-pkg/
+	-$(RM) -f rpm/*.rpm rpm/index.html
 	make -C INDEX/ clean
 	make -C guidance/ clean
 	make -C man-ja/ clean
