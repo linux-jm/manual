@@ -259,7 +259,7 @@ BEGIN{
  <META NAME="copyright" CONTENT="(C) 1999 JM Project.">
  <META NAME="DESCRIPTION" CONTENT="JM: JM Project.">
  <META NAME="keywords" CONTENT="JM, Linux, Japanese, Manual">
- <LINK REV="made" HREF="mailto:JM@linux.or.jp">
+ <LINK REV="made" HREF="mailto:linuxjm-discuss@lists.sourceforge.jp">
  <LINK REL="stylesheet" TYPE="text/css" HREF="../../../jm.css">
 </HEAD>
 <BODY>

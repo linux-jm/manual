@@ -51,7 +51,7 @@ m4_define(`_EDIT_WARNING',`
 m4_define(`_MANCGI',`http://linuxjm.sourceforge.jp/cgi-bin/man.cgi')
 m4_define(`_NAMAZU',`http://linuxjm.sourceforge.jp/cgi-bin/namazu.cgi')
 
-m4_define(`_EMAIL_ADDRESS',JM@linux.or.jp)
+m4_define(`_EMAIL_ADDRESS',linuxjm-discuss@lists.sourceforge.jp)
 
 m4_define(`_JM_',`JM Project')
 
@@ -131,7 +131,7 @@ m4_define(`_HEADER', `
  <META NAME="author" LANG="en" CONTENT="JM Project Members">
  <META NAME="copyright" CONTENT="(C) 1999 JM Project.">
  <META NAME="keywords" CONTENT="JM, Linux, Japanese, Manual">
- <LINK REV="made" HREF="mailto:JM@linux.or.jp">
+ <LINK REV="made" HREF="mailto:linuxjm-discuss@lists.sourceforge.jp">
  <LINK REL="stylesheet" TYPE="text/css" HREF="_CSS">
 </HEAD>
 

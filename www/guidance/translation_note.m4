@@ -24,8 +24,8 @@ _HEADER(`翻訳の指針')
  本来のフォーマットや著作権を尊重するために、
  一次配布フォーマットは roff 形式を採用します。
  また roff での作業が困難である場合には、
- その旨を JM@linux.or.jp まで連絡してください。
- 他に roff 化のボランティアを募集します。
+ その旨を _LINK(mailto:linuxjm-discuss@lists.sourceforge.jp,JM-ML)
+ まで連絡してください。他に roff 化のボランティアを募集します。
 </P>
 
 <P>

@@ -40,7 +40,7 @@ BEGIN{
  <META NAME="copyright" CONTENT="(C) 1999 JM Project.">
  <META NAME="DESCRIPTION" CONTENT="JM: JM Project.">
  <META NAME="keywords" CONTENT="JM, Linux, Japanese, Manual">
- <LINK REV="made" HREF="mailto:JM@linux.or.jp">
+ <LINK REV="made" HREF="mailto:linuxjm-discuss@lists.sourceforge.jp">
  <LINK REL="stylesheet" TYPE="text/css" HREF="../../../jm.css">
 </HEAD>
 <BODY>
@@ -59,7 +59,7 @@ EOM
  </PRE>
  <HR><ADDRESS>
   JM Project に関わるご意見ご要望は
-  <A HREF="mailto:JM@linux.or.jp">JM@linux.or.jp</A>
+  <A HREF="mailto:linuxjm-discuss@lists.sourceforge.jp">linuxjm-discuss@lists.sourceforge.jp</A>
   までお願いします。
  </ADDRESS><HR>
 <P>
