@@ -20,6 +20,11 @@ m4_dnl _MIRROR_LIST
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>JM Project のホームページを sourceforge.jp に移動しました。
+  今後は _LINK(http://sourceforge.jp/projects/linuxjm/,こちら) で
+  活動を進めて行きます。
+  <SMALL>(2010/10/24)</SMALL>
+
  <LI>配布アーカイブの準拠する標準を FSSTND から FHS に変更しました。
   詳細は
   _LINK(./news2002.html#20020915,こちら)
@@ -175,9 +180,6 @@ _LINK(http://www.namazu.org/,Namazu)
  活動の詳細や JM への参加方法については
  _LINK(guidance/index.html,JM 翻訳作業の手引き)
  をご覧ください。
- なおメールが配送されなくなったメンバーは、
- _LINK(mail_error.html,配送エラー一覧)
- を確認してください。
 </P>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
@@ -217,16 +219,14 @@ m4_dnl  足すならここかなあ.
 <P>
  バグ情報をお寄せ下さったユーザのみなさん。
  マニュアルを寄贈してくださった
- _LINK(../JF/,JF) メンバー、
+ _LINK(http://www.linux.or.jp/JF/,JF) メンバー、
  Linux-MLメンバー、
  _LINK(http://www.jp.netbsd.org,NetBSD) jman project
  ・
  _LINK(http://www.jp.freebsd.org/man-jp/,FreeBSD jpman project)
  の方々。
  ML や www のリソースを提供してくださっている
- _LINK(http://jla.linux.or.jp,JLA)。
- _LINK(http://www.namazu.org/,Namazu Project)
- のみなさん。
+ _LINK(http://sourceforge.jp/,SourceForge.JP)。
 </P>
 
 _CREDITS
