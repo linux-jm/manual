@@ -23,7 +23,7 @@ $(MANDB): ../../www-html-modified $(MKDB)
 	$(MKDB) $(WWWROOT) $(URLHTML)
 
 .htaccess: htaccess.in
-	cp htaccess.in .htaccess
+#	cp htaccess.in .htaccess
 
 man.cgi: man.cgi.in
 	$(RM) $@
