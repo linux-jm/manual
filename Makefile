@@ -125,6 +125,7 @@ $(RPMROOT)/RPMS/noarch/$(JMRPMDIST).noarch.rpm: $(JMRPMSRC)
 	mkdir -p $(RPMROOT)/RPMS/noarch
 	mkdir -p $(RPMROOT)/SRPMS
 	mkdir -p $(RPMROOT)/db
+	mkdir -p $(RPMROOT)/tmp
 	cp $(JMRPMSRC) $(RPMROOT)/SOURCES/
 	sed     -e "s/@@version@@/$(JMVER)/" \
 		-e "s/@@release@@/$(JMRELEASE)/" \
@@ -134,6 +135,7 @@ $(RPMROOT)/RPMS/noarch/$(JMRPMDIST).noarch.rpm: $(JMRPMSRC)
 	$(RPMB) --define "buildroot $(JMRPM_BUILD_ROOT)" \
 	    --dbpath $(RPMROOT)/db \
 	    --define "_topdir $(RPMROOT)"  \
+	    --define "_tmppath $(RPMROOT)/tmp"  \
 	    --define "_mandir /usr/share/man" -ba \
 	    $(RPMROOT)/SPECS/$(JMRPMSPEC)
 	touch latest-archive-modified
