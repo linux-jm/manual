@@ -109,7 +109,7 @@ foreach my $fkey (sort keys %pod_hash){
     my $NAVI = "$MAIN\n$PODP";
 
     open P2H, "nkf -w $podpage | $POD2HTML |";
-    open WL,"| nkf -j > $hfile";
+    open WL,"> $hfile";
 
     while(<P2H>){
 	s/\<\/HEAD\>/$CSS\n<\/HEAD>\n/i;
