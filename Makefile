@@ -49,9 +49,9 @@ roff: www-roff-modified
 
 www-roff-modified: cvs-status-modified
 	@mkdir -p $(WWWROFF)
-	$(RSYNC) -a $(ROFFSRC) $(WWWROFF)
+	$(RSYNC) -a $(ROFFSRC)/ $(WWWROFF)
 	@mkdir -p $(WWWPOD)
-	$(RSYNC) -a $(PODSRC) $(WWWPOD)
+	$(RSYNC) -a $(PODSRC)/ $(WWWPOD)
 	touch $@
 
 #
