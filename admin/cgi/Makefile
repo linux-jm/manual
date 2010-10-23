@@ -26,7 +26,8 @@ $(MANDB): ../../www-html-modified $(MKDB)
 	cp htaccess.in .htaccess
 
 man.cgi: man.cgi.in
-	cp $< $@
+	$(RM) $@
+	nkf -w $< > $@
 	perl -p -i -e 's@%PAGEROOT%@$(WWWROOT)@; s@%URLROOT%@$(URLROOT)@' $@
 
 install: all
