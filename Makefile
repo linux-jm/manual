@@ -144,6 +144,7 @@ $(RPMROOT)/RPMS/noarch/$(JMRPMDIST).noarch.rpm: $(JMRPMSRC)
 clean:
 	rm -f *-modified
 	rm -rf $(TMPDIR)
+	rm -f pod2htmd.tmp pod2htmi.tmp
 	$(MAKE) -C admin/cgi/ clean
 	$(MAKE) -C www/ clean
 	$(MAKE) -f Makefile.dist clean
