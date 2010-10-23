@@ -154,3 +154,6 @@ clean:
 	    rm -f $(RPMROOT)/SOURCES/`basename $$i` ; \
 	done
 
+realclean:	clean
+	$(RM) -rf $(WWWROOT)/*
+	$(RM) -rf $(CGIROOT)/*
