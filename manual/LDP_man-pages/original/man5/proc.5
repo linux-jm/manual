@@ -58,7 +58,7 @@
 .\" to see what information could be imported from that file
 .\" into this file.
 .\"
-.TH PROC 5 2009-09-30 "Linux" "Linux Programmer's Manual"
+.TH PROC 5 2010-06-19 "Linux" "Linux Programmer's Manual"
 .SH NAME
 proc \- process information pseudo-file system
 .SH DESCRIPTION
@@ -633,7 +633,7 @@ The session ID of the process.
 The controlling terminal of the process.
 (The minor device number is contained in the combination of bits
 31 to 20 and 7 to 0;
-the major device number is in bits 15 t0 8.)
+the major device number is in bits 15 to 8.)
 .TP
 \fItpgid\fP %d
 .\" This field and following, up to and including wchan added 0.99.1
@@ -1709,10 +1709,6 @@ These variables can be read and sometimes modified using
 the \fI/proc\fP file system, and the (deprecated)
 .BR sysctl (2)
 system call.
-Presently, there are subdirectories
-.IR abi ", " debug ", " dev ", " fs ", " kernel ", " net ", " proc ", "
-.IR rxrpc ", " sunrpc " and " vm
-that each contain more files and subdirectories.
 .TP
 .IR /proc/sys/abi " (since Linux 2.4.10)"
 This directory may contain files with application binary information.
@@ -1731,15 +1727,8 @@ On
 some systems, it may be empty.
 .TP
 .I /proc/sys/fs
-This contains the subdirectories
-.IR binfmt_misc ", " epoll ", " inotify ", and " mqueue ,
-and files
-.IR dentry-state ", " dir-notify-enable ", " dquot-nr ", " file-max ", "
-.IR file-nr ", " inode-max ", " inode-nr ", " inode-state ", "
-.IR lease-break-time ", " leases-enable ", "
-.IR overflowgid ", " overflowuid ", "
-.IR suid_dumpable ", "
-.IR super-max ", and " super-nr .
+This directory contains the files and subdirectories for kernel variables
+related to file systems.
 .TP
 .I /proc/sys/fs/binfmt_misc
 Documentation for files in this directory can be found
@@ -1925,6 +1914,20 @@ UIDs and GIDs are 32 bits.
 When one of these file systems is mounted
 with writes enabled, any UID or GID that would exceed 65535 is translated
 to the overflow value before being written to disk.
+.TP
+.IR /proc/sys/fs/pipe-max-size " (since Linux 2.6.35)"
+The value in this file defines an upper limit for raising the capacity
+of a pipe using the
+.BR fcntl (2)
+.B F_SETPIPE_SZ
+operation.
+This limit applies only to unprivileged processes.
+The default value for this file is 1,048,576.
+The value assigned to this file may be rounded upward,
+to reflect the value actually employed for a convenient implementation.
+To determine the rounded-up value,
+display the contents of this file after assigning a value to it.
+The minimum value that can be assigned to this file is the system page size.
 .TP
 .IR /proc/sys/fs/suid_dumpable " (since Linux 2.6.13)"
 .\" The following is based on text from Documentation/sysctl/kernel.txt
@@ -2382,18 +2385,70 @@ user should run
 .BR sync (8)
 first.
 .TP
-.IR /proc/sys/vm/swappiness
-.\" The following is from Documentation/sysctl/vm.txt
-The value in this file controls how aggressively the kernel will swap
-memory pages.
-Higher values increase agressiveness, lower values
-descrease aggressiveness.
-The default value is 60.
-.TP
 .IR /proc/sys/vm/legacy_va_layout " (since Linux 2.6.9)"
 .\" The following is from Documentation/filesystems/proc.txt
 If nonzero, this disables the new 32-bit memory-mapping layout;
 the kernel will use the legacy (2.4) layout for all processes.
+.TP
+.IR /proc/sys/vm/memory_failure_early_kill " (since Linux 2.6.32)"
+.\" The following is based on the text in Documentation/sysctl/vm.txt
+Control how to kill processes when an uncorrected memory error
+(typically a 2-bit error in a memory module)
+that cannot be handled by the kernel
+is detected in the background by hardware.
+In some cases (like the page still having a valid copy on disk),
+the kernel will handle the failure
+transparently without affecting any applications.
+But if there is no other up-to-date copy of the data,
+it will kill processes to prevent any data corruptions from propagating.
+
+The file has one of the following values:
+.RS
+.IP 1: 4
+Kill all processes that have the corrupted-and-not-reloadable page mapped
+as soon as the corruption is detected.
+Note this is not supported for a few types of pages, like kernel internally
+allocated data or the swap cache, but works for the majority of user pages.
+.IP 0: 4
+Only unmap the corrupted page from all processes and only kill a process
+who tries to access it.
+.RE
+.IP
+The kill is performed using a
+.B SIGBUS
+signal with
+.I si_code
+set to
+.BR BUS_MCEERR_AO .
+Processes can handle this if they want to; see
+.BR sigaction (2)
+for more details.
+
+This feature is only active on architectures/platforms with advanced machine
+check handling and depends on the hardware capabilities.
+
+Applications can override the
+.I memory_failure_early_kill
+setting individually with the
+.BR prctl (2)
+.B PR_MCE_KILL
+operation.
+.IP
+Only present if the kernel was configured with
+.BR CONFIG_MEMORY_FAILURE .
+.TP
+.IR /proc/sys/vm/memory_failure_recovery " (since Linux 2.6.32)"
+.\" The following is based on the text in Documentation/sysctl/vm.txt
+Enable memory failure recovery (when supported by the platform)
+.RS
+.IP 1: 4
+Attempt recovery.
+.IP 0: 4
+Always panic on a memory failure.
+.RE
+.IP
+Only present if the kernel was configured with
+.BR CONFIG_MEMORY_FAILURE .
 .TP
 .IR /proc/sys/vm/oom_dump_tasks " (since Linux 2.6.25)"
 .\" The following is from Documentation/sysctl/vm.txt
@@ -2502,6 +2557,14 @@ the kernel always panics when an out-of-memory condition occurs.
 The default value is 0.
 1 and 2 are for failover of clustering.
 Select either according to your policy of failover.
+.TP
+.IR /proc/sys/vm/swappiness
+.\" The following is from Documentation/sysctl/vm.txt
+The value in this file controls how aggressively the kernel will swap
+memory pages.
+Higher values increase agressiveness, lower values
+decrease aggressiveness.
+The default value is 60.
 .TP
 .IR /proc/sysrq-trigger " (since Linux 2.4.21)"
 Writing a character to this file triggers the same SysRq function as
