@@ -12,7 +12,7 @@
 .\"     address that can appear in the sockaddr_un structure: pathname,
 .\"     unnamed, and abstract.
 .\"
-.TH UNIX  7 2008-12-01 "Linux" "Linux Programmer's Manual"
+.TH UNIX  7 2010-10-10 "Linux" "Linux Programmer's Manual"
 .SH NAME
 unix, AF_UNIX, AF_LOCAL \- Sockets for local
 interprocess communication
@@ -31,7 +31,7 @@ The
 .BR AF_LOCAL )
 socket family is used to communicate between processes on the same machine
 efficiently.
-Traditionally, Unix sockets can be either unnamed,
+Traditionally, UNIX domain sockets can be either unnamed,
 or bound to a file system pathname (marked as being of type socket).
 Linux also supports an abstract namespace which is independent of the
 file system.
@@ -41,17 +41,17 @@ Valid types are:
 for a stream-oriented socket and
 .BR SOCK_DGRAM ,
 for a datagram-oriented socket that preserves message boundaries
-(as on most Unix implementations, Unix domain datagram
+(as on most UNIX implementations, UNIX domain datagram
 sockets are always reliable and don't reorder datagrams);
 and (since Linux 2.6.4)
 .BR SOCK_SEQPACKET ,
 for a connection-oriented socket that preserves message boundaries
 and delivers messages in the order that they were sent.
 
-Unix sockets support passing file descriptors or process credentials
+UNIX domain sockets support passing file descriptors or process credentials
 to other processes using ancillary data.
 .SS Address Format
-A Unix domain socket address is represented in the following structure:
+A UNIX domain socket address is represented in the following structure:
 .in +4n
 .nf
 
@@ -71,7 +71,7 @@ always contains
 Three types of address are distinguished in this structure:
 .IP * 3
 .IR pathname :
-a Unix domain socket can be bound to a null-terminated file
+a UNIX domain socket can be bound to a null-terminated file
 system pathname using
 .BR bind (2).
 When the address of the socket is returned by
@@ -80,7 +80,7 @@ When the address of the socket is returned by
 and
 .BR accept (2),
 its length is
-.IR "sizeof(sa_family_t) + strlen(sun_path) + 1" ,
+.IR "offsetof(struct sockaddr_un, sun_path) + strlen(sun_path) + 1" ,
 and
 .I sun_path
 contains the null-terminated pathname.
@@ -109,24 +109,26 @@ should not be inspected.
 an abstract socket address is distinguished by the fact that
 .IR sun_path[0]
 is a null byte ('\\0').
-All of the remaining bytes in
-.I sun_path
-define the "name" of the socket.
+The socket's address in this namespace is given by the additional
+bytes in
+.IR sun_path
+that are covered by the specified length of the address structure.
 (Null bytes in the name have no special significance.)
 The name has no connection with file system pathnames.
-The socket's address in this namespace is given by the rest of the
-bytes in
-.IR sun_path .
 When the address of an abstract socket is returned by
 .BR getsockname (2),
 .BR getpeername (2),
 and
 .BR accept (2),
-its length is
-.IR "sizeof(struct sockaddr_un)" ,
-and
-.I sun_path
-contains the abstract name.
+the returned
+.I addrlen
+is greater than
+.IR "sizeof(sa_family_t)"
+(i.e., greater than 2), and the name of the socket is contained in
+the first
+.IR "(addrlen \- sizeof(sa_family_t))"
+bytes of
+.IR sun_path .
 The abstract socket namespace is a nonportable Linux extension.
 .SS Socket Options
 For historical reasons these socket options are specified with a
@@ -143,16 +145,33 @@ by specifying
 as the socket family.
 .TP
 .B SO_PASSCRED
-Enables the receiving of the credentials of the sending process
+Enables the receiving of the credentials of the sending process in an
 ancillary message.
 When this option is set and the socket is not yet connected
 a unique name in the abstract namespace will be generated automatically.
 Expects an integer boolean flag.
+.SS Autobind Feature
+If a
+.BR bind ()
+call specifies
+.I addrlen
+as
+.IR sizeof(sa_family_t) ,
+.\" i.e. sizeof(short)
+or the
+.BR SO_PASSCRED
+socket option was specified for a socket that was
+not explicitly bound to an address,
+then the socket is autobound to an abstract address.
+The address consists of a null byte
+followed by 5 bytes in the character set
+.IR [0-9a-f] .
+(Thus, there is a limit of 2^20 autobind addresses.)
 .SS Sockets API
 The following paragraphs describe domain-specific details and
-unsupported features of the sockets API for Unix domain sockets on Linux.
+unsupported features of the sockets API for UNIX domain sockets on Linux.
 
-Unix domain sockets do not support the transmission of
+UNIX domain sockets do not support the transmission of
 out-of-band data (the
 .B MSG_OOB
 flag for
@@ -163,7 +182,7 @@ and
 The
 .BR send (2)
 .B MSG_MORE
-flag is not supported by Unix domain sockets.
+flag is not supported by UNIX domain sockets.
 
 The use of
 .B MSG_TRUNC
@@ -171,11 +190,11 @@ in the
 .I flags
 argument of
 .BR recv (2)
-is not supported by Unix domain sockets.
+is not supported by UNIX domain sockets.
 
 The
 .B SO_SNDBUF
-socket option does have an effect for Unix domain sockets, but the
+socket option does have an effect for UNIX domain sockets, but the
 .B SO_RCVBUF
 option does not.
 For datagram sockets, the
@@ -214,7 +233,7 @@ The passed file descriptors behave as though they have been created with
 .BR dup (2).
 .TP
 .B SCM_CREDENTIALS
-Send or receive Unix credentials.
+Send or receive UNIX credentials.
 This can be used for authentication.
 The credentials are passed as a
 .I struct ucred
@@ -235,7 +254,9 @@ struct ucred {
 
 Since glibc 2.8, the
 .B _GNU_SOURCE
-feature test macro must be defined in order to obtain the definition
+feature test macro must be defined (before including
+.I any
+header files) in order to obtain the definition
 of this structure.
 
 The credentials which the sender specifies are checked by the kernel.
@@ -253,6 +274,44 @@ To receive a
 message the
 .B SO_PASSCRED
 option must be enabled on the socket.
+.SS Ioctls
+The following
+.BR ioctl (2)
+calls return information in
+.IR value .
+The correct syntax is:
+.PP
+.RS
+.nf
+.BI int " value";
+.IB error " = ioctl(" tcp_socket ", " ioctl_type ", &" value ");"
+.fi
+.RE
+.PP
+.I ioctl_type
+can be:
+.TP
+.B SIOCINQ
+Returns the amount of queued unread data in the receive buffer.
+The socket must not be in LISTEN state, otherwise an error
+.RB ( EINVAL )
+is returned.
+.B SIOCINQ
+is defined in
+.IR <linux/sockios.h> .
+.\" FIXME http://sources.redhat.com/bugzilla/show_bug.cgi?id=12002,
+.\" filed 2010-09-10, may cause SIOCINQ to be defined in glibc headers
+Alternatively,
+you can use the synonymous
+.BR FIONREAD ,
+defined in
+.IR <sys/ioctl.h> .
+.\" SIOCOUTQ also has an effect for UNIX domain sockets, but not
+.\" quite what userland might expect. It seems to return the number
+.\" of bytes allocated for buffers containing pending output.
+.\" That number is normally larger than the number of bytes of pending
+.\" output. Since this info is, from userland's point of view, imprecise,
+.\" and it may well change, probably best not to document this now.
 .SH ERRORS
 .TP
 .B EADDRINUSE
@@ -339,7 +398,7 @@ Creation of a new socket will fail if the process does not have write and
 search (execute) permission on the directory the socket is created in.
 Connecting to the socket object requires read/write permission.
 This behavior differs from many BSD-derived systems which
-ignore permissions for Unix sockets.
+ignore permissions for UNIX domain sockets.
 Portable programs should not rely on
 this feature for security.
 
@@ -347,7 +406,7 @@ Binding to a socket with a filename creates a socket
 in the file system that must be deleted by the caller when it is no
 longer needed (using
 .BR unlink (2)).
-The usual Unix close-behind semantics apply; the socket can be unlinked
+The usual UNIX close-behind semantics apply; the socket can be unlinked
 at any time and will be finally removed from the file system when the last
 reference to it is closed.
 
@@ -360,7 +419,7 @@ or
 .BR recvmsg (2)
 call.
 
-Unix domain stream sockets do not support the notion of out-of-band data.
+UNIX domain stream sockets do not support the notion of out-of-band data.
 .SH EXAMPLE
 See
 .BR bind (2).
