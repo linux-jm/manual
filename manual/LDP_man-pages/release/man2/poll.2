@@ -40,7 +40,7 @@
 .\"
 .\"WORD:	descriptor		ディスクリプタ
 .\"
-.TH POLL 2 2009-09-15 "Linux" "Linux Programmer's Manual"
+.TH POLL 2 2010-09-20 "Linux" "Linux Programmer's Manual"
 .SH 名前
 poll, ppoll \- ファイルディスクリプタにおけるイベントを待つ
 .SH 書式
@@ -53,7 +53,7 @@ poll, ppoll \- ファイルディスクリプタにおけるイベントを待つ
 .B #include <poll.h>
 .sp
 .BI "int ppoll(struct pollfd *" fds ", nfds_t " nfds ", "
-.BI "        const struct timespec *" timeout ", const sigset_t *" sigmask );
+.BI "        const struct timespec *" timeout_ts ", const sigset_t *" sigmask );
 .fi
 .SH 説明
 .BR poll ()
@@ -144,6 +144,7 @@ struct pollfd {
 ストリームソケットの他端が、コネクションを close したか、
 コネクションの書き込み側を shutdown した。
 この定義を有効にするには、
+(「どの」ヘッダファイルをインクルードするよりも前に)
 .B _GNU_SOURCE
 機能検査マクロを定義しなければならない。
 .TP
@@ -199,13 +200,12 @@ Linux では
 を使うと、アプリケーションはファイルディスクリプタの状態変化
 もしくはシグナルの捕捉を安全に待つことができる。
 .PP
-.I timeout
-引き数の違いを除くと、以下の
+timeout 引き数の精度の違いを除くと、以下の
 .BR ppoll ()
 の呼び出しは、
 .nf
 
-    ready = ppoll(&fds, nfds, timeout, &sigmask);
+    ready = ppoll(&fds, nfds, timeout_ts, &sigmask);
 
 .fi
 次のコールを
@@ -214,7 +214,10 @@ Linux では
 .nf
 
     sigset_t origmask;
+    int timeout;
 
+    timeout = (timeout_ts == NULL) ? -1 :
+              (timeout_ts.tv_sec * 1000 + timeout_ts.tv_nsec / 1000000);
     sigprocmask(SIG_SETMASK, &sigmask, &origmask);
     ready = poll(&fds, nfds, timeout);
     sigprocmask(SIG_SETMASK, &origmask, NULL);
@@ -232,9 +235,7 @@ Linux では
 .BR ppoll ()
 の
 .BR poll ()
-との違いは
-.I timeout
-引き数の精度だけとなる)。
+との違いは timeout 引き数の精度だけとなる)。
 
 .I timeout
 引き数は
@@ -251,7 +252,7 @@ struct timespec {
 .fi
 .in
 
-.I timeout
+.I timeout_ts
 に NULL が指定された場合、
 .B ppoll
 は無限に停止することがあり得る。
@@ -309,6 +310,8 @@ struct timespec {
 いくつかの実装では、値 \-1 を持った非標準の定数
 .B INFTIM
 が定義されており、
+.BR poll ()
+の
 .I timeout
 の指定に使用できる。
 この定数は glibc では定義されていない。
@@ -316,15 +319,15 @@ struct timespec {
 Linux の
 .BR ppoll ()
 システムコールは
-.I timeout
+.I timeout_ts
 引き数を変更する。
 しかし、glibc のラッパー関数は、システムコールに渡す timeout 引き数
 としてローカル変数を使うことでこの動作を隠蔽している。
 このため、glibc の
 .BR ppoll ()
-関数は
-.I timeout
-引き数を変更しない。
+関数では
+.I timeout_ts
+引き数は変更されない。
 .SH バグ
 .BR select (2)
 の「バグ」の節に書かれている、誤った準備完了通知 (spurious readiness

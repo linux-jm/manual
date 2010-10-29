@@ -26,15 +26,16 @@
 .\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI all rights reserved.
 .\" Translated 2006-07-31, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\" Updated 2010-04-18, Akihiro MOTOKI, LDP v3.24
+.\" Updated 2010-10-27, Akihiro Motoki, LDP v3.29
 .\"
-.TH MQ_NOTIFY 3 2009-09-15 "Linux" "Linux Programmer's Manual"
+.TH MQ_NOTIFY 3 2010-10-04 "Linux" "Linux Programmer's Manual"
 .SH 名前
 mq_notify \- メッセージ到着時に通知を行うよう登録する
 .SH 書式
 .nf
 .B #include <mqueue.h>
 .sp
-.BI "mqd_t mq_notify(mqd_t " mqdes ", const struct sigevent *" notification );
+.BI "int mq_notify(mqd_t " mqdes ", const struct sigevent *" notification );
 .fi
 .sp
 \fI\-lrt\fP でリンクする。
@@ -46,42 +47,22 @@ mq_notify \- メッセージ到着時に通知を行うよう登録する
 非同期の通知 (notification) の配送が行われるように登録したり、
 その解除を行ったりできる。
 
-.I notification
+.I sevp
 引き数は
 .I sigevent
 構造体へのポインタである。
-.I sigevent
-構造体は以下のような感じで定義されている:
-.in +4n
-.nf
-
-union sigval {          /* Data passed with notification */
-    int     sival_int;         /* Integer value */
-    void   *sival_ptr;         /* Pointer value */
-};
-
-struct sigevent {
-    int          sigev_notify; /* Notification method */
-    int          sigev_signo;  /* Notification signal */
-    union sigval sigev_value;  /* Data passed with
-                                  notification */
-    void       (*sigev_notify_function) (union sigval);
-                               /* Function for thread
-                                  notification */
-    void        *sigev_notify_attributes;
-                               /* Thread function attributes */
-};
-.fi
-.in
+この構造体の定義と一般的な詳細については
+.BR sigevent (7)
+を参照。
 .PP
-.I notification
+.I sevp
 が NULL でないポインタであれば、
 .BR mq_notify ()
 はメッセージ通知を受け取るように呼び出し元のプロセスを登録する。
-.I notification
+.I sevp
 が指す
 .I sigevent
-の
+構造体の
 .I sigev_notify
 フィールドは、どのような通知を行うのかを指定する。
 このフィールドは以下の値のいずれかを持つ。
@@ -94,52 +75,35 @@ struct sigevent {
 .B SIGEV_SIGNAL
 .I sigev_signo
 で指定されたシグナルを送って、プロセスに通知する。
-.BR sigaction (2)
-の
-.B SA_SIGINFO
-フラグでシグナルハンドラを登録している場合、
-そのシグナルハンドラでシグナルが捕捉された場合には、
-シグナルハンドラの第二引き数として渡される
+一般的な詳細については
+.BR sigevent (7)
+を参照。
 .I siginfo_t
-構造体の各フィールドは以下のように設定される。
+構造体の
 .I si_code
-には
+フィールドには
 .B SI_MESGQ
-が、
-.I si_signo
-にはシグナル番号が、
-.I si_value
-には
-.I notification\->sigev_value
-で指定した値が設定される。
+が設定される。
 .\" I don't know of other implementations that set
 .\" si_pid and si_uid -- MTK
+さらに、
 .I si_pid
 にはメッセージを送信したプロセスの PID が、
 .I si_uid
 には送信プロセスの実ユーザ ID が設定される。
-.BR sigwaitinfo (2)
-を使ってシグナルを受信する場合も、同じ情報が得られる。
 .TP
 .B SIGEV_THREAD
-新しいスレッドの開始関数として
-.I notification\->sigev_thread_function
-を起動することで通知を行う。
-起動時の関数の引き数としては
-.I notification\->sigev_value
-だけが渡される。
-.I notification\->sigev_notify_attributes
-は、NULL 以外の場合、
-そのスレッドの属性を定義する
-.I pthread_attr_t
-構造体へのポインタとなっている必要がある
-.RB ( pthread_attr_init (3)
-参照)。
+メッセージの配送時には、
+.I sigev_notify_function
+があたかも新しいスレッドの開始関数であるかのように起動される。
+詳細は
+.BR sigevent (7)
+を参照。
 .PP
 一つのメッセージキューから通知を受信するように登録できるプロセスは
 一つだけである。
 
-.I notification
+.I sevp
 が NULL で、かつ呼び出し元のプロセスがこのメッセージキューからの
 通知を受信するに現在登録している場合、登録を削除する。
 これ以降、別のプロセスがこのメッセージキューから通知を受信するように
@@ -189,20 +153,20 @@ struct sigevent {
 このメッセージキューに対する通知を受信するように登録している。
 .TP
 .B EINVAL
-.I notification\->sigev_notify
+.I sevp\->sigev_notify
 が許可された値のいずれでもない。もしくは
-.I notification\->sigev_notify
+.I sevp\->sigev_notify
 が
 .B SIGEV_SIGNAL
 だが
-.I notification\->sigev_signo
+.I sevp\->sigev_signo
 が有効なシグナル番号ではない。
 .TP
 .B ENOMEM
 必要なメモリがなかった。
 .PP
 POSIX.1-2008 では、
-.I notifications
+.I sevp
 が NULL で、呼び出し元のプロセスがキュー
 .I mqdes
 に関する通知を受信するように登録されていない場合、エラー
@@ -258,7 +222,7 @@ int
 main(int argc, char *argv[])
 {
     mqd_t mqdes;
-    struct sigevent not;
+    struct sigevent sev;
 
     if (argc != 2) {
 	fprintf(stderr, "Usage: %s <mq-name>\\n", argv[0]);
@@ -269,11 +233,11 @@ main(int argc, char *argv[])
     if (mqdes == (mqd_t) \-1)
         handle_error("mq_open");
 
-    not.sigev_notify = SIGEV_THREAD;
-    not.sigev_notify_function = tfunc;
-    not.sigev_notify_attributes = NULL;
-    not.sigev_value.sival_ptr = &mqdes;   /* スレッド関数に渡す引き数 */
-    if (mq_notify(mqdes, &not) == \-1)
+    sev.sigev_notify = SIGEV_THREAD;
+    sev.sigev_notify_function = tfunc;
+    sev.sigev_notify_attributes = NULL;
+    sev.sigev_value.sival_ptr = &mqdes;   /* スレッド関数に渡す引き数 */
+    if (mq_notify(mqdes, &sev) == \-1)
         handle_error("mq_notify");
 
     pause();    /* プロセスはスレッド関数により終了される */
@@ -286,4 +250,5 @@ main(int argc, char *argv[])
 .BR mq_receive (3),
 .BR mq_send (3),
 .BR mq_unlink (3),
-.BR mq_overview (7)
+.BR mq_overview (7),
+.BR sigevent (7)

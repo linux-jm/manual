@@ -40,7 +40,7 @@
 .\"
 .\"WORD:	descriptor		ディスクリプタ
 .\"
-.TH POLL 2 2009-09-15 "Linux" "Linux Programmer's Manual"
+.TH POLL 2 2010-09-20 "Linux" "Linux Programmer's Manual"
 .\"O .SH NAME
 .SH 名前
 .\"O poll, ppoll \- wait for some event on a file descriptor
@@ -56,7 +56,7 @@ poll, ppoll \- ファイルディスクリプタにおけるイベントを待つ
 .B #include <poll.h>
 .sp
 .BI "int ppoll(struct pollfd *" fds ", nfds_t " nfds ", "
-.BI "        const struct timespec *" timeout ", const sigset_t *" sigmask );
+.BI "        const struct timespec *" timeout_ts ", const sigset_t *" sigmask );
 .fi
 .\"O .SH DESCRIPTION
 .SH 説明
@@ -193,7 +193,7 @@ struct pollfd {
 .TP
 .B POLLPRI
 .\"O There is urgent data to read (e.g., out-of-band data on TCP socket;
-.\"O pseudo-terminal master in packet mode has seen state change in slave).
+.\"O pseudoterminal master in packet mode has seen state change in slave).
 読み出し可能な緊急データ (urgent data) がある
 (例えば、TCP ソケットの帯域外 (out-of-band data) データを受信した場合や、
 パケットモードの擬似端末のマスタがスレーブ側の変化を見つけたとき)。
@@ -208,10 +208,15 @@ struct pollfd {
 .\"O or shut down writing half of connection.
 .\"O The
 .\"O .B _GNU_SOURCE
-.\"O feature test macro must be defined in order to obtain this definition.
+.\"O feature test macro must be defined
+.\"O (before including
+.\"O .I any
+.\"O header files)
+.\"O in order to obtain this definition.
 ストリームソケットの他端が、コネクションを close したか、
 コネクションの書き込み側を shutdown した。
 この定義を有効にするには、
+(「どの」ヘッダファイルをインクルードするよりも前に)
 .B _GNU_SOURCE
 機能検査マクロを定義しなければならない。
 .TP
@@ -297,18 +302,16 @@ Linux では
 を使うと、アプリケーションはファイルディスクリプタの状態変化
 もしくはシグナルの捕捉を安全に待つことができる。
 .PP
-.\"O Other than the difference in the
-.\"O .I timeout
-.\"O argument, the following
+.\"O Other than the difference in the precision of the
+.\"O timeout argument, the following
 .\"O .BR ppoll ()
 .\"O call:
-.I timeout
-引き数の違いを除くと、以下の
+timeout 引き数の精度の違いを除くと、以下の
 .BR ppoll ()
 の呼び出しは、
 .nf
 
-    ready = ppoll(&fds, nfds, timeout, &sigmask);
+    ready = ppoll(&fds, nfds, timeout_ts, &sigmask);
 
 .fi
 .\"O is equivalent to
@@ -320,7 +323,10 @@ Linux では
 .nf
 
     sigset_t origmask;
+    int timeout;
 
+    timeout = (timeout_ts == NULL) ? -1 :
+              (timeout_ts.tv_sec * 1000 + timeout_ts.tv_nsec / 1000000);
     sigprocmask(SIG_SETMASK, &sigmask, &origmask);
     ready = poll(&fds, nfds, timeout);
     sigprocmask(SIG_SETMASK, &origmask, NULL);
@@ -345,18 +351,14 @@ Linux では
 .\"O .BR ppoll ()
 .\"O differs from
 .\"O .BR poll ()
-.\"O only in the precision of the
-.\"O .I timeout
-.\"O argument).
+.\"O only in the precision of the timeout argument).
 .I sigmask
 引き数に NULL が指定された場合、シグナルマスクの操作は行われない
 (したがって、
 .BR ppoll ()
 の
 .BR poll ()
-との違いは
-.I timeout
-引き数の精度だけとなる)。
+との違いは timeout 引き数の精度だけとなる)。
 
 .\"O The
 .\"O .I timeout
@@ -380,11 +382,11 @@ struct timespec {
 .in
 
 .\"O If
-.\"O .I timeout
+.\"O .I timeout_ts
 .\"O is specified as NULL, then
 .\"O .BR ppoll ()
 .\"O can block indefinitely.
-.I timeout
+.I timeout_ts
 に NULL が指定された場合、
 .B ppoll
 は無限に停止することがあり得る。
@@ -487,11 +489,15 @@ struct timespec {
 .\"O Some implementations define the nonstandard constant
 .\"O .B INFTIM
 .\"O with the value \-1 for use as a
-.\"O .IR timeout .
+.\"O .IR timeout
+.\"O for
+.\"O .BR poll ().
 .\"O This constant is not provided in glibc.
 いくつかの実装では、値 \-1 を持った非標準の定数
 .B INFTIM
 が定義されており、
+.BR poll ()
+の
 .I timeout
 の指定に使用できる。
 この定数は glibc では定義されていない。
@@ -500,7 +506,7 @@ struct timespec {
 .\"O The Linux
 .\"O .BR ppoll ()
 .\"O system call modifies its
-.\"O .I timeout
+.\"O .I timeout_ts
 .\"O argument.
 .\"O However, the glibc wrapper function hides this behavior
 .\"O by using a local variable for the timeout argument that
@@ -508,20 +514,20 @@ struct timespec {
 .\"O Thus, the glibc
 .\"O .BR ppoll ()
 .\"O function does not modify its
-.\"O .I timeout
+.\"O .I timeout_ts
 .\"O argument.
 Linux の
 .BR ppoll ()
 システムコールは
-.I timeout
+.I timeout_ts
 引き数を変更する。
 しかし、glibc のラッパー関数は、システムコールに渡す timeout 引き数
 としてローカル変数を使うことでこの動作を隠蔽している。
 このため、glibc の
 .BR ppoll ()
-関数は
-.I timeout
-引き数を変更しない。
+関数では
+.I timeout_ts
+引き数は変更されない。
 .\"O .SH BUGS
 .SH バグ
 .\"O See the discussion of spurious readiness notifications under the

@@ -42,6 +42,7 @@
 .\" Modified 1998-08-08, Fujiwara Teruyoshi <fujiwara@linux.or.jp>
 .\" Modified 2000-10-06, Kentaro Shirakata <argrath@ub32.org>
 .\" Modified 2005-02-26, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2010-10-27, Akihiro Motoki <amotoki@dd.iij4u.or.jp>, LDP v3.29
 .\"
 .\"WORD:        null-terminated strings    NULLで終わる文字列
 .\"WORD:        anti-Trojan-horse measure  トロイの木馬対策
@@ -51,9 +52,9 @@
 .\"WORD:        variadic function          可変長引き数関数
 .\"WORD:        semantics                  (プログラムの)動作
 .\"
-.TH EXEC 3  2009-02-22 "GNU" "Linux Programmer's Manual"
+.TH EXEC 3  2010-09-25 "GNU" "Linux Programmer's Manual"
 .SH 名前
-execl, execlp, execle, execv, execvp \- ファイルを実行する
+execl, execlp, execle, execv, execvp, execvpe \- ファイルを実行する
 .SH 書式
 .B #include <unistd.h>
 .sp
@@ -70,6 +71,19 @@ execl, execlp, execle, execv, execvp \- ファイルを実行する
 .BI "int execv(const char *" path ", char *const " argv "[]);"
 .br
 .BI "int execvp(const char *" file ", char *const " argv "[]);"
+.br
+.BI "int execvpe(const char *" file ", char *const " argv "[],"
+.br
+.BI "           char *const " envp "[]);"
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件
+.RB ( feature_test_macros (7)
+参照):
+.in
+.sp
+.BR execvpe ():
+_GNU_SOURCE
 .SH 説明
 .BR exec ()
 ファミリーの関数は現在のプロセスイメージを新しいプロセスイメージで置き
@@ -80,7 +94,7 @@ execl, execlp, execle, execv, execvp \- ファイルを実行する
 .BR execve (2)
 のマニュアルを参照)
 .PP
-これらの関数の最初の引き数は、実行されるファイルのパス名である。
+これらの関数の最初の引き数は、実行されるファイルの名前である。
 .PP
 関数
 .BR execl (),
@@ -104,9 +118,9 @@ execl, execlp, execle, execv, execvp \- ファイルを実行する
 とキャストしなければならない。
 .PP
 関数
-.BR execv ()
-と
-.BR execvp ()
+.BR execv (),
+.BR execvp (),
+.BR execvpe ()
 は、利用可能な引き数リスト (NULL で終端された文字列への
 ポインタの配列) を新しいプログラムに渡す。
 慣習として、最初の引き数は実行されるファイル名へ
@@ -114,32 +128,42 @@ execl, execlp, execle, execv, execvp \- ファイルを実行する
 NULL で終わらなければならない。
 .PP
 関数
-.BR execle ()
-では新しいプロセスの環境も指定する。
-環境は引き数リスト (引き数リストもしくは追加の引き数を持った
-.I argv
-配列へのポインタ) の最後の NULL ポインタに続けて指定する。
-追加の引き数は、NULL で終端された文字列へのポインタの配列であり、
+.BR execle (),
+.BR execvpe ()
+では、呼び出し元が引き数
+.I envp
+経由実行されるプログラムの環境を指定することができる。
+.I envp
+引き数は、NULL で終端された文字列へのポインタの配列であり、
 NULL ポインタで終わらなければならない。
-他の関数では、現在のプロセスの外部変数
+他の関数では、呼び出し元のプロセスの外部変数
 .B environ
 から新しいプロセス用の環境を与える。
 .SS execlp() と execvp() の特別な動作
 .PP
 関数
-.BR execlp ()
-と
-.BR execvp ()
+.BR execlp (),
+.BR execvp (),
+.BR execvpe ()
 は、指定されたファイル名がスラッシュ (/) を含んでいない場合、
 シェルと同じ動作で実行可能なファイルを探索する。
-検索パスは環境変数
+ファイルの検索は、環境変数
 .B PATH
-で指定されたパスである。
-この変数が指定されていない場合、デフォルトPATHとして
-":/bin:/usr/bin" が使用される。
-また、いくつかのエラーが発生した場合の扱いが特殊である。
-.PP
-もしファイルが実行ファイルでない場合 (このとき呼び出そうとした
+で指定されたコロン区切りのディレクトリのパス名のリストを対象に行われる。
+この変数が定義されていない場合、パス名のリストのデフォルト値として、
+カレントディレクトリの後ろに、
+.I confstr(_CS_PATH)
+が返すディレクトリのリストをつなげた値が使用される (この
+.BR confstr (3)
+の呼び出しでは通常 "/bin:/usr/bin" が返される)。
+
+指定されたファイル名がスラッシュを含む場合、
+.B PATH
+は無視され、指定されたパス名のファイルが実行される。
+
+さらに、いくつかのエラーは特別に処理される。
+
+ファイルが実行ファイルでない場合 (このとき呼び出そうとした
 .BR execve (2)
 はエラー
 .B EACCES
@@ -150,7 +174,7 @@ NULL ポインタで終わらなければならない。
 .B EACCES
 を設定し復帰する。
 .\" fujiwara: 個人的には「復帰する」の方が好き(^_^;
-.PP
+
 ファイルのヘッダが実行形式として認識できない場合
 (このとき呼び出そうとした
 .BR execve (2)
@@ -160,20 +184,25 @@ NULL ポインタで終わらなければならない。
 .RI ( /bin/sh )
 を実行する (これにも失敗した場合、これ以上の検索は行われない)。
 .SH 返り値
-もし
 .BR exec ()
-ファミリーが復帰してきた場合、エラーが発生している。
+群の関数が復帰するのは、エラーが発生した場合のみである。
 返り値は \-1 で、
 .I errno
-にそのエラーの内容がセットされる。
+にエラーの内容がセットされる。
 .SH エラー
-これら全ての関数は失敗する場合がある。その場合ライブラリ関数
+これら全ての関数は失敗する場合がある。その場合、
 .BR execve (2)
-によって指定されたエラーを
+に対して規定されたエラーが
 .I errno
-に設定する。
+に設定される。
+.SH バージョン
+.BR execvpe ()
+関数は glibc 2.11 で初めて登場した。
 .SH 準拠
-POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008.
+
+.BR execvpe ()
+関数は GNU による拡張である。
 .SH 注意
 Linux 以外のシステムには、
 (環境変数 \fBPATH\fR が定義されていないときの)
