@@ -199,7 +199,7 @@ _LINK(http://www.namazu.org/,Namazu)
  日本語の文書やマニュアルを配布している個人/プロジェクトへのリンクです。
 </P>
 <UL>
- <LI>_LINK(http://www.linux.or.jp/JF/,JF Project)</LI>
+ <LI>_LINK(http://linuxjf.sourceforge.jp/,JF Project)</LI>
  <LI>_LINK(http://www.jp.freebsd.org/man-jp/,Japanese Manual Project for FreeBSD)</LI>
  <LI>_LINK(http://xjman.dsl.gr.jp/,X Japanese Documentation Project)</LI>
  <LI>_LINK(http://www.samba.gr.jp/,日本 SAMBA ユーザ会)</LI>
@@ -219,7 +219,7 @@ m4_dnl  足すならここかなあ.
 <P>
  バグ情報をお寄せ下さったユーザのみなさん。
  マニュアルを寄贈してくださった
- _LINK(http://www.linux.or.jp/JF/,JF) メンバー、
+ _LINK(http://linuxjf.sourceforge.jp/,JF) メンバー、
  Linux-MLメンバー、
  _LINK(http://www.jp.netbsd.org,NetBSD) jman project
  ・
