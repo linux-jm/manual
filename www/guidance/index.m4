@@ -57,7 +57,7 @@ _HEADER(`JM 翻訳作業の手引き')
 <H2><A NAME="subscribe-ML">JM-ML への参加方法・退会方法</A></H2>
 <P>
  JM Project における翻訳作業では
- _LINK(mailto:JM@linux.or.jp,JM-ML)
+ _LINK(mailto:linuxjm-discuss@lists.sourceforge.jp,JM-ML)
  が活動の中心となっています。
  作業の予約、結果の登録、内容に関する議論などが
  ここでやりとりされることになります。
@@ -66,38 +66,15 @@ _HEADER(`JM 翻訳作業の手引き')
 </P>
 
 <P>
- _LINK(mailto:JM-ctl@linux.or.jp,JM-ctl@linux.or.jp)
- 宛に本文を
-</P>
-<BLOCKQUOTE>
-guide
-</BLOCKQUOTE>
-<P CLASS="noindent">
- としたメールを送ると、
- 参加方法が記述されたメールが送られてきます。
- その後はメールの指示に従ってください。
+ JM-ML (= linuxjm-discuss ML) への加入は
+ _LINK(http://lists.sourceforge.jp/mailman/listinfo/linuxjm-discuss,こちらのページ)
+ から手続きを行って下さい。
 </P>
 
 <P>
- JM-ML の講読を中止したい場合は、
- _LINK(mailto:JM-ctl@linux.or.jp,JM-ctl@linux.or.jp)
- 宛に本文を
-</P>
-<BLOCKQUOTE>
-bye
-</BLOCKQUOTE>
-<P CLASS="noindent">
- としたメールを送ってください。
-</P>
-
-<P>
- 登録されたアドレスへの配送が一定期間エラーになると、
- そのアドレスは管理者によって強制的に無効化されます。
- これらのアドレスは
- _LINK(../mail_error.html,問題のあるメールアドレス)
- のページに一覧されています。
- 必要に応じて、再登録手続きを取ってください。
-</P>
+ JM-ML の講読を中止したい場合も、
+ _LINK(http://lists.sourceforge.jp/mailman/listinfo/linuxjm-discuss,こちらのページ)
+ から手続きを行って下さい。
 
 <H2><A NAME="flow">翻訳作業の流れ</A></H2>
 <P>
