@@ -1,9 +1,11 @@
 #!/usr/bin/perl
 use Env qw (PATH LANG);
 use strict 'vars';
+use Encode qw (decode);
+use utf8;
 
 #
-# %pw ¤Ï global ÊÑ¿ô.
+# %pw ã¯ global å¤‰æ•°.
 #
 my ($MANROOT, $PACK, $OWNER, $GROUP,
     @released, %ppage, @pl, $ans);
@@ -13,7 +15,7 @@ my @pack_method = ("none", "gzip", "bzip2", "compress");
 my $podsec = "1";
 
 #
-# ¥¤¥ó¥¹¥È¡¼¥ë¾ğÊó
+# ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«æƒ…å ±
 #
 print "[INSTALLATION INFORMATION]\n";
 print "(just Return if you accept default)\n";
@@ -57,12 +59,13 @@ do{
 } until ($ans =~ /^[yYcC]/);
 
 #
-# ¥Ñ¥Ã¥±¡¼¥¸¥Ç¡¼¥¿¤ÎÆÉ¤ß¹ş¤ß (¥Õ¥¡¥¤¥ë¤ÎÀè¤Ë¤¢¤ë¤Û¤¦¤¬
-# ¸å¤Î conflict ²ò¾Ã¤Î»ş¤ËÁ°¤Î¸õÊä¤Ë¤Ê¤ë)¡£
+# ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ãƒ‡ãƒ¼ã‚¿ã®èª­ã¿è¾¼ã¿ (ãƒ•ã‚¡ã‚¤ãƒ«ã®å…ˆã«ã‚ã‚‹ã»ã†ãŒ
+# å¾Œã® conflict è§£æ¶ˆã®æ™‚ã«å‰ã®å€™è£œã«ãªã‚‹)ã€‚
 #
 my $i = 0;
 open PL, $PKGLIST || die "cannot open $PKGLIST";
 while(<PL>) {
+    $_ = decode('utf-8', $_);
     chomp;
     if (m/^\#/){next;}
 
@@ -78,8 +81,8 @@ while(<PL>) {
 close(PL);
 
 #
-# ¥¤¥ó¥¹¥È¡¼¥ë¤¹¤ë¥Ñ¥Ã¥±¡¼¥¸¤ÎÁªÂò
-# ¥¤¥ó¥¹¥È¡¼¥ë¤·¤Ê¤¤ÅÛ¤ÏÍ¥ÀèÅÙ $pw{$name} ¤ò -1 ¤Ë¤¹¤ë¡£
+# ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã™ã‚‹ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã®é¸æŠ
+# ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã—ãªã„å¥´ã¯å„ªå…ˆåº¦ $pw{$name} ã‚’ -1 ã«ã™ã‚‹ã€‚
 #
 print "\n\n";
 print "[INSTALL PACKAGE SELECTION]\n";
@@ -103,11 +106,12 @@ do{
 } until ($ans =~ /^[yYcC]/);
 
 #
-# translation_list ¤«¤é¥¤¥ó¥¹¥È¡¼¥ë¤¹¤Ù¤­¥Õ¥¡¥¤¥ë¤ò¼èÆÀ.
+# translation_list ã‹ã‚‰ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã™ã¹ããƒ•ã‚¡ã‚¤ãƒ«ã‚’å–å¾—.
 #
 open TL, "cat `find manual/ -name translation_list -print` |";
 while(<TL>) {
-    if (/^¡ß/ || /^¢¥/ || /^¢¤/ || /^¡ü/ || /^¢¨/ || /^$/) { next; }
+    $_ = decode('utf-8', $_);
+    if (/^Ã—/ || /^â–²/ || /^â–³/ || /^â—/ || /^â€»/ || /^$/) { next; }
     chomp;
     my @l = split /:/;
     $l[1] =~ s/ /_/e;
@@ -119,7 +123,7 @@ while(<TL>) {
 close(TL);
 
 #
-# Í¥ÀèÅÙ½ç¥½¡¼¥È.
+# å„ªå…ˆåº¦é †ã‚½ãƒ¼ãƒˆ.
 #
 @released = sort by_sec_name @released;
 for $i (0 .. $#released){
@@ -128,7 +132,7 @@ for $i (0 .. $#released){
 }
 
 #
-# conflict ¤Î¿ô $nc ¤ò´ªÄê.
+# conflict ã®æ•° $nc ã‚’å‹˜å®š.
 #
 my $nc = 0;
 foreach my $key (keys %ppage) {
@@ -137,7 +141,7 @@ foreach my $key (keys %ppage) {
 }
 
 #
-# conflict ¤·¤Æ¤¤¤ë¥Õ¥¡¥¤¥ë¤«¤é¥¤¥ó¥¹¥È¡¼¥ë¤¹¤ë¤â¤Î¤òÁª¤Ö.
+# conflict ã—ã¦ã„ã‚‹ãƒ•ã‚¡ã‚¤ãƒ«ã‹ã‚‰ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã™ã‚‹ã‚‚ã®ã‚’é¸ã¶.
 #
 print "\n\n";
 print "[RESOLVE CONFLICTS]\n";
@@ -150,7 +154,7 @@ do{
 	my $page = $key;
 	$page =~ s/:/./;
 
-	# $cf ¤ÏºÇ½ªÍ×ÁÇ¤Î index.
+	# $cf ã¯æœ€çµ‚è¦ç´ ã® index.
 	#
 	my $cf = $#{$ppage{$key}};
 	my $nf = $cf + 1;
@@ -182,8 +186,8 @@ do{
 } until ($ans =~ /^[yYcC]/);
 
 #
-# ¥¤¥ó¥¹¥È¡¼¥ë¥¹¥¯¥ê¥×¥È¤òºî¤ë¡£
-# ¥¤¥ó¥¹¥È¡¼¥ëÀè¤Ï $MANROOT, °µ½Ì¤Ï $pack.
+# ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã‚¹ã‚¯ãƒªãƒ—ãƒˆã‚’ä½œã‚‹ã€‚
+# ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«å…ˆã¯ $MANROOT, åœ§ç¸®ã¯ $pack.
 #
 print "\n\ncreating installation script...";
 open (ISS, ">installman.sh") || die "cannot create installman.sh\n";
