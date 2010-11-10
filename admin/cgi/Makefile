@@ -13,7 +13,7 @@ MANDB=manhtmldb
 #
 # rules
 #
-all: man.cgi .htaccess $(MANDB)
+all: man.cgi $(MANDB)
 
 ../../stamp/www-html-modified:
 	$(MAKE) -C ../../ stamp/www-html-modified
@@ -21,9 +21,6 @@ all: man.cgi .htaccess $(MANDB)
 $(MANDB): ../../stamp/www-html-modified $(MKDB)
 	-$(RM) $@
 	$(MKDB) $(WWWROOT) $(URLHTML)
-
-.htaccess: htaccess.in
-#	cp htaccess.in .htaccess
 
 man.cgi: man.cgi.in
 	$(RM) $@
@@ -34,8 +31,7 @@ install: all
 	@mkdir -p $(CGIROOT)
 	install -m 555 man.cgi $(CGIROOT)
 	install -m 644 $(MANDB) $(CGIROOT)
-#	install -m 644 .htaccess $(CGIROOT)
 
 clean:
-	@rm -f .htaccess $(MANDB) man.cgi
+	@rm -f $(MANDB) man.cgi
 
