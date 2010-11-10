@@ -1,4 +1,3 @@
-m4_dnl # $Id: manerror.m4,v 1.1 1999/09/08 14:36:09 nakano Exp $
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #

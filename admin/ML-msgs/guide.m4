@@ -54,6 +54,3 @@ JM MLのメンバーに登録されると、メールにより記事が送られます。
 _InCaseOfError
 
 _Signature
-
-$Id: guide.m4,v 1.2 2001/12/29 09:08:52 nakano Exp $
-

@@ -1,4 +1,3 @@
-m4_dnl # $Id: mail_error.m4,v 1.21 2004/05/24 16:36:29 tsekine Exp $
 m4_dnl # mail_error.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #
@@ -74,10 +73,6 @@ _ADDRESS(tyoshino(at)cymbi.info.jcn.nihon-u.ac.jp,2001/12/22 ºï½ü)
   _CREDITS
 
   _BACK_TO_HOME
-
- <DIV CLASS="copyright">
-  $Id: mail_error.m4,v 1.21 2004/05/24 16:36:29 tsekine Exp $
- </DIV>
 
 </BODY>
 </HTML>

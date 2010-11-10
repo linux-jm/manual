@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 #
-# $Id: info-whole-archive.perl,v 1.3 2002/09/14 17:29:22 nakano Exp $
 # index.m4 用のアーカイブ新着情報エントリを作る。
 #
 %month_table =

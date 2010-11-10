@@ -1,7 +1,5 @@
 #!/usr/bin/perl
-#
-# $Id: list_progress.perl,v 1.5 2008/12/23 17:24:40 motoki Exp $
-#
+
 BEGIN{
     my $epath = `dirname $0`; chomp $epath;
     my $lpath = "$epath/../../bin";

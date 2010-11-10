@@ -1,4 +1,3 @@
-m4_dnl # $Id: news1999.m4,v 1.8 2006/08/16 01:03:26 motoki Exp $
 m4_dnl # news.m4: GNU m4 source for news.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #
@@ -565,10 +564,6 @@ m4_dnl ML2CVS ADD HERE
   _CREDITS
 
   _BACK_TO_HOME
-
- <DIV CLASS="copyright">
-  $Id: news1999.m4,v 1.8 2006/08/16 01:03:26 motoki Exp $
- </DIV>
 
 </BODY>
 </HTML>

@@ -17,8 +17,5 @@ _HEADER(`JM Project: 過去のお知らせ')
 _CREDITS
 
 _BACK_TO_HOME
- <DIV CLASS="copyright">
-  $Id: index.m4,v 1.1 2001/12/22 04:02:57 nakano Exp $
- </DIV>
 </BODY>
 </HTML>

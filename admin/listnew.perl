@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 #
-# $Id: listnew.perl,v 1.6 2000/08/02 10:00:12 nakano Exp $
-#
 # translation_list をさわる perl script のひな形。
 #
 # とりあえずこれは標準入力から translation_list を

@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 #
-# $Id: chkpkgs.perl,v 1.1 2000/11/14 13:42:23 nakano Exp $
-#
 # リリースページのあるパッケージ名を出力
 # bash のプロンプトから
 #

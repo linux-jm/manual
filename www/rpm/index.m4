@@ -1,4 +1,3 @@
-m4_dnl # $Id: index.m4,v 1.2 2002/09/14 17:18:11 jm Exp $
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #

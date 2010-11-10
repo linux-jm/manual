@@ -1,4 +1,3 @@
-m4_dnl # $Id: translation_note.m4,v 1.5 1999/10/05 14:15:45 nakano Exp $
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #

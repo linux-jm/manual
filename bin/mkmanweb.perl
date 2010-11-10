@@ -5,8 +5,6 @@
 # first version Thu Aug 19 00:53:30 JST 1999
 #     by Tenkou N. Hattori <tnh@aurora.dti.ne.jp>
 #
-# $Id: mkmanweb.perl,v 1.5 2006/06/14 08:45:05 nakano Exp $
-#
 BEGIN{
     $epath = `dirname $0`; chomp $epath;
     unshift (@INC, $epath);

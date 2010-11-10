@@ -1,6 +1,4 @@
 #!/usr/bin/perl
-# $Id: list_ldp.perl,v 1.4 2001/03/14 14:20:16 uchida Exp $
-#
 #
 # $MANROOT は CVS リポジトリの JM/manual,
 # $WWWROOT はインストール先ディレクトリ.

@@ -1,4 +1,3 @@
-m4_dnl # $Id: copyright.m4,v 1.8 2002/10/12 11:28:52 nakano Exp $
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #

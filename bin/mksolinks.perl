@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 #
-# $Id: mksolinks.perl,v 1.2 2000/08/02 10:00:22 nakano Exp $
-#
 # mksolinks.perl:
 #   $MANROOT (想定しているのは checkout してきた JM CVS リポジトリ の
 #   (JM/manual/) 以下にある */translation_list を見て、 */release/man?

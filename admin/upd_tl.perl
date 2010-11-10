@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 #
-# $Id: upd_tl.perl,v 1.10 2008/12/23 23:04:06 motoki Exp $
-#
 # update_list を見て translation_list を更新する。
 #
 # 第 1 引数に translation_list, 第 2 引数に update_list,
@@ -40,8 +38,6 @@
 # バグ・制限
 #      セクションの変更したページには対応してません。
 #      ページの削除には対応してません。
-#
-# $Id: upd_tl.perl,v 1.10 2008/12/23 23:04:06 motoki Exp $
 #
 BEGIN{
     $epath = `dirname $0`; chomp $epath;

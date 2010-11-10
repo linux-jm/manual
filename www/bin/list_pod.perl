@@ -1,6 +1,4 @@
 #!/usr/bin/perl
-# $Id: list_pod.perl,v 1.3 2000/09/11 04:57:09 nakano Exp $
-#
 #
 # $PODROOT は CVS リポジトリの JM/pod,
 # $WWWROOT はインストール先ディレクトリ.

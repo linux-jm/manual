@@ -1,4 +1,3 @@
-m4_dnl # $Id: JM-man-view.m4,v 1.2 2001/02/07 06:37:06 nakano Exp $
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #

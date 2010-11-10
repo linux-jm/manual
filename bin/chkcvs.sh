@@ -1,7 +1,5 @@
 #!/bin/sh
 #
-# $Id: chkcvs.sh,v 1.2 2000/08/02 10:00:22 nakano Exp $
-#
 # CVS リポジトリを調べるスクリプト.
 # JM/stamp/cvs-release-modified → release/, contrib/ 以下のページが変わったかどうか
 # JM/stamp/cvs-status-modified → translation_list が変わったかどうか

@@ -48,5 +48,3 @@ _InCaseOfError
 
 _Signature
 
-$Id: welcome.m4,v 1.2 2001/12/29 09:08:52 nakano Exp $
-

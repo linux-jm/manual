@@ -1,4 +1,3 @@
-m4_dnl # $Id: man-pager.m4,v 1.5 2004/02/27 15:57:28 ysato Exp $
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #

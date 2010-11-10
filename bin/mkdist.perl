@@ -5,8 +5,6 @@
 # first version Thu Aug 19 00:53:30 JST 1999
 #     by Tenkou N. Hattori <tnh@aurora.dti.ne.jp>
 #
-# $Id: mkdist.perl,v 1.2 2000/08/02 10:00:22 nakano Exp $
-#
 BEGIN{
     $epath = `dirname $0`; chomp $epath;
     unshift (@INC, $epath);

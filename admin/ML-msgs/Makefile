@@ -1,5 +1,3 @@
-# $Id: Makefile,v 1.1 1999/10/12 16:19:42 nakano Exp $
-
 M4 = m4 -P
 
 OBJ = objective welcome guide

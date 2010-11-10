@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 
-m4_dnl # $Id: jm-brs.cgi.m4,v 1.1.1.1 2000/06/26 09:46:20 tsekine Exp $
 m4_dnl # jm-bres.cgi.m4: GNU m4 source for jm-brs.cgi
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #

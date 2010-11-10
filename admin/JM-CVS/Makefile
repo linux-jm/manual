@@ -1,6 +1,5 @@
 #
 # Makefile for JM-CVS
-# $Id:
 #
 BASENAME   = JM-CVS
 #SGML2HTML  = sgml2html -c nippon

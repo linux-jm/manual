@@ -1,6 +1,5 @@
 #
 # Makefile for contents in www/status
-# $Id: Makefile,v 1.5 2000/08/02 10:00:53 nakano Exp $
 #
 include ../../JM.rules
 

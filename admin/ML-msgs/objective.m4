@@ -9,5 +9,3 @@ _NoQuestions
 _FirstGuidance
 
 _Signature
-
-$Id: objective.m4,v 1.1 1999/10/12 16:19:45 nakano Exp $

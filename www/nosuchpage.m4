@@ -1,4 +1,3 @@
-m4_dnl # $Id: nosuchpage.m4,v 1.4 2000/08/25 06:39:37 nakano Exp $
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #

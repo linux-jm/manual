@@ -1,5 +1,3 @@
-# $Id: Makefile,v 1.9 2000/08/25 05:56:26 nakano Exp $
-
 # modify these to fit your env.
 #
 include ../../JM.rules

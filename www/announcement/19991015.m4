@@ -7,8 +7,5 @@ m4_esyscmd(`grep -v "\$Id" 19991015.euc')
 </PRE>
 _CREDITS
 _BACK_TO_HOME
- <DIV CLASS="copyright">
-  $Id: 19991015.m4,v 1.5 1999/10/06 15:01:04 nakano Exp $
- </DIV>
 </BODY>
 </HTML>

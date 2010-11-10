@@ -2,8 +2,6 @@
 #
 # build html database file for man.cgi
 #
-# $Id: mkhtmldb.perl,v 1.2 2000/08/02 10:00:22 nakano Exp $
-#
 use GDBM_File;
 use Fcntl;
 

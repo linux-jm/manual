@@ -1,7 +1,5 @@
 #!/usr/bin/perl -w
 #
-# $Id: ciJMpost.pl,v 1.7 2001/11/17 10:20:24 nakano Exp $
-#
 # $MSRC フォルダ (MH 形式) にあるメールを CVS に自動登録する。
 #
 use File::Basename;

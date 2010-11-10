@@ -16,7 +16,6 @@
 # ・manページの日付所得に失敗することが多々あります。
 # ・マクロ ".so" によるリンクには対応していません。
 # ・ls コマンドは coreutils にあるもの(version 5.x)を前提としています
-# $Id: mktrlist2.sh,v 1.3 2005/03/09 15:59:16 tsekine Exp $
 
 print_usage () {
 (

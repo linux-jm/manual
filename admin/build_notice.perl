@@ -1,6 +1,5 @@
 #!/usr/bin/perl -w
 #
-# $Id: build_notice.perl,v 1.2 2002/01/12 09:52:40 nakano Exp $
 # JM-ML に毎月のお知らせを投げるスクリプト。
 # cron build をする 3 日前の 0:30 に実行すること。
 #

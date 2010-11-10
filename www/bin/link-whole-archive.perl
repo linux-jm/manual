@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 #
-# $Id: link-whole-archive.perl,v 1.6 2005/09/16 13:42:31 nakano Exp $
 # download.html 用のアーカイブリンクエントリを作る. (全体用)
 #
 $ENV{"LANG"}="C";

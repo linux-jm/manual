@@ -1,6 +1,5 @@
 #
 # Makefile for contents in www/announcement.
-# $Id: Makefile,v 1.3 2001/12/22 04:02:57 nakano Exp $
 #
 
 OBJS = index.html 19991015.html 20001120.html

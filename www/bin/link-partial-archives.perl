@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 #
-# $Id: link-partial-archives.perl,v 1.6 2005/09/16 13:42:31 nakano Exp $
 # download.html 用のアーカイブリンクエントリを作る. (分割用)
 #
 $ENV{"LANG"}="C";

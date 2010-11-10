@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 #
-# $Id: link-rpms.perl,v 1.7 2005/09/16 13:42:31 nakano Exp $
 # download.html 用のアーカイブリンクエントリを作る. (rpm 用)
 #
 $ENV{"LANG"}="C";

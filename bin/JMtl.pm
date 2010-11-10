@@ -1,7 +1,4 @@
 #!/usr/bin/perl
-#
-# $Id: JMtl.pm,v 1.2 2000/08/02 10:00:22 nakano Exp $
-#
 package JMtl;
 
 #

@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 #
-# $Id: mksplitdist.perl,v 1.2 2000/08/02 10:00:22 nakano Exp $
-#
 # mksplitdist.perl:
 #   $DISTROOT を見て package 毎に分割された tar ball を作成する
 #   スクリプト。

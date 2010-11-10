@@ -1,6 +1,4 @@
 #
-# $Id: Makefile,v 1.37 2007/11/19 05:29:25 nakano Exp $
-#
 # Build macro for JM project.  If something don't work well,
 # please refer the description in admin/JM-CVS/JM-CVS.sgml.
 #

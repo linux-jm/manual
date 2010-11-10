@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 #
-# $Id: listchk.perl,v 1.3 2000/09/21 16:54:32 nakano Exp $
-#
 # translation_list をみて、実際にページがあるかのチェックをする.
 #
 BEGIN{

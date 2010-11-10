@@ -1,6 +1,5 @@
 #
 # Makefile for contents in www
-# $Id: Makefile,v 1.27 2007/10/28 17:27:13 jm Exp $
 #
 include ../JM.rules
 

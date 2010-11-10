@@ -1,4 +1,3 @@
-m4_dnl # $Id: jm-brs.pre.m4,v 1.1.1.1 2000/06/26 09:46:20 tsekine Exp $
 m4_dnl # jm-brs.pre.m4: GNU m4 source for jm-brs.html's first part.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #

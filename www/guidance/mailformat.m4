@@ -1,4 +1,3 @@
-m4_dnl # $Id: mailformat.m4,v 1.8 1999/10/22 08:59:35 nakano Exp $
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #
