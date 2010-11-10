@@ -165,6 +165,12 @@ m4_define(`_BACK_TO_HOME',`
  </P>
 ')
 
+m4_define(`_BUILD_DATE',`
+ <DIV CLASS="copyright">
+  m4_esyscmd(`env -u LANG date')
+ </DIV>
+')
+
 m4_dnl ----------------------------------------------
 m4_dnl TABLE OF CONTENTS
 
