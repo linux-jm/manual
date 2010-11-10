@@ -15,10 +15,10 @@ MANDB=manhtmldb
 #
 all: man.cgi .htaccess $(MANDB)
 
-../../www-html-modified:
-	$(MAKE) -C ../../ www-html-modified
+../../stamp/www-html-modified:
+	$(MAKE) -C ../../ stamp/www-html-modified
 
-$(MANDB): ../../www-html-modified $(MKDB)
+$(MANDB): ../../stamp/www-html-modified $(MKDB)
 	-$(RM) $@
 	$(MKDB) $(WWWROOT) $(URLHTML)
 

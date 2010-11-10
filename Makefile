@@ -40,14 +40,14 @@ all: periodic archive-install
 chkcvs:
 	$(CHKCVS)
 
-cvs-release-modified cvs-status-modified: chkcvs
+stamp/cvs-release-modified stamp/cvs-status-modified: chkcvs
 
 #
 # roff tree
 #
-roff: www-roff-modified
+roff: stamp/www-roff-modified
 
-www-roff-modified: cvs-status-modified
+stamp/www-roff-modified: stamp/cvs-status-modified
 	@mkdir -p $(WWWROFF)
 	$(RSYNC) -a $(ROFFSRC)/ $(WWWROFF)
 	@mkdir -p $(WWWPOD)
@@ -57,9 +57,9 @@ www-roff-modified: cvs-status-modified
 #
 # html tree
 #
-html: www-html-modified
+html: stamp/www-html-modified
 
-www-html-modified: cvs-release-modified
+stamp/www-html-modified: stamp/cvs-release-modified
 	-$(RM) -rf $(WWWHTML)
 	mkdir -p $(WWWHTML)
 	$(MKRWWW) $(ROFFSRC) $(WWWHTML) $(MAN2HTML)
@@ -82,7 +82,7 @@ cgi:
 #
 # archive related rules
 #
-archive-install: latest-archive-modified
+archive-install: stamp/latest-archive-modified
 	-$(RM) www/man-pages-ja-*.tar.gz www/per-pkg/*.gz
 	-$(RM) www/rpm/*.rpm
 	cp $(TMPDIR)/$(DIST).tar.gz www/
@@ -99,7 +99,7 @@ archive-install: latest-archive-modified
 		WWWROOT=$(WWWROOT) CGIROOT=$(CGIROOT)\
 		install
 
-latest-archive-modified: tarball rpm
+stamp/latest-archive-modified: tarball rpm
 
 #
 # tarball
@@ -111,7 +111,7 @@ $(TMPDIR)/$(DIST).tar.gz:
 	$(MAKE) -f Makefile.dist install
 	(cd $(TMPDIR); tar czf $(DIST).tar.gz $(DIST))
 	$(MKSPDIST) $(TMPDIR)/$(DIST)
-	touch latest-archive-modified
+	touch stamp/latest-archive-modified
 
 #
 # rpm
@@ -138,13 +138,13 @@ $(RPMROOT)/RPMS/noarch/$(JMRPMDIST).noarch.rpm: $(JMRPMSRC)
 	    --define "_tmppath $(RPMROOT)/tmp"  \
 	    --define "_mandir /usr/share/man" -ba \
 	    $(RPMROOT)/SPECS/$(JMRPMSPEC)
-	touch latest-archive-modified
+	touch stamp/latest-archive-modified
 
 #
 # clean
 #
 clean:
-	rm -f *-modified
+	rm -f stamp/*-modified
 	rm -rf $(TMPDIR)
 	rm -f pod2htmd.tmp pod2htmi.tmp
 	$(MAKE) -C admin/cgi/ clean

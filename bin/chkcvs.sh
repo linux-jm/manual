@@ -3,11 +3,11 @@
 # $Id: chkcvs.sh,v 1.2 2000/08/02 10:00:22 nakano Exp $
 #
 # CVS リポジトリを調べるスクリプト.
-# JM/cvs-release-modified → release/, contrib/ 以下のページが変わったかどうか
-# JM/cvs-status-modified → translation_list が変わったかどうか
+# JM/stamp/cvs-release-modified → release/, contrib/ 以下のページが変わったかどうか
+# JM/stamp/cvs-status-modified → translation_list が変わったかどうか
 #
-RM=cvs-release-modified
-SM=cvs-status-modified
+RM=stamp/cvs-release-modified
+SM=stamp/cvs-status-modified
 
 if [ ! -f $RM ]; then
 	touch $RM

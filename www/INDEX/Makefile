@@ -31,9 +31,9 @@ pod.html: ../bin/list_pod.perl pod.list
 
 progress.html: ../bin/list_progress.perl
 
-*.html: ../jm_www.m4 ../../cvs-status-modified
+*.html: ../jm_www.m4 ../../stamp/cvs-status-modified
 
-../../cvs-status-modified:
+../../stamp/cvs-status-modified:
 	make -C ../.. chkcvs
 
 clean:

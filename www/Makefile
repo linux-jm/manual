@@ -36,7 +36,7 @@ contents: $(CONTENTS)
 
 *.html: jm_www.m4
 
-index.html: news.m4 ../latest-archive-modified
+index.html: news.m4 ../stamp/latest-archive-modified
 
 README.html: ../dist/README
 
@@ -45,11 +45,11 @@ INSTALL.html: ../dist/INSTALL
 ../dist/README ../dist/INSTALL:
 	$(MAKE) -C .. -f Makefile.dist
 
-download.html: download.m4 ../latest-archive-modified 
+download.html: download.m4 ../stamp/latest-archive-modified
 	m4 -P -D _WORKDIR=$(WORKDIR) -D _DATE=$(DATE) $< | nkf -j > $@
 
-../latest-archive-modified:
-	make -C .. latest-archive-modified
+../stamp/latest-archive-modified:
+	make -C .. stamp/latest-archive-modified
 
 clean:
 	@rm -f $(CONTENTS) *.tar.gz
