@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
 # $Id: info-whole-archive.perl,v 1.3 2002/09/14 17:29:22 nakano Exp $
-# index.m4 ÍÑ¤Î¥¢¡¼¥«¥¤¥Ö¿·Ãå¾ğÊó¥¨¥ó¥È¥ê¤òºî¤ë¡£
+# index.m4 ç”¨ã®ã‚¢ãƒ¼ã‚«ã‚¤ãƒ–æ–°ç€æƒ…å ±ã‚¨ãƒ³ãƒˆãƒªã‚’ä½œã‚‹ã€‚
 #
 %month_table =
     (
@@ -30,11 +30,11 @@ close LS;
 
 if ($fname eq undef) {exit;}
 
-print " <LI>¿·¥¢¡¼¥«¥¤¥Ö¥Õ¥¡¥¤¥ë\n";
+print " <LI>æ–°ã‚¢ãƒ¼ã‚«ã‚¤ãƒ–ãƒ•ã‚¡ã‚¤ãƒ«\n";
 print "  $fname\n";
-print "  µÚ¤ÓÂĞ±ş¤¹¤ë RPM ¥¢¡¼¥«¥¤¥Ö¤ò\n";
-print "  _LINK(download.html,¥À¥¦¥ó¥í¡¼¥É¤Î¥Ú¡¼¥¸)\n";
-print "  ¤ËÅĞÏ¿¤·¤Ş¤·¤¿¡£\n";
+print "  åŠã³å¯¾å¿œã™ã‚‹ RPM ã‚¢ãƒ¼ã‚«ã‚¤ãƒ–ã‚’\n";
+print "  _LINK(download.html,ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰ã®ãƒšãƒ¼ã‚¸)\n";
+print "  ã«ç™»éŒ²ã—ã¾ã—ãŸã€‚\n";
 print "  <SMALL>($fdate)</SMALL></LI>\n";
 
 #

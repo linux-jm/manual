@@ -2,8 +2,8 @@
 # $Id: list.perl,v 1.4 2001/03/14 14:20:15 uchida Exp $
 #
 #
-# $MANROOT ¤Ï CVS ¥ê¥İ¥¸¥È¥ê¤Î JM/manual,
-# $WWWROOT ¤Ï¥¤¥ó¥¹¥È¡¼¥ëÀè¥Ç¥£¥ì¥¯¥È¥ê.
+# $MANROOT ã¯ CVS ãƒªãƒã‚¸ãƒˆãƒªã® JM/manual,
+# $WWWROOT ã¯ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«å…ˆãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒª.
 #
 BEGIN{
     my $epath = `dirname $0`; chomp $epath;
@@ -26,7 +26,7 @@ my $ROFF = "$WWWROOT/manual";
 my $PKGLIST = $ARGV[2];
 
 #
-# ¥Ñ¥Ã¥±¡¼¥¸Æâ¥»¥¯¥·¥ç¥óÊ¬³ä¤ÎïçÃÍ
+# ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸å†…ã‚»ã‚¯ã‚·ãƒ§ãƒ³åˆ†å‰²ã®é–¾å€¤
 #
 my $splitmin = 40;
 
@@ -40,7 +40,7 @@ while (<PL>){
 
 my $j;
 
-print "<H2>ÌÜ¼¡</H2>\n";
+print "<H2>ç›®æ¬¡</H2>\n";
 print "<UL>\n";
 for $j (0 .. $#pl){
     my $dir = $pl[$j]; $dir =~ s/ /_/eg;
@@ -64,7 +64,7 @@ for $j (0 .. $#pl){
 	my $sec  = $ti{'sec'};
 	$version = $ti{'over'};
 
-	# so ¥Õ¥¡¥¤¥ëÍÑ¤Ë¡¢ roff ¥Õ¥¡¥¤¥ë¤Î status ¤ò store.
+	# so ãƒ•ã‚¡ã‚¤ãƒ«ç”¨ã«ã€ roff ãƒ•ã‚¡ã‚¤ãƒ«ã® status ã‚’ store.
 	#
 	if ($ti{'kind'} eq 'roff') {
 	    $ps{"$name.$sec"} = $ti{'stat'};
@@ -77,7 +77,7 @@ for $j (0 .. $#pl){
     print "<H3><A NAME=\"$dir\">$pkg</A> <SMALL>(Version $version)</SMALL></H3>\n";
 
     foreach $sec (sort keys %tl){
-#	print "<H4>¥»¥¯¥·¥ç¥ó $sec</H4>\n";
+#	print "<H4>ã‚»ã‚¯ã‚·ãƒ§ãƒ³ $sec</H4>\n";
 	print "<P CLASS=\"noindent\">\n";
 
 	foreach my $i (0 .. $#{$tl{$sec}}){

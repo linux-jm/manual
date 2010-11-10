@@ -2,8 +2,8 @@
 # $Id: list_ldp.perl,v 1.4 2001/03/14 14:20:16 uchida Exp $
 #
 #
-# $MANROOT ¤Ï CVS ¥ê¥İ¥¸¥È¥ê¤Î JM/manual,
-# $WWWROOT ¤Ï¥¤¥ó¥¹¥È¡¼¥ëÀè¥Ç¥£¥ì¥¯¥È¥ê.
+# $MANROOT ã¯ CVS ãƒªãƒã‚¸ãƒˆãƒªã® JM/manual,
+# $WWWROOT ã¯ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«å…ˆãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒª.
 #
 BEGIN{
     my $epath = `dirname $0`; chomp $epath;
@@ -26,7 +26,7 @@ my $ROFF = "$WWWROOT/manual";
 my %tl;
 my %ps;
 #
-# ¥»¥¯¥·¥ç¥óÆâ¥¢¥ë¥Õ¥¡¥Ù¥Ã¥ÈÊ¬³ä¤ÎïçÃÍ
+# ã‚»ã‚¯ã‚·ãƒ§ãƒ³å†…ã‚¢ãƒ«ãƒ•ã‚¡ãƒ™ãƒƒãƒˆåˆ†å‰²ã®é–¾å€¤
 #
 my $splitmin = 40;
 my $version;
@@ -39,7 +39,7 @@ while (<TL>){
     my $sec  = $ti{'sec'};
     $version = $ti{'over'};
 
-    # so ¥Õ¥¡¥¤¥ëÍÑ¤Ë¡¢ roff ¥Õ¥¡¥¤¥ë¤Î status ¤ò store.
+    # so ãƒ•ã‚¡ã‚¤ãƒ«ç”¨ã«ã€ roff ãƒ•ã‚¡ã‚¤ãƒ«ã® status ã‚’ store.
     #
     if ($ti{'kind'} eq 'roff') {
 	$ps{"$name.$sec"} = $ti{'stat'};
@@ -50,18 +50,18 @@ while (<TL>){
 close TL;
 
 
-print "<H2>¥Ú¡¼¥¸°ìÍ÷ : LDP_man-pages <SMALL>(Version $version)</SMALL></H2>\n";
+print "<H2>ãƒšãƒ¼ã‚¸ä¸€è¦§ : LDP_man-pages <SMALL>(Version $version)</SMALL></H2>\n";
 
-print "<H3>ÌÜ¼¡</H3>\n";
+print "<H3>ç›®æ¬¡</H3>\n";
 print "<UL>\n";
 foreach $sec (sort keys %tl){
-    print "<LI><A HREF=\"#sec$sec\">¥»¥¯¥·¥ç¥ó $sec</A></LI>\n";
+    print "<LI><A HREF=\"#sec$sec\">ã‚»ã‚¯ã‚·ãƒ§ãƒ³ $sec</A></LI>\n";
 }
 print "</UL>\n";
 
 
 foreach $sec (sort keys %tl){
-    print "<H3><A NAME=\"sec$sec\">¥»¥¯¥·¥ç¥ó $sec</A></H3>\n";
+    print "<H3><A NAME=\"sec$sec\">ã‚»ã‚¯ã‚·ãƒ§ãƒ³ $sec</A></H3>\n";
 
     my $hl = "z";
     if ($#{$tl{$sec}} > $splitmin){
@@ -70,7 +70,7 @@ foreach $sec (sort keys %tl){
 
 	if ($hl lt 'a') {
 		$hl = '_';
-		print "<H4>A-Z, µ­¹æ</H4>\n";
+		print "<H4>A-Z, è¨˜å·</H4>\n";
 	} else {
 		print "<H4>$hl</H4>\n";
 	}

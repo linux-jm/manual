@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
 # $Id: link-partial-archives.perl,v 1.6 2005/09/16 13:42:31 nakano Exp $
-# download.html ÍÑ¤Î¥¢¡¼¥«¥¤¥Ö¥ê¥ó¥¯¥¨¥ó¥È¥ê¤òºî¤ë. (Ê¬³äÍÑ)
+# download.html ç”¨ã®ã‚¢ãƒ¼ã‚«ã‚¤ãƒ–ãƒªãƒ³ã‚¯ã‚¨ãƒ³ãƒˆãƒªã‚’ä½œã‚‹. (åˆ†å‰²ç”¨)
 #
 use File::Basename;
 $ENV{"LANG"}="C";

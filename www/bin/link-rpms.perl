@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
 # $Id: link-rpms.perl,v 1.7 2005/09/16 13:42:31 nakano Exp $
-# download.html мя╓н╔╒║╪╔╚╔╓╔ж╔Й╔С╔╞╔╗╔С╔х╔Й╓Р╨Н╓К. (rpm мя)
+# download.html Г■╗Ц│╝Ц┌╒Ц┐╪Ц┌╚Ц┌╓Ц┐√Ц┐╙Ц┐ЁЦ┌╞Ц┌╗Ц┐ЁЦ┐┬Ц┐╙Ц┌▓Д╫°Ц┌▀. (rpm Г■╗)
 #
 use File::Basename;
 $ENV{"LANG"}="C";

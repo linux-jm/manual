@@ -16,7 +16,7 @@ my $POD  = "../pod";
 my %tl;
 
 #
-# $CVSROOT ¤Ï CVS ¥ê¥İ¥¸¥È¥ê¤Î ¥È¥Ã¥×.
+# $CVSROOT ã¯ CVS ãƒªãƒã‚¸ãƒˆãƒªã® ãƒˆãƒƒãƒ—.
 #
 if (@ARGV < 1) {die "$0 cvsroot\n"};
 
@@ -54,9 +54,9 @@ close TL;
 my ($key, $pkg);
 
 
-print "<H2>¥¹¥Æ¡¼¥¿¥¹°ìÍ÷</H2>\n";
+print "<H2>ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ä¸€è¦§</H2>\n";
 
-print "<H3>ÌÜ¼¡</H3>\n";
+print "<H3>ç›®æ¬¡</H3>\n";
 print "<UL>\n";
 foreach $key (sort keys %tl){
     $pkg = $key; $pkg =~ s/ /_/eg;
@@ -114,7 +114,7 @@ foreach $key (sort keys %tl){
 	    if ($pmail eq "") {$pmail = $ti{'tmail'}};
 	    if ($pmail eq undef){print "<!--PMAIL-->\n";}
 	    # Escape email address
-	    $pmail =~ s/\@/ ¡÷ /;
+	    $pmail =~ s/\@/ ï¼  /;
 	    print "Reserved by $pmail ($ti{'tdat'})\n";
 
 	    print "</DD>\n\n";

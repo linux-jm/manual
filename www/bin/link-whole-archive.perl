@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
 # $Id: link-whole-archive.perl,v 1.6 2005/09/16 13:42:31 nakano Exp $
-# download.html мя╓н╔╒║╪╔╚╔╓╔ж╔Й╔С╔╞╔╗╔С╔х╔Й╓Р╨Н╓К. (а╢бнмя)
+# download.html Г■╗Ц│╝Ц┌╒Ц┐╪Ц┌╚Ц┌╓Ц┐√Ц┐╙Ц┐ЁЦ┌╞Ц┌╗Ц┐ЁЦ┐┬Ц┐╙Ц┌▓Д╫°Ц┌▀. (Е┘╗Д╫⌠Г■╗)
 #
 use File::Basename;
 $ENV{"LANG"}="C";
