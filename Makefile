@@ -145,12 +145,14 @@ $(RPMROOT)/RPMS/noarch/$(JMRPMDIST).noarch.rpm: $(JMRPMSRC)
 #
 # clean
 #
-clean:
+clean:	tmpclean
 	rm -f stamp/*-modified
-	rm -rf $(TMPDIR)
 	$(MAKE) -C admin/cgi/ clean
 	$(MAKE) -C www/ clean
 	$(MAKE) -f Makefile.dist clean
+
+tmpclean:
+	rm -rf $(TMPDIR)
 	rm -rf $(JMRPM_BUILD_ROOT)
 	rm -rf $(RPMROOT)/BUILD/$(DIST)
 	for i in $(JMRPMSRC); do \
