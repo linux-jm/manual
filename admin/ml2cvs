@@ -1,10 +1,12 @@
 #!/usr/bin/perl
 #
-# JMpost (admin/tools/Jmpost) ¤òÍÑ¤¤¤Æ¥İ¥¹¥È¤µ¤ì¤¿
-# ¥á¡¼¥ë¤«¤é CVS ¤Ø¤ÎÅĞÏ¿ (translation_list ÊÑ¹¹Â¾)
-# ¤ò¤¹¤ë perl ¥¹¥¯¥ê¥×¥È.
+# JMpost (admin/tools/Jmpost) ã‚’ç”¨ã„ã¦ãƒã‚¹ãƒˆã•ã‚ŒãŸ
+# ãƒ¡ãƒ¼ãƒ«ã‹ã‚‰ Git ã¸ã®ç™»éŒ² (translation_list å¤‰æ›´ä»–)
+# ã‚’ã™ã‚‹ perl ã‚¹ã‚¯ãƒªãƒ—ãƒˆ.
 #
-# ¥á¡¼¥ë¤ÏÉ¸½àÆşÎÏ¤«¤éÎ®¤·¤Æ¤¯¤À¤µ¤¤
+# ãƒ¡ãƒ¼ãƒ«ã¯ UTF-8 å¤‰æ›å¾Œã«æ¨™æº–å…¥åŠ›ã‹ã‚‰æµã—ã¦ãã ã•ã„ã€‚
+#
+# cat <mail> | nkf -w | ml2cvs
 #
 my $DEBUG = "off";
 my ($epath, %status);
@@ -65,15 +67,18 @@ while (<>){
 
     if ($context eq "intermission"){
 	unless (/^$/){ $context = "body";}
-	# ¤³¤³¤Ï next; ¤¬Æş¤é¤Ê¤¤!
+	# ã“ã“ã¯ next; ãŒå…¥ã‚‰ãªã„!
     }
 
     if ($context eq "body"){
+	if (/^_{40,}$/) { $context = "end"; next; }
 	$draft_body .= "$_\n";
 	unless ($_ =~ /\.\\\"O/){
 	    $release_body .= "$_\n";
 	}
-    }   
+    }
+
+    if ($context eq "end") { next; }
 }
 
 if ($DEBUG eq "on") {
@@ -111,7 +116,7 @@ my $tlist = "$bdir/translation_list";
 my $clog  = "$bdir/ChangeLog";
 
 my $clog_ins = `date`; chomp $clog_ins;
-$clog_ins .= "  JM ML to CVS Gateway\n\n";
+$clog_ins .= "  JM ML to Git Gateway\n\n";
 
 #
 # translation_list
@@ -177,7 +182,7 @@ close TLO;
 if ($ismatch eq "no") {die "No match in $tlist\n"};
 
 system "mv -f $tlist $tlist.orig";
-open TLN, "| nkf -e > $tlist" or die "cannot open $tlist.new\n";
+open TLN, "| nkf -w > $tlist" or die "cannot open $tlist.new\n";
 print TLN $tlist_body;
 close TLN;
 print "UPDATE: $tlist\n";
@@ -221,7 +226,7 @@ my $clog_body = `cat $clog`;
 $clog_body =~ s/^/$clog_ins\n/;
 
 system "mv -f $clog $clog.orig";
-open CL, "> $clog" || die "cannot oepn $clog for writing\n";
+open CL, "| nkf -e > $clog" || die "cannot oepn $clog for writing\n";
 print CL $clog_body;
 close CL;
 
@@ -230,9 +235,9 @@ print "UPDATE: $clog\n";
 
 unless ($status{'stat'} =~ /^R/) {exit 0;}
 #
-# $ppkg:	¥Ñ¥Ã¥±¡¼¥¸Ì¾
-# $dir:		$ppkg ¤Î¥¹¥Ú¡¼¥¹¤ò _ ¤ËÃÖ´¹¤·¤¿Ê¸»úÎó
-# $name:	¥Õ¥¡¥¤¥ëÌ¾
+# $ppkg:	ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸å
+# $dir:		$ppkg ã®ã‚¹ãƒšãƒ¼ã‚¹ã‚’ _ ã«ç½®æ›ã—ãŸæ–‡å­—åˆ—
+# $name:	ãƒ•ã‚¡ã‚¤ãƒ«å
 
 #
 # www/news.m4
@@ -246,8 +251,8 @@ if ($rf_stat eq "new") {
 
 my $newsfile = "$WWW_ROOT/news.m4";
 system "mv -f $newsfile $newsfile.orig";
-open NMO, "$newsfile.orig" || die "cannot open $newsfile.orig for reading\n";
-open NMN, "> $newsfile" || die "cannot open $newsfile for writing\n";
+open NMO, "nkf -w $newsfile.orig |" || die "cannot open $newsfile.orig for reading\n";
+open NMN, "| nkf -e > $newsfile" || die "cannot open $newsfile for writing\n";
 
 my $date = `date "+%Y/%m/%d"`; chomp $date;
 NEWS: while (<NMO>){
@@ -256,10 +261,10 @@ NEWS: while (<NMO>){
     print NMN;
     my $tmp = <NMO>;
 
-    unless ($tmp =~ $date) { # ÆüÉÕ¤¬¥Ş¥Ã¥Á¤·¤Ê¤«¤Ã¤¿
+    unless ($tmp =~ $date) { # æ—¥ä»˜ãŒãƒãƒƒãƒã—ãªã‹ã£ãŸ
 	print NMN " <H2>$date</H2>\n";
 	print NMN " <P>\n";
-	print NMN "  °Ê²¼¤Î¥Õ¥¡¥¤¥ë¤òÄÉ²Ã¡¦¹¹¿·¤·¤Ş¤·¤¿¡£\n";
+	print NMN "  ä»¥ä¸‹ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‚’è¿½åŠ ãƒ»æ›´æ–°ã—ã¾ã—ãŸã€‚\n";
 	print NMN " </P>\n";
 	print NMN " <DL>\n";
 	print NMN "  <DT>$ppkg</DT>\n  <DD>\n";
@@ -270,9 +275,9 @@ NEWS: while (<NMO>){
 	next;
     }
 
-    # ÆüÉÕ¤¬¥Ş¥Ã¥Á¤·¤¿
+    # æ—¥ä»˜ãŒãƒãƒƒãƒã—ãŸ
     #
-    print NMN $tmp; # ÆüÉÕ¹Ô¤ò½ĞÎÏ
+    print NMN $tmp; # æ—¥ä»˜è¡Œã‚’å‡ºåŠ›
 
     while (($tmp = <NMO>) !~ /<\/DL>/) {
 	unless ($tmp =~ /<DT>$ppkg/){
@@ -280,18 +285,18 @@ NEWS: while (<NMO>){
 	    next;
 	}
 
-	# ¥Ñ¥Ã¥±¡¼¥¸¤¬¥Ş¥Ã¥Á
+	# ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ãŒãƒãƒƒãƒ
 	#
 	do {
 	    print NMN $tmp;
 	    $tmp = <NMO>;
 	} until ($tmp =~ /<\/DD>/);
 	print NMN $pagelink;
-	print NMN $tmp;  #</DD> ¹Ô
+	print NMN $tmp;  #</DD> è¡Œ
 	next NEWS;
     }
 
-    # ÆüÉÕ¤Ï¥Ş¥Ã¥Á¤·¤¿¤¬¡¢¥Ş¥Ã¥Á¤¹¤ë¥Ñ¥Ã¥±¡¼¥¸¤¬¤Ê¤«¤Ã¤¿
+    # æ—¥ä»˜ã¯ãƒãƒƒãƒã—ãŸãŒã€ãƒãƒƒãƒã™ã‚‹ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ãŒãªã‹ã£ãŸ
     print NMN "  <DT>$ppkg</DT>\n  <DD>\n";
     print NMN $pagelink;
     print NMN "  </DD>\n";
@@ -312,7 +317,7 @@ my $pkgsfile = "$DISTROOT/script/pkgs.list";
 if (`grep $dir $pkgsfile` == 0) {exit 0;}
 
 system "cp -f $pkgsfile $pkgsfile.orig";
-open PL, ">> $pkgsfile" || die "cannot open $pkgsfile for addition\n";
+open PL, "nkf -w >> $pkgsfile" || die "cannot open $pkgsfile for addition\n";
 print PL "$dir\tY\n";
 close PL;
 print "UPDATE: $pkgsfile\n";
