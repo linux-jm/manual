@@ -61,7 +61,6 @@ clean:
 
 install: all
 	$(MAKE) -C guidance  WWWROOT=$(WWWROOT) install
-	$(MAKE) -C ../admin/site WWWROOT=$(WWWROOT) install
 	$(RSYNC) -a -v \
 	--exclude='bin' \
 	--exclude='*.m4' \
@@ -70,4 +69,4 @@ install: all
 	--exclude='Makefile' \
 	--exclude='ChangeLog' \
 	* $(WWWROOT)
-
+	$(MAKE) -C ../admin/site WWWROOT=$(WWWROOT) install
