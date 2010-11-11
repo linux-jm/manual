@@ -61,7 +61,7 @@ clean:
 
 install: all
 	$(MAKE) -C guidance  WWWROOT=$(WWWROOT) install
-	$(MAKE) -C ../admin/google WWWROOT=$(WWWROOT) install
+	$(MAKE) -C ../admin/site WWWROOT=$(WWWROOT) install
 	$(RSYNC) -a -v \
 	--exclude='bin' \
 	--exclude='*.m4' \
