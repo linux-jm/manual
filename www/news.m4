@@ -34,6 +34,17 @@ m4_define(`_NEW_POD',`<FONT COLOR="red">[NEW]</FONT> _PODLINK($1,$2)')
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+ <H2>2010/11/12</H2>
+ <P>
+  以下のファイルを追加・更新しました。
+ </P>
+ <DL>
+  <DT>GNU_grep</DT>
+  <DD>
+   _UPD_PAGE(GNU_grep, grep.1)
+  </DD>
+ </DL>
+
  <H2>2010/04/25</H2>
  <P>
   以下のファイルを追加・更新しました。
