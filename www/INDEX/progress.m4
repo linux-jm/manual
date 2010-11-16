@@ -62,7 +62,7 @@ _HEADER(`JM インデックス (作業状況)')
 </UL>
 -->
 
-m4_esyscmd(../bin/list_progress.perl ../..)
+m4_esyscmd(../bin/list_progress.perl ../.. | nkf -e)
 
 _CREDITS
 

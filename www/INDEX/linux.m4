@@ -26,7 +26,7 @@ _HEADER(`JM インデックス (Linux 専用)')
  をご覧ください。
 </P>
 
-m4_esyscmd(../bin/list.perl ../../manual _WWWROOT linux.list)
+m4_esyscmd(../bin/list.perl ../../manual _WWWROOT linux.list | nkf -e)
 
 _CREDITS
 
