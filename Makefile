@@ -119,6 +119,8 @@ $(TMPDIR)/$(DIST).tar.gz:
 rpm: $(RPMROOT)/RPMS/noarch/$(JMRPMDIST).noarch.rpm
 
 $(RPMROOT)/RPMS/noarch/$(JMRPMDIST).noarch.rpm: $(JMRPMSRC)
+ifdef NORPM
+else
 	mkdir -p $(RPMROOT)/SOURCES
 	mkdir -p $(RPMROOT)/SPECS
 	mkdir -p $(RPMROOT)/BUILD
@@ -139,6 +141,7 @@ $(RPMROOT)/RPMS/noarch/$(JMRPMDIST).noarch.rpm: $(JMRPMSRC)
 	    --define "_mandir /usr/share/man" -ba \
 	    $(RPMROOT)/SPECS/$(JMRPMSPEC)
 	touch stamp/latest-archive-modified
+endif
 
 #
 # clean
