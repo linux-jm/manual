@@ -17,7 +17,7 @@ ROFFSRC=./manual
 PODSRC=./pod
 
 JMVER=0.5
-JMRELEASE := $(shell date +"%Y%m%d")
+JMRELEASE := $(shell env LANG=C date +"%Y%m%d")
 DIST := man-pages-ja-$(JMRELEASE)
 
 JMRPMDIST := jman_pages-$(JMVER)-$(JMRELEASE)

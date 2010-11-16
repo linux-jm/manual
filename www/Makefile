@@ -8,7 +8,7 @@ ifndef WORKDIR
 endif
 
 ifndef DATE
-	DATE := $(shell date +"%Y%m%d")
+	DATE := $(shell env LANG=C date +"%Y%m%d")
 endif
 
 .SUFFIXES: .m4 .html
