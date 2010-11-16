@@ -5,9 +5,9 @@ CONTENTS = robots.txt $(SITEMAP) google*.html
 
 all:	install
 
-sitemap:
+$(SITEMAP):    ../../stamp/www-html-modified
 	$(RM) $(SITEMAP)
 	./gen_sitemap.rb $(WWWROOT) > $(SITEMAP)
 
-install: sitemap
+install: $(SITEMAP)
 	$(RSYNC) -a -v $(CONTENTS) $(WWWROOT)
