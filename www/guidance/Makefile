@@ -12,6 +12,7 @@ JMMANVIEW = ../../admin/JM-man-view.el
 
 TARGET = index.html mailformat.html translation_note.html\
 	repository.html pod.html JM-man-view.html
+EXTRAS = JMpost JM-man-view.el
 
 .SUFFIXES: .m4 .html
 
@@ -19,15 +20,18 @@ TARGET = index.html mailformat.html translation_note.html\
 	m4 -P -D _WORKDIR=$(WORKDIR) -D _WWWROOT=$(WWWROOT) $*.m4\
 	| nkf -j > $*.html
 
-all: $(TARGET)
+all: $(TARGET) $(EXTRAS)
 
 *.html: ../jm_www.m4
 
+JMpost:        $(JMPOST)
+	cp -p $< $@
+
+JM-man-view.el:        $(JMMANVIEW)
+	cp -p $< $@
+
 clean:
-	@rm -f $(TARGET)
+	@rm -f $(TARGET) $(EXTRAS)
 
 install: all
-	-mkdir -p $(WWWROOT)/guidance
-	cp $(JMPOST) $(WWWROOT)/guidance
-	cp $(JMMANVIEW) $(WWWROOT)/guidance
 
