@@ -61,12 +61,13 @@ clean:
 
 install: all
 	$(MAKE) -C guidance  WWWROOT=$(WWWROOT) install
-	$(RSYNC) -a -v \
+	$(RSYNC) -a --delete -v \
 	--exclude='bin' \
 	--exclude='*.m4' \
 	--exclude='*.perl' \
 	--exclude='*.list' \
 	--exclude='Makefile' \
 	--exclude='ChangeLog' \
+	--exclude='.gitignore' \
 	* $(WWWROOT)
 	$(MAKE) -C ../admin/site WWWROOT=$(WWWROOT) install

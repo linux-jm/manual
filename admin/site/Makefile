@@ -10,4 +10,4 @@ $(SITEMAP):    ../../stamp/www-html-modified
 	./gen_sitemap.rb $(WWWROOT) > $(SITEMAP)
 
 install: $(SITEMAP)
-	$(RSYNC) -a -v $(CONTENTS) $(WWWROOT)
+	$(RSYNC) -a --delete -v $(CONTENTS) $(WWWROOT)
