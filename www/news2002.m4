@@ -697,12 +697,12 @@ m4_dnl ML2CVS ADD HERE
    _UPD_PAGE(LDP man-pages, tzselect.8)
    _UPD_PAGE(LDP man-pages, syslog.3)
   </DD>
-  <DT>dhcp</DT>
+  <DT>dhcp2</DT>
   <DD>
-   _NEW_PAGE(dhcp, dhcpd.conf.5)
-   _NEW_PAGE(dhcp, dhcpd.leases.5)
-   _NEW_PAGE(dhcp, dhcpd.8)
-   _NEW_PAGE(dhcp, dhcrelay.8)
+   _NEW_PAGE(dhcp2, dhcpd.conf.5)
+   _NEW_PAGE(dhcp2, dhcpd.leases.5)
+   _NEW_PAGE(dhcp2, dhcpd.8)
+   _NEW_PAGE(dhcp2, dhcrelay.8)
   </DD>
   <DT>modutils</DT>
   <DD>
