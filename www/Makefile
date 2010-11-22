@@ -18,7 +18,7 @@ endif
 
 CONTENTS = index.html download.html section.html copyright.html \
 	README.html INSTALL.html \
-	missing.html nosuchpage.html manerror.html mail_error.html \
+	missing.html nosuchpage.html manerror.html \
 	news.html news2001.html news2000.html news1999.html \
 	news2002.html news2003.html news2004.html news2005.html news2006.html
 #
