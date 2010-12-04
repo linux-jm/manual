@@ -1,7 +1,7 @@
 .\" Hey Emacs! This file is -*- nroff -*- source.
 .\"
 .\" Copyright (c) 1992 Drew Eckhardt, March 28, 1992
-.\" and Copyright (c) 2002, 2004, 2005, 2008. 2010 Michael Kerrisk
+.\" and Copyright (c) 2002, 2004, 2005, 2008, 2010 Michael Kerrisk
 .\"
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
@@ -61,7 +61,7 @@
 .\" 2008-05-07, mtk / Peter Zijlstra, Added description of RLIMIT_RTTIME
 .\" 2010-11-06, mtk: Added documentation of prlimit()
 .\"
-.TH GETRLIMIT 2 2010-11-06 "Linux" "Linux Programmer's Manual"
+.TH GETRLIMIT 2 2010-12-03 "Linux" "Linux Programmer's Manual"
 .SH NAME
 getrlimit, setrlimit, prlimit \- get/set resource limits
 .SH SYNOPSIS
@@ -87,7 +87,6 @@ Feature Test Macro Requirements for glibc (see
 _GNU_SOURCE
 .SH DESCRIPTION
 The
-the
 .BR getrlimit ()
 and
 .BR setrlimit ()
@@ -443,7 +442,6 @@ outside the accessible address space.
 The value specified in
 .I resource
 is not valid;
-The value specified in
 or, for
 .BR setrlimit ()
 or
@@ -456,7 +454,7 @@ was greater than
 An unprivileged process tried to raise the hard limit; the
 .B CAP_SYS_RESOURCE
 capability is required to do this.
-Or, the the caller tried to increase the hard
+Or, the caller tried to increase the hard
 .B RLIMIT_NOFILE
 limit above the current kernel maximum
 .RB ( NR_OPEN ).
@@ -468,7 +466,7 @@ for the process specified by
 Could not find a process with the ID specified in
 .IR pid .
 .SH VERSIONS
-.BR The
+The
 .BR prlimit ()
 system call is available since Linux 2.6.36.
 Library support is available since glibc 2.13.
@@ -519,6 +517,58 @@ For backward compatibility, glibc also provides
 .BR vlimit ().
 All new applications should be written using
 .BR setrlimit ().
+.SH EXAMPLE
+The program below demonstrates the use of
+.BR prlimit ().
+.PP
+.nf
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/resource.h>
+
+int
+main(int argc, char *argv[])
+{
+    struct rlimit64 old, new;
+    struct rlimit64 *newp;
+    pid_t pid;
+
+    if (!(argc == 2 || argc == 4)) {
+        fprintf(stderr, "Usage: %s <pid> [<new\-soft\-limit> "
+                "<new\-hard\-limit>]\\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    pid = atoi(argv[1]);        /* PID of target process */
+
+    newp = NULL;
+    if (argc == 4) {
+        new.rlim_cur = atoi(argv[2]);
+        new.rlim_max = atoi(argv[3]);
+        newp = &new;
+    }
+
+    /* Set CPU time limit of target prcess; retrieve and display
+       previous limit */
+
+    if (prlimit(pid, RLIMIT_CPU, newp, &old) == \-1)
+        errExit("prlimit\-1");
+    printf("Previous limits: soft=%lld; hard=%lld\\n",
+            (long long) old.rlim_cur, (long long) old.rlim_max);
+
+    /* Retrieve and display new CPU time limit */
+
+    if (prlimit(pid, RLIMIT_CPU, NULL, &old) == \-1)
+        errExit("prlimit\-2");
+    printf("New limits: soft=%lld; hard=%lld\\n",
+            (long long) old.rlim_cur, (long long) old.rlim_max);
+
+    exit(EXIT_FAILURE);
+}
+.fi
 .SH BUGS
 .\" FIXME prlimit() does not suffer
 .\" https://bugzilla.kernel.org/show_bug.cgi?id=5042
@@ -549,7 +599,7 @@ between the priority ranges returned by
 .BR getpriority (2)
 and
 .BR RLIMIT_NICE .
-This had the effect that actual ceiling for the nice value
+This had the effect that the actual ceiling for the nice value
 was calculated as
 .IR "19\ \-\ rlim_cur" .
 This was fixed in kernel 2.6.13.
