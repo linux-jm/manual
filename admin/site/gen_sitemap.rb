@@ -26,7 +26,7 @@ ARGV.each do |param|
 	<url>
 		<loc>#{$site_url}/#{path}</loc>
 		<lastmod>#{mod_date.strftime("%Y-%m-%d")}</lastmod>
-		<changefreq>weekly</changefreq>
+		<changefreq>daily</changefreq>
 	</url>"
     end
   end
