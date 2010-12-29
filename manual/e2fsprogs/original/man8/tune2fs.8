@@ -2,9 +2,9 @@
 .\" Initial revision
 .\"
 .\"
-.TH TUNE2FS 8 "May 2006" "E2fsprogs version 1.39"
+.TH TUNE2FS 8 "December 2010" "E2fsprogs version 1.41.14"
 .SH NAME
-tune2fs \- adjust tunable filesystem parameters on ext2/ext3 filesystems
+tune2fs \- adjust tunable filesystem parameters on ext2/ext3/ext4 filesystems
 .SH SYNOPSIS
 .B tune2fs
 [
@@ -61,6 +61,10 @@ tune2fs \- adjust tunable filesystem parameters on ext2/ext3 filesystems
 .I mount-count
 ]
 [
+.B \-E
+.I extended-options
+]
+[
 .B \-L
 .I volume-name
 ]
@@ -84,7 +88,20 @@ device
 .SH DESCRIPTION
 .BI tune2fs
 allows the system administrator to adjust various tunable filesystem 
-parameters on Linux ext2/ext3 filesystems.
+parameters on Linux ext2, ext3, or ext4 filesystems.  The current values 
+of these options can be displayed by using the
+.B -l
+option to
+.BR tune2fs (8)
+program, or by using the
+.BR dumpe2fs (8)
+program.
+.PP
+The
+.I device
+specifer can either be a filename (i.e., /dev/sda1), or a LABEL or UUID
+specifer: "\fBLABEL=\fIvolume-name\fR" or "\fBUUID=\fIuuid\fR".  (i.e.,
+LABEL=home or UUID=e40486c6-84d5-4f2f-b99c-032281799c9d).
 .SH OPTIONS
 .TP
 .BI \-c " max-mount-counts"
@@ -144,6 +161,67 @@ Remount filesystem read-only.
 Cause a kernel panic.
 .RE
 .TP
+.BI \-E " extended-options"
+Set extended options for the filesystem.  Extended options are comma
+separated, and may take an argument using the equals ('=') sign.
+The following extended options are supported:
+.RS 1.2i
+.TP
+.BI stride= stride-size
+Configure the filesystem for a RAID array with
+.I stride-size
+filesystem blocks. This is the number of blocks read or written to disk
+before moving to next disk. This mostly affects placement of filesystem
+metadata like bitmaps at
+.BR mke2fs (2)
+time to avoid placing them on a single disk, which can hurt the performance.
+It may also be used by block allocator.
+.TP
+.BI stripe_width= stripe-width
+Configure the filesystem for a RAID array with
+.I stripe-width
+filesystem blocks per stripe. This is typically be stride-size * N, where
+N is the number of data disks in the RAID (e.g. RAID 5 N+1, RAID 6 N+2).
+This allows the block allocator to prevent read-modify-write of the
+parity in a RAID stripe if possible when the data is written.
+.TP
+.BI hash_alg= hash-alg
+Set the default hash algorithm used for filesystems with hashed b-tree
+directories.  Valid algorithms accepted are:
+.IR legacy ,
+.IR half_md4 ,
+and
+.IR tea .
+.TP
+.BI mount_opts= mount_option_string
+Set a set of default mount options which will be used when the file
+system is mounted.  Unlike the bitmask-based default mount options which
+can be specified with the
+.B -o
+option,
+.I mount_option_string
+is an arbitrary string with a maximum length of 63 bytes, which is
+stored in the superblock.
+.IP
+The ext4 file system driver will first apply
+the bitmask-based default options, and then parse the
+.IR mount_option_string ,
+before parsing the mount options passed from the
+.BR mount (8)
+program.
+.IP
+This superblock setting is only honored in 2.6.35+ kernels;
+and not at all by the ext2 and ext3 file system drivers.
+.TP
+.B test_fs
+Set a flag in the filesystem superblock indicating that it may be
+mounted using experimental kernel code, such as the ext4dev filesystem.
+.TP
+.B ^test_fs
+Clear the test_fs flag, indicating the filesystem should only be mounted
+using production-level filesystem code.
+.RE
+.TP
 .B \-f
 Force the tune2fs operation to complete even in the face of errors.  This 
 option is useful when removing the 
@@ -159,7 +237,7 @@ without first replaying the external journal can result in
 severe data loss and filesystem corruption.
 .TP
 .BI \-g " group"
-Set the group which can use reserved filesystem blocks.
+Set the group which can use the reserved filesystem blocks.
 The 
 .I group
 parameter can be a numerical gid or a group name.  If a group name is given,
@@ -167,13 +245,15 @@ it is converted to a numerical gid before it is stored in the superblock.
 .TP
 .B \-i " \fIinterval-between-checks\fR[\fBd\fR|\fBm\fR|\fBw\fR]"
 Adjust the maximal time between two filesystem checks. 
-No postfix or
+No suffix or
 .B d
-result in days,
+will interpret the number
+.I interval-between-checks
+as days,
 .B m
-in months, and
+as months, and
 .B w
-in weeks.  A value of zero will disable the time-dependent checking.
+as weeks.  A value of zero will disable the time-dependent checking.
 .sp
 It is strongly recommended that either
 .B \-c
@@ -182,8 +262,8 @@ It is strongly recommended that either
 (time-dependent) checking be enabled to force periodic full
 .BR e2fsck (8)
 checking of the filesystem.  Failure to do so may lead to filesystem
-corruption due to bad disks, cables, memory, or kernel bugs to go
-unnoticed until they cause data loss or corruption.
+corruption (due to bad disks, cables, memory, or kernel bugs) going
+unnoticed, ultimately resulting in data loss or corruption.
 .TP
 .B \-j
 Add an ext3 journal to the filesystem.  If the 
@@ -274,7 +354,8 @@ Only one of the
 options can be given for a filesystem.
 .TP
 .B \-l
-List the contents of the filesystem superblock.
+List the contents of the filesystem superblock, including the current
+values of the parameters that can be set via this program.
 .TP
 .BI \-L " volume-label"
 Set the volume label of the filesystem.  
@@ -294,7 +375,15 @@ instead of a block special device name like
 .BR /dev/hda5 .
 .TP
 .BI \-m " reserved-blocks-percentage"
-Set the percentage of reserved filesystem blocks.
+Set the percentage of the filesystem which may only be allocated
+by privileged processes.   Reserving some number of filesystem blocks 
+for use by privileged processes is done 
+to avoid filesystem fragmentation, and to allow system
+daemons, such as 
+.BR syslogd (8),
+to continue to function correctly after non-privileged processes are 
+prevented from writing to the filesystem.  Normally, the default percentage 
+of reserved blocks is 5%.
 .TP
 .BI \-M " last-mounted-directory"
 Set the last-mounted directory for the filesystem.
@@ -329,7 +418,7 @@ of the directory in which they were created.  The standard System V behaviour
 is the default, where newly created files take on the fsgid of the current
 process, unless the directory has the setgid bit set, in which case it takes 
 the gid from the parent directory, and also gets the setgid bit set if it is 
-directory itself.
+a directory itself.
 .TP
 .B user_xattr
 Enable user-specified extended attributes.
@@ -356,6 +445,35 @@ When the filesystem is mounted with journalling enabled, data may be
 written into the main filesystem after its metadata has been committed
 to the journal.  This may increase throughput, however, it may allow old
 data to appear in files after a crash and journal recovery.
+.TP
+.B nobarrier
+The file system will be mounted with barrier operations in the journal
+disabled.  (This option is currently only supported by the ext4 file
+system driver in 2.6.35+ kernels.)
+.TP
+.B block_validity
+The file system will be mounted with the block_validity option enabled,
+which causes extra checks to be performed after reading or writing from
+the file system.  This prevents corrupted metadata blocks from causing
+file system damage by overwriting parts of the inode table or block
+group descriptors.  This comes at the cost of increased memory and CPU
+overhead, so it is enabled only for debugging purposes.  (This option is
+currently only supported by the ext4 file system driver in 2.6.35+
+kernels.)
+.TP
+.B discard
+The file system will be mouinted with the discard mount option.  This will
+cause the file system driver to attempt to use the trim/discard feature
+of some storage devices (such as SSD's and thin-provisioned drives
+available in some enterprise storage arrays) to inform the storage
+device that blocks belonging to deleted files can be reused for other
+purposes.  (This option is currently only supported by the ext4 file
+system driver in 2.6.35+ kernels.)
+.TP
+.B nodelalloc
+The file system will be mounted with the nodelalloc mount option.  This
+will disable the delayed allocation feature.  (This option is currently
+only supported by the ext4 file system driver in 2.6.35+ kernels.)
 .RE
 .TP
 .BR \-O " [^]\fIfeature\fR[,...]"
@@ -376,20 +494,49 @@ Use hashed b-trees to speed up lookups in large directories.
 .B filetype
 Store file type information in directory entries.
 .TP
+.B flex_bg
+Allow bitmaps and inode tables for a block group to be placed
+anywhere on the storage media.  \fBTune2fs\fR will not reorganize
+the location of the inode tables and allocation bitmaps, as
+.BR mke2fs (8)
+will do when it creates a freshly formated file system with
+.B flex_bg
+enabled.
+.TP
 .B has_journal
 Use a journal to ensure filesystem consistency even across unclean shutdowns.
 Setting the filesystem feature is equivalent to using the 
 .B \-j
 option.
 .TP
+.B large_file
+Filesystem can contain files that are greater than 2GB.  (Modern kernels
+set this feature automatically when a file > 2GB is created.)
+.TP
+.B resize_inode
+Reserve space so the block group descriptor table may grow in the
+future.
+.B Tune2fs 
+only supports clearing this filesystem feature.
+.TP
 .B sparse_super
 Limit the number of backup superblocks to save space on large filesystems.
+.TP
+.B uninit_bg
+Allow the kernel to initialize bitmaps and inode tables and keep a high
+watermark for the unused inodes in a filesystem, to reduce
+.BR e2fsck (8)
+time.  This first e2fsck run after enabling this feature will take the
+full time, but subsequent e2fsck runs will take only a fraction of the
+original time, depending on how full the file system is.
 .RE
 .IP
 After setting or clearing 
-.B sparse_super
-and 
-.B filetype 
+.BR sparse_super ,
+.BR uninit_bg ,
+.BR filetype ,
+or
+.B resize_inode
 filesystem features,
 .BR e2fsck (8)
 must be run on the filesystem to return the filesystem to a consistent state.
@@ -401,33 +548,20 @@ if necessary.  After setting the
 feature, 
 .B e2fsck -D
 can be run to convert existing directories to the hashed B-tree format.
-.IP
-.B Warning:
-Linux kernels before 2.0.39 and many 2.1 series kernels do not support
-the filesystems that use any of these features.
-Enabling certain filesystem features may prevent the filesystem from
-being mounted by kernels which do not support those features.
+Enabling certain filesystem features may prevent the filesystem from being
+mounted by kernels which do not support those features.  In particular, the
+.BR uninit_bg
+and
+.BR flex_bg
+features are only supported by the ext4 filesystem.
 .TP
 .BI \-r " reserved-blocks-count"
 Set the number of reserved filesystem blocks.
 .TP
-.BR \-s " [" 0 | 1 ]
-Turn the sparse super feature off or on.  Turning this feature on
-saves space on really big filesystems.  This is the same as using the
-.B "\-O sparse_super"
-option.
-.IP
-.B Warning:
-Linux kernels before 2.0.39 do not support this feature.  Neither do
-all Linux 2.1 kernels; please don't use this unless you know what you're
-doing!  You need to run
-.BR e2fsck (8)
-on the filesystem after changing this feature in order to have a valid
-filesystem.
-.TP
 .BI \-T " time-last-checked"
 Set the time the filesystem was last checked using
 .BR  e2fsck .
+The time is interpreted using the current (local) timezone.
 This can be useful in scripts which use a Logical Volume Manager to make
 a consistent snapshot of a filesystem, and then check the filesystem 
 during off hours to make sure it hasn't been corrupted due to 
@@ -436,7 +570,7 @@ be used to set the last checked time on the original filesystem.  The format
 of 
 .I time-last-checked
 is the international date format, with an optional time specifier, i.e.
-YYYYMMDD[[HHMM]SS].   The keyword 
+YYYYMMDD[HH[MM[SS]]].   The keyword 
 .B now
 is also accepted, in which case the last checked time will be set to the 
 current time.
@@ -502,6 +636,7 @@ Time-dependent checking was added by Uwe Ohse <uwe@tirka.gun.de>.
 is part of the e2fsprogs package and is available from 
 http://e2fsprogs.sourceforge.net.
 .SH SEE ALSO
+.BR debugfs (8),
 .BR dumpe2fs (8),
 .BR e2fsck (8),
 .BR mke2fs (8)
