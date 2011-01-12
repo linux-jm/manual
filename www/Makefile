@@ -69,5 +69,5 @@ install: all
 	--exclude='Makefile' \
 	--exclude='ChangeLog' \
 	--exclude='.gitignore' \
-	* $(WWWROOT)
+	* .htaccess $(WWWROOT)
 	$(MAKE) -C ../admin/site WWWROOT=$(WWWROOT) install
