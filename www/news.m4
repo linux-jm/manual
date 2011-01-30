@@ -42,6 +42,7 @@ m4_dnl ML2CVS ADD HERE
   <DT>GNU_findutils</DT>
   <DD>
    _UPD_PAGE(GNU_findutils, xargs.1)
+   _UPD_PAGE(GNU_findutils, find.1)
   </DD>
  </DL>
 
