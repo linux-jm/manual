@@ -33,7 +33,7 @@
 (defvar JMpost-wl-status-list '("TR" "DO" "DP" "PR" "RO" "RR"))
 (defvar JMpost-wl-default-status "DP")
 
-(defvar JMpost-wl-post-address "JMpost@linux.or.jp"
+(defvar JMpost-wl-post-address "linuxjm-discuss@lists.sourceforge.jp"
   "*JM の作業メールの送信先")
 
 (defvar JMpost-wl-from-address user-mail-address
