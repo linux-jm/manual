@@ -178,13 +178,14 @@ foreach my $fkey (sort keys %roff_hash){
 	s///g;
 
 	s|</HEAD><BODY>|$START|ge;
-	s|<A HREF=\"/cgi-bin/man/man2html\">Return to Main Contents</A>|$NAVI|ge;
-	s|<A HREF=\"/cgi-bin/man/man2html\">man2html</A>|$MAN2HTMLPAGE|ge;
+	s|<A HREF=\"(http://localhost)?/cgi-bin/man/man2html\">Return to Main Contents</A>|$NAVI|ge;
+	s|<A HREF=\"(http://localhost)?/cgi-bin/man/man2html\">man2html</A>|$MAN2HTMLPAGE|ge;
 
 	# 別ページへのリンクアンカーの処理.
 	#
-	while (m|<A HREF=\"/cgi-bin/man/man2html\?([1-9])[a-zA-Z]?\+([^\"]+)|){
-	    my $lpage = "$2,$1";
+	while (m|<A HREF=\"(http://localhost)?/cgi-bin/man/man2html\?([1-9])[a-zA-Z]?\+([^\"]+)|){
+	    my $lpage = "$3,$2";
+            s|http://localhost/cgi-bin/|/cgi-bin/|;
 
 	    if ($#{$page_name{$lpage}} == -1){
 		s|<A HREF=\"/cgi-bin/man/man2html[^>]+>([^<]+)</A>|$1|;
