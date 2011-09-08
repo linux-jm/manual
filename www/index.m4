@@ -199,7 +199,7 @@ _LINK(http://www.namazu.org/,Namazu)
  <LI>_LINK(http://linuxjf.sourceforge.jp/,JF Project)</LI>
  <LI>_LINK(http://www.jp.freebsd.org/man-jp/,Japanese Manual Project for FreeBSD)</LI>
  <LI>_LINK(http://xjman.dsl.gr.jp/,X Japanese Documentation Project)</LI>
- <LI>_LINK(http://www.samba.gr.jp/,日本 SAMBA ユーザ会)</LI>
+ <LI>_LINK(http://wiki.samba.gr.jp/,日本 SAMBA ユーザ会)</LI>
  <LI>_LINK(http://www.unixuser.org/~euske/doc/openssh/jman/,OpenSSH 日本語マニュアルページ)</LI>
  <LI>_LINK(http://media.laic.u-hyogo.ac.jp/%7Ehayashi/internet/mh-plus.html,MH-plus project)
  <LI>_LINK(http://www.kobitosan.net/postfix/#Manual,Postfix のぺーじ)
