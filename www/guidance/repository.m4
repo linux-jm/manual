@@ -12,7 +12,7 @@ _EDIT_WARNING(translation_note)
 _HEADER(`JM 文書の管理方法')
 
 <P>
- JM Project では、CVS によって文書の管理をしています。
+ JM Project では、git によって文書の管理をしています。
  このページでは、
  _LINK(#structure,リポジトリ内部の配置)
  と、 man ページの作業情報などが記述されたテキストデータベース
@@ -22,7 +22,7 @@ _HEADER(`JM 文書の管理方法')
 
 <H2><A NAME="structure">ディレクトリの構成</A></H2>
 <P>
- JM Project の用いている CVS リポジトリのディレクトリ構成は
+ JM Project の用いている git リポジトリのディレクトリ構成は
  以下のようになっています。
 </P>
 <PRE>
@@ -78,7 +78,8 @@ _HEADER(`JM 文書の管理方法')
 
 <UL>
  <LI>ChangeLog ファイルは変更履歴を記述したファイルです。
-  CVS システムで標準的に用いられれる形式です。</LI>
+  CVS システムで標準的に用いられれる形式です。
+ </LI>
 
  <LI>translation_list は各マニュアルページのバージョンや作業情報、
   著作権情報等を含むテキストデータベースファイルです。
