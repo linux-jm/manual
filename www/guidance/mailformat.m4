@@ -29,6 +29,10 @@ _HEADER(`作業メールのフォーマット')
  投稿を省力化するために、 bash の使える環境の方は
  _LINK(#JMpost,JMpost スクリプト)
  を使っていただくといいでしょう。
+ また、Wanderlust や Mew のユーザの場合には、JMpost 形式のメールを作成してくれる
+ _LINK(JMpost-wl.el,JMpost-wl.el) や
+ _LINK(JMpost-mew.el,JMpost-mew.el)
+ も用意されていますので、お試し下さい。
 </P>
 
  

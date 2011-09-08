@@ -8,11 +8,13 @@ ifndef WORKDIR
 endif
 
 JMPOST = ../../admin/JMpost
+JMPOST_WL = ../../admin/JMpost-wl.el
+JMPOST_MEW = ../../admin/JMpost-mew.el
 JMMANVIEW = ../../admin/JM-man-view.el
 
 TARGET = index.html mailformat.html translation_note.html\
 	repository.html pod.html JM-man-view.html
-EXTRAS = JMpost JM-man-view.el
+EXTRAS = JMpost JMpost-wl.el JMpost-mew.el JM-man-view.el
 
 .SUFFIXES: .m4 .html
 
@@ -25,6 +27,10 @@ all: $(TARGET) $(EXTRAS)
 *.html: ../jm_www.m4
 
 JMpost:        $(JMPOST)
+	cp -p $< $@
+JMpost-wl.el:        $(JMPOST_WL)
+	cp -p $< $@
+JMpost-mew.el:        $(JMPOST_MEW)
 	cp -p $< $@
 
 JM-man-view.el:        $(JMMANVIEW)
