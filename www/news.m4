@@ -46,6 +46,7 @@ m4_dnl ML2CVS ADD HERE
   <DT>gnumaniak</DT>
   <DD>
    _UPD_PAGE(gnumaniak, sdiff.1)
+   _UPD_PAGE(gnumaniak, diff.1)
   </DD>
  </DL>
 
