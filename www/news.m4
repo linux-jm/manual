@@ -51,6 +51,7 @@ m4_dnl ML2CVS ADD HERE
   <DT>man</DT>
   <DD>
    _UPD_PAGE(man, manlint.1)
+   _UPD_PAGE(man, man2html.1)
   </DD>
  </DL>
 
