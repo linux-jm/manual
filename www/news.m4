@@ -48,6 +48,10 @@ m4_dnl ML2CVS ADD HERE
    _UPD_PAGE(gnumaniak, sdiff.1)
    _UPD_PAGE(gnumaniak, diff.1)
   </DD>
+  <DT>man</DT>
+  <DD>
+   _UPD_PAGE(man, manlint.1)
+  </DD>
  </DL>
 
  <H2>2011/04/12</H2>
