@@ -53,6 +53,10 @@ m4_dnl ML2CVS ADD HERE
    _UPD_PAGE(man, manlint.1)
    _UPD_PAGE(man, man2html.1)
   </DD>
+  <DT>procps</DT>
+  <DD>
+   _UPD_PAGE(procps, watch.1)
+  </DD>
  </DL>
 
  <H2>2011/04/12</H2>
