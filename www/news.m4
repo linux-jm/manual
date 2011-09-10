@@ -43,6 +43,10 @@ m4_dnl ML2CVS ADD HERE
   <DD>
    _UPD_PAGE(LDP_man-pages, ioctl.2)
   </DD>
+  <DT>gnumaniak</DT>
+  <DD>
+   _UPD_PAGE(gnumaniak, sdiff.1)
+  </DD>
  </DL>
 
  <H2>2011/04/12</H2>
