@@ -26,6 +26,7 @@ static INTDEF standardint[] = {
 
 static STRDEF standardstring[] = {
     { V('R',' '), 1, "&#174;", NULL },
+    { V('T','m'), 1, "&#153;", NULL },
     { V('l','q'), 2, "``", NULL },
     { V('r','q'), 2, "''", NULL },
     { 0, 0, NULL, NULL}
