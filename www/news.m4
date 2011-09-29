@@ -43,6 +43,10 @@ m4_dnl ML2CVS ADD HERE
   <DD>
    _UPD_PAGE(procps, watch.1)
   </DD>
+  <DT>LDP_man-pages</DT>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, ioctl.2)
+  </DD>
  </DL>
 
  <H2>2011/09/10</H2>
