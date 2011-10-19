@@ -67,7 +67,9 @@ JM-Projectについては, http://www.linux.or.jp/JM/ を御覧ください.
 
 %install
 ## Start install.sh ################
-mkdir -p %{mandir}/man{1,2,3,4,5,6,7,8}
+for i in 1 2 3 4 5 6 7 8; do
+    mkdir -p %{mandir}/man$i
+done
 packages=`cat script/pkgs.list \
     | perl -e 'while(<STDIN>){if (/^([^#\s]+\s)\s*Y/){unshift(@s,$1)}} print @s'`
 
