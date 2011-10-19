@@ -999,6 +999,21 @@ next_row(TABLEROW *tr)
     }
 }
 
+/* Check if the specified row contain at least one data item.
+   1: has data item
+   0: no data item
+ */
+static int
+row_has_data(TABLEROW *currow) {
+  TABLEITEM *curfield;
+  curfield = currow->first;
+  while (curfield) {
+    if (curfield->align != '_') return 1;
+    curfield = curfield->next;
+  }
+  return 0;
+}
+
 char itemreset[20]="\\fR\\s0";
 
 static char *
@@ -1083,7 +1098,9 @@ scan_table(char *c) {
 		    } while (curfield && curfield->align=='S');
 		}
 		if (c[1]=='\n') {
-		    currow=next_row(currow);
+		    do {
+			currow=next_row(currow);
+		    } while (!row_has_data(currow));
 		    curfield=currow->first;
 		}
 		c=c+2;
@@ -1106,7 +1123,9 @@ scan_table(char *c) {
 	    } else
 		if (g) free(g);
 	    if (c[-1]=='\n') {
-		currow=next_row(currow);
+		do {
+		    currow=next_row(currow);
+		} while (!row_has_data(currow));
 		curfield=currow->first;
 	    }
 	} else if (*c=='.' && c[1]=='T' && c[2]=='&' && c[-1]=='\n') {
@@ -1119,7 +1138,9 @@ scan_table(char *c) {
 	    hr->prev=currow;
 	    currow->next=hr;
 	    currow=hr;
-	    next_row(currow);
+	    do {
+		currow=next_row(currow);
+	    } while (!row_has_data(currow));
 	    curfield=currow->first;
 	} else if (*c=='.' && c[1]=='T' && c[2]=='E' && c[-1]=='\n') {
 	    finished=1;
@@ -1160,7 +1181,9 @@ scan_table(char *c) {
 	    if (i) *c=itemsep;
 	    c=h;
 	    if (c[-1]=='\n') {
-		currow=next_row(currow);
+		do {
+		    currow=next_row(currow);
+		} while (!row_has_data(currow));
 		curfield=currow->first;
 	    }
 	}
