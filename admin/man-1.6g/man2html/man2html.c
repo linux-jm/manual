@@ -958,7 +958,7 @@ static char *scan_format(char *c, TABLEROW **result, int *maxcol)
     *maxcol=0;
     currow=layout;
     while (currow) {
-	curfield=layout->first;
+	curfield=currow->first;
 	i=0;
 	while (curfield) {
 	    i++;
