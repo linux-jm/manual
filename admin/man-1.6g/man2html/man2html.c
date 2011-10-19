@@ -1018,6 +1018,9 @@ scan_table(char *c) {
 		h=h+3;
 	    } else {
 		g=NULL;
+		/* skip leading spaces to ignore unnecessary <BR> */
+		while (*h==' ')
+		    h++;
 		h=scan_troff(h,1,&g);
 		scan_troff(itemreset,0,&g);
 		if (curfield) {
