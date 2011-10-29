@@ -124,7 +124,7 @@ add_links(char *c)
     */
     int i,j,nr;
     char *f, *g, *h;
-    char *idtest[6]; /* url, mailto, www, ftp, manpage, include file */
+    char *idtest[6]; /* url, mailto, www, ftp, man page, include file */
 
     out_length+=strlen(c);
 
@@ -161,7 +161,7 @@ add_links(char *c)
 		c=f+5;
 	    }
 	    break;
-	case 4:			/* manpage? */
+	case 4:			/* man page? */
 	    f=idtest[j];
 	    /* find section - accept (1), (3F), (3Xt), (n), (l) */
 	    g=strchr(f,')');
@@ -202,7 +202,7 @@ add_links(char *c)
 	    *f='(';
 	    idtest[4]=f-1;
 	    c=f;
-	    break; /* manpage */
+	    break; /* man page */
 	case 3: /* ftp */
 	case 2: /* www */
 	    g=f=idtest[j];
@@ -1848,9 +1848,9 @@ scan_request(char *c) {
 		    if (!t) t=fname;
 		    fprintf(stderr, "ln -s %s.html %s.html\n", h, t);
 		    s=strrchr(t, '.');if (!s) s=t;
-		    printf("<HTML><HEAD><TITLE> Manpage of %s</TITLE>\n"
+		    printf("<HTML><HEAD><TITLE> Man page of %s</TITLE>\n"
 			   "</HEAD><BODY>\n"
-			   "See the manpage for <A HREF=\"%s.html\">%s</A>.\n"
+			   "See the man page for <A HREF=\"%s.html\">%s</A>.\n"
 			   "</BODY></HTML>\n",
 			   s, h, h);
 		} else
@@ -1923,7 +1923,7 @@ scan_request(char *c) {
 	    out_html(NEWLINE);
 	    if (fillout) curpos++; else curpos=0;
 	    break;
-	case V('O','P'):  /* groff manpages use this construction */
+	case V('O','P'):  /* groff man pages use this construction */
             /* .OP a b : [ <B>a</B> <I>b</I> ] */
 	    mode=1;
 	    c[0]='B'; c[1]='I';
@@ -2102,7 +2102,7 @@ scan_request(char *c) {
 		*sl = 0;
 		if (words > 1) {
 		    output_possible=1;
-		    out_html("<HTML><HEAD><TITLE>Manpage of ");
+		    out_html("<HTML><HEAD><TITLE>Man page of ");
 		    out_html(wordlist[0]);
 		    out_html("</TITLE>\n</HEAD><BODY>\n<H1>");
 		    out_html(wordlist[0]);
@@ -3109,7 +3109,7 @@ main(int argc, char **argv) {
 	 case 'H':
 	      set_cgibase(optarg); break;
 	 case 'l':
-	      set_lynxcgibase("/home/httpd"); break;
+	      set_lynxcgibase("/usr/lib"); break;
 	 case 'L':
 	      set_lynxcgibase(optarg); break;
 	 case 'M':
@@ -3222,14 +3222,14 @@ main(int argc, char **argv) {
 	if (!filename)
 	     filename = fname;
 	if (*filename == '/')
-	     error_page("Invalid Manpage",
+	     error_page("Invalid Man Page",
 		   "The requested file %s is not a valid (unformatted) "
-		   "man page.\nIf the file is a formatted manpage, "
+		   "man page.\nIf the file is a formatted man page, "
 		   "you could try to load the\n"
 		   "<A HREF=\"file://localhost%s\">plain file</A>.\n",
 		   filename, filename);
 	else
-	     error_page("Invalid Manpage",
+	     error_page("Invalid Man Page",
 		   "The requested file %s is not a valid (unformatted) "
 		   "man page.", filename);
     }

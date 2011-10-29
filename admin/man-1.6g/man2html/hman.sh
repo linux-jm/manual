@@ -57,7 +57,7 @@ function nsfunc () {
 case $BROWSER in
      lynxcgi)
 	BROWSER=lynx
-	CG="lynxcgi:/home/httpd/cgi-bin/man"
+	CG="lynxcgi:/usr/lib/cgi-bin/man"
 	;;
      netscape)
         BROWSER=nsfunc
