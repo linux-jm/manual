@@ -17,32 +17,37 @@
 # hman from %version%
 #
 
-if [ x"$1" = x"-v" -o x"$1" = x"-V" ]; then
+if [ x"$1" = x"-v" ] || [ x"$1" = x"-V" ]; then
 	echo "`basename $0` from %version%"
 	exit 0
 fi
 
 # The user has to set MANHTMLPAGER (or he will get httpd-free lynx).
 # Pick your favorite browser: lynx, xmosaic, netscape, arena, amaya, grail, ...
-BROWSER=${MANHTMLPAGER-lynxcgi}
+if [ x"$MANHTMLPAGER" = x ]  && ! which lynx > /dev/null ; then
+	HMAN_BROWSER=sensible-browser
+else
+	HMAN_BROWSER=${MANHTMLPAGER-lynxcgi}
+fi
+
 #
 # If the man pages are on a remote host, specify it in MANHTMLHOST.
 HOST=${MANHTMLHOST-localhost}
 
 # Perhaps the browser was specified on the command line?
-if [ $# -gt 1 -a "$1" = "-P" ]; then
-    BROWSER="$2"
+if [ "$#" -gt 1 ] && [ x"$1" = x"-P" ]; then
+    HMAN_BROWSER="$2"
     shift; shift
 fi
 
 # Perhaps the host was specified on the command line?
-if [ $# -gt 1 -a "$1" = "-H" ]; then
+if [ "$#" -gt 1 ] && [ x"$1" = x"-H" ]; then
     HOST="$2"
     shift; shift
 fi
 
 # Interface to a live (already running) netscape browser.
-function nsfunc () {
+nsfunc () {
 	if ( /bin/ps xc | grep -q 'netscape$' ) ; then
 		if [ -x  netscape-remote ] ; then
 			exec netscape-remote  -remote "openURL($1,new_window)"
@@ -54,13 +59,18 @@ function nsfunc () {
 	fi
 }
 
-case $BROWSER in
+urlencode() {
+	echo "$@" | perl -pe 'chomp(); s/([^A-Za-z0-9\ \_\-\.\/])/"%" . unpack("H*", $1)/eg; tr/ /+/;'
+}
+
+
+case "$HMAN_BROWSER" in
      lynxcgi)
-	BROWSER=lynx
+	HMAN_BROWSER=lynx
 	CG="lynxcgi:/usr/lib/cgi-bin/man"
 	;;
      netscape)
-        BROWSER=nsfunc
+        HMAN_BROWSER=nsfunc
         CG="http://$HOST/cgi-bin/man"
 	;;
      *)
@@ -68,26 +78,26 @@ case $BROWSER in
 	;;
 esac
 
-  case $# in
-     0)   $BROWSER $CG/man2html ;;
+  case "$#" in
+     0)   $HMAN_BROWSER "$CG/man2html" ;;
      1)   case "$1" in
 	    1|2|3|4|5|6|7|8|l|n)
-		$BROWSER "$CG/mansec?$CG+$1" ;;
+		$HMAN_BROWSER "$CG/mansec?query=$1" ;;
 	    /*)
-		$BROWSER "$CG/man2html?$1" ;;
+		$HMAN_BROWSER "$CG/man2html?query=`urlencode "$1"`" ;;
 	    */*)
-		$BROWSER "$CG/man2html?$PWD/$1" ;;
+		$HMAN_BROWSER "$CG/man2html?query=`urlencode "$PWD/$1"`" ;;
 	    *)
-		$BROWSER "$CG/man2html?$1" ;;
+		$HMAN_BROWSER "$CG/man2html?query=`urlencode "$1"`" ;;
           esac ;;
      2)   case "$1" in
             -k)
-                $BROWSER "$CG/mansearch?$2" ;;
+                $HMAN_BROWSER "$CG/mansearch?query=`urlencode "$2"`" ;;
             *)
 		if [ "$2" = index ]; then
-		    $BROWSER "$CG/manwhatis?$CG+$1"
+		    $HMAN_BROWSER "$CG/manwhatis?query=`urlencode "$1"`"
                 else
-		    $BROWSER "$CG/man2html?$1+$2"
+		    $HMAN_BROWSER "$CG/man2html?query=`urlencode "$1 $2"`"
                 fi ;;
           esac ;;
      *)   echo "bad number of args" ;;
