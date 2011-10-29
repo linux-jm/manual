@@ -26,7 +26,6 @@ static INTDEF standardint[] = {
 
 static STRDEF standardstring[] = {
     { V('R',' '), 1, "&#174;", NULL },
-    { V('T','m'), 1, "&#153;", NULL },
     { V('l','q'), 2, "``", NULL },
     { V('r','q'), 2, "''", NULL },
     { 0, 0, NULL, NULL}
@@ -91,7 +90,6 @@ static STRDEF standardchar[] = {
     { V('F','l'), 3, "ffl", NULL  },
     { V('a','a'), 1, "&#180;", NULL  },
     { V('a','p'), 1, "~", NULL  },
-    { V('a','q'), 1, "'", NULL  },
     { V('b','r'), 1, "|", NULL  },
     { V('b','u'), 1, "*", NULL  }, 	/* bullet */
     { V('b','v'), 1, "|", NULL  },

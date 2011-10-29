@@ -717,7 +717,6 @@ static void clear_table(TABLEROW *table)
 }
 
 char *scan_expression(char *c, int *result);
-char itemsep='\t';
 
 static char *scan_format(char *c, TABLEROW **result, int *maxcol)
 {
@@ -791,18 +790,13 @@ static char *scan_format(char *c, TABLEROW **result, int *maxcol)
 	    curfield->space=i;
 	    break;
 	case ',': case '\n':
+	    currow->next=(TABLEROW*)xmalloc(sizeof(TABLEROW));
+	    currow->next->prev=currow;
+	    currow=currow->next;
+	    currow->next=NULL;
+	    curfield=currow->first=(TABLEITEM*)xmalloc(sizeof(TABLEITEM));
+	    *curfield=emptyfield;
 	    c++;
-	    while (*c==',' || *c=='\n' || *c=='\t' || *c==itemsep) {
-		c++;
-	    }
-	    if ( *c != '.' ) {
-		currow->next=(TABLEROW*)xmalloc(sizeof(TABLEROW));
-		currow->next->prev=currow;
-		currow=currow->next;
-		currow->next=NULL;
-		curfield=currow->first=(TABLEITEM*)xmalloc(sizeof(TABLEITEM));
-		*curfield=emptyfield;
-	    }
 	    break;
 	default:
 	    c++;
@@ -813,7 +807,7 @@ static char *scan_format(char *c, TABLEROW **result, int *maxcol)
     *maxcol=0;
     currow=layout;
     while (currow) {
-	curfield=currow->first;
+	curfield=layout->first;
 	i=0;
 	while (curfield) {
 	    i++;
@@ -854,21 +848,6 @@ next_row(TABLEROW *tr)
     }
 }
 
-/* Check if the specified row contain at least one data item.
-   1: has data item
-   0: no data item
- */
-static int
-row_has_data(TABLEROW *currow) {
-  TABLEITEM *curfield;
-  curfield = currow->first;
-  while (curfield) {
-    if (curfield->align != '_') return 1;
-    curfield = curfield->next;
-  }
-  return 0;
-}
-
 char itemreset[20]="\\fR\\s0";
 
 static char *
@@ -878,6 +857,7 @@ scan_table(char *c) {
     int center=0, expand=0, box=0, border=0, linesize=1;
     int i,j,maxcol=0, finished=0;
     int oldfont, oldsize,oldfillout;
+    char itemsep='\t';
     TABLEROW *layout=NULL, *currow;
     TABLEITEM *curfield;
     while (*c++!='\n');		/* skip TS */
@@ -952,9 +932,7 @@ scan_table(char *c) {
 		    } while (curfield && curfield->align=='S');
 		}
 		if (c[1]=='\n') {
-		    do {
-			currow=next_row(currow);
-		    } while (!row_has_data(currow));
+		    currow=next_row(currow);
 		    curfield=currow->first;
 		}
 		c=c+2;
@@ -977,9 +955,7 @@ scan_table(char *c) {
 	    } else
 		if (g) free(g);
 	    if (c[-1]=='\n') {
-		do {
-		    currow=next_row(currow);
-		} while (!row_has_data(currow));
+		currow=next_row(currow);
 		curfield=currow->first;
 	    }
 	} else if (*c=='.' && c[1]=='T' && c[2]=='&' && c[-1]=='\n') {
@@ -992,9 +968,7 @@ scan_table(char *c) {
 	    hr->prev=currow;
 	    currow->next=hr;
 	    currow=hr;
-	    do {
-		currow=next_row(currow);
-	    } while (!row_has_data(currow));
+	    next_row(currow);
 	    curfield=currow->first;
 	} else if (*c=='.' && c[1]=='T' && c[2]=='E' && c[-1]=='\n') {
 	    finished=1;
@@ -1023,9 +997,6 @@ scan_table(char *c) {
 		h=h+3;
 	    } else {
 		g=NULL;
-		/* skip leading spaces to ignore unnecessary <BR> */
-		while (*h==' ')
-		    h++;
 		h=scan_troff(h,1,&g);
 		scan_troff(itemreset,0,&g);
 		if (curfield) {
@@ -1038,9 +1009,7 @@ scan_table(char *c) {
 	    if (i) *c=itemsep;
 	    c=h;
 	    if (c[-1]=='\n') {
-		do {
-		    currow=next_row(currow);
-		} while (!row_has_data(currow));
+		currow=next_row(currow);
 		curfield=currow->first;
 	    }
 	}
