@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
@@ -27,6 +28,8 @@
 #define BD_INDENT   2
 
 #define SIZE(a)	(sizeof(a)/sizeof(*a))
+#define DOCTYPE "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n"
+#define CONTENTTYPE "Content-type: text/html\n\n"
 
 static char NEWLINE[2]="\n";
 static char idxlabel[6] = "ixAAA";
@@ -54,6 +57,108 @@ static char *scan_troff_mandoc(char *c, int san, char **result);
 static char **argument=NULL;
 
 static char charb[3];
+
+#ifdef GUNZIP
+/* from src/utils.c */
+static int
+is_shell_safe(const char *ss, int quoted) {
+	char *bad = " ;'\\\"<>|";
+	char *p;
+
+	if (quoted)
+		bad++;			/* allow a space inside quotes */
+	for (p = bad; *p; p++)
+		if (strchr(ss, *p))
+			return 0;
+	return 1;
+}
+#endif
+
+/* reads the entire manpage into buffer *buf and returns number of chars read */
+static int
+read_manpage_into_buffer(char *path, char **buf) {
+	int compressed = 0;
+	FILE * f = NULL;
+	char * ext;
+	int l = 0;
+	struct stat stbuf;
+
+	*buf = NULL;
+	if (!path)
+		return -1;
+
+	if (!strcmp(path, "-"))
+		f = stdin;
+	else /* strcmp(path, "-") */
+	{
+		char * tmp = NULL;
+		char * command = NULL;
+		char * openpath = path;
+#ifdef GUNZIP
+
+		if (is_shell_safe(openpath, 1)) {
+			ext = strrchr(openpath, '.');
+			compressed = (ext && !strcmp(ext, ".gz"));
+
+			if (!compressed && stat(openpath, &stbuf)) {
+				tmp = (char*) xmalloc(strlen(path) + 4);
+				sprintf(tmp, "%s.gz", path);
+				if ((compressed = !stat(tmp, &stbuf)))
+					openpath = tmp;
+			}
+		}
+
+		if (compressed) {
+			command = (char*) xmalloc(strlen(openpath) + sizeof(GUNZIP) + 4);
+			sprintf(command, GUNZIP " '%s'", openpath);
+			f = popen(command, "r");
+		} else
+#endif
+			f = fopen(openpath, "r");
+
+		if (tmp) free(tmp);
+		if (command) free(command);
+
+		if (!f)
+			return -1;
+
+	} /* strcmp(path, "-") */
+
+
+    /* Read entire file into buf[1..l] */
+#define XTRA 5
+    /* buf has 1 extra byte at the start, and XTRA extra bytes at the end */
+    if (compressed || f == stdin) {
+	 int sz = 1024;
+	 int ct = 1, tot = 0;
+	 char *p = NULL;
+
+	 clearerr(f);
+	 while (ct > 0) {
+	      tot += ct;
+	      if (feof(f))
+		   break;
+	      sz = 2*sz+tot;
+	      p = xrealloc(p, sz);
+	      ct = fread(p+tot,1,sz-tot-XTRA,f);
+	 }
+
+	 *buf = p;
+	 l = tot-1;
+    } else {
+	 int ct;
+
+	 l = 0;
+	 if (fstat(fileno(f), &stbuf) != -1)
+	      l = stbuf.st_size;
+	 *buf = (char *) xmalloc((l+1+XTRA)*sizeof(char));
+	 ct = fread(*buf+1,1,l,f);
+	 if (ct < l)
+	      l = ct;
+    }
+   fclose(f);
+   return l;
+}
 
 static char *
 expand_char(int nr)
@@ -116,11 +221,11 @@ add_links(char *c)
     ** www.host.name           -> http://www.host.name
     ** ftp.host.name           -> ftp://ftp.host.name
     ** name@host               -> mailto:name@host
-    ** <name.h>                -> file:/usr/include/name.h   (guess)
+    ** <name.h>                -> file:///usr/include/name.h   (guess)
     **
     ** Other possible links to add in the future:
     **
-    ** /dir/dir/file  -> file:/dir/dir/file
+    ** /dir/dir/file  -> file:///dir/dir/file
     */
     int i,j,nr;
     char *f, *g, *h;
@@ -171,7 +276,8 @@ add_links(char *c)
                                 /* section is n or l or starts with a digit */
 		  && strchr("123456789nl", f[1])
 		  && (g-f == 2 || (g-f == 3 && isdigit(f[1]) && isalpha(f[2]))
-		               || (f[2] == 'X' && isdigit(f[1])))
+		               || (f[2] == 'X' && isdigit(f[1]))
+		               || (strncmp(f+1,"3pm",g-f-1) == 0))
 	       ) {
 		/* this might be a link */
 		h=f-1;
@@ -506,10 +612,14 @@ int intresult=0;
 static int skip_escape=0;
 static int single_escape=0;
 
+
+#define EXPAND_BRACKET  for (c++, i=0; *c != ']'; c++) i = i * 256 + *c; if (i < 256) i = i * 256 + ' '
+
 static char *
 scan_escape(char *c) {
     char *h=NULL;
-    char b[5];
+    char *tmp = NULL;
+    char b[10];
     INTDEF *intd;
     int exoutputp,exskipescape;
     int i,j;
@@ -524,8 +634,26 @@ scan_escape(char *c) {
     case '$':
 	if (argument) {
 	    c++;
-	    i=(*c -'1');
-	    if (!(h=argument[i])) h="";
+	    if (*c == '*' || *c == '@') {
+	    	int len = 0;
+		int quote = (*c == '@') ? 2 : 0;
+
+	    	for (i = 0; ((h = argument[i])); i++) 
+			len += strlen(h) + 1 + quote;
+		tmp = (char*) xmalloc(len + 1);
+		*tmp = 0;
+			
+		for (i = 0; ((h = argument[i])); i++) {
+			sprintf(tmp + strlen(tmp), " %s%s%s",
+						  quote ? "\"" : "",
+						  h,
+						  quote ? "\"" : "");
+		};
+		h = tmp + 1;
+	    } else {
+	    	i=(*c -'1');
+	    	if (!(h=argument[i])) h="";
+	  }		
 	}
 	break;
     case 'z':
@@ -553,13 +681,19 @@ scan_escape(char *c) {
 	c++;
 	h = expand_char(i);
 	break;
+    case '[':
+	EXPAND_BRACKET;
+	h = expand_char(i);
+	break;
     case '*':
 	c++;
 	if (*c=='(') {
 	    c++;
 	    i= c[0]*256+c[1];
 	    c++;
-	} else
+	} else if (*c == '[') {
+	    EXPAND_BRACKET;
+	} else 
 	    i= *c *256+' ';
 	h = expand_string(i);
 	break;
@@ -570,6 +704,8 @@ scan_escape(char *c) {
 	    c=scan_escape(c);
 	    c--;
 	    i=intresult;
+	} else 	if (*c == '[') {
+		EXPAND_BRACKET;
 	} else 	if (*c != '(')
 	    i=*c;
 	else {
@@ -659,6 +795,20 @@ scan_escape(char *c) {
 	output_possible=exoutputp;
 	skip_escape=exskipescape;
 	break;
+    case 'N':	
+	/* convert \N'ddd' into &#ddd; */
+	c++;
+	i=*c;
+	j=0;
+	b[j++] = '&';
+	b[j++] = '#';
+	while (*(++c) != i)
+	    if (isdigit(*c) && j < sizeof(b) - 2)
+		    b[j++] = *c;
+	b[j++] = ';';
+	b[j] = '\0';
+	h = b;
+	break;
     case 'c': no_newline_output=1; break;
     case '{': newline_for_fun++; h="";break;
     case '}': if (newline_for_fun) newline_for_fun--; h="";break;
@@ -671,6 +821,7 @@ scan_escape(char *c) {
     }
     c++;
     if (!skip_escape) out_html(h);
+    if (tmp) free(tmp);
     return c;
 }
 
@@ -1290,7 +1441,7 @@ trans_char(char *c, char s, char t) {
  */
 static char *
 fill_words(char *str, char *words[], int maxn, int *n, char eow) {
-	char *s = str;
+	char *s = str, *t;
 	int backslash = 0;
 	int skipspace = 0;	/* 1 if space is not end-of-word */
 
@@ -1299,8 +1450,15 @@ fill_words(char *str, char *words[], int maxn, int *n, char eow) {
 	while (*s && (*s != '\n' || backslash)) {
 		if (!backslash) {
 			if (*s == '"') {
-				*s = '\a';
-				skipspace = !skipspace;
+				if (skipspace && *(s+1) == '"') { 
+				/* "" inside the quoted text means " */
+					for (t = s++; t > words[*n]; t--)
+						*t = *(t-1);
+					words[*n]++;							
+				} else {	
+					*s = '\a';
+					skipspace = !skipspace;
+				}					
 			} else if (*s == escapesym) {
 				backslash = 1;
 			} else if ((*s == ' ' || *s == '\t') && !skipspace) {
@@ -1526,10 +1684,10 @@ scan_request(char *c) {
 
     int i,j,mode = 0;
     char *h;
-    char *wordlist[20];
+    char *wordlist[30];
     int words;
     char *sl;
-    STRDEF *owndef;
+    LONGSTRDEF *owndef;
 
     while (*c == ' ' || *c == '\t')
 	    c++;
@@ -1550,7 +1708,43 @@ scan_request(char *c) {
 	    c = scan_escape(c+1);
     } else {
 	i=V(c[0],c[1]);
-	switch (i) {
+        /* search macro database of self-defined macros */
+	owndef = find_longstrdef(defdef, i, c, NULL);
+	if (owndef) {
+		char **oldargument;
+		int deflen;
+		int onff;
+		sl=fill_words(c+strlen(owndef->longname), wordlist, SIZE(wordlist), &words, '\n');
+		c=sl+1;
+		*sl=0;
+		for (i=1; i<words; i++)
+		    wordlist[i][-1]=0;
+		for (i=0; i<words; i++) {
+		    char *hl=NULL;
+		    if (mandoc_command)
+			 scan_troff_mandoc(wordlist[i],1,&hl);
+		    else
+			 scan_troff(wordlist[i],2,&hl);
+		    wordlist[i]=hl;
+		}
+		for (i=words; i<SIZE(wordlist); i++)
+		    wordlist[i]=NULL;
+		deflen = strlen(owndef->st);
+		owndef->st[deflen+1]='a';
+		for (i=0; (owndef->st[deflen+2+i] = owndef->st[i]); i++);
+		oldargument=argument;
+		argument=wordlist;
+		onff=newline_for_fun;
+		if (mandoc_command)
+		     scan_troff_mandoc(owndef->st+deflen+2, 0, NULL);
+		else
+		     scan_troff(owndef->st+deflen+2, 0, NULL);
+		newline_for_fun=onff;
+		argument=oldargument;
+		for (i=0; i<words; i++) if (wordlist[i]) free(wordlist[i]);
+		owndef->st[deflen+1]=0;
+		*sl='\n';
+	} else switch (i) {
 	case V('a','b'):
 	    h=c+j;
 	    while (*h && *h !='\n') h++;
@@ -1612,24 +1806,24 @@ scan_request(char *c) {
 		single_escape=1;
 		curpos=0;
 		if (!de) {
-		    char *h;
+		    char *hl;
 		    de=(STRDEF*) xmalloc(sizeof(STRDEF));
 		    de->nr=i;
 		    de->slen=0;
 		    de->next=strdef;
 		    de->st=NULL;
 		    strdef=de;
-		    h=NULL;
-		    c=scan_troff(c, 1, &h);
-		    de->st=h;
+		    hl=NULL;
+		    c=scan_troff(c, 1, &hl);
+		    de->st=hl;
 		    de->slen=curpos;
 		} else {
 		    if (mode) {		/* .ds */
-			char *h=NULL;
-			c=scan_troff(c, 1, &h);
+			char *hl=NULL;
+			c=scan_troff(c, 1, &hl);
 			free(de->st);	/* segfault XXX */
 			de->slen=curpos;
-			de->st=h;
+			de->st=hl;
 		    } else {		/* .as */
 			c=scan_troff(c,1,&de->st); 	/* XXX */
 			de->slen+=curpos;
@@ -1817,8 +2011,6 @@ scan_request(char *c) {
 	    break;
 	case V('s','o'):
 	    {
-		FILE *f;
-		struct stat stbuf;
 		int l; char *buf;
 		char *name = NULL;
 
@@ -1826,21 +2018,21 @@ scan_request(char *c) {
 		c += j;			/* skip .so part and whitespace */
 		if (*c == '/') {
 		    h = c;
-		} else {		/* .so man3/cpow.3 -> ../man3/cpow.3 */
-		    h = c-3;
-		    h[0] = '.';
-		    h[1] = '.';
-		    h[2] = '/';
-		}
+               } else {                /* .so man3/cpow.3 -> ../man3/cpow.3 */
+/*                   h = c-3;
+                   h[0] = '.';
+                   h[1] = '.';
+                   h[2] = '/';
+*/
+		   h = c;
+               }
+
 		while (*c != '\n') c++;
 		while (c[-1] == ' ') c--;
 		while (*c != '\n') *c++ = 0;
 		*c = 0;
 		scan_troff(h,1, &name);
 		if (name[3] == '/') h=name+3; else h=name;
-		l = 0;
-		if (stat(h, &stbuf)!=-1) l=stbuf.st_size;
-		buf = (char*) xmalloc((l+4)*sizeof(char));
 #if NOCGI
                 if (!out_length) {
 		    char *t,*s;
@@ -1848,6 +2040,7 @@ scan_request(char *c) {
 		    if (!t) t=fname;
 		    fprintf(stderr, "ln -s %s.html %s.html\n", h, t);
 		    s=strrchr(t, '.');if (!s) s=t;
+		    printf(CONTENTTYPE DOCTYPE);
 		    printf("<HTML><HEAD><TITLE> Man page of %s</TITLE>\n"
 			   "</HEAD><BODY>\n"
 			   "See the man page for <A HREF=\"%s.html\">%s</A>.\n"
@@ -1857,7 +2050,7 @@ scan_request(char *c) {
 #endif
                 {
 		    /* this works alright, except for section 3 */
-		    if (!l || !(f = fopen(h,"r"))) {
+		    if ((l = read_manpage_into_buffer(h, &buf)) < 0) {
 			 fprintf(stderr,
 				"man2html: unable to open or read file %s\n", h);
 			 out_html("<BLOCKQUOTE>"
@@ -1865,13 +2058,11 @@ scan_request(char *c) {
 			 out_html(h);
 			 out_html("</BLOCKQUOTE>\n");
 		    } else {
-			i=fread(buf+1,1,l,f);
-			fclose(f);
 			buf[0]=buf[l]='\n';
 			buf[l+1]=buf[l+2]=0;
 			scan_troff(buf+1,0,NULL);
+		    	if (buf) free(buf);
 		    }
-		    if (buf) free(buf);
 		}
 		*c++='\n';
 		break;
@@ -1940,7 +2131,10 @@ scan_request(char *c) {
 		char font[2];
 		font[0] = c[0]; font[1] = c[1];
 		c = c+j;
-		if (*c == '\n') c++;
+		if (*c == '\n') {
+		    c++;
+		    break;
+		}
 		sl = fill_words(c, wordlist, SIZE(wordlist), &words, '\n');
 		c = sl+1;
 		/* .BR name (section)
@@ -2009,6 +2203,8 @@ scan_request(char *c) {
 	    */
 	    out_html("\"></A>");
 	    break;
+	case V('P',' '):
+	case V('P','\n'):
 	case V('L','P'):
 	case V('P','P'):
 	    dl_end();
@@ -2099,20 +2295,46 @@ scan_request(char *c) {
 	case V('T','H'):
 	    if (!output_possible) {
 		sl = fill_words(c+j, wordlist, SIZE(wordlist), &words, 0);
+		/* 
+		 * fill_words changes `"' into `\a', 
+		 * remove all `\a' now
+		 * robert@debian.org, Jan 2003
+		 */
+		for (i=0; i<words; i++) {
+			if (wordlist[i][0] == '\a') {
+				char *tmp;
+				(wordlist[i])++;
+				if ((tmp = strchr(wordlist[i], '\a')))
+					*tmp = '\0';
+			}
+		}
 		*sl = 0;
 		if (words > 1) {
+		    char *t = NULL;
+		    char *s, *q;
+		    int skip=0;
 		    output_possible=1;
+		    printf(CONTENTTYPE DOCTYPE);
 		    out_html("<HTML><HEAD><TITLE>Man page of ");
-		    out_html(wordlist[0]);
+		    scan_troff(wordlist[0], 0, &t);
+		    /* we need to remove all html tags */
+		    for (s=q=t; *s; s++) {
+	              if (skip && *s == '>') skip=0;
+		      else if (!skip && *s == '<') skip=1;
+		      else if (!skip) *q++ = *s;
+		    }
+		    *q = '\0';
+		    out_html(t);
+		    free(t);
 		    out_html("</TITLE>\n</HEAD><BODY>\n<H1>");
-		    out_html(wordlist[0]);
+		    scan_troff(wordlist[0], 0, NULL);
 		    out_html("</H1>\nSection: ");
 		    if (words>4)
-			out_html(wordlist[4]);
+		    	scan_troff(wordlist[4], 0, NULL);
 		    else
 			out_html(section_name(wordlist[1]));
 		    out_html(" (");
-		    out_html(wordlist[1]);
+		    scan_troff(wordlist[1], 0, NULL);
 		    if (words>2) {
 			out_html(")<BR>Updated: ");
 			scan_troff(wordlist[2], 1, NULL);
@@ -2208,24 +2430,26 @@ scan_request(char *c) {
             /* .de xx yy : define or redefine macro xx; end at .yy (..) */
             /* define or handle as .ig yy */
 	    {
-		STRDEF *de;
+		LONGSTRDEF *de;
+		char *longname;
 		int olen=0;
 		c=c+j;
 		sl=fill_words(c, wordlist, SIZE(wordlist), &words, '\n');
 		i=V(c[0],c[1]);j=2;
+		longname = c;
 		if (words == 1) wordlist[1]=".."; else {
 		    wordlist[1]--;
 		    wordlist[1][0]='.';
 		    j=3;
 		}
 		c=sl+1;
+		*sl=0;
 		sl=c;
 		while (*c && strncmp(c,wordlist[1],j)) c=skip_till_newline(c);
-		de=defdef;
-		while (de && de->nr!= i) de=de->next;
+		de = find_longstrdef(defdef, i, longname, &longname); 
 		if (mode && de) olen=strlen(de->st);
 		j=olen+c-sl;
-		h= (char*) xmalloc((j*2+4)*sizeof(char));
+		h= (char*) xmalloc((j*2+5)*sizeof(char));
 		if (h) {
 		    for (j=0; j<olen; j++)
 			h[j]=de->st[j];
@@ -2243,8 +2467,10 @@ scan_request(char *c) {
 			if (de->st) free(de->st);
 			de->st=h;
 		    } else {
-			de = (STRDEF*) xmalloc(sizeof(STRDEF));
+			de = (LONGSTRDEF*) xmalloc(sizeof(LONGSTRDEF));
 			de->nr=i;
+			de->longname=longname;
+			de->slen=0;
 			de->next=defdef;
 			de->st=h;
 			defdef=de;
@@ -2722,43 +2948,7 @@ scan_request(char *c) {
         /* ----- end of BSD mandoc stuff ----- */
 
  	default:
-             /* search macro database of self-defined macros */
- 	    owndef = defdef;
-	    while (owndef && owndef->nr!=i) owndef=owndef->next;
-	    if (owndef) {
-		char **oldargument;
-		int deflen;
-		int onff;
-		sl=fill_words(c+j, wordlist, SIZE(wordlist), &words, '\n');
-		c=sl+1;
-		*sl=0;
-		for (i=1; i<words; i++)
-		    wordlist[i][-1]=0;
-		for (i=0; i<words; i++) {
-		    char *h=NULL;
-		    if (mandoc_command)
-			 scan_troff_mandoc(wordlist[i],1,&h);
-		    else
-			 scan_troff(wordlist[i],1,&h);
-		    wordlist[i]=h;
-		}
-		for (i=words; i<SIZE(wordlist); i++)
-		    wordlist[i]=NULL;
-		deflen = strlen(owndef->st);
-		owndef->st[deflen+1]='a';
-		for (i=0; (owndef->st[deflen+2+i] = owndef->st[i]); i++);
-		oldargument=argument;
-		argument=wordlist;
-		onff=newline_for_fun;
-		if (mandoc_command)
-		     scan_troff_mandoc(owndef->st+deflen+2, 0, NULL);
-		else
-		     scan_troff(owndef->st+deflen+2, 0, NULL);
-		newline_for_fun=onff;
-		argument=oldargument;
-		for (i=0; i<words; i++) if (wordlist[i]) free(wordlist[i]);
-		*sl='\n';
-	    } else if (mandoc_command && 
+	    if (mandoc_command &&
 		       ((isupper(*c) && islower(c[1]))
 			|| (islower(*c) && isupper(c[1])))) {
 		 /*
@@ -2826,12 +3016,12 @@ scan_troff(char *c, int san, char **result) {   /* san : stop at newline */
 	    h++;
 	    FLUSHIBP;
 	    h = scan_escape(h);
-	} else if (*h == controlsym && h[-1] == '\n') {
+	} else if (san != 2 && *h == controlsym && h[-1] == '\n') {
 	    h++;
 	    FLUSHIBP;
 	    h = scan_request(h);
 	    if (san && h[-1] == '\n') h--;
-	} else if (mandoc_line
+	} else if (san != 2 && mandoc_line
 		   && *(h) && isupper(*(h))
 		   && *(h+1) && islower(*(h+1))
 		   && *(h+2) && isspace(*(h+2))) {
@@ -2839,7 +3029,7 @@ scan_troff(char *c, int san, char **result) {   /* san : stop at newline */
 	     FLUSHIBP;
 	     h = scan_request(h);
 	     if (san && h[-1] == '\n') h--;
-	} else if (*h == nobreaksym && h[-1] == '\n') {
+	} else if (san != 2 && *h == nobreaksym && h[-1] == '\n') {
 	    h++;
 	    FLUSHIBP;
 	    h = scan_request(h);
@@ -3001,9 +3191,25 @@ static char *scan_troff_mandoc(char *c, int san, char **result) {
 STRDEF *foundpages=NULL;
 
 static void
-error_page(char *s, char *t, ...) {
+error_page(int status, char *s, char *t, ...) {
      va_list p;
 
+     switch(status) {
+	case 403:
+		printf("Status: 403 Forbidden\n");
+		break;
+	case 404:
+		printf("Status: 404 Not Found\n");
+		break;
+	case 500:
+		printf("Status: 500 Internal Server Error\n");
+		break;
+	case 0:
+	default:
+		break;
+     }
+	     
+     printf(CONTENTTYPE DOCTYPE);
      printf("<HTML><HEAD><TITLE>%s</TITLE></HEAD>\n"
 	    "<BODY>\n<H1>%s</H1>\n", s, s);
      va_start(p, t);
@@ -3017,7 +3223,7 @@ char *
 xstrdup(const char *s) {
      char *p = strdup(s);
      if (p == NULL)
-	  error_page("Out of memory",
+	  error_page(500, "Out of memory",
 			 "Sorry, out of memory, aborting...\n");
      return p;
 }
@@ -3026,7 +3232,7 @@ void *
 xmalloc(size_t size) {
      void *p = malloc(size);
      if (p == NULL)
-	  error_page("Out of memory",
+	  error_page(500, "Out of memory",
 			 "Sorry, out of memory, aborting...\n");
      return p;
 }
@@ -3035,14 +3241,14 @@ void *
 xrealloc(void *ptr, size_t size) {
      void *p = realloc(ptr,size);
      if (p == NULL)
-	  error_page("Out of memory",
+	  error_page(500, "Out of memory",
 			 "Sorry, out of memory, aborting...\n");
      return p;
 }
 
 static void
 usage(void) {
-     error_page("man2html: bad invocation",
+     error_page(500, "man2html: bad invocation",
 	"Call: man2html [-l|-h host.domain:port] [-p|-q] [filename]\n"
 	"or:   man2html -r [filename]\n");
 }
@@ -3073,6 +3279,8 @@ goto_dir(char *path, char **dir, char **name) {
      }
 }
 
+
+
 /*
  * Call:  man2html [-l] [filename]
  *
@@ -3083,8 +3291,6 @@ goto_dir(char *path, char **dir, char **name) {
  */
 int
 main(int argc, char **argv) {
-    FILE *f;
-    struct stat stbuf;
     int l, c;
     char *buf, *filename, *fnam = NULL;
 
@@ -3095,7 +3301,7 @@ main(int argc, char **argv) {
     extern char *optarg;
 #endif
 
-    printf("Content-type: text/html\n\n");
+/*    printf("Content-type: text/html\n\n"); */
 
     opterr = 0;			/* no stderr error messages */
     while ((c = getopt (argc, argv, "D:E:hH:lL:M:pqr?vVf")) != -1) {
@@ -3103,7 +3309,7 @@ main(int argc, char **argv) {
 	 case 'D':
 	      goto_dir(optarg, 0, 0); break;
 	 case 'E':
-	      error_page("Error", "%s", optarg); break;
+	      error_page(0, "Error", "%s", optarg); break;
 	 case 'h':
 	      set_cgibase("localhost"); break;
 	 case 'H':
@@ -3122,7 +3328,7 @@ main(int argc, char **argv) {
 	      set_relative_html_links(); break;
 	 case 'v':
 	 case 'V':
-	      error_page("Version", "%s from man-%s", argv[0], version);
+	      error_page(0, "Version", "%s from man-%s", argv[0], version);
 	      exit(0);
 	 case '?':
 	 default:
@@ -3146,50 +3352,17 @@ main(int argc, char **argv) {
 
     /* Open input file */
     if (!fnam || !strcmp(fnam, "-")) {
-	 f = stdin;
+	 fnam = "-";
 	 fname = "(stdin)";
     } else {
 	 /* do a chdir() first, to get .so expansion right */
 	 goto_dir(fnam, &directory, &fnam);
-
-	 f = fopen(fnam, "r");
-	 if (f == NULL)
-	      error_page("File not found", "Could not open %s\n", filename);
 	 fname = fnam;
     }
 
-    /* Read entire file into buf[1..l] */
-#define XTRA 5
-    /* buf has 1 extra byte at the start, and XTRA extra bytes at the end */
-    if (f == stdin) {
-	 int sz = 1024;
-	 int ct = 1, tot = 0;
-	 char *p = NULL;
-
-	 clearerr(stdin);
-	 while (ct > 0) {
-	      tot += ct;
-	      if (feof(stdin))
-		   break;
-	      sz = 2*sz+tot;
-	      p = xrealloc(p, sz);
-	      ct = fread(p+tot,1,sz-tot-XTRA,stdin);
-	 }
-
-	 buf = p;
-	 l = tot-1;
-    } else {
-	 int ct;
-
-	 l = 0;
-	 if (fstat(fileno(f), &stbuf) != -1)
-	      l = stbuf.st_size;
-	 buf = (char *) xmalloc((l+1+XTRA)*sizeof(char));
-	 ct = fread(buf+1,1,l,f);
-	 if (ct < l)
-	      l = ct;
-	 fclose(f);
-    }
+    l = read_manpage_into_buffer(fnam, &buf);
+    if (l < 0)
+    	error_page(404, "File not found", "Could not open %s\n", fname);
 
     buf[0] = '\n';
     buf[l+1] = '\n';
@@ -3211,25 +3384,27 @@ main(int argc, char **argv) {
     out_html(NEWLINE);
     if (output_possible) {
 	/* &nbsp; for mosaic users */
-	printf("<HR>\n<A NAME=\"index\">&nbsp;</A><H2>Index</H2>\n<DL>\n");
-	manidx[mip]=0;
-	printf("%s", manidx);
-	if (subs) printf("</DL>\n");
-	printf("</DL>\n");
+	if (manidx) {
+	    printf("<HR>\n<A NAME=\"index\">&nbsp;</A><H2>Index</H2>\n<DL>\n");
+	    manidx[mip]=0;
+	    printf("%s", manidx);
+	    if (subs) printf("</DL>\n");
+	    printf("</DL>\n");
+	}
 	print_sig();
 	printf("</BODY>\n</HTML>\n");
     } else {
 	if (!filename)
 	     filename = fname;
 	if (*filename == '/')
-	     error_page("Invalid Man Page",
+	     error_page(403, "Invalid Man Page",
 		   "The requested file %s is not a valid (unformatted) "
 		   "man page.\nIf the file is a formatted man page, "
 		   "you could try to load the\n"
-		   "<A HREF=\"file://localhost%s\">plain file</A>.\n",
+		   "<A HREF=\"file://%s\">plain file</A>.\n",
 		   filename, filename);
 	else
-	     error_page("Invalid Man Page",
+	     error_page(403, "Invalid Man Page",
 		   "The requested file %s is not a valid (unformatted) "
 		   "man page.", filename);
     }
