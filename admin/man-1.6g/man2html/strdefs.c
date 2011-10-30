@@ -44,6 +44,7 @@ static STRDEF standardstring[] = {
     { V('P','m'), 1, "&plusmn;", NULL  }, /* plus minus */
     { V('R',' '), 1, "&#174;", NULL },
     { V('R','q'), 1, "&rdquo;", NULL  }, /* right double quote  */
+    { V('T','m'), 1, "&trade;", NULL }, /* trade mark */
     { V('a','a'), 1, "'", NULL  }, /* accute accent  */
     { V('g','a'), 1, "`", NULL  }, /* grave accent  */
     { V('l','q'), 2, "``", NULL },
