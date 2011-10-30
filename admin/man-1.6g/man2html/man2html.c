@@ -868,6 +868,7 @@ static void clear_table(TABLEROW *table)
 }
 
 char *scan_expression(char *c, int *result);
+char itemsep='\t';
 
 static char *scan_format(char *c, TABLEROW **result, int *maxcol)
 {
@@ -941,13 +942,18 @@ static char *scan_format(char *c, TABLEROW **result, int *maxcol)
 	    curfield->space=i;
 	    break;
 	case ',': case '\n':
-	    currow->next=(TABLEROW*)xmalloc(sizeof(TABLEROW));
-	    currow->next->prev=currow;
-	    currow=currow->next;
-	    currow->next=NULL;
-	    curfield=currow->first=(TABLEITEM*)xmalloc(sizeof(TABLEITEM));
-	    *curfield=emptyfield;
 	    c++;
+	    while (*c==',' || *c=='\n' || *c==' ' || *c=='\t' || *c==itemsep) {
+		c++;
+	    }
+	    if ( *c != '.' ) {
+		currow->next=(TABLEROW*)xmalloc(sizeof(TABLEROW));
+		currow->next->prev=currow;
+		currow=currow->next;
+		currow->next=NULL;
+		curfield=currow->first=(TABLEITEM*)xmalloc(sizeof(TABLEITEM));
+		*curfield=emptyfield;
+	    }
 	    break;
 	default:
 	    c++;
@@ -1023,7 +1029,6 @@ scan_table(char *c) {
     int center=0, expand=0, box=0, border=0, linesize=1;
     int i,j,maxcol=0, finished=0;
     int oldfont, oldsize,oldfillout;
-    char itemsep='\t';
     TABLEROW *layout=NULL, *currow;
     TABLEITEM *curfield;
     while (*c++!='\n');		/* skip TS */
