@@ -168,7 +168,7 @@ foreach my $fkey (sort keys %roff_hash){
 	$START .= "$JMCSS\n</HEAD>\n<BODY>\n";
     }
 
-    open M2H, "$MAN2HTML $roffpage |";
+    open M2H, "grep -v '^\.PD' $roffpage | $MAN2HTML |";
     open WL,"| nkf -j > $hfile";
 
     while(<M2H>){
