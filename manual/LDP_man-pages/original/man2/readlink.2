@@ -1,4 +1,5 @@
 .\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" Adn Copyright (C) 2011 Guillem Jover <guillem@hadrons.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -34,8 +35,10 @@
 .\" Modified Sat Jul 24 00:10:21 1993 by Rik Faith (faith@cs.unc.edu)
 .\" Modified Tue Jul  9 23:55:17 1996 by aeb
 .\" Modified Fri Jan 24 00:26:00 1997 by aeb
+.\" 2011-09-20, Guillem Jover <guillem@hadrons.org>:
+.\"     Added text on dynamically allocating buffer + example program
 .\"
-.TH READLINK 2 2010-09-20 "Linux" "Linux Programmer's Manual"
+.TH READLINK 2 2011-09-20 "Linux" "Linux Programmer's Manual"
 .SH NAME
 readlink \- read value of a symbolic link
 .SH SYNOPSIS
@@ -130,7 +133,84 @@ was declared as
 Nowadays, the return type is declared as
 .IR ssize_t ,
 as (newly) required in POSIX.1-2001.
+
+Using a statically sized buffer might not provide enough room for the
+symbolic link contents.
+The required size for the buffer can be obtained from the
+.I stat.st_size
+value returned by a call to
+.BR lstat (2)
+on the link.
+However, the number of bytes written by
+.BR readlink ()
+should be checked to make sure that the size of the
+symbolic link did not increase between the calls.
+Dynamically allocating the buffer for
+.BR readlink ()
+also addresses a common portability problem when using
+.I PATH_MAX
+for the buffer size,
+as this constant is not guaranteed to be defined per POSIX
+if the system does not have such limit.
+.SH EXAMPLE
+The following program allocates the buffer needed by
+.BR readlink ()
+dynamically from the information provided by
+.BR lstat (),
+making sure there's no race condition between the calls.
+.nf
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int
+main(int argc, char *argv[])
+{
+    struct stat sb;
+    char *linkname;
+    ssize_t r;
+
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <pathname>\\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    if (lstat(argv[1], &sb) == \-1) {
+        perror("lstat");
+        exit(EXIT_FAILURE);
+    }
+
+    linkname = malloc(sb.st_size + 1);
+    if (linkname == NULL) {
+        fprintf(stderr, "insufficient memory\\n");
+        exit(EXIT_FAILURE);
+    }
+
+    r = readlink(argv[1], linkname, sb.st_size + 1);
+
+    if (r < 0) {
+        perror("lstat");
+        exit(EXIT_FAILURE);
+    }
+
+    if (r != sb.st_size) {
+        fprintf(stderr, "symlink increased in size "
+                        "between lstat() and readlink()\\n");
+        exit(EXIT_FAILURE);
+    }
+
+    linkname[sb.st_size] = '\\0';
+
+    printf("'%s' points to '%s'\\n", argv[1], linkname);
+
+    exit(EXIT_SUCCESS);
+}
+.fi
 .SH "SEE ALSO"
+.BR readlink (1),
 .BR lstat (2),
 .BR readlinkat (2),
 .BR stat (2),
