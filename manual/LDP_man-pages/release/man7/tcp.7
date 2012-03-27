@@ -24,15 +24,15 @@
 .\" Updated 2008-12-31, Akihiro MOTOKI, LDP v3.15
 .\" Updated 2009-03-01, Akihiro MOTOKI, LDP v3.19
 .\"
-.\"WORD         full duplex connection  ������̿�
-.\"WORD         listening state         ��³�Ԥ���������
-.\"WORD         denial of service attack	DoS ����
-.\"WORD         urgent data             �۵ޥǡ���
+.\"WORD         full duplex connection  全二重通信
+.\"WORD         listening state         接続待ち受け状態
+.\"WORD         denial of service attack	DoS 攻撃
+.\"WORD         urgent data             緊急データ
 .\"
 .TH TCP  7 2009-09-30 "Linux" "Linux Programmer's Manual"
-.SH ̾��
-tcp \- TCP �ץ��ȥ���
-.SH ��
+.SH 名前
+tcp \- TCP プロトコル
+.SH 書式
 .B #include <sys/socket.h>
 .br
 .B #include <netinet/in.h>
@@ -40,863 +40,863 @@ tcp \- TCP �ץ��ȥ���
 .B #include <netinet/tcp.h>
 .sp
 .B tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
-.SH ����
-����� RFC\ 793, RFC\ 1122, RFC\ 2001 ���������Ƥ��� TCP �ץ��ȥ����
-NewReno ��ĥ�� SACK ��ĥ��ޤ�Ƽ���������ΤǤ��롣
-TCP �ϡ�
+.SH 説明
+これは RFC\ 793, RFC\ 1122, RFC\ 2001 で定義されている TCP プロトコルを
+NewReno 拡張と SACK 拡張を含めて実装したものである。
+TCP は、
 .BR ip (7)
-�����ĤΥ����åȴ֤ˡ��������ι⤤�����ȥ꡼��ظ��������
-(full-duplex) �̿����󶡤��롣
-v4 �� v6 ��ξ���ΥС�������
+上の二つのソケット間に、信頼性の高い、ストリーム指向の全二重
+(full-duplex) 通信を提供する。
+v4 と v6 の両方のバージョンの
 .BR ip (7)
-���б����Ƥ��롣
-TCP �ϡ��ǡ�����������ä����夹�뤳�ȡ�����Ǽ���줿�ѥ��åȤ�
-��������뤳�Ȥ��ݾڤ��롣�ޤ����ѥ��å�ñ�̤˥����å������
-�������������뤳�Ȥǡ�ž�����顼���Τ��롣
-TCP �ϥ쥳���ɶ��� (record boundary) ����¸���ʤ���
+に対応している。
+TCP は、データが順序を守って到着すること、途中で失われたパケットが
+再送されることを保証する。また、パケット単位にチェックサムを
+生成、検査することで、転送エラーを検知する。
+TCP はレコード境界 (record boundary) を保存しない。
 
-�������������줿�Ф���� TCP �����åȤϡ�
-��⡼�ȥ��ɥ쥹���������륢�ɥ쥹���ʤ���
-�������äƾܺ٤������˻��ꤵ�줿���֤ǤϤʤ���
-�����ؤ� TCP ��³����������ˤϡ�
+新しく生成されたばかりの TCP ソケットは、
+リモートアドレスかローカルアドレスがなく、
+したがって詳細が完全に指定された状態ではない。
+外部への TCP 接続を生成するには、
 .BR connect (2)
-���Ѥ��Ƥ⤦������ TCP �����åȤؤ���³���Ω���롣
-��������ο�������³�������ˤϡ��ޤ�
+を用いてもう一方の TCP ソケットへの接続を確立する。
+外部からの新たな接続を受けるには、まず
 .BR bind (2)
-�ǥ����åȤ��������ʥ��ɥ쥹�ȥݡ��Ȥ˷�ӤĤ�������
+でソケットをローカルなアドレスとポートに結びつけ、次に
 .BR listen (2)
-��Ƥ�ǥ����åȤ���³�Ԥ��������֤ˤ��롣
-���θ塢���夷����³�׵���Ф���
+を呼んでソケットを接続待ち受け状態にする。
+その後、到着した接続要求に対して
 .BR accept (2)
-���Ѥ��������åȤ򿷤����������롣
+を用い、ソケットを新しく生成する。
 .BR accept (2)
-�ޤ���
+または
 .BR connect (2)
-�Υ����뤬�������������åȤϡ��ܺ٤������˻��ꤵ�줿���֤Ȥʤꡢ
-�ǡ����Τ��Ȥ꤬��ǽ�Ȥʤ롣��³�Ԥ��������֤� (listening) �����åȤ䡢
-��³ (connect) ����Ƥ��ʤ������åȤ��̤��ƥǡ�������Ȥꤹ�뤳�ȤϤǤ��ʤ���
+のコールが成功したソケットは、詳細が完全に指定された状態となり、
+データのやりとりが可能となる。接続待ち受け状態の (listening) ソケットや、
+接続 (connect) されていないソケットを通してデータをやりとりすることはできない。
 
-Linux �� RFC\ 1323 �� TCP high performance ��ĥ�򥵥ݡ��Ȥ��Ƥ��롣
-����ˤϡ�Protection Against Wrapped Sequence Numbers (PAWS)��
-������ɥ���������󥰡������ॹ����פʤɤ��ޤޤ�Ƥ��롣
-������ɥ���������󥰤����Ѥ���ȡ��ٱ�ޤ����Ӱ���礭����³�ǡ�
-(64K �ʾ��) ����� TCP ������ɥ����Ѥ��뤳�Ȥ���ǽ�Ȥʤ롣
-������Ѥ���ˤϡ��������ΥХåե����������礭�����ʤ���Фʤ�ʤ���
-�����ƥ����Τ��Ф���Хåե����������ѹ��ϡ��ե�����
+Linux は RFC\ 1323 の TCP high performance 拡張をサポートしている。
+これには、Protection Against Wrapped Sequence Numbers (PAWS)、
+ウィンドウスケーリング、タイムスタンプなどが含まれている。
+ウィンドウスケーリングを利用すると、遅延または帯域の大きな接続で、
+(64K 以上の) 巨大な TCP ウィンドウを用いることが可能となる。
+これを用いるには、送受信のバッファサイズを大きくしなければならない。
+システム全体に対するバッファサイズの変更は、ファイル
 .I /proc/sys/net/ipv4/tcp_wmem
-��
+と
 .I /proc/sys/net/ipv4/tcp_rmem
-���Ѥ��ƹԤ����Ȥ��Ǥ��롣
-�ޤ����ġ��Υ����åȤΤߤ��礭�����������ˤϡ�
+を用いて行うことができる。
+また、個々のソケットのみを大きくしたい場合には、
 .B SO_SNDBUF
-��
+や
 .B SO_RCVBUF
-�����åȥ��ץ������Ѥ���
+ソケットオプションを用いて
 .BR setsockopt (2)
-��������Ѥ������ꤹ��Ф褤��
+コールを用いて設定すればよい。
 
 .B SO_SNDBUF
-��
+や
 .B SO_RCVBUF
-�Υᥫ�˥�����������륽���åȥХåե��κ��祵�����ϡ��ե�����
+のメカニズムで宣言されるソケットバッファの最大サイズは、ファイル
 .I /proc/sys/net/core/rmem_max
-��
+や
 .I /proc/sys/net/core/wmem_max
-�ǻ��ꤵ�줿�����ƥ�Ȥ��Ƥ������ͤ�Ķ���뤳�ȤϤǤ��ʤ���
-TCP �ϼºݤˤ�
+で指定されたシステムとしての制限値を超えることはできない。
+TCP は実際には
 .BR setsockopt (2)
-�����뤬�׵ᤷ���Хåե������������ܤ������Ƥ롣
-���Τ��ᡢ���θ��
+コールが要求したバッファサイズの二倍を割り当てる。
+そのため、この後で
 .BR getsockopt (2)
-�������Ԥ��ȡ�
+コールを行うと、
 .BR setsockopt (2)
-���׵ᤷ���Хåե��������Ȥϰۤʤ��ͤ��֤롣
-TCP �Ϥ���;ʬ�ʶ��֤򡢴�����Ū�䥫���ͥ������ι�¤�Τ��Ѥ��Ƥ��롣
+で要求したバッファサイズとは異なる値が返る。
+TCP はこの余分な空間を、管理目的やカーネル内部の構造体に用いている。
 .I /proc
-�ե�������ͤϡ�������ȿ�Ǥ����ºݤ� TCP ������ɥ������礭���ͤȤʤ롣
-����³�ˤ����륽���åȤΥХåե��������ѹ���ͭ���ˤ���ˤϡ�
+ファイルの値は、これらを反映し、実際の TCP ウィンドウよりも大きな値となる。
+各接続におけるソケットのバッファサイズ変更を有効にするには、
 .BR listen (2)
-��
+や
 .BR connect (2)
-��������������ꤷ�ʤ���Фʤ�ʤ���
-���ܤ��������
+コールの前に設定しなければならない。
+より詳しい情報は
 .BR socket (7)
-�򸫤衣
+を見よ。
 .PP
-TCP �϶۵ޥǡ��� (urgent data) �򥵥ݡ��Ȥ��Ƥ��롣�۵ޥǡ�����
-���餫�ν��פʥ�å��������ǡ������ȥ꡼��˴ޤޤ�Ƥ��뤳�ȡ�
-���Υǡ�����Ǥ�������᤯�������٤����ȡ�������Ԥ������뤿����Ѥ����롣
-�۵ޥǡ���������ˤϡ�
+TCP は緊急データ (urgent data) をサポートしている。緊急データは
+何らかの重要なメッセージがデータストリームに含まれていること、
+そのデータをできるだけ早く処理すべきこと、を受信者に伝えるために用いられる。
+緊急データを送るには、
 .BR send (2)
-��
+に
 .B MSG_OOB
-���ץ�������ꤹ�롣
-�۵ޥǡ������������ȡ������ͥ��
+オプションを指定する。
+緊急データを受信すると、カーネルは
 .B SIGURG
-�����ʥ���������롣�������
+シグナルを送信する。送信先は
 .B SIOCSPGRP
-��
+や
 .B FIOSETOWN
-ioctl (�� POSIX.1-2001 �ǵ��ꤵ��Ƥ���
+ioctl (や POSIX.1-2001 で規定されている
 .BR fcntl (2)
 .B F_SETOWN
-���) ���Ѥ��Ƥ��Υ����åȤΡֽ�ͭ�ԡפȤ������ꤵ�줿
-�ץ��������ץ��������롼�פǤ��롣
+操作) を用いてそのソケットの「所有者」として設定された
+プロセスかプロセスグループである。
 .B SO_OOBINLINE
-�����åȥ��ץ����ͭ���ˤʤäƤ���ȡ��۵ޥǡ�����
-�̾�Υǡ������ȥ꡼�����˺����������� (�ץ������ϲ�����
+ソケットオプションが有効になっていると、緊急データは
+通常のデータストリームの中に混ぜて送られる (プログラムは下記の
 .B SIOCATMARK
-ioctl ��Ȥäƶ۵ޥǡ����ξ���Ĵ�٤뤳�Ȥ��Ǥ���)��
-̵���ˤʤäƤ�����ˤϡ�
+ioctl を使って緊急データの場所を調べることができる)。
+無効になっている場合には、
 .BR recv (2)
-��
+や
 .BR recvmsg (2)
-��
+で
 .B MSG_OOB
-�ե饰�����åȤ���Ƥ���Ȥ��ˤΤߡ��۵ޥǡ���������Ǥ��롣
+フラグがセットされているときにのみ、緊急データを受信できる。
 
-Linux 2.4 �Ǥ�¿�����ѹ����ʤ��졢
-���롼�ץåȤȥ�������󥰤����夷����ǽ���ޤä���
-�����ε�ǽ�ˤϡ��������ԡ�
-.BR sendfile (2)��
-Explicit Congestion Notification��
-TIME_WAIT �����åȤο���������ˡ��
-keep-alive �����åȥ��ץ����
-Duplicate SACK ��ĥ�Υ��ݡ��Ȥʤɤ����롣
-.SS ���ɥ쥹�Υե����ޥå�
-TCP �� IP �ξ��ؤ˹��ۤ���Ƥ���
+Linux 2.4 では多くの変更がなされ、
+スループットとスケーリングが向上し、機能も高まった。
+これらの機能には、ゼロコピー
+.BR sendfile (2)、
+Explicit Congestion Notification、
+TIME_WAIT ソケットの新しい管理法、
+keep-alive ソケットオプション、
+Duplicate SACK 拡張のサポートなどがある。
+.SS アドレスのフォーマット
+TCP は IP の上層に構築されている
 .RB ( ip (7)
-�򻲾�)��
+を参照)。
 .BR ip (7)
-���������Ƥ��륢�ɥ쥹�ե����ޥåȤ� TCP �ˤ�Ŭ�Ѥ���롣
-TCP �� point-to-point ���̿������򥵥ݡ��Ȥ��롣
-�֥����ɥ��㥹�Ȥ�ޥ�����㥹�Ȥϥ��ݡ��Ȥ��ʤ���
-.SS /proc ���󥿥ե�����
-�����ƥ����Τ��Ф��� TCP �ѥ�᡼��������ˤϡ�
+に定義されているアドレスフォーマットは TCP にも適用される。
+TCP は point-to-point の通信だけをサポートする。
+ブロードキャストやマルチキャストはサポートしない。
+.SS /proc インタフェース
+システム全体に対する TCP パラメータの設定には、
 .I /proc/sys/net/ipv4/
-�ǥ��쥯�ȥ���Υե�����ˤ�ꥢ�������Ǥ��롣
-����ˡ�IP �˴�Ϣ����
+ディレクトリ内のファイルによりアクセスできる。
+さらに、IP に関連する
 .I /proc
-���󥿥ե������ΤۤȤ�ɤ� TCP �ˤĤ��Ƥ�Ŭ�Ѥ���롣
+インタフェースのほとんどは TCP についても適用される。
 .BR ip (7)
-�򻲾ȤΤ��ȡ�
+を参照のこと。
 .I Boolean
-�������ͤǡ�
-0 �ʳ����� ("true") ���б����륪�ץ����ͭ����
-0 �� ("false") ��̵�����Ǥ��뤳�Ȥ��̣���롣
+は整数値で、
+0 以外の値 ("true") は対応するオプションが有効、
+0 値 ("false") は無効、であることを意味する。
 .TP
-.IR tcp_abc " (Integer; default: 0; Linux 2.6.15 �ʹ�)"
+.IR tcp_abc " (Integer; default: 0; Linux 2.6.15 以降)"
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
-RFC 3465 ���������Ƥ��� Appropriate Byte Count (ABC) �����椹�롣
-ABC �ϡ���ʬŪ�� ACK �˱��������ԥ�����ɥ�
+RFC 3465 で定義されている Appropriate Byte Count (ABC) を制御する。
+ABC は、部分的な ACK に応じた輻輳ウィンドウ
 .RI ( cwnd )
-�����ä���ˤ䤫�ˤ�����ˡ�Ǥ��롣
-�ʲ����ͤ����Ǥ��롣
+の増加をより緩やかにする方法である。
+以下の値を指定できる。
 .RS
 .IP 0 3
-ACK ������������
+ACK を受信する毎に
 .I cwnd
-�����䤹 (ABC �ʤ�)��
+を増やす (ABC なし)。
 .IP 1
-�ե륵�����Υ������Ȥ� ACK ������������
+フルサイズのセグメントの ACK を受信する毎に
 .I cwnd
-�����䤹��
+を増やす。
 .IP 2
-ACK ���ٱ� ACK (delayed acknowledgment) ���껦���뤿��� 2 �������Ȥ�
-�Ф��� ACK �ξ��ˡ�
+ACK が遅延 ACK (delayed acknowledgment) を相殺するための 2 セグメントに
+対する ACK の場合に、
 .I cwnd
-�� 2 ���䤹���Ȥ��Ǥ��롣
+を 2 増やすことができる。
 .RE
 .TP
-.IR tcp_abort_on_overflow " (Boolean; default: disabled; Linux 2.4 �ʹ�)"
+.IR tcp_abort_on_overflow " (Boolean; default: disabled; Linux 2.4 以降)"
 .\" Since 2.3.41
-��³���Ԥ������Ƥ��륵���ӥ����٤����ơ������ˤĤ��Ƥ����ʤ����ˡ�
-��³��ꥻ�åȤǤ���褦�ˤ��롣
-������Ѥ���ȡ��С����Ȥˤ�äƥ����С��ե����������ä��Ȥ��ˡ�
-��³������Ǥ���褦�ˤʤ롣���Υ��ץ������Ѥ���Τϡ�
-�����ǡ������®���Ǥ��ʤ����ˡָ��ꤹ��פ��ȡ�
-���Υ��ץ������Ѥ���ȡ����Υ����Ф���³���Ƥ��륯�饤�����
-�ˤȤäƤϳ��ˤʤ뤳�Ȥ����롣
+接続を待ち受けているサービスが遅すぎて、受信についていけない場合に、
+接続をリセットできるようにする。
+これを用いると、バーストによってオーバーフローが起こったときに、
+接続を回復できるようになる。このオプションを用いるのは、
+受信デーモンを高速化できない場合に「限定する」こと。
+このオプションを用いると、そのサーバに接続しているクライアント
+にとっては害になることがある。
 .TP
-.IR tcp_adv_win_scale " (integer; default: 2; Linux 2.4 �ʹ�)"
+.IR tcp_adv_win_scale " (integer; default: 2; Linux 2.4 以降)"
 .\" Since 2.4.0-test7
-�Хåե���󥰤Υ����С��إåɤη׻���ˡ��
+バッファリングのオーバーヘッドの計算方法を、
 .I tcp_adv_win_scale
-�����ξ���
+が正の場合は
 .I "bytes/2^tcp_adv_win_scale"
-�ˡ�
+に、
 .I tcp_adv_win_scale
-���餫 0 �ξ���
+が負か 0 の場合は
 .I "bytes-bytes/2^(\-tcp_adv_win_scale)"
-�Ȥ��롣
+とする。
 
-�����åȤμ����Хåե����֤ϥ��ץꥱ�������ȥ����ͥ�Ƕ�ͭ����롣
-TCP �ϥХåե��ΰ����� TCP ������ɥ��Ȥ��ƴ�������
-��������������ɥ��Ȥ�����³��¾ü�����Τ��롣
-���֤λĤ�ϡ֥��ץꥱ�������ץХåե��Ȥ����Ѥ���졢
-�������塼��󥰤䥢�ץꥱ���������ٱ䤫��ͥåȥ�����Υ���롣
+ソケットの受信バッファ空間はアプリケーションとカーネルで共有される。
+TCP はバッファの一部を TCP ウィンドウとして管理し、
+これを受信ウィンドウとして接続の他端に通知する。
+空間の残りは「アプリケーション」バッファとして用いられ、
+スケジューリングやアプリケーションの遅延からネットワークを隔離する。
 .I tcp_adv_win_scale
-�Υǥե�����ͤ� 2 �Ǥ��ꡢ
-���ξ�祢�ץꥱ�������Хåե������Τ� 1/4 �ˤʤ롣
+のデフォルト値は 2 であり、
+この場合アプリケーションバッファは全体の 1/4 になる。
 .TP
-.IR tcp_allowed_congestion_control " (String; default: see text; Linux 2.4.20 �ʹ�)"
+.IR tcp_allowed_congestion_control " (String; default: see text; Linux 2.4.20 以降)"
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
-���ø��ץ����������ѤǤ����������楢�르�ꥺ���������ɽ��/���ꤹ��
+非特権プロセスで利用できる輻輳制御アルゴリズムの選択肢を表示/設定する
 .RB ( TCP_CONGESTION
-�����åȥ��ץ����������򻲾ȤΤ���)��
-���Υꥹ�Ȥ�
+ソケットオプションの説明を参照のこと)。
+このリストは
 .I tcp_available_congestion_control
-��ɽ�������ꥹ�Ȥ���ʬ����Ȥʤ롣
+で表示されるリストの部分集合となる。
 .\" FIXME How are the items in this delimited? Null bytes, spaces, commas?
-���Υꥹ�ȤΥǥե�����ͤϡ�"reno" ��
+このリストのデフォルト値は、"reno" と
 .I tcp_congestion_control
-�Υǥե��������򤢤碌����ΤȤʤ롣
+のデフォルト設定をあわせたものとなる。
 .TP
-.IR tcp_available_congestion_control " (String; read-only; Linux 2.4.20 �ʹ�)"
+.IR tcp_available_congestion_control " (String; read-only; Linux 2.4.20 以降)"
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
-��Ͽ����Ƥ����������楢�르�ꥺ��Υꥹ�Ȥ�ɽ�����롣
+登録されている輻輳制御アルゴリズムのリストを表示する。
 .\" FIXME How are the items in this delimited? Null bytes, spaces, commas?
-���Υꥹ�Ȥ˺ܤäƤ����Τ�������
+このリストに載っているものだけが、
 .I tcp_allowed_congestion_control
-��ɽ������롣
-¾���������楢�르�ꥺ�ब�⥸�塼��Ȥ������Ѳ�ǽ������
-�⥸�塼�뤬�����ɤ���Ƥ��ʤ����Ȥ⤢�롣
+に表示される。
+他の輻輳制御アルゴリズムがモジュールとして利用可能だが、
+モジュールがロードされていないこともある。
 .TP
-.IR tcp_app_win  " (integer; default: 31; Linux 2.4 �ʹ�)"
+.IR tcp_app_win  " (integer; default: 31; Linux 2.4 以降)"
 .\" Since 2.4.0-test7
-�����ѿ��ϡ�TCP ������ɥ��β��Х���ʬ��
-�Хåե���󥰤Υ����С��إå��Ѥ�ͽ�󤹤뤫����ꤹ�롣
+この変数は、TCP ウィンドウの何バイト分を
+バッファリングのオーバーヘッド用に予約するかを指定する。
 
-���Υ�����ɥ��� \fIwindow/2^tcp_app_win\fP �� mss ���礭���ۤ� (�Х���ñ��)
-�����ץꥱ�������Хåե��Ȥ���ͽ�󤵤�롣
-0 ����ꤹ��Ȱ���ͽ���ΰ����ʤ���
+そのウィンドウの \fIwindow/2^tcp_app_win\fP と mss の大きいほう (バイト単位)
+がアプリケーションバッファとして予約される。
+0 を指定すると一切予約領域を取らない。
 .\"
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
 .TP
-.IR tcp_base_mss " (Integer; default: 512; Linux 2.6.17 �ʹ�)"
-�ѥ��åȲ��쥤��� Path MTU discovery (MTU probing) �ǡ�
+.IR tcp_base_mss " (Integer; default: 512; Linux 2.6.17 以降)"
+パケット化レイヤの Path MTU discovery (MTU probing) で、
 .I search_low
-�ν���ͤȻ��Ѥ�����͡�
-MTU probing ��ͭ���ʾ�硢�����ͤϤ�����³�� MSS �ν���ͤȤʤ롣
+の初期値と使用される値。
+MTU probing が有効な場合、この値はその接続の MSS の初期値となる。
 .\"
 .\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
 .TP
-.IR tcp_bic " (Boolean; default: disabled; Linux 2.4.27/2.6.6 ���� 2.6.13 �ޤ�)"
-BIC TCP �������楢�르�ꥺ���ͭ���ˤ��롣
-BIC-TCP ������¦�Τߤ��ѹ��ǡ�
-��������ӥ�ƥ��� TCP ������ (friendliness) ��ξ�����󶡤��Ĥġ�
-�礭�ʥ�����ɥ��β��Ǥ������� RTT ��ʿ�����ݾڤ����ΤǤ��롣
-���Υץ��ȥ���Ǥ� additive increase (�ɲ�Ū������) ��
-binary search increase (��ʬõ������) �Ȥ�������Ĥλ��Ȥߤ�
-�Ȥ߹�碌�Ƥ��롣���ԥ�����ɥ����礭���Ȥ��ϡ���ʬ���礭��
-additive increase �ˤ�ꡢ��������ӥ�ƥ�����ݤ��ʤ���
-������ RTT ��ʿ�����ݾڤ��롣
-���ԥ�����ɥ����������Ȥ��ˤ� binary search increase �ˤ��
-TCP ��������ã�����Ƥ��롣
+.IR tcp_bic " (Boolean; default: disabled; Linux 2.4.27/2.6.6 から 2.6.13 まで)"
+BIC TCP 輻輳制御アルゴリズムを有効にする。
+BIC-TCP は送信側のみの変更で、
+スケーラビリティと TCP 親和性 (friendliness) の両方を提供しつつ、
+大きなウィンドウの下での線形な RTT 公平性を保証するものである。
+このプロトコルでは additive increase (追加的な増加) と
+binary search increase (二分探索増加) といわれる二つの仕組みを
+組み合わせている。輻輳ウィンドウが大きいときは、増分の大きい
+additive increase により、スケーラビリティを確保しながら
+線形な RTT 公平性を保証する。
+輻輳ウィンドウが小さいときには binary search increase により
+TCP 親和性を達成している。
 .\"
 .\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
 .TP
-.IR tcp_bic_low_window " (integer; default: 14; Linux 2.4.27/2.6.6 �ʹ� 2.6.13 �ޤ�)"
-BIC TCP �����ԥ�����ɥ���Ĵ���򳫻Ϥ������ͥ�����ɥ� (�ѥ��å�ñ��)
-�����ꤹ�롣�������ͤ򲼲���硢BIC TCP �ϥǥե���Ȥ� TCP Reno ��
-Ʊ��ư��򤹤롣
+.IR tcp_bic_low_window " (integer; default: 14; Linux 2.4.27/2.6.6 以降 2.6.13 まで)"
+BIC TCP が輻輳ウィンドウの調整を開始する閾値ウィンドウ (パケット単位)
+を設定する。この閾値を下回る場合、BIC TCP はデフォルトの TCP Reno と
+同じ動作をする。
 .\"
 .\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
 .TP
-.IR tcp_bic_fast_convergence " (Boolean; default: enabled; Linux 2.4.27/2.6.6 �ʹ� 2.6.13 �ޤ�)"
-BIC TCP �����ԥ�����ɥ����Ѳ��ˤ��®��ȿ������褦�ˤ��롣
-Ʊ�����ͥ�������ͭ������ĤΥե�������ĤˤޤȤޤ�Τ�
-���®���Ԥ��褦�ˤ��롣
+.IR tcp_bic_fast_convergence " (Boolean; default: enabled; Linux 2.4.27/2.6.6 以降 2.6.13 まで)"
+BIC TCP が輻輳ウィンドウの変化により速く反応するようにする。
+同じコネクションを共有する二つのフローが一つにまとまるのを
+より速く行うようにする。
 .TP
-.IR tcp_congestion_control " (String; default: ��������; Linux 2.4.13 �ʹ�)"
+.IR tcp_congestion_control " (String; default: 説明参照; Linux 2.4.13 以降)"
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
-��������³�ǻ��Ѥ����ǥե���Ȥ��������楢�르�ꥺ������ꤹ�롣
-"reno" ���르�ꥺ��Ͼ�����Ѳ�ǽ������
-�����ͥ����꼡��Ǥ��̤�����褬���ѤǤ��뤳�Ȥ⤢�롣
-���Υե�����Υǥե�����ͤϥ����ͥ�����ΰ�ĤȤ������ꤵ��롣
+新規の接続で使用されるデフォルトの輻輳制御アルゴリズムを設定する。
+"reno" アルゴリズムは常に利用可能だが、
+カーネル設定次第では別の選択肢が利用できることもある。
+このファイルのデフォルト値はカーネル設定の一つとして設定される。
 .TP
-.IR tcp_dma_copybreak " (integer; default: 4096; Linux 2.6.24 �ʹ�)"
-�����ƥ�� DMA ���ԡ����󥸥�¸�ߤ��������ͥ��
+.IR tcp_dma_copybreak " (integer; default: 4096; Linux 2.6.24 以降)"
+システムに DMA コピーエンジンが存在し、カーネルで
 .B CONFIG_NET_DMA
-���ץ����ͭ���ˤʤäƤ�����ˡ�
-DMA ���ԡ����󥸥�˥��ե����ɤ���륽���åȤ��ɤ߹��ߥ������β�����
-(�Х���ñ��)��
+オプションが有効になっている場合に、
+DMA コピーエンジンにオフロードされるソケットの読み込みサイズの下限値
+(バイト単位)。
 .TP
-.IR tcp_dsack " (Boolean; default: enabled; Linux 2.4 �ʹ�)"
+.IR tcp_dsack " (Boolean; default: enabled; Linux 2.4 以降)"
 .\" Since 2.4.0-test7
-RFC\ 2883 �� TCP Duplicate SACK �Υ��ݡ��Ȥ�ͭ���ˤ��롣
+RFC\ 2883 の TCP Duplicate SACK のサポートを有効にする。
 .TP
-.IR tcp_ecn " (Boolean; default: disabled; Linux 2.4 �ʹ�)"
+.IR tcp_ecn " (Boolean; default: disabled; Linux 2.4 以降)"
 .\" Since 2.4.0-test7
-RFC\ 2884 �� Explicit Congestion Notification ��ͭ���ˤ��롣
-�����ͭ���ˤ���ȡ��ְ�ä����񤤤򤹤�Ť��롼����
-��ϩ������ˤ���褦����³����Ф��Ʊƶ���������
-���ˤ�äƤ���³������뤫�⤷��ʤ���
+RFC\ 2884 の Explicit Congestion Notification を有効にする。
+これを有効にすると、間違った振舞いをする古いルータが
+経路の途中にあるような接続先に対して影響が生じ、
+場合によっては接続が落ちるかもしれない。
 .TP
-.IR tcp_fack " (Boolean; default: enabled; Linux 2.2 �ʹ�)"
+.IR tcp_fack " (Boolean; default: enabled; Linux 2.2 以降)"
 .\" Since 2.1.92
-TCP Forward Acknowledgement �Υ��ݡ��Ȥ�ͭ���ˤ��롣
+TCP Forward Acknowledgement のサポートを有効にする。
 .TP
-.IR tcp_fin_timeout " (integer; default: 60; Linux 2.2 �ʹ�)"
+.IR tcp_fin_timeout " (integer; default: 60; Linux 2.2 以降)"
 .\" Since 2.1.53
-�����åȤ���Ū�˥��������������ˡ�
-�Ǹ�� FIN �ѥ��åȤ��ԤĻ��֤���ñ�̤ǻ��ꤹ�롣
-����ϸ�̩�ˤ� TCP �λ��ͤ��������Ƥ��ʤ�����
-DoS ���� (denial of service attack) ����Ȥ��뤿���ɬ�פǤ��롣
-Linux 2.2 �Ǥϥǥե�����ͤ� 180 �Ǥ��ä���
+ソケットを強制的にクローズする前に、
+最後の FIN パケットを待つ時間を秒単位で指定する。
+これは厳密には TCP の仕様を満たしていないが、
+DoS 攻撃 (denial of service attack) から身を守るために必要である。
+Linux 2.2 ではデフォルト値は 180 であった。
 .\"
 .\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
 .TP
-.IR tcp_frto " (integer; default: 0; Linux 2.4.21/2.6 �ʹ�)"
+.IR tcp_frto " (integer; default: 0; Linux 2.4.21/2.6 以降)"
 .\" Since 2.4.21/2.5.43
-F-RTO ��ͭ���ˤ��롣F-RTO �� TCP ���������ॢ���� (RTO) �����
-������ǽ����夵�������르�ꥺ��Ǥ��롣
-���ε�ǽ��̵���Ķ����ä˸��̤�ȯ�����롣
-̵���Ķ��Ǥϡ��̾�ϡ���֥롼�������ԤǤϤʤ��������̵���δ���
-�ˤ��ѥ��åȥ�����ȯ�����롣
-�ܺ٤� RFC\ 4138 �򻲾ȡ�
+F-RTO を有効にする。F-RTO は TCP 再送タイムアウト (RTO) からの
+復旧性能を向上させたアルゴリズムである。
+この機能は無線環境で特に効果を発揮する。
+無線環境では、通常は、中間ルータの輻輳ではなくランダムな無線の干渉
+によりパケットロスが発生する。
+詳細は RFC\ 4138 を参照。
 
-���Υե�����ϰʲ��Τ����줫���ͤ��뤳�Ȥ��Ǥ��롣
+このファイルは以下のいずれかの値を取ることができる。
 .RS
 .IP 0 3
-F-RTO ��̵���ˤ��롣
+F-RTO を無効にする。
 .IP 1
-�����Ǥ� F-RTO ���르�ꥺ���ͭ���ˤ��롣
+基本版の F-RTO アルゴリズムを有効にする。
 .IP 2
-���Υե����� SACK ����Ѥ����硢SACK ��ĥ�Ǥ� F-RTO ��ͭ���ˤ��롣
-�����Ǥ� F-RTO �� SACK �����Ѥ���Ƥ�����ˤ���ѤǤ��뤬��
-�����Ǥξ��ˤ� F-RTO �� SACK ��ͭ���ˤʤä� TCP �ե����Ǥ�
-�ѥ��åȿ���¬�ȡ�������������ߴ��Ĥ���������̤�¸�ߤ��롣
+そのフローで SACK を使用する場合、SACK 拡張版の F-RTO を有効にする。
+基本版の F-RTO も SACK が使用されている場合にも使用できるが、
+基本版の場合には F-RTO が SACK が有効になった TCP フローでの
+パケット数計測と、相性が悪く相互干渉が起こる場面が存在する。
 .RE
 .IP
-Linu 2.6.22 ������Ǥϡ����Υѥ�᡼���ϥ֡����ͤǤ��ꡢ
-�嵭�� 0 �� 1 �Τߤ򥵥ݡ��Ȥ��Ƥ�����
+Linu 2.6.22 より前では、このパラメータはブール値であり、
+上記の 0 と 1 のみをサポートしていた。
 .TP
-.IR tcp_frto_response " (integer; default: 0; Linux 2.6.22 �ʹ�)"
-F-RTO �� TCP ���������ॢ���Ȥ���ʪ���ȸ��Ф������
-(�ĤޤꡢTCP ����ä�Ĺ�����������ॢ���Ȥ����ꤷ�Ƥ����
-�����ॢ���Ȥ��򤱤�줿���)��
-���ˤɤ����뤫�˴ؤ�������褬�����Ĥ����롣
-�ʲ����ͤ�����Ǥ��롣
+.IR tcp_frto_response " (integer; default: 0; Linux 2.6.22 以降)"
+F-RTO が TCP 再送タイムアウトが偽物だと検出した場合
+(つまり、TCP がもっと長い再送タイムアウトを設定していれば
+タイムアウトが避けられた場合)、
+次にどうするかに関して選択肢がいくつかある。
+以下の値を選択できる。
 .RS
 .IP 0 3
-�졼�Ȥ򸵤�Ⱦʬ�ˤ��롣
-��餫�ǡ��ݼ�Ū��ȿ����Ԥ���RTT 1��ʬ�λ��ָ��
-���ԥ�����ɥ�
+レートを元の半分にする。
+滑らかで、保守的な反応を行い、RTT 1回分の時間後に
+輻輳ウィンドウ
 .RI ( cwnd )
-�ȥ������������Ȥ�����
+とスロースタートの閾値
 .RI ( ssthresh )
-��Ⱦʬ�ˤʤ롣
+が半分になる。
 .IP 1
-�����ݼ�Ū��ȿ�������Υ��ץ����λ��ѤϿ侩����ʤ���
-ȿ�����������ä����Ǥ��äƤ⡢Linux TCP ��¾����ʬ��
-���ޤ�Ϣ�ȤǤ��ʤ�����Ǥ��롣
+非常に保守的な反応。このオプションの使用は推奨されない。
+反応が正しかった場合であっても、Linux TCP の他の部分と
+うまく連携できないからである。
 .I cwnd
-��
+と
 .I ssthresh
-��ľ����Ⱦʬ�ˤ���롣
+は直ちに半分にされる。
 .IP 2
-�Ѷ�Ū��ȿ����
-���פ�Ƚ���������������¬��������ä�
-(TCP ����ä����տ��������٤��������������ǽ����̵�뤹��)��
-��
+積極的な反応。
+不要と判明した輻輳制御の測定情報を取り消す
+(TCP がもっと注意深く扱うべき再送が失われる可能性を無視する)。
+。
 .I cwnd
-��
+と
 .I ssthresh
-�ϥ����ॢ���������ͤ��ᤵ��롣
+はタイムアウト前の値に戻される。
 .RE
 .TP
-.IR tcp_keepalive_intvl " (integer; default: 75; Linux 2.4 �ʹ�)"
+.IR tcp_keepalive_intvl " (integer; default: 75; Linux 2.4 以降)"
 .\" Since 2.3.18
-TCP keep-alive �Υץ����֤�����ֳ� (��ñ��)��
+TCP keep-alive のプローブを送る間隔 (秒単位)。
 .TP
-.IR tcp_keepalive_probes " (integer; default: 9; Linux 2.2 �ʹ�)"
+.IR tcp_keepalive_probes " (integer; default: 9; Linux 2.2 以降)"
 .\" Since 2.1.43
-TCP keep-alive �ץ����֤κ�������
-���β��������Ƥ���³�褫��ȿ���������ʤ����ϡ�
-����������³�����Ǥ��롣
+TCP keep-alive プローブの最大回数。
+この回数だけ試しても接続先から反応が得られない場合は、
+あきらめて接続を切断する。
 .TP
-.IR tcp_keepalive_time " (integer; default: 7200; Linux 2.2 �ʹ�)"
+.IR tcp_keepalive_time " (integer; default: 7200; Linux 2.2 以降)"
 .\" Since 2.1.43
-��³�������ɥ���֤ˤʤäƤ��顢keep-alive
-�ץ����֤���������ޤǤλ��֤���ñ�̤ǻ��ꤹ�롣
+接続がアイドル状態になってから、keep-alive
+プローブを送信するまでの時間を秒単位で指定する。
 .B SO_KEEPALIVE
-�����åȥ��ץ����ͭ���ˤʤäƤ��ʤ���
-keep-alive �������ʤ���
-�ǥե�����ͤ� 7200 �� (2 ����)��
-keep-alive ��ͭ���ˤʤäƤ����硢
-����ˤ��褽 11 ʬ (75 �ôֳ֤� 9 �ץ�����ʬ)
-�в᤹��ȥ����ɥ���֤���³�Ͻ�λ�������롣
+ソケットオプションが有効になっていないと
+keep-alive は送られない。
+デフォルト値は 7200 秒 (2 時間)。
+keep-alive が有効になっている場合、
+さらにおよそ 11 分 (75 秒間隔の 9 プローブ分)
+経過するとアイドル状態の接続は終了させられる。
 
-���ؤˤ�����³���׵����䥢�ץꥱ�������ǤΥ����ॢ���Ȥϡ�
-��äȤ��ä�û�����⤷��ʤ���
+下層にある接続追跡機構やアプリケーションでのタイムアウトは、
+もっとずっと短いかもしれない。
 .\"
 .\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
 .TP
-.IR tcp_low_latency " (Boolean; default: disabled; Linux 2.4.21/2.6 �ʹ�)"
+.IR tcp_low_latency " (Boolean; default: disabled; Linux 2.4.21/2.6 以降)"
 .\" Since 2.4.21/2.5.60
-ͭ���ˤ���ȡ�TCP �����å��ϥ��롼�ץåȤ�⤯�������
-�ٱ�򾯤ʤ����뤳�Ȥ�ͥ�褷��Ƚ�Ǥ�Ԥ���
-���Υ��ץ�����̵���ˤ���ȡ����롼�ץåȤ�⤯���뤳�Ȥ�ͥ�褵��롣
-���Υǥե�����ͤ��ѹ����������褤���ץꥱ����������Ȥ��Ƥ�
-Beowulf ����ԥ塼�����饹�����󤲤����������
+有効にすると、TCP スタックはスループットを高くするよりも
+遅延を少なくすることを優先して判断を行う。
+このオプションを無効にすると、スループットを高くすることが優先される。
+このデフォルト値を変更した方がよいアプリケーションの例としては
+Beowulf コンピュータクラスタが挙げられるだろう。
 .TP
-.IR tcp_max_orphans " (integer; default: see below; Linux 2.4 �ʹ�)"
+.IR tcp_max_orphans " (integer; default: see below; Linux 2.4 以降)"
 .\" Since 2.3.41
-�����ƥब���Ƥ��롢
-orphan �� (�ɤΥ桼���ե�����ϥ�ɥ�ˤ⥢���å�����Ƥ��ʤ�)
-TCP �����åȤκ������
-���ο���ۤ���ȡ�orphan ����³�ϥꥻ�åȤ��졢�ٹ�ɽ������롣
-�������¤�¸�ߤ���Τϡ�ñ��ʻ�����ǽ (denial-of-service) �����
-�ɤ�����˲᤮�ʤ��������ͤ򾮤������뤳�ȤϿ侩���ʤ���
-�ͥåȥ���ξ��ˤ�äƤϡ����ο��ͤ��礭�����ʤ��Ȥ����ʤ����⤷��ʤ�����
-orphan �ʥ����åȤҤȤĤ�����
-64K ���٤Υ���å��Բ�ǽ�ʥ������񤹤뤳�Ȥ����դ��衣
-�ǥե���Ȥν���ͤϥ����ͥ�ѥ�᡼���� NR_FILE ����������
-���ν���ǥե�����ͤϥ����ƥ�Υ���˱�����Ĵ������롣
+システムが許容する、
+orphan な (どのユーザファイルハンドルにもアタッチされていない)
+TCP ソケットの最大数。
+この数を越えると、orphan な接続はリセットされ、警告が表示される。
+この制限が存在するのは、単純な使用不能 (denial-of-service) 攻撃を
+防ぐために過ぎない。この値を小さくすることは推奨しない。
+ネットワークの条件によっては、この数値を大きくしないといけないかもしれないが、
+orphan なソケットひとつあたり
+64K 程度のスワップ不可能なメモリを消費することも注意せよ。
+デフォルトの初期値はカーネルパラメータの NR_FILE と等しい。
+この初期デフォルト値はシステムのメモリに応じて調整される。
 .TP
-.IR tcp_max_syn_backlog " (integer; default: ��������; Linux 2.2 �ʹ�)"
+.IR tcp_max_syn_backlog " (integer; default: 下記参照; Linux 2.2 以降)"
 .\" Since 2.1.53
-��³���Ƥ��Ƥ��륯�饤����Ȥ���
-ack ��������Ƥ��ʤ����֤���³�ꥯ�����Ȥ򥭥塼���֤���������
-���ο��ͤ�ۤ���ȡ������ͥ�ϥꥯ�����Ȥ�ΤƻϤ�롣
-�ǥե���Ȥ��ͤ� 256 �ǡ�
-�����ƥ�˽�ʬ�ʥ��꤬���� (128Mb �ʾ�) ���� 1024 �ˤʤꡢ
-���꤬���˾��ʤ���� (32 Mb �ʲ�) �� 128 �ˤʤ롣
-���ο��ͤ� 1024 �ʾ�����䤷�������ϡ�
+接続してきているクライアントから
+ack を受信していない状態の接続リクエストをキューに置ける最大数。
+この数値を越えると、カーネルはリクエストを捨て始める。
+デフォルトの値は 256 で、
+システムに充分なメモリがある (128Mb 以上) 場合は 1024 になり、
+メモリが非常に少ない場合 (32 Mb 以下) は 128 になる。
+この数値を 1024 以上に増やしたい場合は、
 .I include/net/tcp.h
-�� TCP_SYNQ_HSIZE ��
-TCP_SYNQ_HSIZE*16<=tcp_max_syn_backlog �Τ褦�˽�������
-�����ͥ��ƥ���ѥ��뤹�뤳�Ȥ򾩤�롣
+の TCP_SYNQ_HSIZE を
+TCP_SYNQ_HSIZE*16<=tcp_max_syn_backlog のように修正し、
+カーネルを再コンパイルすることを奨める。
 .TP
-.IR tcp_max_tw_buckets " (integer; default: ��������; Linux 2.4 �ʹ�)"
+.IR tcp_max_tw_buckets " (integer; default: 下記参照; Linux 2.4 以降)"
 .\" Since 2.3.41
-�����ƥब���Ƥ��� TIME_WAIT ���֤ˤ��륽���åȤκ������
-�������¤�¸�ߤ���Τϡ�
-ñ��ʻ�����ǽ (denial-of-service) ������ɤ�����˲᤮�ʤ���
-�ǥե�����ͤ� NR_FILE*2 �ǡ������ƥ�Υ���˱�����Ĵ������롣
-���ο��ͤ�ۤ���ȡ����Τ褦�ʥ����åȤϥ����������졢�ٹ�ɽ������롣
+システムが許容する TIME_WAIT 状態にあるソケットの最大数。
+この制限が存在するのは、
+単純な使用不能 (denial-of-service) 攻撃を防ぐために過ぎない。
+デフォルト値は NR_FILE*2 で、システムのメモリに応じて調整される。
+この数値を越えると、そのようなソケットはクローズされ、警告が表示される。
 .TP
-.IR tcp_moderate_rcvbuf " (Boolean; default: enabled; Linux 2.4.17/2.6.7 �ʹ�)"
+.IR tcp_moderate_rcvbuf " (Boolean; default: enabled; Linux 2.4.17/2.6.7 以降)"
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
-ͭ���ˤ���ȡ�TCP �ϼ����Хåե��μ�ưĴ����Ԥ���
-����Ū�ˤϡ�
+有効にすると、TCP は受信バッファの自動調整を行う。
+具体的には、
 .RI ( tcp_rmem[2]
-��Ķ���ʤ��ϰϤ�) �Хåե����礭����ưŪ���Ѳ�������
-���η�ϩ�Ǻ���Υ��롼�ץåȤ�ã������Τ�ɬ�פ��礭���˹�碌�褦�Ȥ��롣
+を超えない範囲で) バッファの大きさを自動的に変化させ、
+その経路で最大のスループットを達成するのに必要な大きさに合わせようとする。
 .TP
-.IR tcp_mem " (Linux 2.4 �ʹ�)"
+.IR tcp_mem " (Linux 2.4 以降)"
 .\" Since 2.4.0-test7
-����� 3 �Ĥ����� [low, pressure, high] ����ʤ�٥��ȥ��ͤǤ��롣
-������ TCP ����������̤����פ��뤿����Ѥ�����
-(�����̤ϥ����ƥ�Υڡ���������ñ�̤Ƿ�¬�����)��
-�ǥե���Ȥϥ֡��Ȼ������ѤǤ��������̤���׻�����롣
-(�ºݤˤϡ�TCP ��
+これは 3 つの整数 [low, pressure, high] からなるベクトル値である。
+これらは TCP がメモリ使用量を追跡するために用いられる
+(使用量はシステムのページサイズ単位で計測される)。
+デフォルトはブート時に利用できるメモリの量から計算される。
+(実際には、TCP は
 .I "low memory"
-�Τߤ���Ѥ��롣�ͤ� 32�ӥåȥ����ƥ�Ǥ��� 900 �ᥬ�Х��Ȥ����¤���롣
-64 �ӥåȥ����ƥ�ǤϤ������¤Ϥʤ���)
+のみを使用する。値は 32ビットシステムでは約 900 メガバイトに制限される。
+64 ビットシステムではこの制限はない。)
 .RS
 .TP 10
 .I low
-TCP �ϡ��������Х�˥��������Ȥ����ڡ��������ο��Ͱʲ��ξ��ϡ�
-���ꥢ������������Ĵ�����ʤ���
+TCP は、グローバルにアロケートしたページがこの数値以下の場合は、
+メモリアロケーションを調整しない。
 .TP
 .I pressure
-TCP �����������Ȥ������꤬���ο���ʬ�Υڡ�������ۤ���ȡ�
-TCP �ϥ��������ޤ���褦�ˤʤ롣
-���������Ȥ����ڡ�������
+TCP がアロケートしたメモリがこの数値分のページ数を越えると、
+TCP はメモリ消費を抑えるようになる。
+アロケートしたページ数が
 .I low
-�ʲ��ˤʤ�ȡ����Υ��갵�����֤���æ���롣
+以下になると、このメモリ圧迫状態から脱する。
 .TP
 .I high
-TCP ���������Х�˳�����Ƥ�ڡ������κ����͡�
-�����ͤϥ����ͥ�ˤ�äƲݤ���뤢�������¤���ͥ�褵��롣
+TCP がグローバルに割り当てるページ数の最大値。
+この値はカーネルによって課されるあらゆる制限よりも優先される。
 .RE
 .TP
-.IR tcp_mtu_probing " (integer; default: 0; Linux 2.6.17 �ʹ�)"
+.IR tcp_mtu_probing " (integer; default: 0; Linux 2.6.17 以降)"
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
-���Υѥ�᡼���ϡ�TCP �Υѥ��åȲ��쥤��� Path MTU discovery �����椹�롣
-���Υե�����ˤϰʲ����ͤ�����Ǥ��롣
+このパラメータは、TCP のパケット化レイヤの Path MTU discovery を制御する。
+このファイルには以下の値を設定できる。
 .RS
 .IP 0 3
-̵���ˤ��롣
+無効にする。
 .IP 1
-�ǥե���ȤǤ�̵��������ICMP �֥�å��ۡ��뤬���Ф��줿����ͭ���ˤ��롣
+デフォルトでは無効だが、ICMP ブラックホールが検出された場合は有効にする。
 .IP 2
-���ͭ���ˤ��롣
-MSS �ν���ͤȤ���
+常に有効にする。
+MSS の初期値として
 .I tcp_base_mss
-�����Ѥ���롣
+が使用される。
 .RE
 .TP
-.IR tcp_no_metrics_save " (Boolean; default: disabled; Linux 2.6.6 �ʹ�)"
+.IR tcp_no_metrics_save " (Boolean; default: disabled; Linux 2.6.6 以降)"
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
-�ǥե���ȤǤϡ�TCP ����³�����������˳Ƽ����³�ѥ�᡼����
-�롼�ȥ���å��� (route cache) ����¸�����ᤤ�������³����Ω���줿�ݤ�
-�����ξ���������֤Ȥ��ƻ��ѤǤ���褦�ˤʤäƤ��롣
-�̾�ϡ�����ˤ�����ΤȤ�����ǽ�����夹�뤬��
-���Ȥ�����ǽ��������������������Ȥ⤢�롣
+デフォルトでは、TCP は接続クローズ時に各種の接続パラメータを
+ルートキャッシュ (route cache) に保存し、近い将来に接続が確立された際に
+これらの情報を初期状態として使用できるようになっている。
+通常は、これにより全体として性能が向上するが、
+時として性能の劣化を引き起こすこともある。
 .I tcp_no_metrics_save
-��ͭ���ˤ���ȡ�TCP ����³��������������³�ѥ�᡼���򥭥�å���
-���ʤ��ʤ롣
+を有効にすると、TCP は接続クローズ時に接続パラメータをキャッシュ
+しなくなる。
 .TP
-.IR tcp_orphan_retries " (integer; default: 8; Linux 2.4 �ʹ�)"
+.IR tcp_orphan_retries " (integer; default: 8; Linux 2.4 以降)"
 .\" Since 2.3.41
-�����餫�饯������������³�ˤĤ��ơ�
-������ץ����֤�������Կ���
+こちらからクローズした接続について、
+先方をプローブする最大試行数。
 .TP
-.IR tcp_reordering " (integer; default: 3; Linux 2.4 �ʹ�)"
+.IR tcp_reordering " (integer; default: 3; Linux 2.4 以降)"
 .\" Since 2.4.0-test7
-TCP �ѥ��åȥ��ȥ꡼��ǥѥ��åȽ���ε�ž��ȯ�����������Ǥ��ꡢ
-�ѥ��åȥ����������ä��ȤϤߤʤ��ʤ����ѥ��åȿ��κ����͡�
-�����ͤ�Ķ���ƥѥ��åȤν����ž��������ȡ��ѥ��åȥ�������������
-�ߤʤ���slow start �����롣
-���ο��ͤ��ѹ����ʤ��ۤ����ɤ���
-����ϡ���³��Υѥ��åȤ��¤��ؤ��ˤ�ä�������
-��ɬ�פ�®���㲼�������Ǿ�������褦���߷פ��줿��
-�ѥ��å��¤��ؤ� (packet reordering) �θ��Υ�ȥ�å��ʤΤǤ��롣
+TCP パケットストリームでパケット順序の逆転が発生しただけであり、
+パケットロスが起こったとはみなさない、パケット数の最大値。
+この値を超えてパケットの順序逆転が起こると、パケットロスが生じたと
+みなし、slow start に入る。
+この数値は変更しないほうが良い。
+これは、接続中のパケットの並び替えによって生じる
+不必要な速度低下や再送を最小化するように設計された、
+パケット並び替え (packet reordering) の検知メトリックなのである。
 .TP
-.IR tcp_retrans_collapse " (Boolean; default: enabled; Linux 2.2 �ʹ�)"
+.IR tcp_retrans_collapse " (Boolean; default: enabled; Linux 2.2 以降)"
 .\" Since 2.1.96
-�����κݤ˥ե륵�����Υѥ��åȤ��������Ȥ��롣
+再送の際にフルサイズのパケットを送ろうとする。
 .TP
-.IR tcp_retries1 " (integer; default: 3; Linux 2.2 �ʹ�)"
+.IR tcp_retries1 " (integer; default: 3; Linux 2.2 以降)"
 .\" Since 2.1.43
-���̤˳�Ω����Ƥ�����³��ˡ�
-TCP ���ͥåȥ���ؤ򴬤����ޤ��˺������ߤ�����
-���������β����ۤ���ȡ��ޤ��ǽ�ˡ�
-�������������������˲�ǽ�ʤ�ͥåȥ���ؤ˷�ϩ�򹹿������롣
-�ǥե���Ȥ� RFC �����ꤷ�Ƥ���Ǿ����Ǥ��� 3��
+普通に確立されている接続上に、
+TCP がネットワーク層を巻き込まずに再送を試みる回数。
+再送がこの回数を越えると、まず最初に、
+新しい再送を送る前に可能ならネットワーク層に経路を更新させる。
+デフォルトは RFC が指定している最少数である 3。
 .TP
-.IR tcp_retries2 " (integer; default: 15; Linux 2.2 �ʹ�)"
+.IR tcp_retries2 " (integer; default: 15; Linux 2.2 以降)"
 .\" Since 2.1.43
-��Ω���֤���³�ˡ����β�� TCP �ѥ��åȤκ�������
-�ԤʤäƤ����ʾ��Ϥ������롣
-�ǥե�����ͤ� 15 �ǡ������ (�����Υ����ॢ���Ȥ˰�¸���뤬)
-���褽 13��30 ʬ���٤δ��֤��б����롣
-RFC\ 1122 �ϺǾ��θ³��� 100 �ä��֤��Ƥ��뤬��
-����Ϥ����Ƥ��ξ��ˤ�û������Ȼפ��롣
+確立状態の接続に、この回数 TCP パケットの再送信を
+行なってもだめな場合はあきらめる。
+デフォルト値は 15 で、これは (再送のタイムアウトに依存するが)
+およそ 13〜30 分程度の期間に対応する。
+RFC\ 1122 は最小の限界を 100 秒と置いているが、
+これはたいていの場合には短すぎると思われる。
 .TP
-.IR tcp_rfc1337 " (Boolean; default: disabled; Linux 2.2 �ʹ�)"
+.IR tcp_rfc1337 " (Boolean; default: disabled; Linux 2.2 以降)"
 .\" Since 2.1.90
-TCP ��ư��� RFC\ 1337 �˽�򤵤��롣
-̵���ˤ���ȡ�TIME_WAIT ���֤ΤȤ��� RST ���������줿��硢
-TIME_WAIT ���֤ν�λ���Ԥ����ˤ��Υ����åȤ�ľ���˥����������롣
+TCP の動作を RFC\ 1337 に準拠させる。
+無効にすると、TIME_WAIT 状態のときに RST が受信された場合、
+TIME_WAIT 期間の終了を待たずにそのソケットを直ちにクローズする。
 .TP
-.IR tcp_rmem " (Linux 2.4 �ʹ�)"
+.IR tcp_rmem " (Linux 2.4 以降)"
 .\" Since 2.4.0-test7
-����� 3 �Ĥ����� [min, default, max] ����ʤ�٥��ȥ��ͤǤ��롣
-������ TCP �������Хåե���������Ĵ�����뤿����Ѥ����롣
-TCP �ϡ������ƥ�����ѤǤ������˱����ơ�
-�����Хåե��Υ������򤳤����ѿ����ϰϤ�
-�ʲ��˼����ǥե���Ȥ���ưŪ��Ĵ�����롣
+これは 3 つの整数 [min, default, max] からなるベクトル値である。
+これらは TCP が受信バッファサイズを調整するために用いられる。
+TCP は、システムで利用できるメモリに応じて、
+受信バッファのサイズをこれらの変数の範囲で
+以下に示すデフォルトから動的に調整する。
 .RS
 .TP 10
 .I min
-�� TCP �����åȤ��Ѥ�������Хåե��κǾ���������
-�ǥե�����ͤϥ����ƥ�Υڡ����������Ǥ���
-(Linux 2.4 �Ǥϡ��ǥե�����ͤ� 4K �Х��Ȥǡ�
-����ξ��ʤ������ƥ�Ǥ�
+各 TCP ソケットが用いる受信バッファの最小サイズ。
+デフォルト値はシステムのページサイズである
+(Linux 2.4 では、デフォルト値は 4K バイトで、
+メモリの少ないシステムでは
 .B PAGE_SIZE
-�Х��Ȥ˸��餵���)��
-�����ͤϡ����갵���⡼�ɤˤ����Ƥ⡢
-���Υ������γ�����Ƥ��������뤳�Ȥ��ݾڤ��뤿����Ѥ����롣
-����ϡ�
+バイトに減らされる)。
+この値は、メモリ圧迫モードにおいても、
+このサイズの割り当てが成功することを保証するために用いられる。
+これは、
 .B SO_RCVBUF
-���Ѥ��ƥ����åȤκ�������Хåե����������������ݤˤ��Ѥ����ʤ���
+を用いてソケットの最低受信バッファサイズを宣言する際には用いられない。
 .\"nakano Documentation/networking/ip-sysctls.txt
-.\"nakano ��ߤ�¤�ǤϤ����������ƤΤ褦�ʡ�
+.\"nakano をみる限りではこういう内容のような。
 .TP
 .I default
-TCP �����åȤμ����Хåե��Υǥե���ȥ�������
-�����ͤϡ����٤ƤΥץ��ȥ�����Ф����������Ƥ��롢
-�����ͥ�å��ʥ������Х�Υǥե���ȥХåե�������
+TCP ソケットの受信バッファのデフォルトサイズ。
+この値は、すべてのプロトコルに対して定義されている、
+ジェネリックなグローバルのデフォルトバッファサイズ
 .I net.core.rmem_default
-���ͥ�褵��롣
-�ǥե�����ͤ� 87380 �Х��ȤǤ���
-(Linux 2.4 �Ǥϡ�����ξ��ʤ������ƥ�ξ��
-43689 �ޤǸ��餵���)��
-�礭�ʼ����Хåե���������ɬ�פʾ��ϡ�
-�����ͤ����䤹�٤��Ǥ��� (���٤ƤΥ����åȤ˱ƶ�����)��
-�礭�� TCP ������ɥ����Ѥ���ˤϡ�
+より優先される。
+デフォルト値は 87380 バイトである
+(Linux 2.4 では、メモリの少ないシステムの場合
+43689 まで減らされる)。
+大きな受信バッファサイズが必要な場合は、
+この値を増やすべきである (すべてのソケットに影響する)。
+大きな TCP ウィンドウを用いるには、
 .I net.ipv4.tcp_window_scaling
-��ͭ���ˤ��Ƥ����ʤ���Фʤ�ʤ� (�ǥե���Ȥ�ͭ��)��
+を有効にしておかなければならない (デフォルトは有効)。
 .TP
 .I max
-�� TCP �����åȤ��Ѥ�������Хåե��κ��祵������
-�����ͤ��⥰�����Х��
+各 TCP ソケットで用いる受信バッファの最大サイズ。
+この値よりもグローバルの
 .I net.core.rmem_max
-��ͥ�褵��롣
-����ϡ�
+が優先される。
+これは、
 .B SO_RCVBUF
-���Ѥ��ƥ����åȤμ����Хåե����������¤��������ݤˤ��Ѥ����ʤ���
-.\"nakano Ʊ�塣
-�ǥե�����ͤϰʲ��μ��Ƿ׻�����롣
+を用いてソケットの受信バッファサイズ制限を宣言する際には用いられない。
+.\"nakano 同上。
+デフォルト値は以下の式で計算される。
 
     max(87380, min(4MB, \fItcp_mem\fP[1]*PAGE_SIZE/128))
 
-(Linux 2.4 �Ǥϡ��ǥե�����ͤ� 87380*2 �Х��Ȥǡ�
-����ξ��ʤ������ƥ�Ǥ� 87380 �ޤǸ��餵��롣)
+(Linux 2.4 では、デフォルト値は 87380*2 バイトで、
+メモリの少ないシステムでは 87380 まで減らされる。)
 .RE
 .TP
-.IR tcp_sack " (Boolean; default: enabled; Linux 2.2 �ʹ�)"
+.IR tcp_sack " (Boolean; default: enabled; Linux 2.2 以降)"
 .\" Since 2.1.36
-RFC\ 2018 �� TCP Selective Acknowledgements ��ͭ���ˤ��롣
+RFC\ 2018 の TCP Selective Acknowledgements を有効にする。
 .TP
-.IR tcp_slow_start_after_idle " (Boolean; default: enabled; Linux 2.6.18 �ʹ�)"
+.IR tcp_slow_start_after_idle " (Boolean; default: enabled; Linux 2.6.18 以降)"
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
-ͭ���ˤ���ȡ�RFC 2861 ��ư��Ԥ�졢
-�����ɥ���ַв������ԥ�����ɥ��򥿥��ॢ���Ȥ����롣
-�����ɥ���֤ϸ��ߤ� RTO (���������ॢ����) ���������롣
-̵���ˤ���ȡ����ԥ�����ɥ��ϥ����ɥ���ַв��⥿���ॢ���Ȥ���ʤ���
+有効にすると、RFC 2861 の動作が行われ、
+アイドル時間経過後に輻輳ウィンドウをタイムアウトさせる。
+アイドル時間は現在の RTO (再送タイムアウト) で定義される。
+無効にすると、輻輳ウィンドウはアイドル時間経過後もタイムアウトされない。
 .TP
-.IR tcp_stdurg " (Boolean; default: disabled; Linux 2.2 �ʹ�)"
+.IR tcp_stdurg " (Boolean; default: disabled; Linux 2.2 以降)"
 .\" Since 2.1.44
-���Υ��ץ�����ͭ���ˤ���ȡ� TCP �۵ޥݥ��� (urgent-pointer)
-�ե�����ɤ� RFC\ 1122 �˽��ä�����Ԥ���
-.\" RFC\ 793 �϶۵ޥݥ��󥿤ΰ�̣�ε��꤬ۣ��Ǥ��ä���
-.\" RFC\ 1122 (�� RFC\ 961) �ǤϤ���ۣ�椵�˰�Ĥβ�������᤿
-.\" (��ǰ�ʤ��� "�ְ�ä�" �����Ǥ��ä���)��
-���β��˽����ȡ��۵ޥݥ��󥿤϶۵ޥǡ����κǸ�ΥХ��Ȥ�ؤ���
-���Υ��ץ�����̵���ˤ���ȡ��۵ޥݥ��󥿤β�᤬ BSD �ߴ�����ˡ��
-�Ԥ���: �۵ޥݥ��󥿤϶۵ޥǡ����θ�κǽ�ΥХ��Ȥ�ؤ���
-���Υ��ץ�����ͭ���ˤ���ȡ���߱����������꤬�����뤫�⤷��ʤ���
+このオプションを有効にすると、 TCP 緊急ポインタ (urgent-pointer)
+フィールドを RFC\ 1122 に従った解釈を行う。
+.\" RFC\ 793 は緊急ポインタの意味の規定が曖昧であった。
+.\" RFC\ 1122 (と RFC\ 961) ではこの曖昧さに一つの解決策を定めた
+.\" (残念ながら "間違った" 解決策であったが)。
+この解釈に従うと、緊急ポインタは緊急データの最後のバイトを指す。
+このオプションを無効にすると、緊急ポインタの解釈が BSD 互換の方法で
+行われる: 緊急ポインタは緊急データの後の最初のバイトを指す。
+このオプションを有効にすると、相互運用性に問題が生じるかもしれない。
 .TP
-.IR tcp_syn_retries  " (integer; default: 5; Linux 2.2 �ʹ�)"
+.IR tcp_syn_retries  " (integer; default: 5; Linux 2.2 以降)"
 .\" Since 2.1.38
-�����ƥ��֤� TCP ��³�˽�� SYN �κ������ߤ��������
-���ο��ͤ� 255 �����礭�����٤��ǤϤʤ���
-�ǥե���Ȥ��ͤ� 5 �ǡ����褽 180 �ä��б����롣
+アクティブな TCP 接続に初期 SYN の再送を試みる最大回数。
+この数値は 255 よりも大きくすべきではない。
+デフォルトの値は 5 で、およそ 180 秒に対応する。
 .TP
-.IR tcp_synack_retries " (integer; default: 5; Linux 2.2 �ʹ�)"
+.IR tcp_synack_retries " (integer; default: 5; Linux 2.2 以降)"
 .\" Since 2.1.38
-passive �� TCP ��³�� SYN/ACK �������ȤǺ������ߤ�������
-���ο��ͤ� 255 �����礭�����٤��ǤϤʤ���
+passive な TCP 接続の SYN/ACK セグメントで再送を試みる最大数。
+この数値は 255 よりも大きくすべきではない。
 .TP
-.IR tcp_syncookies " (Boolean; Linux 2.2 �ʹ�)"
+.IR tcp_syncookies " (Boolean; Linux 2.2 以降)"
 .\" Since 2.1.43
-.TCP syncookies ��ͭ���ˤ��롣�����ͥ��
+.TCP syncookies を有効にする。カーネルは
 .B CONFIG_SYNCOOKIES
-��Ĥ��ƥ���ѥ��뤷�Ƥ����ʤ���Фʤ�ʤ���
-�����åȤΥХå��������塼�������С��ե�������ȡ�
-syncookies ����������롣
-syncookies ��ǽ�ϡ�SYN flood ���⤫�饽���åȤ������Ȥ��롣
-����Ϥ�����ˤ��Ƥ⡢�ǽ����ʤȤ����Ѥ���٤��Ǥ��롣
-����� TCP �ץ��ȥ���˰�ȿ���Ƥ��ꡢ
-TCP ��ĥ�Τ褦�ʡ�TCP ��¾����ʬ�Ⱦ��ͤ��Ƥ��ޤ���
-���饤����Ȥ��졼�����꤬�����뤳�Ȥ⤢�롣
-����٤�����ְ㤤�ˤ�ä���٤��礭�ʾ��֤ˤ��륵���Ф�Ĵ�����Ƶߤ������
-�����Ȥߤʤ��٤��ǤϤʤ���
-���Τ褦�����Ӥˤϡ������
+をつけてコンパイルしておかなければならない。
+ソケットのバックログキューがオーバーフローすると、
+syncookies が送信される。
+syncookies 機能は、SYN flood 攻撃からソケットを守ろうとする。
+これはいずれにしても、最終手段として用いるべきである。
+これは TCP プロトコルに違反しており、
+TCP 拡張のような、TCP の他の部分と衝突してしまう。
+クライアントやリレーで問題が起こることもある。
+過負荷や設定間違いによって負荷の大きな状態にあるサーバを調整して救うための
+機構とみなすべきではない。
+そのような用途には、代わりに
 .IR tcp_max_syn_backlog ,
 .IR tcp_synack_retries ,
 .I tcp_abort_on_overflow
-�ʤɤλ��Ѥ�ͤ��뤳�ȡ�
+などの使用を考えること。
 .TP
-.IR tcp_timestamps " (Boolean; default: enabled; Linux 2.2 �ʹ�)"
+.IR tcp_timestamps " (Boolean; default: enabled; Linux 2.2 以降)"
 .\" Since 2.1.36
-RFC\ 1323 �� TCP timestamps ��ͭ���ˤ��롣
+RFC\ 1323 の TCP timestamps を有効にする。
 .TP
-.IR tcp_tso_win_divisor " (integer; default: 3; Linux 2.6.9 �ʹ�)"
-���Υѥ�᡼���ϡ���Ĥ� TCP Segmentation Offload (TSO) �ե졼���
-����Ǥ������ԥ�����ɥ��γ�� (�ѡ������) �����椹�롣
-�С��������ȡ��ɤ�����礭�� TSO �ե졼����ۤ��뤫�Τϥȥ졼�ɥ��դǤ��ꡢ
-���Υѥ�᡼���Ϥ����ٹ礤�����ꤹ�롣
+.IR tcp_tso_win_divisor " (integer; default: 3; Linux 2.6.9 以降)"
+このパラメータは、一つの TCP Segmentation Offload (TSO) フレームで
+消費できる輻輳ウィンドウの割合 (パーセント) を制御する。
+バースト性と、どれだけ大きな TSO フレームを構築するかのはトレードオフであり、
+このパラメータはその度合いを設定する。
 .TP
-.IR tcp_tw_recycle " (Boolean; default: disabled; Linux 2.4 �ʹ�)"
+.IR tcp_tw_recycle " (Boolean; default: disabled; Linux 2.4 以降)"
 .\" Since 2.3.15
-TIME_WAIT �����åȤ����ᤤ�����Ѥ�ͭ���ˤ��롣
-���Υ��ץ�����ͭ���ˤ���ȡ�
-NAT (�ͥåȥ�����ɥ쥹�Ѵ�) ���Ѥ��Ƥ�������꤬������Τǡ�
-���ޤ�侩���ʤ���
+TIME_WAIT ソケットの素早い再利用を有効にする。
+このオプションを有効にすると、
+NAT (ネットワークアドレス変換) を用いていると問題が生じるので、
+あまり推奨しない。
 .\"
 .\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
 .TP
-.IR tcp_tw_reuse " (Boolean; default: disabled; Linux 2.4.19/2.6 �ʹ�)"
+.IR tcp_tw_reuse " (Boolean; default: disabled; Linux 2.4.19/2.6 以降)"
 .\" Since 2.4.19/2.5.43
-�ץ��ȥ�����̤��鸫������ʤ����˿������ͥ������� TIME_WAIT
-���֤Υ����åȤ�����Ѥ��뤳�Ȥ���Ĥ��롣����Ū�˾ܤ����ͤν�����
-�����ʤ��ˤ��Υ��ץ������ѹ����٤��ǤϤʤ���
+プロトコルの面から見て問題ない場合に新規コネクションに TIME_WAIT
+状態のソケットを再利用することを許可する。技術的に詳しい人の助言や
+要請なしにこのオプションを変更すべきではない。
 .\"
 .\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
 .TP
-.IR tcp_vegas_cong_avoid  " (Boolean; default: disabled; Linux 2.2 ���� 2.6.13 �ޤ�)"
+.IR tcp_vegas_cong_avoid  " (Boolean; default: disabled; Linux 2.2 から 2.6.13 まで)"
 .\" Since 2.1.8; removed in 2.6.13
-TCP Vegas �������楢�르�ꥺ���ͭ���ˤ��롣
-TCP Vegas ���Ӱ���¬���뤳�Ȥ����Ԥε�����Ϥ��ͽ�ۤ���褦��
-TCP ������¦�Τߤ��ѹ���ä�����ΤǤ��롣
-TCP Vegas �����ԥ�����ɥ��������뤳�Ȥǡ������졼�Ȥ�Ĵ�����롣
-TCP Vegas �� TCP Reno ����٤ƥѥ��åȥ����Ͼ��ʤ�����
-TCP Reno �ۤ��Ѷ�Ū�ʵ�ư�Ϥ��ʤ���
+TCP Vegas 輻輳制御アルゴリズムを有効にする。
+TCP Vegas は帯域を推測することで輻輳の起こり始めを予想するように
+TCP の送信側のみに変更を加えたものである。
+TCP Vegas は輻輳ウィンドウを修正することで、送信レートを調整する。
+TCP Vegas は TCP Reno と比べてパケットロスは少ないが、
+TCP Reno ほど積極的な挙動はしない。
 .\"
 .\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
 .TP
-.IR tcp_westwood " (Boolean; default: disabled; Linux 2.4.26/2.6.3 ���� 2.6.13 �ޤ�)"
-TCP Westwood+ �������楢�르�ꥺ���ͭ���ˤ��롣
-TCP Westwood+ �� TCP �����������ǽ���Ŭ������褦�� TCP Reno ��
-�ץ��ȥ��륹���å�������¦�Τߤ˽�����ä�����ΤǤ��롣
-���Ԥ������ä���ǡ����ԥ�����ɥ��� slow start �����ͤ�
-�̿�ξü�֤��Ӱ�ο�¬�˴�Ť������ꤹ�롣
-���ο�¬��Ȥäơ�TCP Westwood+ �����Ԥ�ȯ���������˻ȤäƤ���
-�Ӱ���θ�����줿 slow start �����ͤ����ԥ�����ɥ������ꤹ�롣
-TCP Westwood+ �ϡ�ͭ���ͥåȥ���ˤ����� TCP Reno �θ�ʿ��
-(fairness) �ȡ�̵����󥯤ǤΥ��롼�ץåȤ��礭�����夹�롣
+.IR tcp_westwood " (Boolean; default: disabled; Linux 2.4.26/2.6.3 から 2.6.13 まで)"
+TCP Westwood+ 輻輳制御アルゴリズムを有効にする。
+TCP Westwood+ は TCP 輻輳制御の性能を最適化するように TCP Reno の
+プロトコルスタックの送信側のみに修正を加えたものである。
+輻輳が起こった後で、輻輳ウィンドウや slow start の閾値を
+通信両端間の帯域の推測に基づいて設定する。
+この推測を使って、TCP Westwood+ は輻輳が発生した時に使っていた
+帯域を考慮に入れた slow start の閾値と輻輳ウィンドウを設定する。
+TCP Westwood+ は、有線ネットワークにおける TCP Reno の公平性
+(fairness) と、無線リンクでのスループットを大きく向上する。
 .TP
-.IR tcp_window_scaling " (Boolean; default: enabled; Linux 2.2 �ʹ�)"
+.IR tcp_window_scaling " (Boolean; default: enabled; Linux 2.2 以降)"
 .\" Since 2.1.36
-RFC\ 1323 �� TCP ������ɥ���������󥰤�ͭ���ˤ��롣
-���ε�ǽ���Ѥ���ȡ���³�褬�б����Ƥ���С�
-TCP ��³���礭�� (64K �ʾ��) ������ɥ����Ȥ���褦�ˤʤ롣
-�̾�� TCP �إå��Υ�����ɥ�Ĺ�ե�����ɤ� 16 �ӥåȤʤΤǡ�
-������ɥ��������� 64K �Х��Ȱʲ��˸¤��롣
-��ä��礭�ʥ�����ɥ���Ȥ��������ϡ�
-���ץꥱ�������ϥ����åȥХåե��Υ����������䤷�ơ�
-������ɥ���������󥰤Υ��ץ��������Ѥ���Ф褤��
+RFC\ 1323 の TCP ウィンドウスケーリングを有効にする。
+この機能を用いると、接続先が対応していれば、
+TCP 接続で大きな (64K 以上の) ウィンドウが使えるようになる。
+通常は TCP ヘッダのウインドウ長フィールドは 16 ビットなので、
+ウィンドウサイズは 64K バイト以下に限られる。
+もっと大きなウィンドウを使いたい場合は、
+アプリケーションはソケットバッファのサイズを増やして、
+ウィンドウスケーリングのオプションを利用すればよい。
 .I tcp_window_scaling
-��̵���ˤ��Ƥ���ȡ�
-TCP ��¾ü�Ȥ���³����κݤˡ�
-������ɥ���������󥰤Υͥ�������������Ԥʤ�ʤ���
+を無効にしていると、
+TCP は他端との接続設定の際に、
+ウィンドウスケーリングのネゴシエーションを行なわない。
 .TP
-.IR tcp_wmem " (Linux 2.4 �ʹ�)"
+.IR tcp_wmem " (Linux 2.4 以降)"
 .\" Since 2.4.0-test7
-����� 3 �Ĥ����� [min, default, max] ����ʤ�٥��ȥ��ͤǤ��롣
-������ TCP �������Хåե���������Ĵ�����뤿����Ѥ����롣
-TCP �ϡ������ƥ�����ѤǤ������˱����ơ������Хåե��Υ�������
-�������ѿ����ϰϤǰʲ��˼����ǥե���Ȥ���ưŪ��Ĵ�����롣
+これは 3 つの整数 [min, default, max] からなるベクトル値である。
+これらは TCP が送信バッファサイズを調整するために用いられる。
+TCP は、システムで利用できるメモリに応じて、送信バッファのサイズを
+これらの変数の範囲で以下に示すデフォルトから動的に調整する。
 .RS
 .TP 10
 .I min
-�� TCP �����åȤ��Ѥ��������Хåե��κǾ���������
-�ǥե�����ͤϥ����ƥ�Υڡ����������Ǥ���
-(Linux 2.4 �Ǥϡ��ǥե�����ͤ� 4K �Ǥ���)��
-�����ͤϡ����갵���⡼�ɤˤ����Ƥ⡢
-���Υ������ʲ��γ�����Ƥ��������뤳�Ȥ��ݾڤ��뤿����Ѥ����롣
-����ϡ�
+各 TCP ソケットが用いる送信バッファの最小サイズ。
+デフォルト値はシステムのページサイズである
+(Linux 2.4 では、デフォルト値は 4K である)。
+この値は、メモリ圧迫モードにおいても、
+このサイズ以下の割り当てが成功することを保証するために用いられる。
+これは、
 .B SO_SNDBUF
-���Ѥ��ƥ����åȤκ��������Хåե����������������ݤˤ��Ѥ����ʤ���
+を用いてソケットの最低送信バッファサイズを宣言する際には用いられない。
 .TP
 .I default
-TCP �����åȤ������Хåե��Υǥե���ȥ�������
-�����ͤϡ����٤ƤΥץ��ȥ�����Ф����������Ƥ��롢
-�����ͥ�å��ʥ������Х�Υǥե���ȥХåե�������
+TCP ソケットの送信バッファのデフォルトサイズ。
+この値は、すべてのプロトコルに対して定義されている、
+ジェネリックなグローバルのデフォルトバッファサイズ
 .I /proc/sys/net/core/wmem_default
-���ͥ�褵��롣
-�ǥե�����ͤ� 16K �Х��ȤǤ��롣
-.\" Linux 2.4 �� 2.6 �Ǥ���������
-�礭�������Хåե���������ɬ�פʾ��ϡ�
-�����ͤ����䤹�٤��Ǥ��� (���٤ƤΥ����åȤ˱ƶ�����)��
-�礭�� TCP ������ɥ����Ѥ���ˤϡ�
+より優先される。
+デフォルト値は 16K バイトである。
+.\" Linux 2.4 と 2.6 では正しい。
+大きな送信バッファサイズが必要な場合は、
+この値を増やすべきである (すべてのソケットに影響する)。
+大きな TCP ウィンドウを用いるには、
 .I /proc/sys/net/ipv4/tcp_window_scaling
-�� 0 �ʳ����� (�ǥե������) �ˤ��Ƥ����ʤ���Фʤ�ʤ���
+を 0 以外の値 (デフォルト値) にしておかなければならない。
 .TP
 .I max
-�� TCP �����åȤ��Ѥ��������Хåե��κ��祵������
-�����ͤ���
+各 TCP ソケットで用いる送信バッファの最大サイズ。
+この値よりも
 .IR /proc/sys/net/core/wmem_max
-��ͥ�褵��롣
-�����
+が優先される。
+これは
 .B SO_SNDBUF
-���Ѥ��ƥ����åȤ������Хåե����������¤��������ݤˤ��Ѥ����ʤ���
-�ǥե�����ͤϰʲ��μ��Ƿ׻�����롣
+を用いてソケットの送信バッファサイズ制限を宣言する際には用いられない。
+デフォルト値は以下の式で計算される。
 
     max(65536, min(4MB, \fItcp_mem\fP[1]*PAGE_SIZE/128))
 
-(Linux 2.4 �Ǥϡ��ǥե�����ͤ� 128K �Х��Ȥǡ�
-����ξ��ʤ������ƥ�Ǥ� 64K �ˤޤǸ��餵��롣)
+(Linux 2.4 では、デフォルト値は 128K バイトで、
+メモリの少ないシステムでは 64K にまで減らされる。)
 .RE
 .TP
-.IR tcp_workaround_signed_windows " (Boolean; default: disabled; Linux 2.6.26 �ʹ�)"
-ͭ���ˤ���ȡ�������ɥ���������󥰥��ץ�����������ʤ��Τϡ�
-��³���� TCP ������Ƥ���ȹͤ���������ɥ�������դ����̤Ȥߤʤ���
-̵���ˤ���ȡ���³��꤫�饦����ɥ���������󥰥��ץ�����������ʤ��ä�
-���Ǥ��äƤ⡢��³���� TCP ������Ƥ���ȤϤߤʤ��ʤ���
-.SS �����åȥ��ץ����
-TCP �����åȤΥ��ץ����ϡ�
-���ץ�����٥������
+.IR tcp_workaround_signed_windows " (Boolean; default: disabled; Linux 2.6.26 以降)"
+有効にすると、ウィンドウスケーリングオプションを受信しないのは、
+接続相手の TCP が壊れていると考え、ウィンドウを符号付きの量とみなす。
+無効にすると、接続相手からウィンドウスケーリングオプションを受信しなかった
+場合であっても、接続相手の TCP が壊れているとはみなさない。
+.SS ソケットオプション
+TCP ソケットのオプションは、
+オプションレベル引数に
 .I IPPROTO_TCP
-����ꤷ��
+を指定した
 .BR setsockopt (2)
-������Ǥ���
+で設定でき、
 .BR getsockopt (2)
-�Ǽ����Ǥ��롣
-����ˡ��ۤȤ�ɤ�
+で取得できる。
+さらに、ほとんどの
 .B IPPROTO_IP
-�����åȥ��ץ����� TCP �����åȤ��Ф���ͭ���Ǥ��롣�ܺ٤�
+ソケットオプションも TCP ソケットに対して有効である。詳細は
 .BR ip (7)
-�򸫤衣
+を見よ。
 .\" FIXME Document TCP_CONGESTION (new in 2.6.13)
 .TP
-.BR TCP_CORK " (Linux 2.2 �ʹ�)"
+.BR TCP_CORK " (Linux 2.2 以降)"
 .\" precisely: since 2.1.127
-���åȤ����ȡ� partial �ե졼����������ʤ���
-���Υ��ץ���󤬲�������ȡ�
-���塼���󥰤��줿 partial �ե졼�ब�����롣�����
+セットされると、 partial フレームを送信しない。
+このオプションが解除されると、
+キューイングされた partial フレームが送られる。これは
 .BR sendfile (2)
-��Ƥ����˥إå������֤����ꡢ
-���롼�ץåȤ��Ŭ�����������������Ǥ��롣
-���ߤμ����Ǥϡ�
+を呼ぶ前にヘッダを前置したり、
+スループットを最適化したい場合に便利である。
+現在の実装では、
 .B TCP_CORK
-�ǽ��Ϥ��ޤ��뤳�Ȥ��Ǥ�����֤ξ�¤� 200 �ߥ��äǤ��롣
-���ξ�¤�ã����ȡ����塼���󥰤��줿�ǡ����ϼ�ưŪ����������롣
-Linux 2.5.71 �ʹߤˤ����ƤΤߡ����Υ��ץ�����
+で出力を抑えることができる時間の上限は 200 ミリ秒である。
+この上限に達すると、キューイングされたデータは自動的に送信される。
+Linux 2.5.71 以降においてのみ、このオプションを
 .B TCP_NODELAY
-��Ʊ�����Ѥ��뤳�Ȥ��Ǥ��롣
-�ܿ�����ɬ�פʥץ������ǤϤ��Υ��ץ������Ѥ���٤��ǤϤʤ���
+と同時に用いることができる。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
 .TP
-.BR TCP_DEFER_ACCEPT " (Linux 2.4 �ʹ�)"
+.BR TCP_DEFER_ACCEPT " (Linux 2.4 以降)"
 .\" Precisely: since 2.3.38
-������Ѥ���ȡ��ꥹ�ʤϥǡ����������åȤ����夷�����Τ��ܳФ��褦�ˤʤ롣
-������ (��) ��Ȥꡢ
-TCP ����³��λ���褦�Ȼ�ߤ��������¤Ǥ��롣
-�ܿ�����ɬ�פʥץ������ǤϤ��Υ��ץ������Ѥ���٤��ǤϤʤ���
+これを用いると、リスナはデータがソケットに到着した時のみ目覚めるようになる。
+整数値 (秒) をとり、
+TCP が接続を完了しようと試みる回数を制限できる。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
 .TP
-.BR TCP_INFO " (Linux 2.4 �ʹ�)"
-���Υ����åȤξ�����������Τ��Ѥ��롣
-�����ͥ��
+.BR TCP_INFO " (Linux 2.4 以降)"
+このソケットの情報を収集するのに用いる。
+カーネルは
 .I /usr/include/linux/tcp.h
-�ե�������������Ƥ���
-\fIstruct tcp_info\fP ���֤���
-�ܿ�����ɬ�פʥץ������ǤϤ��Υ��ץ������Ѥ���٤��ǤϤʤ���
+ファイルで定義されている
+\fIstruct tcp_info\fP を返す。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
 .TP
-.BR TCP_KEEPCNT " (Linux 2.4 �ʹ�)"
+.BR TCP_KEEPCNT " (Linux 2.4 以降)"
 .\" Precisely: since 2.3.18
-��³����Ȥ����� TCP ����ߤ� keepalive �ץ����֤κ�������
-�ܿ�����ɬ�פʥץ������ǤϤ��Υ��ץ������Ѥ���٤��ǤϤʤ���
+接続を落とす前に TCP が試みる keepalive プローブの最大回数。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
 .TP
-.BR TCP_KEEPIDLE " (Linux 2.4 �ʹ�)"
+.BR TCP_KEEPIDLE " (Linux 2.4 以降)"
 .\" Precisely: since 2.3.18
-���λ��� (��ñ��) ��ۤ�����³�������ɥ���֤�α�ޤäƤ���ȡ�
-���Υ����åȤ�
+この時間 (秒単位) を越えて接続がアイドル状態に留まっていると、
+このソケットに
 .B SO_KEEPALIVE
-�����åȥ��ץ�������ꤵ��Ƥ����硢
-TCP �� keepalive �ץ����֤�����Ϥ���롣
-�ܿ�����ɬ�פʥץ������ǤϤ��Υ��ץ������Ѥ���٤��ǤϤʤ���
+ソケットオプションが設定されている場合、
+TCP は keepalive プローブを送りはじめる。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
 .TP
-.BR TCP_KEEPINTVL " (Linux 2.4 �ʹ�)"
+.BR TCP_KEEPINTVL " (Linux 2.4 以降)"
 .\" Precisely: since 2.3.18
-�� keepalive �ץ����֤δֳ� (��ñ��)��
-�ܿ�����ɬ�פʥץ������ǤϤ��Υ��ץ������Ѥ���٤��ǤϤʤ���
+各 keepalive プローブの間隔 (秒単位)。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
 .TP
-.BR TCP_LINGER2 " (Linux 2.4 �ʹ�)"
+.BR TCP_LINGER2 " (Linux 2.4 以降)"
 .\" Precisely: since 2.3.41
-orphan ���줿 FIN_WAIT2 ���֤Υ����åȤμ�̿��
-���Υ��ץ������Ѥ���ȡ������ƥ����Τ�Ŭ�Ѥ����ե�����
+orphan された FIN_WAIT2 状態のソケットの寿命。
+このオプションを用いると、システム全体に適用されるファイル
 .I /proc/sys/net/ipv4/tcp_fin_timeout
-���ͤ򡢤��Υ����åȤ��Ф��ƤΤ��ѹ��Ǥ��롣
+の値を、このソケットに対してのみ変更できる。
 .BR socket (7)
-��٥�Υ��ץ����
+レベルのオプション
 .B SO_LINGER
-�Ⱥ�Ʊ���ʤ����ȡ�
-�ܿ�����ɬ�פʥץ������ǤϤ��Υ��ץ������Ѥ���٤��ǤϤʤ���
+と混同しないこと。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
 .TP
 .B TCP_MAXSEG
 .\" Present in Linux 1.0
-���� TCP �ѥ��åȤκ��祻�����ȥ�������
-���Υ��ץ�������³��Ω���������ꤹ��ȡ�
-����ѥ��åȤ�¾ü�˥��ʥ��󥹤��� MSS ���ͤ��Ѳ����롣
-���󥿡��ե������� MTU �����礭�� (���뤤���礭���ʤäƤ��ޤä�)
-�ͤϸ��̤�����ʤ���
-�ޤ� TCP �ϡ������ͤ���Ǿ�����������¤�����ͥ�褹�롣
+送出 TCP パケットの最大セグメントサイズ。
+このオプションを接続確立の前に設定すると、
+初期パケットで他端にアナウンスする MSS の値も変化する。
+インターフェースの MTU よりも大きな (あるいは大きくなってしまった)
+値は効果を持たない。
+また TCP は、この値よりも最小・最大の制限の方を優先する。
 .\" FIXME
 .\" Document TCP_MD5SIG, added in Linux 2.6.20,
 .\" Needs CONFIG_TCP_MD5SIG
@@ -915,88 +915,88 @@ orphan ���줿 FIN_WAIT2 ���֤Υ����åȤμ�̿��
 .TP
 .B TCP_NODELAY
 .\" Present in Linux 1.0
-���ꤹ��� Nagle ���르�ꥺ���̵���ˤ��롣
-���ʤ�����ǡ����̤����ʤ����Ǥ�
-�ƥ������Ȥϲ�ǽ�ʸ¤��᤯��������롣
-���ꤵ��Ƥ��ʤ��ȡ�
-��������ʬ����ί�ޤ�ޤǥǡ����ϥХåե����졢
-�����ʥѥ��åȤ����ˤ����餺�ˤ��ߡ�
-�ͥåȥ����ͭ�������ѤǤ��롣
-���Υ��ץ�����
+設定すると Nagle アルゴリズムを無効にする。
+すなわち、データ量が少ない場合でも
+各セグメントは可能な限り早く送信される。
+設定されていないと、
+送信する分だけ溜まるまでデータはバッファされ、
+小さなパケットを頻繁に送らずにすみ、
+ネットワークを有効に利用できる。
+このオプションは
 .B TCP_CORK
-�ˤ���񤭤���롣�������ʤ��顢
+により上書きされる。しかしながら、
 .B TCP_CORK
-�����ꤵ��Ƥ�����Ǥ��äƤ⡢���Υ��ץ��������ꤹ��ȡ�
-�����Ԥ��ν��Ϥ�����Ū���ݤ��Ф� (flush) ���Ȥˤʤ롣
+が設定されている場合であっても、このオプションを設定すると、
+送信待ちの出力を明示的に掃き出す (flush) ことになる。
 .TP
-.BR TCP_QUICKACK " (Linux 2.4.4 �ʹ�)"
-���ꤵ��Ƥ���� quickack �⡼�ɤ�ͭ���ˤ������ꥢ������̵���ˤ��롣
-�̾�� TCP ư��Ǥ� ack ��ɬ�פ˱������ٱ䤵���Τ��Ф���
-quickack �⡼�ɤǤ� ack �Ϥ�������������롣
-���Υե饰�ϱ�³Ū�ʤ�ΤǤϤʤ���
-quickack �⡼�ɤ���/�⡼�ɤ��ڤ��ؤ��뤿��Τ�ΤǤ��롣
-����ʹߤ� TCP �ץ��ȥ����ư��ˤ�äƤϡ�
-�����Υץ��ȥ�������䡢�ٱ� ack �����ॢ���Ȥ�ȯ����
-�ǡ���ž���ʤɤ��װ��ˤ�äơ�
-�Ƥ� quickack ����Ф������ä��ꤹ�롣
-�ܿ�����ɬ�פʥץ������ǤϤ��Υ��ץ������Ѥ���٤��ǤϤʤ���
+.BR TCP_QUICKACK " (Linux 2.4.4 以降)"
+設定されていると quickack モードを有効にし、クリアされると無効にする。
+通常の TCP 動作では ack は必要に応じて遅延されるのに対し、
+quickack モードでは ack はすぐに送信される。
+このフラグは永続的なものではなく、
+quickack モードから/モードへ切り替えるためのものである。
+これ以降の TCP プロトコルの動作によっては、
+内部のプロトコル処理や、遅延 ack タイムアウトの発生、
+データ転送などの要因によって、
+再び quickack から出たり入ったりする。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
 .TP
-.BR TCP_SYNCNT " (Linux 2.4 �ʹ�)"
+.BR TCP_SYNCNT " (Linux 2.4 以降)"
 .\" Precisely: since 2.3.18
-��³�λ�Ԥ���ߤ��������� TCP ������ SYN �����������ꤹ�롣
-����� 255 ����礭���ϤǤ��ʤ���
-�ܿ�����ɬ�פʥץ������ǤϤ��Υ��ץ������Ѥ���٤��ǤϤʤ���
+接続の試行を中止させる前に TCP が送る SYN 再送数を設定する。
+これは 255 より大きくはできない。
+移植性の必要なプログラムではこのオプションを用いるべきではない。
 .TP
-.BR TCP_WINDOW_CLAMP " (Linux 2.4 �ʹ�)"
+.BR TCP_WINDOW_CLAMP " (Linux 2.4 以降)"
 .\" Precisely: since 2.3.41
-���󤹤륦����ɥ��Υ������򤳤��ͤ˸��ꤹ�롣
-�����ͥ�ˤ�äƺǾ��������� SOCK_MIN_RCVBUF/2 �����¤���Ƥ��롣
-���Υ��ץ����ϰܿ�����ɬ�פʥ����ɤǤ��Ѥ���٤��Ǥʤ���
-.SS �����å� API
-TCP ���Ӱ賰�ǡ��� (out-of-band data) �����Ū�˥��ݡ��Ȥ��Ƥ��ꡢ
-(1 �Х��Ȥ�) �۵ޥǡ����Ȥ������Ǥ��롣
-�Ĥޤ� Linux �ˤ����Ƥϡ�
-��³�褬 (�������������) �Ӱ賰�ǡ��������äƤ�����硢
-(�Ť��������)
-�۵ޥǡ������̾�Υǡ����Ȥ��ƥ��ȥ꡼�����������뤳�Ȥˤʤ� (�����
+広報するウィンドウのサイズをこの値に固定する。
+カーネルによって最小サイズは SOCK_MIN_RCVBUF/2 に制限されている。
+このオプションは移植性の必要なコードでは用いるべきでない。
+.SS ソケット API
+TCP は帯域外データ (out-of-band data) を限定的にサポートしており、
+(1 バイトの) 緊急データという形である。
+つまり Linux においては、
+接続先が (新しいやり方の) 帯域外データを送ってきた場合、
+(古いやり方の)
+緊急データは通常のデータとしてストリームに挿入されることになる (これは
 .B SO_OOBINLINE
-�����åȤ���Ƥ�����Ǥ�Ʊ�ͤǤ���)��
-����� BSD �١����Υ����å��Ȥϰۤʤ롣
+がセットされている場合でも同様である)。
+これは BSD ベースのスタックとは異なる。
 .PP
-Linux �ϡ��ǥե���ȤǤ� urgent �ݥ��󥿥ե�����ɤβ���
-BSD �ߴ�����ˡ���Ѥ��롣����� RFC\ 1122 ��ȿ���Ƥ��뤬��
-¾�Υ����å���Ʊ����ư�����ˤϤ������ʤ��������
+Linux は、デフォルトでは urgent ポインタフィールドの解釈に
+BSD 互換の方法を用いる。これは RFC\ 1122 に反しているが、
+他のスタックと同時に動作させるにはやむを得ない。これは
 .I /proc/sys/net/ipv4/tcp_stdurg
-�ˤ�ä��ѹ��Ǥ��롣
+によって変更できる。
 
 .BR recv (2)
-��
+の
 .B MSG_PEEK
-�ե饰��Ȥ��ȡ��Ӱ賰�ǡ��������������뤳�Ȥ��Ǥ��롣
+フラグを使うと、帯域外データを覗き見することができる。
 
-Linux 2.4 �ʹߤǤϡ�
+Linux 2.4 以降では、
 .BR recv (2)
-(��
+(や
 .BR recvmsg (2))
-��
+の
 .I flags
-��������
+引き数に
 .B MSG_TRUNC
-��Ȥ����Ȥ��Ǥ��롣
-���Υե饰����ꤹ��ȡ������ǡ����ϡ��ƤӽФ��������Ϥ��줿�Хåե�
-�˥��ԡ�������֤����ΤǤϤʤ����Ѵ������褦�ˤʤ롣
-Linux 2.4.4 �ʹߤǤϡ�
+を使うことができる。
+このフラグを指定すると、受信データは、呼び出し元から渡されたバッファ
+にコピーされて返されるのではなく、廃棄されるようになる。
+Linux 2.4.4 以降では、
 .B MSG_PEEK
-���Ӱ賰�ǡ�����������뤿���
+を、帯域外データを受信するための
 .B MSG_OOB
-���Ȥ߹�碌�ƻȤä����ˤ⡢�����Ʊ�����̤���Ĥ褦�ˤʤäƤ��롣
+と組み合わせて使った場合にも、これと同じ効果を持つようになっている。
 .SS ioctl
-�ʲ���
+以下の
 .BR ioctl (2)
-�ƤӽФ���
+呼び出しは
 .I value
-�˾����������֤���
-�������񼰤ϰʲ����̤ꡣ
+に情報を入れて返す。
+正しい書式は以下の通り。
 .PP
 .RS
 .nf
@@ -1006,105 +1006,105 @@ Linux 2.4.4 �ʹߤǤϡ�
 .RE
 .PP
 .I ioctl_type
-�ϰʲ��Τ����줫��ĤǤ���:
+は以下のいずれか一つである:
 .TP
 .B SIOCINQ
-�����Хåե��Υ��塼�ˤ��롢�ޤ��ɤ�Ǥ��ʤ��ǡ������̤��֤���
-�����åȤ� LISTEN ���֤ˤ��äƤϤʤ餺��
-����ʤ��ȥ��顼
+受信バッファのキューにある、まだ読んでいないデータの量を返す。
+ソケットは LISTEN 状態にあってはならず、
+さもないとエラー
 .RB ( EINVAL )
-���֤롣
+が返る。
 .TP
 .B SIOCATMARK
-�����ǡ������ȥ꡼�ब�۵ޥޡ����ΰ��֤Ǥ���С������֤� (�Ĥޤ�
+受信データストリームが緊急マークの位置であれば、真を返す (つまり
 .I value
-�� 0 �ʳ�)��
+が 0 以外)。
 .sp
 .B SO_OOBINLINE
-�����åȥ��ץ�������ꤵ��Ƥ��ơ�
+ソケットオプションが設定されていて、
 .B SIOCATMARK
-�������֤�����硢���Υ����åȤ�����ɤ߹��ߤǤ϶۵ޥǡ�����
-�֤���롣
+が真を返した場合、次のソケットからの読み込みでは緊急データが
+返される。
 .B SO_OOBINLINE
-�����åȥ��ץ�������ꤵ��Ƥ��餺��
+ソケットオプションが設定されておらず、
 .B SIOCATMARK
-�������֤�����硢���Υ����åȤ�����ɤ߹��ߤǤ϶۵ޥǡ�����
-³���ǡ������֤���� (�ºݤ˶۵ޥǡ������ɤ߹���ˤ�
+が真を返した場合、次のソケットからの読み込みでは緊急データに
+続くデータが返される (実際に緊急データを読み込むには
 .B recv(MSG_OOB)
-�ȥե饰��Ĥ���ɬ�פ�����)��
+とフラグをつける必要がある)。
 
-�ǡ����ΰ����ɤ߹��ߤǤ϶۵ޥޡ�����٤��äƤ��ɤ߹��ߤϹԤ��ʤ���
-���ץꥱ������󤬶۵ޥǡ�����¸�ߤ�
+データの一回の読み込みでは緊急マークを跨がっての読み込みは行われない。
+アプリケーションが緊急データの存在を
 .RI ( exceptfds
-��������Ȥä�)
+引き数を使って)
 .BR select (2)
-��ͳ�ޤ���
+経由または
 .B SIGURG
-�����ʥ���������̤����Τ餵�줿��硢
+シグナルの配送を通じて知らされた場合、
 .B SIOCATMARK
-�Υ����å����ɤ߹��� (���Х����ɤ߹����׵�򤷤Ƥ�褤) ��
+のチェックと読み込み (何バイト読み込み要求をしてもよい) を
 .B SIOCATMARK
-�������֤��ʤ��ʤ�ޤǷ����֤��Ԥ����Ȥǡ��۵ޥޡ����ΰ��֤ޤ�
-�ɤ߿ʤ�뤳�Ȥ��Ǥ��롣
+が偽を返さなくなるまで繰り返し行うことで、緊急マークの位置まで
+読み進めることができる。
 .TP
 .B SIOCOUTQ
-�����åȤ��������塼�˻ĤäƤ���̤�����ǡ������̤��֤���
-�����åȤ� LISTEN ���֤ˤ��äƤϤʤ�ʤ���
-LISTEN ���֤ξ��ˤϥ��顼
+ソケットの送信キューに残っている未送信データの量を返す。
+ソケットは LISTEN 状態にあってはならない。
+LISTEN 状態の場合にはエラー
 .RB ( EINVAL )
-�Ȥʤ롣
-.SS ���顼����
-�ͥåȥ�����顼��������ȡ� TCP �ϥѥ��åȤκ������ߤ롣
-���󤫤�äƤ��������ʤ���С�������³���Ф���
+となる。
+.SS エラー処理
+ネットワークエラーが起こると、 TCP はパケットの再送を試みる。
+何回かやっても成功しなければ、この接続に対して
 .B ETIMEOUT
-���顼���Ǹ�˼����������顼���֤���롣
+エラーか最後に受信したエラーが返される。
 .PP
-���ץꥱ�������ˤ�äƤϡ���ä��᤯���顼���Τ餻�Ƥۤ�����礬���롣
-����ˤ�
+アプリケーションによっては、もっと早くエラーを知らせてほしい場合がある。
+これには
 .B IPPROTO_IP
-��٥��
+レベルの
 .B IP_RECVERR
-�����åȥ��ץ������Ѥ�����ɤ������Υ��ץ����ͭ���ˤʤäƤ���ȡ�
-���夷�����顼�Ϥ��٤Ƥ������˥桼�����ץ��������Ϥ���롣
-���Υ��ץ����Ͽ��Ť��Ѥ��뤳�� \(em �롼�ƥ��󥰤��ѹ��ʤɡ�
-�̾濫�ꤦ��ͥåȥ�����֤��Ф��� TCP �����ȼ�ˤ��Ƥ��ޤ���
-.SH ���顼
+ソケットオプションを用いると良い。このオプションが有効になっていると、
+到着したエラーはすべてただちにユーザープログラムに渡される。
+このオプションは慎重に用いること \(em ルーティングの変更など、
+通常ありうるネットワーク状態に対して TCP をより脆弱にしてしまう。
+.SH エラー
 .TP
 .B EAFNOTSUPPORT
 .I sin_family
-���Ϥ��줿�����åȥ��ɥ쥹�Υ����פ�
+に渡されたソケットアドレスのタイプが
 .B AF_INET
-�ǤϤʤ��ä���
+ではなかった。
 .TP
 .B EPIPE
-��³�褬ͽ�����ʤ��ä��������ǥ����åȤ򥯥�����������
-�ޤ��ϥ���åȥ����󤵤줿�����åȤ��ɤ߹��ߤ��¹Ԥ��줿��
+接続先が予期しなかったかたちでソケットをクローズした。
+またはシャットダウンされたソケットに読み込みが実行された。
 .TP
 .B ETIMEDOUT
-��³�褬�����󤫥ǡ�����������Ƥ�ȿ�����ʤ���
+接続先が、何回かデータを再送しても反応しない。
 .PP
 .BR ip (7)
-���������Ƥ��륨�顼�䡢�����ͥ�å��ʥ����å��ؤˤ����륨�顼��
-TCP ���֤���뤳�Ȥ����롣
-.SH �С������
-Explicit Congestion Notification��zero-copy ��
-.BR sendfile (2)��
-�¤��ؤ��Υ��ݡ��ȡ�SACK ��ĥ (DSACK) �ʤɤΥ��ݡ��Ȥ�
-2.4 ��Ƴ�����줿��
-�ե���ɳ�ǧ (FACK)��TIME_WAIT �ꥵ�����롢��³���Ȥ� keepalive
-���Ф��륽���åȥ��ץ����� 2.3 ��Ƴ�����줿��
-.SH �Х�
-�ޤ���������Ƥ��ʤ����顼�����롣
+で定義されているエラーや、ジェネリックなソケット層におけるエラーも
+TCP に返されることがある。
+.SH バージョン
+Explicit Congestion Notification、zero-copy の
+.BR sendfile (2)、
+並び替えのサポート、SACK 拡張 (DSACK) などのサポートは
+2.4 で導入された。
+フォワード確認 (FACK)、TIME_WAIT リサイクル、接続ごとの keepalive
+に対するソケットオプションは 2.3 で導入された。
+.SH バグ
+まだ説明されていないエラーがある。
 .br
-IPv6 �˴ؤ��뵭�Ҥ��ʤ���
+IPv6 に関する記述がない。
 .\" Only a single Linux kernel version is described
 .\" Info for 2.2 was lost. Should be added again,
 .\" or put into a separate page.
-.\" .SH ����
-.\" ���� man �ڡ����Ϻǽ� Andi Kleen �ˤ�äƽ񤫤줿��
-.\" Alexey Kuznetsov ��ʸ�� Documentation/networking/ip-sysctl.txt
-.\" �ξ���򸵤ˡ�Nivedita Singhvi �� 2.4 �����˹���������
-.SH ��Ϣ����
+.\" .SH 著者
+.\" この man ページは最初 Andi Kleen によって書かれた。
+.\" Alexey Kuznetsov の文書 Documentation/networking/ip-sysctl.txt
+.\" の情報を元に、Nivedita Singhvi が 2.4 向けに更新した。
+.SH 関連項目
 .BR accept (2),
 .BR bind (2),
 .BR connect (2),
@@ -1117,16 +1117,16 @@ IPv6 �˴ؤ��뵭�Ҥ��ʤ���
 .BR ip (7),
 .BR socket (7)
 .sp
-RFC\ 793: TCP �λ��͡�
+RFC\ 793: TCP の仕様。
 .br
-RFC\ 1122: TCP ���׵����� Nagle ���르�ꥺ��ε��ҡ�
+RFC\ 1122: TCP の要求事項と Nagle アルゴリズムの記述。
 .br
-RFC\ 1323: TCP �Υ����ॹ����ס�������ɥ���������󥰳ƥ��ץ����
+RFC\ 1323: TCP のタイムスタンプ・ウィンドウスケーリング各オプション。
 .br
-RFC\ 1644: TIME_WAIT assassination hazard �˴ؤ��뵭�ҡ�
+RFC\ 1644: TIME_WAIT assassination hazard に関する記述。
 .br
-RFC\ 3168: Explicit Congestion Notification �˴ؤ��뵭�ҡ�
+RFC\ 3168: Explicit Congestion Notification に関する記述。
 .br
-RFC\ 2581: TCP �������楢�르�ꥺ�ࡣ
+RFC\ 2581: TCP 輻輳制御アルゴリズム。
 .br
-RFC\ 2018 �� RFC\ 2883: SACK �Ȥ��γ�ĥ��
+RFC\ 2018 と RFC\ 2883: SACK とその拡張。
