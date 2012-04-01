@@ -5,9 +5,9 @@ m4_dnl # -------------------------------------------------------------------
 m4_dnl
 m4_include(jm_www.m4)
 _EDIT_WARNING(index)
-_HEADER(`JM ������� (1999 ǯʬ)')
+_HEADER(`JM 新着情報 (1999 年分)')
 
-m4_dnl _PAGELINK �ޥ��������
+m4_dnl _PAGELINK マクロの定義
 m4_dnl
 m4_define(`_SECDIR', `m4_regexp($1, `^.*\([1-9]\)$', `man\1')')
 m4_define(`_PKGDIR', `m4_patsubst($1, ` ', `_')')
@@ -18,15 +18,15 @@ m4_define(`_UPD_PAGE',`<FONT COLOR="green">[UPD]</FONT> _PAGELINK($1,$2)')
 m4_define(`_NEW_PAGE',`<FONT COLOR="red">[NEW]</FONT> _PAGELINK($1,$2)')
 
 <UL>
- <LI>_LINK(news.html,�ǿ��ο������) 
- <LI>_LINK(news.html#OLDNEWS,¾��ǯ�ο������) 
+ <LI>_LINK(news.html,最新の新着情報) 
+ <LI>_LINK(news.html#OLDNEWS,他の年の新着情報) 
 </UL>
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2>1999/12/26</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -41,7 +41,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/12/25</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -63,15 +63,15 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/12/15</H2>
  <P>
-  ������������ man-pages-ja-19991215.tar.gz ��
-  _LINK(download.html,����������ɤΥڡ���)
-  ��������Ǥ���褦�ˤ��ޤ�����
-  ���󤫤顢�ѥå������̤Υ��������֤��Ѱդ��ޤ�����
+  新アーカイブ man-pages-ja-19991215.tar.gz を
+  _LINK(download.html,ダウンロードのページ)
+  から取得できるようにしました。
+  今回から、パッケージ別のアーカイブも用意しました。
  </P>
   
  <H2>1999/12/06</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -107,7 +107,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/11/27</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -124,7 +124,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/11/26</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -140,7 +140,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/11/21</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU bash</DT>
@@ -152,14 +152,14 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/11/15</H2>
  <P>
-  ������������ man-pages-ja-19991115.tar.gz ��
-  _LINK(download.html,����������ɤΥڡ���)
-  ��������Ǥ���褦�ˤ��ޤ�����
+  新アーカイブ man-pages-ja-19991115.tar.gz を
+  _LINK(download.html,ダウンロードのページ)
+  から取得できるようにしました。
  </P>
 
  <H2>1999/11/03</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>gnumaniak</DT>
@@ -173,7 +173,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/11/01</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -185,7 +185,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/10/30</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>gnumaniak</DT>
@@ -197,7 +197,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/10/29</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -258,7 +258,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/10/23</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>e2fsprogs</DT>
@@ -295,7 +295,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/10/17</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>gnumaniak</DT>
@@ -306,7 +306,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/10/16</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>gnumaniak</DT>
@@ -319,13 +319,13 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>1999/10/15</H2>
   <P>
-   �ץ��������ȤΥۡ���ڡ��� URL ���ѹ������ǥ������쿷���ޤ�����
-  (_LINK(announcement/19991015.html,���ʥ���))
+   プロジェクトのホームページ URL を変更し、デザインを一新しました。
+  (_LINK(announcement/19991015.html,アナウンス))
   </P>
   <P>
    _LINK(./download.html,man-pages-ja-991015.tar.gz)
-   �����ۤ򳫻Ϥ��ޤ����� man-pages-ja-0.4.tar.gz ����
-   �ɲá��������줿�ե�����ϰʲ����̤�Ǥ���
+   の配布を開始しました。 man-pages-ja-0.4.tar.gz から
+   追加・更新されたファイルは以下の通りです。
   </P>
 
 <DL>

@@ -5,17 +5,17 @@ m4_dnl # -------------------------------------------------------------------
 m4_dnl
 m4_include(jm_www.m4)
 _EDIT_WARNING(index)
-_HEADER(`JM ������� (2005 ǯʬ)')
+_HEADER(`JM 新着情報 (2005 年分)')
 
  <DIV CLASS="copyright">
   m4_esyscmd(`date')
  </DIV>
 
-m4_dnl _PKGDIR �ޥ��� (" " �� "_" ���ִ��������)
+m4_dnl _PKGDIR マクロ (" " と "_" を置換するだけ)
 m4_dnl
 m4_define(`_PKGDIR', `m4_patsubst($1, ` ', `_')')
 
-m4_dnl _PAGELINK �ޥ��������
+m4_dnl _PAGELINK マクロの定義
 m4_dnl
 m4_define(`_SECDIR', `m4_regexp($1, `^.*\([1-9]\)$', `man\1')')
 m4_define(`_PAGEURL', `html/_PKGDIR($1)/_SECDIR($2)/$2.html')
@@ -24,7 +24,7 @@ m4_define(`_PAGELINK', `_LINK(_PAGEURL($1,$2),$2)')
 m4_define(`_UPD_PAGE',`<FONT COLOR="green">[UPD]</FONT> _PAGELINK($1,$2)')
 m4_define(`_NEW_PAGE',`<FONT COLOR="red">[NEW]</FONT> _PAGELINK($1,$2)')
 
-m4_dnl _PODLINK �ޥ��������
+m4_dnl _PODLINK マクロの定義
 m4_dnl
 m4_define(`_PODURL', `html/_PKGDIR($1)/$2.html')
 m4_define(`_PODLINK', `_LINK(_PODURL($1,$2),$2)')
@@ -33,15 +33,15 @@ m4_define(`_UPD_POD',`<FONT COLOR="green">[UPD]</FONT> _PODLINK($1,$2)')
 m4_define(`_NEW_POD',`<FONT COLOR="red">[NEW]</FONT> _PODLINK($1,$2)')
 
 <UL>
- <LI>_LINK(news.html,�ǿ��ο������) 
- <LI>_LINK(news.html#OLDNEWS,¾��ǯ�ο������) 
+ <LI>_LINK(news.html,最新の新着情報) 
+ <LI>_LINK(news.html#OLDNEWS,他の年の新着情報) 
 </UL>
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2>2005/12/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>procps</DT>
@@ -54,7 +54,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/12/13</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -72,7 +72,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/12/04</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -90,10 +90,10 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/11/13</H2>
  <UL>
-  <LI>LDP man-pages �κǿ��� 2.13 ���б����ޤ�����
+  <LI>LDP man-pages の最新版 2.13 に対応しました。
  </UL>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -111,7 +111,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/11/03</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -123,7 +123,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/10/30</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -140,7 +140,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/10/28</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -151,7 +151,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/10/23</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -183,7 +183,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/10/16</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -203,7 +203,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/10/15</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>module-init-tools</DT>
@@ -221,7 +221,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/10/09</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>module-init-tools</DT>
@@ -239,7 +239,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/10/08</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -252,7 +252,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/09/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -272,7 +272,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/09/13</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -318,7 +318,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/08/31</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -329,7 +329,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/08/28</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -346,7 +346,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/08/25</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>acl</DT>
@@ -371,7 +371,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/08/09</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU patch</DT>
@@ -382,7 +382,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/08/07</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU patch</DT>
@@ -393,7 +393,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/07/12</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>autofs</DT>
@@ -407,7 +407,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/06/12</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -418,7 +418,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/06/05</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>util-linux</DT>
@@ -431,7 +431,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/06/04</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>e2fsprogs</DT>
@@ -464,7 +464,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/05/31</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>util-linux</DT>
@@ -478,7 +478,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/05/19</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>vsftpd</DT>
@@ -489,7 +489,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/05/12</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -507,7 +507,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/05/07</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -520,7 +520,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/04/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -533,7 +533,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/04/12</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>reiserfsprogs</DT>
@@ -548,7 +548,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/04/05</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -559,7 +559,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/04/03</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -570,7 +570,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/04/01</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -581,7 +581,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/03/31</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -607,7 +607,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/03/26</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>hdparm</DT>
@@ -618,7 +618,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/03/15</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -673,7 +673,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/03/12</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -727,7 +727,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/03/11</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>rssh</DT>
@@ -739,7 +739,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/03/10</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -763,7 +763,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/02/27</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -779,7 +779,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/02/26</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>procmail</DT>
@@ -811,7 +811,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/02/21</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP_man-pages</DT>
@@ -824,7 +824,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/02/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -905,7 +905,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/01/21</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -916,7 +916,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2005/01/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>

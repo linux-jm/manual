@@ -1,45 +1,45 @@
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #
-m4_dnl # [����¾�� make �����ǰ�¸�򻲾Ȥ���ե�����]
-m4_dnl # jf_www.m4: �Ƽ� M4 �ޥ�������ե�����
+m4_dnl # [その他に make 時点で依存を参照するファイル]
+m4_dnl # jf_www.m4: 各種 M4 マクロ定義ファイル
 m4_dnl #
 m4_dnl # -------------------------------------------------------------------
 m4_dnl
 m4_define(_SUB_ONE)
 m4_include(../jm_www.m4)
 _EDIT_WARNING(mailformat)
-_HEADER(`��ȥ᡼��Υե����ޥå�')
+_HEADER(`作業メールのフォーマット')
 
 <P>
- _LINK(repository.html,JM ʸ��δ�����ˡ)
- �˽Ҥ٤��褦�ˡ� JM �Ǥ���������оݤ� man �ڡ�����
- git ��ݥ��ȥ�ȥƥ����ȥǡ����١����ˤ�äƴ������Ƥ��ޤ���
+ _LINK(repository.html,JM 文書の管理方法)
+ に述べたように、 JM では翻訳作業対象の man ページを
+ git リポジトリとテキストデータベースによって管理しています。
 </P>
 
 <P>
- ������ؤ���Ͽ����ϲ�����ư�����뤿��ˡ�
- ML �������� post ����ݤˤϤ��Υڡ����˵��Ҥ��줿�褦��
- �ե����ޥåȤˤ��뤳�Ȥ��侩����ޤ���
- (sourceforge �ʹ߸�ϼ�ư��Ͽ�ϹԤäƤ��ޤ��󤬡�
- ��Ͽ��Ȥξ�ά���Τ��ᡢ���Υե����ޥåȤλ��Ѥ򤪴ꤤ���ޤ���)
+ こちらへの登録を省力化・自動化するために、
+ ML に翻訳を post する際にはこのページに記述されたような
+ フォーマットにすることが推奨されます。
+ (sourceforge 以降後は自動登録は行っていませんが、
+ 登録作業の省略化のため、このフォーマットの使用をお願いします。)
 </P>
 
 <P>
- ��Ƥ���ϲ����뤿��ˡ� bash �λȤ���Ķ�������
- _LINK(#JMpost,JMpost ������ץ�)
- ��ȤäƤ��������Ȥ����Ǥ��礦��
- �ޤ���Wanderlust �� Mew �Υ桼���ξ��ˤϡ�JMpost �����Υ᡼���������Ƥ����
- _LINK(JMpost-wl.el,JMpost-wl.el) ��
+ 投稿を省力化するために、 bash の使える環境の方は
+ _LINK(#JMpost,JMpost スクリプト)
+ を使っていただくといいでしょう。
+ また、Wanderlust や Mew のユーザの場合には、JMpost 形式のメールを作成してくれる
+ _LINK(JMpost-wl.el,JMpost-wl.el) や
  _LINK(JMpost-mew.el,JMpost-mew.el)
- ���Ѱդ���Ƥ��ޤ��Τǡ������������
+ も用意されていますので、お試し下さい。
 </P>
 
  
-<H2><A NAME="format">�᡼��Υե����ޥå�</A></H2>
-<H3>������</H3>
+<H2><A NAME="format">メールのフォーマット</A></H2>
+<H3>送信先</H3>
 <P>
- �����襢�ɥ쥹��
+ 送信先アドレスは
 </P>
 
 <BLOCKQUOTE><STRONG>
@@ -47,76 +47,76 @@ linuxjm-discuss@lists.sourceforge.jp
 </STRONG></BLOCKQUOTE>
 
 <P CLASS="noindent">
- �Ȥ��Ƥ���������
-m4_dnl ����ϼºݤˤ� JM@linux.or.jp �ؤΥ����ꥢ���ǡ�
-m4_dnl JM ML �Υ��Ф��̾�Υݥ��Ȥ�����Ʊ���褦���Ϥ��ޤ���
-m4_dnl �����襢�ɥ쥹���Ѥ���Τϡ���ư�����Τ���Ǥ���
+ としてください。
+m4_dnl これは実際には JM@linux.or.jp へのエイリアスで、
+m4_dnl JM ML のメンバに通常のポストと全く同じように届きます。
+m4_dnl 送信先アドレスを変えるのは、自動処理のためです。
 </P>
 
-<H3>���֥�������</H3>
+<H3>サブジェクト</H3>
 <P>
- �᡼��إå��� Subject �Ԥ�
+ メールヘッダの Subject 行は
 </P>
 
 <BLOCKQUOTE>
-Subject: [POST:XX] (package ̾) (page �ե�����̾)
+Subject: [POST:XX] (package 名) (page ファイル名)
 </BLOCKQUOTE>
 
 <P CLASS="noindent">
- �Τ褦�ˤ��Ƥ���������
- XX �ΤȤ����ˤϡ���Ҥ���
- <A HREF="#stat">stat</A> ��񤤤Ƥ���������
- (��: [POST:TR] LDP man-pages strcmp.3)��
+ のようにしてください。
+ XX のところには、後述する
+ <A HREF="#stat">stat</A> を書いてください。
+ (例: [POST:TR] LDP man-pages strcmp.3)。
 </P>
 
-<H3>�إå�</H3>
+<H3>ヘッダ</H3>
 <P>
- �᡼�����ʸ����Ƭ�ˡ��ڡ����ξ���򵭽Ҥ����إå����֤��Ƥ���������
- &lt;STATUS&gt;, &lt;/STATUS&gt; �˶��ޤ줿��ʬ���إå�����ˤʤ�ޤ���
- �إå������ 1 �� 1 �쥳���ɤ���ʤꡢ
- ���ڤ�� ": " (������ȥ��ڡ���) �Ǥ���
- ɬ�פʥ쥳���ɤϰʲ��� 6 �ĤǤ���
+ メールの本文の先頭に、ページの情報を記述したヘッダを置いてください。
+ &lt;STATUS&gt;, &lt;/STATUS&gt; に挟まれた部分がヘッダ情報になります。
+ ヘッダ情報は 1 行 1 レコードからなり、
+ 区切りは ": " (コロンとスペース) です。
+ 必要なレコードは以下の 6 つです。
 </P>
 
 <DL>
  <DT><A NAME="stat"><STRONG>stat</STRONG></A></DT>
  <DD>
-  �ڡ����Υ��ơ������Ǥ���
-  ("TR", "DO", "DP", "PR", "RO", "RR") �Τɤ줫��Ĥ�
-  ���ꤷ�ޤ������줾��ΰ�̣�ϰʲ��Τ褦�ˤʤ�ޤ���
+  ページのステータスです。
+  ("TR", "DO", "DP", "PR", "RO", "RR") のどれか一つを
+  指定します。それぞれの意味は以下のようになります。
   <UL>
-   <LI>TR: ������ͽ�� (Translation Reservation)
-   <LI>DO: �ɥ�եȤ���ơ���ʬ�ǤϹ�����Ԥ�ʤ���
+   <LI>TR: 翻訳の予約。 (Translation Reservation)
+   <LI>DO: ドラフトの投稿。自分では校正を行わない。
     (Draft Only)
-   <LI>DP: �ɥ�եȤ���ơ�����³����ʬ�ǹ�����Ԥ���
+   <LI>DP: ドラフトの投稿。引き続き自分で校正を行う。
     (Draft and Proof reservation)
-   <LI>PR: �����Ԥ����֤Υɥ�եȤ��Ф��빻����Ȥ�ͽ��
+   <LI>PR: 校正待ち状態のドラフトに対する校正作業の予約。
     (Proof Reservation)
-   <LI>RO: ��꡼������ơ���ʸ��������ͽ��Ϥ��ʤ���
+   <LI>RO: リリースの投稿。原文更新時の予約はしない。
     (Release Only)
-   <LI>RR: ��꡼������ƤǤ�����ʸ�������β�����Ȥ�ͽ�󤹤롣
+   <LI>RR: リリースの投稿です。原文更新時の改訂作業を予約する。
     (Release and update Reservation)
   </UL>
 
  <DT><STRONG>ppkg</STRONG></DT>
- <DD>���� man �ڡ������ޤޤ��ѥå�������̾��</DD>
+ <DD>この man ページが含まれるパッケージの名前</DD>
 
  <DT><STRONG>page</STRONG></DT>
- <DD>�ڡ����Υե�����̾</DD>
+ <DD>ページのファイル名</DD>
 
  <DT><STRONG>date</STRONG></DT>
  <DD>_LINK(repository.html#translation_list,translation_list)
-  �ǡ����١����˵�Ͽ���������</DD>
+  データベースに記録される日付</DD>
 
  <DT><STRONG>mail</STRONG></DT>
- <DD>��ƼԤΥ᡼�륢�ɥ쥹</DD>
+ <DD>投稿者のメールアドレス</DD>
 
  <DT><STRONG>name</STRONG></DT>
- <DD>��ƼԤ� Real Name (�����޻�ɽ����˾�ޤ���)</DD>
+ <DD>投稿者の Real Name (ローマ字表記が望ましい)</DD>
 </DL>
 
 <P>
- �㤨��������Ȥ�ͽ��ξ��ϡ��ʲ��Τ褦�ˤʤ�ޤ���
+ 例えば翻訳作業の予約の場合は、以下のようになります。
 </P>
 
 <PRE>
@@ -130,158 +130,158 @@ name: NAKANO Takeo
 &lt;/STATUS&gt;
 </PRE>
 
-<H3>��ʸ</H3>
+<H3>本文</H3>
 <P>
- �إå��θ塢 man �ڡ�������ʸ���֤��Ƥ���������
- �إå��ʹߤ˺ǽ�˸��줿�ֶ��԰ʳ��ιԡפ��顢
- �᡼��������ޤǤ� man �ڡ����Ȥ�����Ͽ����ޤ���
- ���ä� signature �����֤��ʤ��褦�ˤ��Ƥ���������
+ ヘッダの後、 man ページの本文を置いてください。
+ ヘッダ以降に最初に現れた「空行以外の行」から、
+ メールの末尾までが man ページとして登録されます。
+ 従って signature 等は置かないようにしてください。
 </P>
 
 <P>
- man �ڡ������Τν񼰤䡢���Ҥ˴ؤ������դʤɤ�
- _LINK(translation_note.html,�����λؿ�)
- �򻲹ͤˤ��Ƥ���������
+ man ページ自体の書式や、記述に関する注意などは
+ _LINK(translation_note.html,翻訳の指針)
+ を参考にしてください。
 </P>
 
-<H2><A NAME="JMpost">JMpost ���ޥ��</A></H2>
+<H2><A NAME="JMpost">JMpost コマンド</A></H2>
 <P>
- �ʾ�Υե����ޥåȤΥ᡼���������ñ�˹Ԥ����ᡢ
- bash �Υ����륹����ץ�
+ 以上のフォーマットのメール送信を簡単に行うため、
+ bash のシェルスクリプト
  _LINK(JMpost,JMpost)
- ���Ѱդ��ޤ�����
- �ʲ��˻Ȥ������������ޤ���
+ を用意しました。
+ 以下に使い方を説明します。
 </P>
 
-<H3>���ޥ�ɥ饤��</H3>
+<H3>コマンドライン</H3>
 <PRE>
         JMpost [-S stat] [-P pkg] [-F page] [-D date]
           [-M mail] [-R name] [filename] [-post]
 </PRE>
 
-<H3>�Ȥ���</H3>
+<H3>使い方</H3>
 <P>
- ͽ�󡦺�ȥڡ�������Ͽ�Ȥ���Ѥ��ޤ���
- ��Ȥ����ե������ CVS ��ݥ��ȥ����Ͽ������
- (-S ���ץ����� DO, DP, RO, RR ���б�) �ϡ�
- ���Υե�����򥳥ޥ�ɥ饤��˻��ꤷ�ޤ���
+ 予約・作業ページの登録ともに用います。
+ 作業したファイルを CVS リポジトリに登録する場合
+ (-S オプションの DO, DP, RO, RR に対応) は、
+ そのファイルをコマンドラインに指定します。
 </P>
 
 <P>
- ���ץ��������ƾ�ά��ǽ�Ǥ�����
- ɬ�פ˱����Ƽ���Υץ���ץȤ��Ф���ޤ���
- �ץ���ץȤ�ɸ�२�顼���Ϥ˽Ф��졢
- ɸ�����Ϥ����������դ��ޤ���
+ オプションは全て省略可能ですが、
+ 必要に応じて質問のプロンプトが出されます。
+ プロンプトは標準エラー出力に出され、
+ 標準入力から回答を受付けます。
 </P>
 
 <P>
- ���ޥ�ɥ饤��κǸ�� -post ���ץ�����Ĥ���ȡ�
- ��̤� /usr/lib/sendmail ���Ѥ��� JM-ML �˥ݥ��Ȥ���ޤ���
- -post ���ץ�����Ĥ��ʤ����ϡ�
- ML ��ή��������Ƥ�ɸ����Ϥ˽񤭽Ф���ޤ���
+ コマンドラインの最後に -post オプションをつけると、
+ 結果は /usr/lib/sendmail を用いて JM-ML にポストされます。
+ -post オプションをつけない場合は、
+ ML に流される内容が標準出力に書き出されます。
 </P>
 
-<H3>���ץ����</H3>
+<H3>オプション</H3>
 
 <DL>
  <DT><A NAME="status"><STRONG>-S</STRONG></A></DT>
  <DD>
-  ʸ��Υ��ơ������򵭽Ҥ��ޤ���ͭ���ʤ�Τϰʲ��Τɤ줫�Ǥ���
+  文書のステータスを記述します。有効なものは以下のどれかです。
   <UL>
-   <LI>TR: ������ͽ��Ǥ��� (Translation Reservation)
-   <LI>DO: �ɥ�եȤ���ƤǤ�����ʬ�ǤϹ�����Ԥ�ʤ����Ǥ���
+   <LI>TR: 翻訳の予約です。 (Translation Reservation)
+   <LI>DO: ドラフトの投稿です。自分では校正を行わない場合です。
     (Draft Only)
-   <LI>DP: �ɥ�եȤ���ƤǤ�������³����ʬ�ǹ�����Ԥ����Ǥ���
+   <LI>DP: ドラフトの投稿です。引き続き自分で校正を行う場合です。
     (Draft and Proof reservation)
-   <LI>PR: �����Ԥ����֤Υɥ�եȤ��Ф��빻����Ȥ�ͽ��Ǥ���
+   <LI>PR: 校正待ち状態のドラフトに対する校正作業の予約です。
     (Proof Reservation)
-   <LI>RO: ��꡼������ƤǤ�����ʸ��������ͽ��Ϥ��ʤ����Ǥ���
+   <LI>RO: リリースの投稿です。原文更新時の予約はしない場合です。
     (Release Only)
-   <LI>RR: ��꡼������ƤǤ�����ʸ�������β�����Ȥ�ͽ���ޤߤޤ���
+   <LI>RR: リリースの投稿です。原文更新時の改訂作業の予約を含みます。
     (Release and update Reservation)
   </UL>
-  �᡼����������Ƥ�ź�դ����Τ�
-  DO, DP, RO, RR �Τ����줫�ξ��ˤʤ�ޤ���
-  _LINK(repository.html#translation_list,translation_list �ν�)
-  �⻲�ͤˤ�����ɤ��Ǥ��礦��
+  メールに翻訳原稿が添付されるのは
+  DO, DP, RO, RR のいずれかの場合になります。
+  _LINK(repository.html#translation_list,translation_list の書式)
+  も参考にすると良いでしょう。
  </DD>
 
  <DT><STRONG>-P</STRONG></DT>
  <DD>
-  �ѥå�������̾���Ǥ���(��: util-linux, "GNU bash")
+  パッケージの名前です。(例: util-linux, "GNU bash")
  </DD>
 
  <DT><STRONG>-F</STRONG></DT>
  <DD>
-  �ڡ�����̾���Ǥ��� (��: mount.8, bash.1)
+  ページの名前です。 (例: mount.8, bash.1)
  </DD>
  <DT><STRONG>-D</STRONG></DT>
  <DD>
-  ���դǤ�����ά����� date ���ޥ�ɤη�̤��Ѥ����ޤ���
+  日付です。省略すると date コマンドの結果が用いられます。
  </DD>
  <DT><STRONG>-M</STRONG></DT>
  <DD>
-  ��ȼԤΥ᡼�륢�ɥ쥹�Ǥ���
+  作業者のメールアドレスです。
  </DD>
  <DT><STRONG>-R</STRONG></DT>
  <DD>
-  ��ȼԤ� Real Name �Ǥ���
+  作業者の Real Name です。
  </DD>
 </DL>
 
-<H3>�Ρ���</H3>
+<H3>ノート</H3>
 <P>
- ������ץȤ���Ƭ��ʬ�ˤ��� <CODE>name</CODE> �����
- <CODE>mail</CODE> �ѿ���Ŭ�����ꤷ�Ƥ����ȡ�
- -M ���ץ����� -P ���ץ����λ�����ά�Ǥ��ޤ���
+ スクリプトの先頭部分にある <CODE>name</CODE> および
+ <CODE>mail</CODE> 変数を適宜設定しておくと、
+ -M オプションや -P オプションの指定を省略できます。
 </P>
 
-<H3>��</H3>
+<H3>例</H3>
 <P>
- LDP man-pages �ѥå������ˤ���
- printf.3 �˴ؤ�����򼨤��ޤ���
- -M ���ץ����� -R ���ץ����Ͼ�ά���ޤ���
+ LDP man-pages パッケージにある
+ printf.3 に関する例を示します。
+ -M オプションと -R オプションは省略します。
 </P>
 
-<H4>������ͽ�󤹤���</H4>
+<H4>翻訳を予約する場合</H4>
 <PRE>
         % JMpost -S TR -P "LDP man-pages" -F printf.3 -post
 </PRE>
 
-<H4>�ɥ�եȤ���Ƥ�����</H4>
+<H4>ドラフトを投稿する場合</H4>
 <P>
- �������줿�ե������ printf.3.draft
- �˵��Ҥ���Ƥ����ΤȤ��ޤ���
+ 翻訳されたファイルは printf.3.draft
+ に記述されているものとします。
 </P>
 <PRE>
         % JMpost -S DP -P "LDP man-pages" -F printf.3 printf.3.draft -post
 </PRE>
 <P CLASS="noindent">
- ����ϰ���³����ʬ�ǹ�����Ԥ����Ǥ���
- ������¾�οͤ�Ǥ������� -S DO �Ȥ��ޤ���
+ これは引き続き自分で校正を行う場合です。
+ 校正を他の人に任せる場合は -S DO とします。
 </P>
 
-<H4>��꡼���Ǥ���Ƥ�����</H4>
+<H4>リリース版を投稿する場合</H4>
 <P>
- �������줿�ե������Ʊ���� printf.3.draft
- �˵��Ҥ���Ƥ����ΤȤ��ޤ���
- �ʤ������ΤȤ���ʸ�Υ����� (.\"O..) ��
- ��ʬ�Ǻ������ɬ�פ�<STRONG>����ޤ���</STRONG>��
- ��Ͽ�����ƥब��ưŪ�� strip ���ޤ���
+ 翻訳されたファイルは同じく printf.3.draft
+ に記述されているものとします。
+ なお、このとき原文のコメント (.\"O..) を
+ 自分で削除する必要は<STRONG>ありません</STRONG>。
+ 登録システムが自動的に strip します。
 </P>
 <PRE>
         % JMpost -S RO -P "LDP man-pages" -F printf.3 printf.3.draft -post
 </PRE>
 <P CLASS="noindent">
- "-S RR" ����Ƥ���ȡ����� printf.3 �Υ��ꥸ�ʥ뤬 update 
- ���줿�Ȥ�����ƼԤ�����ͽ�󤬼�ưŪ�˳�����Ƥ��ޤ���
+ "-S RR" で投稿すると、次に printf.3 のオリジナルが update 
+ されたとき、投稿者に翻訳予約が自動的に割り当てられます。
 </P>
 
 _CREDITS
 
  <P>
   <IMG SRC="../images/grey.png" WIDTH="14" ALT="* " HEIGHT="14">
-  _LINK(index.html,JM ������Ȥμ���������)
+  _LINK(index.html,JM 翻訳作業の手引きに戻る)
  </P>
 
 _BACK_TO_HOME

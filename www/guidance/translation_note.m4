@@ -1,70 +1,70 @@
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #
-m4_dnl # [����¾�� make �����ǰ�¸�򻲾Ȥ���ե�����]
-m4_dnl # jf_www.m4: �Ƽ� M4 �ޥ�������ե�����
+m4_dnl # [その他に make 時点で依存を参照するファイル]
+m4_dnl # jf_www.m4: 各種 M4 マクロ定義ファイル
 m4_dnl #
 m4_dnl # -------------------------------------------------------------------
 m4_dnl
 m4_define(_SUB_ONE)
 m4_include(../jm_www.m4)
 _EDIT_WARNING(translation_note)
-_HEADER(`�����λؿ�')
+_HEADER(`翻訳の指針')
 
 <P>
- ����ʸ�Ϥ� JM Project �ˤ�����
- man page ������Ȥ˴ؤ���ؿˤǤ���
- �����ԤΤߤʤ���ˤ�;�פʼ�֤ˤʤ�Ȥϻפ��ޤ�����
- ����ɤ����ܸ�ޥ˥奢���������뤿��ˤ����Ϥ���������
+ この文章は JM Project における
+ man page 翻訳作業に関する指針です。
+ 翻訳者のみなさんには余計な手間になるとは思いますが、
+ より良い日本語マニュアルを作成するためにご協力ください。
 </P>
 
-<H2>�ޥ˥奢����ʸ�Υե����ޥåȤˤĤ���</H2>
+<H2>マニュアル本文のフォーマットについて</H2>
 <P>
- ����Υե����ޥåȤ������º�Ť��뤿��ˡ�
- �켡���ۥե����ޥåȤ� roff ��������Ѥ��ޤ���
- �ޤ� roff �Ǥκ�Ȥ�����Ǥ�����ˤϡ�
- ���λݤ� _LINK(mailto:linuxjm-discuss@lists.sourceforge.jp,JM-ML)
- �ޤ�Ϣ�����Ƥ���������¾�� roff ���Υܥ��ƥ������罸���ޤ���
+ 本来のフォーマットや著作権を尊重するために、
+ 一次配布フォーマットは roff 形式を採用します。
+ また roff での作業が困難である場合には、
+ その旨を _LINK(mailto:linuxjm-discuss@lists.sourceforge.jp,JM-ML)
+ まで連絡してください。他に roff 化のボランティアを募集します。
 </P>
 
 <P>
- ���ΤȤ��Ƥ�ʸ�Τ�����Τ��ᡢ
- �ä���ͳ���ʤ���о��� (�֤Ǥ����Ĵ) ���Ѥ��Ƥ���������
- �ޥ˥奢��ڡ����θ����Ȥ��Ƥϡ�
+ 全体としての文体の統一のため、
+ 特に理由がなければ常体 (「である」調) を用いてください。
+ マニュアルページの語尾としては、
 </P>
 <PRE>
-�֡�������
-�֡��Ǥ��롣��
-�֡����롣��
-�֡��Ǥ��롣��
-�֡��Ȥʤ롣��
+「〜だ。」
+「〜である。」
+「〜する。」
+「〜できる。」
+「〜となる。」
 </PRE>
 
 <P CLASS="noindent">
- �ʤɤ���Ѥ��Ƥ���������
+ などを使用してください。
 </P>
 
 <P>
- �������ϡ֡��פ���ӡ֡��פ���Ѥ��Ƥ�������������������ñ����ʸ��
- ��ʬ�ζ��ڤ�ˤϡ�,�ס�.�פ��Ѥ��Ƥ⤫�ޤ��ޤ���
+ 句読点は「、」および「。」を使用してください。ただし、英単語や英文の
+ 部分の区切りには「,」「.」を用いてもかまいません。
 </P>
 
 
-<H2><A NAME="commentize">��ʸ�Υ����Ȳ�</A></H2>
+<H2><A NAME="commentize">原文のコメント化</A></H2>
 <P>
- ������Ȥ���Ǻ�Ȥ��ص���ޤ뤿�ᡢ
- �Ǥ���и�ʸ�򥳥��ȤǻĤ��Ƥ����Ƥ���������
- �������ָ�ʸ�˸����餢�ä������ȡפȶ��̤��뤿�ᡢ
- ��.\"O�פȤ��������Υ����ȤȤ��Ƥ�������
- (O �ϥ���ե��٥å� o ����ʸ��)��
- ��Ͽ�����ƥ�ϡ���꡼���Ǥ��������Ȥ���
- ���Υ����Ȥ�ưŪ�˽���ޤ���
+ 校正作業や改版作業の便宜を図るため、
+ できれば原文をコメントで残しておいてください。
+ ただし「原文に元からあったコメント」と区別するため、
+ 「.\"O」という形式のコメントとしてください
+ (O はアルファベット o の大文字)。
+ 登録システムは、リリース版を作成するときに
+ このコメントを自動的に除去します。
 </P>
 
 <P>
- �����Ȳ��ˤϰʲ��Τ褦�����Ƥ�
- _LINK(commentate.awk,awk ������ץ�)
- ���Ѥ�����ɤ��Ǥ��礦��
+ コメント化には以下のような内容の
+ _LINK(commentate.awk,awk スクリプト)
+ を用いると良いでしょう。
 </P>
 
 <PRE>
@@ -76,7 +76,7 @@ _HEADER(`�����λؿ�')
 </PRE>
 
 <P>
- ����򥪥ꥸ�ʥ�� roff �ե�������Ф���
+ これをオリジナルの roff ファイルに対して
 </P>
 
 <pre>
@@ -84,15 +84,15 @@ _HEADER(`�����λؿ�')
 </pre>
 
 <P CLASS="noindent">
- �Τ褦���Ѥ��� ar.1.draft ���Ф��ƺ�Ȥ򤷤ޤ���
+ のように用い、 ar.1.draft に対して作業をします。
 </P>
 
 <P>
- �ʾ�κ�ȤǤϸ�ʸ�Ϥ��٤ƥ����ȥ����Ȥ���Ƥ��ޤ��ޤ�����
- .TH �Ԥ� .TP �ԤΤ褦�ˡ�
- ���Τޤ������Ǥˤ�Ĥ��Ƥ��������Ԥ⤢��Ȼפ��ޤ���
- ���Τ褦�ʹԤ򸵤��᤹��Ȥˤ� vi ���Ѥ���Τ��ڤǤ��礦��
- vim �Ϥʤ��ȥǥ��쥯�ȥ��
+ 以上の作業では原文はすべてコメントアウトされてしまいますが、
+ .TH 行や .TP 行のように、
+ そのまま翻訳版にも残しておきたい行もあると思います。
+ このような行を元に戻す作業には vi を用いるのが楽でしょう。
+ vim 系なら作業ディレクトリに
 </P>
 
 <PRE>
@@ -100,20 +100,20 @@ _HEADER(`�����λؿ�')
 </PRE>
 
 <P>
- �Ȥ����褦�����Ƥ� .vimrc �ե�������֤��Ƥ����ޤ� (^T �� Ctrl-T �Ǥ�)��
- �����Ȳ����� roff �ե������ vi �ǳ�����
- ���󥳥��Ȥ������Ԥ���Ƭ�� Ctrl-T ���ǤƤС�
- �����˼�äƤ����ޤ������Ԥ������� u �� undo��
+ というような内容の .vimrc ファイルを置いておきます (^T は Ctrl-T です)。
+ コメント化した roff ファイルを vi で開き、
+ アンコメントしたい行の先頭で Ctrl-T を打てば、
+ 次々に取っていけます。失敗した場合は u で undo。
 </P>
 
 
-<H2>���ɽ���ˤĤ���</H2>
+<H2>著作権表示について</H2>
 <P>
- roff �����ˤ����� roff �Υ����ȤȤ��ƽ񤫤�Ƥ������ɽ���ϡ�
- ��ʸ�Τޤ޻Ĥ��Ƥ���������
- ����ˤ��θ�˥����ȤȤ��ơ�
- ��ʸ�������Ԥ����ɽ����ä��Ƥ���������
- �����Ԥθ���ɽ�������ʲ��˼����ޤ���
+ roff 形式において roff のコメントとして書かれている著作権表示は、
+ 英文のまま残してください。
+ さらにその後にコメントとして、
+ 英文で翻訳者の著作権表示を加えてください。
+ 翻訳者の権利表示の例を以下に示します。
 </P>
 
 <PRE>
@@ -125,20 +125,20 @@ _HEADER(`�����λؿ�')
 </PRE>
 
 <P>
- ��ʸ (man ���ޥ�ɤ�������̤Ǹ�������ʬ) �����ɽ����������ˤϡ�
- ����⸶ʸ�Τޤ޻Ĥ��Ƥ���������
+ 本文 (man コマンドの整形結果で見える部分) に著作権表示がある場合には、
+ それも原文のまま残してください。
 </P>
 
 <P>
- ��ʸ�����ɽ�����ޤޤ�Ƥ��ʤ����ˤϡ�
- �����б��ˤʤ�Ȼפ��ޤ��Τ�
- JM@linux.or.jp �����̤��Ƥ���������
+ 原文に著作権表示が含まれていない場合には、
+ 個別対応になると思いますので
+ JM@linux.or.jp で相談してください。
 </P>
 
 <P>
- GNU �Υޥ˥奢��ڡ����ˤϥޥ˥奢��ڡ���������ɽ���Τʤ����
- ������ޤ��������ξ�硢�嵭������������˲ä��ơ��ʲ���ʸ��ޥ˥�
- �������Ƭ���ղä��Ƥ���������
+ GNU のマニュアルページにはマニュアルページ中に著作権表示のないもの
+ がありますが、その場合、上記の翻訳版著作権に加えて、以下の文をマニュ
+ アルの先頭に付加してください。
 </P>
 
 <PRE>
@@ -162,121 +162,121 @@ _HEADER(`�����λؿ�')
 </PRE>
 
 
-<H2>�ü��Ѹ�������ˤĤ���</H2>
+<H2>特殊用語の翻訳について</H2>
 <P>
- �ü��Ѹ�������ϰʲ������ˤ˽��äƤ���������
+ 特殊用語の翻訳は以下の方針に従ってください。
 </P>
 <UL>
- <LI>���ޥ��̾���ؿ�̾��������̾�ʤɤ�����������
-  ����ե��٥åȤΤޤޤǵ��Ҥ��롣</LI>
+ <LI>コマンド名、関数名、引き数名などは翻訳せず、
+  アルファベットのままで記述する。</LI>
 
- <LI>��ʸ�Ȥ���߻��Ȥ��Ѹ��������ñ�ˤ��뤿��ˡ�
-  �����Ѹ������������ˤϡ�
-  ����θ���ˤ��ä��Ĥ��Ǹ����ʻ�����Ƥ���������
+ <LI>英文との相互参照や用語の統一を簡単にするために、
+  専門用語を翻訳する場合には、
+  訳語の後ろにかっこつきで原語を併記してください。
   <PRE>
-��)      ��ͭ����(shared memory)
+例)      共有メモリ(shared memory)
   </PRE></LI>
 
- <LI>�����Ѹ��̵�������ܸ�ˤ�����������ɽ������Ѥ��롣
+ <LI>専門用語は無理に日本語にせずカタカナ表記を使用する。
   <PRE>
-��)      �ߵ��һ�(descriptor)
-         ���ǥ�������ץ���(descriptor)
+例)      ×記述子(descriptor)
+         ○ディスクリプター(descriptor)
   </PRE></LI>
 </UL>
 
 <P>
- �ޥ˥奢��֤Ǥ�����������Ԥ�����ˡ�
- �Ǥ���������Ѹ�ˤĤ���ñ��ꥹ�Ȥ�������Ƥ���������
- ñ��ꥹ�Ȥϡ����줾��Υޥ˥奢��ڡ�����Ƭ��
- �ʲ��Τ褦�� roff�Υ����ȷ�����������Ǥ���������
+ マニュアル間での訳語の統一を行うために、
+ できれば専門用語について単語リストを作成してください。
+ 単語リストは、それぞれのマニュアルページの頭に
+ 以下のような roffのコメント形式で埋め込んでください。
 </P>
 <PRE>
-.\"WORD:        effective uid           �¸��桼����ID
-.\"WORD:        out-of-band             �Ӱ賰
-.\"WORD:        physical address        ʪ�����ɥ쥹
-.\"WORD:        signal                  �����ʥ�
+.\"WORD:        effective uid           実効ユーザーID
+.\"WORD:        out-of-band             帯域外
+.\"WORD:        physical address        物理アドレス
+.\"WORD:        signal                  シグナル
 </PRE>
 
-<H2>�������ˤĤ���</H2>
+<H2>音引きについて</H2>
 <P>
- �Ҳ�̾��θ����β�����(��)�ˤϰʲ������ˤ��Ѥ��Ƥ���������
+ 片仮名語の語尾の音引き(ー)には以下の方針を用いてください。
 </P>
 <UL>
- <LI>�������ܸ�ˤʤäƤ����ΤˤĤ��ƤϤ�����Ѥ��롣</LI>
- <LI>�Ǥ�����������ȯ���˶ᤤɽ�����Ѥ��롣
+ <LI>既に日本語になっているものについてはそれを用いる。</LI>
+ <LI>できるだけ原語の発音に近い表現を用いる。
   <PRE>
-��)      �ߥ��꡼(memory)
-         ������(memory)
+例)      ×メモリー(memory)
+         ○メモリ(memory)
   </PRE></LI>
- <LI>����ʳ��ξ��˸����β������Ͼ�ά���ʤ���
+ <LI>それ以外の場合に語尾の音引きは省略しない。
   <PRE>
-��)      �ߥ���ѥ���(compiler)
-         ������ѥ��顼(compiler)
+例)      ×コンパイラ(compiler)
+         ○コンパイラー(compiler)
   </PRE></LI>
 </UL>
 
-<H2>���������̾�ˤĤ���</H2>
+<H2>セクション名について</H2>
 <P>
- ���������̾�ˤĤ��Ƥϰʲ��Τ�Τ���Ѥ��Ƥ���������
+ セクション名については以下のものを使用してください。
 </P>
 <PRE>
-ACKNOWLEDGEMENTS        �ռ�
-ARGUMENTS               ������
-AUTHOR                  ����
-AUTHORS                 ����
-BUGS                    �Х�
-CAVEATS                 �ٹ�
-COMMAND LINE OPTIONS    ���ץ����
-COMPATIBILITY           �ܿ���
-CONFORMING TO           ���
-CONFORMS TO             ���
-COPYING                 ���
-COPYRIGHT               ���
-DESCRIPTION             ����
-DIAGNOSTICS             �֤���
-ENVIRONMENT             �Ķ��ѿ�
-ENVIRONMENT VARIABLES   �Ķ��ѿ�
-ERROR                   ���顼
-ERRORS                  ���顼
-EXAMPLE                 ��
-EXAMPLES                ��
-EXIT CODES              �֤���
-EXTENSION               ��ĥ
-EXTENSIONS              ��ĥ
-FILES                   �ե�����
-FLAGS                   �ե饰
-HISTORY                 ����
-KEYWORDS                �������
-LIMITATIONS             ����
-NAME                    ̾��
-NOTE                    ����
-NOTES                   ����
-OPTION                  ���ץ����
-OPTIONS                 ���ץ����
-PARAMETERS              ������
-PORTABILITY             �ܿ���
-RESTRICTIONS            ����
-RETURN VALUE            �֤���
-SEE ALSO                ��Ϣ����
-SOLICITATION            ����
-STANDARDS               ���
-SYNOPSIS                ��
-SYNTAX                  ��
-VERSION                 �С������
-WARNING                 �ٹ�
-WARNINGS                �ٹ�
+ACKNOWLEDGEMENTS        謝辞
+ARGUMENTS               引き数
+AUTHOR                  著者
+AUTHORS                 著者
+BUGS                    バグ
+CAVEATS                 警告
+COMMAND LINE OPTIONS    オプション
+COMPATIBILITY           移植性
+CONFORMING TO           準拠
+CONFORMS TO             準拠
+COPYING                 著作権
+COPYRIGHT               著作権
+DESCRIPTION             説明
+DIAGNOSTICS             返り値
+ENVIRONMENT             環境変数
+ENVIRONMENT VARIABLES   環境変数
+ERROR                   エラー
+ERRORS                  エラー
+EXAMPLE                 例
+EXAMPLES                例
+EXIT CODES              返り値
+EXTENSION               拡張
+EXTENSIONS              拡張
+FILES                   ファイル
+FLAGS                   フラグ
+HISTORY                 履歴
+KEYWORDS                キーワード
+LIMITATIONS             制限
+NAME                    名前
+NOTE                    注意
+NOTES                   注意
+OPTION                  オプション
+OPTIONS                 オプション
+PARAMETERS              引き数
+PORTABILITY             移植性
+RESTRICTIONS            制限
+RETURN VALUE            返り値
+SEE ALSO                関連項目
+SOLICITATION            要請
+STANDARDS               準拠
+SYNOPSIS                書式
+SYNTAX                  書式
+VERSION                 バージョン
+WARNING                 警告
+WARNINGS                警告
 </PRE>
 
 <P>
- ����¾����������ޤ�����
- JM@linux.or.jp �ޤ��䤤��碌�Ƥ���������
+ その他、何かありましたら
+ JM@linux.or.jp まで問い合わせてください。
 </P>
 
 _CREDITS
 
  <P>
   <IMG SRC="../images/grey.png" WIDTH="14" ALT="* " HEIGHT="14">
-  _LINK(index.html,JM ������Ȥμ���������)
+  _LINK(index.html,JM 翻訳作業の手引きに戻る)
  </P>
 
 _BACK_TO_HOME

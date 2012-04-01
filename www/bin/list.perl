@@ -33,6 +33,7 @@ open PL, $PKGLIST or die "cannot open $PKGLIST\n";
 while (<PL>){
     chomp;
     if (/^$/) {next;}
+    if (/^#/) {next;}
     push @pl, $_;
 }
 

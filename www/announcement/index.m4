@@ -1,16 +1,16 @@
 m4_define(`_SUB_ONE',1)m4_dnl
 m4_include(../jm_www.m4)m4_dnl
 _EDIT_WARNING(previous_annoucements)
-_HEADER(`JM Project: ²áµî¤Î¤ªÃÎ¤é¤»')
+_HEADER(`JM Project: éå»ã®ãŠçŸ¥ã‚‰ã›')
 
  <DIV CLASS="copyright">
   m4_esyscmd(date)
  </DIV>
 
 <UL>
- <LI>_LINK(20001120.html,LDP man-pages ËİÌõ´°Î»¤Î¤ªÃÎ¤é¤»)
+ <LI>_LINK(20001120.html,LDP man-pages ç¿»è¨³å®Œäº†ã®ãŠçŸ¥ã‚‰ã›)
   (2000/11/20)</LI>
- <LI>_LINK(19991015.html,Web ¥µ¥¤¥È¥ê¥Ë¥å¡¼¥¢¥ë¤Î¤ªÃÎ¤é¤»)
+ <LI>_LINK(19991015.html,Web ã‚µã‚¤ãƒˆãƒªãƒ‹ãƒ¥ãƒ¼ã‚¢ãƒ«ã®ãŠçŸ¥ã‚‰ã›)
   (1999/10/15)</LI>
 </UL>
 

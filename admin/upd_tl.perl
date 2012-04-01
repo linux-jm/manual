@@ -1,28 +1,28 @@
 #!/usr/bin/perl
 #
-# update_list �򸫤� translation_list �򹹿����롣
+# update_list を見て translation_list を更新する。
 #
-# �� 1 ������ translation_list, �� 2 ������ update_list,
-# �� 3 �����˥ѥå������ο������С���������ꤹ�롣
+# 第 1 引数に translation_list, 第 2 引数に update_list,
+# 第 3 引数にパッケージの新しいバージョンを指定する。
 #
-# ���ϥե�����Υե�����̾�� "��1����.��3����" �Ȥʤ롣
+# 出力ファイルのファイル名は "第1引数.第3引数" となる。
 #
-# update_list �ν񼰤ϰʲ����̤�
+# update_list の書式は以下の通り
 #
-# ���ե�����ɤζ��ڤ�ʸ���� ":" �ޤ��� " "��
+# ・フィールドの区切り文字は ":" または " "。
 #
-# ���� 1 �ե�����ɤ� U(����) A(�ɲ�)  L(���) �Τ����줫��
-#   # �ǻϤޤ�Ԥϥ����ȹԤȤߤʤ���롣
+# ・第 1 フィールドは U(更新) A(追加)  L(リンク) のいずれか。
+#   # で始まる行はコメント行とみなされる。
 #
-# ���� 2, 3 �ե�����ɤ� basename �� ����������ֹ档
+# ・第 2, 3 フィールドは basename と セクション番号。
 #
-# ��U, A �ξ��, �� 4 �ե�����ɤϥ��ꥸ�ʥ�����ա�
-#   (U �ξ��Ͼ�ά��ǽ�����ξ��ϸ��ߤ����դ��Ȥ��롣)
+# ・U, A の場合, 第 4 フィールドはオリジナルの日付。
+#   (U の場合は省略可能。その場合は現在の日付が使われる。)
 #
-# ��L �ξ�硢�� 4, 5 �ե�����ɤϥ����ڡ����� basename ��
-#   ����������ֹ档
+# ・L の場合、第 4, 5 フィールドはリンク先ページの basename と
+#   セクション番号。
 #
-# update_list ����:
+# update_list の例:
 #
 #	#updated
 #	U strtok:3 2000/02/13
@@ -35,9 +35,9 @@
 #	A dlopen:3 1995/05/16
 #	L dlsym:3 dlopen:3
 #
-# �Х�������
-#      �����������ѹ������ڡ����ˤ��б����Ƥޤ���
-#      �ڡ����κ���ˤ��б����Ƥޤ���
+# バグ・制限
+#      セクションの変更したページには対応してません。
+#      ページの削除には対応してません。
 #
 BEGIN{
     $epath = `dirname $0`; chomp $epath;
@@ -106,8 +106,8 @@ while (<UL>){
 #
 foreach my $n (sort keys %tl){
     if ($Udate{$n} ne undef){
-	# link �ڡ����� roff ���ѹ����줿����
-	# �����ɲåڡ�����Ʊ�ͤ˰�����
+	# link ページが roff に変更された場合は
+	# 新規追加ページと同様に扱う。
 	if (${$tl{$n}}{kind} ne "roff") {
 	    delete $tl{$n};
 	    $Adate{$n} = $Udate{$n};

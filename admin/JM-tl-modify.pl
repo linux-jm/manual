@@ -112,7 +112,7 @@ close TLO;
 if ($ismatch eq "no") {die "No match in $tlist\n"};
 
 system "mv -f $tlist $tlist.orig";
-open TLN, "| nkf -e > $tlist" or die "cannot open $tlist.new\n";
+open TLN, "| nkf -w > $tlist" or die "cannot open $tlist.new\n";
 print TLN $tlist_body;
 close TLN;
 print "UPDATE: $tlist ($page)\n";

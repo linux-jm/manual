@@ -20,7 +20,7 @@ EXTRAS = JMpost JMpost-wl.el JMpost-mew.el JM-man-view.el
 
 .m4.html:
 	m4 -P -D _WORKDIR=$(WORKDIR) -D _WWWROOT=$(WWWROOT) $*.m4\
-	| nkf -j > $*.html
+	| nkf -w > $*.html
 
 all: $(TARGET) $(EXTRAS)
 

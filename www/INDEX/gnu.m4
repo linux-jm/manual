@@ -1,42 +1,42 @@
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #
-m4_dnl # [����¾�� make �����ǰ�¸�򻲾Ȥ���ե�����]
-m4_dnl # jf_www.m4: �Ƽ� M4 �ޥ�������ե�����
+m4_dnl # [その他に make 時点で依存を参照するファイル]
+m4_dnl # jf_www.m4: 各種 M4 マクロ定義ファイル
 m4_dnl #
 m4_dnl # -------------------------------------------------------------------
 m4_dnl
 m4_define(_SUB_ONE)
 m4_include(../jm_www.m4)
 _EDIT_WARNING(index)
-_HEADER(`JM ����ǥå��� (GNU)')
+_HEADER(`JM インデックス (GNU)')
 
 <P>
  _LINK(http://www.gnu.org/,GNU Project)
- �ˤ�ä����ۤ���Ƥ���ޥ˥奢��ڡ����Ǥ���
+ によって配布されているマニュアルページです。
 </P>
 <P>
- �ǿ��Ǥ������� <STRONG>����</STRONG> �ǡ�
- ���Ǥ������� �ٻ� �Ǽ����ޤ���
- ��󥯤Τʤ��ڡ����Ϥޤ���������Ƥ��ޤ���
+ 最新版の翻訳は <STRONG>太字</STRONG> で、
+ 旧版の翻訳は 細字 で示します。
+ リンクのないページはまだ翻訳されていません。
 </P>
 <P>
- ��Ⱦ�����
- _LINK(./progress.html,������ȥ���ǥå���)
- ��������������
+ 作業状況は
+ _LINK(./progress.html,翻訳作業インデックス)
+ をご覧ください。
 </P>
 <BLOCKQUOTE>
  _LINK(#gnumaniak,gnumaniak)
- ��
+ は
  _LINK(http://macula.net/lightside/,Ragnar Hojland Espinosa)
- ��ˤ�ä�
- _LINK(http://macula.net/lightside/ftp.html,����)
- ����Ƥ���ޥ˥奢��ѥå������Ǥ���
- �Ƕ� GNU �Ǥ� info �ե�������Ϥ�����Ƥ��ꡢ
- �ޥ˥奢��ڡ����ϴ�ά������뷹���ˤ���ޤ�����
- gnumaniak �Ϥ�����䤦�٤���������ޤ�����
- JM Project �Ǥϡ����� GNU �Υޥ˥奢��˴ؤ��Ƥ�
- gnumaniak �Τ�Τ�ͥ�褷���������Ƥ������ˤˤʤäƤ��ޤ���
+ 氏によって
+ _LINK(http://macula.net/lightside/ftp.html,配布)
+ されているマニュアルパッケージです。
+ 最近 GNU では info ファイルに力を入れており、
+ マニュアルページは簡略化される傾向にありますが、
+ gnumaniak はこれを補うべく作成されました。
+ JM Project では、今後 GNU のマニュアルに関しては
+ gnumaniak のものを優先して翻訳していく方針になっています。
 </BLOCKQUOTE>
 
 m4_esyscmd(../bin/list.perl ../../manual _WWWROOT gnu.list | nkf -e)
@@ -45,7 +45,7 @@ _CREDITS
 
  <P>
   _GREY_ICON
-  _LINK(./index.html,JM ����ǥå��������)
+  _LINK(./index.html,JM インデックスへ戻る)
  </P>
 
 _BACK_TO_HOME

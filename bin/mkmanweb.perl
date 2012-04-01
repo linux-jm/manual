@@ -42,7 +42,7 @@ unless (-x $MAN2HTML) {die "$MAN2HTML does not executable\n"};
 my $MANWROOT='../../../manual';
 my $MAIN='<A HREF="../../../index.html">JM Home Page</A>';
 my $MAN2HTMLPAGE='<A HREF="../../man/man1/man2html.1.html">man2html</A>';
-my $MLANG='<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=ISO-2022-JP">';
+my $MLANG='<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">';
 my $JMCSS='<LINK REL="stylesheet" TYPE="text/css" HREF="../../../jm.css">';
 my $CONTCSS='<LINK REL="stylesheet" TYPE="text/css" HREF="../../../contrib.css">';
 my $SELECT='0MultiFileIdx';
@@ -123,7 +123,7 @@ foreach my $fkey (sort keys %page_name){
 	print "$name.$sec has $cand candidates...";
 
 	system("mkdir -p $WWWROOT/$SELECT/man$sec");
-	open WL, "| nkf -j > $WWWROOT/$SELECT/man$sec/$name.$sec.html";
+	open WL, "| nkf -w > $WWWROOT/$SELECT/man$sec/$name.$sec.html";
 
 	my $header = $idx_header;
 	$header =~ s/_PAGENAME_/$name/ge;
@@ -169,7 +169,7 @@ foreach my $fkey (sort keys %roff_hash){
     }
 
     open M2H, "grep -v '^\.PD' $roffpage | $MAN2HTML |";
-    open WL,"| nkf -j > $hfile";
+    open WL,"| nkf -w > $hfile";
 
     while(<M2H>){
 	if($. < 2){next;};	
@@ -252,7 +252,7 @@ BEGIN{
   "http://www.w3.org/TR/REC-html40/loose.dtd">
 <HTML LANG="ja" DIR="LTR">
 <HEAD>
- <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=ISO-2022-JP">
+ <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
  <TITLE>_PAGENAME_</TITLE>
  <META NAME="author" LANG="en" CONTENT="JM Project Members">
  <META NAME="copyright" CONTENT="(C) 1999 JM Project.">

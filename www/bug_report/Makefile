@@ -3,7 +3,7 @@
 .SUFFIXES: .m4 .html
 
 .m4.html:
-	m4 -P $*.m4 | nkf -j > $*.html
+	m4 -P $*.m4 | nkf -w > $*.html
 
 OBJS = jm-brs.html jm-brs.cgi
 
@@ -20,7 +20,7 @@ jm-brs.html: jm-brs.pre.html jm-brs.post.html $(PKGS_LIST)
 		> $@
 
 jm-brs.cgi: jm-brs.cgi.m4
-	m4 -P $@.m4 | nkf -e > $@
+	m4 -P $@.m4 | nkf -w > $@
 
 *.html: ../jm_www.m4
 *.cgi: ../jm_www.m4

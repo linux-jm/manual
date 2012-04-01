@@ -1,16 +1,16 @@
 ;; -*- mode: emacs-lisp -*-
 ;;
-;; JMpost-wl.el -- JMpost е╒ейб╝е▐е├е╚д╬есб╝еыдЄ║ю└од╣ды
+;; JMpost-wl.el -- JMpost уГХуВйуГ╝уГЮуГГуГИуБоуГбуГ╝уГлуВТф╜ЬцИРуБЩуВЛ
 ;;
 ;; Copyright (C) 1999-2001 Akihiro MOTOKI <motoki@dd.iij4u.or.jp>
 ;;
-;; [╜р╚ў]
-;; (1) ~/.emacs д╦ (require 'JMpost-wl) дЄ─╔▓├
-;; (2) JMpost-wl-from-address, JMpost-wl-from-name дЄ│╬╟зд╣ды
-;; (3) JM CVS Repository дЄе┴езе├епевеже╚д╖д╞ддды╛ь╣чд╧
-;;     JMpost-wl-manual-directory дЄ└▀─ъд╣ды(еке╫е╖ечеє)бг
+;; [ц║ЦхВЩ]
+;; (1) ~/.emacs уБл (require 'JMpost-wl) уВТш┐╜хКа
+;; (2) JMpost-wl-from-address, JMpost-wl-from-name уВТчв║шкНуБЩуВЛ
+;; (3) JM CVS Repository уВТуГБуВзуГГуВпуВвуВжуГИуБЧуБжуБДуВЛха┤хРИуБп
+;;     JMpost-wl-manual-directory уВТшинхоЪуБЩуВЛ(уВкуГЧуВ╖уГзуГ│)уАВ
 ;;
-;; [╗╚═╤╩¤╦б]
+;; [ф╜┐чФицЦ╣ц│Х]
 ;; (1) Goto to Wanderlust draft.
 ;; (2) M-x JMpost-wl
 ;;
@@ -34,7 +34,7 @@
 (defvar JMpost-wl-default-status "DP")
 
 (defvar JMpost-wl-post-address "linuxjm-discuss@lists.sourceforge.jp"
-  "*JM д╬║ю╢╚есб╝еыд╬┴ў┐о└ш")
+  "*JM уБоф╜ЬценуГбуГ╝уГлуБощАБф┐бхЕИ")
 
 (defvar JMpost-wl-from-address user-mail-address
   "*Full e-mail address of the poster.")
@@ -42,10 +42,10 @@
   "*The full name of the poster.")
 
 (defvar JMpost-wl-manual-directory nil
-  "*JM д╬е▐е╦ехевеыдм┼╕│лд╡дьд╞дддые╟егеьепе╚еъбге╟егеьепе╚еъдм
-JM CVS д╚╞▒д╕е╒ейеые└│м┴╪д╟двдьд╨бве╤е├е▒б╝е╕╠╛д╬┐ф┬мдЄ╣╘д├д╞дпдьдыбг
-JM CVS Repository дЄ $JMDIR д╦┼╕│лд╖д╞ддды╛ь╣чд╦д╧бв
-╦▄╩╤┐Їд╦ $JMDIR/manual дЄ└▀─ъд╣дыд╚дшддбг")
+  "*JM уБоуГЮуГЛуГеуВвуГлуБМх▒ХщЦЛуБХуВМуБжуБДуВЛуГЗуВгуГмуВпуГИуГкуАВуГЗуВгуГмуВпуГИуГкуБМ
+JM CVS уБихРМуБШуГХуВйуГлуГАщЪОх▒дуБзуБВуВМуБ░уАБуГСуГГуВ▒уГ╝уВ╕хРНуБоцОиц╕муВТшбМуБгуБжуБПуВМуВЛуАВ
+JM CVS Repository уВТ $JMDIR уБлх▒ХщЦЛуБЧуБжуБДуВЛха┤хРИуБлуБпуАБ
+цЬмхдЙцХ░уБл $JMDIR/manual уВТшинхоЪуБЩуВЛуБиуВИуБДуАВ")
 (defvar JMpost-wl-last-read-directory JMpost-wl-manual-directory)
 
 (defun JMpost-wl (&optional FILENAME)

@@ -12,7 +12,7 @@ INDICES = ldp.html linux.html gnu.html misc.html pod.html progress.html
 
 .m4.html:
 	m4 -P -D _WORKDIR=$(WORKDIR) -D _WWWROOT=$(WWWROOT) $*.m4\
-	| nkf -j > $*.html
+	| nkf -w > $*.html
 
 all: index.html
 

@@ -1,21 +1,21 @@
 #!/bin/bash
 #
-# �������ѥå��������ݥ��ȥ�����줿����
-# translation_list��ư�������륹����ץ� with (N)AWK and BASH
+# 新しいパッケージをリポジトリに入れた時に
+# translation_listを自動作成するスクリプト with (N)AWK and BASH
 #
-# original/�ǥ��쥯�ȥ�ʲ��˥ե������·���Ƥ��顢
-# translation_list������٤��ǥ��쥯�ȥ�Ǽ¹Ԥ��Ʋ�������
-# ���ꥸ�ʥ뤫��Υ��ԡ��ˤ����ƥե��������դ���¸����Ƥ��뤳�Ȥ�
-# ����ˤ��Ƥ��ޤ���"cp -p" �� "cp -a" ��ȤäƤ���������
-# �ѥå�����̾�ϥǥ��쥯�ȥ꤫�顢�С�������lsm�ե����뤫��
-# �������ޤ��������������ޥ�ɥ饤������ǻ��ꤵ�줿��Τ�ͥ�褷�ޤ���
-# ɸ����Ϥ˷�̤���Ϥ���Τǡ�Ŭ���˥�����쥯�Ȥ��Ʋ�������
+# original/ディレクトリ以下にファイルを揃えてから、
+# translation_listがあるべきディレクトリで実行して下さい。
+# オリジナルからのコピーにおいてファイル日付が保存されていることを
+# 前提にしています。"cp -p" や "cp -a" を使ってください。
+# パッケージ名はディレクトリから、バージョンはlsmファイルから
+# 所得します。ただし、コマンドライン引数で指定されたものを優先します。
+# 標準出力に結果を出力するので、適当にリダイレクトして下さい。
 #
 # BUG:
-# ������ܥ�å���󥯤ˤ��б����Ƥ��ޤ���
-# ��man�ڡ��������ս����˼��Ԥ��뤳�Ȥ�¿������ޤ���
-# ���ޥ��� ".so" �ˤ���󥯤ˤ��б����Ƥ��ޤ���
-# ��ls ���ޥ�ɤ� coreutils �ˤ�����(version 5.x)������Ȥ��Ƥ��ޤ�
+# ・シンボリックリンクには対応していません。
+# ・manページの日付所得に失敗することが多々あります。
+# ・マクロ ".so" によるリンクには対応していません。
+# ・ls コマンドは coreutils にあるもの(version 5.x)を前提としています
 
 print_usage () {
 (
@@ -39,7 +39,7 @@ NAWK=awk
 PWD=`pwd`
 PKG=`basename $PWD`
 
-STATUS='��'
+STATUS='×'
 
 # $1: <dir>
 # output: <file> <YYYY/MM/DD>

@@ -34,7 +34,7 @@ BEGIN{
   "http://www.w3.org/TR/REC-html40/loose.dtd">
 <HTML LANG="ja" DIR="LTR">
 <HEAD>
- <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=ISO-2022-JP">
+ <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
  <TITLE>Manpage of %PAGENAME%</TITLE>
  <META NAME="author" LANG="en" CONTENT="JM Project Members">
  <META NAME="copyright" CONTENT="(C) 1999 JM Project.">

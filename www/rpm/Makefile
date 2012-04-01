@@ -15,7 +15,7 @@ endif
 
 index.html: index.m4 ../bin/link-rpms.perl
 	m4 -P -D _WORKDIR=$(WORKDIR) -D _WWWROOT=$(WWWROOT) \
-	 -D _DATE=$(DATE) $*.m4 | nkf -j > $*.html
+	 -D _DATE=$(DATE) $*.m4 | nkf -w > $*.html
 
 all: index.html
 

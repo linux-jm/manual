@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# translation_list ¤ò¤ß¤Æ¡¢¼Âºİ¤Ë¥Ú¡¼¥¸¤¬¤¢¤ë¤«¤Î¥Á¥§¥Ã¥¯¤ò¤¹¤ë.
+# translation_list ã‚’ã¿ã¦ã€å®Ÿéš›ã«ãƒšãƒ¼ã‚¸ãŒã‚ã‚‹ã‹ã®ãƒã‚§ãƒƒã‚¯ã‚’ã™ã‚‹.
 #
 BEGIN{
     $epath = `dirname $0`; chomp $epath;

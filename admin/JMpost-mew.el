@@ -1,17 +1,17 @@
 ;; -*- mode: emacs-lisp -*-
 ;;
-;; JMpost-mew.el -- JMpost ¥Õ¥©¡¼¥Ş¥Ã¥È¤Î¥á¡¼¥ë¤òºîÀ®¤¹¤ë
+;; JMpost-mew.el -- JMpost ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã®ãƒ¡ãƒ¼ãƒ«ã‚’ä½œæˆã™ã‚‹
 ;;
 ;; Copyright (C) 1999-2001 Akihiro MOTOKI <motoki@dd.iij4u.or.jp>
 ;; Copyright (C) 2005 Tatsuo SEKINE <tsekine@sdri.co.jp>
 ;;
-;; [½àÈ÷]
-;; (1) ~/.emacs ¤Ë (require 'JMpost-mew) ¤òÄÉ²Ã
-;; (2) JMpost-mew-from-address, JMpost-mew-from-name ¤ò³ÎÇ§¤¹¤ë
-;; (3) JM CVS Repository ¤ò¥Á¥§¥Ã¥¯¥¢¥¦¥È¤·¤Æ¤¤¤ë¾ì¹ç¤Ï
-;;     JMpost-mew-manual-directory ¤òÀßÄê¤¹¤ë(¥ª¥×¥·¥ç¥ó)¡£
+;; [æº–å‚™]
+;; (1) ~/.emacs ã« (require 'JMpost-mew) ã‚’è¿½åŠ 
+;; (2) JMpost-mew-from-address, JMpost-mew-from-name ã‚’ç¢ºèªã™ã‚‹
+;; (3) JM CVS Repository ã‚’ãƒã‚§ãƒƒã‚¯ã‚¢ã‚¦ãƒˆã—ã¦ã„ã‚‹å ´åˆã¯
+;;     JMpost-mew-manual-directory ã‚’è¨­å®šã™ã‚‹(ã‚ªãƒ—ã‚·ãƒ§ãƒ³)ã€‚
 ;;
-;; [»ÈÍÑÊıË¡]
+;; [ä½¿ç”¨æ–¹æ³•]
 ;; (1) Goto to Mew draft.
 ;; (2) M-x JMpost-mew
 ;;
@@ -32,13 +32,13 @@
 ;; Boston, MA 02111-1307, USA.
 ;;
 ;; ChnageLog
-;;   2005.03.04 tsekine: ¸µÌÚ¤µ¤óºî¤Î JMpost-wl.el ¤ò mew ÍÑ¤Ë²şÂ¤
+;;   2005.03.04 tsekine: å…ƒæœ¨ã•ã‚“ä½œã® JMpost-wl.el ã‚’ mew ç”¨ã«æ”¹é€ 
 ;;
 (defvar JMpost-mew-status-list '("TR" "DO" "DP" "PR" "RO" "RR"))
 (defvar JMpost-mew-default-status "DP")
 
 (defvar JMpost-mew-post-address "linuxjm-discuss@lists.sourceforge.jp"
-  "*JM ¤Îºî¶È¥á¡¼¥ë¤ÎÁ÷¿®Àè")
+  "*JM ã®ä½œæ¥­ãƒ¡ãƒ¼ãƒ«ã®é€ä¿¡å…ˆ")
 
 (defvar JMpost-mew-from-address user-mail-address
   "*Full e-mail address of the poster.")
@@ -46,10 +46,10 @@
   "*The full name of the poster.")
 
 (defvar JMpost-mew-manual-directory nil
-  "*JM ¤Î¥Ş¥Ë¥å¥¢¥ë¤¬Å¸³«¤µ¤ì¤Æ¤¤¤ë¥Ç¥£¥ì¥¯¥È¥ê¡£¥Ç¥£¥ì¥¯¥È¥ê¤¬
-JM CVS ¤ÈÆ±¤¸¥Õ¥©¥ë¥À³¬ÁØ¤Ç¤¢¤ì¤Ğ¡¢¥Ñ¥Ã¥±¡¼¥¸Ì¾¤Î¿äÂ¬¤ò¹Ô¤Ã¤Æ¤¯¤ì¤ë¡£
-JM CVS Repository ¤ò $JMDIR ¤ËÅ¸³«¤·¤Æ¤¤¤ë¾ì¹ç¤Ë¤Ï¡¢
-ËÜÊÑ¿ô¤Ë $JMDIR/manual ¤òÀßÄê¤¹¤ë¤È¤è¤¤¡£")
+  "*JM ã®ãƒãƒ‹ãƒ¥ã‚¢ãƒ«ãŒå±•é–‹ã•ã‚Œã¦ã„ã‚‹ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã€‚ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªãŒ
+JM CVS ã¨åŒã˜ãƒ•ã‚©ãƒ«ãƒ€éšå±¤ã§ã‚ã‚Œã°ã€ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸åã®æ¨æ¸¬ã‚’è¡Œã£ã¦ãã‚Œã‚‹ã€‚
+JM CVS Repository ã‚’ $JMDIR ã«å±•é–‹ã—ã¦ã„ã‚‹å ´åˆã«ã¯ã€
+æœ¬å¤‰æ•°ã« $JMDIR/manual ã‚’è¨­å®šã™ã‚‹ã¨ã‚ˆã„ã€‚")
 (defvar JMpost-mew-last-read-directory JMpost-mew-manual-directory)
 
 (defun JMpost-mew (&optional FILENAME)

@@ -1,8 +1,8 @@
 m4_dnl # index.m4: GNU m4 source for index.html.
 m4_dnl # -------------------------------------------------------------------
 m4_dnl #
-m4_dnl # [����¾�� make �����ǰ�¸�򻲾Ȥ���ե�����]
-m4_dnl # jm_www.m4: �Ƽ� M4 �ޥ�������ե�����
+m4_dnl # [その他に make 時点で依存を参照するファイル]
+m4_dnl # jm_www.m4: 各種 M4 マクロ定義ファイル
 m4_dnl #
 m4_dnl # -------------------------------------------------------------------
 m4_dnl
@@ -15,73 +15,73 @@ _BUILD_DATE
 m4_dnl _MIRROR_LIST
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<H2><A NAME="WHATSNEW">�������</A></H2>
+<H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
- <LI>JM Project �Υۡ���ڡ����� sourceforge.jp �˰�ư���ޤ�����
-  ����� _LINK(http://sourceforge.jp/projects/linuxjm/,������) ��
-  ��ư��ʤ�ƹԤ��ޤ���
+ <LI>JM Project のホームページを sourceforge.jp に移動しました。
+  今後は _LINK(http://sourceforge.jp/projects/linuxjm/,こちら) で
+  活動を進めて行きます。
   <SMALL>(2010/10/24)</SMALL>
 
- <LI>���ۥ��������֤ν�򤹤�ɸ��� FSSTND ���� FHS ���ѹ����ޤ�����
-  �ܺ٤�
-  _LINK(./news2002.html#20020915,������)
-  ��������������
+ <LI>配布アーカイブの準拠する標準を FSSTND から FHS に変更しました。
+  詳細は
+  _LINK(./news2002.html#20020915,こちら)
+  をご覧ください。
   <SMALL>(2002/09/15)</SMALL>
 
  m4_esyscmd(`./bin/info-whole-archive.perl')
 
- <LI>_LINK(news.html,�������ɲþ���)
+ <LI>_LINK(news.html,更新・追加情報)
    <SMALL>(m4_esyscmd(`./bin/file_date.perl news.m4'))</SMALL></LI>
 
- <LI>_LINK(announcement/index.html,�����Τ��Τ餻)
+ <LI>_LINK(announcement/index.html,以前のお知らせ)
 </UL>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<H2><A NAME="FILES">�ե�����</A></H2>
+<H2><A NAME="FILES">ファイル</A></H2>
 <DL>
- <DT>_LINK(INDEX/index.html,JM ����ǥå���)</DT>
+ <DT>_LINK(INDEX/index.html,JM インデックス)</DT>
  <DD>
-  JM Project ���������줿�ޥ˥奢��ΰ����Ǥ���
-  _LINK(INDEX/progress.html,������ȤοʹԾ���)
-  �⸫�뤳�Ȥ��Ǥ��ޤ���
+  JM Project で翻訳されたマニュアルの一覧です。
+  _LINK(INDEX/progress.html,翻訳作業の進行状況)
+  も見ることができます。
  </DD>
 
- <DT>�������ǥ��쥯�ȥ� (_LINK(manual/,roff), _LINK(pod/,pod))</DT>
+ <DT>ソースディレクトリ (_LINK(manual/,roff), _LINK(pod/,pod))</DT>
  <DD>
-  JM Project �Ǥκ�ȥ��᡼���Υ��ʥåץ���åȤǤ���
+  JM Project での作業イメージのスナップショットです。
  </DD>
 
- <DT>_LINK(html/,html �ڡ����Υǥ��쥯�ȥ�)</DT>
+ <DT>_LINK(html/,html ページのディレクトリ)</DT>
  <DD>
-  ��꡼���ǤΥޥ˥奢���
+  リリース版のマニュアルを
   _LINK(html/man/man1/man2html.1.html,man2html)
-  �� html �������ڡ����Ǥ���
+  で html 化したページです。
  </DD>
 
- <DT>_LINK(download.html,�����������)</DT>
+ <DT>_LINK(download.html,ダウンロード)</DT>
  <DD>
-  �����ѥ��������֤ʤɤΥ���������ɤ��Ǥ���ڡ����Ǥ���
+  配布用アーカイブなどのダウンロードができるページです。
  </DD>
 </DL>
 
 <P>
- �ġ��Υե�����ΰ����ˤĤ��Ƥ�
- _LINK(copyright.html,����ˤĤ���)
- ��������������
+ 個々のファイルの扱いについては
+ _LINK(copyright.html,著作権について)
+ をご覧ください。
 </P>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="SEARCH">man on WWW</A></H2>
 <P>
- man ���ޥ�ɤδ�ñ�� WWW �ǤǤ���
- �ڡ���̾������������ֹ�����򤹤�ȡ�
- ��꡼���Ǥ� html �ڡ��������Ӥޤ���
- ���䤬ʣ��������ϰ������Фޤ���
+ man コマンドの簡単な WWW 版です。
+ ページ名・セクション番号を選択すると、
+ リリース版の html ページへ飛びます。
+ 候補が複数ある時は一覧が出ます。
 </P>
 <FORM METHOD="GET" ACTION="_MANCGI">
  <TABLE>
   <TR>
-   <TH ALIGN="left">�ڡ���̾</TH>
+   <TH ALIGN="left">ページ名</TH>
    <TD>
     <INPUT TYPE="TEXT" NAME="Pagename" SIZE="40">
     <INPUT TYPE="SUBMIT" NAME="submit" VALUE="Search!">
@@ -89,7 +89,7 @@ m4_dnl _MIRROR_LIST
   </TR>
 
   <TR>
-   <TH ALIGN="left">�оݥ��������</TH>
+   <TH ALIGN="left">対象セクション</TH>
    <TD>
     <INPUT TYPE=CHECKBOX NAME="Sec1" CHECKED>1
     <INPUT TYPE=CHECKBOX NAME="Sec2" CHECKED>2
@@ -99,7 +99,7 @@ m4_dnl _MIRROR_LIST
     <INPUT TYPE=CHECKBOX NAME="Sec6" CHECKED>6
     <INPUT TYPE=CHECKBOX NAME="Sec7" CHECKED>7
     <INPUT TYPE=CHECKBOX NAME="Sec8" CHECKED>8
-    [<STRONG>_LINK(section.html,�����������Ȥ�?)</STRONG>]
+    [<STRONG>_LINK(section.html,→セクションとは?)</STRONG>]
    </TD>
   </TR>
  </TABLE>
@@ -108,10 +108,10 @@ m4_dnl _MIRROR_LIST
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <!--
-<H2>��ʸ����</H2>
+<H2>全文検索</H2>
 <P>
 _LINK(http://www.namazu.org/,Namazu)
-��Ȥä� html �ڡ�������ʸ�����Ǥ���
+を使った html ページの全文検索です。
 </P>
 
 <FORM METHOD="GET" ACTION="_NAMAZU"> -->
@@ -122,7 +122,7 @@ _LINK(http://www.namazu.org/,Namazu)
 
 <TABLE>
  <TR>
-  <TH>������</TH>
+  <TH>検索式</TH>
   <TD>
    <INPUT TYPE="TEXT" NAME="key" SIZE="40">
    <INPUT TYPE="SUBMIT" NAME="submit" VALUE="Search!">
@@ -130,7 +130,7 @@ _LINK(http://www.namazu.org/,Namazu)
  </TR>
 
  <TR>
-  <TH>ɽ�����</TH>
+  <TH>表示件数</TH>
   <TD>
    <SELECT NAME="max">
     <OPTION VALUE="10">10
@@ -140,12 +140,12 @@ _LINK(http://www.namazu.org/,Namazu)
     <OPTION VALUE="100">100
    </SELECT>
 
-   <STRONG>����ɽ��</STRONG>
+   <STRONG>要約表示</STRONG>
    <SELECT NAME="format">
     <OPTION SELECTED VALUE="long">ON
     <OPTION VALUE="short">OFF
    </SELECT>
-   <STRONG>[<A HREF="_NAMAZU?dbname=JM">�����Υҥ��</A>]</STRONG>
+   <STRONG>[<A HREF="_NAMAZU?dbname=JM">検索のヒント</A>]</STRONG>
   </TD>
  </TR>
 </TABLE>
@@ -153,77 +153,77 @@ _LINK(http://www.namazu.org/,Namazu)
 -->
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<H2><A NAME="ABOUTJM">JM Project �ˤĤ���</A></H2>
+<H2><A NAME="ABOUTJM">JM Project について</A></H2>
 <P>
- JM Project �����ܸ쥪��饤��ޥ˥奢��ѥå������κ�����
- ���ۤ�ԤʤäƤ���ץ��������ȤǤ���
- ���Υץ��������Ȥˤ�����Ż��ˤ�
+ JM Project は日本語オンラインマニュアルパッケージの作成、
+ 配布を行なっているプロジェクトです。
+ このプロジェクトにおける仕事には
 </P>
 <UL>
- <LI>_LINK(INDEX/progress.html,man page ������������)
- <LI>_LINK(download.html,man page package ���Խ�������)
-  (_LINK(rpm/index.html,RPM/SRPM ����))
- <LI>_LINK(man-ja/index.html,man ���ޥ�������մĶ�������)
+ <LI>_LINK(INDEX/progress.html,man page の翻訳・校正)
+ <LI>_LINK(download.html,man page package の編集と配布)
+  (_LINK(rpm/index.html,RPM/SRPM 配布))
+ <LI>_LINK(man-ja/index.html,man コマンド等周辺環境の整備)
 </UL>
 <P CLASS="noindent">
- �ʤɤ�����ޤ����ޤ�����β���Ȥ��Ƥϡ�
+ などがあります。また今後の課題としては、
 <UL>
- <LI>�����Ѥ� man page �μ���
- <LI>��ή�ؤ�Ϣ���ȡ�ɬ�פ˱������������۵��Ĥ�����Ū�ʼ���
- <LI>��ή�ѥå������ؤ������Υޡ���
+ <LI>翻訳済み man page の収集
+ <LI>上流への連絡と、必要に応じて翻訳配布許可の明示的な取得
+ <LI>上流パッケージへの翻訳のマージ
 </UL>
 <P CLASS="noindent">
- ���󤲤��ޤ���
- ��ư�ξܺ٤� JM �ؤλ�����ˡ�ˤĤ��Ƥ�
- _LINK(guidance/index.html,JM ������Ȥμ����)
- ��������������
+ が挙げられます。
+ 活動の詳細や JM への参加方法については
+ _LINK(guidance/index.html,JM 翻訳作業の手引き)
+ をご覧ください。
 </P>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<H2><A NAME="BUGREPORT">�Х���ݡ��Ȥ򤪴󤻤�������</A></H2>
+<H2><A NAME="BUGREPORT">バグレポートをお寄せください</A></H2>
 <P>
- JM Project �����ۤ��Ƥ���ޥ˥奢��˴ؤ��ơ�
- ��������������¾�����Ť�����������ޤ����顢
- linuxjm-discuss@lists.sourceforge.jp �ޤǥ᡼��Ǥ��Τ餻����������
- ��ȥ᡼��󥰥ꥹ�Ȥ���������ޤ�����
- ���С��Ǥʤ��Ƥ���ƤǤ��ޤ���
- 1 �Х��Ȥν����Ǥ��紿�ޤǤ���
+ JM Project で配布しているマニュアルに関して、
+ 誤字・誤訳その他お気づきの点がありましたら、
+ linuxjm-discuss@lists.sourceforge.jp までメールでお知らせください。
+ 作業メーリングリストに配送されますが、
+ メンバーでなくても投稿できます。
+ 1 バイトの修正でも大歓迎です。
 </P>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<H2><A NAME="LINK">���</A></H2>
+<H2><A NAME="LINK">リンク</A></H2>
 <P>
- ���ܸ��ʸ���ޥ˥奢������ۤ��Ƥ���Ŀ�/�ץ��������ȤؤΥ�󥯤Ǥ���
+ 日本語の文書やマニュアルを配布している個人/プロジェクトへのリンクです。
 </P>
 <UL>
  <LI>_LINK(http://linuxjf.sourceforge.jp/,JF Project)</LI>
  <LI>_LINK(http://www.jp.freebsd.org/man-jp/,Japanese Manual Project for FreeBSD)</LI>
  <LI>_LINK(http://xjman.dsl.gr.jp/,X Japanese Documentation Project)</LI>
- <LI>_LINK(http://wiki.samba.gr.jp/,���� SAMBA �桼����)</LI>
- <LI>_LINK(http://www.unixuser.org/~euske/doc/openssh/jman/,OpenSSH ���ܸ�ޥ˥奢��ڡ���)</LI>
+ <LI>_LINK(http://wiki.samba.gr.jp/,日本 SAMBA ユーザ会)</LI>
+ <LI>_LINK(http://www.unixuser.org/~euske/doc/openssh/jman/,OpenSSH 日本語マニュアルページ)</LI>
  <LI>_LINK(http://media.laic.u-hyogo.ac.jp/%7Ehayashi/internet/mh-plus.html,MH-plus project)
- <LI>_LINK(http://www.kobitosan.net/postfix/#Manual,Postfix �Τڡ���)
- <LI>_LINK(http://www.postgresql.jp/document/,PostgreSQL ���ܸ�ɥ������)
+ <LI>_LINK(http://www.kobitosan.net/postfix/#Manual,Postfix のぺーじ)
+ <LI>_LINK(http://www.postgresql.jp/document/,PostgreSQL 日本語ドキュメント)
 m4_dnl  <LI>_LINK(http://www.cpan.jp/,CPAN.jp)</LI>
-m4_dnl  ­���ʤ餳�����ʤ�.
+m4_dnl  足すならここかなあ.
 </UL>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<H2>�ռ�</H2>
+<H2>謝辞</H2>
 <P>
- �ʲ��γ��ͤΤ����Ϥ˴��դ��ޤ���
+ 以下の皆様のご協力に感謝します。
 </P>
 <P>
- �Х�����򤪴󤻲����ä��桼���Τߤʤ���
- �ޥ˥奢����£���Ƥ������ä�
- _LINK(http://linuxjf.sourceforge.jp/,JF) ���С���
- Linux-ML���С���
+ バグ情報をお寄せ下さったユーザのみなさん。
+ マニュアルを寄贈してくださった
+ _LINK(http://linuxjf.sourceforge.jp/,JF) メンバー、
+ Linux-MLメンバー、
  _LINK(http://www.jp.netbsd.org,NetBSD) jman project
- ��
+ ・
  _LINK(http://www.jp.freebsd.org/man-jp/,FreeBSD jpman project)
- ��������
- ML �� www �Υ꥽�������󶡤��Ƥ������äƤ���
- _LINK(http://sourceforge.jp/,SourceForge.JP)��
+ の方々。
+ ML や www のリソースを提供してくださっている
+ _LINK(http://sourceforge.jp/,SourceForge.JP)。
 </P>
 
 _CREDITS

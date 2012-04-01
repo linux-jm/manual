@@ -5,17 +5,17 @@ m4_dnl # -------------------------------------------------------------------
 m4_dnl
 m4_include(jm_www.m4)
 _EDIT_WARNING(index)
-_HEADER(`JM ������� (2001 ǯʬ)')
+_HEADER(`JM 新着情報 (2001 年分)')
 
  <DIV CLASS="copyright">
   m4_esyscmd(`date')
  </DIV>
 
-m4_dnl _PKGDIR �ޥ��� (" " �� "_" ���ִ��������)
+m4_dnl _PKGDIR マクロ (" " と "_" を置換するだけ)
 m4_dnl
 m4_define(`_PKGDIR', `m4_patsubst($1, ` ', `_')')
 
-m4_dnl _PAGELINK �ޥ��������
+m4_dnl _PAGELINK マクロの定義
 m4_dnl
 m4_define(`_SECDIR', `m4_regexp($1, `^.*\([1-9]\)$', `man\1')')
 m4_define(`_PAGEURL', `html/_PKGDIR($1)/_SECDIR($2)/$2.html')
@@ -24,7 +24,7 @@ m4_define(`_PAGELINK', `_LINK(_PAGEURL($1,$2),$2)')
 m4_define(`_UPD_PAGE',`<FONT COLOR="green">[UPD]</FONT> _PAGELINK($1,$2)')
 m4_define(`_NEW_PAGE',`<FONT COLOR="red">[NEW]</FONT> _PAGELINK($1,$2)')
 
-m4_dnl _PODLINK �ޥ��������
+m4_dnl _PODLINK マクロの定義
 m4_dnl
 m4_define(`_PODURL', `html/_PKGDIR($1)/$2.html')
 m4_define(`_PODLINK', `_LINK(_PODURL($1,$2),$2)')
@@ -33,15 +33,15 @@ m4_define(`_UPD_POD',`<FONT COLOR="green">[UPD]</FONT> _PODLINK($1,$2)')
 m4_define(`_NEW_POD',`<FONT COLOR="red">[NEW]</FONT> _PODLINK($1,$2)')
 
 <UL>
- <LI>_LINK(news.html,�ǿ��ο������) 
- <LI>_LINK(news.html#OLDNEWS,¾��ǯ�ο������) 
+ <LI>_LINK(news.html,最新の新着情報) 
+ <LI>_LINK(news.html#OLDNEWS,他の年の新着情報) 
 </UL>
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2>2001/12/21</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -62,7 +62,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/12/17</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -75,7 +75,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/12/15</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -87,7 +87,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/12/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -139,7 +139,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/11/29</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU fileutils</DT>
@@ -150,7 +150,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/11/28</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>ppp</DT>
@@ -165,7 +165,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/11/27</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>wu-ftpd</DT>
@@ -184,7 +184,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/11/15</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>shadow</DT>
@@ -199,7 +199,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/11/11</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -219,7 +219,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/11/09</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -281,7 +281,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/11/01</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>shadow</DT>
@@ -296,7 +296,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/10/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>fetchmail</DT>
@@ -312,7 +312,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/10/08</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>netatalk</DT>
@@ -334,7 +334,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/09/29</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>eject</DT>
@@ -351,7 +351,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/09/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>procinfo</DT>
@@ -372,7 +372,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/09/12</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>iptables</DT>
@@ -407,7 +407,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/09/10</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -424,7 +424,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/09/03</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>e2fsprogs</DT>
@@ -439,7 +439,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/08/17</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>e2fsprogs</DT>
@@ -455,7 +455,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/08/15</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>cron</DT>
@@ -466,7 +466,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/08/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>modutils</DT>
@@ -489,7 +489,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/07/29</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>cdparanoia</DT>
@@ -508,7 +508,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/07/15</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -519,7 +519,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/07/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>fetchmail</DT>
@@ -560,7 +560,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/07/12</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>ipchains</DT>
@@ -576,7 +576,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/07/04</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU fileutils</DT>
@@ -594,7 +594,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/06/19</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>util-linux</DT>
@@ -608,7 +608,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/06/13</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -632,7 +632,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/06/03</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -650,7 +650,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/06/02</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -666,7 +666,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/05/25</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -681,7 +681,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/05/23</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>wu-ftpd</DT>
@@ -692,7 +692,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/05/22</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>wu-ftpd</DT>
@@ -703,7 +703,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/05/15</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>iptables</DT>
@@ -715,7 +715,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/05/08</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU fileutils</DT>
@@ -728,7 +728,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/05/07</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU sed</DT>
@@ -739,7 +739,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/05/03</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -754,7 +754,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/04/24</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>reiserfsprogs</DT>
@@ -771,7 +771,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/04/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU_groff</DT>
@@ -796,7 +796,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/04/13</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU fileutils</DT>
@@ -814,7 +814,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/04/10</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>ucd-snmp</DT>
@@ -826,7 +826,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/04/09</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>reiserfsprogs</DT>
@@ -854,7 +854,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/04/04</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -880,7 +880,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/03/27</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>wu-ftpd</DT>
@@ -892,9 +892,9 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/03/25</H2>
  <P>
-  �ʲ��Υե������
+  以下のファイルを
   _LINK(http://www.jp.freebsd.org/man-jp/,FreeBSD jpman project)
-  �����£���Ƥ��������ޤ�����
+  から寄贈していただきました。
  </P>
  <DL>
   <DT>dhcp</DT>
@@ -909,7 +909,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/03/23</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU fileutils</DT>
@@ -920,9 +920,9 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/03/14</H2>
  <P>
-  �ʲ��Υե������
+  以下のファイルを
   _LINK(http://www.jp.freebsd.org/man-jp/,FreeBSD jpman project)
-  �����£���Ƥ��������ޤ�����
+  から寄贈していただきました。
  </P>
  <DL>
   <DT>GNU bc</DT>
@@ -947,7 +947,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/03/13</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>netatalk</DT>
@@ -972,7 +972,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/03/12</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU_groff</DT>
@@ -1034,7 +1034,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/03/11</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -1060,7 +1060,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/03/09</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU fileutils</DT>
@@ -1072,7 +1072,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/03/04</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>util-linux</DT>
@@ -1087,7 +1087,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/03/01</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>util-linux</DT>
@@ -1100,7 +1100,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/02/22</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU fileutils</DT>
@@ -1112,9 +1112,9 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/02/21</H2>
  <P>
-  �ʲ��Υե������
+  以下のファイルを
   _LINK(http://www.jp.freebsd.org/man-jp/,FreeBSD jpman project)
-  �����£���Ƥ��������ޤ�����
+  から寄贈していただきました。
  </P>
  <DL>
   <DT>GNU ed</DT>
@@ -1132,9 +1132,9 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/02/16</H2>
  <P>
-  �ʲ��Υե������
+  以下のファイルを
   _LINK(http://www.jp.freebsd.org/man-jp/,FreeBSD jpman project)
-  �����£���Ƥ��������ޤ�����
+  から寄贈していただきました。
  </P>
  <DL>
   <DT>bind</DT>
@@ -1150,7 +1150,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/02/15</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>sendmail</DT>
@@ -1169,7 +1169,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/02/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
  <DT>LDP man-pages</DT>
@@ -1183,9 +1183,9 @@ m4_dnl ML2CVS ADD HERE
  </DL>
  
  <P>
-  �ʲ��Υե������
+  以下のファイルを
   _LINK(http://www.jp.freebsd.org/man-jp/,FreeBSD jpman project)
-  �����£���Ƥ��������ޤ�����
+  から寄贈していただきました。
  </P>
  <DL>
   <DT>GNU gawk</DT>
@@ -1273,7 +1273,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/02/11</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -1297,7 +1297,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/02/09</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -1312,7 +1312,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/02/08</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>modutils</DT>
@@ -1327,7 +1327,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/02/02</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>util-linux</DT>
@@ -1338,7 +1338,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/02/01</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU fileutils</DT>
@@ -1349,7 +1349,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/01/25</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>GNU fileutils</DT>
@@ -1361,7 +1361,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/01/23</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>shadow</DT>
@@ -1377,7 +1377,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/01/14</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>LDP man-pages</DT>
@@ -1420,7 +1420,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2001/01/09</H2>
  <P>
-  �ʲ��Υե�������ɲá��������ޤ�����
+  以下のファイルを追加・更新しました。
  </P>
  <DL>
   <DT>util-linux</DT>
