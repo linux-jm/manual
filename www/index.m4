@@ -17,6 +17,9 @@ m4_dnl _MIRROR_LIST
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/gnu.html#GNU_bash,GNU bash 4.2 の翻訳)を公開しました。
+ <SMALL>(2012/04/01)</SMALL>
+
  <LI>JM Project のホームページを sourceforge.jp に移動しました。
   今後は _LINK(http://sourceforge.jp/projects/linuxjm/,こちら) で
   活動を進めて行きます。
