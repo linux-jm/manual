@@ -17,6 +17,15 @@ m4_dnl _MIRROR_LIST
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>JM で配布する manpage の文字コードを EUC-JP に UTF-8 に変更しました。<SMALL>(2012/04/10)</SMALL>
+ <UL>
+  <LI>日本語マニュアルを EUC-JP で扱うディストリビューションでは、
+  EUC-JP への変換を行って頂きますようお願い致します。
+  <LI>翻訳を行う際に UTF-8 の方が扱いやすいこと、UTF-8 を採用するディストリビューションが
+  増えて来たことを考慮し、UTF-8 に変更することとしました。<LI>
+  <LI>_LINK(download.html,ダウンロード) のページで配布している全 tarball が対象となります。
+ </UL>
+
  <LI>_LINK(INDEX/gnu.html#GNU_bash,GNU bash 4.2 の翻訳)を公開しました。
  <SMALL>(2012/04/01)</SMALL>
 
