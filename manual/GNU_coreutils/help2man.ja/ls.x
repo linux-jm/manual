@@ -1,4 +1,5 @@
 [名前]
-ls \- list directory contents
+.\"O ls \- list directory contents
+ls \- ディレクトリの内容をリスト表示する
 [説明]
 .\" Add any additional description here

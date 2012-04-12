@@ -1,5 +1,6 @@
 [名前]
-stat \- display file or file system status
+.\"O stat \- display file or file system status
+stat \- ファイルやファイルシステムの状態を表示する
 [説明]
 .\" Add any additional description here
 [関連項目]

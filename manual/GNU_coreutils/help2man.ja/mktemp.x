@@ -1,5 +1,6 @@
 [名前]
-mktemp \- create a temporary file or directory
+.\"O mktemp \- create a temporary file or directory
+mktemp \- 一時ファイルや一時ディレクトリを作成する
 [説明]
 .\" Add any additional description here
 [関連項目]
