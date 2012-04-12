@@ -1,5 +1,6 @@
 [名前]
-realpath \- print the resolved path
+.\"O realpath \- print the resolved path
+realpath \- 絶対パスを表示する
 [説明]
 .\" Add any additional description here
 [関連項目]

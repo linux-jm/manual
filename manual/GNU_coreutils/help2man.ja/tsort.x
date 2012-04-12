@@ -1,4 +1,5 @@
 [名前]
-tsort \- perform topological sort
+.\"O tsort \- perform topological sort
+tsort \- トポロジカルソートを行う
 [説明]
 .\" Add any additional description here

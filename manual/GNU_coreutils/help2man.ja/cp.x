@@ -1,4 +1,5 @@
 [名前]
-cp \- copy files and directories
+.\"O cp \- copy files and directories
+cp \- ファイルやディレクトリのコピーを行う
 [説明]
 .\" Add any additional description here

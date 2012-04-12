@@ -1,5 +1,5 @@
 [名前]
-basename \- strip directory and suffix from filenames
+basename \- ファイル名からディレクトリと接尾辞を取り除く
 [説明]
 .\" Add any additional description here
 [関連項目]

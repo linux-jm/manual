@@ -1,5 +1,6 @@
 [名前]
-sync \- flush file system buffers
+.\"O sync \- flush file system buffers
+sync \- ファイルシステムバッファをフラッシュする
 [説明]
 .\" Add any additional description here
 [関連項目]

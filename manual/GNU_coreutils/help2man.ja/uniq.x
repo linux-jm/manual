@@ -1,5 +1,6 @@
 [名前]
-uniq \- report or omit repeated lines
+.\"O uniq \- report or omit repeated lines
+uniq \- 繰り返し行の出力や削除を行う
 [説明]
 .\" Add any additional description here
 [関連項目]

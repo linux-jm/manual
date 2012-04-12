@@ -1,5 +1,6 @@
 [名前]
-dirname \- strip last component from file name
+.\"O dirname \- strip last component from file name
+dirname \- ファイル名の最後の要素を削除する
 [説明]
 .\" Add any additional description here
 [関連項目]

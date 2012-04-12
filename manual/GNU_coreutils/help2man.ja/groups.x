@@ -1,4 +1,5 @@
 [名前]
-groups \- print the groups a user is in
+.\"O groups \- print the groups a user is in
+groups \- ユーザが所属するグループを表示する
 [説明]
 .\" Add any additional description here

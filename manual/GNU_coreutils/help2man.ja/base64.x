@@ -1,4 +1,4 @@
 [名前]
-base64 \- base64 encode/decode data and print to standard output
+base64 \- データを base64 エンコード/デコードして標準出力に表示する
 [説明]
 .\" Add any additional description here

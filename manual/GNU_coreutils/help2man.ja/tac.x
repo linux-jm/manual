@@ -1,5 +1,6 @@
 [名前]
-tac \- concatenate and print files in reverse
+.\"O tac \- concatenate and print files in reverse
+tac \- ファイルの内容を逆順にして出力する
 [説明]
 .\" Add any additional description here
 [関連項目]

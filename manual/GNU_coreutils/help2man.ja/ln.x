@@ -1,5 +1,5 @@
 [名前]
-ln \- make links between files
+.\"O ln \- make links between files
 [説明]
 .\" Add any additional description here
 [関連項目]

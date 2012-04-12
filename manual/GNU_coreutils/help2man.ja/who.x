@@ -1,4 +1,5 @@
 [名前]
-who \- show who is logged on
+.\"O who \- show who is logged on
+who \- 誰がログインしているかを表示する
 [説明]
 .\" Add any additional description here

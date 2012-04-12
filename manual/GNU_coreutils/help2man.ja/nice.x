@@ -1,5 +1,6 @@
 [名前]
-nice \- run a program with modified scheduling priority
+.\"O nice \- run a program with modified scheduling priority
+nice \- 変更したスケジューリング優先度でプログラムを実行する
 [説明]
 .\" Add any additional description here
 [関連項目]

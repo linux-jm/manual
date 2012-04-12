@@ -1,5 +1,6 @@
 [名前]
-uname \- print system information
+.\"O uname \- print system information
+uname \- システム情報を表示する
 [説明]
 .\" Add any additional description here
 [関連項目]
