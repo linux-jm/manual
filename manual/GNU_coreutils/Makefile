@@ -16,6 +16,8 @@ PACKAGE_STRING = $(PACKAGE_NAME) $(PACKAGE_VERSION)
 
 all:	build-man
 
+#------------------------------------------------------------
+
 tarball:	$(tarball)
 $(tarball):
 	wget http://core.ring.gr.jp/pub/GNU/coreutils/$@
@@ -43,7 +45,21 @@ stamp-build:	stamp-configure
 	)
 	touch $@
 
-build-man:
+#------------------------------------------------------------
+
+mo-ja = source/locale/$(LANG)/LC_MESSAGES/coreutils.mo
+gmo-ja = source/po/ja.gmo
+po-ja = source/po/ja.po
+
+$(mo-ja):	$(gmo-ja)
+	/bin/cp $^ $@
+
+$(gmo-ja):	$(po-ja)
+	$(MAKE) -C source/po $$(basename $@)
+
+catalog:	$(mo-ja)
+
+build-man:	catalog
 	$(MAKE) -C help2man.ja $@ PACKAGE_VERSION=$(PACKAGE_VERSION)
 
 install:	build-man
