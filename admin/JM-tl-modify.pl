@@ -6,10 +6,15 @@
 # 引き数なしで本コマンドを実行すると、ヘルプが表示されます。
 #------------------------------------------------------------
 
+use Getopt::Std;
+
 my $DEBUG = 1;
 my %status;
 my $tlist_body = "";
 my $update_timestamp = 0;
+my $update_name = "";
+my $update_email = "";
+my %opts;
 
 BEGIN{
     $epath = `dirname $0`; chomp $epath;
@@ -20,17 +25,17 @@ BEGIN{
 use strict 'vars';
 use JMtl ('line2hash', 'hash2line');
 
-while ($ARGV[0] =~ /^-/) {
-    $update_timestamp = 1 if ($ARGV[0] eq "-t");
-    shift @ARGV;
-}
+getopts("tn:e:", \%opts);
 
 if ($#ARGV < 2) {
-    print STDERR "Usage: JM-tl-modify.pl [-t] translation_list pagename new_status\n";
+    print STDERR "Usage: JM-tl-modify.pl [OPTIONS] translation_list pagename new_status\n";
     print STDERR "    pagename = name.[1-9]\n";
     print STDERR "    new_status = TR DO DP PR RO RR\n";
     print STDERR "\n";
+    print STDERR "OPTIONS:\n";
     print STDERR "    -t : Update timestamp\n";
+    print STDERR "    -n NAME : Update name field\n";
+    print STDERR "    -e MAIL : Update mail field\n";
     exit 0;
 }
 
@@ -97,11 +102,13 @@ while (<TLO>) {
 #    $ti{'tmail'} = $status{'mail'};
 #    $ti{'tname'} = $status{'name'};
 
-    if ($update_timestamp) {
+    if ($opts{"t"}) {
 	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
 	$year += 1900; $mon += 1;
 	$ti{'tdat'} = sprintf("%04d/%02d/%02d", $year, $mon, $mday);
     }
+    $ti{'tname'} = $opts{"n"} if $opts{"n"};
+    $ti{'tmail'} = $opts{"e"} if $opts{"e"};
 
     my $tll = hash2line(%ti);
 
