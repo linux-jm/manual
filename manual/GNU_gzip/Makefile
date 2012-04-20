@@ -25,5 +25,5 @@ page-stat:
 	  grep translated | \
 	  sed -e 's/(\([1-9][0-9]*\) strings)/(\1 of \1 strings)/' \
 	      -e 's/[()]//g' \
-	      -e 's/^release\/man[1-9]\///' | \
+	      -e 's/^draft\/man[1-9]\///' | \
 	  awk '{printf("%-15s: %7s (%3s/%3s)\n",$$1,$$3,$$5,$$7);}'
