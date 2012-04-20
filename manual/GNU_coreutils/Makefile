@@ -30,7 +30,7 @@ stamp-setup:	$(tarball)
 	  && git add . \
 	  && git commit -m 'Import $(PACKAGE_NAME).' > /dev/null \
 	)
-	mkdir -p source/locale/$(LANG)/LC_MESSAGES
+	mkdir -p source/locale/ja/LC_MESSAGES
 	touch $@
 
 stamp-configure:	stamp-setup
@@ -47,7 +47,7 @@ stamp-build:	stamp-configure
 
 #------------------------------------------------------------
 
-mo-ja = source/locale/$(LANG)/LC_MESSAGES/coreutils.mo
+mo-ja = source/locale/ja/LC_MESSAGES/coreutils.mo
 gmo-ja = source/po/ja.gmo
 po-ja = source/po/ja.po
 

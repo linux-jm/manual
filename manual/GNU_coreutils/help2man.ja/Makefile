@@ -29,7 +29,7 @@ install:	build-man
 clean:
 	$(RM) $(MANPAGES)
 
-$(MANPAGES):	$(srcdir)/locale/$(LANG)/LC_MESSAGES/coreutils.mo
+$(MANPAGES):	$(srcdir)/locale/ja/LC_MESSAGES/coreutils.mo
 
 .x.1:
 	$(AM_V_GEN)rm -f $@ $@-t			\
