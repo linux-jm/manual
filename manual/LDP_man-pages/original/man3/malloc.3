@@ -25,7 +25,7 @@
 .\" Documented MALLOC_CHECK_, Wolfram Gloger (wmglo@dent.med.uni-muenchen.de)
 .\" 2007-09-15 mtk: added notes on malloc()'s use of sbrk() and mmap().
 .\"
-.TH MALLOC 3  2011-09-08 "GNU" "Linux Programmer's Manual"
+.TH MALLOC 3  2012-03-20 "GNU" "Linux Programmer's Manual"
 .SH NAME
 malloc, free, calloc, realloc \- Allocate and free dynamic memory
 .SH SYNOPSIS
@@ -196,13 +196,30 @@ implementation allocates the memory as a private anonymous mapping using
 .B MMAP_THRESHOLD
 is 128 kB by default, but is adjustable using
 .BR mallopt (3).
-.\" FIXME . there is no mallopt(3) man page yet.
 Allocations performed using
 .BR mmap (2)
 are unaffected by the
 .B RLIMIT_DATA
 resource limit (see
 .BR getrlimit (2)).
+
+To avoid corruption in multithreaded applications,
+mutexes are used internally to protect the memory-management
+data structures employed by these functions.
+In a multithreaded application in which threads simultaneously
+allocate and free memory,
+there could be contention for these mutexes.
+To scalably handle memory allocation in multithreaded applications,
+glibc creates additional
+.IR "memory allocation arenas"
+if mutex contention is detected.
+Each arena is a large region of memory that is internally allocated
+by the system
+(using
+.BR brk (2)
+or
+.BR mmap (2)),
+and managed with its own mutexes.
 
 The UNIX 98 standard requires
 .BR malloc (),
@@ -235,33 +252,25 @@ Recent versions of Linux libc (later than 5.4.23) and glibc (2.x)
 include a
 .BR malloc ()
 implementation which is tunable via environment variables.
-When
-.B MALLOC_CHECK_
-is set, a special (less efficient) implementation is used which
-is designed to be tolerant against simple errors, such as double
-calls of
-.BR free ()
-with the same argument, or overruns of a single byte (off-by-one
-bugs).
-Not all such errors can be protected against, however, and
-memory leaks can result.
-If
-.B MALLOC_CHECK_
-is set to 0, any detected heap corruption is silently ignored;
-if set to 1, a diagnostic message is printed on \fIstderr\fP;
-if set to 2,
-.BR abort (3)
-is called immediately;
-if set to 3, a diagnostic message is printed on \fIstderr\fP
-and the program is aborted.
-Using a nonzero
-.B MALLOC_CHECK_
-value can be useful because otherwise
-a crash may happen much later, and the true cause for the problem
-is then very hard to track down.
+For details, see
+.BR mallopt (3).
 .SH "SEE ALSO"
+.\" http://g.oswego.edu/dl/html/malloc.html
+.\" A Memory Allocator - by Doug Lea
+.\"
+.\" http://www.bozemanpass.com/info/linux/malloc/Linux_Heap_Contention.html
+.\" Linux Heap, Contention in free() - David Boreham
+.\"
+.\" http://www.citi.umich.edu/projects/linux-scalability/reports/malloc.html
+.\" malloc() Performance in a Multithreaded Linux Environment -
+.\"     Check Lever, David Boreham
+.\"
 .BR brk (2),
-.\" .BR mallopt (3),
 .BR mmap (2),
 .BR alloca (3),
+.BR malloc_get_state (3),
+.BR malloc_trim (3),
+.BR malloc_usable_size (3),
+.BR mallopt (3),
+.BR mtrace (3),
 .BR posix_memalign (3)

@@ -42,9 +42,8 @@
 .\"     capability, then we must also set the effective flag for all
 .\"     other capabilities where the permitted or inheritable bit is set.
 .\" 2011-09-07, mtk/Serge hallyn: Add CAP_SYSLOG
-.\" FIXME: Linux 3.0 added CAP_WAKE_ALARM
 .\"
-.TH CAPABILITIES 7 2011-10-04 "Linux" "Linux Programmer's Manual"
+.TH CAPABILITIES 7 2012-04-15 "Linux" "Linux Programmer's Manual"
 .SH NAME
 capabilities \- overview of Linux capabilities
 .SH DESCRIPTION
@@ -127,6 +126,8 @@ set the set-group-ID bit for a file whose GID does not match
 the file system or any of the supplementary GIDs of the calling process.
 .TP
 .B CAP_IPC_LOCK
+.\" FIXME As at Linux 3.2, there are some strange uses of this capability
+.\" in other places; they probably should be replaced with something else.
 Lock memory
 .RB ( mlock (2),
 .BR mlockall (2),
@@ -175,10 +176,38 @@ Create special files using
 .BR mknod (2).
 .TP
 .B CAP_NET_ADMIN
-Perform various network-related operations
-(e.g., setting privileged socket options,
-enabling multicasting, interface configuration,
-modifying routing tables).
+Perform various network-related operations:
+.PD 0
+.RS
+.IP * 2
+interface configuration;
+.IP *
+administration of IP firewall, masquerading, and accounting
+.IP *
+modify routing tables;
+.IP *
+bind to any address for transparent proxying;
+.IP *
+set type-of-service (TOS)
+.IP *
+clear driver statistics;
+.IP *
+set promiscuous mode;
+.IP *
+enabling multicasting;
+.IP *
+use
+.BR setsockopt (2)
+to set the following socket options:
+.BR SO_DEBUG ,
+.BR SO_MARK ,
+.BR SO_PRIORITY
+(for a priority outside the range 0 to 6),
+.BR SO_RCVBUFFORCE ,
+and
+.BR SO_SNDBUFFORCE .
+.RE
+.PD
 .TP
 .B CAP_NET_BIND_SERVICE
 Bind a socket to Internet domain privileged ports
@@ -188,7 +217,14 @@ Bind a socket to Internet domain privileged ports
 (Unused)  Make socket broadcasts, and listen to multicasts.
 .TP
 .B CAP_NET_RAW
-Use RAW and PACKET sockets.
+.PD 0
+.RS
+.IP * 2
+use RAW and PACKET sockets;
+.IP *
+bind to any address for transparent proxying.
+.RE
+.PD
 .\" Also various IP options and setsockopt(SO_BINDTODEVICE)
 .TP
 .B CAP_SETGID
@@ -249,6 +285,11 @@ operations (since Linux 2.6.37,
 should be used to permit such operations);
 .IP *
 perform
+.B VM86_REQUEST_IRQ
+.BR vm86 (2)
+command;
+.IP *
+perform
 .B IPC_SET
 and
 .B IPC_RMID
@@ -284,14 +325,24 @@ in system calls that open files (e.g.,
 .BR pipe (2));
 .IP *
 employ
-.B CLONE_NEWNS
-flag with
+.B CLONE_*
+flags that create new namespaces with
 .BR clone (2)
 and
 .BR unshare (2);
 .IP *
 call
+.BR perf_event_open (2);
+.IP *
+access privileged
+.I perf
+event information;
+.IP *
+call
 .BR setns (2);
+.IP *
+call
+.BR fanotify_init (2);
 .IP *
 perform
 .B KEYCTL_CHOWN
@@ -303,7 +354,31 @@ operations;
 perform
 .BR madvise (2)
 .B MADV_HWPOISON
-operation.
+operation;
+.IP *
+employ the
+.B TIOCSTI
+.BR ioctl (2)
+to insert characters into the input queue of a terminal other than
+the caller's controlling terminal.
+.IP *
+employ the obsolete
+.BR nfsservctl (2);
+system call;
+.IP *
+employ the obsolete
+.BR bdflush (2)
+system call;
+.IP *
+perform various privileged block-device
+.BR ioctl (2)
+operations;
+.IP *
+perform various privileged file-system
+.BR ioctl (2)
+operations;
+.IP *
+perform administrative operations on many device drivers.
 .RE
 .PD
 .TP
@@ -385,7 +460,11 @@ Perform I/O port operations
 and
 .BR ioperm (2));
 access
-.IR /proc/kcore .
+.IR /proc/kcore ;
+employ the
+.B FIBMAP
+.BR ioctl (2)
+operation.
 .TP
 .B CAP_SYS_RESOURCE
 .PD 0
@@ -406,6 +485,12 @@ override
 .B RLIMIT_NPROC
 resource limit;
 .IP *
+override maximum number of consoles on console allocation;
+.IP *
+override maximum number of keymaps;
+.IP *
+allow more than 64hz interrupts from the real-time clock;
+.IP *
 raise
 .I msg_qbytes
 limit for a System V message queue above the limit in
@@ -413,12 +498,29 @@ limit for a System V message queue above the limit in
 (see
 .BR msgop (2)
 and
-.BR msgctl (2)).
+.BR msgctl (2));
+.IP *
+override the
+.I /proc/sys/fs/pipe-size-max
+limit when setting the capacity of a pipe using the
+.B F_SETPIPE_SZ
+.BR fcntl (2)
+command.
 .IP *
 use
 .BR F_SETPIPE_SZ
 to increase the capacity of a pipe above the limit specified by
-.IR /proc/sys/fs/pipe-max-size .
+.IR /proc/sys/fs/pipe-max-size ;
+.IP *
+override
+.I /proc/sys/fs/mqueue/queues_max
+limit when creating POSIX message queues (see
+.BR mq_overview (7));
+.IP *
+employ
+.BR prctl (2)
+.B PR_SET_MM
+operation.
 .RE
 .PD
 .TP
@@ -431,7 +533,10 @@ set real-time (hardware) clock.
 .TP
 .B CAP_SYS_TTY_CONFIG
 Use
-.BR vhangup (2).
+.BR vhangup (2);
+employ various privileged
+.BR ioctl (2)
+operations on virtual terminals.
 .TP
 .BR CAP_SYSLOG " (since Linux 2.6.37)"
 Perform privileged
@@ -440,6 +545,13 @@ operations.
 See
 .BR syslog (2)
 for information on which operations require privilege.
+.TP
+.BR CAP_WAKE_ALARM " (since Linux 3.0)"
+Trigger something that will wake up the system (set
+.B CLOCK_REALTIME_ALARM
+and
+.B CLOCK_BOOTTIME_ALARM
+timers).
 .\"
 .SS Past and Current Implementation
 A full implementation of capabilities requires that:
@@ -952,10 +1064,12 @@ created on the system.
 .BR cap_init (3),
 .BR capgetp (3),
 .BR capsetp (3),
+.BR libcap (3),
 .BR credentials (7),
 .BR pthreads (7),
 .BR getcap (8),
 .BR setcap (8)
 .PP
+Comments on the purposes of various capabilities in
 .I include/linux/capability.h
 in the kernel source
