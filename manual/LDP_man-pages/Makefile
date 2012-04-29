@@ -7,13 +7,15 @@ PO4AFLAGS ?= -k $(THRESH) $(FLAGS)
 all: translate
 
 translate: jm-setup
-	cd perkamon && $(MAKE) translate PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)"
+	LC_ALL=C $(MAKE) translate \
+	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 
 translate-%: jm-setup
-	cd perkamon && $(MAKE) translate-$* PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)"
+	LC_ALL=C $(MAKE) translate-$* \
+	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 
 stats:	jm-setup
-	cd perkamon && $(MAKE) stats PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)"
+	$(MAKE) stats PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 
 jm-setup:	stamp-jm-setup
 stamp-jm-setup:
