@@ -17,7 +17,13 @@ translate-%: jm-setup
 	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 
 stats:	jm-setup
-	$(MAKE) stats PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
+	@LC_ALL=C $(MAKE) stats \
+	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
+
+untrans-stats:	jm-setup
+	@LC_ALL=C $(MAKE) stats \
+	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR) \
+	  2>&1 | grep -vE ' translated messages\.$$'
 
 jm-setup:	stamp-jm-setup
 stamp-jm-setup:
