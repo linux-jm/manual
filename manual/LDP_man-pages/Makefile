@@ -8,7 +8,9 @@ all: translate
 
 translate: jm-setup
 	LC_ALL=C $(MAKE) translate \
-	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
+	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR) \
+	  | tee untrans.txt
+	./untrans-list.pl < untrans.txt > untrans.html
 
 translate-%: jm-setup
 	LC_ALL=C $(MAKE) translate-$* \
