@@ -1,0 +1,218 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (C) 1997 Andries Brouwer (aeb@cwi.nl)
+.\" and Copyright (C) 2006, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Additions from Richard Gooch <rgooch@atnf.CSIRO.AU> and aeb, 971207
+.\" 2006-03-13, mtk, Added ppoll() + various other rewordings
+.\" 2006-07-01, mtk, Added POLLRDHUP + various other wording and
+.\"	formatting changes.
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH POLL 2 2012\-04\-15 Linux "Linux Programmer's Manual"
+.SH 名前
+poll, ppoll \- ファイルディスクリプタにおけるイベントを待つ
+.SH 書式
+.nf
+\fB#include <poll.h>\fP
+.sp
+\fBint poll(struct pollfd *\fP\fIfds\fP\fB, nfds_t \fP\fInfds\fP\fB, int \fP\fItimeout\fP\fB);\fP
+.sp
+\fB#define _GNU_SOURCE\fP         /* feature_test_macros(7) 参照 */
+\fB#include <poll.h>\fP
+.sp
+\fBint ppoll(struct pollfd *\fP\fIfds\fP\fB, nfds_t \fP\fInfds\fP\fB, \fP
+\fB        const struct timespec *\fP\fItimeout_ts\fP\fB, const sigset_t *\fP\fIsigmask\fP\fB);\fP
+.fi
+.SH 説明
+\fBpoll\fP()  は \fBselect\fP(2)  と同様の仕事を行う、つまり、ファイルディスクリプタ集合のいずれか一つが I/O
+を実行可能な状態になるのを待つ。
+
+監視するファイルディスクリプタ集合は、 \fIfds\fP 引き数で指定する。 \fIfds\fP は、以下の型の構造体の配列である。
+.in +4n
+.nf
+
+struct pollfd {
+    int   fd;         /* file descriptor */
+    short events;     /* requested events */
+    short revents;    /* returned events */
+};
+.in
+.fi
+.PP
+\fInfds\fP には、 \fIfds\fP 配列の要素数を指定する。
+
+\fIfd\fP フィールドには、オープンされたファイルのファイルディスクリプタが入る。
+このフィールドが負の場合、対応する \fIevents\fP フィールドは無視され、
+\fIrevents\fP には 0 が返される。(この機能により、一つの \fBpoll\fP() の呼び出しで
+簡単にあるファイルディスクリプタを無視することができる。
+単に \fIfd\fP フィールドの符号を反転するだけでよい。)
+
+構造体の \fIevents\fP 要素は入力パラメータで、
+ファイルディスクリプタ \fIfd\fP に関して、
+アプリケーションが興味を持っているイベントのビットマスクを指定する。
+このフィールドに 0 が指定された場合は、\fIfd\fP の全てのイベントが無視され、
+\fIrevents\fP には 0 が返される。
+
+\fIrevents\fP 要素は出力パラメータで、実際に起こったイベントがカーネルにより設定される。 \fIrevents\fP で返されるビット列には、
+\fIevents\fP で指定したもののどれか、もしくは \fBPOLLERR\fP, \fBPOLLHUP\fP, \fBPOLLNVAL\fP のうちの一つが含まれる
+(\fBPOLLERR\fP, \fBPOLLHUP\fP, \fBPOLLNVAL\fP の 3つのビットは \fIevents\fP
+に指定しても意味がなく、対応した状態が真の場合に \fIrevents\fP に設定される)。
+
+どのファイルディスクリプタにも要求したイベントが発生しておらず、 エラーも起こらない場合、 \fBpoll\fP()
+はイベントのうちいずれか一つが発生するまで停止 (block) する。
+
+\fItimeout\fP 引き数は \fBpoll\fP()  が停止する時間の上限を設定するもので、ミリ秒単位で指定する。 \fItimeout\fP
+に負の値を指定すると、タイムアウト時間が無限となる。
+
+\fIevents\fP に指定したり、 \fIrevents\fP で返されるビットは \fI<poll.h>\fP で定義されている:
+.RS
+.TP 
+\fBPOLLIN\fP
+読み出し可能なデータがある。
+.TP 
+\fBPOLLPRI\fP
+読み出し可能な緊急データ (urgent data) がある (例えば、TCP ソケットの帯域外 (out\-of\-band data)
+データを受信した場合や、 パケットモードの擬似端末のマスタがスレーブ側の変化を見つけたとき)。
+.TP 
+\fBPOLLOUT\fP
+書き込みが停止 (block) しない状態である。
+.TP 
+\fBPOLLRDHUP\fP (Linux 2.6.17 以降)
+ストリームソケットの他端が、コネクションを close したか、 コネクションの書き込み側を shutdown した。 この定義を有効にするには、
+(「どの」ヘッダファイルをインクルードするよりも前に)  \fB_GNU_SOURCE\fP 機能検査マクロを定義しなければならない。
+.TP 
+\fBPOLLERR\fP
+エラー状態 (出力の場合のみ)。
+.TP 
+\fBPOLLHUP\fP
+ハングアップした (出力の場合のみ)。
+.TP 
+\fBPOLLNVAL\fP
+不正な要求: \fIfd\fP がオープンされていない (出力の場合のみ)。
+.RE
+.PP
+\fB_XOPEN_SOURCE\fP を定義してコンパイルした場合には、以下の定義も行われる。
+ただし、上記のリストにあるビット以上の情報が得られる訳ではない。
+.RS
+.TP 
+\fBPOLLRDNORM\fP
+\fBPOLLIN\fP と同じ。
+.TP 
+\fBPOLLRDBAND\fP
+.\" POLLRDBAND is used in the DECnet protocol.
+優先帯域データ (priority band data) が読み出し可能である (普通は Linux では使用されない)。
+.TP 
+\fBPOLLWRNORM\fP
+\fBPOLLOUT\fP と同じ。
+.TP 
+\fBPOLLWRBAND\fP
+優先帯域データ (priority data) が書き込み可能である。
+.RE
+.PP
+Linux では \fBPOLLMSG\fP も定義されているが、使用されていない。
+.SS ppoll()
+\fBpoll\fP()  と \fBppoll\fP()  の関係は \fBselect\fP(2)  と \fBpselect\fP(2)  の関係と同じようなものである:
+\fBpselect\fP(2)  と同様に、 \fBppoll\fP()  を使うと、アプリケーションはファイルディスクリプタの状態変化
+もしくはシグナルの捕捉を安全に待つことができる。
+.PP
+\fItimeout\fP 引き数の精度の違いを除くと、以下の \fBppoll\fP()  の呼び出しは、
+.nf
+
+    ready = ppoll(&fds, nfds, timeout_ts, &sigmask);
+
+.fi
+次の呼び出しを \fIatomic\fP に実行するのと等価である。
+.nf
+
+    sigset_t origmask;
+    int timeout;
+
+    timeout = (timeout_ts == NULL) ? \-1 :
+              (timeout_ts.tv_sec * 1000 + timeout_ts.tv_nsec / 1000000);
+    sigprocmask(SIG_SETMASK, &sigmask, &origmask);
+    ready = poll(&fds, nfds, timeout);
+    sigprocmask(SIG_SETMASK, &origmask, NULL);
+.fi
+.PP
+なぜ \fBppoll\fP()  が必要なのかについての説明は \fBpselect\fP(2)  の説明を参照のこと。
+
+\fIsigmask\fP 引き数に NULL が指定された場合、シグナルマスクの操作は行われない (したがって、 \fBppoll\fP()  の
+\fBpoll\fP()  との違いは \fItimeout\fP 引き数の精度だけとなる)。
+
+\fItimeout\fP 引き数は \fBppoll\fP()  が停止する時間の上限を指定するものである。
+この引き数には以下の型の構造体へのポインタを指定する。
+.in +4n
+.nf
+
+struct timespec {
+    long    tv_sec;         /* seconds */
+    long    tv_nsec;        /* nanoseconds */
+};
+.fi
+.in
+
+\fItimeout_ts\fP に NULL が指定された場合、 \fBppoll\fP は無限に停止することがあり得る。
+.SH 返り値
+成功した場合は正の数を返す。この数は 0 以外の \fIrevents\fP 要素を持つ構造体の数である (別の言い方をすると、これらのディスクリプタ
+にはイベントかエラー報告がある)。 値 0 は、タイムアウトとなり、どのファイルディスクリプタでもイベントが 発生しなかったことを示す。エラーの場合は
+\-1 が返され、 \fIerrno\fP が適切に設定される。
+.SH エラー
+.TP 
+\fBEFAULT\fP
+引き数として指定した配列が、呼び出したプロセスのアドレス空間に 含まれていない。
+.TP 
+\fBEINTR\fP
+要求されたイベントのどれかが起こる前にシグナルが発生した。 \fBsignal\fP(7)  参照。
+.TP 
+\fBEINVAL\fP
+\fInfds\fP の値が \fBRLIMIT_NOFILE\fP を超えた。
+.TP 
+\fBENOMEM\fP
+ファイルディスクリプタ・テーブルを確保するためのメモリがない。
+.SH バージョン
+\fBpoll\fP()  システムコールは Linux 2.1.23 で導入された。 \fBpoll\fP()  ライブラリ・コールは libc 5.4.28
+から導入された (これはカーネルが \fBpoll\fP()  システムコールをサポートしていない場合に \fBselect\fP(2)
+を使用してエミュレートを行う)。
+
+\fBppoll\fP()  システムコールは カーネル 2.6.16 で Linux に追加された。 \fBppoll\fP()  ライブラリコールは glibc
+2.4 に追加された。
+.SH 準拠
+.\" NetBSD 3.0 has a pollts() which is like Linux ppoll().
+\fBpoll\fP()  は POSIX.1\-2001 に準拠している。 \fBppoll\fP()  は Linux 固有である。
+.SH 注意
+いくつかの実装では、値 \-1 を持った非標準の定数 \fBINFTIM\fP が定義されており、 \fBpoll\fP()  の \fItimeout\fP
+の指定に使用できる。 この定数は glibc では定義されていない。
+.SS "Linux での注意"
+Linux の \fBppoll\fP()  システムコールは \fItimeout_ts\fP 引き数を変更する。 しかし、glibc
+のラッパー関数は、システムコールに渡す timeout 引き数 としてローカル変数を使うことでこの動作を隠蔽している。 このため、glibc の
+\fBppoll\fP()  関数では \fItimeout_ts\fP 引き数は変更されない。
+.SH バグ
+\fBselect\fP(2)  の「バグ」の節に書かれている、誤った準備完了通知 (spurious readiness notifications)
+についての議論を参照のこと。
+.SH 関連項目
+\fBselect\fP(2), \fBselect_tut\fP(2), \fBtime\fP(7)
