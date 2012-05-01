@@ -1,0 +1,105 @@
+.\" Copyright (c) 2010 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" based on a proposal from Stephan Mueller <smueller@atsec.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of
+.\" a permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume.
+.\" no responsibility for errors or omissions, or for damages resulting.
+.\" from the use of the information contained herein.  The author(s) may.
+.\" not have taken the same level of care in the production of this.
+.\" manual, which is licensed free of charge, as they might when working.
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Various pieces of text taken from the kernel source and the commentary
+.\" in kernel commit fa28237cfcc5827553044cbd6ee52e33692b0faa
+.\" both written by Paul Mackerras <paulus@samba.org>
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH SUBPAGE_PROT 2 2010\-10\-30 Linux "Linux Programmer's Manual"
+.SH 名前
+subpage_prot \- define a subpage protection for an address range
+.SH 書式
+.nf
+\fBlong subpage_prot(unsigned long \fP\fIaddr\fP\fB, unsigned long \fP\fIlen\fP\fB,\fP
+\fB                  uint32_t *\fP\fImap\fP\fB);\fP
+.fi
+.SH 説明
+The PowerPC\-specific \fBsubpage_prot\fP()  system call provides the facility to
+control the access permissions on individual 4kB subpages on systems
+configured with a page size of 64kB.
+
+The protection map is applied to the memory pages in the region starting at
+\fIaddr\fP and continuing for \fIlen\fP bytes.  Both of these arguments must be
+aligned to a 64\-kB boundary.
+
+The protection map is specified in the buffer pointed to by \fImap\fP.  The map
+has 2 bits per 4kB subpage; thus each 32\-bit word specifies the protections
+of 16 4kB subpages inside a 64kB page (so, the number of 32\-bit words
+pointed to by \fImap\fP should equate to the number of 64\-kB pages specified by
+\fIlen\fP).  Each 2\-bit field in the protection map is either 0 to allow any
+access, 1 to prevent writes, or 2 or 3 to prevent all accesses.
+.SH 返り値
+On success, \fBsubpage_prot\fP()  returns 0.  Otherwise, one of the error codes
+specified below is returned.
+.SH エラー
+.TP 
+\fBEFAULT\fP
+The buffer referred to by \fImap\fP is not accessible.
+.TP 
+\fBEINVAL\fP
+The \fIaddr\fP or \fIlen\fP arguments are incorrect.  Both of these arguments must
+be aligned to a multiple of the system page size, and they must not refer to
+a region outside of the address space of the process or to a region that
+consists of huge pages.
+.TP 
+\fBENOMEM\fP
+メモリ不足である。
+.SH バージョン
+This system call is provided on the PowerPC architecture since Linux
+2.6.25.  The system call is provided only if the kernel is configured with
+\fBCONFIG_PPC_64K_PAGES\fP.  No library support is provided.
+.SH 準拠
+このシステムコールは Linux 独自である。
+.SH 注意
+Normal page protections (at the 64\-kB page level) also apply; the subpage
+protection mechanism is an additional constraint, so putting 0 in a 2\-bit
+field won't allow writes to a page that is otherwise write\-protected.
+.SS Rationale
+.\" In the initial implementation, it was the case that:
+.\"     In fact the whole process is switched to use 4k hardware pages when the
+.\"     subpage_prot system call is used, but this could be improved in future
+.\"     to switch only the affected segments.
+.\" But Paul Mackerass says (Oct 2010): I'm pretty sure we now only switch
+.\" the affected segment, not the whole process.
+This system call is provided to assist writing emulators that operate using
+64\-kB pages on PowerPC systems.  When emulating systems such as x86, which
+uses a smaller page size, the emulator can no longer use the
+memory\-management unit (MMU)  and normal system calls for controlling page
+protections.  (The emulator could emulate the MMU by checking and possibly
+remapping the address for each memory access in software, but that is slow.)
+The idea is that the emulator supplies an array of protection masks to apply
+to a specified range of virtual addresses.  These masks are applied at the
+level where hardware page\-table entries (PTEs)  are inserted into the
+hardware page table based on the Linux PTEs, so the Linux PTEs are not
+affected.  Implicit in this is that the regions of the address space that
+are protected are switched to use 4\-kB hardware pages rather than 64\-kB
+hardware pages (on machines with hardware 64\-kB page support).
+.SH 関連項目
+\fBmprotect\fP(2), \fBsyscall\fP(2);
+.br
+the kernel source file \fIDocumentation/vm/hugetlbpage.txt\fP.

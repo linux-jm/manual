@@ -35,12 +35,12 @@ stamp-jm-setup:
 	  fi; \
 	done
 	# Create symlink to original dir instead of downloading tarball.
-	cd $(PERKAMON_DIR) && \
-	  if [ ! -e man-pages ]; then \
-	    ln -s ../original man-pages; \
-	  fi && \
-	  touch stamp-unpack-release && \
-	  touch stamp-unpack
+	#cd $(PERKAMON_DIR) && \
+	#  if [ ! -e man-pages ]; then \
+	#    ln -s ../original man-pages; \
+	#  fi && \
+	#  touch stamp-unpack-release && \
+	#  touch stamp-unpack
 	cd $(PERKAMON_DIR) && make setup
 	@set -e; if [ ! -e $(PERKAMON_DIR)/build/ja ]; then \
 	  ln -s ../../draft $(PERKAMON_DIR)/build/ja; \

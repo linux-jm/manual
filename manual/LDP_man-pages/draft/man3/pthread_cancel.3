@@ -1,0 +1,198 @@
+.\" Copyright (c) 2008 Linux Foundation, written by Michael Kerrisk
+.\"     <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH PTHREAD_CANCEL 3 2008\-11\-17 Linux "Linux Programmer's Manual"
+.SH 名前
+pthread_cancel \- スレッドにキャンセル要求を送る
+.SH 書式
+.nf
+\fB#include <pthread.h>\fP
+
+\fBint pthread_cancel(pthread_t \fP\fIthread\fP\fB);\fP
+.sp
+\fI\-pthread\fP でコンパイルしてリンクする。
+.fi
+.SH 説明
+\fBpthread_cancel\fP() 関数は指定されたスレッド \fIthread\fP にキャンセル要求を送信
+する。対象のスレッドがキャンセル要求に反応するかどうか、いつ反応するかは対象
+のスレッドの制御下にある 2 つの属性、cancelability \fIstate\fP と \fItype\fPにより
+決まる。
+
+あるスレッドの cancelability state は \fBpthread_setcancelstate\fP(3) で設定され、
+\fIenabled\fP と \fIdisabled\fP のいずれとなる (\fIenabled\fP が新しいスレッドのデフォ
+ルト値である)。スレッドがキャンセルを無効にしていた場合、キャンセル要求はその
+スレッドがキャンセルを有効にするまでキューに入れられたままになる。スレッドが
+キャンセルを有効にしていた場合、cancelability type によって、いつキャンセルが
+発生するかが決まる。
+
+スレッドの cancellation type は \fBpthread_setcanceltype\fP(3) で設定され、
+\fIasynchronous\fP か \fIdeferred\fP のいずれかとなる(\fIdeferred\fP が新しいスレッド
+のデフォルト値である)。
+非同期キャンセル (asynchronous cancelability) は、そのスレッドはいつでも
+キャンセルされることを意味する (通常はすぐにキャンセルされるが、システムが
+そのことを保証しているわけではない)。
+遅延キャンセル (deferred cancelability) では、そのスレッドが \fIcancellation
+point\fP となっている関数を次に呼び出すまでキャンセルが遅延される。
+cancellation point に設定されていたり設定したりできる関数のリストは
+\fIpthreads\fP(7) に記載している。
+
+キャンセル要求が実行されると、
+\fIthread\fP では以下のステップが (この順序で) 行われる。
+.IP 1. 3
+キャンセルのクリーンアップハンドラが (push されたのと逆順で)
+取り出され (pop され)、呼び出される。
+(\fBpthread_cleanup_push\fP(3) 参照)
+.IP 2.
+スレッド固有データのデストラクタ (destructor) が呼び出される。
+呼び出し順序は規定されていない。
+(\fBpthread_key_create\fP(3) 参照)
+.IP 3.
+スレッドが終了される。 (\fBpthread_exit\fP(3) 参照)
+.PP
+上記のステップは \fBpthread_cancel\fP() の呼び出しとは非同期に行われる。
+\fBpthread_cancel\fP() の返却ステータスは単にキャンセル要求が正常に
+キューに入れられたかどうかを呼び出し元に示すだけのものである。
+.PP
+キャンセルされたスレッドが終了された後に、
+\fBpthread_join\fP(3) でそのスレッドを join すると、
+そのスレッドの終了ステータスとして \fBPTHREAD_CANCELED\fP が得られる。
+(スレッドの join はキャンセルが完了したかを知る唯一の方法である)
+.SH 返り値
+成功すると、 \fBpthread_cancel\fP() は 0 を返す。
+エラーの場合、0 以外のエラー番号を返す。
+.SH エラー
+.TP 
+\fBESRCH\fP
+.\" .SH VERSIONS
+.\" Available since glibc 2.0
+ID が \fIthread\fP のスレッドが見つからなかった。
+.SH 準拠
+POSIX.1\-2001.
+.SH 注意
+Linux では、キャンセルはシグナルを使って実装されている。NPTL スレッド実装では、
+最初のリアルタイムシグナル (つまり、シグナル 32)がこのために使用される。
+LinuxThreads では、リアルタイムシグナルが利用可能な場合は2 番目のリアルタイム
+シグナルが使用され、そうでない場合は \fBSIGUSR2\fP が使用される。
+.SH 例
+以下のプログラムは、スレッドを一つ作成してから、そのスレッドをキャンセルする。
+メインスレッドはキャンセルされたスレッドをジョインし、
+キャンセルされたスレッドの終了ステータスが \fBPTHREAD_CANCELED\fP かどうかを
+確認する。以下のシェルセッションはこのプログラムを実行した際の実行例である。
+
+.in +4n
+.nf
+$ ./a.out
+thread_func(): started; cancellation disabled
+main(): sending cancellation request
+thread_func(): about to enable cancellation
+main(): thread was canceled
+.fi
+.in
+.SS プログラムのソース
+\&
+.nf
+#include <pthread.h>
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define handle_error_en(en, msg) \e
+        do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
+
+static void *
+thread_func(void *ignored_argument)
+{
+    int s;
+
+    /* Disable cancellation for a while, so that we don\(aqt
+       immediately react to a cancellation request */
+
+    s = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    if (s != 0)
+        handle_error_en(s, "pthread_setcancelstate");
+
+    printf("thread_func(): started; cancellation disabled\en");
+    sleep(5);
+    printf("thread_func(): about to enable cancellation\en");
+
+    s = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    if (s != 0)
+        handle_error_en(s, "pthread_setcancelstate");
+
+    /* sleep() is a cancellation point */
+
+    sleep(1000);        /* Should get canceled while we sleep */
+
+    /* Should never get here */
+
+    printf("thread_func(): not canceled!\en");
+    return NULL;
+}
+
+int
+main(void)
+{
+    pthread_t thr;
+    void *res;
+    int s;
+
+    /* Start a thread and then send it a cancellation request */
+
+    s = pthread_create(&thr, NULL, &thread_func, NULL);
+    if (s != 0)
+        handle_error_en(s, "pthread_create");
+
+    sleep(2);           /* Give thread a chance to get started */
+
+    printf("main(): sending cancellation request\en");
+    s = pthread_cancel(thr);
+    if (s != 0)
+        handle_error_en(s, "pthread_cancel");
+
+    /* Join with thread to see what its exit status was */
+
+    s = pthread_join(thr, &res);
+    if (s != 0)
+        handle_error_en(s, "pthread_join");
+
+    if (res == PTHREAD_CANCELED)
+        printf("main(): thread was canceled\en");
+    else
+        printf("main(): thread wasn\(aqt canceled (shouldn\(aqt happen!)\en");
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+\fBpthread_cleanup_push\fP(3), \fBpthread_create\fP(3), \fBpthread_exit\fP(3),
+\fBpthread_join\fP(3), \fBpthread_key_create\fP(3), \fBpthread_setcancelstate\fP(3),
+\fBpthread_setcanceltype\fP(3), \fBpthread_testcancel\fP(3), \fBpthreads\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.40 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

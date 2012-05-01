@@ -1,0 +1,326 @@
+.\" Copyright (c) 2009 Linux Foundation, written by Michael Kerrisk
+.\"     <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" FIXME: Linux 2.6.39 adds CLOCK_BOOTTIME
+.\" Does this also affect timerfd_create()?
+.\" FIXME: Linux 2.3.0 adds CLOCK_BOOTTIME_ALARM and CLOCK_REALTIME_ALARM
+.\" Does this also affect timerfd_create()?
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH TIMER_CREATE 2 2010\-09\-27 Linux "Linux Programmer's Manual"
+.SH 名前
+timer_create \- create a POSIX per\-process timer
+.SH 書式
+.nf
+\fB#include <signal.h>\fP
+\fB#include <time.h>\fP
+
+\fBint timer_create(clockid_t \fP\fIclockid\fP\fB, struct sigevent *\fP\fIsevp\fP\fB,\fP
+\fB                 timer_t *\fP\fItimerid\fP\fB);\fP
+.fi
+
+Link with \fI\-lrt\fP.
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.in
+.sp
+\fBtimer_create\fP(): _POSIX_C_SOURCE\ >=\ 199309L
+.SH 説明
+\fBtimer_create\fP()  creates a new per\-process interval timer.  The ID of the
+new timer is returned in the buffer pointed to by \fItimerid\fP, which must be
+a non\-NULL pointer.  This ID is unique within the process, until the timer
+is deleted.  The new timer is initially disarmed.
+
+The \fIclockid\fP argument specifies the clock that the new timer uses to
+measure time.  It can be specified as one of the following values:
+.TP 
+\fBCLOCK_REALTIME\fP
+A settable system\-wide real\-time clock.
+.TP 
+\fBCLOCK_MONOTONIC\fP
+.\" Note: the CLOCK_MONOTONIC_RAW clock added for clock_gettime()
+.\" in 2.6.28 is not supported for POSIX timers -- mtk, Feb 2009
+A nonsettable monotonically increasing clock that measures time from some
+unspecified point in the past that does not change after system startup.
+.TP 
+\fBCLOCK_PROCESS_CPUTIME_ID\fP (since Linux 2.6.12)
+A clock that measures (user and system) CPU time consumed by (all of the
+threads in) the calling process.
+.TP 
+\fBCLOCK_THREAD_CPUTIME_ID\fP (since Linux 2.6.12)
+.\" The CLOCK_MONOTONIC_RAW that was added in 2.6.28 can't be used
+.\" to create a timer -- mtk, Feb 2009
+A clock that measures (user and system) CPU time consumed by the calling
+thread.
+.PP
+As well as the above values, \fIclockid\fP can be specified as the \fIclockid\fP
+returned by a call to \fBclock_getcpuclockid\fP(3)  or
+\fBpthread_getcpuclockid\fP(3).
+
+The \fIsevp\fP argument points to a \fIsigevent\fP structure that specifies how
+the caller should be notified when the timer expires.  For the definition
+and general details of this structure, see \fBsigevent\fP(7).
+
+The \fIsevp.sigev_notify\fP field can have the following values:
+.TP 
+\fBSIGEV_NONE\fP
+Don't asynchronously notify when the timer expires.  Progress of the timer
+can be monitored using \fBtimer_gettime\fP(2).
+.TP 
+\fBSIGEV_SIGNAL\fP
+Upon timer expiration, generate the signal \fIsigev_signo\fP for the process.
+See \fBsigevent\fP(7)  for general details.  The \fIsi_code\fP field of the
+\fIsiginfo_t\fP structure will be set to \fBSI_TIMER\fP.  At any point in time, at
+most one signal is queued to the process for a given timer; see
+\fBtimer_getoverrun\fP(2)  for more details.
+.TP 
+\fBSIGEV_THREAD\fP
+Upon timer expiration, invoke \fIsigev_notify_function\fP as if it were the
+start function of a new thread.  See \fBsigevent\fP(7)  for details.
+.TP 
+\fBSIGEV_THREAD_ID\fP (Linux\-specific)
+As for \fBSIGEV_SIGNAL\fP, but the signal is targeted at the thread whose ID is
+given in \fIsigev_notify_thread_id\fP, which must be a thread in the same
+process as the caller.  The \fIsigev_notify_thread_id\fP field specifies a
+kernel thread ID, that is, the value returned by \fBclone\fP(2)  or
+\fBgettid\fP(2).  This flag is only intended for use by threading libraries.
+.PP
+Specifying \fIsevp\fP as NULL is equivalent to specifying a pointer to a
+\fIsigevent\fP structure in which \fIsigev_notify\fP is \fBSIGEV_SIGNAL\fP,
+\fIsigev_signo\fP is \fBSIGALRM\fP, and \fIsigev_value.sival_int\fP is the timer ID.
+.SH 返り値
+On success, \fBtimer_create\fP()  returns 0, and the ID of the new timer is
+placed in \fI*timerid\fP.  On failure, \-1 is returned, and \fIerrno\fP is set to
+indicate the error.
+.SH エラー
+.TP 
+\fBEAGAIN\fP
+Temporary error during kernel allocation of timer structures.
+.TP 
+\fBEINVAL\fP
+Clock ID, \fIsigev_notify\fP, \fIsigev_signo\fP, or \fIsigev_notify_thread_id\fP is
+invalid.
+.TP 
+\fBENOMEM\fP
+.\" glibc layer: malloc()
+Could not allocate memory.
+.SH バージョン
+This system call is available since Linux 2.6.
+.SH 準拠
+POSIX.1\-2001.
+.SH 注意
+A program may create multiple interval timers using \fBtimer_create\fP().
+
+Timers are not inherited by the child of a \fBfork\fP(2), and are disarmed and
+deleted during an \fBexecve\fP(2).
+
+The kernel preallocates a "queued real\-time signal" for each timer created
+using \fBtimer_create\fP().  Consequently, the number of timers is limited by
+the \fBRLIMIT_SIGPENDING\fP resource limit (see \fBsetrlimit\fP(2)).
+
+The timers created by \fBtimer_create\fP()  are commonly known as "POSIX
+(interval) timers".  The POSIX timers API consists of the following
+interfaces:
+.IP * 3
+\fBtimer_create\fP(): Create a timer.
+.IP *
+\fBtimer_settime\fP(2): Arm (start) or disarm (stop) a timer.
+.IP *
+\fBtimer_gettime\fP(2): Fetch the time remaining until the next expiration of a
+timer, along with the interval setting of the timer.
+.IP *
+\fBtimer_getoverrun\fP(2): Return the overrun count for the last timer
+expiration.
+.IP *
+\fBtimer_delete\fP(2): Disarm and delete a timer.
+.PP
+Part of the implementation of the POSIX timers API is provided by glibc.  In
+particular:
+.IP * 3
+The functionality for \fBSIGEV_THREAD\fP is implemented within glibc, rather
+than the kernel.
+.IP *
+.\" See the glibc source file kernel-posix-timers.h for the structure
+.\" that glibc uses to map userspace timer IDs to kernel timer IDs
+.\" The kernel-level timer ID is exposed via siginfo.si_tid.
+The timer IDs presented at user level are maintained by glibc, which maps
+these IDs to the timer IDs employed by the kernel.
+.PP
+The POSIX timers system calls first appeared in Linux 2.6.  Prior to this,
+glibc provided an incomplete userspace implementation (\fBCLOCK_REALTIME\fP
+timers only) using POSIX threads, and current glibc falls back to this
+implementation on systems running pre\-2.6 Linux kernels.
+.SH 例
+The program below takes two arguments: a sleep period in seconds, and a
+timer frequency in nanoseconds.  The program establishes a handler for the
+signal it uses for the timer, blocks that signal, creates and arms a timer
+that expires with the given frequency, sleeps for the specified number of
+seconds, and then unblocks the timer signal.  Assuming that the timer
+expired at least once while the program slept, the signal handler will be
+invoked, and the handler displays some information about the timer
+notification.  The program terminates after one invocation of the signal
+handler.
+
+In the following example run, the program sleeps for 1 second, after
+creating a timer that has a frequency of 100 nanoseconds.  By the time the
+signal is unblocked and delivered, there have been around ten million
+overruns.
+.in +4n
+.nf
+
+$ \fB./a.out 1 100\fP
+Establishing handler for signal 34
+Blocking signal 34
+timer ID is 0x804c008
+Sleeping for 1 seconds
+Unblocking signal 34
+Caught signal 34
+    sival_ptr = 0xbfb174f4;     *sival_ptr = 0x804c008
+    overrun count = 10004886
+.fi
+.in
+.SS "Program Source"
+\&
+.nf
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <signal.h>
+#include <time.h>
+
+#define CLOCKID CLOCK_REALTIME
+#define SIG SIGRTMIN
+
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
+                        } while (0)
+
+static void
+print_siginfo(siginfo_t *si)
+{
+    timer_t *tidp;
+    int or;
+
+    tidp = si\->si_value.sival_ptr;
+
+    printf("    sival_ptr = %p; ", si\->si_value.sival_ptr);
+    printf("    *sival_ptr = 0x%lx\en", (long) *tidp);
+
+    or = timer_getoverrun(*tidp);
+    if (or == \-1)
+        errExit("timer_getoverrun");
+    else
+        printf("    overrun count = %d\en", or);
+}
+
+static void
+handler(int sig, siginfo_t *si, void *uc)
+{
+    /* Note: calling printf() from a signal handler is not
+       strictly correct, since printf() is not async\-signal\-safe;
+       see signal(7) */
+
+    printf("Caught signal %d\en", sig);
+    print_siginfo(si);
+    signal(sig, SIG_IGN);
+}
+
+int
+main(int argc, char *argv[])
+{
+    timer_t timerid;
+    struct sigevent sev;
+    struct itimerspec its;
+    long long freq_nanosecs;
+    sigset_t mask;
+    struct sigaction sa;
+
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <sleep\-secs> <freq\-nanosecs>\en",
+                argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Establish handler for timer signal */
+
+    printf("Establishing handler for signal %d\en", SIG);
+    sa.sa_flags = SA_SIGINFO;
+    sa.sa_sigaction = handler;
+    sigemptyset(&sa.sa_mask);
+    if (sigaction(SIG, &sa, NULL) == \-1)
+        errExit("sigaction");
+
+    /* Block timer signal temporarily */
+
+    printf("Blocking signal %d\en", SIG);
+    sigemptyset(&mask);
+    sigaddset(&mask, SIG);
+    if (sigprocmask(SIG_SETMASK, &mask, NULL) == \-1)
+        errExit("sigprocmask");
+
+    /* Create the timer */
+
+    sev.sigev_notify = SIGEV_SIGNAL;
+    sev.sigev_signo = SIG;
+    sev.sigev_value.sival_ptr = &timerid;
+    if (timer_create(CLOCKID, &sev, &timerid) == \-1)
+        errExit("timer_create");
+
+    printf("timer ID is 0x%lx\en", (long) timerid);
+
+    /* Start the timer */
+
+    freq_nanosecs = atoll(argv[2]);
+    its.it_value.tv_sec = freq_nanosecs / 1000000000;
+    its.it_value.tv_nsec = freq_nanosecs % 1000000000;
+    its.it_interval.tv_sec = its.it_value.tv_sec;
+    its.it_interval.tv_nsec = its.it_value.tv_nsec;
+
+    if (timer_settime(timerid, 0, &its, NULL) == \-1)
+         errExit("timer_settime");
+
+    /* Sleep for a while; meanwhile, the timer may expire
+       multiple times */
+
+    printf("Sleeping for %d seconds\en", atoi(argv[1]));
+    sleep(atoi(argv[1]));
+
+    /* Unlock the timer signal, so that timer notification
+       can be delivered */
+
+    printf("Unblocking signal %d\en", SIG);
+    if (sigprocmask(SIG_UNBLOCK, &mask, NULL) == \-1)
+        errExit("sigprocmask");
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+\fBclock_gettime\fP(2), \fBsetitimer\fP(2), \fBtimer_delete\fP(2),
+\fBtimer_getoverrun\fP(2), \fBtimer_settime\fP(2), \fBtimerfd_create\fP(2),
+\fBclock_getcpuclockid\fP(3), \fBpthread_getcpuclockid\fP(3), \fBpthreads\fP(7),
+\fBsigevent\fP(7), \fBsignal\fP(7), \fBtime\fP(7)
