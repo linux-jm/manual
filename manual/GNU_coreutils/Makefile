@@ -78,3 +78,48 @@ clean-setup:
 	$(RM) stamp-setup stamp-configure stamp-build
 
 realclean:	clean-setup clean
+
+#------------------------------------------------------------
+
+MAN2HTML = ../../admin/man-1.6g/man2html/man2html
+
+html:	html-setup html-gen html-index
+
+html-setup:
+	@set -e; if [ ! -e html ]; then \
+	  echo "  MKDIR    html."; \
+	  mkdir html; \
+	fi; \
+	for d in draft/man?; do \
+	  dm=html/$$(basename $$d); \
+	  echo "  MKDIR    $$dm"; \
+	  mkdir -p $$dm; \
+	done
+
+html-gen:
+	@set -e; for f in draft/man?/*.[1-8]; do \
+	  n=$$(basename $$f); \
+	  t=$$(echo $$f | cut -d / -f 2-3); \
+	  o=original/$$t; \
+	  echo "  GEN      html/$${t}.html"; \
+	  $(MAN2HTML) $$f | tail -n +3 > html/$${t}.draft.html; \
+	  $(MAN2HTML) $$o | tail -n +3 > html/$${t}.orig.html; \
+	  printf "<html>\n" > html/$${t}.html; \
+	  printf "<head><title>$$n</title></head>\n" >> html/$${t}.html; \
+	  printf "<frameset cols=\"50%%,50%%\">\n" >> html/$${t}.html; \
+	  printf "  <frame src=\"$$n.orig.html\" name=\"orig\" />\n" >> html/$${t}.html; \
+	  printf "  <frame src=\"$$n.draft.html\" name=\"draft\" />\n" >> html/$${t}.html; \
+	  printf "</frameset></html>\n" >> html/$${t}.html; \
+	done
+
+html-index:
+	@set -e; echo "  GEN      index.html"; \
+	idx=html/index.html; \
+	printf "<html><head><title>" > $$idx; \
+	printf "Drafts of $(PACKAGE_STRING)</title></head>\n" >> $$idx; \
+	printf "<body><h1>Drafts of $(PACKAGE_STRING)</h1>\n<ul>\n" >> $$idx; \
+	for f in draft/man?/*.[1-8]; do \
+	  t=$$(echo $$f | cut -d / -f 2-3).html; \
+	  printf "<li><a href=\"$$t\">$$(basename $$f)</a></li>\n" >> $$idx; \
+	done; \
+	printf "</ul><hr>$$(LC_ALL=C date)</body></html>\n" >> $$idx
