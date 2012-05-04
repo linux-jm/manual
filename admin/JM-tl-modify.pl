@@ -25,7 +25,9 @@ BEGIN{
 use strict 'vars';
 use JMtl ('line2hash', 'hash2line');
 
-getopts("tn:e:", \%opts);
+getopts("tn:e:c", \%opts);
+print "$#ARGV\n";
+print $opts{"c"},"\n";
 
 if ($#ARGV < 2) {
     print STDERR "Usage: JM-tl-modify.pl [OPTIONS] translation_list pagename new_status\n";
@@ -36,6 +38,7 @@ if ($#ARGV < 2) {
     print STDERR "    -t : Update timestamp\n";
     print STDERR "    -n NAME : Update name field\n";
     print STDERR "    -e MAIL : Update mail field\n";
+    print STDERR "    -c : Clear entry of specified pagename\n";
     exit 0;
 }
 
@@ -89,7 +92,7 @@ while (<TLO>) {
       if ($status{'stat'} =~ /^PR/){$ti{'stat'} .= 'prf'; last SW1;}
       if ($status{'stat'} =~ /^RO/){$ti{'stat'} = 'up2date'; last SW1;}
       if ($status{'stat'} =~ /^RR/){$ti{'stat'} = 'up2datR'; last SW1;}
-      die "error in STAT description\n";
+      die "error in STAT description\n" if not $opts{"c"};
   }
 
     if ($status{'stat'} =~ /^R/){
@@ -109,6 +112,12 @@ while (<TLO>) {
     }
     $ti{'tname'} = $opts{"n"} if $opts{"n"};
     $ti{'tmail'} = $opts{"e"} if $opts{"e"};
+
+    if ($opts{"c"}) {
+	$ti{'tdat'} = '';
+	$ti{'tname'} = '';
+	$ti{'tmail'} = '';
+    }
 
     my $tll = hash2line(%ti);
 
