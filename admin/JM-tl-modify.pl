@@ -26,8 +26,6 @@ use strict 'vars';
 use JMtl ('line2hash', 'hash2line');
 
 getopts("tn:e:c", \%opts);
-print "$#ARGV\n";
-print $opts{"c"},"\n";
 
 if ($#ARGV < 2) {
     print STDERR "Usage: JM-tl-modify.pl [OPTIONS] translation_list pagename new_status\n";
