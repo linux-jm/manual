@@ -1,0 +1,182 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" Copyright (c) 1992 Drew Eckhardt (drew@cs.colorado.edu), March 28, 1992
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified by Michael Haardt (michael@moria.de)
+.\" Modified 1993-07-23 by Rik Faith (faith@cs.unc.edu)
+.\" Modified 1994-08-21 by Michael Chastain (mec@shell.portal.com):
+.\"   Fixed necessary '#include' lines.
+.\" Modified 1995-04-15 by Michael Chastain (mec@shell.portal.com):
+.\"   Added reference to adjtimex.
+.\" Removed some nonsense lines pointed out by Urs Thuermann,
+.\"   (urs@isnogud.escape.de), aeb, 950722.
+.\" Modified 1997-01-14 by Austin Donnelly (and1000@debian.org):
+.\"   Added return values section, and bit on EFAULT
+.\" Added clarification on timezone, aeb, 971210.
+.\" Removed "#include <unistd.h>", aeb, 010316.
+.\" Modified, 2004-05-27 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"   Added notes on capability requirement.
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH GETTIMEOFDAY 2 2012\-04\-26 Linux "Linux Programmer's Manual"
+.SH 名前
+gettimeofday, settimeofday \- 時刻を取得/設定する
+.SH 書式
+.nf
+\fB#include <sys/time.h>\fP
+
+\fBint gettimeofday(struct timeval *\fP\fItv\fP\fB, struct timezone *\fP\fItz\fP\fB);\fP
+
+\fBint settimeofday(const struct timeval *\fP\fItv\fP\fB, const struct timezone *\fP\fItz\fP\fB);\fP
+
+.fi
+.in -4n
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.in
+.sp
+\fBsettimeofday\fP(): _BSD_SOURCE
+.SH 説明
+関数 \fBgettimeofday\fP()  と \fBsettimeofday\fP()  は時刻とタイムゾーンを取得または設定する。 \fItv\fP 引き数は
+\fIstruct timeval\fP である (\fI<sys/time.h>\fP で定義されている):
+.sp
+.in +4n
+.nf
+struct timeval {
+    time_t      tv_sec;     /* 秒 */
+    suseconds_t tv_usec;    /* マイクロ秒 */
+};
+.fi
+.in
+.sp
+これにより紀元 (the Epoch: \fBtime\fP(2)  を参照) からの秒とマイクロ秒が取得できる。 \fItz\fP 引き数は \fIstruct
+timezone\fP である:
+.sp
+.in +4n
+.nf
+struct timezone {
+    int tz_minuteswest;     /* グリニッジ標準時との差 (西方に分単位) */
+    int tz_dsttime;         /* 夏時間調整の型 */
+};
+.fi
+.in
+.PP
+.\" The following is covered under EPERM below:
+.\" .PP
+.\" Only the superuser may use
+.\" .BR settimeofday ().
+\fItv\fP や \fItz\fP が NULL の場合、対応する構造体の設定/取得は行われない
+(ただし、\fItv\fP が NULL の場合には、コンパイル時の警告が発生する)。
+.PP
+\fItimezone\fP 構造体の利用は廃止予定とされている;
+通常は \fItz\fP 引き数に NULL を指定すべきである (下記の「注意」を参照)。
+
+Linux では、 \fBsettimeofday\fP() システムコールに関連して、独特の「クロックのズレ
+(warp clock)」が存在する場合がある。 これは (ブート後の) 最初の呼び出しで
+\fItz\fP 引き数が NULL でなく、 \fItv\fP 引き数が NULL で \fItz_minuteswest\fP フィールド
+が 0 でない場合に起こる (この場合 \fItz_dsttime\fP フィールドは 0 にすべきである)。
+このような場合、 \fBsettimeofday\fP() は CMOS クロックが地方時 (local time) であり、
+UTC システム時間を得るためには、\fItz_minuteswest\fP の分だけ増加させなくてはなら
+ないとみなしてしまう。 疑いもなく、この機構を使うことは良い考えではない。
+.SH 返り値
+\fBgettimeofday\fP()  と \fBsettimeofday\fP()  は成功すると 0 を返し、失敗した場合は \-1 を返す (この場合は
+\fIerrno\fP が適切に設定される)。
+.SH エラー
+.TP 
+\fBEFAULT\fP
+\fItv\fP か \fItz\fP のどちらかがアクセス可能なアドレス空間外を指している。
+.TP 
+\fBEINVAL\fP
+タイムゾーン (または他の何か) が不正である。
+.TP 
+\fBEPERM\fP
+呼び出し元プロセスに \fBsettimeofday\fP()  を呼び出すための十分な特権がない。 Linux では \fBCAP_SYS_TIME\fP
+ケーパビリティ (capability) が必要である。
+.SH 準拠
+SVr4, 4.3BSD に準拠する。 POSIX.1\-2001 は \fBgettimeofday\fP()  については記述しているが、
+\fBsettimeofday\fP()  については記述していない。 POSIX.1\-2008 では \fBgettimeofday\fP()
+は廃止予定とされており、 代わりに \fBclock_gettime\fP(2)  の使用が推奨されている。
+.SH 注意
+\fBgettimeofday\fP(2) が返す時刻は、システム時間の不連続な変化
+(例えば、システム管理者がシステム時間を手動で変更した場合など)
+の影響を\fI受ける\fP。単調増加するクロックが必要な場合は、
+\fBclock_gettime\fP(2) を参照してほしい。
+
+\fItimeval\fP 構造体を操作するためのマクロの説明は \fBtimeradd\fP(3)  にある。
+
+昔は \fIstruct timeval\fP のフィールドは \fIlong\fP 型であった。
+
+.\" it has not
+.\" been and will not be supported by libc or glibc.
+.\" Each and every occurrence of this field in the kernel source
+.\" (other than the declaration) is a bug.
+\fItz_dsttime\fP は Linux でこれまで使われたことはない。
+したがって、以下は純粋に歴史的な興味から書かれたものである。
+
+\fItz_dsttime\fP フィールドには (下記に示す) シンボル定数が格納される。
+これは一年のうちでいつ夏時間 (Daylight Savings Time) を実施するかを示している
+(注意: その値は年間を通した定数である: 夏時間が実施中であることを示すわけではなく、
+アルゴリズムを選択しているだけである)。 夏時間は以下のように定義される:
+.in +4n
+.nf
+
+\fBDST_NONE\fP     /* 夏時間を採用していない */
+.br
+\fBDST_USA\fP      /* アメリカ合衆国式夏時間 */
+.br
+\fBDST_AUST\fP     /* オーストラリア式夏時間 */
+.br
+\fBDST_WET\fP      /* 西ヨーロッパ式夏時間 */
+.br
+\fBDST_MET\fP      /* 中央ヨーロッパ式夏時間 */
+.br
+\fBDST_EET\fP      /* 東ヨーロッパ式夏時間 */
+.br
+\fBDST_CAN\fP      /* カナダ */
+.br
+\fBDST_GB\fP       /* グレートブリテンおよびアイルランド */
+.br
+\fBDST_RUM\fP      /* ルーマニア */
+.br
+\fBDST_TUR\fP      /* トルコ */
+.br
+\fBDST_AUSTALT\fP  /* 1986年に移行されたオーストラリア式 */
+.fi
+.in
+.PP
+当然のことながら、夏時間がどの期間に実施されるかを国ごとの簡単なアルゴリズムで
+導くことができないことが判明した。 実際、夏時間の期間は予測不可能な政治的決定で
+決定される。そのため、この方法でタイム・ゾーンを表すことは断念された。
+Linux において \fBsettimeofday\fP() を呼び出すときは、
+\fItz_dsttime\fP フィールドを 0 にするべきである。
+.SH 関連項目
+\fBdate\fP(1), \fBadjtimex\fP(2), \fBclock_gettime\fP(2), \fBtime\fP(2),
+\fBctime\fP(3), \fBftime\fP(3), \fBtimeradd\fP(3), \fBcapabilities\fP(7),
+\fBtime\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.40 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

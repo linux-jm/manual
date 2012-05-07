@@ -1,0 +1,662 @@
+.\" t
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\"
+.\" This manpage is Copyright (C) 1992 Drew Eckhardt;
+.\"                 and Copyright (C) 1993 Michael Haardt, Ian Jackson;
+.\"                 and Copyright (C) 1998 Jamie Lokier;
+.\"                 and Copyright (C) 2002-2010 Michael Kerrisk.
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\" Modified 1993-07-24 by Rik Faith <faith@cs.unc.edu>
+.\" Modified 1995-09-26 by Andries Brouwer <aeb@cwi.nl>
+.\" and again on 960413 and 980804 and 981223.
+.\" Modified 1998-12-11 by Jamie Lokier <jamie@imbolc.ucc.ie>
+.\" Applied correction by Christian Ehrhardt - aeb, 990712
+.\" Modified 2002-04-23 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Added note on F_SETFL and O_DIRECT
+.\"	Complete rewrite + expansion of material on file locking
+.\"	Incorporated description of F_NOTIFY, drawing on
+.\"		Stephen Rothwell's notes in Documentation/dnotify.txt.
+.\"	Added description of F_SETLEASE and F_GETLEASE
+.\" Corrected and polished, aeb, 020527.
+.\" Modified 2004-03-03 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Modified description of file leases: fixed some errors of detail
+.\"     Replaced the term "lease contestant" by "lease breaker"
+.\" Modified, 27 May 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on capability requirements
+.\" Modified 2004-12-08, added O_NOATIME after note from Martin Pool
+.\" 2004-12-10, mtk, noted F_GETOWN bug after suggestion from aeb.
+.\" 2005-04-08 Jamie Lokier <jamie@shareable.org>, mtk
+.\"	Described behavior of F_SETOWN/F_SETSIG in
+.\"	multithreaded processes, and generally cleaned
+.\"	up the discussion of F_SETOWN.
+.\" 2005-05-20, Johannes Nicolai <johannes.nicolai@hpi.uni-potsdam.de>,
+.\"	mtk: Noted F_SETOWN bug for socket file descriptor in Linux 2.4
+.\"	and earlier.  Added text on permissions required to send signal.
+.\" 2009-09-30, Michael Kerrisk
+.\"     Note obsolete F_SETOWN behavior with threads.
+.\"     Document F_SETOWN_EX and F_GETOWN_EX
+.\" 2010-06-17, Michael Kerrisk
+.\"	Document F_SETPIPE_SZ and F_GETPIPE_SZ.
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH FCNTL 2 2012\-04\-15 Linux "Linux Programmer's Manual"
+.SH 名前
+fcntl \- ファイルディスクリプタの操作を行う
+.SH 書式
+.nf
+\fB#include <unistd.h>\fP
+\fB#include <fcntl.h>\fP
+.sp
+\fBint fcntl(int \fP\fIfd\fP\fB, int \fP\fIcmd\fP\fB, ... /* \fP\fIarg\fP\fB */ );\fP
+.fi
+.SH 説明
+\fBfcntl\fP()  は、オープンされたファイルディスクリプタ \fIfd\fP に関して下記の操作を行う。操作は \fIcmd\fP によって決まる:
+
+\fBfcntl\fP() はオプションとして第三引き数をとることができる。 第三引き数が必要
+かどうかは \fIcmd\fP により決まる。必要な引き数の型は \fIcmd\fP 名の後ろの括弧内で
+指定されている (ほとんどの場合、必要な型は \fIint\fP であり、この引き数を表すの
+に \fIarg\fP という名前を使っている)。引き数が必要ない場合には \fIvoid\fP が指定さ
+れている。
+.SS ファイルディスクリプタの複製
+.TP 
+\fBF_DUPFD\fP (\fIint\fP)
+利用可能なファイルディスクリプタのうち、 \fIarg\fP 以上で最小のものを探し、 \fIfd\fP のコピーとする。これは別の形の \fBdup2\fP(2)
+である。 \fBdup2\fP(2)  では指定されたディスクリプタが使われる点が違う。
+.IP
+成功すると、新しいディスクリプタが返される。
+.IP
+詳細は \fBdup\fP(2)  を参照のこと。
+.TP 
+\fBF_DUPFD_CLOEXEC\fP (\fIint\fP; Linux 2.6.24 以降)
+\fBF_DUPFD\fP と同様だが、それに加えて複製されたディスクリプタに対して close\-on\-exec フラグをセットする。
+このフラグを指定することで、プログラムは \fBFD_CLOEXEC\fP フラグをセットするために \fBfcntl\fP()  の \fBF_SETFD\fP
+操作を追加で行う必要がなくなる。 このフラグがなぜ有用かについては、 \fBopen\fP(2)  の \fBO_CLOEXEC\fP の説明を参照のこと。
+.SS ファイルディスクリプタ・フラグ
+以下のコマンドを使って、ファイルディスクリプタに関連するフラグ を操作することができる。 現在のところ、定義されているフラグは一つだけである:
+\fBFD_CLOEXEC\fP (close\-on\-exec フラグ)。 \fBFD_CLOEXEC\fP ビットが 0 なら、ファイルディスクリプタは
+\fBexecve\fP(2)  を行ってもオープンされたままだが、そうでない場合はクローズされる。
+.TP 
+\fBF_GETFD\fP (\fIvoid\fP)
+ファイルディスクリプタ・フラグを読み出す。 \fIarg\fP は無視される。
+.TP 
+\fBF_SETFD\fP (\fIint\fP)
+ファイルディスクリプタ・フラグに \fIarg\fP で指定した値を設定する。
+.SS ファイル状態フラグ
+.\" or
+.\" .BR creat (2),
+オープンファイル記述 (open file description) には、 ファイル記述毎に設定される状態フラグがいくつかある。これらのフラグは
+\fBopen\fP(2)  によって初期化され、 \fBfcntl\fP(2)  により変更することもできる。これらは、 (\fBdup\fP(2),
+\fBfcntl\fP(F_DUPFD), \fBfork\fP(2)  などで) 複製されたファイルディスクリプタ同士は 同じオープンファイル記述を参照する。
+そのため、 同じファイル状態フラグが共有される。
+
+ファイル状態フラグとその意味は \fBopen\fP(2)  で説明されている。
+.TP 
+\fBF_GETFL\fP (\fIvoid\fP)
+ファイルのアクセスモードとファイル状態フラグを取得する。
+\fIarg\fP は無視される。
+.TP 
+\fBF_SETFL\fP (\fIint\fP)
+.\" FIXME . According to POSIX.1-2001, O_SYNC should also be modifiable
+.\" via fcntl(2), but currently Linux does not permit this
+.\" See http://bugzilla.kernel.org/show_bug.cgi?id=5994
+ファイル状態フラグに \fIarg\fP で指定された値を設定する。 \fIarg\fP のうち、ファイルのアクセスモード (\fBO_RDONLY\fP,
+\fBO_WRONLY\fP, \fBO_RDWR\fP)  とファイル作成フラグ (すなわち \fBO_CREAT\fP, \fBO_EXCL\fP,
+\fBO_NOCTTY\fP, \fBO_TRUNC\fP)  に関するビットは無視される。 Linux では、このコマンドで変更できるのは
+\fBO_APPEND\fP, \fBO_ASYNC\fP, \fBO_DIRECT\fP, \fBO_NOATIME\fP, \fBO_NONBLOCK\fP フラグだけである。
+.SS アドバイザリ・ロック
+\fBF_GETLK\fP, \fBF_SETLK\fP, \fBF_SETLKW\fP は、レコード・ロックの獲得／解放／テストのために使用する
+(レコード・ロックはファイルセグメント・ロックや ファイル領域ロックとも呼ばれる)。 三番目の引き数 \fIlock\fP
+は、以下に示すフィールドを含む構造体へのポインタである (フィールドの順序は関係なく、構造体に他のフィールドがあってもよい)。
+.in +4n
+.nf
+.sp
+struct flock {
+    ...
+    short l_type;    /* Type of lock: F_RDLCK,
+                        F_WRLCK, F_UNLCK */
+    short l_whence;  /* How to interpret l_start:
+                        SEEK_SET, SEEK_CUR, SEEK_END */
+    off_t l_start;   /* Starting offset for lock */
+    off_t l_len;     /* Number of bytes to lock */
+    pid_t l_pid;     /* PID of process blocking our lock
+                        (F_GETLK only) */
+    ...
+};
+.fi
+.in
+.P
+この構造体の \fIl_whence\fP, \fIl_start\fP, \fIl_len\fP フィールドで、ロックを行いたいバイト範囲を指定する。
+ファイルの末尾より後ろのバイトをロックすることはできるが、 ファイルの先頭より前のバイトをロックすることはできない。
+
+\fIl_start\fP はロックを行う領域の開始オフセットである。 その意味は \fIl_whence\fP により異なる: \fIl_whence\fP が
+\fBSEEK_SET\fP の場合はファイルの先頭からのオフセット、 \fIl_whence\fP が \fBSEEK_CUR\fP
+の場合は現在のファイルオフセットからのオフセット、 \fIl_whence\fP が \fBSEEK_END\fP
+の場合はファイルの末尾からのオフセットと解釈される。 後ろの２つの場合には、 ファイルの先頭より前にならない範囲で、 \fIl_start\fP
+に負の値を指定することができる。
+
+\fIl_len\fP はロックしたいバイト数を示す。 \fIl_len\fP が正の場合、ロックされるバイト範囲は \fIl_start\fP 以上
+\fIl_start\fP+\fIl_len\fP\-\fI1\fP 以下となる。 \fIl_len\fP に 0 を指定した場合は特別な意味を持つ: \fIl_whence\fP
+and \fIl_start\fP で指定される位置からファイルの末尾までの全てのバイトをロックする
+(ファイルがどんなに大きくなったとしてもファイルの末尾までロックする)。
+
+POSIX.1\-2001 では、負の値の \fIl_len\fP をサポートする実装を認めている (必須ではない)。 \fIl_len\fP
+が負の場合、ロックされるバイト範囲は \fIl_start\fP+\fIl_len\fP 以上 \fIl_start\fP\-1 以下となる。 この動作はカーネル
+2.4.21 以降および 2.5.49 以降の Linux で サポートされている。
+
+\fIl_type\fP フィールドは、ファイルに対して読み出しロック (\fBF_RDLCK\fP)  と書き込みロック (\fBF_WRLCK\fP)  のどちらを
+設定するかを指定する。 ファイルのある領域に対して、読み出しロック (共有ロック) を保持できる プロセス数に制限はないが、書き込みロック
+(排他ロック) を保持できる のは一つのプロセスだけである。排他ロックを設定すると、(共有ロックか 排他ロックにかかわらず)
+他のロックは何も設定できない。 一つのプロセスは、ファイルのある領域に対して一種類のロックしか保持できない。
+新規のロックがロックが設定されている領域に対して適用されると、既存のロック は新規のロックの種別に変換される
+(新規のロックで指定されたバイト範囲が既存ロックの範囲と一致する場合以外では、 変換の過程で既存のロックの分割、縮小、結合が行われることがある)。
+.TP 
+\fBF_SETLK\fP (\fIstruct flock *\fP)
+(\fIl_type\fP が \fBF_RDLCK\fP か \fBF_WRLCK\fP の場合は) ロックの獲得を、 (\fBF_UNLCK\fP の場合は)
+ロックの解放を、 \fIflock\fP 構造体のフィールド \fIl_whence\fP, \fIl_start\fP, \fIl_len\fP
+で指定された範囲のバイトに対して行う。 指定されたロックが他のプロセスが設定しているロックと衝突する場合は、 \-1 を返し、 \fIerrno\fP に
+\fBEACCES\fP か \fBEAGAIN\fP を設定する。
+.TP 
+\fBF_SETLKW\fP (\fIstruct flock *\fP)
+\fBF_SETLK\fP と同様だが、こちらではそのファイルに対して衝突するロックが 適用されていた場合に、そのロックが解放されるのを待つ点が異なる。
+待っている間にシグナルを受けた場合は、システムコールは中断され、 (シグナルハンドラが戻った直後に) 返り値 \-1 を返す (また \fIerrno\fP に
+\fBEINTR\fP が設定される; \fBsignal\fP(7)  参照)。
+.TP 
+\fBF_GETLK\fP (\fIstruct flock *\fP)
+このコールの呼び出し時には、 \fIlock\fP にはそのファイルに適用しようとするロックに関する情報が入っている。 ロックを適用できる場合には、
+\fBfcntl\fP()  は実際にはロックを行わず、構造体 \fIlock\fP の \fIl_type\fP フィールドに \fBF_UNLCK\fP
+を設定し、他のフィールドは変更せずに、復帰する。 違う種別のロックが (一つもしくは複数) 適用されていて ロックを適用できないような場合には、
+\fBfcntl\fP()  は、原因となったロックの一つについての詳細情報を構造体 \fIlock\fP のフィールド \fIl_type\fP,
+\fIl_whence\fP, \fIl_start\fP, \fIl_len\fP に格納し、また \fIl_pid\fP にロックを保持しているプロセスの PID
+を設定して、復帰する。
+.P
+読み出しロックを適用するには、 \fIfd\fP は読み出し用にオープンされていなければならない。 書き込みロックを適用するには、 \fIfd\fP
+は書き込み用にオープンされていなければならない。 読み書き両方のロックを適用するには、読み書き両用で ファイルをオープンしなければならない。
+.P
+.\" (Additional file descriptors referring to the same file
+.\" may have been obtained by calls to
+.\" .BR open "(2), " dup "(2), " dup2 "(2), or " fcntl ().)
+レコードのロックは、 \fBF_UNLCK\fP により明示的に削除されるだけでなく、 プロセスが終了したときや、ロックが適用されているファイルを参照している
+ファイルディスクリプタのいずれかがクローズされた場合にも解放される。 このロックの解放は自動的に行われる。 この動作はまずい: あるプロセスが
+\fI/etc/passwd\fP や \fI/etc/mtab\fP といったファイルにロックを適用しているときに、
+あるライブラリ関数が何かの理由で同じファイルを open, read, close すると、そのファイルへのロックが失われることになる。
+.P
+レコードのロックは \fBfork\fP(2)  で作成された子プロセスには継承されないが、 \fBexecve\fP(2)  の前後では保存される。
+.P
+\fBstdio\fP(3)  ではバッファリングが行われるので、 stdio 関連の関数ではレコードのロックの使用は回避される; 代わりに
+\fBread\fP(2)  や \fBwrite\fP(2)  を使用すること。
+.SS "強制ロック (mandatory locking)"
+上述のロックにはアドバイザリ・ロック (advisory lock) と強制ロック (mandatory lock)
+の二種類があるが、デフォルトではアドバイザリ・ロックとなる。
+
+アドバイザリ・ロックに強制力はなく、協調して動作するプロセス間でのみ 有効である。
+
+強制ロックは全てのプロセスに対して効果がある。 あるプロセスが互換性のない強制ロックが適用されたファイル領域に対して (\fBread\fP(2)  や
+\fBwrite\fP(2)  により) 互換性のないアクセスを実行しようとした場合、 アクセスの結果は そのファイルのオープンファイル記述で
+\fBO_NONBLOCK\fP フラグが有効になっているかにより決まる。 \fBO_NONBLOCK\fP
+フラグが有効になっていないときは、ロックが削除されるか、 ロックがアクセスと互換性のあるモードに変換されるまで、 システムコールは停止 (block)
+される。 \fBO_NONBLOCK\fP フラグが有効になっているときは、システムコールはエラー \fBEAGAIN\fP で失敗する。
+
+強制ロックを使用するためには、ロック対象のファイルが含まれるファイルシステム
+と、ロック対象のファイル自身の両方について、強制ロックが有効になっていなけれ ばならない。ファイルシステムについて強制ロックを有効にするには、
+\fBmount\fP(8)  に "\-o mand" オプションを渡すか、 \fBmount\fP(2)  に \fBMS_MANDLOCK\fP
+フラグを指定する。ファイルについて強制ロックを有効にするには、 そのファイルのグループ実行許可 (group execute permission)
+を無効とし、 かつ set\-group\-ID 許可ビットを有効にする (\fBchmod\fP(1)  と \fBchmod\fP(2)  を参照)。
+
+Linux の強制ロックの実装は信頼性に欠けるものである。 下記の「バグ」の節を参照のこと。
+.SS シグナルの管理
+\fBF_GETOWN\fP, \fBF_SETOWN\fP, \fBF_GETOWN_EX\fP, \fBF_SETOWN_EX\fP, \fBF_GETSIG\fP,
+\fBF_SETSIG\fP は、I/O が利用可能になったことを示すシグナルを管理するために使用される。
+.TP 
+\fBF_GETOWN\fP (\fIvoid\fP)
+ファイルディスクリプタ \fIfd\fP のイベントに対するシグナル \fBSIGIO\fP および \fBSIGURG\fP を受けているプロセスのプロセスID
+かプロセスグループを (関数の結果として) 返す。 プロセスID は正の値として返される。 プロセスグループID は負の値として返される
+(下記のバグの章を参照)。 \fIarg\fP は無視される。
+.TP 
+\fBF_SETOWN\fP (\fIint\fP)
+ファイルディスクリプタ \fIfd\fP のイベント発生を知らせるシグナル \fBSIGIO\fP や \fBSIGURG\fP を受けるプロセスの プロセス ID
+またはプロセスグループID を \fIarg\fP で指定された ID に設定する。 プロセスID は正の値として指定し、 プロセスグループID
+は負の値として指定する。 ほとんどの場合、呼び出し元プロセスは所有者として自分自身を指定する (つまり \fIarg\fP に \fBgetpid\fP(2)
+を指定する)。
+
+.\" From glibc.info:
+\fBfcntl\fP()  の \fBF_SETFL\fP コマンドを使用してファイルディスクリプタに \fBO_ASYNC\fP
+状態フラグを設定した場合には、そのファイルディスクリプタへの 入出力が可能になる度に \fBSIGIO\fP シグナルが送られる。 \fBF_SETSIG\fP は
+\fBSIGIO\fP 以外の別のシグナルの配送を受けられるように するのにも使うことができる。 許可 (permission)
+のチェックで失敗した場合には、 シグナルは黙って捨てられる。
+
+\fBF_SETOWN\fP により指定された所有者のプロセス (またはプロセスグループ) に シグナルを送る際には、 \fBkill\fP(2)
+に書かれているのと同じ許可のチェックが行われる。 このとき、シグナルを送信するプロセスは \fBF_SETOWN\fP を使ったプロセスである
+(但し、下記の「バグ」の章を参照のこと)。
+
+.\" The following appears to be rubbish.  It doesn't seem to
+.\" be true according to the kernel source, and I can write
+.\" a program that gets a terminal-generated SIGIO even though
+.\" it is not the foreground process group of the terminal.
+.\" -- MTK, 8 Apr 05
+.\"
+.\" If the file descriptor
+.\" .I fd
+.\" refers to a terminal device, then SIGIO
+.\" signals are sent to the foreground process group of the terminal.
+ファイルディスクリプタがソケットを参照している場合は、 \fBF_SETOWN\fP を使用して、ソケットに帯域外 (out\-of\-band)
+データが届いた時に \fBSIGURG\fP シグナルを配送する相手を選択することもできる (\fBSIGURG\fP が送られた場合には \fBselect\fP(2)
+がソケットが「特別な状態」にあると報告することだろう)。
+
+バージョン 2.6.11 以前の 2.6.x カーネルでは、以下に示す動作であった。
+.RS
+.IP
+.\" The relevant place in the (2.6) kernel source is the
+.\" 'switch' in fs/fcntl.c::send_sigio_to_task() -- MTK, Apr 2005
+.\" send_sigurg()/send_sigurg_to_task() bypasses
+.\" kill_fasync()/send_sigio()/send_sigio_to_task()
+.\" to directly call send_group_sig_info()
+.\"	-- MTK, Apr 2005 (kernel 2.6.11)
+スレッドグループをサポートしているスレッドライブラリ (例えば NPTL) を 使って動作しているマルチスレッド・プロセスで \fBF_SETSIG\fP に
+0 以外の値を指定した場合、 \fBF_SETOWN\fP に正の値を渡すと、その意味が違ってくる: プロセス全体を示すプロセスID
+ではなく、プロセス内の特定の スレッドを示すスレッドID と解釈される。 したがって、 \fBF_SETSIG\fP
+を使う場合には、きちんと結果を受け取るには、 \fBF_SETOWN\fP に渡す値を \fBgetpid\fP(2)  ではなく \fBgettid\fP(2)
+の返り値にする必要があるだろう。 (現状の Linux スレッド実装では、メイン・スレッドのスレッドID は そのスレッドのプロセスID
+と同じである。つまり、 シグナル・スレッドのプログラムではこの場合 \fBgettid\fP(2)  と \fBgetpid\fP(2)
+は全く同じように使うことができる。)  ただし、注意すべき点として、この段落で述べたことは、 ソケットの帯域外データが届いたときに生成される
+\fBSIGURG\fP シグナルにはあてはまらない。 このシグナルは常にプロセスかプロセスグループに送られ、 送信先は \fBF_SETOWN\fP
+に渡された値にしたがって決められる。
+.RE
+.IP
+上記の動作は、Linux 2.6.12 で図らずも削除され、 元に戻されない予定である。 Linux 2.6.32 以降で、特定のスレッド宛にシグナル
+\fBSIGIO\fP と \fBSIGURG\fP を送るには \fBF_SETOWN_EX\fP を使うこと。
+.TP 
+\fBF_GETOWN_EX\fP (struct f_owner_ex *) (Linux 2.6.32 以降)
+直前の \fBF_SETOWN_EX\fP 操作で定義された現在のファイルディスクリプタの所有者設定 を返す。情報は \fIarg\fP
+が指す構造体に格納されて返される。構造体は以下の通りである。
+.nf
+.in +4n
+
+struct f_owner_ex {
+    int   type;
+    pid_t pid;
+};
+
+.in
+.fi
+\fItype\fP フィールドは、 \fBF_OWNER_TID ,\fP \fBF_OWNER_PID ,\fP \fBF_OWNER_PGRP\fP
+のいずれか一つの値となる。 \fIpid\fP フィールドは、スレッド ID、プロセス ID、プロセスグループ ID を 表す正の整数である。詳細は
+\fBF_SETOWN_EX\fP を参照。
+.TP 
+\fBF_SETOWN_EX\fP (struct f_owner_ex *) (Linux 2.6.32 以降)
+この操作は \fBF_SETOWN\fP と同様の処理を行う。 この操作を使うと、I/O が利用可能になったことを示すシグナルを、
+特定のスレッド、プロセス、プロセスグループに送ることができる ようになる。 呼び出し元は、 \fIarg\fP 経由でシグナルの配送先を指定する。
+\fIarg\fP は \fIf_owner_ex\fP 構造体へのポインタである。 \fItype\fP フィールドは以下のいずれかの値を取り、 この値により
+\fIpid\fP がどのように解釈されるかが規定される。
+.RS
+.TP 
+\fBF_OWNER_TID\fP
+スレッド ID が \fIpid\fP で指定された値のスレッドにそのシグナルを送る (スレッド ID は \fBclone\fP(2)  や
+\fBgettid\fP(2)  の呼び出しで返される値である)。
+.TP 
+\fBF_OWNER_PID\fP
+ID が \fIpid\fP で指定された値のプロセスにそのシグナルを送る。
+.TP 
+\fBF_OWNER_PGRP\fP
+ID が \fIpid\fP で指定された値のプロセスグループにそのシグナルを送る。 (\fBF_SETOWN\fP と異なり、プロセスグループ ID
+には正の値を指定する点に注意すること。)
+.RE
+.TP 
+\fBF_GETSIG\fP (\fIvoid\fP)
+入力や出力が可能になった場合に送るシグナルを (関数の結果として) 返す。 値ゼロは \fBSIGIO\fP を送ることを意味する。 (\fBSIGIO\fP
+を含む) 他の値はいずれも、 \fBSIGIO\fP の代わりに送るシグナル番号を表す。 後者の場合、シグナルハンドラを \fBSA_SIGINFO\fP
+フラグ付きで設定すれば、ハンドラで追加の情報を得ることができる。 \fIarg\fP は無視される。
+.TP 
+\fBF_SETSIG\fP (\fIint\fP)
+.\"
+.\" The following was true only up until 2.6.11:
+.\"
+.\" Additionally, passing a nonzero value to
+.\" .B F_SETSIG
+.\" changes the signal recipient from a whole process to a specific thread
+.\" within a process.
+.\" See the description of
+.\" .B F_SETOWN
+.\" for more details.
+入力や出力が可能になった場合に送るシグナルを \fIarg\fP に指定された値に設定する。 値ゼロは \fBSIGIO\fP を送ることを意味する。
+(\fBSIGIO\fP を含む) 他の値はいずれも、 \fBSIGIO\fP の代わりに送るシグナル番号を表す。 後者の場合、シグナルハンドラを
+\fBSA_SIGINFO\fP フラグ付きで設定すれば、 ハンドラで追加の情報を得ることができる。
+
+\fBF_SETSIG\fP にゼロ以外の値を設定し、シグナルハンドラに \fBSA_SIGINFO\fP フラグを設定すると、 (\fBsigaction\fP(2)
+を参照) I/O イベントに関する追加の情報が \fIsiginfo_t\fP 構造体でシグナルハンドラへ渡される。 \fIsi_code\fP
+フィールドが示すシグナルの原因が \fBSI_SIGIO\fP である場合、 \fIsi_fd\fP
+フィールドにはイベントに対応するファイルディスクリプタが入っている。 それ以外の場合は、どのファイルディスクリプタが利用可能かを示す情報は
+ないので、どのファイルディスクリプタで I/O が可能かを判断するためには 通常の機構 (\fBselect\fP(2), \fBpoll\fP(2),
+\fBO_NONBLOCK\fP を設定した \fBread\fP(2)  など) を使用しなければならない。
+
+リアルタイムシグナル (値が \fBSIGRTMIN\fP 以上) を選択している場合は、 同じシグナル番号を持つ複数の I/O
+イベントがキューに入ることがある (キューに入れるかどうかは利用可能なメモリに依存している)。 上記と同様、 \fBSA_SIGINFO\fP
+が設定されている場合、シグナルハンドラのための追加の情報が得られる。
+
+.\" See fs/fcntl.c::send_sigio_to_task() (2.4/2.6) sources -- MTK, Apr 05
+以下の点に注意すること。 Linux では一つのプロセスに対してキューに入れられるリアルタイム シグナルの数に上限が設けられており
+(\fBgetrlimit\fP(2)  と \fBsignal\fP(7)  を参照)、この上限に達するとカーネルは \fBSIGIO\fP シグナルを配送する。この
+\fBSIGIO\fP シグナルは、指定されたスレッドではなくプロセス全体に送られる。
+.PP
+これらの機構を使用することで、ほとんどの場合で \fBselect\fP(2)  や \fBpoll\fP(2)  を使用せずに完全な非同期 I/O
+を実装することができる。
+.PP
+\fBO_ASYNC\fP, \fBF_GETOWN\fP, \fBF_SETOWN\fP の使用は BSD と Linux に特有である。
+\fBF_GETOWN_EX\fP, \fBF_SETOWN_EX\fP, \fBF_GETSIG\fP, \fBF_SETSIG\fP は Linux 固有である。POSIX
+には、同様のことを行うために、非同期 I/O と \fIaio_sigevent\fP 構造体がある。Linux では、GNU C ライブラリ (Glibc)
+の一部として これらも利用可能である。
+.SS "リース (leases)"
+(Linix 2.4 以降で利用可能)  \fBF_SETLEASE\fP は、 \fIfd\fP
+が参照するオープンファイル記述に対して新しいリースを設定するのに使用される。 \fBF_GETLEASE\fP は、 \fIfd\fP
+が参照するオープンファイル記述に対して設定されている 現在のリースを取得するのに使用される。 ファイルのリースにより、 あるプロセス ("lease
+breaker") がそのファイルディスクリプタが参照 しているファイルに対して \fBopen\fP(2)  や \fBtruncate\fP(2)
+を行おうとした際に、リースを保持しているプロセス ("lease holder") へ (シグナルの配送による) 通知が行われるという機構が提供される。
+.TP 
+\fBF_SETLEASE\fP (\fIint\fP)
+\fIarg\fP の内容に基いてファイルのリースの設定、削除を行う。整数 \fIarg\fP には以下の値が指定できる:
+.RS
+.TP 
+\fBF_RDLCK\fP
+.\" The following became true in kernel 2.6.10:
+.\" See the man-pages-2.09 Changelog for further info.
+読み出しリースを取得する。これにより、 そのファイルが書き込み用にオープンされたり、ファイルが切り詰められた場合に、
+呼び出し元のプロセスに通知が行われるようになる。 読み出しリースを設定できるのは、読み出し専用でオープンされている
+ファイルディスクリプタに対してのみである。
+.TP 
+\fBF_WRLCK\fP
+書き込みリースを取得する。これにより、 (読み出し用か書き込み用にかかわらず) そのファイルがオープンされたり、
+ファイルが切り詰められた場合に、呼び出し元のプロセスに通知が行われるようになる。
+書き込みリースは、そのファイルに対するオープンされたファイルディスクリプタが 他にない場合にのみ設定できる。
+.TP 
+\fBF_UNLCK\fP
+そのファイルからリースを削除する。
+.RE
+.P
+リースはオープンファイル記述に対して関連付けられる (\fBopen\fP(2)  参照)。 つまり、 (\fBfork\fP(2)  や \fBdup\fP(2)
+などにより作成された) ファイルディスクリプタの複製は同じリースを参照し、 複製も含めたどのファイルディスクリプタを使ってもこのリースを変更したり
+解放したりできる。 また、これらのファイルディスクリプタのいずれかに対して \fBF_UNLCK\fP
+操作が明示的に実行された場合や、すべてのファイルディスクリプタが 閉じられた場合にも、リースは解放される。
+.P
+リースの取得は通常のファイル (regular file) に対してのみ可能である。 非特権プロセスがリースを取得できるのは、UID (所有者)
+がプロセスの ファイルシステム UID と一致するファイルに対してだけである。 \fBCAP_LEASE\fP
+ケーパビリティを持つプロセスは任意のファイルに対してリースを取得できる。
+.TP 
+\fBF_GETLEASE\fP (\fIvoid\fP)
+ファイルディスクリプタ \fIfd\fP に対して設定されているリースの種別を取得する。 \fBF_RDLCK\fP, \fBF_WRLCK\fP, \fBF_UNLCK\fP
+のいずれかが返される。 \fBF_RDLCK\fP, \fBF_WRLCK\fP はそれぞれ、読み出しリース、書き込みリースが設定されていることを示し、
+\fBF_UNLCK\fP はリースが何も設定されていないことを示す。 \fIarg\fP は無視される。
+.PP
+あるプロセス ("lease breaker") が \fBF_SETLEASE\fP で設定されたリースと矛
+盾するような \fBopen\fP(2) や \fBtruncate\fP(2) を実行した場合、 そのシステム
+コールはカーネルによって停止され、 カーネルは lease holder にシグナル
+(デフォルトでは \fBSIGIO\fP) を送って通知を行う。 lease holder はこのシグ
+ナルを受信したときにはきちんと対応すべきである。 具体的には、別のプロセ
+スがそのファイルにアクセスするための準備として 必要な後片付け (例えば、
+キャッシュされたバッファのフラッシュ) を すべて行ってから、そのファイル
+のリースの削除または格下げを行う。リースを削除をするには、 \fIarg\fP に
+\fBF_UNLCK\fP を指定して \fBF_SETLEASE\fP を実行する。lease holder がファイル
+に書き込みリースを保持していて、 lease breaker が読み出し用にそのファイ
+ルをオープンしている場合、 lease holder が保持しているリースを読み出し
+リースに格下げすれば 十分である。これをするには、 \fIarg\fP に \fBF_RDLCK\fP
+を指定して \fBF_SETLEASE\fP を実行する。
+
+lease holder が \fI/proc/sys/fs/lease\-break\-time\fP
+で指定された秒数以内にリースの格下げか削除を行えなかった場合、 カーネルは強制的にその lease holder のリースを削除もしくは格下げを行う。
+
+いったん lease break が開始されると、 lease holder が自発的にそのリース
+の格下げか削除を行うか、lease break timer の満了後にカーネルが強制的に
+リースの格下げか削除を行うまで、 \fBF_GETLEASE\fP は対象となるリースの型を
+返す (リースの型は \fBF_RDLCK\fP か \fBF_UNLCK\fP のどちらであり、lease
+breaker と互換性のある型となる)。
+
+一度リースの削除か格下げが自発的もしくは強制的に行われると、 lease breaker がまだシステムコールを再開していない場合には、 カーネルが
+lease breaker のシステムコールの続行を許可する。
+
+lease breaker が実行した \fBopen\fP(2)  や \fBtruncate\fP(2)  が停止中にシグナルハンドラにより中断された場合、
+そのシステムコールは \fBEINTR\fP エラーで失敗するが、上で述べた他の処理は そのまま行われる。 \fBopen\fP(2)  や
+\fBtruncate\fP(2)  が停止中に lease breaker がシグナルにより kill された場合、 上で述べた他の処理はそのまま行われる。
+lease breaker が \fBopen\fP(2)  を呼ぶ際に \fBO_NONBLOCK\fP フラグを指定した場合、そのシステムコールは
+\fBEWOULDBLOCK\fP エラーで直ちに失敗するが、上で述べた他の処理はそのまま行われる。
+
+lease holder への通知に使われるデフォルトのシグナルは \fBSIGIO\fP だが、 \fBfcntl\fP()  の \fBF_SETSIG\fP
+コマンドで変更することができる。 \fBF_SETSIG\fP コマンドが実行され (\fBSIGIO\fP を指定された場合も含む)、 \fBSA_SIGINFO\fP
+フラグ付きでシグナルハンドラが設定されている場合には、 ハンドラの第二引き数として \fIsiginfo_t\fP 構造体が渡され、この引き数の
+\fIsi_fd\fP フィールドには別のプロセスがアクセスしたリース設定済みファイルの ディスクリプタが入っている
+(この機能は複数のファイルに対してリースを設定する場合に有用である)。
+.SS "ファイルやディレクトリの変更の通知 (dnotify)"
+.TP 
+\fBF_NOTIFY\fP (\fIint\fP)
+(Linux 2.4 以降)  \fIfd\fP で参照されるディレクトリか、その中にあるファイルに変更があった場合に 通知を行う。どのイベントを通知するかは
+\fIarg\fP で指定する。 \fIarg\fP はビットマスクで、以下のビットの 0個以上の論理和をとったものを指定する。
+.RS
+.sp
+.PD 0
+.TP  12
+\fBDN_ACCESS\fP
+ファイルへのアクセスがあった (read, pread, readv)
+.TP 
+\fBDN_MODIFY\fP
+ファイルの内容が変更された (write, pwrite, writev, truncate, ftruncate).
+.TP 
+\fBDN_CREATE\fP
+ファイルが作成された (open, creat, mknod, mkdir, link, symlink, rename).
+.TP 
+\fBDN_DELETE\fP
+ファイルが削除 (unlink) された (unlink, 別のディレクトリへの rename, rmdir)
+.TP 
+\fBDN_RENAME\fP
+ディレクトリ内でのファイル名の変更があった (rename)
+.TP 
+\fBDN_ATTRIB\fP
+ファイル属性が変更された (chown, chmod, utime[s])
+.PD
+.RE
+.IP
+(上記の定義を利用するには、\fIどの\fP ヘッダファイルをインクルードするより前に、
+\fB_GNU_SOURCE\fP 機能検査マクロを定義しなければならない。)
+
+ディレクトリの変更通知は通常「一回限り (one\-shot)」であり、 アプリケーション側でその後さらに通知を受信したい場合は
+再登録しなければならない。 \fIarg\fP に \fBDN_MULTISHOT\fP が含まれていた場合には、
+変更通知は明示的に解除されるまで有効状態が継続する。
+
+.\" The following does seem a poor API-design choice...
+\fBF_NOTIFY\fP 要求は積算されていく。つまり、 \fIarg\fP で指定されたイベントがすでにモニタされている イベント集合に加算される形になる。
+すべてのイベントの通知を無効にするには、 \fIarg\fP に 0 を指定して \fBF_NOTIFY\fP を呼び出す必要がある。
+
+通知はシグナルの配送で行われる。 デフォルトのシグナルは \fBSIGIO\fP だが、 \fBfcntl\fP()  の \fBF_SETSIG\fP
+コマンドで変更することができる。 後者の場合には、 (\fBSA_SIGINFO\fP フラグ付きでシグナルハンドラが設定されている場合には)
+ハンドラの第二引き数として \fIsiginfo_t\fP 構造体が渡され、この構造体の \fIsi_fd\fP
+フィールドには通知の行われたファイルディスクリプタが入っている (この機能は複数のディレクトリに対して通知を設定する場合に有用である)。
+
+特に \fBDN_MULTISHOT\fP を使う場合は、通知にはリアルタイムシグナルを使うべきである。
+それは、リアルタイムシグナルを使うことで、複数の通知をキューに入れる ことができるからである。
+
+\fB注意:\fP 新しくアプリケーションを書く際には、(カーネル 2.6.13 以降で利用可能となった)  \fIinotify\fP
+インタフェースを使用すべきである。 \fIinotify\fP はファイルシステムイベントの通知を取得するための ずっと優れたインタフェースである。
+\fBinotify\fP(7)  を参照。
+.SS パイプの容量の変更
+.TP 
+\fBF_SETPIPE_SZ\fP (\fIint\fP; Linux 2.6.35 以降)
+\fIfd\fP が参照するパイプの容量を少なくとも \fIarg\fP バイトに変更する。
+非特権プロセスは、パイプの容量として、
+システムのページサイズと \fI/proc/sys/fs/pipe\-max\-size\fP で定義される
+上限値 (\fBproc\fP(5) 参照) の間の任意の値を設定できる。
+パイプの容量をページサイズよりも小さな値に設定しようとした場合は、
+暗黙のうちにページサイズに切り上げられる。
+非特権プロセスがパイプの容量を \fI/proc/sys/fs/pipe\-max\-size\fP で定義
+された上限より大きな値に設定しようとした場合は、エラー \fBEPERM\fP が
+発生する。特権プロセス (\fBCAP_SYS_RESOURCE\fP ケーパビリティを持つ
+プロセス) はこの上限を上書きできる。
+パイプにバッファを割り当てる場合、実装側の都合に応じて、
+カーネルは \fIarg\fP よりも大きな容量を割り当ててもよい。
+\fBF_GETPIPE_SZ\fP 操作では実際に使用されている大きさが返される。
+パイプの容量を現在データを格納するのに使用されているバッファの
+サイズよりも小さくしようとした場合は、エラー \fBEBUSY\fP が発生する。
+.TP 
+\fBF_GETPIPE_SZ\fP (\fIvoid\fP; Linux 2.6.35 以降)
+\fIfd\fP が参照するパイプの容量を (関数の結果として) 返す。
+.SH 返り値
+成功した場合の返り値は操作の種類により違う:
+.TP  0.9i
+\fBF_DUPFD\fP
+新しいディスクリプタを返す。
+.TP 
+\fBF_GETFD\fP
+ファイルディスクリプタ・フラグの値
+.TP 
+\fBF_GETFL\fP
+ファイル状態フラグの値
+.TP 
+\fBF_GETLEASE\fP
+ファイルディスクリプタに対して保持されているリースの種別を返す。
+.TP 
+\fBF_GETOWN\fP
+ディスクリプタの所有者を返す。
+.TP 
+\fBF_GETSIG\fP
+読み込みや書き出しが可能になった時に送られるシグナルの値、もしくは 伝統的な \fBSIGIO\fP 動作の場合にはゼロを返す。
+.TP 
+\fBF_GETPIPE_SZ\fP
+パイプの容量。
+.TP 
+他の全てのコマンド
+0 を返す。
+.PP
+エラーの時は \-1 が返され、 \fIerrno\fP に適切な値が設定される。
+.SH エラー
+.TP 
+\fBEACCES\fP か \fBEAGAIN\fP
+他のプロセスが保持しているロックによって操作が禁止されている。
+.TP 
+\fBEAGAIN\fP
+そのファイルは他のプロセスによってメモリ・マップされているため、 操作が禁止されている。
+.TP 
+\fBEBADF\fP
+\fIfd\fP がオープンされたファイルディスクリプタでない。 あるいはコマンドが \fBF_SETLK\fP または \fBF_SETLKW\fP
+だったが、対象のファイルディスクリプタのオープンモードが 必要となるロックの型にマッチしていない。
+.TP 
+\fBEDEADLK\fP
+指定された \fBF_SETLKW\fP コマンドを実行した場合にはデッドロックになることが検出された。
+.TP 
+\fBEFAULT\fP
+\fIlock\fP が利用可能なアドレス空間の外部にある。
+.TP 
+\fBEINTR\fP
+\fBF_SETLKW\fP コマンドがシグナルにより割り込まれた (\fBsignal\fP(7)  参照)。 \fBF_GETLK\fP と \fBF_SETLK\fP
+の場合、ロックを確認したり取得したりする前にシグナルによって割り込まれた。 これはたいていリモートのファイルをロックする場合 (例えば NFS
+上でロックする場合) に起こる。 しかしローカルでも起こる場合がある。
+.TP 
+\fBEINVAL\fP
+\fBF_DUPFD\fPで、 \fIarg\fP が負か、もしくは許される最大値よりも大きい。 \fBF_SETSIG\fP の場合、 \fIarg\fP
+が利用可能なシグナル番号ではない。
+.TP 
+\fBEMFILE\fP
+\fBF_DUPFD\fPで、 プロセスがすでに最大数までファイルディスクリプタをオープンしている。
+.TP 
+\fBENOLCK\fP
+オープンされているロックの数が多過ぎて、ロック・テーブルがいっぱいである。 または remote locking protocol (例えば NFS
+上のロック) が失敗した。
+.TP 
+\fBEPERM\fP
+追加専用属性が設定されたファイルの \fBO_APPEND\fP フラグをクリアしようと試みた。
+.SH 準拠
+SVr4, 4.3BSD, POSIX.1\-2001.  POSIX.1\-2001 で規定されている操作は、
+\fBF_DUPFD\fP, \fBF_GETFD\fP, \fBF_SETFD\fP, \fBF_GETFL\fP, \fBF_SETFL\fP,
+\fBF_GETLK\fP, \fBF_SETLK\fP, \fBF_SETLKW\fP だけである。
+
+\fBF_GETOWN\fP と \fBF_SETOWN\fP は POSIX.1\-2001 で規定されている。
+(これら定義するには、 \fBBSD_SOURCE\fP を定義するか、
+\fB_XOPEN_SOURCE\fP を 500 以上の値で定義するか、
+\fB_POSIX_C_SOURCE\fP を 200809L 以上の値で定義すること。)
+
+\fBF_DUPFD_CLOEXEC\fP は POSIX.1\-2008 で規定されている。
+(これら定義するには、
+\fB_POSIX_C_SOURCE\fP を 200809L 以上の値で定義するか、
+\fB_XOPEN_SOURCE\fP を 700 以上の値で定義すること。)
+
+.\" .PP
+.\" SVr4 documents additional EIO, ENOLINK and EOVERFLOW error conditions.
+\fBF_GETOWN_EX\fP, \fBF_SETOWN_EX\fP, \fBF_SETPIPE_SZ\fP, \fBF_GETPIPE_SZ\fP,
+\fBF_GETSIG\fP,
+\fBF_SETSIG\fP, \fBF_NOTIFY\fP, \fBF_GETLEASE\fP, \fBF_SETLEASE\fP は Linux 固有である
+(これらの定義を有効にするには \fB_GNU_SOURCE\fP マクロを定義すること)。
+.SH 注意
+元々の Linux の \fBfcntl\fP() システムコールは (\fIflock\fP 構造体で) 大きな
+ファイルオフセットを扱えるように設計されていなかった。
+その結果、Linux 2.4 で \fBfcntl64\fP() システムコールが追加された。
+この新しいシステムコールは、ファイルのロックに \fIflock64\fP という別の
+構造体を利用し、これに対応するコマンドとして \fBF_GETLK64\fP,
+\fBF_SETLK64\fP, \fBF_SETLKW64\fP を使用する。
+しかし、 glibc を使うアプリケーションではこれらの詳細を無視することが
+できる。 glibc の \fBfcntl\fP のラッパー関数は新しいシステムコールが
+利用できる場合はそれを利用するようになっているからである。
+
+エラーの際の返り値が \fBdup2\fP(2)  と \fBF_DUPFD\fP では異なっている。
+
+カーネル 2.0 以降では、 \fBflock\fP(2)  と \fBfcntl\fP()  が設定するロック種別の間に相互作用はない。
+
+.\" e.g., Solaris 8 documents this field in fcntl(2), and Irix 6.5
+.\" documents it in fcntl(5).  mtk, May 2007
+システムによっては、 \fIstruct flock\fP に上記以外のフィールドがあるものもある (例えば \fIl_sysid\fP)。
+はっきりと言えることは、ロックを保持しているプロセスが別のマシンに存在 する場合には、 \fIl_pid\fP
+だけはあまり役にたたないだろうということである。
+.SH バグ
+.\" glibc source: sysdeps/unix/sysv/linux/i386/sysdep.h
+.\" mtk, Dec 04: some limited testing on alpha and ia64 seems to
+.\" indicate that ANY negative PGID value will cause F_GETOWN
+.\" to misinterpret the return as an error. Some other architectures
+.\" seem to have the same range check as i386.
+いくつかのアーキテクチャ (特に i386) における Linux システムコールの慣習
+のため以下の制限が存在する。
+\fBF_GETOWN\fP が返す (負の) プロセスグループID が \-1 から \-4095 の範囲に入った場合、
+glibc はこの返り値をシステムコールでエラーが起こったと間違って解釈してしまう。
+つまり、 \fBfcntl\fP() の返り値は \-1 となり、 \fIerrno\fP には (正の) プロセスグループID
+が設定されることになる。Linux 固有の \fBF_GETOWN_EX\fP ではこの問題を回避できる。
+glibc バージョン 2.11 以降では、glibc では \fBF_GETOWN_EX\fP を使って
+\fBF_GETOWN\fP を実装することで、カーネルの \fBF_GETOWN\fP の問題を見えないようにしている。
+
+Linux 2.4 以前では、非特権プロセスが \fBF_SETOWN\fP を使って、ソケットのファイルディスクリプタの所有者に 呼び出し元以外のプロセス
+(やプロセスグループ) を指定すると 発生するバグがある。この場合、 呼び出し元が所有者として指定したプロセス (やプロセスグループ) に
+シグナルを送る許可を持っていたとしても、 \fBfcntl\fP()  が \-1 を返し \fIerrno\fP に \fBEPERM\fP を設定することがある。
+このエラーが返ったにもかかわらず、ファイルディスクリプタの所有者 は設定され、シグナルはその所有者に送られる。
+
+.\" http://marc.info/?l=linux-kernel&m=119013491707153&w=2
+これまでの Linux の全てのバージョンにおける強制ロックの実装は、 競合条件下で強制ロックが不完全になるような場合がある。
+ロックと重なって実行された \fBwrite\fP(2)  の呼び出しは強制ロックが獲得された後にもデータを変更することができる。 ロックと重なって実行された
+\fBread\fP(2)  の呼び出しは強制ロックが獲得された後になって行われたデータの変更を 検出することができる。 同様の競合条件が強制ロックと
+\fBmmap\fP(2)  の間にも存在する。それゆえ、強制ロックに頼るのはお薦めできない。
+.SH 関連項目
+\fBdup2\fP(2), \fBflock\fP(2), \fBopen\fP(2), \fBsocket\fP(2), \fBlockf\fP(3),
+\fBcapabilities\fP(7), \fBfeature_test_macros\fP(7)
+.P
+カーネルソースの \fIDocumentation/filesystems/\fP ディレクトリ内の \fIlocks.txt\fP,
+\fImandatory\-locking.txt\fP, \fIdnotify.txt\fP も参照のこと。 (以前のカーネルでは、これらのファイルは
+\fIDocumentation/\fP ディレクトリ直下にあり、 \fImandatory\-locking.txt\fP は \fImandatory.txt\fP
+という名前であった。)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.40 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。
