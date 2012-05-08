@@ -1,0 +1,112 @@
+po4a 化の手順
+
+(1) po4a ディレクトリの作成
+
+mkdir po4a
+mkdir -p po4a/add_ja/copyright
+
+(2) po4a config ファイルの作成
+
+cd original/man1/
+../../../../admin/po4a/gencfg.py indent.1 > ../../po4a/indent.cfg
+
+config ファイルを分割する場合は以下のようにする。
+・po4a ディレクトリ以下に サブディレクトリを作成する
+・config はサブディレクトリ以下に配置
+・config ファイルの po_directory がサブディレクトリを指すように修正する
+
+(3) Makefile の準備
+
+Makefile を作成する。
+すでに作成済のプロジェクトからコピーする。
+
+config ファイルが一つの場合は bzip2 あたりから、
+複数ある場合は iptables あたりがよい。
+
+(4) original の po4a-gettextize の確認
+
+po4a-gettextize -f man -p tmp.pot -m indent.1
+
+うまく行かないことがあれば、以下を追加してみる。
+詳細は man Locale::Po4a::Man を参照。
+ -o groff_code=verbatim (if などが使われている場合)
+ -o generated  (自動生成と怒られたとき)
+ -o untranslated=xx,yy (マクロを認識しない場合)
+ -o noarg=xx,yy (マクロを認識しない場合で、さらに引き数も取らない場合)
+
+追加してうまく行けば、上記の cfg ファイルに追加する。
+opt:"-o groff_code=verbatim" opt:"-o generated" といった感じ。
+
+(5) 既存の翻訳の取り込み
+
+original/man1 などのオリジナルのファイルがあるフォルダに
+行って作業すると作業しやすい。
+一つ一つのファイルについて行う。
+ファイル毎の xxxx.ja.po が tmp 以下に作成される。
+
+../../admin/po4a/ja-import.sh original/man1/indent.1
+
+
+(6) ja.po を一つにまとめる
+
+cd tmp
+../../../admin/po4a/ja-po-merge.sh *.ja.po
+cd ..
+
+ja.po が tmp/ に作成される。
+
+(7) po4a 生成
+
+touch po4a/indent.pot
+cp tmp/ja.po po4a/
+make EXTFLAGS="--force -v"
+
+--force は必ず付けること。
+そうしないと、original の方が古いので更新されない。
+
+(8) Japanese 著作権の文の抽出
+
+release から Japanese Copyright から HISTORY が抽出される。
+正しいかは目視で確認する。
+
+(9) fuzzy のチェック
+
+生成された ja.po の確認を行う。fuzzy を解決した後、
+make stat と make translate を行い、ja.po の書式上の
+エラーがないかを確認する。
+
+(10) release 物件も更新する
+
+for f in `find draft/ -type f`; do
+  ../../admin/JM-release.sh -f -g $f release
+done
+
+(11) git 登録
+[a] po4a ファイル
+
+git add Makefile
+git add po4a/ja.po
+git add po4a/*.pot
+git add po4a/*.cfg
+git commit -m "indent: Add po4a files."
+
+[b] copyright ファイル
+
+git add po4a/add_ja
+git commit
+----
+indent: Add Japanese copyright and histories.
+
+The information are extracted from release pages before po4a-gettextize.
+----
+
+[c] release/draft ファイル
+
+git add draft
+git add release
+git commit -m "indent: Generate draft and release pages from ja.po."
+
+
+(12) ゴミの削除
+
+gettextization.failed.po
