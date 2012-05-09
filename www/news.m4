@@ -34,6 +34,21 @@ m4_define(`_NEW_POD',`<FONT COLOR="red">[NEW]</FONT> _PODLINK($1,$2)')
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+ <H2>2012/05/09</H2>
+ <P>
+  以下のファイルを追加・更新しました。
+ </P>
+ <DL>
+  <DT>sudo</DT>
+  <DD>
+   _UPD_PAGE(sudo, sudo.8)
+   _UPD_PAGE(sudo, sudoers.5)
+   _UPD_PAGE(sudo, sudoers.ldap.5)
+   _NEW_PAGE(sudo, sudoreplay.8)
+   _UPD_PAGE(sudo, visudo.8)
+  </DD>
+ </DL>
+
  <H2>2012/04/01</H2>
  <P>
   以下のファイルを追加・更新しました。

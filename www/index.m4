@@ -17,6 +17,9 @@ m4_dnl _MIRROR_LIST
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/misc.html#sudo,sudo 1.8.4p4 の翻訳)を公開しました。
+ <SMALL>(2012/05/09)</SMALL>
+
  <LI>JM で配布する manpage の文字コードを EUC-JP に UTF-8 に変更しました。<SMALL>(2012/04/10)</SMALL>
  <UL>
   <LI>日本語マニュアルを EUC-JP で扱うディストリビューションでは、
