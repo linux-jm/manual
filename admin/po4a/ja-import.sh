@@ -5,7 +5,7 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-if [ -e tmp ]; then
+if [ ! -e tmp ]; then
   mkdir tmp
   echo "Created 'tmp'."
 fi
@@ -15,5 +15,8 @@ ORIG=$PAGE
 TRANS=$(echo $PAGE | sed -e 's|original|release|')
 POOUT=tmp/$(basename $PAGE).ja.po
 
+# Remaining commandline parameters are passed to po4a-gettextize
+shift
+
 po4a-gettextize -f man -L ja_JP.UTF-8 \
-  -p $POOUT -m $ORIG -l $TRANS
+  -p $POOUT -m $ORIG -l $TRANS $*
