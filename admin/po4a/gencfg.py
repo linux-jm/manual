@@ -3,6 +3,7 @@
 from jinja2 import Template
 import sys
 import re
+import os.path
 
 TEMPLATE_HEADER = """[po_directory] po4a"""
 TEMPLATE_PAGE = """
@@ -37,4 +38,4 @@ if len(sys.argv) < 2:
 
 gencfg_header()
 for p in sys.argv[1:]:
-    gencfg_page(p)
+    gencfg_page(os.path.basename(p))
