@@ -1703,6 +1703,23 @@ skip_till_newline(char *c)
     return c;
 }
 
+static char *
+skip_blank_lines(char *c)
+{
+    char *c2;
+
+    /* XXX: it's workaround */
+    while ((c[0] == '\n') ||
+	  ((c[0] == '.') &&
+	   ((V(c[1],c[2]) == V('\\','"')) ||
+	    (V(c[1],c[2]) == V('P','D')) ))) {
+	c2 = skip_till_newline(c);
+	if (c2 == c) break;
+	c = c2;
+    }
+    return c;
+}
+
 int ifelseval=0;
 
 static char *
@@ -2200,6 +2217,7 @@ scan_request(char *c) {
 	case V('T','P'):
 	    dl_begin();
 	    c=skip_till_newline(c);
+	    c=skip_blank_lines(c);
 	    /* somewhere a definition ends with '.TP' */
 	    if (!*c) still_dd=1; else {
 		c=scan_troff(c,1,NULL);
