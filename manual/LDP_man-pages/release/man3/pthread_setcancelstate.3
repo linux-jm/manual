@@ -1,0 +1,140 @@
+.\" Copyright (c) 2008 Linux Foundation, written by Michael Kerrisk
+.\"     <mtk.manpages@gmail.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH PTHREAD_SETCANCELSTATE 3 2008\-11\-24 Linux "Linux Programmer's Manual"
+.SH 名前
+pthread_setcancelstate, pthread_setcanceltype \- cancelability state と
+type を設定する
+.SH 書式
+.nf
+\fB#include <pthread.h>\fP
+
+\fBint pthread_setcancelstate(int \fP\fIstate\fP\fB, int *\fP\fIoldstate\fP\fB);\fP
+\fBint pthread_setcanceltype(int \fP\fItype\fP\fB, int *\fP\fIoldtype\fP\fB);\fP
+.sp
+\fI\-pthread\fP でコンパイルしてリンクする。
+.fi
+.SH 説明
+\fBpthread_setcancelstate\fP() は、呼び出したスレッドの
+cancelability state に \fIstate\fP で指定された値を設定する。
+変更前のスレッドの cancelability state は
+\fIoldstate\fP が指すバッファで返される。
+\fIstate\fP 引き数には以下の値のいずれか一つを指定しなければならない。
+.TP 
+\fBPTHREAD_CANCEL_ENABLE\fP
+スレッドは取り消し可能 (cancelable) である。
+これが全ての新しく作成されるスレッドでのデフォルトの cancelability
+state である。これには最初のスレッドも含まれる。
+スレッドの cancelability type により、取り消し可能なスレッドが
+取り消し要求にいつ反応するかが決まる。
+.TP 
+\fBPTHREAD_CANCEL_DISABLE\fP
+スレッドは取り消しできない。取り消し要求を受信した際は、
+取り消し可能に設定されるまでその要求はブロックされる。
+.PP
+\fBpthread_setcanceltype\fP() は、呼び出したスレッドの
+cancelability type に \fItype\fP で指定された値を設定する。
+変更前のスレッドの cancelability type は
+\fIoldtype\fP が指すバッファで返される。
+\fItype\fP 引き数には以下の値のいずれか一つを指定しなければならない。
+.TP 
+\fBPTHREAD_CANCEL_DEFERRED\fP
+そのスレッドが次に取り消しポイント (cancellation point) の関数を
+呼び出すまで取り消し要求が遅延される。これが全ての新しく作成される
+スレッドでのデフォルトの cancellation type である。
+これには最初のスレッドも含まれる。
+.TP 
+\fBPTHREAD_CANCEL_ASYNCHRONOUS\fP
+スレッドはいつでも取り消すことができる (通常はすぐにキャンセルされるが、
+システムがそのことを保証しているわけではない)。
+.PP
+The set\-and\-get operation performed by each of these functions is atomic
+with respect to other threads in the process calling the same function.
+.SH 返り値
+成功すると、これらの関数は 0 を返す。
+エラーの場合、0 以外のエラー番号を返す。
+.SH エラー
+\fBpthread_setcancelstate\fP() は以下のエラーで失敗する場合がある。
+.TP 
+\fBEINVAL\fP
+\fIstate\fP に無効な値が指定された。
+.PP
+\fBpthread_setcanceltype\fP() は以下のエラーで失敗する場合がある。
+.TP 
+\fBEINVAL\fP
+.\" .SH VERSIONS
+.\" Available since glibc 2.0
+\fItype\fP に無効な値が指定された。
+.SH 準拠
+POSIX.1\-2001.
+.SH 注意
+スレッドが取り消された場合に何が起こるかの詳細については
+\fBpthread_cancel\fP(3) を参照。
+
+Briefly disabling cancelability is useful if a thread performs some critical
+action that must not be interrupted by a cancellation request.  Beware of
+disabling cancelability for long periods, or around operations that may
+block for long periods, since that will render the thread unresponsive to
+cancellation requests.
+
+Setting the cancelability type to \fBPTHREAD_CANCEL_ASYNCHRONOUS\fP is rarely
+useful.  Since the thread could be canceled at \fIany\fP time, it cannot safely
+reserve resources (e.g., allocating memory with \fBmalloc\fP(3)), acquire
+mutexes, semaphores, or locks, and so on.  Reserving resources is unsafe
+because the application has no way of knowing what the state of these
+resources is when the thread is canceled; that is, did cancellation occur
+before the resources were reserved, while they were reserved, or after they
+were released? Furthermore, some internal data structures (e.g., the linked
+list of free blocks managed by the \fBmalloc\fP(3)  family of functions) may be
+left in an inconsistent state if cancellation occurs in the middle of the
+function call.  Consequently, clean\-up handlers cease to be useful.
+Functions that can be safely asynchronously canceled are called
+\fIasync\-cancel\-safe functions\fP.  POSIX.1\-2001 only requires that
+\fBpthread_cancel\fP(3), \fBpthread_setcancelstate\fP(), and
+\fBpthread_setcanceltype\fP()  be async\-cancel\-safe.  In general, other library
+functions can't be safely called from an asynchronously cancelable thread.
+One of the few circumstances in which asynchronous cancelability is useful
+is for cancellation of a thread that is in a pure compute\-bound loop.
+
+.\" It looks like at least Solaris, FreeBSD and Tru64 support this.
+The Linux threading implementations permit the \fIoldstate\fP argument of
+\fBpthread_setcancelstate\fP()  to be NULL, in which case the information about
+the previous cancelability state is not returned to the caller.  Many other
+implementations also permit a NULL \fIoldstat\fP argument, but POSIX.1\-2001
+does not specify this point, so portable applications should always specify
+a non\-NULL value in \fIoldstate\fP.  A precisely analogous set of statements
+applies for the \fIoldtype\fP argument of \fBpthread_setcanceltype\fP().
+.SH 例
+\fBpthread_cancel\fP(3) を参照。
+.SH 関連項目
+\fBpthread_cancel\fP(3), \fBpthread_cleanup_push\fP(3), \fBpthread_testcancel\fP(3),
+\fBpthreads\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.40 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。
