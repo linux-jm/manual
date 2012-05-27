@@ -1,9 +1,9 @@
 .\" Copyright 2005 walter harms (walter.harms@informatik.uni-oldenburg.de),
-.\" and Copyright 2005 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" and Copyright 2005, 2012 Michael Kerrisk <mtk.manpages@gmail.com>
 .\" Distributed under the GPL.
 .\" 2008-12-04, Petr Baudis <pasky@suse.cz>: Document open_wmemstream()
 .\"
-.TH FMEMOPEN 3 2010-09-15 "GNU" "Linux Programmer's Manual"
+.TH FMEMOPEN 3 2012-04-28 "GNU" "Linux Programmer's Manual"
 .SH NAME
 fmemopen, open_memstream, open_wmemstream \-  open memory as stream
 .SH SYNOPSIS
@@ -61,7 +61,7 @@ specifies an append mode, then the initial file position is set to
 the location of the first null byte (\(aq\\0\(aq) in the buffer;
 otherwise the initial file position is set to the start of the buffer.
 Since glibc 2.9,
-the letter 'b' may be specified as the second character in
+the letter \(aqb\(aq may be specified as the second character in
 .IR mode .
 This provides "binary" mode:
 writes don't implicitly add a terminating null byte, and
@@ -192,6 +192,14 @@ is available since glibc 2.4.
 POSIX.1-2008.
 These functions are not specified in POSIX.1-2001,
 and are not widely available on other systems.
+
+POSIX.1-2008 specifies that \(aqb\(aq in
+.IR mode
+shall be ignored.
+However, Technical Corrigendum 1
+.\" http://austingroupbugs.net/view.php?id=396
+adjusts the standard to allow implementation-specific treatment for this case,
+thus permitting the glibc treatment of \(aqb\(aq.
 .SH NOTES
 There is no file descriptor associated with the file stream
 returned by these functions
@@ -205,6 +213,62 @@ does not enlarge the buffer; instead the
 .BR fseek (3)
 call fails, returning \-1.
 .\" http://sourceware.org/bugzilla/show_bug.cgi?id=1996
+
+If
+.I size
+is specified as zero,
+.BR fmemopen ()
+fails with the error
+.BR EINVAL .
+.\" FIXME http://sourceware.org/bugzilla/show_bug.cgi?id=11216
+It would be more consistent if this case successfully created
+a stream that then returned end of file on the first attempt at reading.
+Furthermore, POSIX.1-2008 does not specify a failure for this case.
+
+Specifying append mode ("a" or "a+") for
+.BR fmemopen ()
+sets the initial file position to the first null byte, but
+.\" FIXME http://sourceware.org/bugzilla/show_bug.cgi?id=13152
+(if the file offset is reset to a location other than
+the end of the stream)
+does not force subsequent writes to append at the end of the stream.
+
+If the
+.I mode
+argument to
+.BR fmemopen ()
+specifies append ("a" or "a+"), and the
+.I size
+argument does not cover a null byte in
+.IR buf
+then, according to POSIX.1-2008,
+the initial file position should be set to
+the next byte after the end of the buffer.
+However, in this case the glibc
+.\" FIXME http://sourceware.org/bugzilla/show_bug.cgi?id=13151
+.BR fmemopen ()
+sets the file position to \-1.
+
+To specify binary mode for
+.BR fmemopen ()
+the \(aqb\(aq must be the
+.I second
+character in
+.IR mode .
+Thus, for example, "wb+" has the desired effect, but "w+b" does not.
+This is inconsistent with the treatment of
+.\" FIXME http://sourceware.org/bugzilla/show_bug.cgi?id=12836
+.IR mode
+by
+.BR fopen (3).
+
+The glibc 2.9 addition of "binary" mode for
+.BR fmemopen ()
+.\" http://sourceware.org/bugzilla/show_bug.cgi?id=6544
+silently changed the ABI: previously,
+.BR fmemopen ()
+ignored \(aqb\(aq in
+.IR mode .
 .SH "EXAMPLE"
 The program below uses
 .BR fmemopen ()
