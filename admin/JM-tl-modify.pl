@@ -61,14 +61,22 @@ while (<TLO>) {
     my %ti = line2hash($_);
 
     if ($ti{'kind'} eq 'link' &&
-	"$ti{'lname'}.$ti{'lsec'}" eq $status{'page'} &&
-	$status{'stat'} =~ /^R/)
+	"$ti{'lname'}.$ti{'lsec'}" eq $status{'page'})
     {
-	$ti{'stat'} = 'up2date';
-	my $tll = hash2line(%ti);
-	if ($DEBUG eq "yes") {print "$ismatch MATCH: $tll\n"};
-	$tlist_body .= "$tll\n";
-	next;
+	if ($opts{"c"}) {
+	    $ti{'stat'} = '1st_non';
+	    my $tll = hash2line(%ti);
+	    if ($DEBUG eq "yes") {print "$ismatch MATCH: $tll\n"};
+	    $tlist_body .= "$tll\n";
+	    next;
+	}
+	if ($status{'stat'} =~ /^R/) {
+	    $ti{'stat'} = 'up2date';
+	    my $tll = hash2line(%ti);
+	    if ($DEBUG eq "yes") {print "$ismatch MATCH: $tll\n"};
+	    $tlist_body .= "$tll\n";
+	    next;
+	}
     }
     unless ("$ti{'fname'}.$ti{'sec'}" eq $status{'page'}) {
 	$tlist_body .= "$_\n";
