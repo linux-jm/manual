@@ -40,7 +40,7 @@
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH SELECT 2 2010\-08\-31 Linux "Linux Programmer's Manual"
+.TH SELECT 2 2012\-05\-02 Linux "Linux Programmer's Manual"
 .SH 名前
 select, pselect, FD_CLR, FD_ISSET, FD_SET, FD_ZERO \- 同期 I/O の多重化
 .SH 書式
@@ -112,9 +112,14 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 .PP
 \fInfds\fP は 3 つの集合に含まれるファイルディスクリプタの最大値に 1 を足したものである。
 .PP
-\fItimeout\fP は \fBselect\fP()  が復帰するまでの経過時間の上限である。 \fItimeval\fP 構造体の両方のフィールドが 0
-の場合、 \fBselect\fP()  はすぐに復帰する (この機能はポーリング (polling) を行うのに便利である)。 \fItimeout\fP に
-NULL (タイムアウトなし)  が指定されると、 \fBselect\fP()  は無期限に停止 (block) する。
+\fItimeout\fP 引き数で、ファイルディスクリプタが ready になるのを待って
+\fBselect\fP() が停止する最小の停止時間を指定する
+(この停止時間はシステムクロックの粒度に切り上げられ、
+カーネルのスケジューリング遅延により少しだけ長くなる可能性がある)。
+\fItimeval\fP 構造体の両方のフィールドが 0 の場合、 \fBselect\fP() はすぐに復
+帰する (この機能はポーリング (polling) を行うのに便利である)。
+\fItimeout\fP に NULL (タイムアウトなし) が指定されると、 \fBselect\fP() は無
+期限に停止 (block) する。
 .PP
 \fIsigmask\fP は、シグナルマスク (\fBsigprocmask\fP(2)  を参照) へのポインタである。 \fIsigmask\fP が NULL
 でない場合、 \fBpselect\fP()  は \fIsigmask\fP が指しているシグナルマスクで現在のシグナルマスクを置き換えてから、 "select"
@@ -236,10 +241,34 @@ struct timeval {
 \fB_GNU_SOURCE\fP が定義されている場合に、 \fBpselect\fP()  が提供される。 glibc 2.2.2 以降では、
 \fBpselect\fP()  を使用するには、「書式」に記載された要件を満たす必要がある。
 .SS "Linux での注意"
-Linux の \fBpselect\fP() システムコールは \fItimeout\fP 引き数を変更する。 しかし、
-glibc のラッパー関数は、システムコールに渡す timeout 引き数 としてローカル変数
-を使うことでこの動作を隠蔽している。 このため、glibc の \fBpselect\fP() 関数は
-\fItimeout\fP 引き数を変更しない。 これが POSIX.1\-2001 が要求している動作である。
+このページで説明している \fBpselect\fP() のインターフェースは、glibc に
+実装されているものである。内部で呼び出される Linux のシステムコールは
+\fBpselect6\fP() という名前である。このシステムコールは glibc のラッパー
+関数とは少し違った動作をする。
+
+Linux の \fBpselect6\fP() システムコールは \fItimeout\fP 引き数を変更する。
+しかし、glibc のラッパー関数は、システムコールに渡す timeout 引き数と
+してローカル変数を使うことでこの動作を隠蔽している。このため、glibc の
+\fBpselect\fP() 関数は \fItimeout\fP 引き数を変更しない。
+これが POSIX.1\-2001 が要求している動作である。
+
+\fBpselect6\fP() システムコールの最後の引き数は\fIsigset_t\ *\fP 型の
+ポインタではなく、以下に示す構造体である。
+.in +4
+.nf
+
+struct {
+    const sigset_t *ss;     /* シグナル集合へのポインタ */
+    size_t          ss_len; /* 'ss' が指すオブジェクトのサイズ
+                               (バイト数) */
+};
+
+.fi
+.in
+このようにすることで、ほとんどのアーキテクチャがサポートしている
+システムコールの引き数が最大で 6 個という事実を満たしつつ、
+\fBpselect6\fP() システムコールがシグナル集合へのポインタとシグナル集合
+のサイズの両方を取得することができるのである。
 .SH バグ
 glibc 2.0 では、 \fIsigmask\fP 引き数を取らないバージョンの \fBpselect\fP()  が提供されていた。
 
@@ -248,9 +277,13 @@ glibc 2.0 では、 \fIsigmask\fP 引き数を取らないバージョンの \fB
 \fBpselect\fP()  は設計されたのである。 最近のバージョンの glibc では、カーネルがサポートしている場合には、 (競合が起こらない)
 \fBpselect\fP()  システムコールが使用される。
 
-\fBpselect\fP()  がないシステムにおいて、 シグナルの捕捉を信頼性があり (移植性も高い) 方法で行うには、 自己パイプ
-(self\-pipe) という技を使うとよい (シグナルハンドラはパイプへ 1 バイトのデータを書き込み、同じパイプのもう一端をメインプログラムの
-\fBselect\fP()  で監視するという方法である)。
+\fBpselect\fP() がないシステムにおいて、シグナルの捕捉を信頼性があり (移植
+性も高い) 方法で行うには、 自己パイプ (self\-pipe) という技を使うとよい。
+この方法では、シグナルハンドラはパイプへ 1 バイトのデータを書き込み、
+同じパイプのもう一端をメインプログラムの \fBselect\fP() で監視する (一杯に
+なったパイプへの書き込みや空のパイプから読み出しを行った際に起こるであ
+ろう停止 (blocking) を避けるためには、パイプへの読み書きの際には 非停止
+(nonblocking) I/O を使用するとよい)。
 
 .\" Stevens discusses a case where accept can block after select
 .\" returns successfully because of an intervening RST from the client.
@@ -308,6 +341,6 @@ main(void)
 \fBrecv\fP(2), \fBsend\fP(2), \fBsigprocmask\fP(2), \fBwrite\fP(2), \fBepoll\fP(7),
 \fBtime\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.40 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.41 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
