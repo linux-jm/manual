@@ -120,9 +120,13 @@ while (<TLO>) {
     $ti{'tmail'} = $opts{"e"} if $opts{"e"};
 
     if ($opts{"c"}) {
+	$ti{'stat'} = '1st_non';
 	$ti{'tdat'} = '';
 	$ti{'tname'} = '';
 	$ti{'tmail'} = '';
+	# Reset versions to the original ver.
+	$ti{'rver'} = $ti{'over'};
+	$ti{'dver'} = $ti{'over'};
     }
 
     my $tll = hash2line(%ti);
