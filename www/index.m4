@@ -17,8 +17,17 @@ m4_dnl _MIRROR_LIST
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.41 対応版)を公開しました。
+ <SMALL>(2012/05/31)</SMALL>
+
  <LI>_LINK(INDEX/misc.html#sudo,sudo 1.8.4p4 の翻訳)を公開しました。
  <SMALL>(2012/05/09)</SMALL>
+
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.40 対応版)を公開しました。
+ <SMALL>(2012/05/03)</SMALL>
+
+ <LI>_LINK(INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.16 の翻訳)を公開しました。
+ <SMALL>(2012/04/21)</SMALL>
 
  <LI>JM で配布する manpage の文字コードを EUC-JP に UTF-8 に変更しました。<SMALL>(2012/04/10)</SMALL>
  <UL>
@@ -32,23 +41,16 @@ m4_dnl _MIRROR_LIST
  <LI>_LINK(INDEX/gnu.html#GNU_bash,GNU bash 4.2 の翻訳)を公開しました。
  <SMALL>(2012/04/01)</SMALL>
 
- <LI>JM Project のホームページを sourceforge.jp に移動しました。
-  今後は _LINK(http://sourceforge.jp/projects/linuxjm/,こちら) で
-  活動を進めて行きます。
-  <SMALL>(2010/10/24)</SMALL>
+</UL>
 
- <LI>配布アーカイブの準拠する標準を FSSTND から FHS に変更しました。
-  詳細は
-  _LINK(./news2002.html#20020915,こちら)
-  をご覧ください。
-  <SMALL>(2002/09/15)</SMALL>
-
- m4_esyscmd(`./bin/info-whole-archive.perl')
+<UL>
+m4_dnl m4_esyscmd(`./bin/info-whole-archive.perl')
 
  <LI>_LINK(news.html,更新・追加情報)
    <SMALL>(m4_esyscmd(`./bin/file_date.perl news.m4'))</SMALL></LI>
 
  <LI>_LINK(announcement/index.html,以前のお知らせ)
+ (マニュアル更新以外のお知らせです)
 </UL>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
