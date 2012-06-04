@@ -15,6 +15,24 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+ <H2>2012/06/04</H2>
+ <P>
+  以下のファイルを追加・更新しました。
+ </P>
+ <DL>
+  <DT>LDP_man-pages</DT>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, sched_setscheduler.2)
+   _NEW_PAGE(LDP_man-pages, setns.2)
+   _UPD_PAGE(LDP_man-pages, pthread_cancel.3)
+   _NEW_PAGE(LDP_man-pages, pthread_cleanup_push.3)
+   _NEW_PAGE(LDP_man-pages, pthread_cleanup_push_defer_np.3)
+   _UPD_PAGE(LDP_man-pages, pthread_kill_other_threads_np.3)
+   _UPD_PAGE(LDP_man-pages, pthread_setcancelstate.3)
+   _UPD_PAGE(LDP_man-pages, proc.5)
+  </DD>
+ </DL>
+
  <H2>2012/06/03</H2>
  <P>
   以下のファイルを追加・更新しました。
