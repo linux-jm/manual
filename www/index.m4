@@ -46,8 +46,8 @@ m4_dnl _MIRROR_LIST
 <UL>
 m4_dnl m4_esyscmd(`./bin/info-whole-archive.perl')
 
- <LI>_LINK(news.html,更新・追加情報)
-   <SMALL>(m4_esyscmd(`./bin/file_date.perl news.m4'))</SMALL></LI>
+ <LI>_LINK(news/index.html,更新・追加情報)
+   <SMALL>(m4_esyscmd(`./bin/file_date.perl news/index.m4'))</SMALL></LI>
 
  <LI>_LINK(announcement/index.html,以前のお知らせ)
  (マニュアル更新以外のお知らせです)
