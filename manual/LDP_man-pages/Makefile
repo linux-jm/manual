@@ -29,14 +29,18 @@ release:	jm-setup
 format:
 	set -e; for d in po4a/*; do \
 	  echo "----- $$d -----"; cur=`pwd`; cd $$d/po; \
-	  LC_ALL=C msgmerge --verbose --update ja.po $$(basename $$d); \
+	  f=`/bin/mktemp`; \
+	  LC_ALL=C msgmerge --verbose -o $$f ja.po $$(basename $$d) \
+	    && mv -f $$f ja.po; \
 	  cd $$cur; \
 	done
 
 format-%:
 	set -e; for d in po4a/$*; do \
 	  cd $$d/po; \
-	  msgmerge --verbose --update ja.po $$(basename $$d); \
+	  f=`/bin/mktemp`; \
+	  msgmerge --verbose -o $$f ja.po $$(basename $$d) \
+	    && mv -f $$f ja.po; \
 	  cd $$cur; \
 	done
 
