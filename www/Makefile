@@ -18,9 +18,7 @@ endif
 
 CONTENTS = index.html download.html section.html copyright.html \
 	README.html INSTALL.html \
-	missing.html nosuchpage.html manerror.html \
-	news.html news2001.html news2000.html news1999.html \
-	news2002.html news2003.html news2004.html news2005.html news2006.html
+	missing.html nosuchpage.html manerror.html
 #
 # rules
 #
@@ -30,12 +28,13 @@ all: contents
 	make -C man-ja/
 	make -C rpm/ DATE=$(DATE)
 	make -C announcement/
+	make -C news/
 
 contents: $(CONTENTS)
 
 *.html: jm_www.m4
 
-index.html: news.m4 ../stamp/latest-archive-modified
+index.html: news/index.m4 ../stamp/latest-archive-modified
 
 README.html: ../dist/README
 
