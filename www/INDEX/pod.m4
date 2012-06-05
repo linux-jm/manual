@@ -26,7 +26,7 @@ _HEADER(`JM インデックス (POD ページ)')
  をご覧ください。
 </P>
 
-m4_esyscmd(../bin/list_pod.perl ../../pod _WWWROOT pod.list | nkf -e)
+m4_esyscmd(../bin/list_pod.perl ../../pod _WWWROOT pod.list | nkf -w)
 
 _CREDITS
 

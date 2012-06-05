@@ -39,7 +39,7 @@ _HEADER(`JM インデックス (GNU)')
  gnumaniak のものを優先して翻訳していく方針になっています。
 </BLOCKQUOTE>
 
-m4_esyscmd(../bin/list.perl ../../manual _WWWROOT gnu.list | nkf -e)
+m4_esyscmd(../bin/list.perl ../../manual _WWWROOT gnu.list | nkf -w)
 
 _CREDITS
 
