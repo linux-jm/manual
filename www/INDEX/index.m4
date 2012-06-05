@@ -22,7 +22,7 @@ _HEADER(`JM インデックス')
   m4_esyscmd(`../bin/pagesize.perl ldp.html')
  </DT>
  <DD>
-  _LINK(http://www.tldp.org/,Linux Documentation Project)
+  _LINK(http://www.tldp.org/manpages/man.html,Linux Documentation Project)
   が配布している man ページ集です。
   システムコール、ライブラリ関数、特殊ファイルなど、
   特定のパッケージに依存しないページが収集されています。

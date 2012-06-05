@@ -54,38 +54,35 @@ m4_dnl m4_esyscmd(`./bin/info-whole-archive.perl')
 </UL>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<H2><A NAME="FILES">ファイル</A></H2>
-<DL>
- <DT>_LINK(INDEX/index.html,JM インデックス)</DT>
- <DD>
-  JM Project で翻訳されたマニュアルの一覧です。
-  _LINK(INDEX/progress.html,翻訳作業の進行状況)
-  も見ることができます。
- </DD>
+<H2><A NAME="FILES">JM インデックス</A></H2>
+JM Project で翻訳されたマニュアルの一覧です。
+<UL>
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages) :
+  _LINK(http://www.tldp.org/manpages/man.html,Linux Documentation Project)
+  が配布している man ページ集です。
+  システムコール、ライブラリ関数などのマニュアルが収録されています。</LI>
 
- <DT>ソースディレクトリ (_LINK(manual/,roff), _LINK(pod/,pod))</DT>
- <DD>
-  JM Project での作業イメージのスナップショットです。
- </DD>
+ <LI>_LINK(INDEX/linux.html,Linux packages) :
+ Linux 専用のソフトウェアパッケージに属する man ページです。</LI>
 
- <DT>_LINK(html/,html ページのディレクトリ)</DT>
- <DD>
-  リリース版のマニュアルを
-  _LINK(html/man/man1/man2html.1.html,man2html)
-  で html 化したページです。
- </DD>
+ <LI>_LINK(INDEX/gnu.html,GNU packages) :
+ _LINK(http://www.gnu.org/,GNU) が配布している
+ ソフトウェアパッケージに属する man ページです。</LI>
 
- <DT>_LINK(download.html,ダウンロード)</DT>
- <DD>
-  配布用アーカイブなどのダウンロードができるページです。
- </DD>
-</DL>
+ <LI>_LINK(INDEX/misc.html,Miscellaneous packages) :
+ Unix 汎用のソフトウェアのうち、 GNU 以外のものを集めました。</LI>
+</UL>
 
 <P>
  個々のファイルの扱いについては
  _LINK(copyright.html,著作権について)
  をご覧ください。
 </P>
+
+<H2><A NAME="DOWNLOAD">_LINK(download.html,ダウンロード)</A></H2>
+
+配布用アーカイブなどは、
+_LINK(download.html,こちら) からダウンロードができます。
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="SEARCH">man on WWW</A></H2>
@@ -174,8 +171,19 @@ _LINK(http://www.namazu.org/,Namazu)
 <P>
  JM Project は日本語オンラインマニュアルパッケージの作成、
  配布を行なっているプロジェクトです。
- このプロジェクトにおける仕事には
 </P>
+<P>
+_LINK(http://sourceforge.jp/projects/linuxjm/,SourceForge.JP プロジェクトページ) |
+_LINK(http://sourceforge.jp/projects/linuxjm/lists/archive/discuss/,Linux JM メーリングリスト) |
+_LINK(http://sourceforge.jp/projects/linuxjm/wiki/FrontPage,JM Project Wiki)
+</P>
+<P>
+_LINK(http://sourceforge.jp/projects/linuxjm/scm/git/jm/,JM Git Repository) |
+_LINK(https://www.transifex.net/projects/p/man-pages-ja/,LDP man-pages-ja on Transifex) |
+_LINK(html/,HTML ページ) | _LINK(manual/,roff ページ) | _LINK(pod/,pod ページ)
+</P>
+
+このプロジェクトにおける仕事には
 <UL>
  <LI>_LINK(INDEX/progress.html,man page の翻訳・校正)
  <LI>_LINK(download.html,man page package の編集と配布)
@@ -214,6 +222,7 @@ _LINK(http://www.namazu.org/,Namazu)
 </P>
 <UL>
  <LI>_LINK(http://linuxjf.sourceforge.jp/,JF Project)</LI>
+ <LI>_LINK(http://openlab.ring.gr.jp/doc-ja/,Doc-ja Archive Project)</LI>
  <LI>_LINK(http://www.jp.freebsd.org/man-jp/,Japanese Manual Project for FreeBSD)</LI>
  <LI>_LINK(http://xjman.dsl.gr.jp/,X Japanese Documentation Project)</LI>
  <LI>_LINK(http://wiki.samba.gr.jp/,日本 SAMBA ユーザ会)</LI>
@@ -225,26 +234,7 @@ m4_dnl  <LI>_LINK(http://www.cpan.jp/,CPAN.jp)</LI>
 m4_dnl  足すならここかなあ.
 </UL>
 
-<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<H2>謝辞</H2>
-<P>
- 以下の皆様のご協力に感謝します。
-</P>
-<P>
- バグ情報をお寄せ下さったユーザのみなさん。
- マニュアルを寄贈してくださった
- _LINK(http://linuxjf.sourceforge.jp/,JF) メンバー、
- Linux-MLメンバー、
- _LINK(http://www.jp.netbsd.org,NetBSD) jman project
- ・
- _LINK(http://www.jp.freebsd.org/man-jp/,FreeBSD jpman project)
- の方々。
- ML や www のリソースを提供してくださっている
- _LINK(http://sourceforge.jp/,SourceForge.JP)。
-</P>
-
 _CREDITS
 
 </BODY>
 </HTML>
-
