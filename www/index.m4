@@ -172,16 +172,18 @@ _LINK(http://www.namazu.org/,Namazu)
  JM Project は日本語オンラインマニュアルパッケージの作成、
  配布を行なっているプロジェクトです。
 </P>
-<P>
-_LINK(http://sourceforge.jp/projects/linuxjm/,SourceForge.JP プロジェクトページ) |
-_LINK(http://sourceforge.jp/projects/linuxjm/lists/archive/discuss/,Linux JM メーリングリスト) |
-_LINK(http://sourceforge.jp/projects/linuxjm/wiki/FrontPage,JM Project Wiki)
-</P>
-<P>
-_LINK(http://sourceforge.jp/projects/linuxjm/scm/git/jm/,JM Git Repository) |
-_LINK(https://www.transifex.net/projects/p/man-pages-ja/,LDP man-pages-ja on Transifex) |
-_LINK(html/,HTML ページ) | _LINK(manual/,roff ページ) | _LINK(pod/,pod ページ)
-</P>
+<UL>
+ <LI>
+ _LINK(http://sourceforge.jp/projects/linuxjm/,SourceForge.JP プロジェクトページ) |
+ _LINK(http://sourceforge.jp/projects/linuxjm/lists/archive/discuss/,Linux JM メーリングリスト) |
+ _LINK(http://sourceforge.jp/projects/linuxjm/wiki/FrontPage,JM Project Wiki)
+ </LI>
+ <LI>
+ _LINK(http://sourceforge.jp/projects/linuxjm/scm/git/jm/,JM Git Repository) |
+ _LINK(https://www.transifex.net/projects/p/man-pages-ja/,LDP man-pages-ja on Transifex) |
+ _LINK(html/,HTML ページ) | _LINK(manual/,roff ページ) | _LINK(pod/,pod ページ)
+ </LI>
+</UL>
 
 このプロジェクトにおける仕事には
 <UL>
