@@ -54,25 +54,14 @@ my ($key, $pkg);
 
 print "<H2>ステータス一覧</H2>\n";
 
-print "<H3>目次</H3>\n";
-#print "<UL>\n";
-#foreach $key (sort keys %tl){
-#    $pkg = $key; $pkg =~ s/ /_/eg;
-#    print "<LI><A HREF=\"#$pkg\">$key</A></LI>\n";
-#}
-#print "</UL>\n";
-$my $count = 0;
-$my $width = 10;
-print "<TABLE BORDER=0>\n";
+my $is_first = 1;
+print "<SMALL>\n";
 foreach $key (sort keys %tl){
-    print "<TR>" if $count % $width == 0;
     $pkg = $key; $pkg =~ s/ /_/eg;
-    print "<TD><A HREF=\"#$pkg\">$key</A></TD>\n";
-    $count++;
-    print "</TR>" if $count % $width == 0;
+    print " | " if not $is_first; $is_first = 0;
+    print "<A HREF=\"#$pkg\">$key</A>\n";
 }
-print "</TR>" if $count % $width != 0;
-print "</TABLE>\n";
+print "</SMALL>\n";
 
 foreach $key (sort keys %tl){
     $pkg = $key; $pkg =~ s/ /_/eg;
