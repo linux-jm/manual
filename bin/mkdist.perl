@@ -172,6 +172,6 @@ foreach my $fkey (sort keys %pod_hash){
 
     print "translate $srcfile => $dstfile\n";
     system "mkdir -p $dstdir";
-    system "$POD2MAN $srcfile > $dstfile";
+    system "$POD2MAN --utf8 $srcfile > $dstfile";
 }
 
