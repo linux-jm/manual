@@ -54,37 +54,6 @@ m4_dnl m4_esyscmd(`./bin/info-whole-archive.perl')
 </UL>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<H2><A NAME="FILES">JM インデックス</A></H2>
-JM Project で翻訳されたマニュアルの一覧です。
-<UL>
- <LI>_LINK(INDEX/ldp.html,LDP man-pages) :
-  _LINK(http://www.tldp.org/manpages/man.html,Linux Documentation Project)
-  が配布している man ページ集です。
-  システムコール、ライブラリ関数などのマニュアルが収録されています。</LI>
-
- <LI>_LINK(INDEX/linux.html,Linux packages) :
- Linux 専用のソフトウェアパッケージに属する man ページです。</LI>
-
- <LI>_LINK(INDEX/gnu.html,GNU packages) :
- _LINK(http://www.gnu.org/,GNU) が配布している
- ソフトウェアパッケージに属する man ページです。</LI>
-
- <LI>_LINK(INDEX/misc.html,Miscellaneous packages) :
- Unix 汎用のソフトウェアのうち、 GNU 以外のものを集めました。</LI>
-</UL>
-
-<P>
- 個々のファイルの扱いについては
- _LINK(copyright.html,著作権について)
- をご覧ください。
-</P>
-
-<H2><A NAME="DOWNLOAD">_LINK(download.html,ダウンロード)</A></H2>
-
-配布用アーカイブなどは、
-_LINK(download.html,こちら) からダウンロードができます。
-
-<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="SEARCH">man on WWW</A></H2>
 <P>
  man コマンドの簡単な WWW 版です。
@@ -119,6 +88,40 @@ _LINK(download.html,こちら) からダウンロードができます。
  </TABLE>
 
 </FORM>
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<H2><A NAME="FILES">JM インデックス</A></H2>
+JM Project で翻訳された_LINK(INDEX/,マニュアルの一覧)です。
+<UL>
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages) :
+  _LINK(http://www.tldp.org/manpages/man.html,Linux Documentation Project)
+  が配布している man ページ集です。
+  システムコール、ライブラリ関数などのマニュアルが収録されています。</LI>
+
+ <LI>_LINK(INDEX/linux.html,Linux packages) :
+ Linux 専用のソフトウェアパッケージに属する man ページです。</LI>
+
+ <LI>_LINK(INDEX/gnu.html,GNU packages) :
+ _LINK(http://www.gnu.org/,GNU) が配布している
+ ソフトウェアパッケージに属する man ページです。</LI>
+
+ <LI>_LINK(INDEX/misc.html,Miscellaneous packages) :
+ Unix 汎用のソフトウェアのうち、 GNU 以外のものを集めました。</LI>
+
+ <LI>_LINK(INDEX/pod.html,POD ページ) :
+ Perl 関連パッケージで良く用いられる、 POD (plain old documentation) 形式で書かれたページです。</LI>
+</UL>
+
+<P>
+ 個々のファイルの扱いについては
+ _LINK(copyright.html,著作権について)
+ をご覧ください。
+</P>
+
+<H2><A NAME="DOWNLOAD">ダウンロード</A></H2>
+
+配布用アーカイブなどは、
+_LINK(download.html,こちら) からダウンロードができます。
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <!--
@@ -185,26 +188,10 @@ _LINK(http://www.namazu.org/,Namazu)
  </LI>
 </UL>
 
-このプロジェクトにおける仕事には
 <UL>
- <LI>_LINK(INDEX/progress.html,man page の翻訳・校正)
- <LI>_LINK(download.html,man page package の編集と配布)
-  (_LINK(rpm/index.html,RPM/SRPM 配布))
- <LI>_LINK(man-ja/index.html,man コマンド等周辺環境の整備)
+ <LI>_LINK(INDEX/progress.html,翻訳作業状況)</LI>
+ <LI>_LINK(guidance/index.html,JM 翻訳作業の手引き)</LI>
 </UL>
-<P CLASS="noindent">
- などがあります。また今後の課題としては、
-<UL>
- <LI>翻訳済み man page の収集
- <LI>上流への連絡と、必要に応じて翻訳配布許可の明示的な取得
- <LI>上流パッケージへの翻訳のマージ
-</UL>
-<P CLASS="noindent">
- が挙げられます。
- 活動の詳細や JM への参加方法については
- _LINK(guidance/index.html,JM 翻訳作業の手引き)
- をご覧ください。
-</P>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="BUGREPORT">バグレポートをお寄せください</A></H2>
