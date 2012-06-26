@@ -4,6 +4,7 @@ from jinja2 import Template
 import sys
 import re
 import os.path
+import argparse
 
 TEMPLATE_HEADER = """[po_directory] po4a"""
 TEMPLATE_PAGE = """
@@ -17,8 +18,11 @@ def usage():
     print '(Example) %s connect.2' % sys.argv[0]
     sys.exit(1)
 
-def gencfg_header():
-    print TEMPLATE_HEADER
+def gencfg_header(path=None):
+    if path == None:
+        print TEMPLATE_HEADER
+    else:
+        print os.path.join(TEMPLATE_HEADER, path)
 
 def gencfg_page(name):
     try:
@@ -33,9 +37,21 @@ def gencfg_page(name):
 
 #--------------------
 
-if len(sys.argv) < 2:
-    usage()
+parser = argparse.ArgumentParser(description="po4a config generator")
+parser.add_argument('FILE', nargs='+')
+parser.add_argument('-r', '--recursive', action='store_true')
+args = parser.parse_args()
+#print args.recursive
+#print args.FILE
 
-gencfg_header()
-for p in sys.argv[1:]:
+#if len(sys.argv) < 2:
+#    usage()
+
+if args.recursive:
+    path = os.path.basename(args.FILE[0])
+else:
+    path = None
+gencfg_header(path)
+
+for p in args.FILE:
     gencfg_page(os.path.basename(p))
