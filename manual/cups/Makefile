@@ -14,6 +14,10 @@ all:	translate
 
 translate: $(patsubst po4a/%, translate-%, $(PO4A_SUBDIRS))
 
+# This target is to escape "add_*" directory in po4a.
+translate-add_%:
+	@:
+
 translate-%:
 	po4a $(PO4AFLAGS) -v --variable langs='$(LANGS)' \
 	  --previous --srcdir $(WORK_DIR) --destdir $(WORK_DIR) \
