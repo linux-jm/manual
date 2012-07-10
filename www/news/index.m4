@@ -15,6 +15,25 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+ <H2>2012/07/07</H2>
+ <P>
+  以下のファイルを追加・更新しました。
+ </P>
+ <DL>
+  <DT>cups</DT>
+  <DD>
+   _NEW_PAGE(cups, cancel.1)
+   _NEW_PAGE(cups, lp.1)
+   _NEW_PAGE(cups, lpoptions.1)
+   _NEW_PAGE(cups, lpq.1)
+   _NEW_PAGE(cups, lpr.1)
+   _NEW_PAGE(cups, lprm.1)
+   _NEW_PAGE(cups, lpstat.1)
+   _NEW_PAGE(cups, lpadmin.8)
+   _NEW_PAGE(cups, lpc.8)
+  </DD>
+ </DL>
+
  <H2>2012/06/04</H2>
  <P>
   以下のファイルを追加・更新しました。
