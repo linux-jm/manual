@@ -77,7 +77,7 @@ stamp-jm-setup:
 
 clean-setup:
 	$(RM) stamp-jm-setup
-	$(RM) $(PERKAMON_DIR)/man-pages
+	$(RM) $(PERKAMON_DIR)/man-pages || true
 	$(RM) $(PERKAMON_DIR)/stamp-*
 	$(RM) -rf $(PERKAMON_DIR)/build
 	find $(PERKAMON_DIR) -type l | xargs $(RM)
