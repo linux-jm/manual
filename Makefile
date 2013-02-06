@@ -138,6 +138,7 @@ else
 	    --dbpath $(RPMROOT)/db \
 	    --define "_topdir $(RPMROOT)"  \
 	    --define "_tmppath $(RPMROOT)/tmp"  \
+	    --define "_sourcedir $(RPMROOT)/SOURCES" \
 	    --define "_mandir /usr/share/man" -ba \
 	    $(RPMROOT)/SPECS/$(JMRPMSPEC)
 	touch stamp/latest-archive-modified
