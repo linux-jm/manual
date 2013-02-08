@@ -17,6 +17,8 @@ m4_dnl _MIRROR_LIST(download.html)
  今後は定期的に更新の予定です。
 </P>
 
+<P>なお、各 roff ページの文字コードは UTF-8 にしています。</P>
+
 <H2>全体のアーカイブ</H2>
 <UL>
  <LI>m4_esyscmd(./bin/link-whole-archive.perl _DATE)</LI>
