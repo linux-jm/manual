@@ -1,9 +1,8 @@
-.\" Hey Emacs! This file is -*- nroff -*- source.
-.\"
 .\" Copyright (C) 1998 Andries Brouwer (aeb@cwi.nl)
-.\" and Copyright (C) 2002 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" and Copyright (C) 2002, 2006, 2008, 2012, 2013 Michael Kerrisk <mtk.manpages@gmail.com>
 .\" and Copyright Guillem Jover <guillem@hadrons.org>
 .\"
+.\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
@@ -23,6 +22,7 @@
 .\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
 .\"
 .\" Modified Thu Nov 11 04:19:42 MET 1999, aeb: added PR_GET_PDEATHSIG
 .\" Modified 27 Jun 02, Michael Kerrisk
@@ -41,11 +41,15 @@
 .\" 2012-04 Cyrill Gorcunov, Document PR_SET_MM
 .\" 2012-04-25 Michael Kerrisk, Document PR_TASK_PERF_EVENTS_DISABLE and
 .\"				PR_TASK_PERF_EVENTS_ENABLE
+.\" 2012-09-20 Kees Cook, update PR_SET_SECCOMP for mode 2
+.\" 2012-09-20 Kees Cook, document PR_SET_NO_NEW_PRIVS, PR_GET_NO_NEW_PRIVS
+.\" 2012-10-25 Michael Kerrisk, Document PR_SET_TIMERSLACK and
+.\"                             PR_GET_TIMERSLACK
+.\" 2013-01-10 Kees Cook, document PR_SET_PTRACER
+.\" 2012-02-04 Michael kerrisk, document PR_{SET,GET}_CHILD_SUBREAPER
 .\"
-.\" FIXME: Document PR_SET_TIMERSLACK and PR_GET_TIMERSLACK (new in 2.6.28)
-.\"		commit 6976675d94042fbd446231d1bd8b7de71a980ada
 .\"
-.TH PRCTL 2 2012-04-23 "Linux" "Linux Programmer's Manual"
+.TH PRCTL 2 2013-02-25 "Linux" "Linux Programmer's Manual"
 .SH NAME
 prctl \- operations on a process
 .SH SYNOPSIS
@@ -100,11 +104,41 @@ does not represent a valid capability; or
 if file capabilities are not enabled in the kernel,
 in which case bounding sets are not supported.
 .TP
+.BR PR_SET_CHILD_SUBREAPER " (since Linux 3.4)"
+.\" commit ebec18a6d3aa1e7d84aab16225e87fd25170ec2b
+If
+.I arg2
+is nonzero,
+set the "child subreaper" attribute of the calling process;
+if
+.I arg2
+is zero, unset the attribute.
+When a process is marked as a child subreaper,
+all of the children that it creates, and their descendants,
+will be marked as having a subreaper.
+In effect, a subreaper fulfills the role of
+.BR init (1)
+for its descendant processes.
+Upon termination of a process
+that is orphaned (i.e., its immediate parent has already terminated)
+and marked as having a subreaper,
+the nearest still living ancestor subreaper
+will receive a
+.BR SIGCHLD
+signal and be able to
+.BR wait (2)
+on the process to discover its termination status.
+.TP
+.BR PR_GET_CHILD_SUBREAPER " (since Linux 3.4)"
+Return the "child subreaper" setting of the caller,
+in the location pointed to by
+.IR "(int\ *) arg2" .
+.TP
 .BR PR_SET_DUMPABLE " (since Linux 2.3.20)"
 Set the state of the flag determining whether core dumps are produced
-for this process upon delivery of a signal whose default behavior is
+for the calling process upon delivery of a signal whose default behavior is
 to produce a core dump.
-(Normally this flag is set for a process by default, but it is cleared
+(Normally, this flag is set for a process by default, but it is cleared
 when a set-user-ID or set-group-ID program is executed and also by
 various system calls that manipulate process UIDs and GIDs).
 In kernels up to and including 2.6.12,
@@ -123,7 +157,7 @@ for security reasons, this feature has been removed.
 in
 .BR proc (5).)
 Processes that are not dumpable can not be attached via
-.BR ptrace(2)
+.BR ptrace (2)
 .BR PTRACE_ATTACH .
 .TP
 .BR PR_GET_DUMPABLE " (since Linux 2.3.20)"
@@ -201,7 +235,7 @@ Return (as the function result) the current state of the calling threads's
 "keep capabilities" flag.
 .TP
 .BR PR_SET_NAME " (since Linux 2.6.9)"
-Set the process name for the calling process,
+Set the process name for the calling thread,
 using the value in the location pointed to by
 .IR "(char\ *) arg2" .
 The name can be up to 16 bytes long,
@@ -209,11 +243,48 @@ The name can be up to 16 bytes long,
 and should be null-terminated if it contains fewer bytes.
 .TP
 .BR PR_GET_NAME " (since Linux 2.6.11)"
-Return the process name for the calling process,
+Return the name for the calling thread,
 in the buffer pointed to by
 .IR "(char\ *) arg2" .
 The buffer should allow space for up to 16 bytes;
 the returned string will be null-terminated if it is shorter than that.
+.TP
+.BR PR_SET_NO_NEW_PRIVS " (since Linux 3.5)"
+Set the calling process's
+.I no_new_privs
+bit to the value in
+.IR arg2 .
+With
+.I no_new_privs
+set to 1,
+.BR execve (2)
+promises not to grant privileges to do anything
+that could not have been done without the
+.BR execve (2)
+call (for example,
+rendering the set-user-ID and set-group-ID permission bits,
+and file capabilities non-functional).
+Once set, this bit cannot be unset.
+The setting of this bit is inherited by children created by
+.BR fork (2)
+and
+.BR clone (2),
+and preserved across
+.BR execve (2).
+
+For more information, see the kernel source file
+.IR Documentation/prctl/no_new_privs.txt .
+.TP
+.BR PR_GET_NO_NEW_PRIVS " (since Linux 3.5)"
+Return the value of the
+.I no_new_privs
+bit for the current process.
+A value of 0 indicates the regular
+.BR execve (2)
+behavior.
+A value of 1 indicates
+.BR execve (2)
+will operate in the privilege-restricting mode described above.
 .TP
 .BR PR_SET_PDEATHSIG " (since Linux 2.1.57)"
 Set the parent process death signal
@@ -223,23 +294,57 @@ This is the signal that the calling process will get when its
 parent dies.
 This value is cleared for the child of a
 .BR fork (2)
-and (since Linux 2.5.36 / 2.6.23)
-when executing a set-user_ID or set-group-ID binary.
+and (since Linux 2.4.36 / 2.6.23)
+when executing a set-user-ID or set-group-ID binary.
 .TP
 .BR PR_GET_PDEATHSIG " (since Linux 2.3.15)"
 Return the current value of the parent process death signal,
 in the location pointed to by
 .IR "(int\ *) arg2" .
 .TP
+.BR PR_SET_PTRACER " (since Linux 3.4)"
+.\" commit 2d514487faf188938a4ee4fb3464eeecfbdcf8eb
+.\" commit bf06189e4d14641c0148bea16e9dd24943862215
+This is only meaningful when the Yama LSM is enabled and in mode 1
+("restricted ptrace", visible via
+.IR /proc/sys/kernel/yama/ptrace_scope ).
+When a "ptracer process ID" is passed in \fIarg2\fP,
+the caller is declaring that the ptracer process can
+.BR ptrace (2)
+the calling process as if it were a direct process ancestor.
+Each
+.B PR_SET_PTRACER
+operation replaces the previous "ptracer process ID".
+Employing
+.B PR_SET_PTRACER
+with
+.I arg2
+set to 0 clears the caller's "ptracer process ID".
+If
+.I arg2
+is
+.BR PR_SET_PTRACER_ANY,
+the ptrace restrictions introduced by Yama are effectively disabled for the
+calling process.
+
+For further information, see the kernel source file
+.IR Documentation/security/Yama.txt .
+.TP
 .BR PR_SET_SECCOMP " (since Linux 2.6.23)"
 .\" See http://thread.gmane.org/gmane.linux.kernel/542632
 .\" [PATCH 0 of 2] seccomp updates
 .\" andrea@cpushare.com
-Set the secure computing mode for the calling thread.
-In the current implementation,
+Set the secure computing (seccomp) mode for the calling thread, to limit
+the available system calls.
+The seccomp mode is selected via
+.IR arg2 .
+(The seccomp constants are defined in
+.IR <linux/seccomp.h> .)
+
+With
 .IR arg2
-must be 1.
-After the secure computing mode has been set to 1,
+set to
+.BR SECCOMP_MODE_STRICT
 the only system calls that the thread is permitted to make are
 .BR read (2),
 .BR write (2),
@@ -249,24 +354,61 @@ and
 Other system calls result in the delivery of a
 .BR SIGKILL
 signal.
-Secure computing mode is useful for number-crunching applications
+Strict secure computing mode is useful for number-crunching applications
 that may need to execute untrusted byte code,
 perhaps obtained by reading from a pipe or socket.
 This operation is only available
-if the kernel is configured with CONFIG_SECCOMP enabled.
+if the kernel is configured with
+.B CONFIG_SECCOMP
+enabled.
+
+With
+.IR arg2
+set to
+.BR SECCOMP_MODE_FILTER " (since Linux 3.5)"
+the system calls allowed are defined by a pointer
+to a Berkeley Packet Filter passed in
+.IR arg3 .
+This argument is a pointer to
+.IR "struct sock_fprog" ;
+it can be designed to filter
+arbitrary system calls and system call arguments.
+This mode is only available if the kernel is configured with
+.B CONFIG_SECCOMP_FILTER
+enabled.
+
+If
+.BR SECCOMP_MODE_FILTER
+filters permit
+.BR fork (2),
+then the seccomp mode is inherited by children created by
+.BR fork (2);
+if
+.BR execve (2)
+is permitted, then the seccomp mode is preserved across
+.BR execve (2).
+If the filters permit
+.BR prctl ()
+calls, then additional filters can be added;
+they are run in order until the first non-allow result is seen.
+
+For further information, see the kernel source file
+.IR Documentation/prctl/seccomp_filter.txt .
 .TP
 .BR PR_GET_SECCOMP " (since Linux 2.6.23)"
 Return the secure computing mode of the calling thread.
-Not very useful for the current implementation (mode equals 1),
-but may be useful for other possible future modes:
-if the caller is not in secure computing mode, this operation returns 0;
-if the caller is in secure computing mode, then the
+If the caller is not in secure computing mode, this operation returns 0;
+if the caller is in strict secure computing mode, then the
 .BR prctl ()
 call will cause a
 .B SIGKILL
 signal to be sent to the process.
+If the caller is in filter mode, and this system call is allowed by the
+seccomp filters, it returns 2.
 This operation is only available
-if the kernel is configured with CONFIG_SECCOMP enabled.
+if the kernel is configured with
+.B CONFIG_SECCOMP
+enabled.
 .TP
 .BR PR_SET_SECUREBITS " (since Linux 2.6.26)"
 Set the "securebits" flags of the calling thread to the value supplied in
@@ -279,6 +421,84 @@ Return (as the function result)
 the "securebits" flags of the calling thread.
 See
 .BR capabilities (7).
+.TP
+.BR PR_GET_TID_ADDRESS " (since Linux 3.5)"
+.\" commit 300f786b2683f8bb1ec0afb6e1851183a479c86d
+Retrieve the
+.I clear_child_tid
+address set by
+.BR set_tid_address (2)
+and the
+.BR clone (2)
+.B CLONE_CHILD_CLEARTID
+flag, in the location pointed to by
+.IR "(int\ **)\ arg2" .
+This feature is available only if the kernel is built with the
+.BR CONFIG_CHECKPOINT_RESTORE
+option enabled.
+.TP
+.BR PR_SET_TIMERSLACK " (since Linux 2.6.28)"
+.\" See https://lwn.net/Articles/369549/
+.\" commit 6976675d94042fbd446231d1bd8b7de71a980ada
+Set the current timer slack for the calling thread to the nanosecond value
+supplied in
+.IR arg2 .
+If
+.I arg2
+is less than or equal to zero,
+.\" It seems that it's not possible to set the timer slack to zero;
+.\" The minimum value is 1? Seems a little strange.
+reset the current timer slack to the thread's default timer slack value.
+The timer slack is used by the kernel to group timer expirations
+for the calling thread that are close to one another;
+as a consequence, timer expirations for the thread may be
+up to the specified number of nanoseconds late (but will never expire early).
+Grouping timer expirations can help reduce system power consumption
+by minimizing CPU wake-ups.
+
+The timer expirations affected by timer slack are those set by
+.BR select (2),
+.BR pselect (2),
+.BR poll (2),
+.BR ppoll (2),
+.BR epoll_wait (2),
+.BR epoll_pwait (2),
+.BR clock_nanosleep (2),
+.BR nanosleep (2),
+and
+.BR futex (2)
+(and thus the library functions implemented via futexes, including
+.\" List obtained by grepping for futex usage in glibc source
+.BR pthread_cond_timedwait (3),
+.BR pthread_mutex_timedlock (3),
+.BR pthread_rwlock_timedrdlock (3),
+.BR pthread_rwlock_timedwrlock (3),
+and
+.BR sem_timedwait (3)).
+
+Timer slack is not applied to threads that are scheduled under
+a realtime scheduling policy (see
+.BR sched_setscheduler (2)).
+
+Each thread has two associated timer slack values:
+a "default" value, and a "current" value.
+The current value is the one that governs grouping
+of timer expirations.
+When a new thread is created,
+the two timer slack values are made the same as the current value
+of the creating thread.
+Thereafter, a thread can adjust its current timer slack value via
+.BR PR_SET_TIMERSLACK
+(the default value can't be changed).
+The timer slack values of
+.IR init
+(PID 1), the ancestor of all processes,
+are 50,000 nanoseconds (50 microseconds).
+The timer slack values are preserved across
+.BR execve (2).
+.TP
+.BR PR_GET_TIMERSLACK " (since Linux 2.6.28)"
+Return the current timer slack value of the calling thread.
 .TP
 .BR PR_SET_TIMING " (since Linux 2.6.0-test4)"
 Set whether to use (normal, traditional) statistical process timing or
@@ -307,7 +527,7 @@ regardless of whether the counters were created by
 this process or another process.
 Performance counters created by the calling process for other
 processes are unaffected.
-For more information on performance counters, see the kernel source file
+For more information on performance counters, see the Linux kernel source file
 .IR tools/perf/design.txt .
 .IP
 Originally called
@@ -543,10 +763,11 @@ option.
 .\" ========== END FIXME
 .RE
 .\"
-.SH "RETURN VALUE"
+.SH RETURN VALUE
 On success,
 .BR PR_GET_DUMPABLE ,
 .BR PR_GET_KEEPCAPS ,
+.BR PR_GET_NO_NEW_PRIVS ,
 .BR PR_CAPBSET_READ ,
 .BR PR_GET_TIMING ,
 .BR PR_GET_SECUREBITS ,
@@ -593,7 +814,7 @@ is not valid value for this
 is
 .BR PR_SET_SECCOMP
 or
-.BR PR_SET_SECCOMP ,
+.BR PR_GET_SECCOMP ,
 and the kernel was not configured with
 .BR CONFIG_SECCOMP .
 .TP
@@ -636,6 +857,16 @@ or specifies a value that would cause the
 .B RLIMIT_DATA
 resource limit to be exceeded.
 .RE
+.TP
+.B EINVAL
+.I option
+is
+.BR PR_SET_PTRACER
+and
+.I arg2
+is not 0,
+.BR PR_SET_PTRACER_ANY ,
+or the PID of an existing process.
 .TP
 .B EPERM
 .I option
@@ -722,7 +953,7 @@ The
 .BR prctl ()
 system call was introduced in Linux 2.1.57.
 .\" The library interface was added in glibc 2.0.6
-.SH "CONFORMING TO"
+.SH CONFORMING TO
 This call is Linux-specific.
 IRIX has a
 .BR prctl ()
@@ -736,6 +967,6 @@ and options to get the maximum number of processes per user,
 get the maximum number of processors the calling process can use,
 find out whether a specified process is currently blocked,
 get or set the maximum stack size, and so on.
-.SH "SEE ALSO"
+.SH SEE ALSO
 .BR signal (2),
 .BR core (5)

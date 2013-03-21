@@ -1,5 +1,3 @@
-.\" Hey Emacs! This file is -*- nroff -*- source.
-.\"
 .\" Copyright (c) 1993 Michael Haardt <michael@moria.de>
 .\" Fri Apr  2 11:32:09 MET DST 1993
 .\"
@@ -10,6 +8,7 @@
 .\"
 .\" and Copyright (c) 2011, Denys Vlasenko <vda.linux@googlemail.com>
 .\"
+.\" %%%LICENSE_START(GPLv2+_DOC_FULL)
 .\" This is free documentation; you can redistribute it and/or
 .\" modify it under the terms of the GNU General Public License as
 .\" published by the Free Software Foundation; either version 2 of
@@ -26,9 +25,9 @@
 .\" GNU General Public License for more details.
 .\"
 .\" You should have received a copy of the GNU General Public
-.\" License along with this manual; if not, write to the Free
-.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
-.\" USA.
+.\" License along with this manual; if not, see
+.\" <http://www.gnu.org/licenses/>.
+.\" %%%LICENSE_END
 .\"
 .\" Modified Fri Jul 23 23:47:18 1993 by Rik Faith <faith@cs.unc.edu>
 .\" Modified Fri Jan 31 16:46:30 1997 by Eric S. Raymond <esr@thyrsus.com>
@@ -42,11 +41,7 @@
 .\"    (Thanks to Blaisorblade, Daniel Jacobowitz and others who helped.)
 .\" 2011-09, major update by Denys Vlasenko <vda.linux@googlemail.com>
 .\"
-.\" FIXME Linux 2.6.34 adds PTRACE_GETREGSET/PTRACE_SETREGSET
-.\" FIXME Linux 3.1 adds PTRACE_SEIZE, PTRACE_INTERRUPT,
-.\"                and PTRACE_LISTEN.
-.\"
-.TH PTRACE 2 2012-04-26 "Linux" "Linux Programmer's Manual"
+.TH PTRACE 2 2013-02-16 "Linux" "Linux Programmer's Manual"
 .SH NAME
 ptrace \- process trace
 .SH SYNOPSIS
@@ -95,7 +90,9 @@ and having the resulting child do a
 followed (typically) by an
 .BR execve (2).
 Alternatively, one process may commence tracing another process using
-.BR PTRACE_ATTACH .
+.B PTRACE_ATTACH
+or
+.BR PTRACE_SEIZE .
 .LP
 While being traced, the tracee will stop each time a signal is delivered,
 even if the signal is being ignored.
@@ -150,7 +147,9 @@ In the following requests,
 .I pid
 specifies the thread ID of the tracee to be acted on.
 For requests other than
-.B PTRACE_ATTACH
+.BR PTRACE_ATTACH ,
+.BR PTRACE_SEIZE ,
+.B PTRACE_INTERRUPT
 and
 .BR PTRACE_KILL ,
 the tracee must be stopped.
@@ -210,7 +209,7 @@ the offset must typically be word-aligned.
 In order to maintain the integrity of the kernel,
 some modifications to the USER area are disallowed.
 .\" FIXME In the preceding sentence, which modifications are disallowed,
-.\" and when they are disallowed, how does userspace discover that fact?
+.\" and when they are disallowed, how does user space discover that fact?
 .TP
 .BR PTRACE_GETREGS ", " PTRACE_GETFPREGS
 Copy the tracee's general-purpose or floating-point registers,
@@ -230,6 +229,31 @@ reversed; that is,
 .I data
 is ignored and the registers are copied to the address
 .IR addr .
+.B PTRACE_GETREGS
+and
+.B PTRACE_GETFPREGS
+are not present on all architectures.
+.TP
+.BR PTRACE_GETREGSET " (since Linux 2.6.34)"
+Read the tracee's registers.
+.I addr
+specifies, in an architecture-dependent way, the type of registers to be read.
+.B NT_PRSTATUS
+(with numerical value 1)
+usually results in reading of general-purpose registers.
+If the CPU has, for example,
+floating-point and/or vector registers, they can be retrieved by setting
+.I addr
+to the corresponding
+.B NT_foo
+constant.
+.I data
+points to a
+.BR "struct iovec" ,
+which describes the destination buffer's location and length.
+On return, the kernel modifies
+.B iov.len
+to indicate the actual number of bytes returned.
 .TP
 .BR PTRACE_GETSIGINFO " (since Linux 2.3.99-pre6)"
 Retrieve information about the signal that caused the stop.
@@ -244,7 +268,7 @@ in the tracer.
 is ignored.)
 .TP
 .BR PTRACE_SETREGS ", " PTRACE_SETFPREGS
-Copy the tracee's general-purpose or floating-point registers,
+Modify the tracee's general-purpose or floating-point registers,
 respectively, from the address
 .I data
 in the tracer.
@@ -252,7 +276,7 @@ As for
 .BR PTRACE_POKEUSER ,
 some general-purpose register modifications may be disallowed.
 .\" FIXME In the preceding sentence, which modifications are disallowed,
-.\" and when they are disallowed, how does userspace discover that fact?
+.\" and when they are disallowed, how does user space discover that fact?
 .RI ( addr
 is ignored.)
 Note that SPARC systems have the meaning of
@@ -263,6 +287,19 @@ reversed; that is,
 .I data
 is ignored and the registers are copied from the address
 .IR addr .
+.B PTRACE_SETREGS
+and
+.B PTRACE_SETFPREGS
+are not present on all architectures.
+.TP
+.BR PTRACE_SETREGSET " (since Linux 2.6.34)"
+Modify the tracee's registers.
+The meaning of
+.I addr
+and
+.I data
+is analogous to
+.BR PTRACE_GETREGSET .
 .TP
 .BR PTRACE_SETSIGINFO " (since Linux 2.3.99-pre6)"
 Set signal information:
@@ -290,52 +327,13 @@ is interpreted as a bit mask of options,
 which are specified by the following flags:
 .RS
 .TP
-.BR PTRACE_O_TRACESYSGOOD " (since Linux 2.4.6)"
-When delivering system call traps, set bit 7 in the signal number
-(i.e., deliver
-.IR "SIGTRAP|0x80" ).
-This makes it easy for the tracer to distinguish
-normal traps from those caused by a system call.
-.RB ( PTRACE_O_TRACESYSGOOD
-may not work on all architectures.)
-.TP
-.BR PTRACE_O_TRACEFORK " (since Linux 2.5.46)"
-Stop the tracee at the next
-.BR fork (2)
-and automatically start tracing the newly forked process,
-which will start with a
-.BR SIGSTOP .
-A
-.BR waitpid (2)
-by the tracer will return a
-.I status
-value such that
-
-.nf
-  status>>8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))
-.fi
-
-The PID of the new process can be retrieved with
-.BR PTRACE_GETEVENTMSG .
-.TP
-.BR PTRACE_O_TRACEVFORK " (since Linux 2.5.46)"
-Stop the tracee at the next
-.BR vfork (2)
-and automatically start tracing the newly vforked process,
-which will start with a
-.BR SIGSTOP .
-A
-.BR waitpid (2)
-by the tracer will return a
-.I status
-value such that
-
-.nf
-  status>>8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))
-.fi
-
-The PID of the new process can be retrieved with
-.BR PTRACE_GETEVENTMSG .
+.BR PTRACE_O_EXITKILL " (since Linux 3.8)"
+.\" commit 992fb6e170639b0849bace8e49bf31bd37c4123
+If a tracer sets this flag, a
+.B SIGKILL
+signal will be sent to every tracee if the tracer exits.
+This option is useful for ptrace jailers that
+want to ensure that tracees can never escape the tracer's control.
 .TP
 .BR PTRACE_O_TRACECLONE " (since Linux 2.5.46)"
 Stop the tracee at the next
@@ -395,22 +393,6 @@ the thread ID is reset to thread group leader's ID before this stop.
 Since Linux 3.0, the former thread ID can be retrieved with
 .BR PTRACE_GETEVENTMSG .
 .TP
-.BR PTRACE_O_TRACEVFORKDONE " (since Linux 2.5.60)"
-Stop the tracee at the completion of the next
-.BR vfork (2).
-A
-.BR waitpid (2)
-by the tracer will return a
-.I status
-value such that
-
-.nf
-  status>>8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))
-.fi
-
-The PID of the new process can (since Linux 2.6.18) be retrieved with
-.BR PTRACE_GETEVENTMSG .
-.TP
 .BR PTRACE_O_TRACEEXIT " (since Linux 2.5.60)"
 Stop the tracee at exit.
 A
@@ -433,6 +415,69 @@ whereas the normal exit notification is done after the process
 is finished exiting.
 Even though context is available,
 the tracer cannot prevent the exit from happening at this point.
+.TP
+.BR PTRACE_O_TRACEFORK " (since Linux 2.5.46)"
+Stop the tracee at the next
+.BR fork (2)
+and automatically start tracing the newly forked process,
+which will start with a
+.BR SIGSTOP .
+A
+.BR waitpid (2)
+by the tracer will return a
+.I status
+value such that
+
+.nf
+  status>>8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))
+.fi
+
+The PID of the new process can be retrieved with
+.BR PTRACE_GETEVENTMSG .
+.TP
+.BR PTRACE_O_TRACESYSGOOD " (since Linux 2.4.6)"
+When delivering system call traps, set bit 7 in the signal number
+(i.e., deliver
+.IR "SIGTRAP|0x80" ).
+This makes it easy for the tracer to distinguish
+normal traps from those caused by a system call.
+.RB ( PTRACE_O_TRACESYSGOOD
+may not work on all architectures.)
+.TP
+.BR PTRACE_O_TRACEVFORK " (since Linux 2.5.46)"
+Stop the tracee at the next
+.BR vfork (2)
+and automatically start tracing the newly vforked process,
+which will start with a
+.BR SIGSTOP .
+A
+.BR waitpid (2)
+by the tracer will return a
+.I status
+value such that
+
+.nf
+  status>>8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))
+.fi
+
+The PID of the new process can be retrieved with
+.BR PTRACE_GETEVENTMSG .
+.TP
+.BR PTRACE_O_TRACEVFORKDONE " (since Linux 2.5.60)"
+Stop the tracee at the completion of the next
+.BR vfork (2).
+A
+.BR waitpid (2)
+by the tracer will return a
+.I status
+value such that
+
+.nf
+  status>>8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))
+.fi
+
+The PID of the new process can (since Linux 2.6.18) be retrieved with
+.BR PTRACE_GETEVENTMSG .
 .RE
 .TP
 .BR PTRACE_GETEVENTMSG " (since Linux 2.5.46)"
@@ -505,9 +550,23 @@ The
 .I data
 argument is treated as for
 .BR PTRACE_CONT .
-.RI ( addr
-is ignored;
-not supported on all architectures.)
+The
+.I addr
+argument is ignored.
+These requests are currently
+.\" As at 3.7
+supported only on x86.
+.TP
+.BR PTRACE_LISTEN " (since Linux 3.4)"
+Restart the stopped tracee, but prevent it from executing.
+The resulting state of the tracee is similar to a process which
+has been stopped by a
+.B SIGSTOP
+(or other stopping signal).
+See the "group-stop" subsection for additional information.
+.B PTRACE_LISTEN
+only works on tracees attached by
+.BR PTRACE_SEIZE .
 .TP
 .B PTRACE_KILL
 Send the tracee a
@@ -537,6 +596,20 @@ directly has no such limitation.
 .\"     deprecation suggested by Oleg Nesterov. He prefers to deprecate it
 .\"     instead of describing (and needing to support) PTRACE_KILL's quirks.]
 .TP
+.BR PTRACE_INTERRUPT " (since Linux 3.4)"
+Stop a tracee.
+If the tracee is running, it will stop with
+.BR PTRACE_EVENT_STOP .
+If the tracee is already stopped by a signal, or receives a signal
+in parallel with
+.BR PTRACE_INTERRUPT ,
+it may report a group-stop
+or a signal-delivery-stop instead of
+.BR PTRACE_EVENT_STOP .
+.B PTRACE_INTERRUPT
+only works on tracees attached by
+.BR PTRACE_SEIZE .
+.TP
 .B PTRACE_ATTACH
 Attach to the process specified in
 .IR pid ,
@@ -564,6 +637,26 @@ See the "Attaching and detaching" subsection for additional information.
 and
 .I data
 are ignored.)
+.TP
+.BR PTRACE_SEIZE " (since Linux 3.4)"
+Attach to the process specified in
+.IR pid ,
+making it a tracee of the calling process.
+Unlike
+.BR PTRACE_ATTACH ,
+.B PTRACE_SEIZE
+does not stop the process.
+Only a
+.BR PTRACE_SEIZE d
+process can accept
+.B PTRACE_INTERRUPT
+and
+.B PTRACE_LISTEN
+commands.
+.I addr
+must be zero.
+.I data
+contains a bit mask of ptrace options to activate immediately.
 .TP
 .B PTRACE_DETACH
 Restart the stopped tracee as for
@@ -593,10 +686,8 @@ tracees within a multithreaded process.
 (The term "signal-delivery-stop" is explained below.)
 .LP
 .B SIGKILL
-operates similarly, with exceptions.
-No signal-delivery-stop is generated for
-.B SIGKILL
-and therefore the tracer can't suppress it.
+does not generate signal-delivery-stop and
+therefore the tracer can't suppress it.
 .B SIGKILL
 kills even within system calls
 (syscall-exit-stop is not generated prior to death by
@@ -728,8 +819,13 @@ even if the tracer knows there should be a notification.
 Example:
 .nf
 
-    kill(tracee, SIGKILL);
-    waitpid(tracee, &status, __WALL | WNOHANG);
+    errno = 0;
+    ptrace(PTRACE_CONT, pid, 0L, 0L);
+    if (errno == ESRCH) {
+        /* tracee is dead */
+        r = waitpid(tracee, &status, __WALL | WNOHANG);
+        /* r can still be 0 here! */
+    }
 .fi
 .\" FIXME:
 .\"     waitid usage? WNOWAIT?
@@ -846,7 +942,7 @@ is a cause of confusion among ptrace users.
 One typical scenario is that the tracer observes group-stop,
 mistakes it for signal-delivery-stop, restarts the tracee with
 
-    ptrace(PTRACE_rest, pid, 0, stopsig)
+    ptrace(PTRACE_restart, pid, 0, stopsig)
 
 with the intention of injecting
 .IR stopsig ,
@@ -949,7 +1045,7 @@ then it is definitely a group-stop.
 .B SIGKILL
 killed the tracee.)
 .LP
-As of kernel 2.6.38,
+As of Linux 2.6.38,
 after the tracer sees the tracee ptrace-stop and until it
 restarts or kills it, the tracee will not run,
 and will not send notifications (except
@@ -971,6 +1067,17 @@ signals will not be reported to the tracer;
 this would cause the
 .B SIGCONT
 signals to have no effect on the tracee.
+.LP
+Since Linux 3.4, there is a method to overcome this problem: instead of
+.BR PTRACE_CONT ,
+a
+.B PTRACE_LISTEN
+command can be used to restart a tracee in a way where it does not execute,
+but waits for a new event which it can report via
+.BR waitpid (2)
+(such as when
+it is restarted by a
+.BR SIGCONT ).
 .SS PTRACE_EVENT stops
 If the tracer sets
 .B PTRACE_O_TRACE_*
@@ -1059,6 +1166,11 @@ The tracee is still alive; it needs to be
 or
 .BR PTRACE_DETACH ed
 to finish exiting.
+.TP
+.B PTRACE_EVENT_STOP
+Stop induced by
+.B PTRACE_INTERRUPT
+command.
 .LP
 .B PTRACE_GETSIGINFO
 on
@@ -1122,7 +1234,7 @@ for the following cases:
 .TP
 .IR si_code " <= 0"
 .B SIGTRAP
-was delivered as a result of a userspace action,
+was delivered as a result of a user-space action,
 for example, a system call
 .RB ( tgkill (2),
 .BR kill (2),
@@ -1209,7 +1321,9 @@ or
 .SS Informational and restarting ptrace commands
 Most ptrace commands (all except
 .BR PTRACE_ATTACH ,
+.BR PTRACE_SEIZE ,
 .BR PTRACE_TRACEME ,
+.BR PTRACE_INTERRUPT ,
 and
 .BR PTRACE_KILL )
 require the tracee to be in a ptrace-stop, otherwise they fail with
@@ -1225,6 +1339,8 @@ These commands leave the tracee in ptrace-stopped state:
     ptrace(PTRACE_POKETEXT/POKEDATA/POKEUSER, pid, addr, long_val);
     ptrace(PTRACE_GETREGS/GETFPREGS, pid, 0, &struct);
     ptrace(PTRACE_SETREGS/SETFPREGS, pid, 0, &struct);
+    ptrace(PTRACE_GETREGSET, pid, NT_foo, &iov);
+    ptrace(PTRACE_SETREGSET, pid, NT_foo, &iov);
     ptrace(PTRACE_GETSIGINFO, pid, 0, &siginfo);
     ptrace(PTRACE_SETSIGINFO, pid, 0, &siginfo);
     ptrace(PTRACE_GETEVENTMSG, pid, 0, &long_var);
@@ -1264,6 +1380,7 @@ where
 .I cmd
 is
 .BR PTRACE_CONT ,
+.BR PTRACE_LISTEN ,
 .BR PTRACE_DETACH ,
 .BR PTRACE_SYSCALL ,
 .BR PTRACE_SINGLESTEP ,
@@ -1284,7 +1401,12 @@ A thread can be attached to the tracer using the call
 
     ptrace(PTRACE_ATTACH, pid, 0, 0);
 
-This also sends
+or
+
+    ptrace(PTRACE_SEIZE, pid, 0, PTRACE_O_flags);
+
+.B PTRACE_ATTACH
+sends
 .B SIGSTOP
 to this thread.
 If the tracer wants this
@@ -1314,6 +1436,17 @@ and the tracer usually suppresses it, this may cause a stray
 .B EINTR
 return from the currently executing system call in the tracee,
 as described in the "Signal injection and suppression" section.
+.LP
+Since Linux 3.4,
+.B PTRACE_SEIZE
+can be used instead of
+.BR PTRACE_ATTACH .
+.B PTRACE_SEIZE
+does not stop the attached process. If you need to stop
+it after attach (or at any other time) without sending it any signals,
+use
+.B PTRACE_INTERRUPT
+command.
 .LP
 The request
 
@@ -1398,7 +1531,7 @@ but the "as planned" behavior is to leave tracee stopped and waiting for
 If the tracee is restarted from signal-delivery-stop,
 the pending signal is injected.
 .SS execve(2) under ptrace
-.\" clone(2) THREAD_CLONE says:
+.\" clone(2) CLONE_THREAD says:
 .\"     If  any  of the threads in a thread group performs an execve(2),
 .\"     then all threads other than the thread group leader are terminated,
 .\"     and the new program is executed in the thread group leader.
@@ -1577,7 +1710,7 @@ result, to the real parent (to the real parent only when the
 whole multithreaded process exits).
 If the tracer and the real parent are the same process,
 the report is sent only once.
-.SH "RETURN VALUE"
+.SH RETURN VALUE
 On success,
 .B PTRACE_PEEK*
 requests return the requested data,
@@ -1634,7 +1767,7 @@ or (on kernels before 2.6.26) be
 The specified process does not exist, or is not currently being traced
 by the caller, or is not stopped
 (for requests that require a stopped tracee).
-.SH "CONFORMING TO"
+.SH CONFORMING TO
 SVr4, 4.3BSD.
 .SH NOTES
 Although arguments to
@@ -1645,10 +1778,12 @@ glibc currently declares
 as a variadic function with only the
 .I request
 argument fixed.
-This means that unneeded trailing arguments may be omitted,
-though doing so makes use of undocumented
-.BR gcc (1)
-behavior.
+It is recommended to always supply four arguments,
+even if the requested operation does not use them,
+setting unused/ignored arguments to
+.I 0L
+or
+.IR "(void\ *)\ 0".
 .LP
 In Linux kernels before 2.6.26,
 .\" See commit 00cd5c37afd5f431ac186dd131705048c0a11fdb
@@ -1743,7 +1878,52 @@ and
 from an
 .BR inotify (7)
 file descriptor.
-.SH "SEE ALSO"
+The usual symptom of this bug is that when you attach to
+a quiescent process with the command
+
+    strace -p <process-ID>
+
+then, instead of the usual
+and expected one-line output such as
+.nf
+
+    restart_syscall(<... resuming interrupted call ...>_
+
+.fi
+or
+.nf
+
+    select(6, [5], NULL, [5], NULL_
+
+.fi
+('_' denotes the cursor position), you observe more than one line.
+For example:
+.nf
+
+    clock_gettime(CLOCK_MONOTONIC, {15370, 690928118}) = 0
+    epoll_wait(4,_
+
+.fi
+What is not visible here is that the process was blocked in
+.BR epoll_wait (2)
+before
+.BR strace (1)
+has attached to it.
+Attaching caused
+.BR epoll_wait (2)
+to return to user space with the error
+.BR EINTR .
+In this particular case, the program reacted to
+.B EINTR
+by checking the current time, and then executing
+.BR epoll_wait (2)
+again.
+(Programs which do not expect such "stray"
+.BR EINTR
+errors may behave in an unintended way upon an
+.BR strace (1)
+attach.)
+.SH SEE ALSO
 .BR gdb (1),
 .BR strace (1),
 .BR clone (2),

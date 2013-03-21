@@ -6,6 +6,7 @@
 .\" and System V IPC (as well as various other) additions from
 .\" Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
+.\" %%%LICENSE_START(GPLv2+_DOC_FULL)
 .\" This is free documentation; you can redistribute it and/or
 .\" modify it under the terms of the GNU General Public License as
 .\" published by the Free Software Foundation; either version 2 of
@@ -22,9 +23,9 @@
 .\" GNU General Public License for more details.
 .\"
 .\" You should have received a copy of the GNU General Public
-.\" License along with this manual; if not, write to the Free
-.\" Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111,
-.\" USA.
+.\" License along with this manual; if not, see
+.\" <http://www.gnu.org/licenses/>.
+.\" %%%LICENSE_END
 .\"
 .\" Modified 1995-05-17 by faith@cs.unc.edu
 .\" Minor changes by aeb and Marty Leisner (leisner@sdsp.mc.xerox.com).
@@ -58,7 +59,7 @@
 .\" to see what information could be imported from that file
 .\" into this file.
 .\"
-.TH PROC 5 2012-05-03 "Linux" "Linux Programmer's Manual"
+.TH PROC 5 2013-02-11 "Linux" "Linux Programmer's Manual"
 .SH NAME
 proc \- process information pseudo-file system
 .SH DESCRIPTION
@@ -321,7 +322,11 @@ The files in this directory are readable only by the owner of the process.
 This file displays the soft limit, hard limit, and units of measurement
 for each of the process's resource limits (see
 .BR getrlimit (2)).
-The file is protected to only allow reading by the real UID of the process.
+Up to and including Linux 2.6.35,
+this file is protected to only allow reading by the real UID of the process.
+Since Linux 2.6.36,
+.\" commit 3036e7b490bf7878c6dae952eec5fb87b1106589
+this file is readable by all users on the system.
 .TP
 .I /proc/[pid]/maps
 A file containing the currently mapped memory regions and their access
@@ -449,7 +454,7 @@ and not the "propagate_from:X" field.
 
 For more information on mount propagation see:
 .I Documentation/filesystems/sharedsubtree.txt
-in the kernel source tree.
+in the Linux kernel source tree.
 .TP
 .IR /proc/[pid]/mounts " (since Linux 2.4.19)"
 This is a list of all the file systems currently mounted in the
@@ -572,6 +577,7 @@ which disables OOM-killing altogether for this process.
 A positive score increases the likelihood of this
 process being killed by the OOM-killer;
 a negative score decreases the likelihood.
+.IP
 The default value for this file is 0;
 a new process inherits its parent's
 .I oom_adj
@@ -579,6 +585,9 @@ setting.
 A process must be privileged
 .RB ( CAP_SYS_RESOURCE )
 to update this file.
+.IP
+Since Linux 2.6.36, use of this file is deprecated in favor of
+.IR /proc/[pid]/oom_score_adj .
 .TP
 .IR /proc/[pid]/oom_score " (since Linux 2.6.11)"
 .\" See mm/oom_kill.c::badness() in the 2.6.25 sources
@@ -610,9 +619,80 @@ whether the process is making direct hardware access (\-).
 .IP
 The
 .I oom_score
-also reflects the bit-shift adjustment specified by the
+also reflects the adjustment specified by the
+.I oom_score_adj
+or
 .I oom_adj
 setting for the process.
+.TP
+.IR /proc/[pid]/oom_score_adj " (since Linux 2.6.36)"
+.\" Text taken from 3.7 Documentation/filesystems/proc.txt
+This file can be used to adjust the badness heuristic used to select which
+process gets killed in out-of-memory conditions.
+
+The badness heuristic assigns a value to each candidate task ranging from 0
+(never kill) to 1000 (always kill) to determine which process is targeted.
+The units are roughly a proportion along that range of
+allowed memory the process may allocate from,
+based on an estimation of its current memory and swap use.
+For example, if a task is using all allowed memory,
+its badness score will be 1000.
+If it is using half of its allowed memory, its score will be 500.
+
+There is an additional factor included in the badness score: root
+processes are given 3% extra memory over other tasks.
+
+The amount of "allowed" memory depends on the context
+in which the OOM-killer was called.
+If it is due to the memory assigned to the allocating task's cpuset
+being exhausted,
+the allowed memory represents the set of mems assigned to that
+cpuset (see
+.BR cpuset (7)).
+If it is due to a mempolicy's node(s) being exhausted,
+the allowed memory represents the set of mempolicy nodes.
+If it is due to a memory limit (or swap limit) being reached,
+the allowed memory is that configured limit.
+Finally, if it is due to the entire system being out of memory, the
+allowed memory represents all allocatable resources.
+
+The value of
+.I oom_score_adj
+is added to the badness score before it
+is used to determine which task to kill.
+Acceptable values range from \-1000
+(OOM_SCORE_ADJ_MIN) to +1000 (OOM_SCORE_ADJ_MAX).
+This allows user space to control the preference for OOM-killing,
+ranging from always preferring a certain
+task or completely disabling it from OOM-killing.
+The lowest possible value, \-1000, is
+equivalent to disabling OOM-killing entirely for that task,
+since it will always report a badness score of 0.
+
+Consequently, it is very simple for user space to define
+the amount of memory to consider for each task.
+Setting a
+.I oom_score_adj
+value of +500, for example,
+is roughly equivalent to allowing the remainder of tasks sharing the
+same system, cpuset, mempolicy, or memory controller resources
+to use at least 50% more memory.
+A value of \-500, on the other hand, would be roughly
+equivalent to discounting 50% of the task's
+allowed memory from being considered as scoring against the task.
+
+For backward compatibility with previous kernels,
+.I /proc/[pid]/oom_adj
+can still be used to tune the badness score.
+Its value is
+scaled linearly with
+.IR oom_score_adj .
+
+Writing to
+.IR /proc/[pid]/oom_score_adj
+or
+.IR /proc/[pid]/oom_adj
+will change the other with its scaled value.
 .\" FIXME Describe /proc/[pid]/pagemap
 .\"       Added in 2.6.25
 .\"       CONFIG_PROC_PAGE_MONITOR
@@ -688,94 +768,94 @@ format specifiers, are:
 .RS
 .TP 12
 \fIpid\fP %d
-The process ID.
+(1) The process ID.
 .TP
 \fIcomm\fP %s
-The filename of the executable, in parentheses.
+(2) The filename of the executable, in parentheses.
 This is visible whether or not the executable is swapped out.
 .TP
 \fIstate\fP %c
-One character from the string "RSDZTW" where R is running, S is
+(3) One character from the string "RSDZTW" where R is running, S is
 sleeping in an interruptible wait, D is waiting in uninterruptible
 disk sleep, Z is zombie, T is traced or stopped (on a signal),
 and W is paging.
 .TP
 \fIppid\fP %d
-The PID of the parent.
+(4) The PID of the parent.
 .TP
 \fIpgrp\fP %d
-The process group ID of the process.
+(5) The process group ID of the process.
 .TP
 \fIsession\fP %d
-The session ID of the process.
+(6) The session ID of the process.
 .TP
 \fItty_nr\fP %d
-The controlling terminal of the process.
+(7) The controlling terminal of the process.
 (The minor device number is contained in the combination of bits
 31 to 20 and 7 to 0;
 the major device number is in bits 15 to 8.)
 .TP
 \fItpgid\fP %d
 .\" This field and following, up to and including wchan added 0.99.1
-The ID of the foreground process group of the controlling
+(8) The ID of the foreground process group of the controlling
 terminal of the process.
 .TP
 \fIflags\fP %u (%lu before Linux 2.6.22)
-The kernel flags word of the process.
+(9) The kernel flags word of the process.
 For bit meanings,
-see the PF_* defines in
-.IR <linux/sched.h> .
+see the PF_* defines in the Linux kernel source file
+.IR include/linux/sched.h .
 Details depend on the kernel version.
 .TP
 \fIminflt\fP %lu
-The number of minor faults the process has made which have not
+(10) The number of minor faults the process has made which have not
 required loading a memory page from disk.
 .TP
 .\" field 11
 \fIcminflt\fP %lu
-The number of minor faults that the process's
+(11) The number of minor faults that the process's
 waited-for children have made.
 .TP
 \fImajflt\fP %lu
-The number of major faults the process has made which have
+(12) The number of major faults the process has made which have
 required loading a memory page from disk.
 .TP
 \fIcmajflt\fP %lu
-The number of major faults that the process's
+(13) The number of major faults that the process's
 waited-for children have made.
 .TP
 \fIutime\fP %lu
-Amount of time that this process has been scheduled in user mode,
+(14) Amount of time that this process has been scheduled in user mode,
 measured in clock ticks (divide by
-.IR sysconf(_SC_CLK_TCK) .
+.IR sysconf(_SC_CLK_TCK) ).
 This includes guest time, \fIguest_time\fP
 (time spent running a virtual CPU, see below),
 so that applications that are not aware of the guest time field
 do not lose that time from their calculations.
 .TP
 \fIstime\fP %lu
-Amount of time that this process has been scheduled in kernel mode,
+(15) Amount of time that this process has been scheduled in kernel mode,
 measured in clock ticks (divide by
-.IR sysconf(_SC_CLK_TCK) .
+.IR sysconf(_SC_CLK_TCK) ).
 .TP
 \fIcutime\fP %ld
-Amount of time that this process's
+(16) Amount of time that this process's
 waited-for children have been scheduled in user mode,
 measured in clock ticks (divide by
-.IR sysconf(_SC_CLK_TCK) .
+.IR sysconf(_SC_CLK_TCK) ).
 (See also
 .BR times (2).)
 This includes guest time, \fIcguest_time\fP
 (time spent running a virtual CPU, see below).
 .TP
 \fIcstime\fP %ld
-Amount of time that this process's
+(17) Amount of time that this process's
 waited-for children have been scheduled in kernel mode,
 measured in clock ticks (divide by
-.IR sysconf(_SC_CLK_TCK) .
+.IR sysconf(_SC_CLK_TCK) ).
 .TP
 \fIpriority\fP %ld
-(Explanation for Linux 2.6)
+(18) (Explanation for Linux 2.6)
 For processes running a real-time scheduling policy
 .RI ( policy
 below; see
@@ -796,11 +876,10 @@ the scheduler weighting given to this process.
 .\" And back in kernel 1.2 days things were different again.
 .TP
 \fInice\fP %ld
-The nice value (see
+(19) The nice value (see
 .BR setpriority (2)),
 a value in the range 19 (low priority) to \-20 (high priority).
 .\" Back in kernel 1.2 days things were different.
-.TP
 .\" .TP
 .\" \fIcounter\fP %ld
 .\" The current maximum size in jiffies of the process's next timeslice,
@@ -810,82 +889,86 @@ a value in the range 19 (low priority) to \-20 (high priority).
 .\" \fItimeout\fP %u
 .\" The time in jiffies of the process's next timeout.
 .\" timeout was removed sometime around 2.1/2.2
+.TP
 \fInum_threads\fP %ld
-Number of threads in this process (since Linux 2.6).
+(20) Number of threads in this process (since Linux 2.6).
 Before kernel 2.6, this field was hard coded to 0 as a placeholder
 for an earlier removed field.
 .TP
 .\" field 21
 \fIitrealvalue\fP %ld
-The time in jiffies before the next
+(21) The time in jiffies before the next
 .B SIGALRM
 is sent to the process due to an interval timer.
 Since kernel 2.6.17, this field is no longer maintained,
 and is hard coded as 0.
 .TP
 \fIstarttime\fP %llu (was %lu before Linux 2.6)
-The time in jiffies the process started after system boot.
+(22) The time the process started after system boot.
+In kernels before Linux 2.6, this value was expressed in jiffies.
+Since Linux 2.6, the value is expressed in clock ticks (divide by
+.IR sysconf(_SC_CLK_TCK) ).
 .TP
 \fIvsize\fP %lu
-Virtual memory size in bytes.
+(23) Virtual memory size in bytes.
 .TP
 \fIrss\fP %ld
-Resident Set Size: number of pages the process has in real memory.
+(24) Resident Set Size: number of pages the process has in real memory.
 This is just the pages which
 count toward text, data, or stack space.
 This does not include pages
 which have not been demand-loaded in, or which are swapped out.
 .TP
 \fIrsslim\fP %lu
-Current soft limit in bytes on the rss of the process;
+(25) Current soft limit in bytes on the rss of the process;
 see the description of
 .B RLIMIT_RSS
 in
-.BR getpriority (2).
+.BR getrlimit (2).
 .TP
 \fIstartcode\fP %lu
-The address above which program text can run.
+(26) The address above which program text can run.
 .TP
 \fIendcode\fP %lu
-The address below which program text can run.
+(27) The address below which program text can run.
 .TP
 \fIstartstack\fP %lu
-The address of the start (i.e., bottom) of the stack.
+(28) The address of the start (i.e., bottom) of the stack.
 .TP
 \fIkstkesp\fP %lu
-The current value of ESP (stack pointer), as found in the
+(29) The current value of ESP (stack pointer), as found in the
 kernel stack page for the process.
 .TP
 \fIkstkeip\fP %lu
-The current EIP (instruction pointer).
+(30) The current EIP (instruction pointer).
 .TP
 .\" field 31
 \fIsignal\fP %lu
-The bitmap of pending signals, displayed as a decimal number.
+(31) The bitmap of pending signals, displayed as a decimal number.
 Obsolete, because it does not provide information on real-time signals; use
 .I /proc/[pid]/status
 instead.
 .TP
 \fIblocked\fP %lu
-The bitmap of blocked signals, displayed as a decimal number.
+(32) The bitmap of blocked signals, displayed as a decimal number.
 Obsolete, because it does not provide information on real-time signals; use
 .I /proc/[pid]/status
 instead.
 .TP
 \fIsigignore\fP %lu
-The bitmap of ignored signals, displayed as a decimal number.
+(33) The bitmap of ignored signals, displayed as a decimal number.
 Obsolete, because it does not provide information on real-time signals; use
 .I /proc/[pid]/status
 instead.
 .TP
 \fIsigcatch\fP %lu
-The bitmap of caught signals, displayed as a decimal number.
+(34) The bitmap of caught signals, displayed as a decimal number.
 Obsolete, because it does not provide information on real-time signals; use
 .I /proc/[pid]/status
 instead.
 .TP
 \fIwchan\fP %lu
-This is the "channel" in which the process is waiting.
+(35) This is the "channel" in which the process is waiting.
 It is the
 address of a system call, and can be looked up in a namelist if you
 need a textual name.
@@ -895,43 +978,45 @@ then
 try \fIps \-l\fP to see the WCHAN field in action.)
 .TP
 \fInswap\fP %lu
+(36)
 .\" nswap was added in 2.0
 Number of pages swapped (not maintained).
 .TP
 \fIcnswap\fP %lu
+(37)
 .\" cnswap was added in 2.0
 Cumulative \fInswap\fP for child processes (not maintained).
 .TP
 \fIexit_signal\fP %d (since Linux 2.1.22)
-Signal to be sent to parent when we die.
+(38) Signal to be sent to parent when we die.
 .TP
 \fIprocessor\fP %d (since Linux 2.2.8)
-CPU number last executed on.
+(39) CPU number last executed on.
 .TP
 \fIrt_priority\fP %u (since Linux 2.5.19; was %lu before Linux 2.6.22)
-Real-time scheduling priority, a number in the range 1 to 99 for
+(40) Real-time scheduling priority, a number in the range 1 to 99 for
 processes scheduled under a real-time policy,
 or 0, for non-real-time processes (see
 .BR sched_setscheduler (2)).
 .TP
 .\" field 41
 \fIpolicy\fP %u (since Linux 2.5.19; was %lu before Linux 2.6.22)
-Scheduling policy (see
+(41) Scheduling policy (see
 .BR sched_setscheduler (2)).
 Decode using the SCHED_* constants in
 .IR linux/sched.h .
 .TP
 \fIdelayacct_blkio_ticks\fP %llu (since Linux 2.6.18)
-Aggregated block I/O delays, measured in clock ticks (centiseconds).
+(42) Aggregated block I/O delays, measured in clock ticks (centiseconds).
 .TP
 \fIguest_time\fP %lu (since Linux 2.6.24)
-Guest time of the process (time spent running a virtual CPU
+(43) Guest time of the process (time spent running a virtual CPU
 for a guest operating system), measured in clock ticks (divide by
-.IR sysconf(_SC_CLK_TCK) .
+.IR sysconf(_SC_CLK_TCK) ).
 .TP
 \fIcguest_time\fP %ld (since Linux 2.6.24)
-Guest time of the process's children, measured in clock ticks (divide by
-.IR sysconf(_SC_CLK_TCK) .
+(44) Guest time of the process's children, measured in clock ticks (divide by
+.IR sysconf(_SC_CLK_TCK) ).
 .RE
 .TP
 .I /proc/[pid]/statm
@@ -940,17 +1025,17 @@ The columns are:
 .in +4n
 .nf
 
-size       total program size
+size       (1) total program size
            (same as VmSize in \fI/proc/[pid]/status\fP)
-resident   resident set size
+resident   (2) resident set size
            (same as VmRSS in \fI/proc/[pid]/status\fP)
-share      shared pages (from shared mappings)
-text       text (code)
+share      (3) shared pages (i.e., backed by a file)
+text       (4) text (code)
 .\" (not including libs; broken, includes data segment)
-lib        library (unused in Linux 2.6)
-data       data + stack
+lib        (5) library (unused in Linux 2.6)
+data       (6) data + stack
 .\" (including libs; broken, includes library text)
-dt         dirty pages (unused in Linux 2.6)
+dt         (7) dirty pages (unused in Linux 2.6)
 .fi
 .in
 .TP
@@ -1237,6 +1322,9 @@ Two common entries are \fIprocessor\fP which gives CPU number and
 during kernel initialization.
 SMP machines have information for
 each CPU.
+The
+.BR lscpu (1)
+command gathers its information from this file.
 .TP
 .I /proc/devices
 Text listing of major numbers and device groups.
@@ -1244,7 +1332,7 @@ This can be used by MAKEDEV scripts for consistency with the kernel.
 .TP
 .IR /proc/diskstats " (since Linux 2.5.69)"
 This file contains disk I/O statistics for each disk device.
-See the kernel source file
+See the Linux kernel source file
 .I Documentation/iostats.txt
 for further information.
 .TP
@@ -1399,6 +1487,246 @@ It is used by
 to report the amount of free and used memory (both physical and swap)
 on the system as well as the shared memory and buffers used by the
 kernel.
+Each line of the file consists of a parameter name, followed by a colon,
+the value of the parameter, and an option unit of measurement (e.g., "kB").
+The list below describes the parameter names and
+the format specifier required to read the field value.
+Except as noted below,
+all of the fields have been present since at least Linux 2.6.0.
+Some fileds are only displayed if the kernel was configured
+with various options; those dependencies are noted in the list.
+.RS
+.TP
+.IR MemTotal " %lu"
+Total usable RAM (i.e. physical RAM minus a few reserved
+bits and the kernel binary code).
+.TP
+.IR MemFree " %lu"
+The sum of
+.IR LowFree + HighFree .
+.TP
+.IR Buffers " %lu"
+Relatively temporary storage for raw disk blocks that
+shouldn't get tremendously large (20MB or so).
+.TP
+.IR Cached " %lu"
+In-memory cache for files read from the disk (the page cache).
+Doesn't include
+.IR SwapCached .
+.TP
+.IR SwapCached " %lu"
+Memory that once was swapped out, is swapped back in but
+still also is in the swap file.
+(If memory pressure is high, these pages
+don't need to be swapped out again because they are already
+in the swap file.
+This saves I/O.)
+.TP
+.IR Active " %lu"
+Memory that has been used more recently and usually not
+reclaimed unless absolutely necessary.
+.TP
+.IR Inactive " %lu"
+Memory which has been less recently used.
+It is more eligible to be reclaimed for other purposes.
+.TP
+.IR Active(anon) " %lu (since Linux 2.6.28)"
+[To be documented.]
+.TP
+.IR Inactive(anon) " %lu (since Linux 2.6.28)"
+[To be documented.]
+.TP
+.IR Active(file) " %lu (since Linux 2.6.28)"
+[To be documented.]
+.TP
+.IR Inactive(file) " %lu (since Linux 2.6.28)"
+[To be documented.]
+.TP
+.IR Unevictable " %lu (since Linux 2.6.28)"
+(From Linux 2.6.28 to 2.6.30,
+\fBCONFIG_UNEVICTABLE_LRU\fP was required.)
+[To be documented.]
+.TP
+.IR Mlocked " %lu (since Linux 2.6.28)"
+(From Linux 2.6.28 to 2.6.30,
+\fBCONFIG_UNEVICTABLE_LRU\fP was required.)
+[To be documented.]
+.TP
+.IR HighTotal " %lu"
+(Starting with Linux 2.6.19, \fBCONFIG_HIGHMEM\fP is required.)
+Total amount of highmem.
+Highmem is all memory above ~860MB of physical memory.
+Highmem areas are for use by user-space programs,
+or for the page cache.
+The kernel must use tricks to access
+this memory, making it slower to access than lowmem.
+.TP
+.IR HighFree " %lu
+(Starting with Linux 2.6.19, \fBCONFIG_HIGHMEM\fP is required.)
+Amount of free highmem.
+.TP
+.IR LowTotal " %lu
+(Starting with Linux 2.6.19, \fBCONFIG_HIGHMEM\fP is required.)
+Total amount of lowmem.
+Lowmem is memory which can be used for everything that
+highmem can be used for, but it is also available for the
+kernel's use for its own data structures.
+Among many other things,
+it is where everything from
+.I Slab
+is allocated.
+Bad things happen when you're out of lowmem.
+.TP
+.IR LowFree " %lu
+(Starting with Linux 2.6.19, \fBCONFIG_HIGHMEM\fP is required.)
+Amount of free lowmem.
+.TP
+.IR MmapCopy " %lu (since Linux 2.6.29)"
+.RB ( CONFIG_MMU
+is required.)
+[To be documented.]
+.TP
+.IR SwapTotal " %lu"
+Total amount of swap space available.
+.TP
+.IR SwapFree " %lu"
+Amount of swap space that is currently unused.
+.TP
+.IR Dirty " %lu"
+Memory which is waiting to get written back to the disk.
+.TP
+.IR Writeback " %lu"
+Memory which is actively being written back to the disk.
+.TP
+.IR AnonPages " %lu (since Linux 2.6.18)"
+Non-file backed pages mapped into user-space page tables.
+.TP
+.IR Mapped " %lu"
+Files which have been mmaped, such as libraries.
+.TP
+.IR Shmem " %lu (since Linux 2.6.32)"
+[To be documented.]
+.TP
+.IR Slab " %lu"
+In-kernel data structures cache.
+.TP
+.IR SReclaimable " %lu (since Linux 2.6.19)"
+Part of
+.IR Slab ,
+that might be reclaimed, such as caches.
+.TP
+.IR SUnreclaim " %lu (since Linux 2.6.19)"
+Part of
+.IR Slab ,
+that cannot be reclaimed on memory pressure.
+.TP
+.IR KernelStack " %lu (since Linux 2.6.32)"
+Amount of memory allocated to kernel stacks.
+.TP
+.IR PageTables " %lu (since Linux 2.6.18)"
+Amount of memory dedicated to the lowest level of page tables.
+.TP
+.IR Quicklists " %lu (since Linux 2.6.27)"
+(\fBCONFIG_QUICKLIST\fP is required.)
+[To be documented.]
+.TP
+.IR NFS_Unstable " %lu (since Linux 2.6.18)"
+NFS pages sent to the server, but not yet committed to stable storage.
+.TP
+.IR Bounce " %lu (since Linux 2.6.18)"
+Memory used for block device "bounce buffers".
+.TP
+.IR WritebackTmp " %lu (since Linux 2.6.26)"
+Memory used by FUSE for temporary writeback buffers.
+.TP
+.IR CommitLimit " %lu (since Linux 2.6.10)"
+Based on the overcommit ratio ('vm.overcommit_ratio'),
+this is the total amount of  memory currently available to
+be allocated on the system. This limit is only adhered to
+if strict overcommit accounting is enabled (mode 2 in
+.IR /proc/sys/vm/overcommit_ratio ).
+The
+.I CommitLimit
+is calculated using the following formula:
+
+    CommitLimit = (overcommit_ratio * Physical RAM) + Swap
+
+For example, on a system with 1GB of physical RAM and 7GB
+of swap with a
+.I overcommit_ratio
+of 30, this formula yields a
+.I CommitLimit
+of 7.3GB.
+For more details, see the memory overcommit documentation
+in the kernel source file
+.IR Documentation/vm/overcommit-accounting .
+.TP
+.IR Committed_AS " %lu"
+The amount of memory presently allocated on the system.
+The committed memory is a sum of all of the memory which
+has been allocated by processes, even if it has not been
+"used" by them as of yet.
+A process which allocates 1GB of memory (using
+.BR malloc (3)
+or similar), but only touches 300MB of that memory will only show up
+as using 300MB of memory even if it has the address space
+allocated for the entire 1GB.
+This 1GB is memory which has been "committed" to by the VM
+and can be used at any time by the allocating application.
+With strict overcommit enabled on the system (mode 2
+.IR /proc/sys/vm/overcommit_memory ),
+allocations which would exceed the
+.I CommitLimit
+(detailed above) will not be permitted.
+This is useful if one needs to guarantee that processes will not
+fail due to lack of memory once that memory has been successfully allocated.
+.TP
+.IR VmallocTotal " %lu"
+Total size of vmalloc memory area.
+.TP
+.IR VmallocUsed " %lu"
+Amount of vmalloc area which is used.
+.TP
+.IR VmallocChunk " %lu"
+Largest contiguous block of vmalloc area which is free.
+.TP
+.IR HardwareCorrupted " %lu (since Linux 2.6.32)"
+(\fBCONFIG_MEMORY_FAILURE\fP is required.)
+[To be documented.]
+.TP
+.IR AnonHugePages " %lu (since Linux 2.6.38)"
+(\fBCONFIG_TRANSPARENT_HUGEPAGE\fP is required.)
+Non-file backed huge pages mapped into user-space page tables.
+.TP
+.IR HugePages_Total " %lu"
+(\fBCONFIG_HUGETLB_PAGE\fP is required.)
+The size of the pool of huge pages.
+.TP
+.IR HugePages_Free " %lu"
+(\fBCONFIG_HUGETLB_PAGE\fP is required.)
+The number of huge pages in the pool that are not yet allocated.
+.TP
+.IR HugePages_Rsvd " %lu (since Linux 2.6.17)"
+(\fBCONFIG_HUGETLB_PAGE\fP is required.)
+This is the number of huge pages for
+which a commitment to allocate from the pool has been made,
+but no allocation has yet been made.
+These reserved huge pages
+guarantee that an application will be able to allocate a
+huge page from the pool of huge pages at fault time.
+.TP
+.IR HugePages_Surp " %lu (since Linux 2.6.24)"
+(\fBCONFIG_HUGETLB_PAGE\fP is required.)
+This is the number of huge pages in
+the pool above the value in
+.IR /proc/sys/vm/nr_hugepages .
+The maximum number of surplus huge pages is controlled by
+.IR /proc/sys/vm/nr_overcommit_hugepages .
+.TP
+.IR Hugepagesize " %lu"
+(\fBCONFIG_HUGETLB_PAGE\fP is required.)
+The size of huge pages.
+.RE
 .TP
 .I /proc/modules
 A text list of the modules that have been loaded by the system.
@@ -1417,7 +1745,7 @@ The format of this file is documented in
 .TP
 .I /proc/mtrr
 Memory Type Range Registers.
-See the kernel source file
+See the Linux kernel source file
 .I Documentation/mtrr.txt
 for details.
 .TP
@@ -1628,6 +1956,18 @@ set), and finally removed altogether since Linux 2.6.17.
 .\" .IR /proc/sched_debug " (since Linux 2.6.23)"
 .\" See also /proc/[pid]/sched
 .TP
+.IR /proc/profile " (since Linux 2.4)"
+This file is present only if the kernel was booted with the
+.I profile=1
+command-line option.
+It exposes kernel profiling information in a binary format for use by
+.BR readprofile (1).
+Writing (e.g., an empty string) to this file resets the profiling counters;
+on some architectures,
+writing a binary integer "profiling multiplier" of size
+.IR sizeof(int)
+sets the profiling interrupt frequency.
+.TP
 .I /proc/scsi
 A directory with the
 .I scsi
@@ -1727,32 +2067,51 @@ USER_HZ (1/100ths of a second on most architectures, use
 .IR sysconf(_SC_CLK_TCK)
 to obtain the right value),
 .\" 1024 on Alpha and ia64
-that the system spent in user mode,
-user mode with low priority (nice), system mode, and the
-idle task, respectively.
+that the system spent in various states:
+.RS
+.TP
+.I user
+(1) Time spent in user mode.
+.TP
+.I nice
+(2) Time spent in user mode with low priority (nice).
+.TP
+.I system
+(3) Time spent in system mode.
+.TP
+.I idle
+(4) Time spent in the idle task.
 .\" FIXME Actually, the following info about the /proc/stat 'cpu' field
-.\"       does not seem to be quite right (at least in 2.6.12)
-The last value should be USER_HZ times the
-second entry in the uptime pseudo-file.
-
-In Linux 2.6 this line includes three additional columns:
-.I iowait
-\- time waiting for I/O to complete (since 2.5.41);
-.I irq
-\- time servicing interrupts (since 2.6.0-test4);
-.I softirq
-\- time servicing softirqs (since 2.6.0-test4).
-
-Since Linux 2.6.11, there is an eighth column,
-.I steal
-\- stolen time, which is the time spent in other operating systems when
+.\"       does not seem to be quite right (at least in 2.6.12 or 3.6):
+.\"       the idle time in /proc/uptime does not quite match this value
+This value should be USER_HZ times the
+second entry in the
+.I /proc/uptime
+pseudo-file.
+.TP
+.IR iowait " (since Linux 2.5.41)"
+(5) Time waiting for I/O to complete.
+.TP
+.IR irq " (since Linux 2.6.0-test4)"
+(6) Time servicing interrupts.
+.TP
+.IR softirq " (since Linux 2.6.0-test4)"
+(7) Time servicing softirqs.
+.TP
+.IR steal " (since Linux 2.6.11)"
+(8) Stolen time, which is the time spent in other operating systems when
 running in a virtualized environment
-
-Since Linux 2.6.24, there is a ninth column,
-.IR guest ,
-which is the time spent running a virtual CPU for guest
+.TP
+.IR guest " (since Linux 2.6.24)"
+(9) Time spent running a virtual CPU for guest
 operating systems under the control of the Linux kernel.
 .\" See Changelog entry for 5e84cfde51cf303d368fcb48f22059f37b3872de
+.TP
+.IR guest_nice " (since Linux 2.6.33)"
+.\" commit ce0e7b28fb75cb003cfc8d0238613aaf1c55e797
+(10) Time spent running a niced guest (virtual CPU for guest
+operating systems under the control of the Linux kernel).
+.RE
 .TP
 \fIpage 5741 1808\fP
 The number of pages the system paged in and the number that were paged
@@ -1808,7 +2167,7 @@ system call.
 .IR /proc/sys/abi " (since Linux 2.4.10)"
 This directory may contain files with application binary information.
 .\" On some systems, it is not present.
-See the kernel source file
+See the Linux kernel source file
 .I Documentation/sysctl/abi.txt
 for more information.
 .TP
@@ -1827,7 +2186,7 @@ related to file systems.
 .TP
 .I /proc/sys/fs/binfmt_misc
 Documentation for files in this directory can be found
-in the kernel sources in
+in the Linux kernel sources in
 .IR Documentation/binfmt_misc.txt .
 .TP
 .IR /proc/sys/fs/dentry-state " (since Linux 2.2)"
@@ -1895,7 +2254,8 @@ which can be used by a process to set the per-process limit,
 .BR RLIMIT_NOFILE ,
 on the number of files it may open.)
 If you get lots
-of error messages about running out of file handles,
+of error messages in the kernel log about running out of file handles
+(look for "VFS: file-max limit <number> reached"),
 try increasing this value:
 .br
 
@@ -1927,16 +2287,23 @@ can override the
 limit.
 .TP
 .I /proc/sys/fs/file-nr
-This (read-only) file gives the number of files presently opened.
-It contains three numbers: the number of allocated file handles;
-the number of free file handles; and the maximum number of file handles.
-The kernel allocates file handles dynamically, but it
-doesn't free them again.
-If the number of allocated files is close to the
+This (read-only) file contains three numbers:
+the number of allocated file handles
+(i.e., the number of files presently opened);
+the number of free file handles;
+and the maximum number of file handles (i.e., the same value as
+.IR /proc/sys/fs/file-max ).
+If the number of allocated file handles is close to the
 maximum, you should consider increasing the maximum.
-When the number of free file handles is
-large, you've encountered a peak in your usage of file
-handles and you probably don't need to increase the maximum.
+Before Linux 2.6,
+the kernel allocated file handles dynamically,
+but it didn't free them again.
+Instead the free file handles were kept in a list for reallocation;
+the "free file handles" value indicates the size of that list.
+A large number of free file handles indicates that there was
+a past peak in the usage of open file handles.
+Since Linux 2.6, the kernel does deallocate freed file handles,
+and the "free file handles" value is always zero.
 .TP
 .I /proc/sys/fs/inode-max
 This file contains the maximum number of in-memory inodes.
@@ -2030,12 +2397,93 @@ To determine the rounded-up value,
 display the contents of this file after assigning a value to it.
 The minimum value that can be assigned to this file is the system page size.
 .TP
+.IR /proc/sys/fs/protected_hardlinks " (since Linux 3.6)"
+.\" commit 800179c9b8a1e796e441674776d11cd4c05d61d7
+When the value in this file is 0,
+no restrictions are placed on the creation of hard links
+(i.e., this is the historical behaviour before Linux 3.6).
+When the value in this file is 1,
+a hard link can be created to a target file
+only if one of the following conditions is true:
+.RS
+.IP * 3
+The caller has the
+.BR CAP_FOWNER
+capability.
+.IP *
+The file system UID of the process creating the link matches
+the owner (UID) of the target file
+(as described in
+.BR credentials (7),
+a process's file system UID is normally the same as its effective UID).
+.IP *
+All of the following conditions are true:
+.RS 4
+.IP \(bu 3
+the target is a regular file;
+.IP \(bu
+the target file does not have its set-user-ID permission bit enabled;
+.IP \(bu
+the target file does not have both its set-group-ID and
+group-executable permission bits enabled; and
+.IP \(bu
+the caller has permission to read and write the target file
+(either via the file's permissions mask or because it has
+suitable capabilities).
+.RE
+.RE
+.IP
+The default value in this file is 0.
+Setting the value to 1
+prevents a longstanding class of security issues caused by
+hard-link-based time-of-check, time-of-use races,
+most commonly seen in world-writable directories such as
+.IR /tmp .
+The common method of exploiting this flaw
+is to cross privilege boundaries when following a given hard link
+(i.e., a root process follows a hard link created by another user).
+Additionally, on systems without separated partitions,
+this stops unauthorized users from "pinning" vulnerable set-user-ID and
+set-group-ID files against being upgraded by
+the administrator, or linking to special files.
+.TP
+.IR /proc/sys/fs/protected_symlinks " (since Linux 3.6)"
+.\" commit 800179c9b8a1e796e441674776d11cd4c05d61d7
+When the value in this file is 0,
+no restrictions are placed on following symbolic links
+(i.e., this is the historical behaviour before Linux 3.6).
+When the value in this file is 1, symbolic links are followed only
+in the following circumstances:
+.RS
+.IP * 3
+the file system UID of the process following the link matches
+the owner (UID) of the symbolic link
+(as described in
+.BR credentials (7),
+a process's file system UID is normally the same as its effective UID);
+.IP *
+the link is not in a sticky world-writable directory; or
+.IP *
+the symbolic link and and its parent directory have the same owner (UID)
+.RE
+.IP
+A system call that fails to follow a symbolic link
+because of the above restrictions returns the error
+.BR EACCES
+in
+.IR errno .
+.IP
+The default value in this file is 0.
+Setting the value to 1 avoids a longstanding class of security issues
+based on time-of-check, time-of-use races when accessing symbolic links.
+.TP
 .IR /proc/sys/fs/suid_dumpable " (since Linux 2.6.13)"
 .\" The following is based on text from Documentation/sysctl/kernel.txt
 The value in this file determines whether core dump files are
 produced for set-user-ID or otherwise protected/tainted binaries.
 Three different integer values can be specified:
-.sp
+.RS
+.TP
 \fI0\ (default)\fP
 This provides the traditional (pre-Linux 2.6.13) behavior.
 A core dump will not be produced for a process which has
@@ -2044,14 +2492,14 @@ changed credentials (by calling
 .BR setgid (2),
 or similar, or by executing a set-user-ID or set-group-ID program)
 or whose binary does not have read permission enabled.
-.sp
+.TP
 \fI1\ ("debug")\fP
 All processes dump core when possible.
 The core dump is owned by the file system user ID of the dumping process
 and no security is applied.
 This is intended for system debugging situations only.
 Ptrace is unchecked.
-.sp
+.TP
 \fI2\ ("suidsafe")\fP
 Any binary which normally would not be dumped (see "0" above)
 is dumped readable by root only.
@@ -2060,6 +2508,18 @@ For security reasons core dumps in this mode will not overwrite one
 another or other files.
 This mode is appropriate when administrators are
 attempting to debug problems in a normal environment.
+.IP
+Additionally, since Linux 3.6,
+.\" 9520628e8ceb69fa9a4aee6b57f22675d9e1b709
+.I /proc/sys/kernel/core_pattern
+must either be an absolute pathname
+or a pipe command, as detailed in
+.BR core (5).
+Warnings will be written to the kernel log if
+.I core_pattern
+does not follow these rules, and no core dump will be produced.
+.\" 54b501992dd2a839e94e76aa392c392b55080ce8
+.RE
 .TP
 .I /proc/sys/fs/super-max
 This file
@@ -2139,11 +2599,18 @@ mode, the ctrl-alt-del is intercepted by the program before it
 ever reaches the kernel tty layer, and it's up to the program
 to decide what to do with it.
 .TP
-.I /proc/sys/kernel/hotplug
-This file
-contains the path for the hotplug policy agent.
-The default value in this file is
-.IR /sbin/hotplug .
+.IR /proc/sys/kernel/dmesg_restrict " (since Linux 2.6.37)"
+The value in this file determines who can see kernel syslog contents.
+A value of 0 in this file imposes no restrictions.
+If the value is 1, only privileged users can read the kernel syslog.
+(See
+.BR syslog (2)
+for more details.)
+Since Linux 3.4,
+.\" commit 620f6e8e855d6d447688a5f67a4e176944a084e8
+only users with the
+.BR CAP_SYS_ADMIN
+capability may change the value in this file.
 .TP
 .IR /proc/sys/kernel/domainname " and " /proc/sys/kernel/hostname
 can be used to set the NIS/YP domainname and the
@@ -2180,6 +2647,12 @@ see the
 .BR hostname (1)
 man page.
 .TP
+.I /proc/sys/kernel/hotplug
+This file
+contains the path for the hotplug policy agent.
+The default value in this file is
+.IR /sbin/hotplug .
+.TP
 .I /proc/sys/kernel/htab-reclaim
 (PowerPC only) If this file is set to a nonzero value,
 the PowerPC htab
@@ -2187,6 +2660,31 @@ the PowerPC htab
 .IR Documentation/powerpc/ppc_htab.txt )
 is pruned
 each time the system hits the idle loop.
+.TP
+.IR /proc/sys/kernel/kptr_restrict " (since Linux 2.6.38)"
+.\" 455cd5ab305c90ffc422dd2e0fb634730942b257
+The value in this file determines whether kernel addresses are exposed via
+.I /proc
+files and other interfaces.
+A value of 0 in this file imposes no restrictions.
+If the value is 1, kernel pointers printed using the
+.I %pK
+format specifier will be replaced with zeros unless the user has the
+.BR CAP_SYSLOG
+capability.
+If the value is 2, kernel pointers printed using the
+.I %pK
+format specifier will be replaced with zeros regardless
+of the user's capabilities.
+The initial default value for this file was 1,
+but the default was changed
+.\" commit 411f05f123cbd7f8aa1edcae86970755a6e2a9d9
+to 0 in Linux 2.6.39.
+Since Linux 3.4,
+.\" commit 620f6e8e855d6d447688a5f67a4e176944a084e8
+only users with the
+.BR CAP_SYS_ADMIN
+capability can change the value in this file.
 .TP
 .I /proc/sys/kernel/l2cr
 (PowerPC only) This file
@@ -2200,11 +2698,25 @@ This file contains the path for the kernel module loader.
 The default value is
 .IR /sbin/modprobe .
 The file is only present if the kernel is built with the
-.B CONFIG_KMOD
+.B CONFIG_MODULES
+.RB ( CONFIG_KMOD
+in Linux 2.6.26 and earlier)
 option enabled.
-It is described by the kernel source file
+It is described by the Linux kernel source file
 .I Documentation/kmod.txt
 (only present in kernel 2.4 and earlier).
+.TP
+.IR /proc/sys/kernel/modules_disabled " (since Linux 2.6.31)"
+.\" 3d43321b7015387cfebbe26436d0e9d299162ea1
+.\" From Documentation/sysctl/kernel.txt
+A toggle value indicating if modules are allowed to be loaded
+in an otherwise modular kernel.
+This toggle defaults to off (0), but can be set true (1).
+Once true, modules can be neither loaded nor unloaded,
+and the toggle cannot be set back to false.
+The file is only present if the kernel is built with the
+.B CONFIG_MODULES
+option enabled.
 .TP
 .I /proc/sys/kernel/msgmax
 This file defines
@@ -2327,7 +2839,7 @@ See
 for further information.
 .TP
 .I /proc/sys/kernel/real-root-dev
-This file is documented in the kernel source file
+This file is documented in the Linux kernel source file
 .IR Documentation/initrd.txt .
 .TP
 .IR /proc/sys/kernel/reboot-cmd " (Sparc only) "
@@ -2406,7 +2918,7 @@ Possible values in this file are:
 
    0 - disable sysrq completely
    1 - enable all functions of sysrq
-  >1 - bitmask of allowed sysrq functions, as follows:
+  >1 - bit mask of allowed sysrq functions, as follows:
           2 - enable control of console logging level
           4 - enable control of keyboard (SAK, unraw)
           8 - enable debugging dumps of processes etc.
@@ -2419,7 +2931,7 @@ Possible values in this file are:
 This file is only present if the
 .B CONFIG_MAGIC_SYSRQ
 kernel configuration option is enabled.
-For further details see the kernel source file
+For further details see the Linux kernel source file
 .IR Documentation/sysrq.txt .
 .TP
 .I /proc/sys/kernel/version
@@ -2673,7 +3185,7 @@ typing ALT-SysRq-<character> (see the description of
 .IR /proc/sys/kernel/sysrq ).
 This file is normally only writable by
 .IR root .
-For further details see the kernel source file
+For further details see the Linux kernel source file
 .IR Documentation/sysrq.txt .
 .TP
 .I /proc/sysvipc
@@ -2741,7 +3253,7 @@ of thing that needs to be updated very often.
 .\" .SH ACKNOWLEDGEMENTS
 .\" The material on /proc/sys/fs and /proc/sys/kernel is closely based on
 .\" kernel source documentation files written by Rik van Riel.
-.SH "SEE ALSO"
+.SH SEE ALSO
 .BR cat (1),
 .BR dmesg (1),
 .BR find (1),
@@ -2766,7 +3278,8 @@ of thing that needs to be updated very often.
 .BR netstat (8),
 .BR procinfo (8),
 .BR route (8)
-.br
-The kernel source files:
-.IR Documentation/filesystems/proc.txt ,
-.IR Documentation/sysctl/vm.txt
+
+The Linux kernel source files:
+.IR Documentation/filesystems/proc.txt
+and
+.IR Documentation/sysctl/vm.txt .

@@ -1,8 +1,7 @@
-.\" Hey Emacs! This file is -*- nroff -*- source.
-.\"
 .\" Copyright (C) 1996 Andries Brouwer <aeb@cwi.nl>
 .\" and Copyright (C) 2006, 2007 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
+.\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
@@ -22,6 +21,7 @@
 .\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
 .\"
 .\" Modified 1997-01-31 by Eric S. Raymond <esr@thyrsus.com>
 .\" Modified 2000-03-25 by Jim Van Zandt <jrv@vanzandt.mv.com>
@@ -37,7 +37,7 @@
 .\" 2007-07-10, mtk, Added an example program.
 .\" 2008-11-18, mtk, document MAP_STACK
 .\"
-.TH MMAP 2 2012-04-16 "Linux" "Linux Programmer's Manual"
+.TH MMAP 2 2013-02-25 "Linux" "Linux Programmer's Manual"
 .SH NAME
 mmap, munmap \- map or unmap files or devices into memory
 .SH SYNOPSIS
@@ -49,6 +49,8 @@ mmap, munmap \- map or unmap files or devices into memory
 .BI "           int " fd ", off_t " offset );
 .BI "int munmap(void *" addr ", size_t " length );
 .fi
+
+See NOTES for information on feature test macro requirements.
 .SH DESCRIPTION
 .BR mmap ()
 creates a new mapping in the virtual address space of
@@ -228,7 +230,7 @@ should extend downward in memory.
 .TP
 .BR MAP_HUGETLB " (since Linux 2.6.32)"
 Allocate the mapping using "huge pages."
-See the kernel source file
+See the Linux kernel source file
 .I Documentation/vm/hugetlbpage.txt
 for further information.
 .TP
@@ -370,7 +372,7 @@ with the
 or
 .B MS_ASYNC
 flag, if one occurs.
-.SH "RETURN VALUE"
+.SH RETURN VALUE
 On success,
 .BR mmap ()
 returns a pointer to the mapped area.
@@ -470,6 +472,18 @@ was mounted no-exec.
 was set but the object specified by
 .I fd
 is open for writing.
+.TP
+.B EOVERFLOW
+On 32-bit architecture together with the large file extension
+(i.e., using 64-bit
+.IR off_t ):
+the number of pages used for
+.I length
+plus number of pages used for
+.I offset
+would overflow
+.I "unsigned long"
+(32 bits).
 .LP
 Use of a mapped region can result in these signals:
 .TP
@@ -480,7 +494,7 @@ Attempted write into a region mapped as read-only.
 Attempted access to a portion of the buffer that does not correspond
 to the file (for example, beyond the end of the file, including the
 case where another process has truncated the file).
-.SH "CONFORMING TO"
+.SH CONFORMING TO
 SVr4, 4.4BSD, POSIX.1-2001.
 .\" SVr4 documents additional error codes ENXIO and ENODEV.
 .\" SUSv2 documents additional error codes EMFILE and EOVERFLOW.
@@ -541,6 +555,35 @@ If the
 flag is specified, and
 .I addr
 is 0 (NULL), then the mapped address will be 0 (NULL).
+
+Certain
+.I flags
+constants are defined only if either
+.BR _BSD_SOURCE
+or
+.BR _SVID_SOURCE
+is defined.
+(Requiring
+.BR _GNU_SOURCE
+also suffices,
+and requiring that macro specifically would have been more logical,
+since these flags are all Linux specific.)
+The relevant flags are:
+.BR MAP_32BIT ,
+.BR MAP_ANONYMOUS
+(and the synonym
+.BR MAP_ANON ),
+.BR MAP_DENYWRITE ,
+.BR MAP_EXECUTABLE ,
+.BR MAP_FILE ,
+.BR MAP_GROWSDOWN ,
+.BR MAP_HUGETLB ,
+.BR MAP_LOCKED ,
+.BR MAP_NONBLOCK ,
+.BR MAP_NORESERVE ,
+.BR MAP_POPULATE ,
+and
+.BR MAP_STACK .
 .SH BUGS
 On Linux there are no guarantees like those suggested above under
 .BR MAP_NORESERVE .
@@ -568,6 +611,22 @@ Since kernel 2.6.12,
 fails with the error
 .B EINVAL
 for this case.
+
+POSIX specifies that the system shall always
+zero fill any partial page at the end
+of the object and that system will never write any modification of the
+object beyond its end.
+On Linux, when you write data to such partial page after the end
+of the object, the data stays in the page cache even after the file
+is closed and unmapped
+and even though the data is never written to the file itself,
+subsequent mappings may see the modified content.
+In some cases, this could be fixed by calling
+.BR msync (2)
+before the unmap takes place;
+however, this doesn't work on tmpfs
+(for example, when using POSIX shared memory interface documented in
+.BR shm_overview (7)).
 .SH EXAMPLE
 .\" FIXME . Add an example here that uses an anonymous shared region for
 .\" IPC between parent and child.
@@ -650,7 +709,7 @@ main(int argc, char *argv[])
     exit(EXIT_SUCCESS);
 }
 .fi
-.SH "SEE ALSO"
+.SH SEE ALSO
 .BR getpagesize (2),
 .BR mincore (2),
 .BR mlock (2),
@@ -663,7 +722,7 @@ main(int argc, char *argv[])
 .BR shmat (2),
 .BR shm_open (3),
 .BR shm_overview (7)
-.br
+
 B.O. Gallmeister, POSIX.4, O'Reilly, pp. 128-129 and 389-391.
 .\"
 .\" Repeat after me: private read-only mappings are 100% equivalent to

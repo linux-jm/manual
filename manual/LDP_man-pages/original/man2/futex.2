@@ -1,4 +1,8 @@
-.\" Page by b.hubert - may be freely modified and distributed
+.\" Page by b.hubert
+.\"
+.\" %%%LICENSE_START(FREELY_REDISTRIBUTABLE)
+.\" may be freely modified and distributed
+.\" %%%LICENSE_END
 .\"
 .\" Niki A. Rahimi (LTC Security Development, narahimi@us.ibm.com)
 .\" added ERRORS section.
@@ -6,17 +10,49 @@
 .\" Modified 2004-06-17 mtk
 .\" Modified 2004-10-07 aeb, added FUTEX_REQUEUE, FUTEX_CMP_REQUEUE
 .\"
-.\" FIXME See also https://bugzilla.kernel.org/show_bug.cgi?id=14303
+.\" FIXME
+.\" See also https://bugzilla.kernel.org/show_bug.cgi?id=14303
 .\" 2.6.14 adds FUTEX_WAKE_OP
+.\"	commit 4732efbeb997189d9f9b04708dc26bf8613ed721
+.\"	Author: Jakub Jelinek <jakub@redhat.com>
+.\"	Date:   Tue Sep 6 15:16:25 2005 -0700
+.\"
+.\" FIXME
 .\" 2.6.18 adds (Ingo Molnar) priority inheritance support:
 .\" FUTEX_LOCK_PI, FUTEX_UNLOCK_PI, and FUTEX_TRYLOCK_PI.  These need
 .\" to be documented in the manual page.  Probably there is sufficient
 .\" material in the kernel source file Documentation/pi-futex.txt.
-.\" 2.6.25 adds FUTEX_WAKE_BITSET, FUTEX_WAIT_BITSET
+.\"	commit c87e2837be82df479a6bae9f155c43516d2feebc
+.\"	Author: Ingo Molnar <mingo@elte.hu>
+.\"	Date:   Tue Jun 27 02:54:58 2006 -0700
 .\"
-.TH FUTEX 2 2010-08-29 "Linux" "Linux Programmer's Manual"
+.\"	commit e2970f2fb6950183a34e8545faa093eb49d186e1
+.\"	Author: Ingo Molnar <mingo@elte.hu>
+.\"	Date:   Tue Jun 27 02:54:47 2006 -0700
+.\"
+.\"	See Documentation/futex-requeue-pi.txt
+.\"
+.\" FIXME
+.\" 2.6.25 adds FUTEX_WAKE_BITSET, FUTEX_WAIT_BITSET
+.\"	commit cd689985cf49f6ff5c8eddc48d98b9d581d9475d
+.\"	Author: Thomas Gleixner <tglx@linutronix.de>
+.\"	Date:   Fri Feb 1 17:45:14 2008 +0100
+.\"
+.\" FIXME
+.\" 2.6.31 adds FUTEX_WAIT_REQUEUE_PI, FUTEX_CMP_REQUEUE_PI
+.\"	commit 52400ba946759af28442dee6265c5c0180ac7122
+.\"	Author: Darren Hart <dvhltc@us.ibm.com>
+.\"	Date:   Fri Apr 3 13:40:49 2009 -0700
+.\"
+.\"	commit ba9c22f2c01cf5c88beed5a6b9e07d42e10bd358
+.\"	Author: Darren Hart <dvhltc@us.ibm.com>
+.\"	Date:   Mon Apr 20 22:22:22 2009 -0700
+.\"
+.\"	See Documentation/futex-requeue-pi.txt
+.\"
+.TH FUTEX 2 2013-03-15 "Linux" "Linux Programmer's Manual"
 .SH NAME
-futex \- Fast Userspace Locking system call
+futex \- fast user-space locking
 .SH SYNOPSIS
 .nf
 .sp
@@ -29,7 +65,7 @@ futex \- Fast Userspace Locking system call
 .BI "          int *" uaddr2 ", int " val3 );
 .\" int *? void *? u32 *?
 .fi
-.SH "DESCRIPTION"
+.SH DESCRIPTION
 .PP
 The
 .BR futex ()
@@ -48,7 +84,7 @@ described in
 .PP
 When a
 .BR futex (7)
-operation did not finish uncontended in userspace, a call needs to be made
+operation did not finish uncontended in user space, a call needs to be made
 to the kernel to arbitrate.
 Arbitration can either mean putting the calling
 process to sleep or, conversely, waking a waiting process.
@@ -80,7 +116,7 @@ and sleeps awaiting
 on this futex address.
 If the
 .I timeout
-argument is non-NULL, its contents describe the maximum
+argument is non-NULL, its contents describe the minimum
 duration of the wait, which is infinite otherwise.
 The arguments
 .I uaddr2
@@ -170,27 +206,19 @@ If not, the operation fails with the error
 The argument
 .I timeout
 is ignored.
-.SH "RETURN VALUE"
+.SH RETURN VALUE
 .PP
-Depending on which operation was executed,
-the returned value for a successful call can have differing meanings.
+In the event of an error, all operations return \-1, and set
+.I errno
+to indicate the error.
+The return value on success depends on the operation,
+as described in the following list:
 .TP
 .B FUTEX_WAIT
 Returns 0 if the process was woken by a
 .B FUTEX_WAKE
 call.
-In case of timeout,
-the operation fails with the error
-.BR ETIMEDOUT .
-If the futex was not equal to the expected value,
-the operation fails with the error
-.BR EWOULDBLOCK .
-Signals (see
-.BR signal (7))
-or other spurious wakeups cause
-.B FUTEX_WAIT
-to fail with the error
-.BR EINTR .
+See ERRORS for the various possible error returns.
 .TP
 .B FUTEX_WAKE
 Returns the number of processes woken up.
@@ -203,10 +231,6 @@ Returns the number of processes woken up.
 .TP
 .B FUTEX_CMP_REQUEUE
 Returns the number of processes woken up.
-.PP
-In the event of an error, all operations return \-1, and set
-.I errno
-to indicate the error.
 .SH ERRORS
 .TP
 .B EACCES
@@ -214,19 +238,29 @@ No read access to futex memory.
 .TP
 .B EAGAIN
 .B FUTEX_CMP_REQUEUE
-found an unexpected futex value.
+detected that the value pointed to by
+.I uaddr
+is not equal to the expected value
+.IR val3 .
 (This probably indicates a race;
 use the safe
 .B FUTEX_WAKE
 now.)
 .TP
 .B EFAULT
-Error in getting
+Error retrieving
 .I timeout
-information from userspace.
+information from user space.
+.TP
+.B EINTR
+A
+.B FUTEX_WAIT
+operation was interrupted by a signal (see
+.BR signal (7))
+or a spurious wakeup.
 .TP
 .B EINVAL
-An operation was not defined or error in page alignment.
+Invalid argument.
 .TP
 .B ENFILE
 The system limit on the total number of open files has been reached.
@@ -234,7 +268,22 @@ The system limit on the total number of open files has been reached.
 .B ENOSYS
 Invalid operation specified in
 .IR op .
-.SH "VERSIONS"
+.TP
+.B ETIMEDOUT
+Timeout during the
+.B FUTEX_WAIT
+operation.
+.TP
+.B EWOULDBLOCK
+.I op
+was
+.BR FUTEX_WAIT
+and the value pointed to by
+.I uaddr
+was not equal to the expected value
+.I val
+at the time of the call.
+.SH VERSIONS
 .PP
 Initial futex support was merged in Linux 2.5.7 but with different semantics
 from what was described above.
@@ -244,15 +293,15 @@ In Linux 2.5.70 one argument
 was added.
 In Linux 2.6.7 a sixth argument was added\(emmessy, especially
 on the s390 architecture.
-.SH "CONFORMING TO"
+.SH CONFORMING TO
 This system call is Linux-specific.
-.SH "NOTES"
+.SH NOTES
 .PP
 To reiterate, bare futexes are not intended as an easy-to-use abstraction
 for end-users.
 (There is no wrapper function for this system call in glibc.)
 Implementors are expected to be assembly literate and to have
-read the sources of the futex userspace library referenced below.
+read the sources of the futex user-space library referenced below.
 .\" .SH "AUTHORS"
 .\" .PP
 .\" Futexes were designed and worked on by
@@ -260,14 +309,16 @@ read the sources of the futex userspace library referenced below.
 .\" Matthew Kirkwood, Ingo Molnar (Red Hat)
 .\" and Rusty Russell (IBM Linux Technology Center).
 .\" This page written by bert hubert.
-.SH "SEE ALSO"
+.SH SEE ALSO
 .BR futex (7)
 .PP
 \fIFuss, Futexes and Furwocks: Fast Userlevel Locking in Linux\fP
 (proceedings of the Ottawa Linux Symposium 2002), online at
 .br
-http://kernel.org/doc/ols/2002/ols2002-pages-479-495.pdf
+.UR http://kernel.org\:/doc\:/ols\:/2002\:/ols2002-pages-479-495.pdf
+.UE
 .PP
 Futex example library, futex-*.tar.bz2 at
 .br
-ftp://ftp.nl.kernel.org/pub/linux/kernel/people/rusty/.
+.UR ftp://ftp.nl.kernel.org\:/pub\:/linux\:/kernel\:/people\:/rusty/
+.UE

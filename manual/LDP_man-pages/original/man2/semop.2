@@ -1,5 +1,6 @@
 .\" Copyright 1993 Giorgio Ciucci (giorgio@crcc.it)
 .\"
+.\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
@@ -19,6 +20,7 @@
 .\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
 .\"
 .\" Modified 1996-10-22, Eric S. Raymond <esr@thyrsus.com>
 .\" Modified 2002-01-08, Michael Kerrisk <mtk.manpages@gmail.com>
@@ -30,7 +32,7 @@
 .\" 2005-04-08, mtk, Noted kernel version numbers for semtimedop()
 .\" 2007-07-09, mtk, Added an EXAMPLE code segment.
 .\"
-.TH SEMOP 2 2012-05-10 "Linux" "Linux Programmer's Manual"
+.TH SEMOP 2 2012-08-27 "Linux" "Linux Programmer's Manual"
 .SH NAME
 semop, semtimedop \- semaphore operations
 .SH SYNOPSIS
@@ -60,7 +62,7 @@ Each semaphore in a semaphore set has the following associated values:
 unsigned short  semval;   /* semaphore value */
 unsigned short  semzcnt;  /* # waiting for zero */
 unsigned short  semncnt;  /* # waiting for increase */
-pid_t           sempid;   /* process that did last op */
+pid_t           sempid;   /* ID of process that did last op */
 .sp
 .in -4n
 .fi
@@ -123,10 +125,10 @@ the semaphore value
 .RI  ( semval ).
 Furthermore, if
 .B SEM_UNDO
-is specified for this operation, the system updates the process undo count
+is specified for this operation, the system updates the undo count
 .RI ( semadj )
 for this semaphore.
-This operation can always proceed\(emit never forces a process to wait.
+This operation can always proceed\(emit never forces a thread to wait.
 The calling process must have alter permission on the semaphore set.
 .PP
 If
@@ -150,8 +152,8 @@ set to
 is performed).
 Otherwise
 .I semzcnt
-(the count of processes waiting until this semaphore's value becomes zero)
-is incremented by one and the process sleeps until
+(the count of threads waiting until this semaphore's value becomes zero)
+is incremented by one and the thread sleeps until
 one of the following occurs:
 .IP \(bu 3
 .I semval
@@ -167,7 +169,7 @@ fails, with
 set to
 .BR EIDRM .
 .IP \(bu
-The calling process catches a signal:
+The calling thread catches a signal:
 the value of
 .I semzcnt
 is decremented and
@@ -203,7 +205,7 @@ is subtracted from
 .IR semval ,
 and, if
 .B SEM_UNDO
-is specified for this operation, the system updates the process undo count
+is specified for this operation, the system updates the undo count
 .RI ( semadj )
 for this semaphore.
 If the absolute value of
@@ -224,8 +226,8 @@ set to
 is performed).
 Otherwise
 .I semncnt
-(the counter of processes waiting for this semaphore's value to increase)
-is incremented by one and the process sleeps until
+(the counter of threads waiting for this semaphore's value to increase)
+is incremented by one and the thread sleeps until
 one of the following occurs:
 .IP \(bu 3
 .I semval
@@ -239,7 +241,7 @@ is subtracted from
 .I semval
 and, if
 .B SEM_UNDO
-is specified for this operation, the system updates the process undo count
+is specified for this operation, the system updates the undo count
 .RI ( semadj )
 for this semaphore.
 .IP \(bu
@@ -250,7 +252,7 @@ fails, with
 set to
 .BR EIDRM .
 .IP \(bu
-The calling process catches a signal:
+The calling thread catches a signal:
 the value of
 .I semncnt
 is decremented and
@@ -273,7 +275,7 @@ On successful completion, the
 .I sempid
 value for each semaphore specified in the array pointed to by
 .I sops
-is set to the process ID of the calling process.
+is set to the caller's process ID.
 In addition, the
 .I sem_otime
 .\" and
@@ -283,7 +285,7 @@ is set to the current time.
 .BR semtimedop ()
 behaves identically to
 .BR semop ()
-except that in those cases were the calling process would sleep,
+except that in those cases where the calling thread would sleep,
 the duration of that sleep is limited by the amount of elapsed
 time specified by the
 .I timespec
@@ -309,7 +311,7 @@ then
 .BR semtimedop ()
 behaves exactly like
 .BR semop ().
-.SH "RETURN VALUE"
+.SH RETURN VALUE
 If successful
 .BR semop ()
 and
@@ -365,7 +367,7 @@ of semaphores in the set.
 The semaphore set was removed.
 .TP
 .B EINTR
-While blocked in this system call, the process caught a signal; see
+While blocked in this system call, the thread caught a signal; see
 .BR signal (7).
 .TP
 .B EINVAL
@@ -397,10 +399,23 @@ and was subsequently backported into kernel 2.4.22.
 Glibc support for
 .BR semtimedop ()
 first appeared in version 2.3.3.
-.SH "CONFORMING TO"
+.SH CONFORMING TO
 SVr4, POSIX.1-2001.
 .\" SVr4 documents additional error conditions EINVAL, EFBIG, ENOSPC.
 .SH NOTES
+The inclusion of
+.I <sys/types.h>
+and
+.I <sys/ipc.h>
+isn't required on Linux or by any version of POSIX.
+However,
+some old implementations required the inclusion of these header files,
+and the SVID also documented their inclusion.
+Applications intended to be portable to such old systems may need
+to include these header files.
+.\" Like Linux, the FreeBSD man pages still document
+.\" the inclusion of these header files.
+
 The
 .I sem_undo
 structures of a process aren't inherited by the child produced by
@@ -481,7 +496,7 @@ as far as possible (i.e., to zero) and allowing process
 termination to proceed immediately.
 
 In kernels 2.6.x, x <= 10, there is a bug that in some circumstances
-prevents a process that is waiting for a semaphore value to become
+prevents a thread that is waiting for a semaphore value to become
 zero from being woken up when the value does actually become zero.
 This bug is fixed in kernel 2.6.11.
 .\" The bug report:
@@ -513,7 +528,8 @@ and then increment the semaphore value by one.
         exit(EXIT_FAILURE);
     }
 .fi
-.SH "SEE ALSO"
+.SH SEE ALSO
+.BR clone (2),
 .BR semctl (2),
 .BR semget (2),
 .BR sigaction (2),

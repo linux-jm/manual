@@ -1,15 +1,42 @@
 '\" t
-.\" Don't change the line above. it tells man that tbl is needed.
 .\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\"
+.\" %%%LICENSE_START(VERBATIM_ONE_PARA)
 .\" Permission is granted to distribute possibly modified copies
 .\" of this page provided the header is included verbatim,
 .\" and in case of nontrivial modification author and date
 .\" of the modification is added to the header.
+.\" %%%LICENSE_END
+.\"
 .\" $Id: ip.7,v 1.19 2000/12/20 18:10:31 ak Exp $
 .\"
-.\" FIXME: Document IP_MINTTL, added in Linux 2.6.34
+.\" FIXME: The following socket options are yet to be documented
+.\" 	IP_XFRM_POLICY (2.5.48)
+.\"	    Needs CAP_NET_ADMIN
+.\" 	IP_IPSEC_POLICY (2.5.47)
+.\"	    Needs CAP_NET_ADMIN
+.\" 	IP_PASSSEC (2.6.17)
+.\" 	    Boolean
+.\"	    commit 2c7946a7bf45ae86736ab3b43d0085e43947945c
+.\"	    Author: Catherine Zhang <cxzhang@watson.ibm.com>
+.\"	IP_MINTTL (2.6.34)
+.\"	    commit d218d11133d888f9745802146a50255a4781d37a
+.\"	    Author: Stephen Hemminger <shemminger@vyatta.com>
+.\"	MCAST_JOIN_GROUP (2.4.22 / 2.6)
+.\"	MCAST_BLOCK_SOURCE (2.4.22 / 2.6)
+.\"	MCAST_UNBLOCK_SOURCE (2.4.22 / 2.6)
+.\"	MCAST_LEAVE_GROUP (2.4.22 / 2.6)
+.\"	MCAST_JOIN_SOURCE_GROUP (2.4.22 / 2.6)
+.\"	MCAST_LEAVE_SOURCE_GROUP (2.4.22 / 2.6)
+.\"	MCAST_MSFILTER (2.4.22 / 2.6)
+.\"	IP_MULTICAST_ALL (2.6.31)
+.\"	    commit f771bef98004d9d141b085d987a77d06669d4f4f
+.\"	    Author: Nivedita Singhvi <niv@us.ibm.com>
+.\"	IP_UNICAST_IF (3.4)
+.\"	    commit 76e21053b5bf33a07c76f99d27a74238310e3c71
+.\"	    Author: Erich E. Hoover <ehoover@mines.edu>
 .\"
-.TH IP  7 2011-09-22 "Linux" "Linux Programmer's Manual"
+.TH IP  7 2013-02-12 "Linux" "Linux Programmer's Manual"
 .SH NAME
 ip \- Linux IPv4 protocol implementation
 .SH SYNOPSIS
@@ -69,12 +96,11 @@ For
 you may specify a valid IANA IP protocol defined in
 RFC\ 1700 assigned numbers.
 .PP
-.\" FIXME ip current does an autobind in listen, but I'm not sure
-.\" if that should be documented.
 When a process wants to receive new incoming packets or connections, it
 should bind a socket to a local interface address using
 .BR bind (2).
-Only one IP socket may be bound to any given local (address, port) pair.
+In this case, only one IP socket may be bound to any given local
+(address, port) pair.
 When
 .B INADDR_ANY
 is specified in the bind call, the socket will be bound to
@@ -82,10 +108,14 @@ is specified in the bind call, the socket will be bound to
 local interfaces.
 When
 .BR listen (2)
-or
+is called on an unbound socket, the socket is automatically bound
+to a random free port with the local address set to
+.BR INADDR_ANY .
+When
 .BR connect (2)
-are called on an unbound socket, it is automatically bound to a
-random free port with the local address set to
+is called on an unbound socket, the socket is automatically bound
+to a random free port or to a usable shared port with the local address
+set to
 .BR INADDR_ANY .
 
 A TCP local socket address that has been bound is unavailable for
@@ -93,7 +123,7 @@ some time after closing, unless the
 .B SO_REUSEADDR
 flag has been set.
 Care should be taken when using this flag as it makes TCP less reliable.
-.SS Address Format
+.SS Address format
 An IP socket address is defined as a combination of an IP interface
 address and a 16-bit port number.
 The basic IP protocol does not supply port numbers, they
@@ -194,7 +224,7 @@ means any address for binding;
 means any host and has the same effect on bind as
 .B INADDR_ANY
 for historical reasons.
-.SS Socket Options
+.SS Socket options
 IP supports some protocol-specific socket options that can be set with
 .BR setsockopt (2)
 and read with
@@ -256,6 +286,61 @@ Only valid as a
 .BR setsockopt (2).
 .\"
 .TP
+.BR IP_ADD_SOURCE_MEMBERSHIP " (since Linux 2.4.22 / 2.5.68)"
+Join a multicast group and allow receiving data only
+from a specified source.
+Argument is an
+.I ip_mreq_source
+structure.
+.sp
+.in +4n
+.nf
+struct ip_mreq_source {
+    struct in_addr imr_multiaddr;  /* IP multicast group
+                                      address */
+    struct in_addr imr_interface;  /* IP address of local
+                                      interface */
+    struct in_addr imr_sourceaddr; /* IP address of
+                                      multicast source */
+};
+.fi
+.in
+.sp
+The
+.I ip_mreq_source
+structure is similar to
+.I ip_mreqn
+described under
+.BR IP_ADD_MEMBERSIP .
+The
+.I imr_multiaddr
+field contains the address of the multicast group the application
+wants to join or leave.
+The
+.I imr_interface
+field is the address of the local interface with which
+the system should join the multicast group.
+Finally, the
+.I imr_sourceaddr
+field contains the address of the source the
+application wants to receive data from.
+.IP
+This option can be used multiple times to allow
+receiving data from more than one source.
+.TP
+.BR IP_BLOCK_SOURCE " (since Linux 2.4.22 / 2.5.68)"
+Stop receiving multicast data from a specific source in a given group.
+This is valid only after the application has subscribed
+to the multicast group using either
+.BR IP_ADD_MEMBERSHIP
+or
+.BR IP_ADD_SOURCE_MEMBERSHIP .
+.IP
+Argument is an
+.I ip_mreq_source
+structure as described under
+.BR IP_ADD_SOURCE_MEMBERSHIP .
+.TP
 .BR IP_DROP_MEMBERSHIP " (since Linux 1.2)"
 Leave a multicast group.
 Argument is an
@@ -264,6 +349,19 @@ or
 .I ip_mreq
 structure similar to
 .BR IP_ADD_MEMBERSHIP .
+.TP
+.BR IP_DROP_SOURCE_MEMBERSHIP " (since Linux 2.4.22 / 2.5.68)"
+Leave a source-specific group\(emthat is, stop receiving data from
+a given multicast group that come from a given source.
+If the application has subscribed to multiple sources within
+the same group, data from the remaining sources will still be delivered.
+To stop receiving data from all sources at once, use
+.BR IP_LEAVE_GROUP .
+.IP
+Argument is an
+.I ip_mreq_source
+structure as described under
+.BR IP_ADD_SOURCE_MEMBERSHIP .
 .TP
 .BR IP_FREEBIND " (since Linux 2.4)"
 .\" Precisely: 2.4.0-test10
@@ -293,10 +391,45 @@ When this flag is enabled the values set by
 and
 .B IP_TOS
 are ignored.
-.\"
-.\" FIXME Document IP_IPSEC_POLICY
-.\" Since Linux 2.5.47
-.\" Needs CAP_NET_ADMIN
+.TP
+.BR IP_MSFILTER " (since Linux 2.4.22 / 2.5.68)"
+This option provides access to the advanced full-state filtering API.
+Argument is an
+.I ip_msfilter
+structure.
+.sp
+.in +4n
+.nf
+struct ip_msfilter {
+    struct in_addr imsf_multiaddr; /* IP multicast group
+                                      address */
+    struct in_addr imsf_interface; /* IP address of local
+                                      interface */
+    uint32_t       imsf_fmode;     /* Filter-mode */
+
+    uint32_t       imsf_numsrc;    /* Number of sources in
+                                      the following array */
+    struct in_addr imsf_slist[1];  /* Array of source
+                                      addresses */
+};
+.fi
+.in
+.sp
+There are two macros,
+.BR MCAST_INCLUDE
+and
+.BR MCAST_EXCLUDE ,
+which can be used to specify the filtering mode.
+Additionally, the
+.BR IP_MSFILTER_SIZE (n)
+macro exists to determine how much memory is needed to store
+.I ip_msfilter
+structure with
+.I n
+sources in the source list.
+.IP
+For the full description of multicast source filtering
+refer to RFC 3376.
 .TP
 .BR IP_MTU " (since Linux 2.2)"
 .\" Precisely: 2.1.124
@@ -334,7 +467,6 @@ and
 by writing (respectively, zero and nonzero values) to the
 .I /proc/sys/net/ipv4/ip_no_pmtu_disc
 file.
-
 .TS
 tab(:);
 c l
@@ -454,11 +586,6 @@ Calling
 with
 .B IP_OPTIONS
 puts the current IP options used for sending into the supplied buffer.
-.\" FIXME Document IP_PASSSEC
-.\" Boolean
-.\" Since Linux 2.6.17
-.\" commit 2c7946a7bf45ae86736ab3b43d0085e43947945c
-.\" Author: Catherine Zhang <cxzhang@watson.ibm.com>
 .TP
 .BR IP_PKTINFO " (since Linux 2.2)"
 .\" Precisely: 2.1.68
@@ -768,9 +895,17 @@ this option be set on the redirected socket.
 .BR IP_TTL " (since Linux 1.0)"
 Set or retrieve the current time-to-live field that is used in every packet
 sent from this socket.
-.\" FIXME Document IP_XFRM_POLICY
-.\" Since Linux 2.5.48
-.\" Needs CAP_NET_ADMIN
+.TP
+.BR IP_UNBLOCK_SOURCE " (since Linux 2.4.22 / 2.5.68)"
+Unblock previously blocked multicast source.
+Returns
+.BR EADDRNOTAVAIL
+when given source is not being blocked.
+.IP
+Argument is an
+.I ip_mreq_source
+structure as described under
+.BR IP_ADD_SOURCE_MEMBERSHIP .
 .SS /proc interfaces
 The IP protocol
 supports a set of
@@ -1005,6 +1140,7 @@ and
 .BR socket (7).
 .SH NOTES
 .BR IP_FREEBIND ,
+.BR IP_MSFILTER ,
 .BR IP_MTU ,
 .BR IP_MTU_DISCOVER ,
 .BR IP_RECVORIGDSTADDR ,
@@ -1083,12 +1219,14 @@ by
 does not work in some 2.2 kernels.
 .\" .SH AUTHORS
 .\" This man page was written by Andi Kleen.
-.SH "SEE ALSO"
+.SH SEE ALSO
 .BR recvmsg (2),
 .BR sendmsg (2),
 .BR byteorder (3),
 .BR ipfw (4),
 .BR capabilities (7),
+.BR icmp (7),
+.BR ipv6 (7),
 .BR netlink (7),
 .BR raw (7),
 .BR socket (7),
@@ -1096,8 +1234,6 @@ does not work in some 2.2 kernels.
 .BR udp (7)
 .PP
 RFC\ 791 for the original IP specification.
-.br
 RFC\ 1122 for the IPv4 host requirements.
-.br
 RFC\ 1812 for the IPv4 router requirements.
 .\" FIXME autobind INADDR REUSEADDR

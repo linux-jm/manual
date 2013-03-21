@@ -1,7 +1,6 @@
-.\" This is _*_ nroff _*_ source. Emacs, gimme all those colors :)
-.\"
 .\" Copyright (c) International Business Machines orp., 2006
 .\"
+.\" %%%LICENSE_START(GPLv2+_SW_3_PARA)
 .\" This program is free software; you can redistribute it and/or
 .\" modify it under the terms of the GNU General Public License as
 .\" published by the Free Software Foundation; either version 2 of
@@ -12,17 +11,17 @@
 .\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
 .\" the GNU General Public License for more details.
 .\"
-.\" You should have received a copy of the GNU General Public License
-.\" along with this program; if not, write to the Free Software
-.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston,
-.\" MA 02111-1307 USA
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, see
+.\" <http://www.gnu.org/licenses/>.
+.\" %%%LICENSE_END
 .\"
 .\" HISTORY:
 .\" 2006-04-27, created by Eduardo M. Fleury <efleury@br.ibm.com>
 .\" with various additions by Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\"
-.TH IOPRIO_SET 2 2008-07-09 "Linux" "Linux Programmer's Manual"
+.TH IOPRIO_SET 2 2013-02-12 "Linux" "Linux Programmer's Manual"
 .SH NAME
 ioprio_get, ioprio_set \- get/set I/O scheduling class and priority
 .SH SYNOPSIS
@@ -30,19 +29,22 @@ ioprio_get, ioprio_set \- get/set I/O scheduling class and priority
 .BI "int ioprio_get(int " which ", int " who );
 .BI "int ioprio_set(int " which ", int " who ", int " ioprio );
 .fi
+
+.IR Note :
+There are no glibc wrappers for these system calls; see NOTES.
 .SH DESCRIPTION
 The
 .BR ioprio_get ()
 and
 .BR ioprio_set ()
 system calls respectively get and set the I/O scheduling class and
-priority of one or more processes.
+priority of one or more threads.
 
 The
 .I which
 and
 .I who
-arguments identify the process(es) on which the system
+arguments identify the thread(s) on which the system
 calls operate.
 The
 .I which
@@ -52,16 +54,24 @@ is interpreted, and has one of the following values:
 .TP
 .B IOPRIO_WHO_PROCESS
 .I who
-is a process ID identifying a single process.
+is a process ID or thread ID identifying a single process or thread.
+If
+.I who
+is 0, then operate on the calling thread.
 .TP
 .B IOPRIO_WHO_PGRP
 .I who
 is a process group ID identifying all the members of a process group.
+If
+.I who
+is 0, then operate on the process group of which the caller is a member.
 .TP
 .B IOPRIO_WHO_USER
 .I who
 is a user ID identifying all of the processes that
 have a matching real UID.
+.\" FIXME who==0 needs to be documented,
+.\" See http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=652443
 .PP
 If
 .I which
@@ -136,7 +146,7 @@ writes.
 I/O priorities are not supported for asynchronous
 writes because they are issued outside the context of the program
 dirtying the memory, and thus program-specific priorities do not apply.
-.SH "RETURN VALUE"
+.SH RETURN VALUE
 On success,
 .BR ioprio_get ()
 returns the
@@ -183,17 +193,36 @@ and
 .SH VERSIONS
 These system calls have been available on Linux since
 kernel 2.6.13.
-.SH "CONFORMING TO"
+.SH CONFORMING TO
 These system calls are Linux-specific.
 .SH NOTES
-Glibc does not provide wrapper for these system calls; call them using
+Glibc does not provide a wrapper for these system calls; call them using
 .BR syscall (2).
+
+Two or more processes or threads can share an I/O context.
+This will be the case when
+.BR clone (2)
+was called with the
+.B CLONE_IO
+flag.
+However, by default, the distinct threads of a process will
+.B not
+share the same I/O context.
+This means that if you want to change the I/O
+priority of all threads in a process, you may need to call
+.BR ioprio_set ()
+on each of the threads.
+The thread ID that you would need for this operation
+is the one that is returned by
+.BR gettid (2)
+or
+.BR clone (2).
 
 These system calls only have an effect when used
 in conjunction with an I/O scheduler that supports I/O priorities.
 As at kernel 2.6.17 the only such scheduler is the Completely Fair Queuing
 (CFQ) I/O scheduler.
-.SS "Selecting an I/O Scheduler"
+.SS Selecting an I/O scheduler
 I/O Schedulers are selected on a per-device basis via the special
 file
 .IR /sys/block/<device>/queue/scheduler .
@@ -230,7 +259,7 @@ Password:
 .RB "#" " echo cfq > /sys/block/hda/queue/scheduler"
 .fi
 .RE
-.SS "The Completely Fair Queuing (CFQ) I/O Scheduler"
+.SS The Completely Fair Queuing (CFQ) I/O scheduler
 Since v3 (aka CFQ Time Sliced) CFQ implements
 I/O nice levels similar to those
 of CPU scheduling.
@@ -277,7 +306,7 @@ constantly accessing the disk.
 Refer to
 .I Documentation/block/ioprio.txt
 for more information on the CFQ I/O Scheduler and an example program.
-.SS "Required permissions to set I/O priorities"
+.SS Required permissions to set I/O priorities
 Permission to change a process's priority is granted or denied based
 on two assertions:
 .TP
@@ -314,9 +343,11 @@ Glibc does not yet provide a suitable header file defining
 the function prototypes and macros described on this page.
 Suitable definitions can be found in
 .IR linux/ioprio.h .
-.SH "SEE ALSO"
+.SH SEE ALSO
+.BR ionice (1),
 .BR getpriority (2),
 .BR open (2),
 .BR capabilities (7)
-.sp
-Documentation/block/ioprio.txt in the kernel source tree.
+
+.I Documentation/block/ioprio.txt
+in the Linux kernel source tree

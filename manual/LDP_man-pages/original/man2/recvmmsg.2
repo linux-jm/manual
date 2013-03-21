@@ -1,6 +1,7 @@
 .\" Copyright (C) 2011 by Andi Kleen <andi@firstfloor.org>
 .\" and Copyright (c) 2011 by Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
+.\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
@@ -20,10 +21,14 @@
 .\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
 .\"
-.\" FIXME: This page could be improved with an example program.
+.\" Syscall added in following commit
+.\"	commit a2e2725541fad72416326798c2d7fa4dafb7d337
+.\"	Author: Arnaldo Carvalho de Melo <acme@redhat.com>
+.\"	Date:   Mon Oct 12 23:40:10 2009 -0700
 .\"
-.TH RECVMMSG 2 2012-05-02 "Linux" "Linux Programmer's Manual"
+.TH RECVMMSG 2 2012-12-24 "Linux" "Linux Programmer's Manual"
 .SH NAME
 recvmmsg \- receive multiple messages on a socket
 .SH SYNOPSIS
@@ -95,7 +100,7 @@ The flags are the same as documented for
 .BR recvmsg (2),
 with the following addition:
 .TP
-.B MSG_WAITFORONE
+.BR MSG_WAITFORONE " (since Linux 2.6.34)"
 Turns on
 .B MSG_DONTWAIT
 after the first message has been received.
@@ -160,11 +165,106 @@ is invalid.
 .SH VERSIONS
 The
 .BR recvmmsg ()
-system call was added in Linux 2.6.32.
+system call was added in Linux 2.6.33.
 Support in glibc was added in version 2.12.
 .SH CONFORMING TO
 .BR recvmmsg ()
 is Linux-specific.
+.SH EXAMPLE
+.PP
+The following program uses
+.BR recvmmsg ()
+to receive multiple messages on a socket and stores
+them in multiple buffers.
+The call returns if all buffers are filled or if the
+timeout specified has expired.
+
+The following snippet periodically generates UDP datagrams
+containing a random number:
+.in +4n
+.nf
+
+.RB "$" " while true; do echo $RANDOM > /dev/udp/127.0.0.1/1234; "
+.B      "      sleep 0.25; done"
+.fi
+.in
+
+These datagrams are read by the example application, which
+can give the following output:
+.in +4n
+.nf
+
+.RB "$" " ./a.out"
+5 messages received
+1 11782
+2 11345
+3 304
+4 13514
+5 28421
+.fi
+.in
+.SS Program source
+\&
+.nf
+#define _GNU_SOURCE
+#include <netinet/ip.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+
+int
+main(void)
+{
+#define VLEN 10
+#define BUFSIZE 200
+#define TIMEOUT 1
+    int sockfd, retval, i;
+    struct sockaddr_in sa;
+    struct mmsghdr msgs[VLEN];
+    struct iovec iovecs[VLEN];
+    char bufs[VLEN][BUFSIZE+1];
+    struct timespec timeout;
+
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd == \-1) {
+        perror("socket()");
+        exit(EXIT_FAILURE);
+    }
+
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    sa.sin_port = htons(1234);
+    if (bind(sockfd, (struct sockaddr *) &sa, sizeof(sa)) == \-1) {
+        perror("bind()");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(msgs, 0, sizeof(msgs));
+    for (i = 0; i < VLEN; i++) {
+        iovecs[i].iov_base         = bufs[i];
+        iovecs[i].iov_len          = BUFSIZE;
+        msgs[i].msg_hdr.msg_iov    = &iovecs[i];
+        msgs[i].msg_hdr.msg_iovlen = 1;
+    }
+
+    timeout.tv_sec = TIMEOUT;
+    timeout.tv_nsec = 0;
+
+    retval = recvmmsg(sockfd, msgs, VLEN, 0, &timeout);
+    if (retval == \-1) {
+        perror("recvmmsg()");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("%d messages received\\n", retval);
+    for (i = 0; i < retval; i++) {
+        bufs[i][msgs[i].msg_len] = 0;
+        printf("%d %s", i+1, bufs[i]);
+    }
+    exit(EXIT_SUCCESS);
+}
+.fi
 .SH SEE ALSO
 .BR clock_gettime (2),
 .BR recvmsg (2),

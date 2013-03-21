@@ -1,8 +1,7 @@
-.\" Hey Emacs! This file is -*- nroff -*- source.
-.\"
 .\" Copyright (c) 1992 Drew Eckhardt, March 28, 1992
 .\" and Copyright (c) 2002, 2004, 2005, 2008, 2010 Michael Kerrisk
 .\"
+.\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
@@ -22,6 +21,7 @@
 .\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
 .\"
 .\" Modified by Michael Haardt <michael@moria.de>
 .\" Modified 1993-07-23 by Rik Faith <faith@cs.unc.edu>
@@ -61,7 +61,7 @@
 .\" 2008-05-07, mtk / Peter Zijlstra, Added description of RLIMIT_RTTIME
 .\" 2010-11-06, mtk: Added documentation of prlimit()
 .\"
-.TH GETRLIMIT 2 2011-09-10 "Linux" "Linux Programmer's Manual"
+.TH GETRLIMIT 2 2013-02-11 "Linux" "Linux Programmer's Manual"
 .SH NAME
 getrlimit, setrlimit, prlimit \- get/set resource limits
 .SH SYNOPSIS
@@ -509,6 +509,11 @@ in
 The shell's resource limits are inherited by the processes that
 it creates to execute commands.
 
+Since Linux 2.6.24, the resource limits of any process can be inspected via
+.IR /proc/[pid]/limits ;
+see
+.BR proc (5).
+
 Ancient systems provided a
 .BR vlimit ()
 function with a similar purpose to
@@ -517,6 +522,81 @@ For backward compatibility, glibc also provides
 .BR vlimit ().
 All new applications should be written using
 .BR setrlimit ().
+.SH BUGS
+.\" FIXME prlimit() does not suffer
+.\" https://bugzilla.kernel.org/show_bug.cgi?id=5042
+.\" http://sources.redhat.com/bugzilla/show_bug.cgi?id=12201
+.\" Since versions 2.13, glibc has library implementations of
+.\" getrlimit() and setrlimit() that use prlimit() to work around
+.\" this bug.
+In older Linux kernels, the
+.B SIGXCPU
+and
+.B SIGKILL
+signals delivered when a process encountered the soft and hard
+.B RLIMIT_CPU
+limits were delivered one (CPU) second later than they should have been.
+This was fixed in kernel 2.6.8.
+
+In 2.6.x kernels before 2.6.17, a
+.B RLIMIT_CPU
+limit of 0 is wrongly treated as "no limit" (like
+.BR RLIM_INFINITY ).
+Since Linux 2.6.17, setting a limit of 0 does have an effect,
+but is actually treated as a limit of 1 second.
+.\" see http://marc.theaimsgroup.com/?l=linux-kernel&m=114008066530167&w=2
+
+A kernel bug means that
+.\" See https://lwn.net/Articles/145008/
+.B RLIMIT_RTPRIO
+does not work in kernel 2.6.12; the problem is fixed in kernel 2.6.13.
+
+In kernel 2.6.12, there was an off-by-one mismatch
+between the priority ranges returned by
+.BR getpriority (2)
+and
+.BR RLIMIT_NICE .
+This had the effect that the actual ceiling for the nice value
+was calculated as
+.IR "19\ \-\ rlim_cur" .
+This was fixed in kernel 2.6.13.
+.\" see http://marc.theaimsgroup.com/?l=linux-kernel&m=112256338703880&w=2
+
+Since Linux 2.6.12,
+.\" The relevant patch, sent to LKML, seems to be
+.\" http://thread.gmane.org/gmane.linux.kernel/273462
+.\" From: Roland McGrath <roland <at> redhat.com>
+.\" Subject: [PATCH 7/7] make RLIMIT_CPU/SIGXCPU per-process
+.\" Date: 2005-01-23 23:27:46 GMT
+if a process reaches its soft
+.BR RLIMIT_CPU
+limit and has a handler installed for
+.BR SIGXCPU ,
+then, in addition to invoking the signal handler,
+the kernel increases the soft limit by one second.
+This behavior repeats if the process continues to consume CPU time,
+until the hard limit is reached,
+at which point the process is killed.
+Other implementations
+.\" Tested Solaris 10, FreeBSD 9, OpenBSD 5.0
+do not change the
+.BR RLIMIT_CPU
+soft limit in this manner,
+and the Linux behavior is probably not standards conformant;
+portable applications should avoid relying on this Linux-specific behavior.
+.\" FIXME https://bugzilla.kernel.org/show_bug.cgi?id=50951
+The Linux-specific
+.BR RLIMIT_RTTIME
+limit exhibits the same behavior when the soft limit is encountered.
+
+Kernels before 2.4.22 did not diagnose the error
+.B EINVAL
+for
+.BR setrlimit ()
+when
+.I rlim\->rlim_cur
+was greater than
+.IR rlim\->rlim_max .
 .SH EXAMPLE
 The program below demonstrates the use of
 .BR prlimit ().
@@ -573,51 +653,8 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
 }
 .fi
-.SH BUGS
-.\" FIXME prlimit() does not suffer
-.\" https://bugzilla.kernel.org/show_bug.cgi?id=5042
-.\" http://sources.redhat.com/bugzilla/show_bug.cgi?id=12201
-In older Linux kernels, the
-.B SIGXCPU
-and
-.B SIGKILL
-signals delivered when a process encountered the soft and hard
-.B RLIMIT_CPU
-limits were delivered one (CPU) second later than they should have been.
-This was fixed in kernel 2.6.8.
-
-In 2.6.x kernels before 2.6.17, a
-.B RLIMIT_CPU
-limit of 0 is wrongly treated as "no limit" (like
-.BR RLIM_INFINITY ).
-Since Linux 2.6.17, setting a limit of 0 does have an effect,
-but is actually treated as a limit of 1 second.
-.\" see http://marc.theaimsgroup.com/?l=linux-kernel&m=114008066530167&w=2
-
-A kernel bug means that
-.B RLIMIT_RTPRIO
-does not work in kernel 2.6.12; the problem is fixed in kernel 2.6.13.
-
-In kernel 2.6.12, there was an off-by-one mismatch
-between the priority ranges returned by
-.BR getpriority (2)
-and
-.BR RLIMIT_NICE .
-This had the effect that the actual ceiling for the nice value
-was calculated as
-.IR "19\ \-\ rlim_cur" .
-This was fixed in kernel 2.6.13.
-.\" see http://marc.theaimsgroup.com/?l=linux-kernel&m=112256338703880&w=2
-
-Kernels before 2.4.22 did not diagnose the error
-.B EINVAL
-for
-.BR setrlimit ()
-when
-.I rlim\->rlim_cur
-was greater than
-.IR rlim\->rlim_max .
-.SH "SEE ALSO"
+.SH SEE ALSO
+.BR prlimit (1),
 .BR dup (2),
 .BR fcntl (2),
 .BR fork (2),
