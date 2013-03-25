@@ -13,8 +13,8 @@ sub print_header {
 </HEAD>
 <BODY>
 <TABLE BORDER=1>
-<TR class=\"over80\"><TD COLSPAN=3>Released page but not completed (released if >=80%)</TD></TR>
-<TR class=\"over70\"><TD COLSPAN=3>Near release pageased (>= 70%)</TD></TR>
+<TR class=\"over80\"><TD COLSPAN=3>Released pages but not completed (released if &gt;=80%)</TD></TR>
+<TR class=\"over70\"><TD COLSPAN=3>Near release pages (&gt;= 70%)</TD></TR>
 <TR><TH>page name</TH><TH>remaining</TH><TH>comp. %</TH></TR>
 EOF
 }
