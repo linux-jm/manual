@@ -17,6 +17,13 @@ m4_dnl _MIRROR_LIST
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.50 対応版)を公開しました。
+ <SMALL>(2013/03/25)</SMALL>
+ <UL>
+  <LI>一部ページは原文が混じっているものがあります。 LDP man-pages の翻訳では、ドキュメントの正確性を重視し、一部分翻訳が追従していない状態でも公開しております (翻訳率 80% が基準)。
+  <LI>LDP man-pages の翻訳状況は <a href="http://git.sourceforge.jp/view?p=linuxjm/jm.git;a=blob_plain;f=manual/LDP_man-pages/untrans.html;hb=HEAD">こちら</a>で確認できます。
+ </UL>
+
  <LI>_LINK(INDEX/misc.html#cups,cups 1.5.3 の翻訳)を公開しました。
  <SMALL>(2012/07/07)</SMALL>
 
