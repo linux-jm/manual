@@ -26,10 +26,14 @@ release:	jm-setup
 	rm -f $(PERKAMON_DIR)/build/ja
 	ln -s ../../draft $(PERKAMON_DIR)/build/ja
 	# Do not remove unreleased pages
-	git status release | grep 'deleted:' | awk '{print $3;}' | xargs -n1 git checkout
+	set -e; if git status release | grep deleted; then \
+	  git status release | grep 'deleted:' | awk '{print $3;}' | xargs -n1 git checkout; \
+	fi
 
 release-tl:
-	git status release | grep modified | awk '{print $3;}' | cut -d / -f 3 | xargs -n1 -IXXXXX ../../admin/JM-tl-modify.pl -U translation_list XXXXX RO
+	set -e; if git status release | grep modified; then \
+	  git status release | grep modified | awk '{print $3;}' | cut -d / -f 3 | xargs -n1 -IXXXXX ../../admin/JM-tl-modify.pl -U translation_list XXXXX RO; \
+	fi
 
 format:
 	set -e; for d in po4a/*; do \
