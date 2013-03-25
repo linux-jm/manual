@@ -62,10 +62,10 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 .sp
 .in +4n
 .nf
-unsigned short  semval;   /* semaphore value */
-unsigned short  semzcnt;  /* # waiting for zero */
-unsigned short  semncnt;  /* # waiting for increase */
-pid_t           sempid;   /* ID of process that did last op */
+unsigned short  semval;   /* セマフォ値 */
+unsigned short  semzcnt;  /* ゼロを待つプロセス数 */
+unsigned short  semncnt;  /* 増加を待つプロセス数 */
+pid_t           sempid;   /* 最後に操作を行なったプロセスの ID */
 .sp
 .in -4n
 .fi
@@ -90,72 +90,60 @@ short          sem_flg;  /* 操作フラグ */
 それぞれの操作はセマフォ集合の \fIsem_num\fP番目 のセマフォに対して実行される。セマフォ集合の最初のセマフォには 番号 0 が振られる。
 そして操作は三種類あり、 \fIsem_op\fP の値で区別される。
 .PP
-If \fIsem_op\fP is a positive integer, the operation adds this value to the
-semaphore value (\fIsemval\fP).  Furthermore, if \fBSEM_UNDO\fP is specified for
-this operation, the system updates the undo count (\fIsemadj\fP)  for this
-semaphore.  This operation can always proceed\(emit never forces a thread to
-wait.  The calling process must have alter permission on the semaphore set.
+\fIsem_op\fP が正の整数の場合、操作としてその値をセマフォの値 (\fIsemval\fP) に加える。さらにこの操作に \fBSEM_UNDO\fP
+が指定されている場合は、システムはこのセマフォのアンドゥ数 (\fIsemadj\fP) を更新する。この操作は必ず実行でき、スレッドの停止は起こらない。
+呼び出し元プロセスは対象のセマフォ集合を変更する許可がなければならない。
 .PP
-If \fIsem_op\fP is zero, the process must have read permission on the semaphore
-set.  This is a "wait\-for\-zero" operation: if \fIsemval\fP is zero, the
-operation can immediately proceed.  Otherwise, if \fBIPC_NOWAIT\fP is specified
-in \fIsem_flg\fP, \fBsemop\fP()  fails with \fIerrno\fP set to \fBEAGAIN\fP (and none of
-the operations in \fIsops\fP is performed).  Otherwise \fIsemzcnt\fP (the count of
-threads waiting until this semaphore's value becomes zero)  is incremented
-by one and the thread sleeps until one of the following occurs:
+\fIsem_op\fP が 0 の場合、「ゼロまで待つ」操作である。この場合、プロセスは そのセマフォ集合に対する読み込み許可がなければならない。
+\fIsemval\fP が 0 ならば、操作は直ちに行われる。 \fIsemval\fP が 0 でない場合、 \fIsem_flg\fP に
+\fBIPC_NOWAIT\fP が指定されていれば、 \fBsemop\fP()  は失敗し、 \fBerrno\fP に \fBEAGAIN\fP が設定される (このとき
+\fIsops\fP に対する操作は全く実行されない)。 \fIsem_flg\fP に \fBIPC_NOWAIT\fP が指定されていない場合、 \fIsemzcnt\fP
+(セマフォ値が 0 になるのを待っているスレッドの数) を 1 増加させて、 以下のいずれかが起こるまでスレッドを停止 (sleep) する。
 .IP \(bu 3
 \fIsemval\fP が 0 になった: このとき \fIsemzcnt\fP の値は 1 減算される。
 .IP \(bu
 セマフォ集合が削除された: このとき \fBsemop\fP()  は失敗し、 \fIerrno\fP に \fBEIDRM\fP が設定される。
 .IP \(bu
-The calling thread catches a signal: the value of \fIsemzcnt\fP is decremented
-and \fBsemop\fP()  fails, with \fIerrno\fP set to \fBEINTR\fP.
+呼び出し元スレッドがシグナルを捕獲した: このとき \fIsemzcnt\fP の値は 1 減算され、 \fBsemop\fP()  は失敗し \fIerrno\fP に
+\fBEINTR\fP が設定される。
 .IP \(bu
 \fBsemtimedop\fP()  の \fItimeout\fP で指定された制限時間が経過した: このとき \fBsemtimedop\fP()  は失敗し、
 \fIerrno\fP に \fBEAGAIN\fP が設定される。
 .PP
-If \fIsem_op\fP is less than zero, the process must have alter permission on
-the semaphore set.  If \fIsemval\fP is greater than or equal to the absolute
-value of \fIsem_op\fP, the operation can proceed immediately: the absolute
-value of \fIsem_op\fP is subtracted from \fIsemval\fP, and, if \fBSEM_UNDO\fP is
-specified for this operation, the system updates the undo count (\fIsemadj\fP)
-for this semaphore.  If the absolute value of \fIsem_op\fP is greater than
-\fIsemval\fP, and \fBIPC_NOWAIT\fP is specified in \fIsem_flg\fP, \fBsemop\fP()  fails,
-with \fIerrno\fP set to \fBEAGAIN\fP (and none of the operations in \fIsops\fP is
-performed).  Otherwise \fIsemncnt\fP (the counter of threads waiting for this
-semaphore's value to increase)  is incremented by one and the thread sleeps
-until one of the following occurs:
+\fIsem_op\fP が 0 未満の場合、プロセスにはそのセマフォ集合を変更する許可がなければ ならない。 \fIsemval\fP が \fIsem_op\fP
+の絶対値以上の場合は、操作は直ちに実行される: \fIsemval\fP から \fIsem_op\fP の絶対値が減算される。 さらに、この操作に
+\fBSEM_UNDO\fP が指定されている場合は、このセマフォのアンドゥ数 (\fIsemadj\fP)  を更新する。 \fIsemval\fP が
+\fIsem_op\fP の絶対値より小さく、 \fIsem_flg\fP に \fBIPC_NOWAIT\fP が指定された場合は、 \fBsemop\fP()  は失敗し、
+\fIerrno\fP に \fBEAGAIN\fP が設定される (このとき \fIsops\fP の操作は全く実行されない)。 \fBIPC_WAIT\fP
+が指定されていなければ、 \fIsemncnt\fP (このセマフォの値が増加するのを待っているスレッド数のカウンタ)  を 1
+増加させて、以下のいずれかが起こるまでスレッドを停止 (sleep) する。
 .IP \(bu 3
-\fIsemval\fP becomes greater than or equal to the absolute value of \fIsem_op\fP,
-at which time the value of \fIsemncnt\fP is decremented, the absolute value of
-\fIsem_op\fP is subtracted from \fIsemval\fP and, if \fBSEM_UNDO\fP is specified for
-this operation, the system updates the undo count (\fIsemadj\fP)  for this
-semaphore.
+\fIsemval\fP が \fIsem_op\fP の絶対値以上になった: このとき \fIsemncnt\fP が 1 減算され、 \fIsemval\fP から
+\fIsem_op\fP の絶対値が引かれる。 この操作に \fBSEM_UNDO\fP が指定されていた場合にはこのセマフォのアンドゥ数 (\fIsemadj\fP)
+も更新する。
 .IP \(bu
 セマフォ集合がシステムから削除された: このとき \fBsemop\fP()  は失敗し \fIerrno\fP に \fBEIDRM\fP が設定される。
 .IP \(bu
-The calling thread catches a signal: the value of \fIsemncnt\fP is decremented
-and \fBsemop\fP()  fails, with \fIerrno\fP set to \fBEINTR\fP.
+呼び出したスレッドがシグナルを捕獲した: このとき \fIsemncnt\fP が 1 減算され、 \fBsemop\fP()  は失敗し \fIerrno\fP に
+\fBEINTR\fP が設定される。
 .IP \(bu
 \fBsemtimedop\fP()  の \fItimeout\fP で指定された制限時間が経過した: このとき \fBsemtimedop\fP()  は失敗し、
 \fIerrno\fP に \fBEAGAIN\fP が設定される。
 .PP
 .\" and
 .\" .I sem_ctime
-On successful completion, the \fIsempid\fP value for each semaphore specified
-in the array pointed to by \fIsops\fP is set to the caller's process ID.  In
-addition, the \fIsem_otime\fP is set to the current time.
+操作が成功した場合、 \fIsops\fP が指す配列によって操作対象となった各セマフォの \fIsempid\fP メンバーには呼び出し元のプロセス ID
+が設定される。さらに \fIsem_otime\fP に現在時刻が設定される。
 .PP
-\fBsemtimedop\fP()  behaves identically to \fBsemop\fP()  except that in those
-cases where the calling thread would sleep, the duration of that sleep is
-limited by the amount of elapsed time specified by the \fItimespec\fP structure
-whose address is passed in the \fItimeout\fP argument.  (This sleep interval
-will be rounded up to the system clock granularity, and kernel scheduling
-delays mean that the interval may overrun by a small amount.)  If the
-specified time limit has been reached, \fBsemtimedop\fP()  fails with \fIerrno\fP
-set to \fBEAGAIN\fP (and none of the operations in \fIsops\fP is performed).  If
-the \fItimeout\fP argument is NULL, then \fBsemtimedop\fP()  behaves exactly like
-\fBsemop\fP().
+\fBsemtimedop\fP() 関数の振る舞いは \fBsemop\fP() と全く同じだが、呼び出し元
+スレッドが停止する場合、停止期間の上限が \fItimeout\fP 引き数の指す
+\fItimespec\fP 構造体で指定された時間となる点だけが異なる (この停止期間は
+システムクロックの粒度に切り上げられ、カーネルのスケジューリング遅延に
+より、この停止期間は少しだけ長くなる可能性がある)。
+指定した制限時間に達した場合は、 \fBsemtimedop\fP() は失敗し、 \fIerrno\fP に
+\fBEAGAIN\fP が設定される (このとき \fIsops\fP の操作は実行されない)。
+\fItimeout\fP 引き数が NULL の場合、 \fBsemtimedop\fP() 関数の振る舞いは
+\fBsemop\fP() 関数と全く同じになる。
 .SH 返り値
 成功した場合、 \fBsemop\fP()  と \fBsemtimedop\fP()  は 0 を返す。そうでなければ \-1 を返し、 エラーを示す
 \fIerrno\fP を設定する。
@@ -182,8 +170,7 @@ the \fItimeout\fP argument is NULL, then \fBsemtimedop\fP()  behaves exactly lik
 セマフォ集合が削除された。
 .TP 
 \fBEINTR\fP
-While blocked in this system call, the thread caught a signal; see
-\fBsignal\fP(7).
+このシステムコールで停止している時にスレッドがシグナルを捕獲した。 \fBsingle\fP(7) 参照。
 .TP 
 \fBEINVAL\fP
 セマフォ集合が存在しないか、 \fIsemid\fP が 0 未満であるか、 \fInsops\fP が正の数でない。
@@ -247,10 +234,8 @@ such old systems may need to include these header files.
 .\" http://marc.theaimsgroup.com/?l=linux-kernel&m=110260821123863&w=2
 .\" the fix:
 .\" http://marc.theaimsgroup.com/?l=linux-kernel&m=110261701025794&w=2
-In kernels 2.6.x, x <= 10, there is a bug that in some circumstances
-prevents a thread that is waiting for a semaphore value to become zero from
-being woken up when the value does actually become zero.  This bug is fixed
-in kernel 2.6.11.
+カーネル 2.6.x (x <= 10) には、ある状況においてセマフォ値が 0 になるのを 待っているスレッドが、セマフォ値が実際に 0
+になったときに起床 (wake up)  されない、というバグがある。このバグはカーネル 2.6.11 で修正されている。
 .SH 例
 以下の部分的なコードは、 セマフォ 0 の値が 0 になるのを待ってから、 セマフォの値を 1 加算する処理を、 \fBsemop\fP()
 を使ってアトミック (atomically) に行う。
