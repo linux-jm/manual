@@ -12,19 +12,24 @@ translate: jm-setup
 	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR) \
 	  | tee untrans.txt
 	./untrans-list.pl < untrans.txt > untrans.html
-	#$(MAKE) format
+	$(RM) untrans.txt
 
 translate-%: jm-setup
 	LC_ALL=C $(MAKE) translate-$* \
 	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
-	#$(MAKE) format-$*
 
 release:	jm-setup
 	rm -f $(PERKAMON_DIR)/build/ja
 	ln -s ../../release $(PERKAMON_DIR)/build/ja
-	$(MAKE) translate THRESH=$(THRESH_REL) FLAGS=$(FLAGS)
+	LC_ALL=C $(MAKE) translate \
+	  PO4AFLAGS="-k $(THRESH_REL) $(FLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 	rm -f $(PERKAMON_DIR)/build/ja
 	ln -s ../../draft $(PERKAMON_DIR)/build/ja
+	# Do not remove unreleased pages
+	git status release | grep 'deleted:' | awk '{print $3;}' | xargs -n1 git checkout
+
+release-tl:
+	git status release | grep modified | awk '{print $3;}' | cut -d / -f 3 | xargs -n1 -IXXXXX ../../admin/JM-tl-modify.pl -U translation_list XXXXX RO
 
 format:
 	set -e; for d in po4a/*; do \
