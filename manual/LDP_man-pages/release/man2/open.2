@@ -1,9 +1,8 @@
-.\" Hey Emacs! This file is -*- nroff -*- source.
-.\"
 .\" This manpage is Copyright (C) 1992 Drew Eckhardt;
 .\"                               1993 Michael Haardt, Ian Jackson.
 .\"                               2008 Greg Banks
 .\"
+.\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
@@ -23,6 +22,7 @@
 .\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
 .\"
 .\" Modified 1993-07-21 by Rik Faith <faith@cs.unc.edu>
 .\" Modified 1994-08-21 by Michael Haardt
@@ -54,7 +54,7 @@
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH OPEN 2 2012\-05\-01 Linux "Linux Programmer's Manual"
+.TH OPEN 2 2013\-02\-18 Linux "Linux Programmer's Manual"
 .SH 名前
 open, creat \- ファイルやデバイスのオープン、作成を行う
 .SH 書式
@@ -89,20 +89,26 @@ open, creat \- ファイルやデバイスのオープン、作成を行う
 引き数 \fIflags\fP には、アクセスモード \fBO_RDONLY\fP, \fBO_WRONLY\fP, \fBO_RDWR\fP
 のどれかひとつが入っていなければならない。 これらはそれぞれ読み込み専用、書き込み専用、読み書き用に ファイルをオープンすることを要求するものである。
 
-.\" FIXME . Actually is it true that the "file status flags" are all of the
-.\" remaining flags listed below?  SUSv4 divides the flags into:
+.\" SUSv4 divides the flags into:
 .\" * Access mode
 .\" * File creation
 .\" * File status
 .\" * Other (O_CLOEXEC, O_DIRECTORY, O_NOFOLLOW)
 .\" though it's not clear what the difference between "other" and
-.\" "File creation" flags is.  (I've raised an Aardvark to see if this
-.\" can be clarified in SUSv4; 10 Oct 2008.)
-さらに、 \fIflags\fP には、ファイル作成フラグ (file creation flag) とファイル状態フラグ (file status
-flag) を 0 個以上「ビット単位の OR (bitwise\-or)」で 指定することができる。 \fIファイル作成フラグ\fP は
-\fBO_CREAT\fP, \fBO_EXCL\fP, \fBO_NOCTTY\fP, \fBO_TRUNC\fP である。 \fIファイル状態フラグ\fP
-は以下のリストのうち上記以外の残りのものである。 二種類のフラグの違いは、ファイル状態フラグの方は \fBfcntl\fP(2)
-を使ってその内容を取得したり (場合によっては) 変更したりできる点にある。 ファイル作成フラグとファイル状態フラグの全リストを以下に示す:
+.\" "File creation" flags is.  I raised an Aardvark to see if this
+.\" can be clarified in SUSv4; 10 Oct 2008.
+.\" http://thread.gmane.org/gmane.comp.standards.posix.austin.general/64/focus=67
+.\" TC1 (balloted in 2013), resolved this, so that those three constants
+.\" are also categorized" as file status flags.
+.\"
+In addition, zero or more file creation flags and file status flags can be
+bitwise\-\fIor\fP'd in \fIflags\fP.  The \fIfile creation flags\fP are \fBO_CLOEXEC\fP,
+\fBO_CREAT\fP, \fBO_DIRECTORY\fP, \fBO_EXCL\fP, \fBO_NOCTTY\fP, \fBO_NOFOLLOW\fP,
+\fBO_TRUNC\fP, and \fBO_TTY_INIT\fP.  The \fIfile status flags\fP are all of the
+remaining flags listed below.  The distinction between these two groups of
+flags is that the file status flags can be retrieved and (in some cases)
+modified using \fBfcntl\fP(2).  The full list of file creation flags and file
+status flags is as follows:
 .TP 
 \fBO_APPEND\fP
 .\" For more background, see
@@ -184,13 +190,14 @@ flag) を 0 個以上「ビット単位の OR (bitwise\-or)」で 指定する�
 .RE
 .TP 
 \fBO_DIRECT\fP (Linux 2.4.10 以降)
-このファイルに対する I/O のキャッシュの効果を最小化しようとする。このフラグを
-使うと、一般的に性能が低下する。 しかしアプリケーションが独自にキャッシングを
-行っているような 特別な場合には役に立つ。 ファイルの I/O はユーザー空間バッファ
-に対して直接行われる。 \fBO_DIRECT\fP フラグ自身はデータを同期で転送しようとはす
-るが、 \fBO_SYNC\fP フラグのようにデータと必要なメタデータの転送が保証されるわけ
-ではない。同期 I/O を保証するためには、 \fBO_DIRECT\fP に加えて \fBO_SYNC\fP を使用
-しなければならない。下記の「注意」の節の議論も参照。
+Try to minimize cache effects of the I/O to and from this file.  In general
+this will degrade performance, but it is useful in special situations, such
+as when applications do their own caching.  File I/O is done directly
+to/from user\-space buffers.  The \fBO_DIRECT\fP flag on its own makes an effort
+to transfer data synchronously, but does not give the guarantees of the
+\fBO_SYNC\fP flag that data and necessary metadata are transferred.  To
+guarantee synchronous I/O, \fBO_SYNC\fP must be used in addition to
+\fBO_DIRECT\fP.  See NOTES below for further discussion.
 .sp
 ブロックデバイスに対する似通った意味のインターフェースが \fBraw\fP(8)  で説明されている (但し、このインタフェースは非推奨である)。
 .TP 
@@ -240,14 +247,16 @@ PID を組み合わせた名前) を作成し、 \fBlink\fP(2)  を使用して�
 \fBO_NOATIME\fP (Linux 2.6.8 以降)
 .\" The O_NOATIME flag also affects the treatment of st_atime
 .\" by mmap() and readdir(2), MTK, Dec 04.
-ファイルに対して \fBread\fP(2)  が実行されたときに、最終アクセス時刻 (inode の st_atime) を更新しない。
-このフラグはインデックス作成やバックアッププログラムで使うことを意図している。 これを使うとディスクに対する操作を大幅に減らすことができる。
-このフラグは全てのファイルシステムに対して有効であるわけではない。 その一例が NFS であり、サーバがアクセス時刻を管理している。
+Do not update the file last access time (\fIst_atime\fP in the inode)  when the
+file is \fBread\fP(2).  This flag is intended for use by indexing or backup
+programs, where its use can significantly reduce the amount of disk
+activity.  This flag may not be effective on all file systems.  One example
+is NFS, where the server maintains the access time.
 .TP 
 \fBO_NOCTTY\fP
-\fIpathname\fP が端末 (terminal) デバイス \(em \fBtty\fP(4) 参照 \(em を指している
-場合に、たとえそのプロセスが制御端末を持っていなくても、オープンしたファイル
-は制御端末にはならない。
+If \fIpathname\fP refers to a terminal device\(emsee \fBtty\fP(4)\(emit will not
+become the process's controlling terminal even if the process does not have
+one.
 .TP 
 \fBO_NOFOLLOW\fP
 .\" The headers from glibc 2.0.100 and later include a
@@ -287,6 +296,10 @@ PID を組み合わせた名前) を作成し、 \fBlink\fP(2)  を使用して�
 \fBEACCES\fP
 ファイルに対する要求されたアクセスが許されていないか、 \fIpathname\fP のディレクトリ部分の何れかのディレクトリに検索許可がなかった。
 またはファイルが存在せず、親ディレクトリへの書き込み許可がなかった。 (\fBpath_resolution\fP(7)  も参照すること。)
+.TP 
+\fBEDQUOT\fP
+Where \fBO_CREAT\fP is specified, the file does not exist, and the user's quota
+of disk blocks or inodes on the file system has been exhausted.
 .TP 
 \fBEEXIST\fP
 \fIpathname\fP は既に存在し、 \fBO_CREAT\fP と \fBO_EXCL\fP が使用された。
@@ -401,13 +414,15 @@ O_WRONLY\fP の組み合わせは論理的に間違いであり、確かに \fBO
 .PP
 NFS を実現しているプロトコルには多くの不備があり、特に \fBO_SYNC\fP と \fBO_NDELAY\fP に影響する。
 
-POSIX では、3 種類の同期 I/O が提供されており、 \fBO_SYNC\fP, \fBO_DSYNC\fP, \fBO_RSYNC\fP
-フラグがこれに対応するものである。 今のところ (カーネル 2.6.31)、 Linux では \fBO_SYNC\fP だけが実装されているが、 glibc
-は \fBO_DSYNC\fP と \fBO_RSYNC\fP に \fBO_SYNC\fP と同じ数値を割り当てている。 ほとんどの Linux
-のファイルシステムは、実際には POSIX の \fBO_SYNC\fP の動作ではなく \fBO_DSYNC\fP の動作だけを実装している。 POSIX の
-\fBO_SYNC\fP では、 \fBopen\fP()  がユーザ空間に返る際に、書き込みに関する全てのメタデータの
-更新がディスクに書き込まれている必要がある。 一方、 \fBO_DSYNC\fP では、 \fBopen\fP()
-が返るまでに、実際のファイルのデータとそのデータを取得するために 必要なメタデータだけがディスクに書き込まれていればよい。
+POSIX provides for three different variants of synchronized I/O,
+corresponding to the flags \fBO_SYNC\fP, \fBO_DSYNC\fP, and \fBO_RSYNC\fP.  Currently
+(2.6.31), Linux only implements \fBO_SYNC\fP, but glibc maps \fBO_DSYNC\fP and
+\fBO_RSYNC\fP to the same numerical value as \fBO_SYNC\fP.  Most Linux file
+systems don't actually implement the POSIX \fBO_SYNC\fP semantics, which
+require all metadata updates of a write to be on disk on returning to user
+space, but only the \fBO_DSYNC\fP semantics, which require only actual file
+data and metadata necessary to retrieve it to be on disk by the time the
+system call returns.
 
 \fBopen\fP()  はスペシャルファイルをオープンすることができるが、 \fBcreat\fP()  でスペシャルファイルを作成できない点に注意すること。
 代わりに \fBmknod\fP(2)  を使用する。
@@ -422,31 +437,29 @@ UID マッピングを使用している NFS ファイルシステムでは、 \
 ファイルの \fIst_ctime\fP と \fIst_mtime\fP フィールドが現在時刻に設定される。
 .SS O_DIRECT
 .LP
-\fBO_DIRECT\fP フラグを使用する場合、ユーザ空間バッファの長さやアドレス、 I/O
-のファイルオフセットに関してアラインメントの制限が課されることがある。 Linux では、アラインメントの制限はファイルシステムやカーネルのバージョンに
-よって異なり、全く制限が存在しない場合もある。 しかしながら、現在のところ、指定されたファイルやファイルシステムに対して
-こうした制限があるかを見つけるための、アプリケーション向けのインタフェースで ファイルシステム非依存のものは存在しない。
-いくつかのファイルシステムでは、制限を確認するための独自のインタフェースが 提供されている。例えば、 \fBxfsctl\fP(3)  の
-\fBXFS_IOC_DIOINFO\fP 命令である。
+The \fBO_DIRECT\fP flag may impose alignment restrictions on the length and
+address of user\-space buffers and the file offset of I/Os.  In Linux
+alignment restrictions vary by file system and kernel version and might be
+absent entirely.  However there is currently no file system\-independent
+interface for an application to discover these restrictions for a given file
+or file system.  Some file systems provide their own interfaces for doing
+so, for example the \fBXFS_IOC_DIOINFO\fP operation in \fBxfsctl\fP(3).
 .LP
 Linux 2.4 では、転送サイズ、 ユーザーバッファのアラインメント、ファイルオフセットは、
 ファイルシステムの論理ブロックサイズの倍数でなければならない。 Linux 2.6 では、512 バイトごとの境界に配置されていれば充分である。
 .LP
-メモリバッファがプライベートマッピング (\fBmmap\fP(2) の \fBMAP_PRIVATE\fP
-フラグで作成されたマッピング) の場合には、\fBO_DIRECT\fP I/O は
-\fBfork\fP(2) システムコールと同時に決して実行すべきではない
-(プライベートマッピングには、ヒープ領域に割り当てられたメモリや静的に
-割り当てたバッファも含まれる)。非同期 I/O インターフェース (AIO) 経由
-やプロセス内の他のスレッドから発行された、このような I/O は、
-\fBfork\fP(2) が呼び出される前に完了されるべきである。
-そうしなかった場合、データ破壊や、親プロセスや子プロセスでの予期しない
-動作が起こる可能性がある。
-\fBO_DIRECT\fP I/O 用のメモリバッファが \fBshmat\fP(2) や\fBMAP_SHARED\fP フラグ
-付きの \fBmmap\fP(2) で作成された場合には、この制限はあてはまらない。
-\fBmadvise\fP(2) でメモリバッファにアドバイス \fBMADV_DONTFORK\fP が設定され
-ている場合にも、この制限はあてはまらない(\fBMADV_DONTFORK\fP はそのメモリ
-バッファが \fBfork\fP(2) 後に子プロセスからは利用できないことを保証するも
-のである)。
+\fBO_DIRECT\fP I/Os should never be run concurrently with the \fBfork\fP(2)
+system call, if the memory buffer is a private mapping (i.e., any mapping
+created with the \fBmmap\fP(2)  \fBMAP_PRIVATE\fP flag; this includes memory
+allocated on the heap and statically allocated buffers).  Any such I/Os,
+whether submitted via an asynchronous I/O interface or from another thread
+in the process, should be completed before \fBfork\fP(2)  is called.  Failure
+to do so can result in data corruption and undefined behavior in parent and
+child processes.  This restriction does not apply when the memory buffer for
+the \fBO_DIRECT\fP I/Os was created using \fBshmat\fP(2)  or \fBmmap\fP(2)  with the
+\fBMAP_SHARED\fP flag.  Nor does this restriction apply when the memory buffer
+has been advised as \fBMADV_DONTFORK\fP with \fBmadvise\fP(2), ensuring that it
+will not be available to the child after \fBfork\fP(2).
 .LP
 \fBO_DIRECT\fP フラグは SGI IRIX で導入された。SGI IRIX にも Linux 2.4 と同様の (ユーザーバッファの)
 アラインメントの制限がある。 また、IRIX には適切な配置とサイズを取得するための \fBfcntl\fP(2)  コールがある。 FreeBSD 4.x
@@ -489,6 +502,6 @@ NFS で \fBO_DIRECT\fP を使った場合の動作はローカルのファイル
 \fBsocket\fP(2), \fBstat\fP(2), \fBumask\fP(2), \fBunlink\fP(2), \fBwrite\fP(2),
 \fBfopen\fP(3), \fBfifo\fP(7), \fBpath_resolution\fP(7), \fBsymlink\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.41 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

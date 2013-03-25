@@ -1,8 +1,7 @@
-.\" Hey Emacs! This file is -*- nroff -*- source.
-.\"
 .\" Copyright (C) 1996 Andries Brouwer <aeb@cwi.nl>
 .\" and Copyright (C) 2006, 2007 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
+.\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
@@ -22,6 +21,7 @@
 .\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
 .\"
 .\" Modified 1997-01-31 by Eric S. Raymond <esr@thyrsus.com>
 .\" Modified 2000-03-25 by Jim Van Zandt <jrv@vanzandt.mv.com>
@@ -42,7 +42,7 @@
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH MMAP 2 2012\-04\-16 Linux "Linux Programmer's Manual"
+.TH MMAP 2 2013\-02\-25 Linux "Linux Programmer's Manual"
 .SH 名前
 mmap, munmap \- ファイルやデバイスをメモリにマップ/アンマップする
 .SH 書式
@@ -53,6 +53,8 @@ mmap, munmap \- ファイルやデバイスをメモリにマップ/アンマッ
 \fB           int \fP\fIfd\fP\fB, off_t \fP\fIoffset\fP\fB);\fP
 \fBint munmap(void *\fP\fIaddr\fP\fB, size_t \fP\fIlength\fP\fB);\fP
 .fi
+
+See NOTES for information on feature test macro requirements.
 .SH 説明
 \fBmmap\fP()  は、新しいマッピングを呼び出し元プロセスの仮想アドレス空間に作成する。 新しいマッピングの開始アドレスは \fIaddr\fP
 で指定される。マッピングの長さは \fIlength\fP 引き数で指定される。
@@ -145,8 +147,8 @@ mmap, munmap \- ファイルやデバイスをメモリにマップ/アンマッ
 (訳注：マッピングは通常はメモリ・アドレスが増加する向きに行うが、 このオプションを指定すると逆向きにマッピングを行う)
 .TP 
 \fBMAP_HUGETLB\fP (Linux 2.6.32 以降)
-"huge page" を使ってマッピングを割り当てる。 詳しい情報は、カーネル・ソースの
-\fIDocumentation/vm/hugetlbpage.txt\fP を参照。
+Allocate the mapping using "huge pages." See the Linux kernel source file
+\fIDocumentation/vm/hugetlbpage.txt\fP for further information.
 .TP 
 \fBMAP_LOCKED\fP (Linux 2.5.37 以降)
 .\" If set, the mapped pages will not be swapped out.
@@ -259,6 +261,11 @@ mmap, munmap \- ファイルやデバイスをメモリにマップ/アンマッ
 .TP 
 \fBETXTBSY\fP
 \fBMAP_DENYWRITE\fP がセットされているが \fIfd\fP で指定されているオブジェクトは書き込み用に開かれている。
+.TP 
+\fBEOVERFLOW\fP
+On 32\-bit architecture together with the large file extension (i.e., using
+64\-bit \fIoff_t\fP): the number of pages used for \fIlength\fP plus number of
+pages used for \fIoffset\fP would overflow \fIunsigned long\fP (32 bits).
 .LP
 マップ領域を利用する際に、以下のシグナルが発生することがある:
 .TP 
@@ -295,6 +302,15 @@ SVr4, 4.4BSD, POSIX.1\-2001.
 を外すことである。 この場合、システムがマッピング用のアドレスの選択を行う。 アドレスは既存のマッピングと衝突しないように、 かつ 0
 にならないように選択される。 \fBMAP_FIXED\fP フラグが指定され、かつ \fIaddr\fP が 0 (NULL)
 の場合には、マップされるアドレスが 0 (NULL) になる。
+
+Certain \fIflags\fP constants are defined only if either \fB_BSD_SOURCE\fP or
+\fB_SVID_SOURCE\fP is defined.  (Requiring \fB_GNU_SOURCE\fP also suffices, and
+requiring that macro specifically would have been more logical, since these
+flags are all Linux specific.)  The relevant flags are: \fBMAP_32BIT\fP,
+\fBMAP_ANONYMOUS\fP (and the synonym \fBMAP_ANON\fP), \fBMAP_DENYWRITE\fP,
+\fBMAP_EXECUTABLE\fP, \fBMAP_FILE\fP, \fBMAP_GROWSDOWN\fP, \fBMAP_HUGETLB\fP,
+\fBMAP_LOCKED\fP, \fBMAP_NONBLOCK\fP, \fBMAP_NORESERVE\fP, \fBMAP_POPULATE\fP, and
+\fBMAP_STACK\fP.
 .SH バグ
 Linux においては、上記の \fBMAP_NORESERVE\fP で述べられているような保証はない。
 デフォルトでは、システムがメモリを使い切った場合には、 どのプロセスがいつ強制終了されるか分からないからである。
@@ -305,6 +321,16 @@ Linux においては、上記の \fBMAP_NORESERVE\fP で述べられている�
 SUSv3 では、 \fIlength\fP が 0 の場合、 \fBmmap\fP()  は失敗すると規定されている。しかしながら、2.6.12
 より前のカーネルでは、 この場合に \fBmmap\fP()  は成功していた (マッピングは作成されず、 \fIaddr\fP が返されていた)。 カーネル
 2.6.12 以降では、 \fBmmap\fP()  はエラー \fBEINVAL\fP で失敗する。
+
+POSIX specifies that the system shall always zero fill any partial page at
+the end of the object and that system will never write any modification of
+the object beyond its end.  On Linux, when you write data to such partial
+page after the end of the object, the data stays in the page cache even
+after the file is closed and unmapped and even though the data is never
+written to the file itself, subsequent mappings may see the modified
+content.  In some cases, this could be fixed by calling \fBmsync\fP(2)  before
+the unmap takes place; however, this doesn't work on tmpfs (for example,
+when using POSIX shared memory interface documented in \fBshm_overview\fP(7)).
 .SH 例
 .\" FIXME . Add an example here that uses an anonymous shared region for
 .\" IPC between parent and child.
@@ -386,12 +412,12 @@ main(int argc, char *argv[])
 \fBgetpagesize\fP(2), \fBmincore\fP(2), \fBmlock\fP(2), \fBmmap2\fP(2), \fBmprotect\fP(2),
 \fBmremap\fP(2), \fBmsync\fP(2), \fBremap_file_pages\fP(2), \fBsetrlimit\fP(2),
 \fBshmat\fP(2), \fBshm_open\fP(3), \fBshm_overview\fP(7)
-.br
+
 .\"
 .\" Repeat after me: private read-only mappings are 100% equivalent to
 .\" shared read-only mappings. No ifs, buts, or maybes. -- Linus
 B.O. Gallmeister, POSIX.4, O'Reilly, pp. 128\-129 and 389\-391.
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.41 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

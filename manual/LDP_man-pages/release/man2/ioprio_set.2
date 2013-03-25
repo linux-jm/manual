@@ -1,7 +1,6 @@
-.\" This is _*_ nroff _*_ source. Emacs, gimme all those colors :)
-.\"
 .\" Copyright (c) International Business Machines orp., 2006
 .\"
+.\" %%%LICENSE_START(GPLv2+_SW_3_PARA)
 .\" This program is free software; you can redistribute it and/or
 .\" modify it under the terms of the GNU General Public License as
 .\" published by the Free Software Foundation; either version 2 of
@@ -12,10 +11,10 @@
 .\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
 .\" the GNU General Public License for more details.
 .\"
-.\" You should have received a copy of the GNU General Public License
-.\" along with this program; if not, write to the Free Software
-.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston,
-.\" MA 02111-1307 USA
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, see
+.\" <http://www.gnu.org/licenses/>.
+.\" %%%LICENSE_END
 .\"
 .\" HISTORY:
 .\" 2006-04-27, created by Eduardo M. Fleury <efleury@br.ibm.com>
@@ -27,7 +26,7 @@
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH IOPRIO_SET 2 2008\-07\-09 Linux "Linux Programmer's Manual"
+.TH IOPRIO_SET 2 2013\-02\-12 Linux "Linux Programmer's Manual"
 .SH 名前
 ioprio_get, ioprio_set \- I/O スケジューリングクラスと優先度の設定/取得
 .SH 書式
@@ -35,20 +34,28 @@ ioprio_get, ioprio_set \- I/O スケジューリングクラスと優先度の�
 \fBint ioprio_get(int \fP\fIwhich\fP\fB, int \fP\fIwho\fP\fB);\fP
 \fBint ioprio_set(int \fP\fIwhich\fP\fB, int \fP\fIwho\fP\fB, int \fP\fIioprio\fP\fB);\fP
 .fi
-.SH 説明
-システムコール \fBioprio_get\fP()  / \fBioprio_set\fP()  は、(1つ以上の) プロセスの I/O スケジューリングクラスと
-優先度の取得/設定を行う。
 
-\fIwhich\fP と \fIwho\fP 引き数でシステムコールの操作対象となるプロセスを指示する。 \fIwhich\fP 引き数は、 \fIwho\fP
-をどのように解釈するかを決めるもので、以下のいずれか一つを指定する。
+\fINote\fP: There are no glibc wrappers for these system calls; see NOTES.
+.SH 説明
+The \fBioprio_get\fP()  and \fBioprio_set\fP()  system calls respectively get and
+set the I/O scheduling class and priority of one or more threads.
+
+The \fIwhich\fP and \fIwho\fP arguments identify the thread(s) on which the system
+calls operate.  The \fIwhich\fP argument determines how \fIwho\fP is interpreted,
+and has one of the following values:
 .TP 
 \fBIOPRIO_WHO_PROCESS\fP
-\fIwho\fP はプロセスID であり、指定された 1 プロセスが対象となる。
+\fIwho\fP is a process ID or thread ID identifying a single process or thread.
+If \fIwho\fP is 0, then operate on the calling thread.
 .TP 
 \fBIOPRIO_WHO_PGRP\fP
-\fIwho\fP はプロセスグループID であり、プロセスグループの全メンバが対象となる。
+\fIwho\fP is a process group ID identifying all the members of a process
+group.  If \fIwho\fP is 0, then operate on the process group of which the
+caller is a member.
 .TP 
 \fBIOPRIO_WHO_USER\fP
+.\" FIXME who==0 needs to be documented,
+.\" See http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=652443
 \fIwho\fP はユーザID であり、実 UID に一致する全プロセスが対象となる。
 .PP
 \fBioprio_get\fP()  の呼び出し時に \fIwhich\fP に \fBIOPRIO_WHO_PGRP\fP か \fBIOPRIO_WHO_USER\fP
@@ -98,11 +105,20 @@ I/O 優先度は読み出しと同期書き込み (\fBO_DIRECT\fP, \fBO_SYNC\fP)
 .SH 準拠
 これらのシステムコールは Linux 独自である。
 .SH 注意
-glibc はこれらのシステムコールに対するラッパー関数を提供していない。 \fBsyscall\fP(2)  を使って呼び出すこと。
+Glibc does not provide a wrapper for these system calls; call them using
+\fBsyscall\fP(2).
+
+Two or more processes or threads can share an I/O context.  This will be the
+case when \fBclone\fP(2)  was called with the \fBCLONE_IO\fP flag.  However, by
+default, the distinct threads of a process will \fBnot\fP share the same I/O
+context.  This means that if you want to change the I/O priority of all
+threads in a process, you may need to call \fBioprio_set\fP()  on each of the
+threads.  The thread ID that you would need for this operation is the one
+that is returned by \fBgettid\fP(2)  or \fBclone\fP(2).
 
 これらのシステムコールは、I/O 優先度に対応した I/O スケジューラと 組み合わせて使用された場合にのみ効果を持つ。 カーネル 2.6.17
 では、この条件を満たすスケジューラは Completely Fair Queuing (CFQ) I/O スケジューラだけである。
-.SS "I/O スケジューラの選択"
+.SS "Selecting an I/O scheduler"
 I/O スケジューラの選択はデバイス単位に行われ、その選択は スペシャルファイル
 \fI/sys/block/<device>/queue/scheduler\fP 経由で行われる。
 
@@ -127,7 +143,7 @@ Password:
 #\fB echo cfq > /sys/block/hda/queue/scheduler\fP
 .fi
 .RE
-.SS "Completely Fair Queuing (CFQ) I/O スケジューラ"
+.SS "The Completely Fair Queuing (CFQ) I/O scheduler"
 バージョン 3 (別名 CFQ Time Sliced) 以降、 CPU スケジューリングと同様の I/O nice レベルが CFQ
 に実装されている。 これらの nice レベルは 3つのスケジューリングクラスに分類でき、 各スケジューリングクラスにつき
 1つ以上の優先度レベルが定義されている。
@@ -175,10 +191,10 @@ CFQ I/O スケジューラの更なる情報とサンプルプログラムにつ
 glibc は、このページに記載された関数プロトタイプやマクロを定義する 適切なヘッダファイルをまだ提供していない。 必要な定義については
 \fIlinux/ioprio.h\fP を見ればよい。
 .SH 関連項目
-\fBgetpriority\fP(2), \fBopen\fP(2), \fBcapabilities\fP(7)
-.sp
-カーネルソース内の Documentation/block/ioprio.txt
+\fBionice\fP(1), \fBgetpriority\fP(2), \fBopen\fP(2), \fBcapabilities\fP(7)
+
+\fIDocumentation/block/ioprio.txt\fP in the Linux kernel source tree
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.41 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -1,5 +1,6 @@
 .\" Copyright (C) 1993 David Metcalfe (david@prism.demon.co.uk)
 .\"
+.\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
@@ -19,6 +20,7 @@
 .\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
 .\"
 .\" References consulted:
 .\"     Linux libc source code
@@ -35,7 +37,7 @@
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH STRCPY 3 2012\-05\-10 GNU "Linux Programmer's Manual"
+.TH STRCPY 3 2012\-07\-19 GNU "Linux Programmer's Manual"
 .SH 名前
 strcpy, strncpy \- 文字列をコピーする
 .SH 書式
@@ -47,13 +49,17 @@ strcpy, strncpy \- 文字列をコピーする
 \fBchar *strncpy(char *\fP\fIdest\fP\fB, const char *\fP\fIsrc\fP\fB, size_t \fP\fIn\fP\fB);\fP
 .fi
 .SH 説明
-\fBstrcpy\fP()  関数は \fIsrc\fP が指す文字列を末尾のヌルバイト (\(aq\e0\(aq) も含めて \fIdest\fP
-が指すバッファにコピーする。 二つの文字列は重なってはならない。受け側の文字列 \fIdest\fP は コピーを受け取るのに十分な大きさでなければならない。
+The \fBstrcpy\fP()  function copies the string pointed to by \fIsrc\fP, including
+the terminating null byte (\(aq\e0\(aq), to the buffer pointed to by
+\fIdest\fP.  The strings may not overlap, and the destination string \fIdest\fP
+must be large enough to receive the copy.  \fIBeware of buffer overruns!\fP
+(See BUGS.)
 .PP
 \fBstrncpy\fP()  関数も同様だが、 \fIsrc\fP のうち最大でも \fIn\fP バイトしかコピーされない点が異なる。 \fB警告\fP: \fIsrc\fP
 の最初の \fIn\fP バイトの中にヌルバイトがない場合、 \fIdest\fP に格納される文字列はヌルで終端されないことになる。
 .PP
-\fIsrc\fP の長さが \fIn\fP よりも短い場合、 \fBstrncpy\fP()  は \fIdest\fP の残りをヌルバイトで埋める。
+If the length of \fIsrc\fP is less than \fIn\fP, \fBstrncpy\fP()  writes additional
+null bytes to \fIdest\fP to ensure that a total of \fIn\fP bytes are written.
 .PP
 \fBstrncpy\fP()  の簡単な実装は以下のような感じであろう:
 .in +4n
@@ -81,9 +87,15 @@ SVr4, 4.3BSD, C89, C99.
 \fBstrncpy\fP()  は効率的でなく間違いを起こしやすいと考えるプログラマもいるだろう。 プログラマが \fIdest\fP の大きさが \fIsrc\fP
 の長さよりも 大きいことを知っている (つまり、そのことをチェックするコードを 書いている) 場合は、 \fBstrcpy()\fP を使うことができる。
 
-\fIsrc\fP の最初の \fIn\fP バイトに終端のヌルバイトがない場合、 \fBstrncpy\fP()
-は \fIdest\fP に終端されていない文字列を生成する。 プログラマは間違いを防
-止するために、 以下のように強制的に終端を行うことがよくある。
+One valid (and intended) use of \fBstrncpy\fP()  is to copy a C string to a
+fixed\-length buffer while ensuring both that the buffer is not overflowed
+and that unused bytes in the target buffer are zeroed out (perhaps to
+prevent information leaks if the buffer is to be written to media or
+transmitted to another process via an interprocess communication technique).
+
+If there is no terminating null byte in the first \fIn\fP bytes of \fIsrc\fP,
+\fBstrncpy\fP()  produces an unterminated string in \fIdest\fP.  You can force
+termination using something like the following:
 .in +4n
 .nf
 
@@ -92,6 +104,29 @@ if (n > 0)
     buf[n \- 1]= \(aq\e0\(aq;
 .fi
 .in
+.PP
+(Of course, the above technique ignores the fact that information contained
+in \fIsrc\fP is lost in the copying to \fIdest\fP.)
+
+Some systems (the BSDs, Solaris, and others) provide the following function:
+
+    size_t strlcpy(char *dest, const char *src, size_t size);
+
+.\" http://static.usenix.org/event/usenix99/full_papers/millert/millert_html/index.html
+.\"     "strlcpy and strlcat - consistent, safe, string copy and concatenation"
+.\"     1999 USENIX Annual Technical Conference
+.\" https://lwn.net/Articles/506530/
+This function is similar to \fBstrncpy\fP(), but it copies at most \fIsize\-1\fP
+bytes to \fIdest\fP, always adds a terminating null byte, and does not pad the
+target with (further) null bytes.  This function fixes some of the problems
+of \fBstrcpy\fP()  and \fBstrncpy\fP(), but the caller must still handle the
+possibility of data loss if \fIsize\fP is too small.  The return value of the
+function is the length of \fIsrc\fP, which allows truncation to be easily
+detected: if the return value is greater than or equal to \fIsize\fP,
+truncation occurred.  If loss of data matters, the caller \fImust\fP either
+check the arguments before the call, or test the function return value.
+\fBstrlcpy\fP()  is not present in glibc and is not standardized by POSIX, but
+is available on Linux via the \fIlibbsd\fP library.
 .SH バグ
 \fBstrcpy\fP()  の受け側の文字列が十分な大きさでない場合、何が起こるかわからない。
 固定長文字列を溢れさせるのは、マシンの制御を掌中に収めるために クラッカーが好んで使うテクニックである。
@@ -102,6 +137,6 @@ if (n > 0)
 \fBbcopy\fP(3), \fBmemccpy\fP(3), \fBmemcpy\fP(3), \fBmemmove\fP(3), \fBstpcpy\fP(3),
 \fBstpncpy\fP(3), \fBstrdup\fP(3), \fBstring\fP(3), \fBwcscpy\fP(3), \fBwcsncpy\fP(3)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.41 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

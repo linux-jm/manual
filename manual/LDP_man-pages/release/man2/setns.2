@@ -1,12 +1,16 @@
 .\" Copyright (C) 2011, Eric Biederman <ebiederm@xmission.com>
+.\" and Copyright (C) 2011, 2012, Michael Kerrisk <mtk.manpages@gamil.com>
+.\"
+.\" %%%LICENSE_START(GPLv2_ONELINE)
 .\" Licensed under the GPLv2
+.\" %%%LICENSE_END
 .\"
 .\"*******************************************************************
 .\"
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH SETNS 2 2012\-05\-04 Linux "Linux Programmer's Manual"
+.TH SETNS 2 2013\-01\-01 Linux "Linux Programmer's Manual"
 .SH 名前
 setns \- スレッドに名前空間を関連付けしなおす
 .SH 書式
@@ -77,12 +81,85 @@ setns \- スレッドに名前空間を関連付けしなおす
 .SH 注意
 新しいスレッドが \fBclone\fP(2) を使って作成された際に共有できる全ての属性を、
 \fBsetns\fP() を使って変更できるわけではない。
-.SH バグ
-現在のところ、 PID 名前空間とマウント名前空間はサポートされていない
-(\fBclone\fP(2) の \fBCLONE_NEWPID\fP と \fBCLONE_NEWNS\fP の説明を参照)。
+.SH EXAMPLE
+The program below takes two or more arguments.  The first argument specifies
+the pathname of a namespace file in an existing \fI/proc/[pid]/ns/\fP
+directory.  The remaining arguments specify a command and its arguments.
+The program opens the namespace file, joins that namespace using \fBsetns\fP(),
+and executes the specified command inside that namespace.
+
+The following shell session demonstrates the use of this program (compiled
+as a binary named \fIns_exec\fP)  in conjunction with the \fBCLONE_NEWUTS\fP
+example program in the \fBclone\fP(2)  man page (complied as a binary named
+\fInewuts\fP).
+
+We begin by executing the example program in \fBclone\fP(2)  in the
+background.  That program creates a child in a separate UTS namespace.  The
+child changes the hostname in its namespace, and then both processes display
+the hostnames in their UTS namespaces, so that we can see that they are
+different.
+
+.nf
+.in +4n
+$ \fBsu\fP                   # Need privilege for namespace operations
+Password:
+# \fB./newuts bizarro &\fP
+[1] 3549
+clone() returned 3550
+uts.nodename in child:  bizarro
+uts.nodename in parent: antero
+# \fBuname \-n\fP             # Verify hostname in the shell
+antero
+.in
+.fi
+
+We then run the program shown below, using it to execute a shell.  Inside
+that shell, we verify that the hostname is the one set by the child created
+by the first program:
+
+.nf
+.in +4n
+# \fB./ns_exec /proc/3550/ns/uts /bin/bash\fP
+# \fBuname \-n\fP             # Executed in shell started by ns_exec
+bizarro
+.in
+.fi
+.SS プログラムのソース
+.nf
+#define _GNU_SOURCE
+#include <fcntl.h>
+#include <sched.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
+                        } while (0)
+
+int
+main(int argc, char *argv[])
+{
+    int fd;
+
+    if (argc < 3) {
+        fprintf(stderr, "%s /proc/PID/ns/FILE cmd args...\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    fd = open(argv[1], O_RDONLY);   /* Get descriptor for namespace */
+    if (fd == \-1)
+        errExit("open");
+
+    if (setns(fd, 0) == \-1)         /* Join that namespace */
+        errExit("setns");
+
+    execvp(argv[2], &argv[2]);      /* Execute a command in namespace */
+    errExit("execvp");
+}
+.fi
 .SH 関連項目
 \fBclone\fP(2), \fBfork\fP(2), \fBvfork\fP(2), \fBproc\fP(5), \fBunix\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.41 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

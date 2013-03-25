@@ -1,5 +1,6 @@
 .\" Copyright (c) 2002 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
+.\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
@@ -19,13 +20,14 @@
 .\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
 .\"
 .\"*******************************************************************
 .\"
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH SIGWAITINFO 2 2012\-05\-02 Linux "Linux Programmer's Manual"
+.TH SIGWAITINFO 2 2012\-07\-21 Linux "Linux Programmer's Manual"
 .SH 名前
 sigwaitinfo, sigtimedwait \- キューに入れられたシグナルを同期して待つ
 .SH 書式
@@ -44,15 +46,19 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 .sp
 \fBsigwaitinfo\fP(), \fBsigtimedwait\fP(): _POSIX_C_SOURCE\ >=\ 199309L
 .SH 説明
-\fBsigwaitinfo\fP()  は \fIset\fP のうちのどれかのシグナルが配送されるまで、 呼び出しスレッドの実行を一時停止する
-(呼び出しスレッドに対して \fIset\fP のうちのどれかのシグナルが既に待機中 (pending) である場合、 \fBsigwaitinfo\fP()
-はそのシグナルの情報を返してすぐに戻る)。
+\fBsigwaitinfo\fP()  suspends execution of the calling thread until one of the
+signals in \fIset\fP is pending (If one of the signals in \fIset\fP is already
+pending for the calling thread, \fBsigwaitinfo\fP()  will return immediately.)
 
-\fBsigwaitinfo\fP()  は配送されたシグナルを待機中のシグナルの集合から削除し、 関数の結果としてシグナル番号を返す。 \fIinfo\fP
-引き数が NULL でない場合、配送されたシグナルの情報が入った \fIsiginfo_t\fP 型 (\fBsigaction\fP(2)  を参照)
-の構造体を返す。
+\fBsigwaitinfo\fP()  removes the signal from the set of pending signals and
+returns the signal number as its function result.  If the \fIinfo\fP argument
+is not NULL, then the buffer that it points to is used to return a structure
+of type \fIsiginfo_t\fP (see \fBsigaction\fP(2))  containing information about the
+signal.
 .PP
-\fBsigwaitinfo\fP()  で返されるシグナルは、通常の順番で配送される。 詳細は \fBsignal\fP(7)  を参照すること。
+If multiple signals in \fIset\fP are pending for the caller, the signal that is
+retrieved by \fBsigwaitinfo\fP()  is determined according to the usual ordering
+rules; see \fBsignal\fP(7)  for further details.
 .PP
 \fBsigtimedwait\fP() は、 \fBsigwaitinfo\fP() と次の点を除いて全く同じように
 動作する。この関数にはもう 1 つの引き数 \fItimeout\fP があり、シグナル待ち
@@ -77,7 +83,8 @@ struct timespec {
 .SH エラー
 .TP 
 \fBEAGAIN\fP
-\fIset\fP のうちのどのシグナルも \fBsigtimedwait\fP()  に指定された \fItimeout\fP の期間内に配送されなかった。
+No signal in \fIset\fP was became pending within the \fItimeout\fP period
+specified to \fBsigtimedwait\fP().
 .TP 
 \fBEINTR\fP
 シグナル待ちがシグナルハンドラによって中断 (interrupt) された (このハンドラは \fIset\fP にあるシグナル以外のものである)。
@@ -88,20 +95,24 @@ struct timespec {
 .SH 準拠
 POSIX.1\-2001.
 .SH 注意
-通常の使用法では、呼び出し側プロセスはこれらの関数より先に \fBsigprocmask\fP(2)  の呼び出すことにより \fIset\fP
-に含まれるシグナルをブロックし (そのためにこれらのシグナルがこの後に続く \fBsigwaitinfo\fP()  や \fBsigtimedwait\fP()
-の呼び出しの間に配送された場合には、 デフォルトの配置は行われず)、 これらのシグナルに対するハンドラは設定しない。 マルチスレッドプログラムでは、
-\fBsigwaitinfo\fP()  や \fBsigtimedwait\fP()  を呼び出したスレッド以外のスレッドにそのシグナルが配送されないように、
-全てのスレッドで該当シグナルをブロックすべきである。
+In normal usage, the calling program blocks the signals in \fIset\fP via a
+prior call to \fBsigprocmask\fP(2)  (so that the default disposition for these
+signals does not occur if they become pending between successive calls to
+\fBsigwaitinfo\fP()  or \fBsigtimedwait\fP())  and does not establish handlers for
+these signals.  In a multithreaded program, the signal should be blocked in
+all threads, in order to prevent the signal being treated according to its
+default disposition in a thread other than the one calling \fBsigwaitinfo\fP()
+or \fBsigtimedwait\fP()).
 
 指定されたスレッドに対する処理待ちのシグナルの集合は、 そのスレッド自体宛ての処理待ちのシグナル集合と、プロセス全体宛ての
 処理待ちのシグナル集合をあわせたものである (\fBsignal\fP(7)  参照)。
 
 \fBSIGKILL\fP と \fBSIGSTOP\fP を待とうとした場合、黙って無視される。
 
-一つのプロセス内の複数のスレッドが \fBsigwaitinfo\fP()  や \fBsigtimedwait\fP()  で同じシグナルを待って停止した場合、
-プロセス全体宛てのシグナルが配送されると、複数のスレッドのうち一つだけが 実際にそのシグナルを受信することになる。
-どのスレッドがシグナルを受信するかは決まっていない。
+If multiple threads of a process are blocked waiting for the same signal(s)
+in \fBsigwaitinfo\fP()  or \fBsigtimedwait\fP(), then exactly one of the threads
+will actually receive the signal if it becomes pending for the process as a
+whole; which of the threads receives the signal is indeterminate.
 
 POSIX では \fBsigtimedwait\fP()  の引き数 \fItimeout\fP の値を NULL にした場合の意味を未定義としている。
 \fBsigwaitinfo\fP()  を呼び出したのと同じ意味としてもよいことになっており、 実際 Linux ではこのように動作する。
@@ -112,6 +123,6 @@ Linux では、 \fBsigwaitinfo\fP()  は \fBsigtimedwait\fP()  を用いて実�
 \fBsigprocmask\fP(2), \fBsigqueue\fP(3), \fBsigsetops\fP(3), \fBsigwait\fP(3),
 \fBsignal\fP(7), \fBtime\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.41 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

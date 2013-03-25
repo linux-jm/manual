@@ -1,8 +1,7 @@
-.\" Hey Emacs! This file is -*- nroff -*- source.
-.\"
 .\" This manpage is copyright (C) 1992 Drew Eckhardt,
 .\"                 copyright (C) 1995 Michael Shields.
 .\"
+.\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
@@ -22,6 +21,7 @@
 .\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
 .\"
 .\" Modified 1993-07-24 by Rik Faith <faith@cs.unc.edu>
 .\" Modified 1995-05-18 by Jim Van Zandt <jrv@vanzandt.mv.com>
@@ -40,7 +40,7 @@
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH SELECT 2 2012\-05\-02 Linux "Linux Programmer's Manual"
+.TH SELECT 2 2012\-08\-17 Linux "Linux Programmer's Manual"
 .SH 名前
 select, pselect, FD_CLR, FD_ISSET, FD_SET, FD_ZERO \- 同期 I/O の多重化
 .SH 書式
@@ -86,7 +86,8 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 になるまで待つことができる。 ファイルディスクリプタが ready (準備ができた) とは、 対応する I/O 操作 (例えば \fBread\fP(2)
 など) が停止 (block) なしに実行可能な状態にあることを意味する。
 .PP
-\fBselect\fP()  と \fBpselect\fP()  の動作は同じであるが、以下の 3 点が異なる:
+The operation of \fBselect\fP()  and \fBpselect\fP()  is identical, other than
+these three differences:
 .TP 
 (i)
 \fBselect\fP()  では、タイムアウト時間の指定に構造体 \fIstruct timeval\fP (秒・マイクロ秒単位) を用いる。 一方、
@@ -137,9 +138,9 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 
     sigset_t origmask;
 
-    sigprocmask(SIG_SETMASK, &sigmask, &origmask);
+    pthread_sigmask(SIG_SETMASK, &sigmask, &origmask);
     ready = select(nfds, &readfds, &writefds, &exceptfds, timeout);
-    sigprocmask(SIG_SETMASK, &origmask, NULL);
+    pthread_sigmask(SIG_SETMASK, &origmask, NULL);
 .fi
 .PP
 \fBpselect\fP()  が必要になる理由は、シグナルやファイルディスクリプタの状態変化を 待ちたいときには、競合状態を避けるために atomic
@@ -240,11 +241,20 @@ struct timeval {
 悪いことに glibc 2.0 以前では \fBpselect\fP()  のプロトタイプが間違っている。 glibc 2.1 から 2.2.1 では
 \fB_GNU_SOURCE\fP が定義されている場合に、 \fBpselect\fP()  が提供される。 glibc 2.2.2 以降では、
 \fBpselect\fP()  を使用するには、「書式」に記載された要件を満たす必要がある。
-.SS "Linux での注意"
-このページで説明している \fBpselect\fP() のインターフェースは、glibc に
-実装されているものである。内部で呼び出される Linux のシステムコールは
-\fBpselect6\fP() という名前である。このシステムコールは glibc のラッパー
-関数とは少し違った動作をする。
+.SS "Multithreaded applications"
+If a file descriptor being monitored by \fBselect\fP()  is closed in another
+thread, the result is unspecified.  On some UNIX systems, \fBselect\fP()
+unblocks and returns, with an indication that the file descriptor is ready
+(a subsequent I/O operation will likely fail with an error, unless another
+the file descriptor reopened between the time \fBselect\fP()  returned and the
+I/O operations was performed).  On Linux (and some other systems), closing
+the file descriptor in another thread has no effect on \fBselect\fP().  In
+summary, any application that relies on a particular behavior in this
+scenario must be considered buggy.
+.SS "Linux notes"
+The \fBpselect\fP()  interface described in this page is implemented by glibc.
+The underlying Linux system call is named \fBpselect6\fP().  This system call
+has somewhat different behavior from the glibc wrapper function.
 
 Linux の \fBpselect6\fP() システムコールは \fItimeout\fP 引き数を変更する。
 しかし、glibc のラッパー関数は、システムコールに渡す timeout 引き数と
@@ -252,8 +262,8 @@ Linux の \fBpselect6\fP() システムコールは \fItimeout\fP 引き数を�
 \fBpselect\fP() 関数は \fItimeout\fP 引き数を変更しない。
 これが POSIX.1\-2001 が要求している動作である。
 
-\fBpselect6\fP() システムコールの最後の引き数は\fIsigset_t\ *\fP 型の
-ポインタではなく、以下に示す構造体である。
+The final argument of the \fBpselect6\fP()  system call is not a \fIsigset_t\ *\fP
+pointer, but is instead a structure of the form:
 .in +4
 .nf
 
@@ -335,12 +345,11 @@ main(void)
 }
 .fi
 .SH 関連項目
+\fBaccept\fP(2), \fBconnect\fP(2), \fBpoll\fP(2), \fBread\fP(2), \fBrecv\fP(2), \fBsend\fP(2),
+\fBsigprocmask\fP(2), \fBwrite\fP(2), \fBepoll\fP(7), \fBtime\fP(7)
+
 考察と使用例の書かれたチュートリアルとして、 \fBselect_tut\fP(2)  がある。
-.LP
-関係がありそうなものを挙げておく: \fBaccept\fP(2), \fBconnect\fP(2), \fBpoll\fP(2), \fBread\fP(2),
-\fBrecv\fP(2), \fBsend\fP(2), \fBsigprocmask\fP(2), \fBwrite\fP(2), \fBepoll\fP(7),
-\fBtime\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.41 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

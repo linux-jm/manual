@@ -1,4 +1,8 @@
-.\" Page by b.hubert - may be freely modified and distributed
+.\" Page by b.hubert
+.\"
+.\" %%%LICENSE_START(FREELY_REDISTRIBUTABLE)
+.\" may be freely modified and distributed
+.\" %%%LICENSE_END
 .\"
 .\" Niki A. Rahimi (LTC Security Development, narahimi@us.ibm.com)
 .\" added ERRORS section.
@@ -6,22 +10,54 @@
 .\" Modified 2004-06-17 mtk
 .\" Modified 2004-10-07 aeb, added FUTEX_REQUEUE, FUTEX_CMP_REQUEUE
 .\"
-.\" FIXME See also https://bugzilla.kernel.org/show_bug.cgi?id=14303
+.\" FIXME
+.\" See also https://bugzilla.kernel.org/show_bug.cgi?id=14303
 .\" 2.6.14 adds FUTEX_WAKE_OP
+.\"	commit 4732efbeb997189d9f9b04708dc26bf8613ed721
+.\"	Author: Jakub Jelinek <jakub@redhat.com>
+.\"	Date:   Tue Sep 6 15:16:25 2005 -0700
+.\"
+.\" FIXME
 .\" 2.6.18 adds (Ingo Molnar) priority inheritance support:
 .\" FUTEX_LOCK_PI, FUTEX_UNLOCK_PI, and FUTEX_TRYLOCK_PI.  These need
 .\" to be documented in the manual page.  Probably there is sufficient
 .\" material in the kernel source file Documentation/pi-futex.txt.
+.\"	commit c87e2837be82df479a6bae9f155c43516d2feebc
+.\"	Author: Ingo Molnar <mingo@elte.hu>
+.\"	Date:   Tue Jun 27 02:54:58 2006 -0700
+.\"
+.\"	commit e2970f2fb6950183a34e8545faa093eb49d186e1
+.\"	Author: Ingo Molnar <mingo@elte.hu>
+.\"	Date:   Tue Jun 27 02:54:47 2006 -0700
+.\"
+.\"	See Documentation/futex-requeue-pi.txt
+.\"
+.\" FIXME
 .\" 2.6.25 adds FUTEX_WAKE_BITSET, FUTEX_WAIT_BITSET
+.\"	commit cd689985cf49f6ff5c8eddc48d98b9d581d9475d
+.\"	Author: Thomas Gleixner <tglx@linutronix.de>
+.\"	Date:   Fri Feb 1 17:45:14 2008 +0100
+.\"
+.\" FIXME
+.\" 2.6.31 adds FUTEX_WAIT_REQUEUE_PI, FUTEX_CMP_REQUEUE_PI
+.\"	commit 52400ba946759af28442dee6265c5c0180ac7122
+.\"	Author: Darren Hart <dvhltc@us.ibm.com>
+.\"	Date:   Fri Apr 3 13:40:49 2009 -0700
+.\"
+.\"	commit ba9c22f2c01cf5c88beed5a6b9e07d42e10bd358
+.\"	Author: Darren Hart <dvhltc@us.ibm.com>
+.\"	Date:   Mon Apr 20 22:22:22 2009 -0700
+.\"
+.\"	See Documentation/futex-requeue-pi.txt
 .\"
 .\"*******************************************************************
 .\"
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH FUTEX 2 2010\-08\-29 Linux "Linux Programmer's Manual"
+.TH FUTEX 2 2013\-03\-15 Linux "Linux Programmer's Manual"
 .SH 名前
-futex \- 高速ユーザ空間ロック機構のシステムコール
+futex \- 高速ユーザ空間ロック
 .SH 書式
 .nf
 .sp
@@ -89,12 +125,13 @@ wake させる。 引き数 \fItimeout\fP, \fIuaddr2\fP, \fIval3\fP は無視さ
 保持されていない場合、操作はエラー \fBEAGAIN\fP で失敗する。引き数 \fItimeout\fP は無視される。
 .SH 返り値
 .PP
-どの操作が実行されたかによって、 成功時の返り値の意味が変わる。
+In the event of an error, all operations return \-1, and set \fIerrno\fP to
+indicate the error.  The return value on success depends on the operation,
+as described in the following list:
 .TP 
 \fBFUTEX_WAIT\fP
-プロセスが \fBFUTEX_WAKE\fP の呼び出しで wake すると 0 を返す。 タイムアウトの場合、操作はエラー \fBETIMEOUT\fP
-で失敗する。 futex が指定された値と等しくない場合、 エラー \fBEWOULDBLOCK\fP で失敗する。 シグナルを受信するか
-(\fBsignal\fP(7)  参照) 他の偽の wake があった場合には、エラー \fBEINTR\fP で失敗する。
+Returns 0 if the process was woken by a \fBFUTEX_WAKE\fP call.  See ERRORS for
+the various possible error returns.
 .TP 
 \fBFUTEX_WAKE\fP
 wake したプロセスの数を返す。
@@ -107,28 +144,38 @@ wake したプロセスの数を返す。
 .TP 
 \fBFUTEX_CMP_REQUEUE\fP
 wake したプロセスの数を返す。
-.PP
-エラーの場合、全ての操作で \-1 が返り、 \fIerrno\fP がエラーの内容を示す値に設定される。
 .SH エラー
 .TP 
 \fBEACCES\fP
 futex メモリに読み込みアクセス権がなかった。
 .TP 
 \fBEAGAIN\fP
-\fBFUTEX_CMP_REQUEUE\fP で予期しない futex 値が見つかった (これは競合を示しているかもしれない。 この場合は安全な
-\fBFUTEX_WAKE\fP を使うこと)。
+\fBFUTEX_CMP_REQUEUE\fP detected that the value pointed to by \fIuaddr\fP is not
+equal to the expected value \fIval3\fP.  (This probably indicates a race; use
+the safe \fBFUTEX_WAKE\fP now.)
 .TP 
 \fBEFAULT\fP
 ユーザ空間から \fItimeout\fP の情報を取得する際にエラーが発生した。
 .TP 
+\fBEINTR\fP
+A \fBFUTEX_WAIT\fP operation was interrupted by a signal (see \fBsignal\fP(7))  or
+a spurious wakeup.
+.TP 
 \fBEINVAL\fP
-操作が定義されていない。またはページ・アラインメントでエラーが発生した。
+Invalid argument.
 .TP 
 \fBENFILE\fP
 オープンされているファイルの総数がシステムの制限に達した。
 .TP 
 \fBENOSYS\fP
 \fIop\fP に無効な操作が指定された。
+.TP 
+\fBETIMEDOUT\fP
+Timeout during the \fBFUTEX_WAIT\fP operation.
+.TP 
+\fBEWOULDBLOCK\fP
+\fIop\fP was \fBFUTEX_WAIT\fP and the value pointed to by \fIuaddr\fP was not equal
+to the expected value \fIval\fP at the time of the call.
 .SH バージョン
 .PP
 最初の futex 対応は Linux 2.5.7 で組み込まれたが、 上記のセマンティクスとは異なる。 4
@@ -154,12 +201,14 @@ futex メモリに読み込みアクセス権がなかった。
 \fIFuss, Futexes and Furwocks: Fast Userlevel Locking in Linux\fP (proceedings
 of the Ottawa Linux Symposium 2002), online at
 .br
-http://kernel.org/doc/ols/2002/ols2002\-pages\-479\-495.pdf
+.UR http://kernel.org\:/doc\:/ols\:/2002\:/ols2002\-pages\-479\-495.pdf
+.UE
 .PP
 futex の使用例ライブラリ, futex\-*.tar.bz2
 .br
-ftp://ftp.nl.kernel.org/pub/linux/kernel/people/rusty/.
+.UR ftp://ftp.nl.kernel.org\:/pub\:/linux\:/kernel\:/people\:/rusty/
+.UE
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.41 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
