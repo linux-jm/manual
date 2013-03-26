@@ -41,9 +41,9 @@ sub print_manpage {
     } else {
 	print '<TR>';
     }
-    printf("<TD>%s</TD><TD>%d/%d</TD><TD>%.2f</TD>\n",
+    printf("<TD>%s</TD><TD>%d/%d</TD><TD>%.2f</TD>",
 	   $page, $remaining, $all, $ratio);
-    print '</TR>';
+    print "</TR>\n";
 }
 
 $poname = "";
