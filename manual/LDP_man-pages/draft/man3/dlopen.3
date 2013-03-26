@@ -1,0 +1,309 @@
+.\" Copyright 1995 Yggdrasil Computing, Incorporated.
+.\" written by Adam J. Richter (adam@yggdrasil.com),
+.\" with typesetting help from Daniel Quinlan (quinlan@yggdrasil.com).
+.\" and Copyright 2003 Michael Kerrisk (mtk.manpages@gmail.com).
+.\"
+.\" %%%LICENSE_START(GPLv2+_DOC_FULL)
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, see
+.\" <http://www.gnu.org/licenses/>.
+.\" %%%LICENSE_END
+.\"
+.\" Modified by David A. Wheeler <dwheeler@dwheeler.com> 2000-11-28.
+.\" Applied patch by Terran Melconian, aeb, 2001-12-14.
+.\" Modified by Hacksaw <hacksaw@hacksaw.org> 2003-03-13.
+.\" Modified by Matt Domsch, 2003-04-09: _init and _fini obsolete
+.\" Modified by Michael Kerrisk <mtk.manpages@gmail.com> 2003-05-16.
+.\" Modified by Walter Harms: dladdr, dlvsym
+.\" Modified by Petr Baudis <pasky@suse.cz>, 2008-12-04: dladdr caveat
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH DLOPEN 3 2008\-12\-06 Linux "Linux Programmer's Manual"
+.SH 名前
+dlclose, dlerror, dlopen, dlsym \- 動的リンクを行うローダへの プログラミングインターフェース
+.SH 書式
+\fB#include <dlfcn.h>\fP
+.sp
+\fBvoid *dlopen(const char *\fP\fIfilename\fP\fB, int \fP\fIflag\fP\fB);\fP
+.sp
+\fBchar *dlerror(void);\fP
+.sp
+\fBvoid *dlsym(void *\fP\fIhandle\fP\fB, const char *\fP\fIsymbol\fP\fB);\fP
+.sp
+\fBint dlclose(void *\fP\fIhandle\fP\fB);\fP
+.sp
+\fI\-ldl\fP でリンクする。
+.SH 説明
+\fBdlopen\fP(), \fBdlsym\fP(), \fBdlclose\fP(), \fBdlerror\fP()  の 4つの関数は、動的リンク (dynamic
+linking) を行うローダへの インタフェースを実装したものである。
+.SS dlerror()
+関数 \fBdlerror\fP()  は、前回 \fBdlerror\fP()  が呼び出された後に、 \fBdlopen\fP(), \fBdlsym\fP(),
+\fBdlclose\fP()  のいずれかで最後に発生したエラーについての説明メッセージを返す。
+初期化後または前回呼び出された後で、エラーが発生していなければ NULL を返す。
+.SS dlopen()
+関数 \fBdlopen\fP()  は、NULL 終端された文字列 \fIfilename\fP で指定されたファイル名の動的ライブラリ (dynamic
+library) をロードし、 その動的ライブラリへの内部「ハンドル」を返す。 \fIfilename\fP が NULL
+の場合、メイン・プログラムへのハンドルが返される。 \fIfilename\fP がスラッシュ ("/")
+を含む場合、(相対か絶対かの)パス名として解釈される。 それ以外の場合、動的リンカは以下の手順でライブラリを検索する (詳細は \fBld.so\fP(8)
+を参照):
+.IP o 4
+(ELF のみ) 呼び出し元プログラムの実行ファイルに DT_RPATH タグが含まれており、 DT_RUNPATH
+タグが含まれていない場合、DT_RPATH タグに書かれている ディレクトリ・リストを検索する。
+.IP o
+プログラムの開始時に環境変数 \fBLD_LIBRARY_PATH\fP にコロン区切りのディレクトリのリストが定義されていれば、
+この環境変数に定義されたディレクトリが検索される (セキュリティ上の理由で、この変数は set\-UID や set\-GID された
+プログラムの場合は無視される)。
+.IP o
+(ELF のみ) 呼び出し元プログラムの実行ファイルに DT_RUNPATH タグが含まれて
+いる場合、そのタグに書かれているディレクトリ・リストを検索する。
+.IP o
+キャッシュファイル \fI/etc/ld.so.cache\fP の中に \fIfilename\fP のエントリが入っているかをチェックする
+(\fB/etc/ld.so.cache\fP は \fBldconfig\fP(8)  によって管理されている)。
+.IP o
+ディレクトリ \fI/lib\fP と \fI/usr/lib\fP をこの順番で検索する。
+.PP
+そのライブラリが他の共有ライブラリに依存している場合は、 依存しているライブラリも動的リンカが同じ検索ルールに基づいて 自動的にロードする
+(それらのライブラリにさらに依存関係がある場合などは この処理は再帰的に行われる)。
+.PP
+\fIflag\fP には以下の 2 つの値のいずれかを含めなければならない:
+.TP 
+\fBRTLD_LAZY\fP
+lazy binding (手抜きなシンボルの結び付け) が行う。 シンボルの解決はそのシンボルを参照するコードが実行されるときにのみ
+行われる。シンボルが一度も参照されなかった場合には、そのシンボルは 解決されないままとなる。 (lazy binding
+は関数参照についてのみ実施される; 変数への参照は常に ライブラリがロードされた時点で直ちに解決される。)
+.TP 
+\fBRTLD_NOW\fP
+この値が指定されるか、環境変数 \fBLD_BIND_NOW\fP に空でない文字列が設定された場合、 ライブラリ中の未定義のシンボルを全て解決してから
+\fBdlopen\fP()  は復帰する。解決できなかったときにはエラーが返される。
+.PP
+以下の値のうち 0 個以上を論理和 (OR) の形で \fIflag\fP に追加することもできる:
+.TP 
+\fBRTLD_GLOBAL\fP
+このライブラリで定義されているシンボルが、これより後でロードされる ライブラリのシンボル解決で利用できるようになる。
+.TP 
+\fBRTLD_LOCAL\fP
+このフラグは \fBRTLD_GLOBAL\fP の反対の意味であり、どちらのフラグも指定されなかった場合は こちらがデフォルトとなる。
+このライブラリで定義されているシンボルは、これより後でロードされる ライブラリでのシンボル参照で利用できない。
+.TP 
+\fBRTLD_NODELETE\fP (glibc 2.2 以降)
+.\" (But it is present on Solaris.)
+\fBdlclose\fP()  中にそのライブラリをアンロードしない。 そのため、同じライブラリをこれ以降に \fBdlopen\fP()
+で再度ロードした場合に、ライブラリ内の静的変数は再初期化されない。 このフラグは POSIX.1\-2001 では規定されていない。
+.TP 
+\fBRTLD_NOLOAD\fP (glibc 2.2 以降)
+.\" (But it is present on Solaris.)
+.\"
+そのライブラリをロードしない。 このフラグはそのライブラリがすでに組み込まれているかを検査するのに 利用できる (\fBdlopen\fP()
+は、ライブラリが組み込まれていなければ NULL を返し、 すでに組み込まれていればそのライブラリのハンドルを返す)。
+また、すでにロードされているライブラリのフラグを昇格させるのにも 利用できる。例えば、過去に \fBRTLD_LOCAL\fP でロードしたライブラリを
+\fBRTLD_NOLOAD\ |\ RTLD_GLOBAL\fP で再オープンすることができる。 このフラグは POSIX.1\-2001
+では規定されていない。
+.TP 
+\fBRTLD_DEEPBIND\fP (glibc 2.3.4 以降)
+.\" Inimitably described by UD in
+.\" http://sources.redhat.com/ml/libc-hacker/2004-09/msg00083.html.
+このライブラリ内のシンボルの参照領域をグローバル領域よりも前に配置する。 つまり、内蔵型のライブラリでは、すでにロードされたライブラリに含まれる
+同じ名前のグローバルなシンボルよりも自ライブラリ内のシンボルが優先して 使われる。 このフラグは POSIX.1\-2001 では規定されていない。
+.PP
+\fIfilename\fP が NULL ポインタである場合は、 返されるハンドルはメイン・プログラムのものになる。 このハンドルが \fBdlsym\fP()
+に渡されると、シンボルの検索は、メイン・プログラム内、 プログラムの起動時にロードされる全ての共有ライブラリ、 \fBdlopen\fP()  によって
+\fBRTLD_GLOBAL\fP フラグ付きでロードされた全ての共有ライブラリ、の順序で行われる。
+.PP
+オープンされたライブラリ中での外部参照は、 そのライブラリの依存リストにあるライブラリか、 \fBRTLD_GLOBAL\fP
+フラグ付きで既にオープンされているライブラリを使って解決される。 実行ファイルが "\-rdynamic" フラグ ("\-\-export\-dynamic"
+も同義)  付きでリンクされている場合は、実行ファイル中のグローバルシンボルも、 動的にロードされるライブラリ内の参照解決に用いられる。
+.PP
+同じライブラリが \fBdlopen\fP()  によって再度ロードされた場合には、同じファイルハンドルが返される。 dl
+ライブラリはライブラリハンドルのリンク数を管理している。 したがって動的ライブラリは \fBdlclose\fP()  が \fBdlopen\fP()
+と同じ回数だけ呼び出されない限りアンロードされない。 \fB_init\fP()  ルーチンは一度だけ呼び出される (\fB_init\fP()
+が存在する場合のみ)。 \fBRTLD_NOW\fP が指定されて \fBdlopen\fP()  が呼び出された場合、 \fBRTLD_LAZY\fP
+で以前にロードされたライブラリのシンボル解決が実行されることがある。
+.PP
+\fBdlopen\fP()  は、何らかの理由で失敗すると NULL を返す。
+.SS dlsym()
+関数 \fBdlsym\fP()  は、 \fBdlopen\fP()  が返した動的ライブラリの「ハンドル」と、 NULL
+終端されたシンボル名の文字列を引き数に取り、 そのシンボルがロードされたメモリのアドレスを返す。
+シンボルが、指定されたライブラリと、指定されたライブラリがロードされる際に \fBdlopen\fP()
+が自動的にロードしてライブラリのいずれにも見つからない場合には、 \fBdlsym\fP()  は NULL を返す (\fBdlsym\fP()
+による検索は、これらのライブラリの依存関係のツリーを先頭から 辿って行われる)。 実際にはシンボルの値自体が NULL になることもある (そのため、
+\fBdlsym\fP()  の返り値が NULL であったとしても必ずしもエラーという訳ではない)。 エラーかどうかを確認する正しい方法は以下の通りである:
+\fBdlerror\fP()  を呼び出して以前のエラー状態をクリアしてから、 \fBdlsym\fP()  を呼び出す。その後でもう一度
+\fBdlerror\fP()  を呼び出して、 \fBdlerror\fP()  の返り値を変数に保存し、保存した値が NULL であるか判定する。
+.PP
+\fBRTLD_DEFAULT\fP と \fBRTLD_NEXT\fP という二つの特別な擬似ハンドルがある。 \fBRTLD_DEFAULT\fP
+は、デフォルトのライブラリ検索順序にしたがって、 検索対象のシンボルが最初に現れるところを探す。 \fBRTLD_NEXT\fP
+は、ライブラリ検索順序の中で現在のライブラリ以降で最初に 関数が現れるところを探す。この機能を使うことで、別の共有ライブラリの
+関数へのラッパーを提供することができる。
+.SS dlclose()
+関数 \fBdlclose\fP()  は動的ライブラリのハンドル \fIhandle\fP の参照カウントを 1 減らす。参照カウントが 0
+になり、ロードされている 他のライブラリからそのライブラリ内のシンボルが使われていなければ、 その動的ライブラリをアンロードする。
+.LP
+関数 \fBdlclose\fP()  は、成功した場合は 0 を返し、エラーの場合 0 以外を返す。
+.SS "廃止されたシンボル _init() と _fini()"
+リンカは \fB_init\fP と \fB_fini\fP を特別なシンボルと解釈する。 ある動的ライブラリで \fB_init\fP()
+という名前のルーチンがエクスポートされていれば、 そのコードは、ライブラリのロード後、かつ \fBdlopen\fP()  が復帰する前に実行される。
+その動的ライブラリで \fB_fini\fP()  という名前のルーチンがエクスポートされていれば、
+ライブラリがアンロードされる直前にそのルーチンが呼び出される。 システムの起動ファイルに対するリンクを避ける必要がある場合、 \fBgcc\fP(1)
+のコマンドラインに \fI\-nostartfiles\fP オプションを指定すればよい。
+.LP
+.\" void _init(void) __attribute__((constructor));
+.\" void _fini(void) __attribute__((destructor));
+このルーチンや、gcc のオプション \fB\-nostartfiles\fP や \fB\-nostdlib\fP は使用しないことを推奨する。
+これらを使うと、望ましくない動作をすることがある。 なぜなら、(特別な措置が行われない限り) これらの constructor/destructor
+ルーチンは実行されないからである。
+.LP
+代わりに、ライブラリは \fB__attribute__((constructor))\fP や \fB__attribute__((destructor))\fP
+の関数属性を使って必要なルーチンをエクスポートするのがよい。 これらについては gcc の info ページを参照のこと。 constructor
+ルーチンは \fBdlopen\fP()  が復帰する前に実行され、 destructor ルーチンは \fBdlclose\fP()  が復帰する前に実行される。
+.SS "GNU での拡張: dladdr() と dlvsym()"
+glibc では POSIX には記載されていない関数が 2つ追加されている。 プロトタイプは以下の通りである。
+.sp
+.nf
+\fB#define _GNU_SOURCE\fP         /* feature_test_macros(7) 参照 */
+\fB#include <dlfcn.h>\fP
+.sp
+\fBint dladdr(void *\fP\fIaddr\fP\fB, Dl_info *\fP\fIinfo\fP\fB);\fP
+.sp
+\fBvoid *dlvsym(void *\fP\fIhandle\fP\fB, char *\fP\fIsymbol\fP\fB, char *\fP\fIversion\fP\fB);\fP
+.fi
+.PP
+関数 \fBdladdr\fP()  は、関数のポインタを引き数にとり、関数の名前と関数が定義されている ファイルの解決を試みる。情報は \fIDl_info\fP
+構造体に格納される。
+.sp
+.in +4n
+.nf
+typedef struct {
+    const char *dli_fname;  /* Pathname of shared object that
+                               contains address */
+    void       *dli_fbase;  /* Address at which shared object
+                               is loaded */
+    const char *dli_sname;  /* Name of nearest symbol with address
+                               lower than \fIaddr\fP */
+    void       *dli_saddr;  /* Exact address of symbol named
+                               in \fIdli_sname\fP */
+} Dl_info;
+.fi
+.in
+.PP
+\fIaddr\fP にマッチするシンボルが見つからなかった場合、 \fIdli_sname\fP と \fIdli_saddr\fP は NULL にセットされる。
+.PP
+\fBdladdr\fP()  は、エラー時には 0 を返し、成功した場合は 0 以外を返す。
+.PP
+関数 \fBdlvsym\fP()  は \fBdlsym\fP()  と同じ動作をするが、バージョンの文字列を渡す引き数が 追加されている点が異なる
+(\fBdlvsym\fP()  はバージョン 2.1 以降の glibc で提供されている)。
+.SH 準拠
+POSIX.1\-2003 には \fBdlclose\fP(), \fBdlerror\fP(), \fBdlopen\fP(), \fBdlsym\fP().
+の記載がある。
+.SH 注意
+.\" .LP
+.\" The string returned by
+.\" .BR dlerror ()
+.\" should not be modified.
+.\" Some systems give the prototype as
+.\" .sp
+.\" .in +5
+.\" .B "const char *dlerror(void);"
+.\" .in
+シンボル \fBRTLD_DEFAULT\fP と \fBRTLD_NEXT\fP は \fI<dlfcn.h>\fP で定義されており、
+\fI<dlfcn.h>\fP のインクルード前に \fB_GNU_SOURCE\fP が定義されている場合のみ有効となる。
+
+glibc 2.2.3 以降では、 \fBatexit\fP(3)  を使って、ライブラリがアンロードされる際に自動的に呼び出される 終了ハンドラ (exit
+handler) を登録することができる。
+.SS 歴史
+dlopen インターフェースの標準は SunOS をもとにしている。 SunOS には \fBdladdr\fP()  もあったが、 \fBdlvsym\fP()
+はなかった。
+.SH バグ
+時として、 \fBdladdr\fP()  に渡した関数ポインタは驚くような値になることがある。 いくつかのアーキテクチャ (特に i386 と
+x86_64) では、 引き数として使用した関数が動的リンクライブラリで定義されるもので あったとしても、 \fIdli_fname\fP と
+\fIdli_fbase\fP が \fBdladdr\fP()  を呼び出したオブジェクトを参照した状態で終わっていることがある。
+.PP
+問題は、関数ポインタの解決は今なおコンパイル時に行われるが、 そのポインタは元のオブジェクトの \fIplt\fP (Procedure Linkage
+Table) セクションを指しているだけだという点にある (オブジェクト自体は、ダイナミックリンカによってシンボルの解決が行われた後に、
+関数の呼び出しを行う)。 これに対処する方法としては、 コードを position\-independent でコンパイルするという方法がある。
+そうすると、コンパイラはコンパイル時にポインタを用意することができず、 今日の \fBgcc\fP(1)  では、実行時に \fBdladdr\fP()
+に関数ポインタを渡す前に、 \fIgot\fP (Global Offset Table) から最終的なシンボルのアドレスをロードするだけの
+コードが生成される。
+.SH 例
+math ライブラリをロードし、2.0 の余弦を表示する
+.nf
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <dlfcn.h>
+
+int
+main(int argc, char **argv)
+{
+    void *handle;
+    double (*cosine)(double);
+    char *error;
+
+    handle = dlopen("libm.so", RTLD_LAZY);
+    if (!handle) {
+        fprintf(stderr, "%s\en", dlerror());
+        exit(EXIT_FAILURE);
+    }
+
+    dlerror();    /* Clear any existing error */
+
+    /* Writing: cosine = (double (*)(double)) dlsym(handle, "cos");
+       would seem more natural, but the C99 standard leaves
+       casting from "void *" to a function pointer undefined.
+       The assignment used below is the POSIX.1\-2003 (Technical
+       Corrigendum 1) workaround; see the Rationale for the
+       POSIX specification of dlsym(). */
+
+.\" But in fact "gcc -O2 -Wall" will complain about the preceding cast.
+    *(void **) (&cosine) = dlsym(handle, "cos");
+
+    if ((error = dlerror()) != NULL)  {
+        fprintf(stderr, "%s\en", error);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("%f\en", (*cosine)(2.0));
+    dlclose(handle);
+    exit(EXIT_SUCCESS);
+}
+.fi
+.PP
+このプログラムを "foo.c" に書いたとすると、以下のコマンドでプログラムを ビルドできる。
+.in +4n
+.LP
+    gcc \-rdynamic \-o foo foo.c \-ldl
+.in
+.PP
+\fB_init\fP()  と \fB_fini\fP()  をエクスポートするライブラリの場合は 以下のようにしてコンパイルする必要がある。 例として
+\fIbar.c\fP をコンパイルする場合:
+.in +4n
+.LP
+    gcc \-shared \-nostartfiles \-o bar bar.c
+.in
+.SH 関連項目
+\fBld\fP(1), \fBldd\fP(1), \fBdl_iterate_phdr\fP(3), \fBrtld\-audit\fP(7), \fBld.so\fP(8),
+\fBldconfig\fP(8)
+
+ld.so info pages, gcc info pages, ld info pages
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。
