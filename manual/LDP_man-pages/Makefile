@@ -28,15 +28,15 @@ release:	jm-setup
 	# Do not remove unreleased pages
 	@sleep 1
 	set -e; if git status release | grep deleted >/dev/null; then \
-	  git status release | grep 'deleted:' | awk '{print $3;}' | xargs -n1 echo; \
-	  git status release | grep 'deleted:' | awk '{print $3;}' | xargs -n1 git checkout; \
+	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 echo; \
+	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 git checkout; \
 	fi
 	# I don't know why untrans.txt is generated in release target
 	$(RM) untrans.txt
 
 release-tl:
 	set -e; if git status release | grep modified >/dev/null; then \
-	  git status release | grep modified | awk '{print $3;}' | cut -d / -f 3 | xargs -n1 -IXXXXX ../../admin/JM-tl-modify.pl -U translation_list XXXXX RO; \
+	  git status release | grep modified | awk '{print $$3;}' | cut -d / -f 3 | xargs -n1 -IXXXXX ../../admin/JM-tl-modify.pl -U translation_list XXXXX RO; \
 	fi
 
 format:
