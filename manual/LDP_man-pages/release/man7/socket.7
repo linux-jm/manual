@@ -1,11 +1,13 @@
 .\" t
-.\" Don't change the first line, it tells man that we need tbl.
 .\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
 .\" and copyright (c) 1999 Matthew Wilcox.
+.\"
+.\" %%%LICENSE_START(VERBATIM_ONE_PARA)
 .\" Permission is granted to distribute possibly modified copies
 .\" of this page provided the header is included verbatim,
 .\" and in case of nontrivial modification author and date
 .\" of the modification is added to the header.
+.\" %%%LICENSE_END
 .\"
 .\" 2002-10-30, Michael Kerrisk, <mtk.manpages@gmail.com>
 .\"	Added description of SO_ACCEPTCONN
@@ -17,18 +19,38 @@
 .\"	Documented SO_DOMAIN and SO_PROTOCOL.
 .\" FIXME
 .\" The following are not yet documented:
-.\"	SO_PEERNAME
-.\"	SO_TIMESTAMPNS
-.\"	SO_MARK (see https://bugzilla.kernel.org/show_bug.cgi?id=16461)
+.\"	SO_PEERNAME (2.4?)
+.\"		get only
+.\"		Seems to do something similar to getpeernam(), but then
+.\"		why is it necessary / how does it differ?
+.\"	SO_TIMESTAMPNS (2.6.22)
+.\"		Documentation/networking/timestamping.txt
+.\"		commit 92f37fd2ee805aa77925c1e64fd56088b46094fc
+.\"		Author: Eric Dumazet <dada1@cosmosbay.com>
 .\"	SO_TIMESTAMPING (2.6.30)
+.\"		Documentation/networking/timestamping.txt
+.\"		commit cb9eff097831007afb30d64373f29d99825d0068
+.\"		Author: Patrick Ohly <patrick.ohly@intel.com>
 .\"	SO_RXQ_OVFL (2.6.33)
+.\"		commit 3b885787ea4112eaa80945999ea0901bf742707f
+.\"		Author: Neil Horman <nhorman@tuxdriver.com>
+.\" 	SO_WIFI_STATUS (3.3)
+.\"		commit 6e3e939f3b1bf8534b32ad09ff199d88800835a0
+.\"		Author: Johannes Berg <johannes.berg@intel.com>
+.\"		Also: SCM_WIFI_STATUS
+.\"	SO_PEEK_OFF (3.4)
+.\"		commit ef64a54f6e558155b4f149bb10666b9e914b6c54
+.\"		Author: Pavel Emelyanov <xemul@parallels.com>
+.\"	SO_NOFCS (3.4)
+.\"		commit 3bdc0eba0b8b47797f4a76e377dd8360f317450f
+.\"		Author: Ben Greear <greearb@candelatech.com>
 .\"
 .\"*******************************************************************
 .\"
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH SOCKET 7 2012\-04\-23 Linux "Linux Programmer's Manual"
+.TH SOCKET 7 2013\-03\-15 Linux "Linux Programmer's Manual"
 .SH 名前
 socket \- Linux のソケットインターフェース
 .SH 書式
@@ -118,12 +140,42 @@ T}
 .\" or
 .\" .BR close (2).
 .TE
-
 .PP
 \fBpoll\fP(2)  や \fBselect\fP(2)  を使う代わりに、カーネルからアプリケーションに イベントを通知させるのに \fBSIGIO\fP
 シグナルを使う方法もある。 この方法を使うには、 \fBfcntl\fP(2)  を用いてソケットのファイルディスクリプタに \fBO_ASYNC\fP
 フラグをセットし、 \fBSIGIO\fP に対する有効なシグナルハンドラを \fBsigaction\fP(2)  によって設定しておく必要がある。 後述の
 \fIシグナル\fP に関する議論も参考にすること。
+.SS "Socket address structures"
+Each socket domain has its own format for socket addresses, with a
+domain\-specific address structure.  Each of these structures begins with an
+integer "family" field (typed as \fIsa_family_t\fP)  that indicates the type of
+the address structure.  This allows the various system calls (e.g.,
+\fBconnect\fP(2), \fBbind\fP(2), \fBaccept\fP(2), \fBgetsockname\fP(2),
+\fBgetpeername\fP(2)), which are generic to all socket domains, to determine
+the domain of a particular socket address.
+
+To allow any type of socket address to be passed to interfaces in the
+sockets API, the type \fIstruct sockaddr\fP is defined.  The purpose of this
+type is purely to allow casting of domain\-specific socket address types to a
+"generic" type, so as to avoid compiler warnings about type mismatches in
+calls to the sockets API.
+
+In addition, the sockets API provides the data type \fIstruct
+sockaddr_storage\fP.  This type is suitable to accommodate all supported
+domain\-specific socket address structures; it is large enough and is aligned
+properly.  (In particular, it is large enough to hold IPv6 socket
+addresses.)  The structure includes the following field, which can be used
+to identify the type of socket address actually stored in the structure:
+
+.in +4n
+.nf
+    sa_family_t ss_family;
+.fi
+.in
+
+The \fIsockaddr_storage\fP structure is useful in programs that must handle
+socket addresses in a generic way (e.g., programs that must deal with both
+IPv4 and IPv6 socket addresses).
 .SS ソケットオプション
 .\" FIXME
 .\" In the list below, the text used to describe argument types
@@ -150,6 +202,12 @@ T}
 このオプションはいくつかのソケットタイプ、
 特に \fBAF_INET\fP に対してのみ動作する点に注意すること。
 パケットソケットではサポートされていない (通常の \fBbind\fP(2) を使うこと)。
+
+Before Linux 3.8, this socket option could be set, but could not retrieved
+with \fBgetsockopt\fP(2).  Since Linux 3.8, it is readable.  The \fIoptlen\fP
+argument should contain the buffer size available to receive the device name
+and is recommended to be \fBIFNAMSZ\fP bytes.  The real device name length is
+reported back in the \fIoptlen\fP argument.
 .TP 
 \fBSO_BROADCAST\fP
 ブロードキャストフラグを設定・取得する。有効になっていると、データグラ
@@ -199,6 +257,14 @@ struct linger {
 これらのコールはただちに戻り、クローズ動作はバックグラウンドで行われる。 ソケットのクローズを \fBexit\fP(2)
 の一部として行った場合には、残っているソケットの クローズ動作は必ずバックグラウンドに送られる。
 .TP 
+\fBSO_MARK\fP (Linux 2.6.25 以降)
+.\" commit 4a19ec5800fc3bb64e2d87c4d9fdd9e636086fe0
+.\" and    914a9ab386a288d0f22252fc268ecbc048cdcbd5
+Set the mark for each packet sent through this socket (similar to the
+netfilter MARK target but socket\-based).  Changing the mark can be used for
+mark\-based routing without netfilter or for packet filtering.  Setting this
+option requires the \fBCAP_NET_ADMIN\fP capability.
+.TP 
 \fBSO_OOBINLINE\fP
 .\" don't document it because it can do too much harm.
 .\".B SO_NO_CHECK
@@ -211,14 +277,14 @@ struct linger {
 \fBSCM_CREDENTIALS\fP 制御メッセージの受信を有効/無効にする。詳細は \fBunix\fP(7)  を参照のこと。
 .TP 
 \fBSO_PEERCRED\fP
-このソケットに接続してきた外部プロセスの信任状 (credential) を返す。
-このソケットオプションが利用できるのは、接続された \fBAF_UNIX\fP ストリームソケット間、
-および \fBsocketpair\fP(2) を使って作成された \fBAF_UNIX\fP のストリームソケットと
-データグラムソケットのペアだけである。
-\fBunix\fP(7)  を参照のこと。
-\fBconnect\fP(2) や \fBsocketpair\fP(2) が呼ばれた時に有効であった信任状が返される。
-引き数は \fIucred\fP 構造体である。
-このソケットオプションは読み込み専用である。
+Return the credentials of the foreign process connected to this socket.
+This is only possible for connected \fBAF_UNIX\fP stream sockets and \fBAF_UNIX\fP
+stream and datagram socket pairs created using \fBsocketpair\fP(2); see
+\fBunix\fP(7).  The returned credentials are those that were in effect at the
+time of the call to \fBconnect\fP(2)  or \fBsocketpair\fP(2).  The argument is a
+\fIucred\fP structure; define the \fBGNU_SOURCE\fP feature test macro to obtain
+the definition of that structure from \fI<sys/socket.h>\fP.  This
+socket option is read\-only.
 .TP 
 \fBSO_PRIORITY\fP
 プロトコルで定義された優先度を、このソケットから 送信される全てのパケットにセットする。 Linux はネットワークキュー内部の
@@ -232,6 +298,10 @@ struct linger {
 .TP 
 \fBSO_RCVBUF\fP
 .\" Most (all?) other implementations do not do this -- MTK, Dec 05
+.\" The following thread on LMKL is quite informative:
+.\" getsockopt/setsockopt with SO_RCVBUF and SO_SNDBUF "non-standard" behaviour
+.\" 17 July 2012
+.\" http://thread.gmane.org/gmane.linux.kernel/1328935
 ソケットの受信バッファの最大サイズを設定・取得する (バイト単位)。 \fBsetsockopt\fP(2)  を使って値が設定されたときに
 (管理オーバヘッド用の領域を確保するために)  カーネルはこの値を 2倍し、 \fBgetsockopt\fP(2)  はこの 2倍された値を返す。
 デフォルトの値は \fI/proc/sys/net/core/rmem_default\fP ファイルで設定され、許容される最大の値は
@@ -259,11 +329,11 @@ struct linger {
 .\" in fact to EAGAIN
 送信・受信のタイムアウトを指定する。これを越えるとエラーを報告する。 引き数は \fIstruct timeval\fP である。
 入出力関数がタイムアウト時間の間ブロックされ、かつデータの送信または 受信が行われていた場合は、転送されたデータ量が関数の返り値となる。
-何もデータが転送されずにタイムアウトに達した場合は、 \-1 を返し、 \fIerrno\fP に \fBEAGAIN\fP か \fBEWOULDBLOCK\fP
-を設定され、 あたかもソケットに非ブロッキングが指定されたように見える。 タイムアウト値に (デフォルト値である) 0 に設定すると、
-操作は決してタイムアウトしなくなる。 タイムアウトが影響を及ぼすのは、 ソケット I/O を実行するシステムコールだけ (例えば \fBread\fP(2),
-\fBrecvmsg\fP(2), \fBsend\fP(2), \fBsendmsg\fP(2))  である。 \fBselect\fP(2), \fBpoll\fP(2),
-\fBepoll_wait\fP(2)  などにはタイムアウトは影響を及ぼさない。
+何もデータが転送されずにタイムアウトに達した場合は、 \-1 を返し、 \fIerrno\fP に \fBEAGAIN\fP か \fBEWOULDBLOCK\fP か
+\fBEINPROGRESS\fP (\fBconnect\fP(2) の場合) が設定され、 あたかもソケットに非ブロッキングが指定されたように見える。
+タイムアウト値に (デフォルト値である) 0 に設定すると、 操作は決してタイムアウトしなくなる。 タイムアウトが影響を及ぼすのは、 ソケット I/O
+を実行するシステムコールだけ (例えば \fBread\fP(2), \fBrecvmsg\fP(2), \fBsend\fP(2), \fBsendmsg\fP(2))
+である。 \fBselect\fP(2), \fBpoll\fP(2), \fBepoll_wait\fP(2)  などにはタイムアウトは影響を及ぼさない。
 .TP 
 \fBSO_REUSEADDR\fP
 \fBbind\fP(2)  コールに与えられたアドレスが正しいかを判断するルールで、 ローカルアドレスの再利用を可能にする。 つまり \fBAF_INET\fP
@@ -273,6 +343,7 @@ struct linger {
 .TP 
 \fBSO_SNDBUF\fP
 .\" Most (all?) other implementations do not do this -- MTK, Dec 05
+.\" See also the comment to SO_RCVBUF (17 Jul 2012 LKML mail)
 ソケットの送信バッファの最大サイズを設定・取得する (バイト単位)。 \fBsetsockopt\fP(2)  を使って値が設定されたときに
 (管理オーバヘッド用の領域を確保するために)  カーネルはこの値を 2倍し、 \fBgetsockopt\fP(2)  はこの 2倍された値を返す。
 デフォルトの値は \fI/proc/sys/net/core/wmem_default\fP ファイルで設定され、許容される最大の値は
@@ -302,7 +373,7 @@ struct linger {
 リアルタイムシグナルのハンドラは、 \fIsiginfo_t\fP の \fIsi_fd\fP フィールドにファイルディスクリプタが入った状態で呼び出される。
 詳細は \fBfcntl\fP(2)  を参照のこと。
 .PP
-.\" .SS Ancillary Messages
+.\" .SS Ancillary messages
 状況によっては (例えば複数のプロセスが一つのソケットにアクセスしているなど)、 \fBSIGIO\fP
 の原因となった状態は、プロセスがそのシグナルへの対応を行ったときには 消えてしまっているかもしれない。
 この場合は、プロセスは再び待つようにすべきである。 Linux は同じシグナルを後で再送するからである。
@@ -390,9 +461,10 @@ Linux では、 \fBSO_REUSEADDR\fP オプションでポートの再利用が許
 \fBCONFIG_FILTER\fP ソケットオプションである \fBSO_ATTACH_FILTER\fP と \fBSO_DETACH_FILTER\fP
 について記載されていない。これらは libpcap ライブラリを通して 用いる方が良い。
 .SH 関連項目
-\fBgetsockopt\fP(2), \fBsetsockopt\fP(2), \fBsocket\fP(2), \fBcapabilities\fP(7),
-\fBddp\fP(7), \fBip\fP(7), \fBpacket\fP(7), \fBtcp\fP(7), \fBudp\fP(7), \fBunix\fP(7)
+\fBgetsockopt\fP(2), \fBconnect\fP(2), \fBsetsockopt\fP(2), \fBsocket\fP(2),
+\fBcapabilities\fP(7), \fBddp\fP(7), \fBip\fP(7), \fBpacket\fP(7), \fBtcp\fP(7), \fBudp\fP(7),
+\fBunix\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.41 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

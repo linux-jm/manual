@@ -1,20 +1,47 @@
 .\" t
-.\" Don't change the line above. it tells man that tbl is needed.
 .\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\"
+.\" %%%LICENSE_START(VERBATIM_ONE_PARA)
 .\" Permission is granted to distribute possibly modified copies
 .\" of this page provided the header is included verbatim,
 .\" and in case of nontrivial modification author and date
 .\" of the modification is added to the header.
+.\" %%%LICENSE_END
+.\"
 .\" $Id: ip.7,v 1.19 2000/12/20 18:10:31 ak Exp $
 .\"
-.\" FIXME: Document IP_MINTTL, added in Linux 2.6.34
+.\" FIXME: The following socket options are yet to be documented
+.\" 	IP_XFRM_POLICY (2.5.48)
+.\"	    Needs CAP_NET_ADMIN
+.\" 	IP_IPSEC_POLICY (2.5.47)
+.\"	    Needs CAP_NET_ADMIN
+.\" 	IP_PASSSEC (2.6.17)
+.\" 	    Boolean
+.\"	    commit 2c7946a7bf45ae86736ab3b43d0085e43947945c
+.\"	    Author: Catherine Zhang <cxzhang@watson.ibm.com>
+.\"	IP_MINTTL (2.6.34)
+.\"	    commit d218d11133d888f9745802146a50255a4781d37a
+.\"	    Author: Stephen Hemminger <shemminger@vyatta.com>
+.\"	MCAST_JOIN_GROUP (2.4.22 / 2.6)
+.\"	MCAST_BLOCK_SOURCE (2.4.22 / 2.6)
+.\"	MCAST_UNBLOCK_SOURCE (2.4.22 / 2.6)
+.\"	MCAST_LEAVE_GROUP (2.4.22 / 2.6)
+.\"	MCAST_JOIN_SOURCE_GROUP (2.4.22 / 2.6)
+.\"	MCAST_LEAVE_SOURCE_GROUP (2.4.22 / 2.6)
+.\"	MCAST_MSFILTER (2.4.22 / 2.6)
+.\"	IP_MULTICAST_ALL (2.6.31)
+.\"	    commit f771bef98004d9d141b085d987a77d06669d4f4f
+.\"	    Author: Nivedita Singhvi <niv@us.ibm.com>
+.\"	IP_UNICAST_IF (3.4)
+.\"	    commit 76e21053b5bf33a07c76f99d27a74238310e3c71
+.\"	    Author: Erich E. Hoover <ehoover@mines.edu>
 .\"
 .\"*******************************************************************
 .\"
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH IP 7 2011\-09\-22 Linux "Linux Programmer's Manual"
+.TH IP 7 2013\-02\-12 Linux "Linux Programmer's Manual"
 .SH 名前
 ip \- Linux IPv4 プロトコルの実装
 .SH 書式
@@ -50,14 +77,15 @@ IP ソケットは、 \fBsocket\fP(2) 関数を \fBsocket(AF_INET, \fP\fIsocket_
 されている有効な IANA IP プロトコルを、 割り当てられている番号で指定する
 ことができる。
 .PP
-.\" FIXME ip current does an autobind in listen, but I'm not sure
-.\" if that should be documented.
-あるプロセスで、やってくるパケットを受信したり 接続要求を受けたりしたい場合には、 そのプロセスはローカルなインターフェースアドレスに、
-\fBbind\fP(2)  を用いてソケットをバインドしなければならない。 あるローカルな「アドレスとポート」のペアに対してバインドできる IP
-ソケットは一つに限られる。 \fBbind\fP(2)  の呼び出しで \fBINADDR_ANY\fP
-が指定されていた場合は、ソケットはローカルなインターフェースの \fIすべて\fPにバインドされる。 \fBlisten\fP(2)  または
-\fBconnect\fP(2)  がバインドされていないソケットでコールされると、 そのソケットは自動的にローカルなアドレスを \fBINADDR_ANY\fP
-にセットし、空いているポートをランダムに選んでバインドする。
+When a process wants to receive new incoming packets or connections, it
+should bind a socket to a local interface address using \fBbind\fP(2).  In this
+case, only one IP socket may be bound to any given local (address, port)
+pair.  When \fBINADDR_ANY\fP is specified in the bind call, the socket will be
+bound to \fIall\fP local interfaces.  When \fBlisten\fP(2)  is called on an
+unbound socket, the socket is automatically bound to a random free port with
+the local address set to \fBINADDR_ANY\fP.  When \fBconnect\fP(2)  is called on an
+unbound socket, the socket is automatically bound to a random free port or
+to a usable shared port with the local address set to \fBINADDR_ANY\fP.
 
 \fBSO_REUSEADDR\fP フラグがセットされていない場合には、 バインドされていた TCP ローカルソケットアドレスは
 クローズされた後しばらくの間使えなくなる。 \fBSO_REUSEADDR\fP フラグを使うと TCP の信頼性を低下させるので、
@@ -146,9 +174,55 @@ struct ip_mreqn {
 \fIip_mreqn\fP との違いは、 \fIimr_ifindex\fP フィールドを含まないことだけである。
 \fBsetsockopt\fP(2) でのみ使える。
 .TP 
+\fBIP_ADD_SOURCE_MEMBERSHIP\fP (Linux 2.4.22 以降 / 2.5.68 以降)
+Join a multicast group and allow receiving data only from a specified
+source.  Argument is an \fIip_mreq_source\fP structure.
+.sp
+.in +4n
+.nf
+struct ip_mreq_source {
+    struct in_addr imr_multiaddr;  /* IP multicast group
+                                      address */
+    struct in_addr imr_interface;  /* IP address of local
+                                      interface */
+    struct in_addr imr_sourceaddr; /* IP address of
+                                      multicast source */
+};
+.fi
+.in
+.sp
+The \fIip_mreq_source\fP structure is similar to \fIip_mreqn\fP described under
+\fBIP_ADD_MEMBERSIP\fP.  The \fIimr_multiaddr\fP field contains the address of the
+multicast group the application wants to join or leave.  The
+\fIimr_interface\fP field is the address of the local interface with which the
+system should join the multicast group.  Finally, the \fIimr_sourceaddr\fP
+field contains the address of the source the application wants to receive
+data from.
+.IP
+This option can be used multiple times to allow receiving data from more
+than one source.
+.TP 
+\fBIP_BLOCK_SOURCE\fP (since Linux 2.4.22 以降 / 2.5.68 以降)
+Stop receiving multicast data from a specific source in a given group.  This
+is valid only after the application has subscribed to the multicast group
+using either \fBIP_ADD_MEMBERSHIP\fP or \fBIP_ADD_SOURCE_MEMBERSHIP\fP.
+.IP
+Argument is an \fIip_mreq_source\fP structure as described under
+\fBIP_ADD_SOURCE_MEMBERSHIP\fP.
+.TP 
 \fBIP_DROP_MEMBERSHIP\fP (Linux 1.2 以降)
 マルチキャストグループから抜ける。引き数は \fBIP_ADD_MEMBERSHIP\fP と同様に \fIip_mreqn\fP または \fIip_mreq\fP
 構造体である。
+.TP 
+\fBIP_DROP_SOURCE_MEMBERSHIP\fP (since Linux 2.4.22 / 2.5.68)
+Leave a source\-specific group\(emthat is, stop receiving data from a given
+multicast group that come from a given source.  If the application has
+subscribed to multiple sources within the same group, data from the
+remaining sources will still be delivered.  To stop receiving data from all
+sources at once, use \fBIP_LEAVE_GROUP\fP.
+.IP
+Argument is an \fIip_mreq_source\fP structure as described under
+\fBIP_ADD_SOURCE_MEMBERSHIP\fP.
 .TP 
 \fBIP_FREEBIND\fP (Linux 2.4 以降)
 .\" Precisely: 2.4.0-test10
@@ -161,12 +235,36 @@ struct ip_mreqn {
 のソケット単位の設定である。
 .TP 
 \fBIP_HDRINCL\fP (Linux 2.0 以降)
-.\"
-.\" FIXME Document IP_IPSEC_POLICY
-.\" Since Linux 2.5.47
-.\" Needs CAP_NET_ADMIN
 有効になっていると、ユーザは IP ヘッダをユーザーデータの前に与える。 \fBSOCK_RAW\fP ソケットでのみ有効である。詳細は \fBraw\fP(7)
 を見よ。このフラグが有効になっていると、 \fBIP_OPTIONS\fP, \fBIP_TTL\fP, \fBIP_TOS\fP は無視される。
+.TP 
+\fBIP_MSFILTER\fP (since Linux 2.4.22 / 2.5.68)
+This option provides access to the advanced full\-state filtering API.
+Argument is an \fIip_msfilter\fP structure.
+.sp
+.in +4n
+.nf
+struct ip_msfilter {
+    struct in_addr imsf_multiaddr; /* IP multicast group
+                                      address */
+    struct in_addr imsf_interface; /* IP address of local
+                                      interface */
+    uint32_t       imsf_fmode;     /* Filter\-mode */
+
+    uint32_t       imsf_numsrc;    /* Number of sources in
+                                      the following array */
+    struct in_addr imsf_slist[1];  /* Array of source
+                                      addresses */
+};
+.fi
+.in
+.sp
+There are two macros, \fBMCAST_INCLUDE\fP and \fBMCAST_EXCLUDE\fP, which can be
+used to specify the filtering mode.  Additionally, the
+\fBIP_MSFILTER_SIZE\fP(n)  macro exists to determine how much memory is needed
+to store \fIip_msfilter\fP structure with \fIn\fP sources in the source list.
+.IP
+For the full description of multicast source filtering refer to RFC 3376.
 .TP 
 \fBIP_MTU\fP (Linux 2.2 以降)
 .\" Precisely: 2.1.124
@@ -191,7 +289,6 @@ RFC\ 1191 で定義されている Path MTU Discovery を行う。
 どちらかに設定することができる。設定の変更は、
 \fI/proc/sys/net/ipv4/ip_no_pmtu_disc\fP ファイルに、0 (\fBIP_PMTUDISC_WANT\fP) か
 0 以外 (\fBIP_PMTUDISC_DONT\fP) を書き込むことで行う。
-
 .TS
 tab(:);
 c l
@@ -247,11 +344,6 @@ TTL に設定することがとても重要である。デフォルトは 1 で�
 .TP 
 \fBIP_OPTIONS\fP (Linux 2.0 以降)
 .\" Precisely: 1.3.30
-.\" FIXME Document IP_PASSSEC
-.\" Boolean
-.\" Since Linux 2.6.17
-.\" commit 2c7946a7bf45ae86736ab3b43d0085e43947945c
-.\" Author: Catherine Zhang <cxzhang@watson.ibm.com>
 このソケットから送られるパケット全てに付随する IP オプションを 設定・取得する。オプションを保存しているメモリバッファへのポインタと
 オプションの長さとを引き数に取る。 \fBsetsockopt\fP(2)  を呼び出すと、ソケットに関連づけられる IP オプションを設定できる。 IPv4
 におけるオプションのサイズの最大値は 40 バイトである。 用いることのできるオプションについては RFC\ 791 を見よ。
@@ -439,10 +531,14 @@ iptables の TPROXY ターゲットで透過プロキシリダイレクション
 このオプションを設定する必要がある。
 .TP 
 \fBIP_TTL\fP (Linux 1.0 以降)
-.\" FIXME Document IP_XFRM_POLICY
-.\" Since Linux 2.5.48
-.\" Needs CAP_NET_ADMIN
 time\-to\-live フィールドの値を設定または取得する。 この値はこのソケットから送信されるすべてのパケットに用いられる。
+.TP 
+\fBIP_UNBLOCK_SOURCE\fP (since Linux 2.4.22 / 2.5.68)
+Unblock previously blocked multicast source.  Returns \fBEADDRNOTAVAIL\fP when
+given source is not being blocked.
+.IP
+Argument is an \fIip_mreq_source\fP structure as described under
+\fBIP_ADD_SOURCE_MEMBERSHIP\fP.
 .SS "/proc インタフェース"
 .\" FIXME As at 2.6.12, 14 Jun 2005, the following are undocumented:
 .\"	ip_queue_maxlen
@@ -615,7 +711,8 @@ ICMP メッセージによって引き起こされることがある。
 .\" IP_PASSSEC is Linux-specific
 .\" IP_XFRM_POLICY is Linux-specific
 .\" IP_IPSEC_POLICY is a nonstandard extension, also present on some BSDs
-\fBIP_FREEBIND\fP, \fBIP_MTU\fP, \fBIP_MTU_DISCOVER\fP, \fBIP_RECVORIGDSTADDR\fP,
+\fBIP_FREEBIND\fP, \fBIP_MSFILTER\fP, \fBIP_MTU\fP, \fBIP_MTU_DISCOVER\fP,
+\fBIP_RECVORIGDSTADDR\fP,
 \fBIP_PKTINFO\fP, \fBIP_RECVERR\fP, \fBIP_ROUTER_ALERT\fP, and \fBIP_TRANSPARENT\fP
 は Linux 固有である。
 
@@ -654,16 +751,13 @@ glibc のバージョンによっては \fIin_pktinfo\fP の定義を忘れて�
 を指定して、受信パケットに入っていた宛先アドレスを取得する方法は 2.2 カーネルの一部でうまく動かない。
 .SH 関連項目
 \fBrecvmsg\fP(2), \fBsendmsg\fP(2), \fBbyteorder\fP(3), \fBipfw\fP(4),
-\fBcapabilities\fP(7), \fBnetlink\fP(7), \fBraw\fP(7), \fBsocket\fP(7), \fBtcp\fP(7),
-\fBudp\fP(7)
+\fBcapabilities\fP(7), \fBicmp\fP(7), \fBipv6\fP(7), \fBnetlink\fP(7), \fBraw\fP(7),
+\fBsocket\fP(7), \fBtcp\fP(7), \fBudp\fP(7)
 .PP
-\fBRFC\ 791\fP: オリジナルの IP の仕様
-.br
-\fBRFC\ 1122\fP: IPv4 ホストの必要条件
-.br
 .\" FIXME autobind INADDR REUSEADDR
-\fBRFC\ 1812\fP: IPv4 ルータの必要条件
+RFC\ 791 for the original IP specification.  RFC\ 1122 for the IPv4 host
+requirements.  RFC\ 1812 for the IPv4 router requirements.
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.41 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
