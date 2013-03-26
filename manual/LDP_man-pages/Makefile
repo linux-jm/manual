@@ -26,12 +26,16 @@ release:	jm-setup
 	rm -f $(PERKAMON_DIR)/build/ja
 	ln -s ../../draft $(PERKAMON_DIR)/build/ja
 	# Do not remove unreleased pages
-	set -e; if git status release | grep deleted; then \
+	@sleep 1
+	set -e; if git status release | grep deleted >/dev/null; then \
+	  git status release | grep 'deleted:' | awk '{print $3;}' | xargs -n1 echo; \
 	  git status release | grep 'deleted:' | awk '{print $3;}' | xargs -n1 git checkout; \
 	fi
+	# I don't know why untrans.txt is generated in release target
+	$(RM) untrans.txt
 
 release-tl:
-	set -e; if git status release | grep modified; then \
+	set -e; if git status release | grep modified >/dev/null; then \
 	  git status release | grep modified | awk '{print $3;}' | cut -d / -f 3 | xargs -n1 -IXXXXX ../../admin/JM-tl-modify.pl -U translation_list XXXXX RO; \
 	fi
 
