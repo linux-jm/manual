@@ -31,13 +31,6 @@ $update_timestamp = 0 if $opts{"T"};
 $update_translator = 1 if $opts{"u"};
 $update_translator = 0 if $opts{"U"};
 
-my $user_name  = $opts{"n"} || $ENV{'JM_USER_NAME'};
-my $user_mail = $opts{"e"} || $ENV{'JM_USER_MAIL'};
-if ($update_translator && ($user_name eq "" || $user_mail eq "")) {
-    print STDERR "Translator name or mail not specified.\n";
-    exit 0;
-}
-
 $clear_entry = 1 if $opts{"c"};
 $ARGV[2] = "_DUMMY_" if $clear_entry;
 
@@ -55,6 +48,13 @@ if ($#ARGV < 2) {
     print STDERR "    -e MAIL : Update mail field [JM_USER_MAIL]\n";
     print STDERR "    -c : Clear entry of specified pagename\n";
     print STDERR "         (new_status is not required when -c is specified.)\n";
+    exit 0;
+}
+
+my $user_name  = $opts{"n"} || $ENV{'JM_USER_NAME'};
+my $user_mail = $opts{"e"} || $ENV{'JM_USER_MAIL'};
+if ($update_translator && ($user_name eq "" || $user_mail eq "")) {
+    print STDERR "Translator name or mail not specified.\n";
     exit 0;
 }
 
