@@ -2,35 +2,80 @@ THRESH = 100
 EXTFLAGS =
 PO4AFLAGS += -k $(THRESH) $(EXTFLAGS)
 
-LANGS = ja
-
-PACKAGE = iptables
-PO4A_SUBDIRS = cmd lib
+MASTER_ROFFS = $(wildcard original/*/*.[1-8])
+TRANS_ROFFS = $(patsubst original/%,draft/%,$(MASTER_ROFFS))
+POFILES = $(wildcard po4a/*/*.ja.po)
+POTFILES = $(wildcard po4a/*/*.pot)
+MSGMERGE_OPTS = --no-wrap --no-location
 
 WORK_DIR = .
 
 all:	translate
 
-translate: $(patsubst %, translate-%, $(PO4A_SUBDIRS))
+translate:	$(patsubst %,translate-%,$(notdir $(MASTER_ROFFS)))
 
 translate-%:
-	po4a $(PO4AFLAGS) -v --variable langs='$(LANGS)' \
-	  --previous --srcdir $(WORK_DIR) --destdir $(WORK_DIR) \
-	  po4a/$*/$(PACKAGE)-$*.cfg
-
-stats:	$(patsubst %, stat-%, $(PO4A_SUBDIRS))
-
-stat-%:
-	@for l in $(LANGS); do \
-	  echo -n "$*($$l): "; \
-	  msgfmt --statistics -o /dev/null po4a/$*/$$l.po; \
+	@set -e; for target in $*; do \
+	  p=$$(echo $* | sed -e 's|.*\.\([1-8]\)|man\1/\0|'); \
+	  pofile=po4a/$$p.ja.po; \
+	  potfile=po4a/$$p.pot; \
+	  master=original/$$p; \
+	  trans=draft/$$p; \
+	  addendum=po4a/add_ja/copyright/$(notdir $*).txt; \
+	  mkdir -p $$(dirname $$master); \
+	  if sed -e '1,3!d' $$master | grep -q '^\.so '; then \
+	    echo "Skip link file $$master"; \
+	  else \
+	    po4a-translate $(PO4AFLAGS) -f man -p $$pofile -l $$trans -m $$master \
+	      --addendum $$addendum; \
+	  fi; \
 	done
 
-page-stat:
-	@LC_ALL=C po4a $(PO4AFLAGS) --force -v -k 0 --variable langs='$(LANGS)' \
-	  --previous --srcdir $(WORK_DIR) --destdir $(WORK_DIR) $(PO4ACFG) | \
-	  grep translated | \
-	  sed -e 's/(\([1-9][0-9]*\) strings)/(\1 of \1 strings)/' \
-	      -e 's/[()]//g' \
-	      -e 's/^draft\/man[1-9]\///' | \
-	  awk '{printf("%-15s: %7s (%3s/%3s)\n",$$1,$$3,$$5,$$7);}'
+updatepo:	$(patsubst %,updatepo-%,$(notdir $(MASTER_ROFFS)))
+
+updatepo-%:
+	@set -e; for target in $*; do \
+	  p=$$(echo $* | sed -e 's|.*\.\([1-8]\)|man\1/\0|'); \
+	  pofile=po4a/$$p.ja.po; \
+	  potfile=po4a/$$p.pot; \
+	  master=original/$$p; \
+	  if sed -e '1,3!d' $$master | grep -q '^\.so '; then \
+	    echo "Skip link file $$master"; \
+	  elif [ -f $$pofile ]; then \
+	    echo -n "po4a-updatepo $$pofile <- $$master"; \
+	    po4a-updatepo -f man --previous --msgmerge-opt='$(MSGMERGE_OPTS)' \
+	      -p $$pofile -m $$master; \
+	  else \
+	    echo -n "po4a-gettextize $$pofile <- $$master"; \
+	    mkdir -p $$(dirname $$pofile); \
+	    po4a-gettextize -f man -p $$pofile -m $$master; \
+	    cp $$pofile $$potfile; \
+	    msgmerge $(MSGMERGE_OPTS) -o $$pofile $$pofile $$potfile; \
+	    $(RM) $$potfile; \
+	  fi; \
+	done
+
+stat:
+	@for po in $(POFILES); do \
+	  echo -n $$(basename $$po)": "; \
+	  msgfmt --statistics -o /dev/null $$po; \
+	done
+
+pot:	$(patsubst %,pot-%,$(notdir $(MASTER_ROFFS)))
+
+pot-%:
+	@set -e; for target in $*; do \
+	  p=$$(echo $* | sed -e 's|.*\.\([1-8]\)|man\1/\0|'); \
+	  pofile=po4a/$$p.ja.po; \
+	  potfile=po4a/$$p.pot; \
+	  master=original/$$p; \
+	  if sed -e '1,3!d' $$master | grep -q '^\.so '; then \
+	    echo "Skip link file $$master"; \
+	  else \
+	    echo "po4a-gettextize $$potfile <- $$master"; \
+	    po4a-gettextize -f man -p $$potfile -m $$master; \
+	  fi; \
+	done
+
+pot-clean:
+	$(RM) -v $(POTFILES)
