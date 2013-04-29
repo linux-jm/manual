@@ -2,7 +2,9 @@ THRESH = 100
 EXTFLAGS =
 PO4AFLAGS += -k $(THRESH) $(EXTFLAGS)
 
-MASTER_ROFFS = $(wildcard original/*/*.[1-8])
+MASTER_CMD = $(wildcard original/man[^23]/*.[1-8])
+MASTER_LIB = $(wildcard original/man[23]/*.[1-8])
+MASTER_ROFFS = $(MASTER_CMD) $(MASTER_LIB)
 TRANS_ROFFS = $(patsubst original/%,draft/%,$(MASTER_ROFFS))
 POFILES = $(wildcard po4a/*/*.ja.po)
 POTFILES = $(wildcard po4a/*/*.pot)
@@ -12,10 +14,13 @@ WORK_DIR = .
 
 all:	translate
 
-translate:	$(patsubst %,translate-%,$(notdir $(MASTER_ROFFS)))
+translate:	translate-cmd translate-lib
+translate-cmd:	$(patsubst %,_translate-%,$(notdir $(MASTER_CMD)))
+translate-lib:	$(patsubst %,_translate-%,$(notdir $(MASTER_LIB)))
 
-translate-%:
+_translate-%:
 	@set -e; for target in $*; do \
+	  echo $$target; \
 	  p=$$(echo $* | sed -e 's|.*\.\([1-8]\)|man\1/\0|'); \
 	  pofile=po4a/$$p.ja.po; \
 	  potfile=po4a/$$p.pot; \
@@ -31,9 +36,9 @@ translate-%:
 	  fi; \
 	done
 
-updatepo:	$(patsubst %,updatepo-%,$(notdir $(MASTER_ROFFS)))
+updatepo:	$(patsubst %,_updatepo-%,$(notdir $(MASTER_ROFFS)))
 
-updatepo-%:
+_updatepo-%:
 	@set -e; for target in $*; do \
 	  p=$$(echo $* | sed -e 's|.*\.\([1-8]\)|man\1/\0|'); \
 	  pofile=po4a/$$p.ja.po; \
@@ -61,9 +66,9 @@ stat:
 	  msgfmt --statistics -o /dev/null $$po; \
 	done
 
-pot:	$(patsubst %,pot-%,$(notdir $(MASTER_ROFFS)))
+pot:	$(patsubst %,_pot-%,$(notdir $(MASTER_ROFFS)))
 
-pot-%:
+_pot-%:
 	@set -e; for target in $*; do \
 	  p=$$(echo $* | sed -e 's|.*\.\([1-8]\)|man\1/\0|'); \
 	  pofile=po4a/$$p.ja.po; \
