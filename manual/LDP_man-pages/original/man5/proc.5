@@ -59,7 +59,7 @@
 .\" to see what information could be imported from that file
 .\" into this file.
 .\"
-.TH PROC 5 2013-02-11 "Linux" "Linux Programmer's Manual"
+.TH PROC 5 2013-04-17 "Linux" "Linux Programmer's Manual"
 .SH NAME
 proc \- process information pseudo-file system
 .SH DESCRIPTION
@@ -118,7 +118,7 @@ set of subsystems bound to the hierarchy
 control group in the hierarchy to which the process belongs
 .RE
 .IP
-This file is only present if the
+This file is present only if the
 .B CONFIG_CGROUPS
 kernel configuration option is enabled.
 .\"
@@ -182,7 +182,7 @@ Thus, to print out the environment of process 1, you would do:
 .nf
 
 .ft CW
-.RB "$" " (cat /proc/1/environ; echo) | tr \(aq\e000\(aq \(aq\en\(aq"
+.RB "$" " strings /proc/1/environ"
 .fi
 .ft P
 .in
@@ -323,34 +323,96 @@ This file displays the soft limit, hard limit, and units of measurement
 for each of the process's resource limits (see
 .BR getrlimit (2)).
 Up to and including Linux 2.6.35,
-this file is protected to only allow reading by the real UID of the process.
+this file is protected to allow reading only by the real UID of the process.
 Since Linux 2.6.36,
 .\" commit 3036e7b490bf7878c6dae952eec5fb87b1106589
 this file is readable by all users on the system.
 .TP
+.IR /proc/[pid]/map_files/ " (since kernel 3.3)
+.\" commit 640708a2cff7f81e246243b0073c66e6ece7e53e
+This subdirectory contains entries corresponding to memory-mapped
+files (see
+.BR mmap (2)).
+Entries are named by memory region start and end
+address pair (expressed as hexadecimal numbers),
+and are symbolic links to the mapped files themselves.
+Here is an example, with the output wrapped and reformatted to fit on an 80-column display:
+.in +4n
+.nf
+
+.RB "$" " ls -l /proc/self/map_files/"
+lr\-\-\-\-\-\-\-\-. 1 root root 64 Apr 16 21:31
+            3252e00000\-3252e20000 \-> /usr/lib64/ld-2.15.so
+\&...
+.fi
+.in
+
+Although these entries are present for memory regions that were
+mapped with  the
+.BR MAP_FILE
+flag, the way anonymous shared memory (regions created with the
+.B MAP_ANON | MAP_SHARED
+flags)
+is implemented in Linux
+means that such regions also appear on this directory.
+Here is an example where the target file is the deleted
+.I /dev/zero
+one:
+.in +4n
+.nf
+
+.RB
+lrw\-\-\-\-\-\-\-. 1 root root 64 Apr 16 21:33
+            7fc075d2f000\-7fc075e6f000 \-> /dev/zero (deleted)
+.fi
+.in
+
+This directory appears only if the
+.B CONFIG_CHECKPOINT_RESTORE
+kernel configuration option is enabled.
+.TP
 .I /proc/[pid]/maps
 A file containing the currently mapped memory regions and their access
 permissions.
+See
+.BR mmap (2)
+for some further information about memory mappings.
 
-The format is:
+The format of the file is:
 
+.in -7n
 .nf
 .ft CW
-address           perms offset  dev   inode   pathname
-08048000-08056000 r-xp 00000000 03:0c 64593   /usr/sbin/gpm
-08056000-08058000 rw-p 0000d000 03:0c 64593   /usr/sbin/gpm
-08058000-0805b000 rwxp 00000000 00:00 0
-40000000-40013000 r-xp 00000000 03:0c 4165    /lib/ld-2.2.4.so
-40013000-40015000 rw-p 00012000 03:0c 4165    /lib/ld-2.2.4.so
-4001f000-40135000 r-xp 00000000 03:0c 45494   /lib/libc-2.2.4.so
-40135000-4013e000 rw-p 00115000 03:0c 45494   /lib/libc-2.2.4.so
-4013e000-40142000 rw-p 00000000 00:00 0
-bffff000-c0000000 rwxp 00000000 00:00 0
 .ft
+.I "address           perms offset  dev   inode       pathname"
+00400000-00452000 r-xp 00000000 08:02 173521      /usr/bin/dbus-daemon
+00651000-00652000 r--p 00051000 08:02 173521      /usr/bin/dbus-daemon
+00652000-00655000 rw-p 00052000 08:02 173521      /usr/bin/dbus-daemon
+00e03000-00e24000 rw-p 00000000 00:00 0           [heap]
+00e24000-011f7000 rw-p 00000000 00:00 0           [heap]
+\&...
+35b1800000-35b1820000 r-xp 00000000 08:02 135522  /usr/lib64/ld-2.15.so
+35b1a1f000-35b1a20000 r--p 0001f000 08:02 135522  /usr/lib64/ld-2.15.so
+35b1a20000-35b1a21000 rw-p 00020000 08:02 135522  /usr/lib64/ld-2.15.so
+35b1a21000-35b1a22000 rw-p 00000000 00:00 0
+35b1c00000-35b1dac000 r-xp 00000000 08:02 135870  /usr/lib64/libc-2.15.so
+35b1dac000-35b1fac000 ---p 001ac000 08:02 135870  /usr/lib64/libc-2.15.so
+35b1fac000-35b1fb0000 r--p 001ac000 08:02 135870  /usr/lib64/libc-2.15.so
+35b1fb0000-35b1fb2000 rw-p 001b0000 08:02 135870  /usr/lib64/libc-2.15.so
+\&...
+f2c6ff8c000-7f2c7078c000 rw-p 00000000 00:00 0    [stack:986]
+\&...
+7fffb2c0d000-7fffb2c2e000 rw-p 00000000 00:00 0   [stack]
+7fffb2d48000-7fffb2d49000 r-xp 00000000 00:00 0   [vdso]
 .fi
+.in
 
-where "address" is the address space in the process that it occupies,
-"perms" is a set of permissions:
+The
+.I address
+field is the address space in the process that the mapping occupies.
+The
+.I perms
+field is a set of permissions:
 
 .nf
 .in +5
@@ -362,10 +424,62 @@ p = private (copy on write)
 .fi
 .in
 
-"offset" is the offset into the file/whatever, "dev" is the device
-(major:minor), and "inode" is the inode on that device.
+The
+.I offset
+field is the offset into the file/whatever;
+.I dev
+is the device
+(major:minor);
+.I inode
+is the inode on that device.
 0 indicates that no inode is associated with the memory region,
-as the case would be with BSS (uninitialized data).
+as would be the case with BSS (uninitialized data).
+
+The
+.I pathname
+field will usually be the file that is backing the mapping.
+For ELF files,
+you can easily coordinate with the
+.I offset
+field by looking at the
+Offset field in the ELF program headers
+.RI ( "readelf\ \-l" ).
+
+There are additional helpful pseudo-paths:
+.RS 12
+.TP
+.IR [stack]
+The initial process's (also known as the main thread's) stack.
+.TP
+.IR [stack:<tid>] " (since Linux 3.4)"
+.\" commit b76437579d1344b612cf1851ae610c636cec7db0
+A thread's stack (where the
+.IR <tid>
+is a thread ID).
+It corresponds to the
+.IR /proc/[pid]/task/[tid]/
+path.
+.TP
+.IR [vdso]
+The virtual dynamically linked shared object.
+.TP
+.IR [heap]
+The process's heap.
+.in
+.fi
+.RE
+.IP
+If the
+.I pathname
+field is blank,
+this is an anonymous mapping as obtained via the
+.BR mmap (2)
+function.
+There is no easy way to coordinate this back to a process's source,
+short of running it through
+.BR gdb (1),
+.BR strace (1),
+or similar.
 
 Under Linux 2.0 there is no field giving pathname.
 .TP
@@ -500,7 +614,7 @@ Currently (as at Linux 2.6.26), only NFS file systems export
 information via this field.
 .RE
 .IP
-This file is only readable by the owner of the process.
+This file is readable only by the owner of the process.
 .TP
 .IR /proc/[pid]/ns/ " (since Linux 3.0)"
 .\" See commit 6b4e306aa3dc94a0545eb9279475b1ab6209a31f
@@ -750,7 +864,7 @@ the amount of the mapping that is currently resident in RAM,
 the number of clean and dirty shared pages in the mapping,
 and the number of clean and dirty private pages in the mapping.
 
-This file is only present if the
+This file is present only if the
 .B CONFIG_MMU
 kernel configuration
 option is enabled.
@@ -1311,7 +1425,7 @@ cat /lib/modules/$(uname \-r)/build/.config
 .in
 .IP
 .I /proc/config.gz
-is only provided if the kernel is configured with
+is provided only if the kernel is configured with
 .BR CONFIG_IKCONFIG_PROC .
 .TP
 .I /proc/cpuinfo
@@ -1476,7 +1590,7 @@ and leases
 .TP
 .IR /proc/malloc " (only up to and including Linux 2.2)"
 .\" It looks like this only ever did something back in 1.0 days
-This file is only present if
+This file is present only if
 .B CONFIG_DEBUG_MALLOC
 was defined during compilation.
 .TP
@@ -1493,7 +1607,7 @@ The list below describes the parameter names and
 the format specifier required to read the field value.
 Except as noted below,
 all of the fields have been present since at least Linux 2.6.0.
-Some fileds are only displayed if the kernel was configured
+Some fileds are displayed only if the kernel was configured
 with various options; those dependencies are noted in the list.
 .RS
 .TP
@@ -1642,8 +1756,9 @@ Memory used by FUSE for temporary writeback buffers.
 .IR CommitLimit " %lu (since Linux 2.6.10)"
 Based on the overcommit ratio ('vm.overcommit_ratio'),
 this is the total amount of  memory currently available to
-be allocated on the system. This limit is only adhered to
-if strict overcommit accounting is enabled (mode 2 in
+be allocated on the system.
+This limit is adhered to
+only if strict overcommit accounting is enabled (mode 2 in
 .IR /proc/sys/vm/overcommit_ratio ).
 The
 .I CommitLimit
@@ -1668,8 +1783,8 @@ has been allocated by processes, even if it has not been
 "used" by them as of yet.
 A process which allocates 1GB of memory (using
 .BR malloc (3)
-or similar), but only touches 300MB of that memory will only show up
-as using 300MB of memory even if it has the address space
+or similar), but touches only 300MB of that memory will show up
+as using only 300MB of memory even if it has the address space
 allocated for the entire 1GB.
 This 1GB is memory which has been "committed" to by the VM
 and can be used at any time by the allocating application.
@@ -2031,7 +2146,7 @@ directory named by the process ID of the same process.
 .TP
 .I /proc/slabinfo
 Information about kernel caches.
-Since Linux 2.6.16 this file is only present if the
+Since Linux 2.6.16 this file is present only if the
 .B CONFIG_SLAB
 kernel configuration option is enabled.
 The columns in
@@ -2377,7 +2492,7 @@ for details.
 These files
 allow you to change the value of the fixed UID and GID.
 The default is 65534.
-Some file systems only support 16-bit UIDs and GIDs, although in Linux
+Some file systems support only 16-bit UIDs and GIDs, although in Linux
 UIDs and GIDs are 32 bits.
 When one of these file systems is mounted
 with writes enabled, any UID or GID that would exceed 65535 is translated
@@ -2526,7 +2641,7 @@ This file
 controls the maximum number of superblocks, and
 thus the maximum number of mounted file systems the kernel
 can have.
-You only need to increase
+You need increase only
 .I super-max
 if you need to mount more file systems than the current value in
 .I super-max
@@ -2563,6 +2678,10 @@ Default values are 4, 2 and 30.
 That is, suspend accounting if 2% or less space is free; resume it
 if 4% or more space is free; consider information about amount of free space
 valid for 30 seconds.
+.TP
+.IR /proc/sys/kernel/cap_last_cap " (since Linux 3.2)"
+See
+.BR capabilities (7).
 .TP
 .IR /proc/sys/kernel/cap-bound " (from Linux 2.2 to 2.6.24)"
 This file holds the value of the kernel
@@ -2697,14 +2816,14 @@ Enabled if nonzero.
 This file contains the path for the kernel module loader.
 The default value is
 .IR /sbin/modprobe .
-The file is only present if the kernel is built with the
+The file is present only if the kernel is built with the
 .B CONFIG_MODULES
 .RB ( CONFIG_KMOD
 in Linux 2.6.26 and earlier)
 option enabled.
 It is described by the Linux kernel source file
 .I Documentation/kmod.txt
-(only present in kernel 2.4 and earlier).
+(present only in kernel 2.4 and earlier).
 .TP
 .IR /proc/sys/kernel/modules_disabled " (since Linux 2.6.31)"
 .\" 3d43321b7015387cfebbe26436d0e9d299162ea1
@@ -2714,7 +2833,7 @@ in an otherwise modular kernel.
 This toggle defaults to off (0), but can be set true (1).
 Once true, modules can be neither loaded nor unloaded,
 and the toggle cannot be set back to false.
-The file is only present if the kernel is built with the
+The file is present only if the kernel is built with the
 .B CONFIG_MODULES
 option enabled.
 .TP
@@ -2723,10 +2842,9 @@ This file defines
 a system-wide limit specifying the maximum number of bytes in
 a single message written on a System V message queue.
 .TP
-.I /proc/sys/kernel/msgmni
+.IR /proc/sys/kernel/msgmni " (since Linux 2.4)"
 This file defines the system-wide limit on the number of
 message queue identifiers.
-(This file is only present in Linux 2.4 onward.)
 .TP
 .I /proc/sys/kernel/msgmnb
 This file defines a system-wide parameter used to initialize the
@@ -2859,6 +2977,10 @@ in the system.
 (Only in kernels up to and including 2.6.7.)
 This file shows the number POSIX real-time signals currently queued.
 .TP
+.IR /proc/sys/kernel/sched_rr_timeslice_ms " (since Linux 3.9)"
+See
+.BR sched_rr_get_interval (2).
+.TP
 .IR /proc/sys/kernel/sem " (since Linux 2.4)"
 This file contains 4 numbers defining limits for System V IPC semaphores.
 These fields are, in order:
@@ -2886,6 +3008,42 @@ the value of
 .BR SG_BIG_BUFF .
 However, there shouldn't be any reason to change this value.
 .TP
+.IR /proc/sys/kernel/shm_rmid_forced " (since Linux 3.1)"
+.\" commit b34a6b1da371ed8af1221459a18c67970f7e3d53
+.\" See also Documentation/sysctl/kernel.txt
+If this file is set to 1, all System V shared memory segments will
+be marked for destruction as soon as the number of attached processes
+falls to zero;
+in other words, it is no longer possible to create shared memory segments
+that exist independently of any attached process.
+.IP
+The effect is as though a
+.BR shmctl (2)
+.B IPC_RMID
+is performed on all existing  segments as well as all segments
+created in the future (until this file is reset to 0).
+Note that existing segments that are attached to no process will be
+immediately destroyed when this file is set to 1.
+Setting this option will also destroy segments that were created,
+but never attached,
+upon termination of the process that created the segment with
+.BR shmget (2).
+.IP
+Setting this file to 1 provides a way of ensuring that
+all System V shared memory segments are counted against the
+resource usage and resource limits (see the description of
+.B RLIMIT_AS
+in
+.BR getrlimit (2))
+of at least one process.
+.IP
+Because setting this file to 1 produces behavior that is nonstandard
+and could also break existing applications,
+the default value in this file is 0.
+Only set this file to 1 if you have a good understanding
+of the semantics of the applications using
+System V shared memory on your system.
+.TP
 .I /proc/sys/kernel/shmall
 This file
 contains the system-wide limit on the total number of pages of
@@ -2901,8 +3059,7 @@ kernel.
 This value defaults to
 .BR SHMMAX .
 .TP
-.I /proc/sys/kernel/shmmni
-(available in Linux 2.4 and onward)
+.IR /proc/sys/kernel/shmmni " (since Linux 2.4)"
 This file
 specifies the system-wide maximum number of System V shared memory
 segments that can be created.
@@ -2928,7 +3085,7 @@ Possible values in this file are:
         128 - allow reboot/poweroff
         256 - allow nicing of all real-time tasks
 
-This file is only present if the
+This file is present only if the
 .B CONFIG_MAGIC_SYSRQ
 kernel configuration option is enabled.
 For further details see the Linux kernel source file
@@ -3023,8 +3180,8 @@ as soon as the corruption is detected.
 Note this is not supported for a few types of pages, like kernel internally
 allocated data or the swap cache, but works for the majority of user pages.
 .IP 0: 4
-Only unmap the corrupted page from all processes and only kill a process
-who tries to access it.
+Only unmap the corrupted page from all processes and kill only a process
+that tries to access it.
 .RE
 .IP
 The kill is performed using a
@@ -3037,7 +3194,7 @@ Processes can handle this if they want to; see
 .BR sigaction (2)
 for more details.
 
-This feature is only active on architectures/platforms with advanced machine
+This feature is active only on architectures/platforms with advanced machine
 check handling and depends on the hardware capabilities.
 
 Applications can override the
@@ -3183,7 +3340,7 @@ The default value is 60.
 Writing a character to this file triggers the same SysRq function as
 typing ALT-SysRq-<character> (see the description of
 .IR /proc/sys/kernel/sysrq ).
-This file is normally only writable by
+This file is normally writable only by
 .IR root .
 For further details see the Linux kernel source file
 .IR Documentation/sysrq.txt .
@@ -3277,7 +3434,8 @@ of thing that needs to be updated very often.
 .BR mount (8),
 .BR netstat (8),
 .BR procinfo (8),
-.BR route (8)
+.BR route (8),
+.BR sysctl (8)
 
 The Linux kernel source files:
 .IR Documentation/filesystems/proc.txt

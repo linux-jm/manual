@@ -37,7 +37,7 @@
 .\" 2002-03-20  Christoph Hellwig <hch@infradead.org>
 .\"	- adopted for Linux
 .\"
-.TH SYSCALL 2 2012-08-14 "Linux" "Linux Programmer's Manual"
+.TH SYSCALL 2 2013-04-07 "Linux" "Linux Programmer's Manual"
 .SH NAME
 syscall \- indirect system call
 .SH SYNOPSIS
@@ -79,6 +79,122 @@ and an error code is stored in
 .BR syscall ()
 first appeared in
 4BSD.
+.SS Architecture-specific requirements
+Each architecture ABI has its own requirements on how
+system call arguments are passed to the kernel.
+For system calls that have a glibc wrapper (e.g., most system calls),
+glibc handles the details of copying arguments to the right registers
+in a manner suitable for the architecture.
+However, when using
+.BR syscall ()
+to make a system call,
+the caller might need to handle architecture-dependent details;
+this requirement is most commonly encountered on certain 32-bit architectures.
+
+For example, on the ARM architecture Embedded ABI (EABI), a
+64-bit value (e.g.,
+.IR "long long" )
+must be aligned to an even register pair.
+Thus, using
+.BR syscall ()
+instead of the wrapper provided by glibc,
+the
+.BR readahead ()
+system call would be invoked as follows on the ARM architecture with the EABI:
+
+.in +4n
+.nf
+syscall(SYS_readahead, fd, 0,
+        (unsigned int) (offset >> 32),
+        (unsigned int) (offset & 0xFFFFFFFF),
+        count);
+.fi
+.in
+.PP
+Since the offset argument is 64 bits, and the first argument
+.RI ( fd )
+is passed in
+.IR r0 ,
+the caller must manually split and align the 64-bit value
+so that it is passed in the
+.IR r2 / r3
+register pair.
+That means inserting a dummy value into
+.I r1
+(the second argument of 0).
+
+Similar issues can occur on MIPS with the O32 ABI,
+on PowerPC with the 32-bit ABI, and on Xtensa.
+.\" Mike Frysinger: this issue ends up forcing MIPS
+.\" O32 to take 7 arguments to syscall()
+
+The affected system calls are
+.BR fadvise64_64 (2),
+.BR ftruncate64 (2),
+.BR posix_fadvise (2),
+.BR pread64 (2),
+.BR pwrite64 (2),
+.BR readahead (2),
+.BR sync_file_range (2),
+and
+.BR truncate64 (2).
+.SS Architecture calling conventions
+Every architecture has its own way of invoking and passing arguments to the
+kernel.
+The details for various architectures are listed in the two tables below.
+
+The first table lists the instruction used to transition to kernel mode,
+(which might not be the fastest or best way to transition to the kernel,
+so you might have to refer to the VDSO),
+the register used to indicate the system call number,
+and the register used to return the system call result.
+.if t \{\
+.ft CW
+\}
+.TS
+l l1 l l1 l.
+arch/ABI	instruction	syscall #	retval	Notes
+_
+arm/OABI	swi NR	-	a1	NR is syscall #
+arm/EABI	swi 0x0	r7	r1
+blackfin	excpt 0x0	P0	R0
+i386	int $0x80	eax	eax
+ia64	break 0x100000	r15	r10/r8
+parisc	ble 0x100(%sr2, %r0)	r20	r28
+sparc/32	t 0x10	g1	o0
+sparc/64	t 0x6d	g1	o0	
+x86_64	syscall	rax	rax
+.TE
+.if t \{\
+.in
+.ft P
+\}
+.PP
+The second table shows the registers used to pass the system call arguments.
+.if t \{\
+.ft CW
+\}
+.TS
+l l l l l l l l.
+arch/ABI	arg1	arg2	arg3	arg4	arg5	arg6	arg7
+_
+arm/OABI	a1	a2	a3	a4	v1	v2	v3
+arm/EABI	r1	r2	r3	r4	r5	r6	r7
+blackfin	R0	R1	R2	R3	R4	R5	-
+i386	ebx	ecx	edx	esi	edi	ebp	-
+ia64	r11	r9	r10	r14	r15	r13	-
+parisc	r26	r25	r24	r23	r22	r21	-
+sparc/32	o0	o1	o2	o3	o4	o5	-
+sparc/64	o0	o1	o2	o3	o4	o5	-
+x86_64	rdi	rsi	rdx	r10	r8	r9	-
+.TE
+.if t \{\
+.in
+.ft P
+\}
+.PP
+Note that these tables don't cover the entire calling convention\(emsome
+architectures may indiscriminately clobber other registers not listed here.
 .SH EXAMPLE
 .nf
 #define _GNU_SOURCE

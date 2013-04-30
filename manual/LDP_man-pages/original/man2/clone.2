@@ -42,37 +42,63 @@
 .\" FIXME Document CLONE_NEWUSER, which is new in 2.6.23
 .\"       (also supported for unshare()?)
 .\"
-.TH CLONE 2 2013-01-01 "Linux" "Linux Programmer's Manual"
+.TH CLONE 2 2013-04-16 "Linux" "Linux Programmer's Manual"
 .SH NAME
 clone, __clone2 \- create a child process
 .SH SYNOPSIS
 .nf
-.BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
-.\" Actually _BSD_SOURCE || _SVID_SOURCE
-.\" FIXME See http://sources.redhat.com/bugzilla/show_bug.cgi?id=4749
+/* Prototype for the glibc wrapper function */
+
 .B #include <sched.h>
 
 .BI "int clone(int (*" "fn" ")(void *), void *" child_stack ,
 .BI "          int " flags ", void *" "arg" ", ... "
 .BI "          /* pid_t *" ptid ", struct user_desc *" tls \
 ", pid_t *" ctid " */ );"
+
+/* Prototype for the raw system call */
+
+.BI "long clone(unsigned long " flags ", void *" child_stack ,
+.BI "          void *" ptid ", void *" ctid ,
+.BI "          struct pt_regs *" regs );
 .fi
+.sp
+.in -4n
+Feature Test Macro Requirements for glibc wrapper function (see
+.BR feature_test_macros (7)):
+.in
+.sp
+.BR clone ():
+.ad l
+.RS 4
+.PD 0
+.TP 4
+Since glibc 2.14:
+_GNU_SOURCE
+.TP 4
+.\" FIXME See http://sources.redhat.com/bugzilla/show_bug.cgi?id=4749
+Before glibc 2.14:
+_BSD_SOURCE || _SVID_SOURCE
+    /* _GNU_SOURCE also suffices */
+.PD
+.RE
+.ad b
 .SH DESCRIPTION
 .BR clone ()
 creates a new process, in a manner similar to
 .BR fork (2).
-It is actually a library function layered on top of the underlying
+
+This page describes both the glibc
 .BR clone ()
-system call, hereinafter referred to as
-.BR sys_clone .
-A description of
-.B sys_clone
-is given toward the end of this page.
+wrapper function and the underlying system call on which it is based.
+The main text describes the wrapper function;
+the differences for the raw system call
+are described toward the end of this page.
 
 Unlike
 .BR fork (2),
-these calls
-allow the child process to share parts of its execution context with
+.BR clone ()
+allows the child process to share parts of its execution context with
 the calling process, such as the memory space, the table of file
 descriptors, and the table of signal handlers.
 (Note that on this manual
@@ -293,7 +319,7 @@ This flag can't be specified in conjunction with
 .TP
 .BR CLONE_NEWNET " (since Linux 2.6.24)"
 .\" FIXME Check when the implementation was completed
-(The implementation of this flag was only completed
+(The implementation of this flag was completed only
 by about kernel version 2.6.29.)
 
 If
@@ -760,9 +786,9 @@ space of the calling process at the time of
 Memory writes or file mappings/unmappings performed by one of the
 processes do not affect the other, as with
 .BR fork (2).
-.SS sys_clone
-The
-.B sys_clone
+.SS The raw system call interface
+The raw
+.BR clone ()
 system call corresponds more closely to
 .BR fork (2)
 in that execution in the child continues from the point of the
@@ -775,7 +801,7 @@ arguments of the
 .BR clone ()
 wrapper function are omitted.
 Furthermore, the argument order changes.
-The raw system call interface is roughly:
+The raw system call interface on x86 and many other architectures is roughly:
 .in +4
 .nf
 
@@ -785,9 +811,7 @@ The raw system call interface is roughly:
 
 .fi
 .in
-Another difference for
-.B sys_clone
-is that the
+Another difference for the raw system call is that the
 .I child_stack
 argument may be zero, in which case copy-on-write semantics ensure that the
 child gets separate copies of stack pages when either process modifies
@@ -795,6 +819,50 @@ the stack.
 In this case, for correct operation, the
 .B CLONE_VM
 option should not be specified.
+
+For some architectures, the order of the arguments for the system call
+differs from that shown above.
+On the score, microblaze, ARM, ARM 64, PA-RISC, arc, Power PC, xtensa,
+and MIPS architectures,
+the order of the fourth and fifth arguments is reversed.
+On the cris and s390 architectures,
+the order of the first and second arguments is reversed.
+.SS blackfin, m68k, and sparc
+The argument-passing conventions on
+blackfin, m68k, and sparc are different from descriptions above.
+For details, see the kernel (and glibc) source.
+.SS ia64
+On ia64, a different interface is used:
+.nf
+
+.BI "int __clone2(int (*" "fn" ")(void *), "
+.BI "             void *" child_stack_base ", size_t " stack_size ,
+.BI "             int " flags ", void *" "arg" ", ... "
+.BI "          /* pid_t *" ptid ", struct user_desc *" tls \
+", pid_t *" ctid " */ );"
+.fi
+.PP
+The prototype shown above is for the glibc wrapper function;
+the raw system call interface has no
+.I fn
+or
+.I arg
+argument, and changes the order of the arguments so that
+.I flags
+is the first argument, and
+.I tls
+is the last argument.
+.PP
+.BR __clone2 ()
+operates in the same way as
+.BR clone (),
+except that
+.I child_stack_base
+points to the lowest address of the child's stack area,
+and
+.I stack_size
+specifies the size of the stack pointed to by
+.IR child_stack_base .
 .SS Linux 2.4 and earlier
 In Linux 2.4 and earlier,
 .BR clone ()
@@ -928,11 +996,8 @@ glibc2 provides
 .BR clone ()
 as described in this manual page.
 .SH CONFORMING TO
-The
 .BR clone ()
-and
-.B sys_clone
-calls are Linux-specific and should not be used in programs
+is Linux-specific and should not be used in programs
 intended to be portable.
 .SH NOTES
 In the kernel 2.4.x series,
@@ -959,28 +1024,6 @@ On i386,
 .BR clone ()
 should not be called through vsyscall, but directly through
 .IR "int $0x80" .
-
-On ia64, a different system call is used:
-.nf
-
-.BI "int __clone2(int (*" "fn" ")(void *), "
-.BI "             void *" child_stack_base ", size_t " stack_size ,
-.BI "             int " flags ", void *" "arg" ", ... "
-.BI "          /* pid_t *" ptid ", struct user_desc *" tls \
-", pid_t *" ctid " */ );"
-.fi
-.PP
-The
-.BR __clone2 ()
-system call operates in the same way as
-.BR clone (),
-except that
-.I child_stack_base
-points to the lowest address of the child's stack area,
-and
-.I stack_size
-specifies the size of the stack pointed to by
-.IR child_stack_base .
 .SH BUGS
 Versions of the GNU C library that include the NPTL threading library
 contain a wrapper function for
