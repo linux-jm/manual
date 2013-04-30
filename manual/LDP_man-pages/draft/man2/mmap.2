@@ -1,0 +1,426 @@
+.\" Copyright (C) 1996 Andries Brouwer <aeb@cwi.nl>
+.\" and Copyright (C) 2006, 2007 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\" Modified 1997-01-31 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified 2000-03-25 by Jim Van Zandt <jrv@vanzandt.mv.com>
+.\" Modified 2001-10-04 by John Levon <moz@compsoc.man.ac.uk>
+.\" Modified 2003-02-02 by Andi Kleen <ak@muc.de>
+.\" Modified 2003-05-21 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	MAP_LOCKED works from 2.5.37
+.\" Modified 2004-06-17 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Modified 2004-09-11 by aeb
+.\" Modified 2004-12-08, from Eric Estievenart <eric.estievenart@free.fr>
+.\" Modified 2004-12-08, mtk, formatting tidy-ups
+.\" Modified 2006-12-04, mtk, various parts rewritten
+.\" 2007-07-10, mtk, Added an example program.
+.\" 2008-11-18, mtk, document MAP_STACK
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH MMAP 2 2013\-04\-17 Linux "Linux Programmer's Manual"
+.SH 名前
+mmap, munmap \- ファイルやデバイスをメモリにマップ/アンマップする
+.SH 書式
+.nf
+\fB#include <sys/mman.h>\fP
+.sp
+\fBvoid *mmap(void *\fP\fIaddr\fP\fB, size_t \fP\fIlength\fP\fB, int \fP\fIprot\fP\fB, int \fP\fIflags\fP\fB,\fP
+\fB           int \fP\fIfd\fP\fB, off_t \fP\fIoffset\fP\fB);\fP
+\fBint munmap(void *\fP\fIaddr\fP\fB, size_t \fP\fIlength\fP\fB);\fP
+.fi
+
+See NOTES for information on feature test macro requirements.
+.SH 説明
+\fBmmap\fP()  は、新しいマッピングを呼び出し元プロセスの仮想アドレス空間に作成する。 新しいマッピングの開始アドレスは \fIaddr\fP
+で指定される。マッピングの長さは \fIlength\fP 引き数で指定される。
+
+.\" Before Linux 2.6.24, the address was rounded up to the next page
+.\" boundary; since 2.6.24, it is rounded down!
+\fIaddr\fP が NULL の場合、カーネルがマッピングを作成するアドレスを選択する。 この方法は最も移植性のある新しいマッピングの作成方法である。
+\fIaddr\fP が NULL でない場合、カーネルはマッピングをどこに配置するかのヒントとして \fIaddr\fP を使用する。Linux
+では、マッピングはすぐ近くのページ境界に作成される。 新しいマッピングのアドレスは、呼び出しの返り値として返される。
+
+ファイルマッピングの内容は、 ファイルディスクリプタ \fIfd\fP で参照されるファイル (もしくは他のオブジェクト) のオフセット \fIoffset\fP
+から開始される \fIlength\fP バイトのデータで初期化される (ファイルマッピングは無名マッピングの反対語である。 \fBMAP_ANONYMOUS\fP
+を参照)。 \fIoffset\fP は \fIsysconf(_SC_PAGE_SIZE)\fP が返すページサイズの倍数でなければならない。
+.LP
+引き数 \fIprot\fP には、マッピングのメモリ保護をどのように行なうかを指定する (ファイルのオープンモードと矛盾してはいけない)。 \fIprot\fP
+には、 \fBPROT_NONE\fP か、以下のフラグをひとつ以上ビット毎の論理和 (OR) をとったものを 指定できる。
+.TP  1.1i
+\fBPROT_EXEC\fP
+ページは実行可能である。
+.TP 
+\fBPROT_READ\fP
+ページは読み込み可能である。
+.TP 
+\fBPROT_WRITE\fP
+ページに書き込み可能である。
+.TP 
+\fBPROT_NONE\fP
+ページにはアクセスできない。
+.LP
+\fIflags\fP 引き数により、マッピングに対する更新が同じ領域をマッピングしている 他のプロセスに見えるか、更新がマッピング元のファイルを通じて
+伝えられるか、が決定される。この動作は、以下の値のいずれか一つだけ (複数は指定できない) を \fIflags\fP に含めることで指定する。
+.TP  1.1i
+\fBMAP_SHARED\fP
+このマッピングを共有する。 マッピングに対する更新はこのファイルをマッピングしている他のプロセス
+から見える。更新はマッピング元のファイルを通じて伝えられる。 ただし、ファイルの実際の更新は \fBmsync\fP(2)  または \fBmunmap\fP()
+が呼ばれるまで行われないこともある。
+.TP 
+\fBMAP_PRIVATE\fP
+プライベートな copy\-on\-write (書き込み時コピー) マップを生成する。
+マッピングに対する更新は同じファイルをマッピングしている他のプロセス には見えず、更新がマッピング元のファイルを通じて伝えられることもない。
+\fBmmap\fP()  の呼び出し後にマッピング元のファイルに対して行われた変更が、 マップ領域に反映されるかどうかは規定されていない。
+.LP
+上記の二つのフラグは POSIX.1\-2001 で規定されている。
+
+さらに、以下の値のうち 0 個以上をビット毎の論理和 (OR) で \fIflags\fP に指定することができる。
+.TP 
+\fBMAP_32BIT\fP (Linux 2.4.20, 2.6 以降)
+.\" See http://lwn.net/Articles/294642 "Tangled up in threads", 19 Aug 08
+マッピングをプロセスのアドレス空間の先頭 2 ギガバイト以内に配置する。 このフラグがサポートされているのは x86\-64 アーキテクチャ上の 64
+ビットプログラムのみである。 このフラグが追加されたのは、スレッドのスタックをメモリの先頭 2GB 以内の どこかに割り当てることで、初期のいくつかの
+64 ビットプロセッサにおける コンテキストスイッチの性能問題を改善するためである。 最近の x86\-64 プロセッサではこの性能問題はもはや存在せず、
+そのようなシステムではこのフラグを使用する必要はない。 \fBMAP_FIXED\fP がセットされている場合は、 \fBMAP_32BIT\fP
+フラグは無視される。
+.TP 
+\fBMAP_ANON\fP
+\fBMAP_ANONYMOUS\fP の同義語。非推奨。
+.TP 
+\fBMAP_ANONYMOUS\fP
+マッピングはどのファイルとも関連付けされない。 マッピングの内容は 0 で初期化される。 引き数 \fIfd\fP と \fIoffset\fP は無視される。
+ただし、実装によっては \fBMAP_ANONYMOUS\fP (もしくは \fBMAP_ANON\fP)  が指定された場合、 \fIfd\fP を \-1
+にする必要があり、 移植性が必要なアプリケーションでは必ず \fIfd\fP を \-1 にすべきである。 \fBMAP_ANONYMOUS\fP と
+\fBMAP_SHARED\fP を組み合わせての利用は カーネル 2.4 以降の Linux でのみサポートされている。
+.TP 
+\fBMAP_DENYWRITE\fP
+.\" Introduced in 1.1.36, removed in 1.3.24.
+このフラグは無視される (ずっと前は、マップ元のファイルへの書き込みを行おうとすると、エラー \fBETXTBUSY\fP
+で失敗するようにシグナルが設定されていたが、これは denial\-of\-service (サービス拒否) 攻撃の原因となった)。
+.TP 
+\fBMAP_EXECUTABLE\fP
+.\" Introduced in 1.1.38, removed in 1.3.24. Flag tested in proc_follow_link.
+.\" (Long ago, it signaled that the underlying file is an executable.
+.\" However, that information was not really used anywhere.)
+.\" Linus talked about DOS related to MAP_EXECUTABLE, but he was thinking of
+.\" MAP_DENYWRITE?
+このフラグは無視される。
+.TP 
+\fBMAP_FILE\fP
+.\" On some systems, this was required as the opposite of
+.\" MAP_ANONYMOUS -- mtk, 1 May 2007
+互換性のためのフラグ。無視される。
+.TP 
+\fBMAP_FIXED\fP
+\fIaddr\fP をアドレスのヒントとして使用するのではなく、 \fIaddr\fP で指定されたアドレスをそのまま使用してマッピングを配置する。
+\fIaddr\fP はページサイズの倍数でなければならない。 \fIaddr\fP と \fIlen\fP
+で指定されたメモリ領域が既存のマッピングのページと重なる場合、 既存のマッピングの重なった部分は捨てられる。 もし指定されたアドレスが使用できない場合、
+\fBmmap\fP()  は失敗する。 マッピングに対して固定アドレスを要求するのは移植性の面で劣るので、 このオプションは使用しないことを推奨する。
+.TP 
+\fBMAP_GROWSDOWN\fP
+スタック用に使用される。マッピングをメモリ内で逆向きに行うことを カーネル仮想メモリシステムに指示する。
+(訳注：マッピングは通常はメモリ・アドレスが増加する向きに行うが、 このオプションを指定すると逆向きにマッピングを行う)
+.TP 
+\fBMAP_HUGETLB\fP (Linux 2.6.32 以降)
+"huge page" を使ってマッピングを割り当てる。詳しい情報は、Linux カーネルソースの
+\fIDocumentation/vm/hugetlbpage.txt\fP を参照。
+.TP 
+\fBMAP_LOCKED\fP (Linux 2.5.37 以降)
+.\" If set, the mapped pages will not be swapped out.
+マップされた領域のページを \fBmlock\fP(2)  の方法でメモリ内にロックする。 それ以前のカーネルでは、このフラグは無視される。
+.TP 
+\fBMAP_NONBLOCK\fP (Linux 2.5.46 以降)
+\fBMAP_POPULATE\fP と組み合わせた場合のみ意味を持つ。 read\-ahead (前もって読み込むこと) を実行しない。 単に、すでに RAM
+上に存在するページに対してのみページテーブルエントリを作成する。 Linux 2.6.23 以降では、このフラグは \fBMAP_POPULATE\fP
+に何の影響も与えない。 いつか \fBMAP_POPULATE\fP と \fBMAP_NONBLOCK\fP
+を組み合わせた場合の動作は実装し直されるかもしれない。
+.TP 
+\fBMAP_NORESERVE\fP
+このマッピングに対するスワップ空間の予約を行わない。 スワップ空間を予約した場合は、このマッピングの変更が必ず可能なことが
+保証される。予約を行わなかった場合、物理メモリに空きがないと 書き込み時に \fBSIGSEGV\fP エラーを受け取ることがある。 \fBproc\fP(5)
+の \fI/proc/sys/vm/overcommit_memory\fP ファイルについての議論も参照。 バージョン 2.6
+より前のカーネルでは、このフラグは書き込み可能な プライベート・マッピングについてのみ効果があった。
+.TP 
+\fBMAP_POPULATE\fP (Linux 2.5.46 以降)
+マッピング用のページテーブルを配置 (populate) する ファイルマッピングの場合には、これによりファイルが先読み (read\-ahead)
+が行われる。この以後は、マッピングに対するアクセスがページフォールトで ブロックされることがなくなる。 Linux 2.6.23
+以降でのみプライベート・マッピングについて \fBMAP_POPULATE\fP がサポートされている。
+.TP 
+\fBMAP_STACK\fP (Linux 2.6.27 以降)
+.\" See http://lwn.net/Articles/294642 "Tangled up in threads", 19 Aug 08
+.\" commit cd98a04a59e2f94fa64d5bf1e26498d27427d5e7
+.\" http://thread.gmane.org/gmane.linux.kernel/720412
+.\" "pthread_create() slow for many threads; also time to revisit 64b
+.\"  context switch optimization?"
+プロセスやスレッドのスタックに適したアドレスにマッピングを割り当てる。 現在のところ、このフラグは何もしないが、 glibc
+のスレッド実装では使用されている。 これは、いくつかのアーキテクチャではスタックの割り当てに関して特別な扱い が必要な場合に、glibc
+にそのサポートを後で透過的に実装できるようにする ためである。
+.TP 
+\fBMAP_UNINITIALIZED\fP (Linux 2.6.33 以降)
+無名ページ (anonymous page) のクリアを行わない。このフラグは組み込みデバイス
+での性能向上を目的に作られてものである。カーネルの設定で
+\fBCONFIG_MMAP_ALLOW_UNINITIALIZED\fP オプションが有効になっている場合のみ、
+このフラグは効果を持つ。
+セキュリティ面の考慮から、このオプションは通常組み込みデバイス (すなわち、
+ユーザメモリの内容を完全に制御化におけるデバイス) においてのみ有効にされる。
+.LP
+上記のフラグの中では、 \fBMAP_FIXED\fP だけが POSIX.1\-2001 で規定されている。 しかしながら、ほとんどのシステムで
+\fBMAP_ANONYMOUS\fP (またはその同義語である \fBMAP_ANON\fP)  もサポートされている。
+.LP
+いくつかのシステムでは、上記以外にフラグとして \fBMAP_AUTOGROW\fP, \fBMAP_AUTORESRV\fP, \fBMAP_COPY\fP,
+\fBMAP_LOCAL\fP が規定されている。
+.LP
+\fBmmap\fP()  によってマップされたメモリの属性は \fBfork\fP(2)  の際に継承される。
+.LP
+ファイルはページサイズの整数倍の領域にマップされる。サイズがページサイズの 整数倍でないファイルの場合、マップ時に残りの領域は 0
+で埋められ、この領域へ 書きこみを行ってもファイルに書き出されることはない。マッピングを行った元
+ファイルのサイズを変更した場合、元ファイルの追加されたり削除された領域に対応 するマップされたページに対してどのような影響があるかは規定されていない。
+.SS munmap()
+システムコール \fBmunmap\fP()  は指定されたアドレス範囲のマップを消去し、 これ以降のその範囲内へのメモリ参照は不正となる。
+この領域は、プロセスが終了したときにも自動的にアンマップされる。 一方、ファイル記述子をクローズしても、この領域はアンマップされない。
+.LP
+\fIaddr\fP アドレスはページサイズの整数倍でなければならない。指定された範囲の一部分を
+含む全てのページはアンマップされ、これ以降にこれらのページへの参照があると \fBSIGSEGV\fP が発生する。
+指定した範囲内にマップされたページが一つも含まれていない場合でも エラーにならない。
+.SS ファイルと関連付けられたマッピングに対するタイムスタンプの更新
+ファイルと関連付けられたマッピングの場合、マッピングされたファイルの \fIst_atime\fP フィールドは、 \fBmmap\fP()  されてからアンマップ
+(unmap) されるまでの間に更新されることがある。 それまでに更新が行われていなければ、マップされたページへの最初の参照があった 際に更新される。
+.LP
+\fBPROT_WRITE\fP と \fBMAP_SHARED\fP の両方を指定してマップされたファイルの場合、書き込みがあると、 \fIst_ctime\fP と
+\fIst_mtime\fP の両フィールドは、マップされた領域への書き込みより後で、 \fBMS_SYNC\fP または \fBMS_ASYNC\fP フラグを指定して
+\fBmsync\fP(2)  が呼ばれる前までに更新される。
+.SH 返り値
+\fBmmap\fP()  は成功するとマップされた領域へのポインタを返す。 失敗すると値 \fBMAP_FAILED\fP (つまり \fI(void\ *)\ \-1\fP)  を返し、 \fIerrno\fP がエラーの内容にしたがってセットされる。 \fBmunmap\fP()  は成功すると 0 を返す。失敗すると \-1
+を返し、 \fIerrno\fP がセットされる (多くの場合 \fBEINVAL\fP になるだろう)。
+.SH エラー
+.TP 
+\fBEACCES\fP
+以下のいずれかの場合。 ファイル記述子の参照先が通常のファイルではない (non\-regular file) 。 \fBMAP_PRIVATE\fP
+を要求したが \fIfd\fP は読み込み用にオープンされていない。 \fBMAP_SHARED\fP を要求して \fBPROT_WRITE\fP をセットしたが
+\fIfd\fP は読み書きモード (\fBO_RDWR\fP)  でオープンされていない、 \fBPROT_WRITE\fP をセットしたが、ファイルは追加
+(append) 専用である。
+.TP 
+\fBEAGAIN\fP
+ファイルがロックされている。またはロックされているメモリが多すぎる (\fBsetrlimit\fP(2)  を参照)。
+.TP 
+\fBEBADF\fP
+\fIfd\fP が有効なファイル記述子 (file descriptor) ではない (かつ \fBMAP_ANONYMOUS\fP がセットされていない)。
+.TP 
+\fBEINVAL\fP
+\fIaddr\fP か \fIlength\fP か \fIoffset\fP が適切でない (例えば、大きすぎるとか、ページ境界にアラインメントされていない)。
+.TP 
+\fBEINVAL\fP
+(Linux 2.6.12 以降)  \fIlength\fP が 0 であった。
+.TP 
+\fBEINVAL\fP
+\fIflags\fP に \fBMAP_PRIVATE\fP と \fBMAP_SHARED\fP のどちらも含まれていなかった、もしくは その両方が含まれていた。
+.TP 
+\fBENFILE\fP
+.\" This is for shared anonymous segments
+.\" [2.6.7] shmem_zero_setup()-->shmem_file_setup()-->get_empty_filp()
+.\" .TP
+.\" .B ENOEXEC
+.\" A file could not be mapped for reading.
+システム全体でオープンされているファイルの総数が上限に達した。
+.TP 
+\fBENODEV\fP
+指定されたファイルが置かれているファイルシステムがメモリマッピングをサポート していない。
+.TP 
+\fBENOMEM\fP
+メモリに空きがない、または処理中のプロセスのマッピング数が最大数を超過した。
+.TP 
+\fBEPERM\fP
+.\" (Since 2.4.25 / 2.6.0.)
+\fIprot\fP 引き数は \fBPROT_EXEC\fP を行うように指定されているが、 no\-exec でマウントされたファイルシステム上のファイルに
+マップ領域が対応している。
+.TP 
+\fBETXTBSY\fP
+\fBMAP_DENYWRITE\fP がセットされているが \fIfd\fP で指定されているオブジェクトは書き込み用に開かれている。
+.TP 
+\fBEOVERFLOW\fP
+On 32\-bit architecture together with the large file extension (i.e., using
+64\-bit \fIoff_t\fP): the number of pages used for \fIlength\fP plus number of
+pages used for \fIoffset\fP would overflow \fIunsigned long\fP (32 bits).
+.LP
+マップ領域を利用する際に、以下のシグナルが発生することがある:
+.TP 
+\fBSIGSEGV\fP
+読み込み専用で mmap された領域へ書き込みを行おうとした。
+.TP 
+\fBSIGBUS\fP
+バッファのうち、ファイルに関連づけられていない部分 (例えばファイル末尾を越えた部分など。これには
+他のプロセスがファイルを切り詰めた場合なども含まれる)  にアクセスしようとした。
+.SH 準拠
+.\" SVr4 documents additional error codes ENXIO and ENODEV.
+.\" SUSv2 documents additional error codes EMFILE and EOVERFLOW.
+SVr4, 4.4BSD, POSIX.1\-2001.
+.SH 可用性
+.\" POSIX.1-2001: It shall be defined to -1 or 0 or 200112L.
+.\" -1: unavailable, 0: ask using sysconf().
+.\" glibc defines it to 1.
+\fBmmap\fP(), \fBmsync\fP(2)  \fBmunmap\fP()  が利用可能な POSIX システムでは、
+\fB_POSIX_MAPPED_FILES\fP は <unistd.h> で 0 より大きな値に定義される (\fBsysconf\fP(3)
+も参照のこと)。
+.SH 注意
+.\" Since around glibc 2.1/2.2, depending on the platform.
+このページでは glibc の \fBmmap\fP() のラッパー関数が提供するインターフェースに
+ついて説明している。元々は、この関数は同じ名前のシステムコールを起動していた。
+カーネル 2.4 以降、このシステムコールは \fBmmap2\fP(2) に取って代わられ、現在
+では、 glibc の \fBmmap\fP() のラッパー関数は \fIoffset\fP を適切に調整してから
+\fBmmap2\fP(2) を起動する。
+
+(i386 などの) いくつかのアーキテクチャでは、 \fBPROT_WRITE\fP をセットすると、暗黙のうちに \fBPROT_READ\fP
+がセットされる。 \fBPROT_READ\fP をセットした際に暗黙のうちに \fBPROT_EXEC\fP がセットされるかどうかは、アーキテクチャ依存である。
+移植性を考慮したプログラムでは、 新規にマップした領域でコードを実行したい場合は、常に \fBPROT_EXEC\fP をセットすべきである。
+
+マッピングを作成する移植性のある方法は、 \fIaddr\fP に 0 (NULL) を指定し、 \fIflags\fP から \fBMAP_FIXED\fP
+を外すことである。 この場合、システムがマッピング用のアドレスの選択を行う。 アドレスは既存のマッピングと衝突しないように、 かつ 0
+にならないように選択される。 \fBMAP_FIXED\fP フラグが指定され、かつ \fIaddr\fP が 0 (NULL)
+の場合には、マップされるアドレスが 0 (NULL) になる。
+
+Certain \fIflags\fP constants are defined only if either \fB_BSD_SOURCE\fP or
+\fB_SVID_SOURCE\fP is defined.  (Requiring \fB_GNU_SOURCE\fP also suffices, and
+requiring that macro specifically would have been more logical, since these
+flags are all Linux specific.)  The relevant flags are: \fBMAP_32BIT\fP,
+\fBMAP_ANONYMOUS\fP (and the synonym \fBMAP_ANON\fP), \fBMAP_DENYWRITE\fP,
+\fBMAP_EXECUTABLE\fP, \fBMAP_FILE\fP, \fBMAP_GROWSDOWN\fP, \fBMAP_HUGETLB\fP,
+\fBMAP_LOCKED\fP, \fBMAP_NONBLOCK\fP, \fBMAP_NORESERVE\fP, \fBMAP_POPULATE\fP, and
+\fBMAP_STACK\fP.
+.SH バグ
+Linux においては、上記の \fBMAP_NORESERVE\fP で述べられているような保証はない。
+デフォルトでは、システムがメモリを使い切った場合には、 どのプロセスがいつ強制終了されるか分からないからである。
+
+2.6.7 より前のカーネルでは、 \fIprot\fP に \fBPROT_NONE\fP が指定された場合にのみ、 \fBMAP_POPULATE\fP
+フラグが効力を持つ。
+
+SUSv3 では、 \fIlength\fP が 0 の場合、 \fBmmap\fP()  は失敗すると規定されている。しかしながら、2.6.12
+より前のカーネルでは、 この場合に \fBmmap\fP()  は成功していた (マッピングは作成されず、 \fIaddr\fP が返されていた)。 カーネル
+2.6.12 以降では、 \fBmmap\fP()  はエラー \fBEINVAL\fP で失敗する。
+
+POSIX specifies that the system shall always zero fill any partial page at
+the end of the object and that system will never write any modification of
+the object beyond its end.  On Linux, when you write data to such partial
+page after the end of the object, the data stays in the page cache even
+after the file is closed and unmapped and even though the data is never
+written to the file itself, subsequent mappings may see the modified
+content.  In some cases, this could be fixed by calling \fBmsync\fP(2)  before
+the unmap takes place; however, this doesn't work on tmpfs (for example,
+when using POSIX shared memory interface documented in \fBshm_overview\fP(7)).
+.SH 例
+.\" FIXME . Add an example here that uses an anonymous shared region for
+.\" IPC between parent and child.
+.PP
+以下のプログラムは、一番目のコマンドライン引き数で指定された ファイルの一部を標準出力に表示する。
+表示する範囲は、二番目、三番目のコマンドライン引き数で渡される オフセットと長さで指定される。
+このプログラムは、指定されたファイルの必要なページのメモリ・ マッピングを作成し、 \fBwrite\fP(2)  を使って所望のバイトを出力する。
+.nf
+
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define handle_error(msg) \e
+    do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+int
+main(int argc, char *argv[])
+{
+    char *addr;
+    int fd;
+    struct stat sb;
+    off_t offset, pa_offset;
+    size_t length;
+    ssize_t s;
+
+    if (argc < 3 || argc > 4) {
+        fprintf(stderr, "%s file offset [length]\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    fd = open(argv[1], O_RDONLY);
+    if (fd == \-1)
+        handle_error("open");
+
+    if (fstat(fd, &sb) == \-1)           /* To obtain file size */
+        handle_error("fstat");
+
+    offset = atoi(argv[2]);
+    pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) \- 1);
+        /* offset for mmap() must be page aligned */
+
+    if (offset >= sb.st_size) {
+        fprintf(stderr, "offset is past end of file\en");
+        exit(EXIT_FAILURE);
+    }
+
+    if (argc == 4) {
+        length = atoi(argv[3]);
+        if (offset + length > sb.st_size)
+            length = sb.st_size \- offset;
+                /* Can\(aqt display bytes past end of file */
+
+    } else {    /* No length arg ==> display to end of file */
+        length = sb.st_size \- offset;
+    }
+
+    addr = mmap(NULL, length + offset \- pa_offset, PROT_READ,
+                MAP_PRIVATE, fd, pa_offset);
+    if (addr == MAP_FAILED)
+        handle_error("mmap");
+
+    s = write(STDOUT_FILENO, addr + offset \- pa_offset, length);
+    if (s != length) {
+        if (s == \-1)
+            handle_error("write");
+
+        fprintf(stderr, "partial write");
+        exit(EXIT_FAILURE);
+    }
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+\fBgetpagesize\fP(2), \fBmincore\fP(2), \fBmlock\fP(2), \fBmmap2\fP(2), \fBmprotect\fP(2),
+\fBmremap\fP(2), \fBmsync\fP(2), \fBremap_file_pages\fP(2), \fBsetrlimit\fP(2),
+\fBshmat\fP(2), \fBshm_open\fP(3), \fBshm_overview\fP(7)
+
+The descriptions of the following files in \fBproc\fP(5): \fI/proc/[pid]/maps\fP,
+\fI/proc/[pid]/map_files\fP, and \fI/proc/[pid]/smaps\fP.
+
+.\"
+.\" Repeat after me: private read-only mappings are 100% equivalent to
+.\" shared read-only mappings. No ifs, buts, or maybes. -- Linus
+B.O. Gallmeister, POSIX.4, O'Reilly, pp. 128\-129 and 389\-391.
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.51 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

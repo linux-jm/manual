@@ -1,0 +1,2389 @@
+.\" Copyright (C) 1994, 1995 by Daniel Quinlan (quinlan@yggdrasil.com)
+.\" and Copyright (C) 2002-2008 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" with networking additions from Alan Cox (A.Cox@swansea.ac.uk)
+.\" and scsi additions from Michael Neuffer (neuffer@mail.uni-mainz.de)
+.\" and sysctl additions from Andries Brouwer (aeb@cwi.nl)
+.\" and System V IPC (as well as various other) additions from
+.\" Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(GPLv2+_DOC_FULL)
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, see
+.\" <http://www.gnu.org/licenses/>.
+.\" %%%LICENSE_END
+.\"
+.\" Modified 1995-05-17 by faith@cs.unc.edu
+.\" Minor changes by aeb and Marty Leisner (leisner@sdsp.mc.xerox.com).
+.\" Modified 1996-04-13, 1996-07-22 by aeb@cwi.nl
+.\" Modified 2001-12-16 by rwhron@earthlink.net
+.\" Modified 2002-07-13 by jbelton@shaw.ca
+.\" Modified 2002-07-22, 2003-05-27, 2004-04-06, 2004-05-25
+.\"    by Michael Kerrisk <mtk.manpages@gmail.com>
+.\" 2004-11-17, mtk -- updated notes on /proc/loadavg
+.\" 2004-12-01, mtk, rtsig-max and rtsig-nr went away in 2.6.8
+.\" 2004-12-14, mtk, updated 'statm', and fixed error in order of list
+.\" 2005-05-12, mtk, updated 'stat'
+.\" 2005-07-13, mtk, added /proc/sys/fs/mqueue/*
+.\" 2005-09-16, mtk, Added /proc/sys/fs/suid_dumpable
+.\" 2005-09-19, mtk, added /proc/zoneinfo
+.\" 2005-03-01, mtk, moved /proc/sys/fs/mqueue/* material to mq_overview.7.
+.\" 2008-06-05, mtk, Added /proc/[pid]/oom_score, /proc/[pid]/oom_adj,
+.\"     /proc/[pid]/limits, /proc/[pid]/mountinfo, /proc/[pid]/mountstats,
+.\"     and /proc/[pid]/fdinfo/*.
+.\" 2008-06-19, mtk, Documented /proc/[pid]/status.
+.\" 2008-07-15, mtk, added /proc/config.gz
+.\"
+.\" FIXME 2.6.13 seems to have /proc/vmcore implemented
+.\" in the source code, but there is no option available under
+.\" 'make xconfig'; eventually this should be fixed, and then info
+.\" from the patch-2.6.13 and change log could be used to write an
+.\" entry in this man page.
+.\" Needs CONFIG_VMCORE
+.\"
+.\" FIXME cross check against Documentation/filesystems/proc.txt
+.\" to see what information could be imported from that file
+.\" into this file.
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH PROC 5 2013\-04\-17 Linux "Linux Programmer's Manual"
+.SH 名前
+proc \- プロセスの情報を含む擬似ファイルシステム
+.SH 説明
+\fIproc\fP ファイルシステムは擬似的なファイルシステムであり、 カーネル内のデータへのインターフェースとして使用される。 一般的には
+\fI/proc\fP にマウントされる。 大部分のファイルは読み出し専用 (read\-only) であるが、 いくつかのファイルは書き込み可能であり、
+そのファイルに書き込めばカーネルの内部変数を変更できる。
+.LP
+以下は \fI/proc\fP 階層の簡単なあらましである。
+.PD 1
+.TP 
+\fI/proc/[pid]\fP
+.\" FIXME Describe /proc/[pid]/attr and
+.\"       /proc/[pid]/task/[tid]/attr
+.\"	  This is a directory
+.\"       Added in ???
+.\"	  CONFIG_SECURITY
+.\"
+実行中のプロセスについてのサブディレクトリ。 サブディレクトリ名は (そのプロセスの) プロセス ID である。
+各サブディレクトリは、以下の擬似ファイルとディレクトリを含む。
+.TP 
+\fI/proc/[number]/auxv\fP (カーネル 2.6.0\-test7 以降)
+実行時にプロセスに渡された ELF インタプリタ情報が格納されている。 個々のエントリは、\fIunsigned long\fP 型の ID 1 個に
+\fIunsigned long\fP 型の値 1 個が続くフォーマットである。 最後のエントリには 0 が 2 個入っている。
+.TP 
+\fI/proc/[pid]/cgroup\fP (Linux 2.6.24 以降)
+.\" 	  Info in Documentation/cgroups/cgroups.txt
+このファイルは、プロセスやタスクが所属するコントロールグループを示す。
+cgroup の各階層についてエントリーが 1 つあり、
+各エントリーは以下の形式のコロン区切りのフィールドで構成される。
+.nf
+
+\f(CW    5:cpuacct,cpu,cpuset:/daemons\fP
+.fi
+.IP
+コロン区切りの各フィールドは、左から右の順で、以下の意味を持つ。
+.RS 11
+.IP 1. 3
+階層 ID 番号
+.IP 2.
+その階層に関連付けたサブシステムの集合
+.IP 3.
+プロセスが所属する階層内のコントロールグループ
+.RE
+.IP
+.\"
+.\" FIXME Describe /proc/[pid]/clear_refs
+.\"       Added in 2.6.22
+.\"       "Clears page referenced bits shown in smaps output"
+.\"       write-only
+.\"       CONFIG_PROC_PAGE_MONITOR
+このファイルが存在するのは、カーネルのコンフィギュレーション・オプショ
+ン \fBCONFIG_CGROUPS\fP を有効にした場合だけである。
+.TP 
+\fI/proc/[pid]/cmdline\fP
+.\" In 2.3.26, this also used to be true if the process was swapped out.
+プロセスの完全なコマンド行を保持する。ただし、そのプロセスがゾンビプロセス
+の場合は、このファイルは空となる。つまり、このファイルを読み出しても一文字
+も返らない。このファイルではコマンドライン引き数が、
+NULL バイト (\(aq\e0\(aq) で区切られた文字列として書かれており、
+最後の文字列の後に NULL バイトが一つ置かれる。
+.TP 
+\fI/proc/[pid]/coredump_filter\fP (kernel 2.6.23 以降)
+\fBcore\fP(5)  参照。
+.TP 
+\fI/proc/[pid]/cpuset\fP (kernel 2.6.12 以降)
+.\" and/proc/[pid]/task/[tid]/cpuset
+\fBcpuset\fP(7)  参照。
+.TP 
+\fI/proc/[pid]/cwd\fP
+プロセスのカレントワーキングディレクトリへのシンボリックリンク。 例えば、プロセス 20 のカレントワーキングディレクトリを見つけるためには、
+次のようにすればよい。
+
+.in +4n
+.nf
+$\fB cd /proc/20/cwd; /bin/pwd\fP
+.fi
+.in
+
+\fIpwd\fP コマンドはシェルの内部コマンドのことがよくあり、
+うまく動作しないかもしれない。
+\fBbash\fP(1) では \fIpwd\ \-P\fP を使ってもよい。
+
+.\" The following was still true as at kernel 2.6.13
+マルチスレッドプロセスでは、メインスレッドがすでに終了している場合、 このシンボリックリンクの内容は参照できない (スレッドの終了は通常
+\fBpthread_exit\fP(3)  を呼び出しにより行われる)。
+.TP 
+\fI/proc/[pid]/environ\fP
+このファイルはプロセスの環境変数を含んでいる。 各エントリは NULL バイト (\(aq\e0\(aq) で区切られていて、 末尾に NULL
+バイトがあるかもしれない。 したがって、プロセス 1 の環境変数を表示するためには 次のようにすればよい。
+.in +4n
+.nf
+
+$\fB strings /proc/1/environ\fP
+.fi
+.in
+.TP 
+\fI/proc/[pid]/exe\fP
+.\" The following was still true as at kernel 2.6.13
+Linux 2.2 以降では、このファイルはシンボリックリンクで、 実行可能コマンドの実際のパス名を格納している。
+このシンボリックリンクは通常のように辿ることができる; これをオープンすると実行可能ファイルがオープンされる。 (コマンドラインで)
+\fI/proc/[pid]/exe\fP と入力すると、プロセス番号 [pid] で実行されている 実行可能ファイルをもう一つ実行することができる。
+マルチスレッドプロセスでは、メインスレッドがすでに終了している場合、 このシンボリックリンクの内容は参照できない (スレッドの終了は通常
+\fBpthread_exit\fP(3)  を呼び出しにより行われる)。
+
+Linux 2.0 以前では、 \fI/proc/[pid]/exe\fP は実行されたバイナリへのポインタで、シンボリックリンクのように見える。 Linux
+2.0 以前では、このファイルに対して \fBreadlink\fP(2)  を実行すると、次のフォーマットの文字列が返る。
+
+    [デバイス番号]:iノード番号
+
+たとえば、[0301]:1502 はメジャーデバイス番号 03 (IDE, MFM などのドライブ)  マイナーデバイス番号 01
+(最初のドライブの最初のパーティション) の デバイス上の iノード番号 1502 である。
+
+\fI\-inum\fP オプションをつけて \fBfind\fP(1) を使うと、
+このファイルの所在を探すことができる。
+.TP 
+\fI/proc/[pid]/fd\fP
+プロセスがオープンしたファイル各々に対するエントリを含むサブディレクトリ。 ファイルディスクリプタがファイル名で、
+実際のファイルへのシンボリックリンクになっている。 したがって 0 は標準入力、1 は標準出力、2 は標準エラー出力、などとなる。
+
+.\" The following was still true as at kernel 2.6.13
+マルチスレッドプロセスでは、メインスレッドがすでに終了している場合、 このディレクトリの内容は参照できない (スレッドの終了は通常
+\fBpthread_exit\fP(3)  を呼び出しにより行われる)。
+
+コマンドライン引き数としてファイル名を受け取るが、引き数が 渡されなかった場合
+に標準入力から入力を受け取らないようなプログラムや、 コマンドライン引き数とし
+て書き込みファイルを受け取るが、引き数が 渡されなかった場合に標準出力に出力を
+行わないようなプログラムであっても、 \fI/proc/[pid]/fd\fP を使うことで標準入力や
+標準出力を使用できるようになる。 例えば、 \fI\-i\fP を入力ファイルを指定するフラ
+グ、 \fI\-o\fP を出力ファイルを指定するフラグと仮定すると、
+.in +4n
+.nf
+
+$\fB foobar \-i /proc/self/fd/0 \-o /proc/self/fd/1 ...\fP
+.fi
+.in
+
+.\" The following is not true in my tests (MTK):
+.\" Note that this will not work for
+.\" programs that seek on their files, as the files in the fd directory
+.\" are not seekable.
+を実行することにより、フィルタとして動作させることができる。
+
+\fI/proc/self/fd/N\fP は、ある種の UNIX や UNIX 風のシステムにある \fI/dev/fd/N\fP
+とだいたい同じである。 事実 Linux のたいていの MAKEDEV スクリプトは、
+\fI/dev/fd\fP を \fI/proc/self/fd\fP へのシンボリックリンクにしている。
+
+ほとんどのシステムでは、シンボリックリンク \fI/dev/stdin\fP, \fI/dev/stdout\fP, \fI/dev/stderr\fP
+が提供されており、それぞれ \fI/proc/self/fd\fP 内のファイル \fI0\fP, \fI1\fP, \fI2\fP にリンクされている。
+したがって、上述のサンプルコマンドは次のようにも書くことができる。
+.in +4n
+.nf
+
+$\fB foobar \-i /dev/stdin \-o /dev/stdout ...\fP
+.fi
+.in
+.\" FIXME Describe /proc/[pid]/loginuid
+.\"       Added in 2.6.11; updating requires CAP_AUDIT_CONTROL
+.\"       CONFIG_AUDITSYSCALL
+.TP 
+\fI/proc/[pid]/fdinfo/\fP (kernel 2.6.22 以降)
+このサブディレクトリには、そのプロセスがオープンしているファイル毎の エントリが入っており、ファイルディスクリプタがファイル名となっている。
+各ファイルの内容を読み出すことで、対応するファイルディスクリプタに関する 情報を得ることができる。以下に例を示す。
+.in +4n
+.nf
+
+$\fB cat /proc/12015/fdinfo/4\fP
+pos:    1000
+flags:  01002002
+.fi
+.in
+
+\fIpos\fP フィールドは 10 進数で、現在のファイルオフセットを示す。 \fIflags\fP フィールドは 8 進数で、
+ファイルのアクセスモードとファイル状態フラグを示す (\fBopen\fP(2)  参照)。
+
+.\" FIXME document /proc/[pid]/io
+.\" .TP
+.\" .IR /proc/[pid]/io " (since kernel 2.6.20)"
+このディレクトリのファイルは、プロセスの所有者だけが読み出すことができる。
+.TP 
+\fI/proc/[pid]/limits\fP (kernel 2.6.24 以降)
+.\" commit 3036e7b490bf7878c6dae952eec5fb87b1106589
+This file displays the soft limit, hard limit, and units of measurement for
+each of the process's resource limits (see \fBgetrlimit\fP(2)).  Up to and
+including Linux 2.6.35, this file is protected to allow reading only by the
+real UID of the process.  Since Linux 2.6.36, this file is readable by all
+users on the system.
+.TP 
+\fI/proc/[pid]/map_files/\fP (since kernel 3.3)
+.\" commit 640708a2cff7f81e246243b0073c66e6ece7e53e
+This subdirectory contains entries corresponding to memory\-mapped files (see
+\fBmmap\fP(2)).  Entries are named by memory region start and end address pair
+(expressed as hexadecimal numbers), and are symbolic links to the mapped
+files themselves.  Here is an example, with the output wrapped and
+reformatted to fit on an 80\-column display:
+.in +4n
+.nf
+
+$\fB ls \-l /proc/self/map_files/\fP
+lr\-\-\-\-\-\-\-\-. 1 root root 64 Apr 16 21:31
+            3252e00000\-3252e20000 \-> /usr/lib64/ld\-2.15.so
+\&...
+.fi
+.in
+
+Although these entries are present for memory regions that were mapped with
+the \fBMAP_FILE\fP flag, the way anonymous shared memory (regions created with
+the \fBMAP_ANON | MAP_SHARED\fP flags)  is implemented in Linux means that such
+regions also appear on this directory.  Here is an example where the target
+file is the deleted \fI/dev/zero\fP one:
+.in +4n
+.nf
+
+
+lrw\-\-\-\-\-\-\-. 1 root root 64 Apr 16 21:33
+            7fc075d2f000\-7fc075e6f000 \-> /dev/zero (deleted)
+.fi
+.in
+
+This directory appears only if the \fBCONFIG_CHECKPOINT_RESTORE\fP kernel
+configuration option is enabled.
+.TP 
+\fI/proc/[pid]/maps\fP
+A file containing the currently mapped memory regions and their access
+permissions.  See \fBmmap\fP(2)  for some further information about memory
+mappings.
+
+The format of the file is:
+
+.in -7n
+.nf
+\fIaddress           perms offset  dev   inode       pathname\fP
+00400000\-00452000 r\-xp 00000000 08:02 173521      /usr/bin/dbus\-daemon
+00651000\-00652000 r\-\-p 00051000 08:02 173521      /usr/bin/dbus\-daemon
+00652000\-00655000 rw\-p 00052000 08:02 173521      /usr/bin/dbus\-daemon
+00e03000\-00e24000 rw\-p 00000000 00:00 0           [heap]
+00e24000\-011f7000 rw\-p 00000000 00:00 0           [heap]
+\&...
+35b1800000\-35b1820000 r\-xp 00000000 08:02 135522  /usr/lib64/ld\-2.15.so
+35b1a1f000\-35b1a20000 r\-\-p 0001f000 08:02 135522  /usr/lib64/ld\-2.15.so
+35b1a20000\-35b1a21000 rw\-p 00020000 08:02 135522  /usr/lib64/ld\-2.15.so
+35b1a21000\-35b1a22000 rw\-p 00000000 00:00 0
+35b1c00000\-35b1dac000 r\-xp 00000000 08:02 135870  /usr/lib64/libc\-2.15.so
+35b1dac000\-35b1fac000 \-\-\-p 001ac000 08:02 135870  /usr/lib64/libc\-2.15.so
+35b1fac000\-35b1fb0000 r\-\-p 001ac000 08:02 135870  /usr/lib64/libc\-2.15.so
+35b1fb0000\-35b1fb2000 rw\-p 001b0000 08:02 135870  /usr/lib64/libc\-2.15.so
+\&...
+f2c6ff8c000\-7f2c7078c000 rw\-p 00000000 00:00 0    [stack:986]
+\&...
+7fffb2c0d000\-7fffb2c2e000 rw\-p 00000000 00:00 0   [stack]
+7fffb2d48000\-7fffb2d49000 r\-xp 00000000 00:00 0   [vdso]
+.fi
+.in
+
+The \fIaddress\fP field is the address space in the process that the mapping
+occupies.  The \fIperms\fP field is a set of permissions:
+
+.nf
+.in +5
+r = read
+w = write
+x = execute
+s = shared
+p = private (copy on write)
+.fi
+.in
+
+The \fIoffset\fP field is the offset into the file/whatever; \fIdev\fP is the
+device (major:minor); \fIinode\fP is the inode on that device.  0 indicates
+that no inode is associated with the memory region, as would be the case
+with BSS (uninitialized data).
+
+The \fIpathname\fP field will usually be the file that is backing the mapping.
+For ELF files, you can easily coordinate with the \fIoffset\fP field by looking
+at the Offset field in the ELF program headers (\fIreadelf\ \-l\fP).
+
+There are additional helpful pseudo\-paths:
+.RS 12
+.TP 
+\fI[stack]\fP
+The initial process's (also known as the main thread's) stack.
+.TP 
+\fI[stack:<tid>]\fP (since Linux 3.4)
+.\" commit b76437579d1344b612cf1851ae610c636cec7db0
+A thread's stack (where the \fI<tid>\fP is a thread ID).  It
+corresponds to the \fI/proc/[pid]/task/[tid]/\fP path.
+.TP 
+\fI[vdso]\fP
+The virtual dynamically linked shared object.
+.TP 
+\fI[heap]\fP
+The process's heap.
+.in
+.fi
+.RE
+.IP
+If the \fIpathname\fP field is blank, this is an anonymous mapping as obtained
+via the \fBmmap\fP(2)  function.  There is no easy way to coordinate this back
+to a process's source, short of running it through \fBgdb\fP(1), \fBstrace\fP(1),
+or similar.
+
+Linux 2.0 ではパス名を書いたフィールドがない。
+.TP 
+\fI/proc/[pid]/mem\fP
+このファイルは、 \fBopen\fP(2), \fBread\fP(2), \fBlseek\fP(2)
+を通して、プロセスのメモリのページにアクセスするために使われる。
+.TP 
+\fI/proc/[pid]/mountinfo\fP (Linux 2.6.26 以降)
+.\" This info adapted from Documentation/filesystems/proc.txt
+このファイルには、マウントポイントについての情報が入っている。 以下のような形式の行から構成される。
+.nf
+
+\f(CW36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 \- ext3 /dev/root rw,errors=continue
+(1)(2)(3)   (4)   (5)      (6)      (7)   (8) (9)   (10)         (11)\fP
+.fi
+.IP
+括弧付きの数字は、以下の説明のためのものである。
+.RS 7
+.TP  5
+(1)
+マウント ID: マウントの一意な識別子 (\fBumount\fP(2)  の後は再利用されるかもしれない)。
+.TP 
+(2)
+parent ID: 親マウントの ID (マウントツリーの最上位の場合は自分自身の ID となる)。
+.TP 
+(3)
+major:minor: ファイルシステム上のファイルの \fIst_dev\fP の値 (\fBstat\fP(2)  参照)。
+.TP 
+(4)
+ルート: そのファイルシステム内のマウントのルート。
+.TP 
+(5)
+マウントポイント: マウントポイントのそのプロセスのルートからの相対パス。
+.TP 
+(6)
+マウントオプション: 各マウントのオプション。
+.TP 
+(7)
+オプションフィールド: "tag[:value]" 形式のフィールドが 0 個以上並ぶ。
+.TP 
+(8)
+セパレータ: オプションフィールドの終わりを示す。
+.TP 
+(9)
+ファイルシステム種別: ファイルシステムの名前。 "type[.subtype]" という形式となる。
+.TP 
+(10)
+マウント元: ファイルシステム固有の情報。ない場合は "none" となる。
+.TP 
+(11)
+super options: スーパーブロック単位のオプション。
+.RE
+.IP
+解釈する側は認識できないオプションフィールドは全て無視すべきである。 現在のところ、オプションフィールドとしては以下のようなものがある。
+.RS 12
+.TP  18
+shared:X
+マウントはピアグループ (peer group) X で共有されている。
+.TP 
+master:X
+マウントはピアグループ (peer group) X のスレーブである。
+.TP 
+propagate_from:X
+マウントはスレーブであり、ピアグループ X (*) から mount propagation を受信する。
+.TP 
+unbindable
+マウントは unbind できない。
+.RE
+.IP
+(*) X は、プロセスの root で直近の dominant peer group である。 X がマウントの直接のマスターである場合や、 同じ
+root に dominant peer group がない場合は、 "master:X" フィールドだけが存在し、
+"propagate_from:X" フィールドは存在しない。
+
+mount propagation の詳細については、 Linux カーネルソースツリー内の
+\fIDocumentation/filesystems/sharedsubtree.txt\fP を参照。
+.TP 
+\fI/proc/[pid]/mounts\fP (Linux 2.4.19 以降)
+そのプロセスのマウント名前空間に現在マウントされている 全ファイルシステムのリスト。 このファイルのフォーマットは \fBfstab\fP(5)
+に載っている。 カーネル 2.6.15 以降では、このファイルを監視することができる (pollable)。
+このファイルを読み出し用にオープンした後で、このファイルに変更があると (つまりファイルシステムのマウントやアンマウントがあると)、
+\fBselect\fP(2)  ではそのファイルディスクリプタは読み出し可能となり、 \fBpoll\fP(2)  と \fBepoll_wait\fP(2)
+ではそのファイルはエラー状態として通知される。
+.TP 
+\fI/proc/[pid]/mountstats\fP (Linux 2.6.17 以降)
+このファイルを通じて、そのプロセスの名前空間内のマウントポイントに関する 各種情報 (統計、設定情報) を参照できる。
+ファイルの各行は以下のフォーマットである。
+.nf
+
+device /dev/sda7 mounted on /home with fstype ext3 [statistics]
+(       1      )            ( 2 )             (3 ) (4)
+.fi
+.IP
+各行のフィールドは以下の通りである。
+.RS 7
+.TP  5
+(1)
+マウントされているデバイス名 (対応するデバイスがない場合は "nodevice" となる)。
+.TP 
+(2)
+マウントポイントのファイルシステムツリーにおけるパス名。
+.TP 
+(3)
+ファイルシステム種別。
+.TP 
+(4)
+追加の統計や設定情報。 現在のところ (Linux 2.6.26 時点では)、 このフィールドで情報が提供されているのは NFS
+ファイルシステムだけである。
+.RE
+.IP
+このファイルはプロセスの所有者だけが読み出すことができる。
+.TP 
+\fI/proc/[pid]/ns/\fP (Linux 3.0 以降)
+.\" See commit 6b4e306aa3dc94a0545eb9279475b1ab6209a31f
+このサブディレクトリには、名前空間毎に 1 エントリが置かれる。
+各エントリは \fBsetns\fP(2) による操作をサポートしている。
+名前空間に関する情報は \fBclone\fP(2) を参照。
+.TP 
+\fI/proc/[pid]/ns/ipc\fP (Linux 3.0 以降)
+このファイルをファイルシステムのどこか他の場所に bind mount することで (\fBmount\fP(2)
+参照)、現在この名前空間にいる全てのプロセスが終了したとしても、 \fIpid\fP で指定されたプロセスの IPC 名前空間は有効な状態で保たれる。
+
+このファイルをオープンすると、 \fIpid\fP で指定されたプロセスの IPC
+名前空間のファイルハンドルが返される。このファイルディスクリプタがオープンされている限り、この名前空間にいる全てのプロセスが終了したとしても、この
+IPC 名前空間は有効なままとなる。このファイルディスクリプタは \fBsetns\fP(2) に渡すことができる。
+.TP 
+\fI/proc/[pid]/ns/net\fP (Linux 3.0 以降)
+このファイルをファイルシステムのどこか他の場所に bind mount することで (\fBmount\fP(2)
+参照)、現在この名前空間にいる全てのプロセスが終了したとしても、 \fIpid\fP で指定されたプロセスのネットワーク名前空間は有効な状態で保たれる。
+
+このファイルをオープンすると、 \fIpid\fP
+で指定されたプロセスのネットワーク名前空間のファイルハンドルが返される。このファイルディスクリプタがオープンされている限り、この名前空間にいる全てのプロセスが終了したとしても、このネットワーク名前空間は有効なままとなる。このファイルディスクリプタは
+\fBsetns\fP(2) に渡すことができる。
+.TP 
+\fI/proc/[pid]/ns/uts\fP (Linux 3.0 以降)
+このファイルをファイルシステムのどこか他の場所に bind mount することで (\fBmount\fP(2)
+参照)、現在この名前空間にいる全てのプロセスが終了したとしても、 \fIpid\fP で指定されたプロセスの UTS 名前空間は有効な状態で保たれる。
+
+このファイルをオープンすると、 \fIpid\fP で指定されたプロセスの UTS
+名前空間のファイルハンドルが返される。このファイルディスクリプタがオープンされている限り、この名前空間にいる全てのプロセスが終了したとしても、この
+UTS 名前空間は有効なままとなる。このファイルディスクリプタは \fBsetns\fP(2) に渡すことができる。
+.TP 
+\fI/proc/[pid]/numa_maps\fP (Linux 2.6.14 以降)
+\fBnuma\fP(7)  を参照。
+.TP 
+\fI/proc/[pid]/oom_adj\fP (Linux 2.6.11 以降)
+このファイルは、メモリ不足 (OOM) の状況下でどのプロセスを殺すべきかを選択す
+るのに使用されるスコアを調整するのに使用される。カーネルは、プロセスの
+\fIoom_score\fP 値のビットシフト操作に、この値を使用する。この値として有効な値
+は \-16 から +15 までと、特別な意味を持つ \-17 である。 \-17 はそのプロセス
+に対する OOM\-killing を完全に無効にすることを意味する。正の値ほど、そのプロ
+セスが OOM\-killer により殺される可能性が高くなり、負の値ほど可能性が低くなる。
+.IP
+このファイルのデフォルト値は 0 である。 新しいプロセスは親プロセスの \fIoom_adj\fP の設定を継承する。
+このファイルを変更するためには、プロセスは特権 (\fBCAP_SYS_RESOURCE\fP) を持っていなければならない。
+.IP
+Since Linux 2.6.36, use of this file is deprecated in favor of
+\fI/proc/[pid]/oom_score_adj\fP.
+.TP 
+\fI/proc/[pid]/oom_score\fP (Linux 2.6.11 以降)
+.\" See mm/oom_kill.c::badness() in the 2.6.25 sources
+.\" See mm/oom_kill.c::badness() in the 2.6.25 sources
+このファイルは、OOM\-killer のプロセス選択用として、カーネルが このプロセス
+に対して与えた現在のスコアを表示する。 高いスコアは、そのプロセスが
+OOM\-killer により選択される 可能性が高いことを意味する。 このスコアの基本は
+そのプロセスが使用しているメモリ量であり、 以下の要因により加算 (+) 減算 (\-)
+が行われる。
+.RS
+.IP * 2
+そのプロセスが多くの子プロセスを \fBfork\fP(2)  を使って作成しているか (+)。
+.IP *
+そのプロセスが長時間実行されて来たか、
+もしくは 多くの CPU 時間を使用しているか (\-)。
+.IP *
+そのプロセスが低い nice 値 (> 0) を持っているか (+)。
+.IP *
+.\" More precisely, if it has CAP_SYS_ADMIN or CAP_SYS_RESOURCE
+そのプロセスが特権を持っているか (\-)。
+.IP *
+.\" More precisely, if it has CAP_SYS_RAWIO
+そのプロセスが direct hardware access を行っているか (\-)。
+.RE
+.IP
+\fIoom_score\fP は、そのプロセスの \fIoom_score_adj\fP や \fIoom_adj\fP 設定で規定される調整にも影響を与える。
+.TP 
+\fI/proc/[pid]/oom_score_adj\fP (Linux 2.6.36 以降)
+.\" Text taken from 3.7 Documentation/filesystems/proc.txt
+This file can be used to adjust the badness heuristic used to select which
+process gets killed in out\-of\-memory conditions.
+
+The badness heuristic assigns a value to each candidate task ranging from 0
+(never kill) to 1000 (always kill) to determine which process is targeted.
+The units are roughly a proportion along that range of allowed memory the
+process may allocate from, based on an estimation of its current memory and
+swap use.  For example, if a task is using all allowed memory, its badness
+score will be 1000.  If it is using half of its allowed memory, its score
+will be 500.
+
+There is an additional factor included in the badness score: root processes
+are given 3% extra memory over other tasks.
+
+The amount of "allowed" memory depends on the context in which the
+OOM\-killer was called.  If it is due to the memory assigned to the
+allocating task's cpuset being exhausted, the allowed memory represents the
+set of mems assigned to that cpuset (see \fBcpuset\fP(7)).  If it is due to a
+mempolicy's node(s) being exhausted, the allowed memory represents the set
+of mempolicy nodes.  If it is due to a memory limit (or swap limit) being
+reached, the allowed memory is that configured limit.  Finally, if it is due
+to the entire system being out of memory, the allowed memory represents all
+allocatable resources.
+
+The value of \fIoom_score_adj\fP is added to the badness score before it is
+used to determine which task to kill.  Acceptable values range from \-1000
+(OOM_SCORE_ADJ_MIN) to +1000 (OOM_SCORE_ADJ_MAX).  This allows user space to
+control the preference for OOM\-killing, ranging from always preferring a
+certain task or completely disabling it from OOM\-killing.  The lowest
+possible value, \-1000, is equivalent to disabling OOM\-killing entirely for
+that task, since it will always report a badness score of 0.
+
+Consequently, it is very simple for user space to define the amount of
+memory to consider for each task.  Setting a \fIoom_score_adj\fP value of +500,
+for example, is roughly equivalent to allowing the remainder of tasks
+sharing the same system, cpuset, mempolicy, or memory controller resources
+to use at least 50% more memory.  A value of \-500, on the other hand, would
+be roughly equivalent to discounting 50% of the task's allowed memory from
+being considered as scoring against the task.
+
+For backward compatibility with previous kernels, \fI/proc/[pid]/oom_adj\fP can
+still be used to tune the badness score.  Its value is scaled linearly with
+\fIoom_score_adj\fP.
+
+.\" FIXME Describe /proc/[pid]/pagemap
+.\"       Added in 2.6.25
+.\"       CONFIG_PROC_PAGE_MONITOR
+Writing to \fI/proc/[pid]/oom_score_adj\fP or \fI/proc/[pid]/oom_adj\fP will
+change the other with its scaled value.
+.TP 
+\fI/proc/[pid]/root\fP
+UNIX と Linux では、 ファイルシステムのルート (/) をプロセスごとに別々に
+できる。これはシステムコール \fBchroot\fP(2) によって設定する。 このファイルは
+プロセスのルートディレクトリを指すシンボリックリンクで、 exe や fd/* など
+と同じような動作をする。
+
+.\" The following was still true as at kernel 2.6.13
+.\" FIXME Describe /proc/[pid]/seccomp
+.\"       Added in 2.6.12
+.\" FIXME Describe /proc/[pid]/sessionid
+.\"       Added in 2.6.25; read-only; only readable by real UID
+.\"       CONFIG_AUDITSYSCALL
+.\" FIXME Describe /proc/[pid]/sched
+.\"       Added in 2.6.23
+.\"       CONFIG_SCHED_DEBUG, and additional fields if CONFIG_SCHEDSTATS
+.\"       Displays various scheduling parameters
+.\"       This file can be written, to reset stats
+.\" FIXME Describe /proc/[pid]/schedstats and
+.\"       /proc/[pid]/task/[tid]/schedstats
+.\"       Added in 2.6.9
+.\"       CONFIG_SCHEDSTATS
+マルチスレッドプロセスでは、メインスレッドがすでに終了している場合、 このシンボリックリンクの内容は参照できない (スレッドの終了は通常
+\fBpthread_exit\fP(3)  を呼び出しにより行われる)。
+.TP 
+\fI/proc/[pid]/smaps\fP (Linux 2.6.14 以降)
+.\"       CONFIG_PROC_PAGE_MONITOR
+このファイルは、そのプロセスの各マッピングのメモリ消費量を表示する。 マッピングのそれぞれについて、以下のような内容が表示される。
+.in +4n
+.nf
+
+08048000\-080bc000 r\-xp 00000000 03:02 13130      /bin/bash
+Size:               464 kB
+Rss:                424 kB
+Shared_Clean:       424 kB
+Shared_Dirty:         0 kB
+Private_Clean:        0 kB
+Private_Dirty:        0 kB
+
+.fi
+.in
+最初の行には、 \fI/proc/[pid]/maps\fP で表示されるマッピングと同じ情報が表示される。 残りの行には、マッピングのサイズ、現在 RAM
+上に存在するマッピングの量、 マッピング内の共有ページのうちクリーンなページ数、ダーティなページ数、
+マッピング内のプライベートページのうちクリーンなページ数、 ダーティなページ数、を示す。
+
+このファイルが存在するのは、カーネルのコンフィギュレーション・オプション \fBCONFIG_MMU\fP を有効にした場合だけである。
+.TP 
+\fI/proc/[pid]/stat\fP
+プロセスの状態についての情報。 これは \fBps\fP(1)  で使われ、 \fI/usr/src/linux/fs/proc/array.c\fP
+で定義されている。
+
+各フィールドを順番に、 \fBscanf\fP(3)  のフォーマット指定子付きで以下に示す。
+.RS
+.TP  12
+\fIpid\fP %d
+(1) プロセス ID。
+.TP 
+\fIcomm\fP %s
+(2) 括弧でくくられた実行形式のファイル名。実行形式がスワップアウトされているかどうかによらず、見ることができる。
+.TP 
+\fIstate\fP %c
+(3) "RSDZTW" のどれか 1 文字。 R は実行中 (running)、 S は割り込み可能な休眠状態 (sleeping in an
+interruptible wait)、 D は割り込み不可能なディスクスリープの待機状態 (waiting in uninterruptible
+disk sleep)、 Z はゾンビ状態 (zombie)、 T はトレースされている (traced) か (シグナルにより) 停止している状態
+(stopped)、 W はページング中 (paging) を表している。
+.TP 
+\fIppid\fP %d
+(4) 親プロセスの PID。
+.TP 
+\fIpgrp\fP %d
+(5) プロセスのプロセスグループ ID。
+.TP 
+\fIsession\fP %d
+(6) プロセスのセッション ID。
+.TP 
+\fItty_nr\fP %d
+(7) プロセスの制御端末 (マイナー・デバイス番号はビット 31〜20 と 7〜0 にまたがって格納され、 メジャー・デバイス番号はビット 15〜8
+に格納される)。
+.TP 
+\fItpgid\fP %d
+.\" This field and following, up to and including wchan added 0.99.1
+(8) プロセスの制御端末のフォアグランド・プロセス・グループの ID。
+.TP 
+\fIflags\fP %u (Linux 2.6.22 より前は %lu)
+(9) プロセスのカーネルフラグワード。 ビットの意味は、 \fI<linux/sched.h>\fP で定義されている PF_*
+を参照すること。 詳細はカーネルのバージョンに依存する。
+.TP 
+\fIminflt\fP %lu
+(10) プロセスが引き起こしたマイナーフォールト (minor fault、ディスクから メモリページへのロードを必要としないフォールト) の回数。
+.TP 
+.\" field 11
+\fIcminflt\fP %lu
+(11) (そのプロセスが終了を待っている) 子プロセスが引き起こしたマイナーフォールトの回数。
+.TP 
+\fImajflt\fP %lu
+(12) プロセスが引き起こしたメジャーフォールト (major fault、ディスクからメモリページへのロードを必要とするフォールト) の回数。
+.TP 
+\fIcmajflt\fP %lu
+(13) (そのプロセスが終了を待っている) 子プロセスが引き起こしたメジャーフォールトの回数。
+.TP 
+\fIutime\fP %lu
+(14) このプロセスがユーザーモードでスケジューリングされた時間の合計。 clock tick 単位で計測される
+(\fIsysconf(_SC_CLK_TCK)\fP で割った値が表示される)。 この値にはゲスト時間 \fIguest_time\fP (仮想 CPU
+の実行に消費された時間)
+も含まれる。これは、ゲスト時間のフィールドを認識しないアプリケーションにおいて、ゲスト時間分を計算に入れ損ねないようにするためである。
+.TP 
+\fIstime\fP %lu
+(15) プロセスのカーネルモードでの実行時間 (単位 jiffies)。 このプロセスがカーネルモードでスケジューリングされた時間の合計。 clock
+tick 単位で計測される (\fIsysconf(_SC_CLK_TCK)\fP で割った値が表示される)。
+.TP 
+\fIcutime\fP %ld
+(16) このプロセスの子プロセスで、終了待ち (waited\-for) のプロセスが、 ユーザモードでスケジューリングされた時間の合計。 clock
+tick 単位で計測される (\fIsysconf(_SC_CLK_TCK)\fP で割った値が表示される)。 (\fBtimes\fP(2)  も参照すること。)
+この値にはゲスト時間 \fIcguest_time\fP (仮想 CPU を実行するのに消費した時間、下記参照) も含まれる。
+.TP 
+\fIcstime\fP %ld
+(17) このプロセスの子プロセスで、終了待ち (waited\-for) のプロセスが、カーネルモードでスケジューリングされた時間の合計。 clock
+tick 単位で計測される (\fIsysconf(_SC_CLK_TCK)\fP で割った値が表示される)。
+.TP 
+\fIpriority\fP %ld
+(18) (Linux 2.6 の場合の説明) リアルタイム・スケジューリングポリシー (下記の
+\fIpolicy ;\fP \fBsched_setscheduler\fP(2) 参照) で動作しているプロセスでは、 この
+値はスケジューリング優先度を反転した値 (スケジューリング優先度を マイナスにし
+た値) となる。値は \-2 から \-100 までの範囲の数値で、 それぞれリアルタイム優先
+度の 1 から 9 に対応する。 リアルタイム以外のスケジューリングポリシーで動作し
+ているプロセスでは、 この値はカーネル内で管理されている nice 値そのもの
+(\fBsetpriority\fP(2)) となる。 カーネルは nice 値を 0 (高) から 39 (低) の範囲
+の値として保持しており、 それぞれユーザに見える nice 値の \-20 から 19 に対応
+する。
+
+.\" And back in kernel 1.2 days things were different again.
+Linux 2.6 より前では、このプロセスに割り当てられたスケジューリング 重みを変換した値が表示されていた。
+.TP 
+\fInice\fP %ld
+.\" Back in kernel 1.2 days things were different.
+.\" .TP
+.\" \fIcounter\fP %ld
+.\" The current maximum size in jiffies of the process's next timeslice,
+.\" or what is currently left of its current timeslice, if it is the
+.\" currently running process.
+.\" .TP
+.\" \fItimeout\fP %u
+.\" The time in jiffies of the process's next timeout.
+.\" timeout was removed sometime around 2.1/2.2
+(19) nice 値 (\fBsetpriority\fP(2) 参照)。 19 (最低優先) から \-20 (最高優先)
+の範囲の値である。
+.TP 
+\fInum_threads\fP %ld
+(20) このプロセスのスレッド数 (Linux 2.6 以降)。 カーネル 2.6 より前では、このフィールドは削除されたフィールドの 場所埋めとして
+0 にハードコードされていた。
+.TP 
+.\" field 21
+\fIitrealvalue\fP %ld
+(21) インターバルタイマによって、次に \fBSIGALRM\fP がプロセスへ送られるまでの時間 (単位 jiffies)。 カーネル 2.6.17
+以降では、このフィールドはメンテナンスされなくなり、 0 にハードコードされている。
+.TP 
+\fIstarttime\fP %llu (Linux 2.6 より前は %lu)
+(22) The time the process started after system boot.  In kernels before
+Linux 2.6, this value was expressed in jiffies.  Since Linux 2.6, the value
+is expressed in clock ticks (divide by \fIsysconf(_SC_CLK_TCK)\fP).
+.TP 
+\fIvsize\fP %lu
+(23) 仮想メモリのサイズ。単位はバイト。
+.TP 
+\fIrss\fP %ld
+(24) Resident Set Size。プロセスが持っている実メモリ上のページ数。
+これはちょうどテキスト、データ、スタック空間に使われているページ数である。 デマンドロードされていないページや
+スワップアウトされたページの数は含んでいない。
+.TP 
+\fIrsslim\fP %lu
+(25) このプロセスの rss の現在のソフト・リミット (バイト単位)。 \fBgetrlimit\fP(2) の \fBRLIMIT_RSS\fP
+の説明を参照。
+.TP 
+\fIstartcode\fP %lu
+(26) プログラムテキストが実行可能であるような領域の先頭アドレス。
+.TP 
+\fIendcode\fP %lu
+(27) プログラムテキストが実行可能であるような領域の末尾アドレス。
+.TP 
+\fIstartstack\fP %lu
+(28) スタックの開始アドレス (すなわち、スタックの底)。
+.TP 
+\fIkstkesp\fP %lu
+(29) 現在の ESP (スタックポインタ) の値。 プロセスのカーネルスタックページにある。
+.TP 
+\fIkstkeip\fP %lu
+(30) 現在の EIP (インストラクションポインタ) の値。
+.TP 
+.\" field 31
+\fIsignal\fP %lu
+(31) 処理待ちのシグナルのビットマップ。 10
+進数で表示される。このフィールドは廃止予定である。リアルタイム・シグナルに関する情報は表示されないからである。代わりに
+\fI/proc/[pid]/status\fP を使うこと。
+.TP 
+\fIblocked\fP %lu
+(32) ブロックされた (blocked) シグナルのビットマップ。 10 進数で表示される。 このフィールドは廃止予定である。
+リアルタイム・シグナルに関する情報は表示されないからである。 代わりに \fI/proc/[pid]/status\fP を使うこと。
+.TP 
+\fIsigignore\fP %lu
+(33) 無視された (ignored) シグナルのビットマップ。 10 進数で表示される。 このフィールドは廃止予定である。
+リアルタイム・シグナルに関する情報は表示されないからである。 代わりに \fI/proc/[pid]/status\fP を使うこと。
+.TP 
+\fIsigcatch\fP %lu
+(34) 捕捉された (caught) シグナルのビットマップ。 10 進数で表示される。 このフィールドは廃止予定である。
+リアルタイム・シグナルに関する情報は表示されないからである。 代わりに \fI/proc/[pid]/status\fP を使うこと。
+.TP 
+\fIwchan\fP %lu
+(35) プロセスが待っている「チャネル」。これはシステムコールのアドレスであり、
+文字名が必要ならば (アドレスとシステムコール名との) 対応表から見つけられる
+(もし \fI/etc/psdatabase\fP [訳注: このファイル名はパッケージによる] を更新
+しているならば、 \fIps \-l\fP して WCHAN フィールドを見よ)。
+.TP 
+\fInswap\fP %lu
+.\" nswap was added in 2.0
+(36) スワップされたページ数 (メンテナンスされていない)。
+.TP 
+\fIcnswap\fP %lu
+.\" cnswap was added in 2.0
+(37) 子プロセスの \fInswap\fP の累計 (メンテナンスされていない)。
+.TP 
+\fIexit_signal\fP %d (Linux 2.1.22 以降)
+(38) プロセスが死んだときに親プロセスに送られるシグナル。
+.TP 
+\fIprocessor\fP %d (Linux 2.2.8 以降)
+(39) このプロセスを最後に実行した CPU の番号。
+.TP 
+\fIrt_priority\fP %u (Linux 2.5.19 以降; Linux 2.6.22 より前は %lu)
+(40) リアルタイム・スケジューリングの優先度。 リアルタイム・ポリシーの元でスケジューリングされるプロセスでは 1 から 99 の範囲の値となり、
+リアルタイム以外のスケジューリングポリシーのプロセスでは 0 となる (\fBsched_setscheduler\fP(2)  参照)。
+.TP 
+.\" field 41
+\fIpolicy\fP %u (Linux 2.5.19 以降; Linux 2.6.22 より前は %lu)
+(41) スケジューリング・ポリシー (\fBsched_setscheduler\fP(2)  参照)。 値は、 \fIlinux/sched.h\fP の
+SCHED_* 定数を使ってデコードすればよい。
+.TP 
+\fIdelayacct_blkio_ticks\fP %llu (Linux 2.6.18 以降)
+(42) (clock tick (100分の1秒) 単位での) ブロック I/O の総遅延量。
+.TP 
+\fIguest_time\fP %lu (Linux 2.6.24 以降)
+(43) プロセスのゲスト時間 (ゲスト OS の仮想 CPU を実行するのに消費された時間)。 clock tick 単位で計測される
+(\fIsysconf(_SC_CLK_TCK)\fP で割った値が表示される)。
+.TP 
+\fIcguest_time\fP %ld (Linux 2.6.24 以降)
+(44) プロセスの子プロセスのゲスト時間。 clock tick 単位で計測される (\fIsysconf(_SC_CLK_TCK)\fP
+で割った値が表示される)。
+.RE
+.TP 
+\fI/proc/[pid]/statm\fP
+(ページ単位で計測した) メモリ使用量についての情報を提供する。 各列は以下の通りである。
+.in +4n
+.nf
+
+.\" (not including libs; broken, includes data segment)
+.\" (including libs; broken, includes library text)
+size       プログラムサイズの総計
+           (\fI/proc/[pid]/status\fP の VmSize と同じ)
+resident   実メモリ上に存在するページ
+           (\fI/proc/[pid]/status\fP の VmRSS と同じ)
+share      共有ページ (ファイルと関連付けられているページ)
+text       テキスト (コード)
+lib        ライブラリ (Linux 2.6 では未使用)
+data       データ + スタック
+dt         ダーティページ (Linux 2.6 では未使用)
+.fi
+.in
+.TP 
+\fI/proc/[pid]/status\fP
+\fI/proc/[pid]/stat\fP と \fI/proc/[pid]/statm\fP にある多くの情報を、人間が解析しやすい形式で提供する。
+以下に例を示す。
+.in +4n
+.nf
+
+$\fB cat /proc/$$/status\fP
+Name:   bash
+State:  S (sleeping)
+Tgid:   3515
+Pid:    3515
+PPid:   3452
+TracerPid:      0
+Uid:    1000    1000    1000    1000
+Gid:    100     100     100     100
+FDSize: 256
+Groups: 16 33 100
+VmPeak:     9136 kB
+VmSize:     7896 kB
+VmLck:         0 kB
+VmHWM:      7572 kB
+VmRSS:      6316 kB
+VmData:     5224 kB
+VmStk:        88 kB
+VmExe:       572 kB
+VmLib:      1708 kB
+VmPTE:        20 kB
+Threads:        1
+SigQ:   0/3067
+SigPnd: 0000000000000000
+ShdPnd: 0000000000000000
+SigBlk: 0000000000010000
+SigIgn: 0000000000384004
+SigCgt: 000000004b813efb
+CapInh: 0000000000000000
+CapPrm: 0000000000000000
+CapEff: 0000000000000000
+CapBnd: ffffffffffffffff
+Cpus_allowed:   00000001
+Cpus_allowed_list:      0
+Mems_allowed:   1
+Mems_allowed_list:      0
+voluntary_ctxt_switches:        150
+nonvoluntary_ctxt_switches:     545
+.fi
+.in
+.IP
+フィールドの詳細は以下の通りである。
+.RS
+.IP * 2
+\fIName\fP: このプロセスにより実行されたコマンド。
+.IP *
+\fIState\fP: プロセスの現在の状態。 "R (running; 実行中)", "S (sleeping; 休眠状態)", "D (disk
+sleep; ディスク待ちの休眠状態)", "T (stopped; 停止状態)", "T (tracing stop; トレースによる停止)", "Z
+(zombie; ゾンビ状態)", "X (dead; 死亡)" のいずれかである。
+.IP *
+\fITgid\fP: スレッドグループ ID (すなわち、プロセス ID)。
+.IP *
+\fIPid\fP: スレッド ID (\fBgettid\fP(2)  参照)。
+.IP *
+\fIPPid\fP: 親プロセスの PID。
+.IP *
+\fITracerPid\fP: このプロセスをトレースしているプロセスの PID (トレースされていない場合は 0)。
+.IP *
+\fIUid\fP, \fIGid\fP: 実 UID/GID、実効 UID/GID、保存 set\-UID/GID、ファイルシステム UID/GID。
+.IP *
+\fIFDSize\fP: 現在割り当てられているファイルディスクリプタのスロット数。
+.IP *
+\fIGroups\fP: 補助グループのリスト。
+.IP *
+\fIVmPeak\fP: 仮想メモリサイズのピーク値。
+.IP *
+\fIVmSize\fP: 仮想メモリサイズ。
+.IP *
+\fIVmLck\fP: ロックされているメモリサイズ (\fBmlock\fP(3) 参照)。
+.IP *
+\fIVmHWM\fP: 実メモリ上に存在するページサイズ (resident set size)  のピーク値 ("high water mark")。
+.IP *
+\fIVmRSS\fP: 実メモリ上に存在するページサイズ。
+.IP *
+\fIVmData\fP, \fIVmStk\fP, \fIVmExe\fP: データ、スタック、テキストセグメントのサイズ。
+.IP *
+\fIVmLib\fP: 共有ライブラリ・コードのサイズ。
+.IP *
+\fIVmPTE\fP: ページ・テーブル・エントリのサイズ (Linux 2.6.10 以降)。
+.IP *
+\fIThreads\fP: このスレッドが属するプロセスのスレッド数。
+.IP *
+\fISigQ\fP: このフィールドにはスラッシュで区切られた 2 つの数字が入っている。この数字はこのプロセスの実ユーザ ID
+宛にキューイングされたシグナルに関するものである。一つ目の数字は、この実ユーザ ID
+宛に現在キューイングされているシグナル数である。二つ目の数字は、このプロセス宛にキューイングされたシグナル数に関するリソース上限値である
+(\fBgetrlimit\fP(2) の \fBRLIMIT_SIGPENDING\fP の説明を参照)。
+.IP *
+\fISigPnd\fP, \fIShdPnd\fP: スレッド宛およびプロセス全体宛の処理待ちシグナルの数 (\fBpthreads\fP(7),
+\fBsignal\fP(7)  参照)。
+.IP *
+\fISigBlk\fP, \fISigIgn\fP, \fISigCgt\fP: ブロックされるシグナル、無視されるシグナル、捕捉待ちのシグナルを 示すマスク値
+(\fBsignal\fP(7))。
+.IP *
+\fICapInh\fP, \fICapPrm\fP, \fICapEff\fP: 継承可能 (inheritable)、許可 (permitted)、実効
+(effective)  の各ケーパビリティセットで有効になっているケーパビリティのマスク値 (\fBcapabilities\fP(7)  参照)。
+.IP *
+\fICapBnd\fP: ケーパビリティ・バウンディングセット (カーネル 2.6.26 以降、 \fBcapabilities\fP(7)  参照)。
+.IP *
+\fICpus_allowed\fP: このプロセスが実行を許可されている CPU のマスク値 (Linux 2.6.24 以降、 \fBcpuset\fP(7)
+参照)。
+.IP *
+\fICpus_allowed_list\fP: 前項と同じだが、「リスト形式」での表示 (Linux 2.6.26 以降、 \fBcpuset\fP(7)
+参照)。
+.IP *
+\fIMems_allowed\fP: このプロセスが使用できるメモリノードのマスク値 (Linux 2.6.24 以降、 \fBcpuset\fP(7)
+参照)。
+.IP *
+\fIMems_allowed_list\fP: 前項と同じだが、「リスト形式」での表示 (Linux 2.6.26 以降、 \fBcpuset\fP(7)
+参照)。
+.IP *
+\fIvoluntary_context_switches\fP, \fInonvoluntary_context_switches\fP:
+自発的/非自発的なコンテキストスイッチの回数 (Linux 2.6.23 以降)。
+.RE
+.TP 
+\fI/proc/[pid]/task\fP (Linux 2.6.0\-test6 以降)
+このディレクトリには、そのプロセスのスレッド情報を含む サブディレクトリが 1 スレッドにつき 1 つ置かれる。
+各サブディレクトリの名前はスレッドのスレッド ID (\fI[tid]\fP)  を示す数字である \fB(\fPgettid\fB(2)\fP を参照)。
+これらの各サブディレクトリには、 \fI/proc/[pid]\fP ディレクトリ以下と同じ名前と内容のファイル群がある。
+すべてのスレッドで共有される属性の場合、 \fItask/[tid]\fP サブディレクトリ以下の各ファイルの内容は 親ディレクトリ
+\fI/proc/[pid]\fP の対応するファイルと同じになることだろう (例えば、マルチスレッド・プロセスではファイル
+\fItask/[tid]/cwd\fP はいずれも親ディレクトリ内の \fI/proc/[pid]/cwd\fP
+と同じ値を持つことになる。なぜなら、一つのプロセスに属すすべての スレッドは作業ディレクトリを共有するからである)。 スレッド毎に独立な属性の場合、
+\fItask/[tid]\fP サブディレクトリ以下の各ファイルは異なる値を持つことがある (例えば、ファイル \fItask/[tid]/status\fP
+はスレッド毎に異なる値を持つ可能性がある)。
+
+.\" The following was still true as at kernel 2.6.13
+マルチスレッドプロセスでは、メインスレッドがすでに終了している場合、 \fI/proc/[pid]/task\fP ディレクトリの内容は参照できない
+(スレッドの終了は通常 \fBpthread_exit\fP(3)  を呼び出しにより行われる)。
+.TP 
+\fI/proc/apm\fP
+Advanced Power Management のバージョンとバッテリ情報。 カーネルのコンパイル時に \fBCONFIG_APM\fP
+を定義したときに存在する。
+.TP 
+\fI/proc/bus\fP
+インストールされている各バス用にサブディレクトリがある。
+.TP 
+\fI/proc/bus/pccard\fP
+PCMCIA デバイスの情報が書かれるサブディレクトリ。 カーネルのコンパイル時に \fBCONFIG_PCMCIA\fP を定義したときに存在する。
+.TP 
+\fI/proc/bus/pccard/drivers\fP
+.TP 
+\fI/proc/bus/pci\fP
+いくつかのサブディレクトリがあり、 PCI バス・インストールされているデバイス・ デバイスドライバの情報が書かれた仮想ファイルがある。
+これらのファイルのうちいくつかは ASCII フォーマットではない。
+.TP 
+\fI/proc/bus/pci/devices\fP
+PCI デバイスの情報。 \fBlspci\fP(8)  や \fBsetpci\fP(8)  でアクセスすることができる。
+.TP 
+\fI/proc/cmdline\fP
+ブート時に Linux カーネルに渡された引き数。 引き数の受け渡しは、たいてい \fBlilo\fP(8)  や \fBgrub\fP(8)
+といったブートマネージャを使って行われる。
+.TP 
+\fI/proc/config.gz\fP (Linux 2.6 以降)
+このファイルでは、現在実行中のカーネルの構築時に使用された 設定オプションを参照できる。 書式は、 (\fImake xconfig\fP, \fImake
+config\fP などを使って) カーネルの設定を変更した際に生成される \fI.config\fP ファイルのものと同じである。
+ファイルの内容は圧縮されており、 \fBzcat\fP(1), \fBzgrep\fP(1)  などを使うと、表示や検索ができる。 ファイルが変更されていない限り、
+\fI/proc/config.gz\fP の内容は次のコマンドで得られる内容と同じである。
+.in +4n
+.nf
+
+cat /lib/modules/$(uname \-r)/build/.config
+.fi
+.in
+.IP
+\fI/proc/config.gz\fP が提供されるのは、カーネルの設定で \fBCONFIG_IKCONFIG_PROC\fP
+が有効になっている場合のみである。
+.TP 
+\fI/proc/cpuinfo\fP
+このファイルは、CPU およびシステムアーキテクチャに依存する項目を 集めたもので、リストの内容はサポートされているアーキテクチャ毎に異なる。 2
+つだけ共通の項目がある。 \fIprocessor\fP はプロセッサ番号で、 \fIbogomips\fP はカーネルの初期化時に計算されるシステム定数である。
+SMP マシンでは各 CPU についての情報が書かれている。 \fBlscpu\fP(1) コマンドはこのファイルから情報を収集する。
+.TP 
+\fI/proc/devices\fP
+メジャーデバイス番号とデバイスグループのテキスト形式のリスト。 MAKEDEV スクリプトはこのファイルを使って、
+カーネルとの整合性を保つことができる。
+.TP 
+\fI/proc/diskstats\fP (Linux 2.5.69 以降)
+このファイルには各ディスクデバイスのディスク I/O 統計情報が書かれている。 更に詳しい情報は、Linux カーネルソースファイル
+\fIDocumentation/iostats.txt\fP を参照すること。
+.TP 
+\fI/proc/dma\fP
+登録されている \fIISA\fP DMA (direct memory access) チャネルのリスト。
+.TP 
+\fI/proc/driver\fP
+空のサブディレクトリ。
+.TP 
+\fI/proc/execdomains\fP
+実行ドメインのリスト (ABI パーソナリティ)。
+.TP 
+\fI/proc/fb\fP
+カーネルのコンパイル時に \fBCONFIG_FB\fP が定義されている場合、フレームバッファの情報が書かれる。
+.TP 
+\fI/proc/filesystems\fP
+カーネルが対応しているファイルシステムのテキスト形式のリスト。 カーネルに組み込まれてコンパイルされたファイルシステムと、
+カーネルモジュールが現在ロードされているファイルシステムが列挙される (\fBfilesystems\fP(5)  参照)。 ファイルシステムに
+"nodev" という印が付いている場合、 そのファイルシステムがマウントするためのブロックデバイスを 必要としないことを意味する (例えば、
+仮想ファイルシステム、ネットワークファイルシステムなど)。
+
+ちなみに、マウント時にファイルシステムが指定されず、 どうやってもファイルシステムの種類を判定できなかった際に、 このファイルを \fBmount\fP(8)
+が使用するかもしれない。 その場合、このファイルに含まれるファイルシステムが試される (ただし、"nodev" の印がついたものは除く)。
+.TP 
+\fI/proc/fs\fP
+空のサブディレクトリ。
+.TP 
+\fI/proc/ide\fP
+このディレクトリは IDE バスをもつシステムに存在する。 各 IDE チャネルとそれに取り付けられている各デバイスごとにディレクトリがあり、
+以下のファイルが含まれている。
+
+.in +4n
+.nf
+cache              バッファサイズ (KB)
+capacity           セクタ数
+driver             ドライバのバージョン
+geometry           物理ジオメトリと論理ジオメトリ
+identify           16 進数表記
+media              メディアのタイプ
+model              製造者のモデル番号
+settings           ドライブの設定
+smart_thresholds   16 進数表記
+smart_values       16 進数表記
+.fi
+.in
+
+\fBhdparm\fP(8)  ユーティリティは、分かりやすい形式で この情報にアクセスするための手段を提供する。
+.TP 
+\fI/proc/interrupts\fP
+IO デバイス毎の CPU 別の割り込み回数の記録に使われる。 Linux 2.6.24 以降、少なくとも i386 と x86_64
+アーキテクチャでは、 (デバイスと関連がない) システム内部の割り込みについても記録される。 システム内部の割り込みには、NMI
+(nonmaskable interrupt), LOC (local timer interrupt) や、SMP システムでは TLB (TLB
+flush interrupt), RES (rescheduling interrupt), CAL (remote function call
+interrupt)  などがある。 簡単に読むことのできるフォーマットで、ASCII で表記されている。
+.TP 
+\fI/proc/iomem\fP
+Linux 2.4 における I/O メモリマップ。
+.TP 
+\fI/proc/ioports\fP
+現在登録され使われている I/O ポート領域のリスト。
+.TP 
+\fI/proc/kallsyms\fP (Linux 2.5.71 以降)
+カーネルの外部シンボル定義を保持する。 \fBmodules\fP(X)  関係のツールがローダブルモジュールを動的にリンクしたり バインド (bind)
+するのに使われる。 Linux 2.5.47 以前では、微妙に異なる書式の似たようなファイルが \fIksyms\fP という名前であった。
+.TP 
+\fI/proc/kcore\fP
+このファイルはシステムの物理メモリを表現しており、 ELF コアファイル形式 (core file format) で保持されている。
+この擬似ファイルと strip されていないカーネルのバイナリ (\fI/usr/src/linux/vmlinux\fP)  [訳注:
+パッケージに依存する]) があれば、 GDB はカーネル内の任意のデータ構造の現在の状態を調べられる。
+
+このファイルの大きさは物理メモリ (RAM) のサイズに 4KB を加えた値である。
+.TP 
+\fI/proc/kmsg\fP
+このファイルは \fBsyslog\fP(2)  システムコールでカーネルメッセージを読み出す代りに使える。
+プロセスがこのファイルを読むためにはスーパーユーザー権限が必要であり、 ファイルを読み出すのは 1 つのプロセスのみに限るべきである。
+カーネルメッセージを記録するために、 \fBsyslog\fP(2)  システムコールの機能を使う syslog プロセスが稼働している場合、
+このファイルを読み出すべきではない。
+
+このファイルの中の情報は \fBdmesg\fP(1)  によって表示される。
+.TP 
+\fI/proc/ksyms\fP (Linux 1.1.23\-2.5.47)
+\fI/proc/kallsyms\fP を参照。
+.TP 
+\fI/proc/loadavg\fP
+このファイルの最初の 3 つのフィールドはロードアベレージの数値で、 1, 5, 15 分
+あたりの実行キュー内 (state R) または ディスク I/O 待ち (state D) のジョブ数
+を与える。 これは \fBuptime\fP(1) などのプログラムによって得られる値と同じである。
+4 番目のフィールドはスラッシュ (/) で区切られた 2 つの数値から構成される。
+この数値のうち最初のものは、現在実行可能なカーネルスケジュールエンティティ
+(プロセス、スレッド) の数である。スラッシュの後の数値は、現在システム上に
+存在するカーネルスケジュールエンティティの数である。 5 番目のフィールドは
+システム上に最も最近生成されたプロセスの PID である。
+.TP 
+\fI/proc/locks\fP
+このファイルは現在のファイルロック (\fBflock\fP(2) と \fBfcntl\fP(2))  とリース (\fBfcntl\fP(2))  を表示する。
+.TP 
+\fI/proc/malloc\fP (Linux 2.2 以前のみ)
+.\" It looks like this only ever did something back in 1.0 days
+コンパイルのときに \fBCONFIGDEBUGMALLOC\fP が定義されているときのみ、このファイルは存在する。
+.TP 
+\fI/proc/meminfo\fP
+This file reports statistics about memory usage on the system.  It is used
+by \fBfree\fP(1)  to report the amount of free and used memory (both physical
+and swap)  on the system as well as the shared memory and buffers used by
+the kernel.  Each line of the file consists of a parameter name, followed by
+a colon, the value of the parameter, and an option unit of measurement
+(e.g., "kB").  The list below describes the parameter names and the format
+specifier required to read the field value.  Except as noted below, all of
+the fields have been present since at least Linux 2.6.0.  Some fileds are
+displayed only if the kernel was configured with various options; those
+dependencies are noted in the list.
+.RS
+.TP 
+\fIMemTotal\fP %lu
+Total usable RAM (i.e. physical RAM minus a few reserved bits and the kernel
+binary code).
+.TP 
+\fIMemFree\fP %lu
+The sum of \fILowFree\fP+\fIHighFree\fP.
+.TP 
+\fIBuffers\fP %lu
+Relatively temporary storage for raw disk blocks that shouldn't get
+tremendously large (20MB or so).
+.TP 
+\fICached\fP %lu
+In\-memory cache for files read from the disk (the page cache).  Doesn't
+include \fISwapCached\fP.
+.TP 
+\fISwapCached\fP %lu
+Memory that once was swapped out, is swapped back in but still also is in
+the swap file.  (If memory pressure is high, these pages don't need to be
+swapped out again because they are already in the swap file.  This saves
+I/O.)
+.TP 
+\fIActive\fP %lu
+Memory that has been used more recently and usually not reclaimed unless
+absolutely necessary.
+.TP 
+\fIInactive\fP %lu
+Memory which has been less recently used.  It is more eligible to be
+reclaimed for other purposes.
+.TP 
+\fIActive(anon)\fP %lu (Linux 2.6.28 以降)
+[To be documented.]
+.TP 
+\fIInactive(anon)\fP %lu (Linux 2.6.28 以降)
+[To be documented.]
+.TP 
+\fIActive(file)\fP %lu (Linux 2.6.28 以降)
+[To be documented.]
+.TP 
+\fIInactive(file)\fP %lu (Linux 2.6.28 以降)
+[To be documented.]
+.TP 
+\fIUnevictable\fP %lu (Linux 2.6.28 以降)
+(From Linux 2.6.28 to 2.6.30, \fBCONFIG_UNEVICTABLE_LRU\fP was required.)  [To
+be documented.]
+.TP 
+\fIMlocked\fP %lu (Linux 2.6.28 以降)
+(From Linux 2.6.28 to 2.6.30, \fBCONFIG_UNEVICTABLE_LRU\fP was required.)  [To
+be documented.]
+.TP 
+\fIHighTotal\fP %lu
+(Starting with Linux 2.6.19, \fBCONFIG_HIGHMEM\fP is required.)  Total amount
+of highmem.  Highmem is all memory above ~860MB of physical memory.  Highmem
+areas are for use by user\-space programs, or for the page cache.  The kernel
+must use tricks to access this memory, making it slower to access than
+lowmem.
+.TP 
+\fIHighFree\fP %lu
+(Starting with Linux 2.6.19, \fBCONFIG_HIGHMEM\fP is required.)  Amount of free
+highmem.
+.TP 
+\fILowTotal\fP %lu
+(Starting with Linux 2.6.19, \fBCONFIG_HIGHMEM\fP is required.)  Total amount
+of lowmem.  Lowmem is memory which can be used for everything that highmem
+can be used for, but it is also available for the kernel's use for its own
+data structures.  Among many other things, it is where everything from
+\fISlab\fP is allocated.  Bad things happen when you're out of lowmem.
+.TP 
+\fILowFree\fP %lu
+(Starting with Linux 2.6.19, \fBCONFIG_HIGHMEM\fP is required.)  Amount of free
+lowmem.
+.TP 
+\fIMmapCopy\fP %lu (Linux 2.6.29 以降)
+(\fBCONFIG_MMU\fP is required.)  [To be documented.]
+.TP 
+\fISwapTotal\fP %lu
+Total amount of swap space available.
+.TP 
+\fISwapFree\fP %lu
+Amount of swap space that is currently unused.
+.TP 
+\fIDirty\fP %lu
+Memory which is waiting to get written back to the disk.
+.TP 
+\fIWriteback\fP %lu
+Memory which is actively being written back to the disk.
+.TP 
+\fIAnonPages\fP %lu (Linux 2.6.18 以降)
+Non\-file backed pages mapped into user\-space page tables.
+.TP 
+\fIMapped\fP %lu
+Files which have been mmaped, such as libraries.
+.TP 
+\fIShmem\fP %lu (Linux 2.6.32 以降)
+[To be documented.]
+.TP 
+\fISlab\fP %lu
+In\-kernel data structures cache.
+.TP 
+\fISReclaimable\fP %lu (Linux 2.6.19 以降)
+Part of \fISlab\fP, that might be reclaimed, such as caches.
+.TP 
+\fISUnreclaim\fP %lu (Linux 2.6.19 以降)
+Part of \fISlab\fP, that cannot be reclaimed on memory pressure.
+.TP 
+\fIKernelStack\fP %lu (Linux 2.6.32 以降)
+Amount of memory allocated to kernel stacks.
+.TP 
+\fIPageTables\fP %lu (Linux 2.6.18 以降)
+Amount of memory dedicated to the lowest level of page tables.
+.TP 
+\fIQuicklists\fP %lu (Linux 2.6.27 以降)
+(\fBCONFIG_QUICKLIST\fP is required.)  [To be documented.]
+.TP 
+\fINFS_Unstable\fP %lu (Linux 2.6.18 以降)
+NFS pages sent to the server, but not yet committed to stable storage.
+.TP 
+\fIBounce\fP %lu (Linux 2.6.18 以降)
+Memory used for block device "bounce buffers".
+.TP 
+\fIWritebackTmp\fP %lu (Linux 2.6.26 以降)
+Memory used by FUSE for temporary writeback buffers.
+.TP 
+\fICommitLimit\fP %lu (Linux 2.6.10 以降)
+Based on the overcommit ratio ('vm.overcommit_ratio'), this is the total
+amount of memory currently available to be allocated on the system.  This
+limit is adhered to only if strict overcommit accounting is enabled (mode 2
+in \fI/proc/sys/vm/overcommit_ratio\fP).  The \fICommitLimit\fP is calculated
+using the following formula:
+
+    CommitLimit = (overcommit_ratio * Physical RAM) + Swap
+
+For example, on a system with 1GB of physical RAM and 7GB of swap with a
+\fIovercommit_ratio\fP of 30, this formula yields a \fICommitLimit\fP of 7.3GB.
+For more details, see the memory overcommit documentation in the kernel
+source file \fIDocumentation/vm/overcommit\-accounting\fP.
+.TP 
+\fICommitted_AS\fP %lu
+The amount of memory presently allocated on the system.  The committed
+memory is a sum of all of the memory which has been allocated by processes,
+even if it has not been "used" by them as of yet.  A process which allocates
+1GB of memory (using \fBmalloc\fP(3)  or similar), but touches only 300MB of
+that memory will show up as using only 300MB of memory even if it has the
+address space allocated for the entire 1GB.  This 1GB is memory which has
+been "committed" to by the VM and can be used at any time by the allocating
+application.  With strict overcommit enabled on the system (mode 2
+\fI/proc/sys/vm/overcommit_memory\fP), allocations which would exceed the
+\fICommitLimit\fP (detailed above) will not be permitted.  This is useful if
+one needs to guarantee that processes will not fail due to lack of memory
+once that memory has been successfully allocated.
+.TP 
+\fIVmallocTotal\fP %lu
+Total size of vmalloc memory area.
+.TP 
+\fIVmallocUsed\fP %lu
+Amount of vmalloc area which is used.
+.TP 
+\fIVmallocChunk\fP %lu
+Largest contiguous block of vmalloc area which is free.
+.TP 
+\fIHardwareCorrupted\fP %lu (Linux 2.6.32 以降)
+(\fBCONFIG_MEMORY_FAILURE\fP is required.)  [To be documented.]
+.TP 
+\fIAnonHugePages\fP %lu (Linux 2.6.38 以降)
+(\fBCONFIG_TRANSPARENT_HUGEPAGE\fP is required.)  Non\-file backed huge pages
+mapped into user\-space page tables.
+.TP 
+\fIHugePages_Total\fP %lu
+(\fBCONFIG_HUGETLB_PAGE\fP is required.)  The size of the pool of huge pages.
+.TP 
+\fIHugePages_Free\fP %lu
+(\fBCONFIG_HUGETLB_PAGE\fP is required.)  The number of huge pages in the pool
+that are not yet allocated.
+.TP 
+\fIHugePages_Rsvd\fP %lu (Linux 2.6.17 以降)
+(\fBCONFIG_HUGETLB_PAGE\fP is required.)  This is the number of huge pages for
+which a commitment to allocate from the pool has been made, but no
+allocation has yet been made.  These reserved huge pages guarantee that an
+application will be able to allocate a huge page from the pool of huge pages
+at fault time.
+.TP 
+\fIHugePages_Surp\fP %lu (Linux 2.6.24 以降)
+(\fBCONFIG_HUGETLB_PAGE\fP is required.)  This is the number of huge pages in
+the pool above the value in \fI/proc/sys/vm/nr_hugepages\fP.  The maximum
+number of surplus huge pages is controlled by
+\fI/proc/sys/vm/nr_overcommit_hugepages\fP.
+.TP 
+\fIHugepagesize\fP %lu
+(\fBCONFIG_HUGETLB_PAGE\fP is required.)  The size of huge pages.
+.RE
+.TP 
+\fI/proc/modules\fP
+現在システムにロードされているモジュールのテキスト形式のリスト。 \fBlsmod\fP(8)  も参照。
+.TP 
+\fI/proc/mounts\fP
+カーネル 2.4.19 より前では、このファイルは現在システムにマウントされている 全てのファイルシステムのリストであった。 Linux 2.4.19
+でプロセス単位のマウント名前空間が導入されたことに伴い、 このファイルは \fI/proc/self/mounts\fP へのリンクとなった。
+\fI/proc/self/mounts\fP はそのプロセス自身のマウント名前空間のマウントポイントのリストである。 このファイルのフォーマットは
+\fBfstab\fP(5)  に記述されている。
+.TP 
+\fI/proc/mtrr\fP
+Memory Type Range Registers。 詳細は、Linux カーネルソースファイル \fIDocumentation/mtrr.txt\fP
+を参照すること。
+.TP 
+\fI/proc/net\fP
+さまざまなネットワークについての擬似ファイルで、 それぞれがネットワーク層の各種の状態を与える。 これらのファイルの内容は ASCII 形式なので、
+\fBcat\fP(1)  で読み出せる。 とはいえ基本コマンドの \fBnetstat\fP(8)  はこれらのファイルの内容のよりすっきりとした表示を提供する。
+.TP 
+\fI/proc/net/arp\fP
+アドレス解決に使われるカーネルの ARP テーブルの ASCII 可読なダンプを保持している。 動的結合されたものと固定 (preprogrammed)
+の両方の APP エントリを見ることができる。フォーマットは以下のとおり:
+
+.nf
+.in 8n
+\f(CWIP address     HW type   Flags     HW address          Mask   Device
+192.168.0.50   0x1       0x2       00:50:BF:25:68:F3   *      eth0
+192.168.0.250  0x1       0xc       00:00:00:00:00:00   *      eth0\fP
+.fi
+.in
+
+ここで IP address はマシンの IPv4 アドレス、 HW type はそのアドレスの RFC\ 826 で定められているハードウェアの形式、
+Flags は ARP 構造体 (\fI/usr/include/linux/if_arp.h\fP 内で定義されている) の内部フラグ、 HW
+address はその IP アドレスにマップされているデータリンク層のアドレス (もしわかっていれば) である。
+.TP 
+\fI/proc/net/dev\fP
+擬似ファイル dev はネットワークデバイスの状態情報を含んでいる。 これは送受信したパケット数、エラーとコリジョン (collision) の回数、
+その他の基本的な統計を与える。 これらは \fBifconfig\fP(8)  がデバイスの状態を報告するのに使われる。 フォーマットは以下のとおり:
+
+.nf
+.in 1n
+\f(CWInter\-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo: 2776770   11307    0    0    0     0          0         0  2776770   11307    0    0    0     0       0          0
+  eth0: 1215645    2751    0    0    0     0          0         0  1782404    4324    0    0    0   427       0          0
+  ppp0: 1622270    5552    1    0    0     0          0         0   354130    5669    0    0    0     0       0          0
+  tap0:    7714      81    0    0    0     0          0         0     7714      81    0    0    0     0       0          0\fP
+.in
+.fi
+.\" .TP
+.\" .I /proc/net/ipx
+.\" No information.
+.\" .TP
+.\" .I /proc/net/ipx_route
+.\" No information.
+.TP 
+\fI/proc/net/dev_mcast\fP
+\fI/usr/src/linux/net/core/dev_mcast.c\fP で定義されており、以下の形式である。
+.nf
+.in +5
+indx interface_name  dmi_u dmi_g dmi_address
+2    eth0            1     0     01005e000001
+3    eth1            1     0     01005e000001
+4    eth2            1     0     01005e000001
+.in
+.fi
+.TP 
+\fI/proc/net/igmp\fP
+Internet Group Management Protocol (インターネットグループ管理プロトコル)。
+\fI/usr/src/linux/net/core/igmp.c\fP で定義されている。
+.TP 
+\fI/proc/net/rarp\fP
+このファイルは \fIarp\fP と同じフォーマットで 逆アドレス解決サービス (reverse address lookup services)
+\fBrarp\fP(8)  に提供するために使われる現在の逆マップデータベースの内容を含んでいる。 RARP
+がカーネルコンフィグレーションに設定されていなければ、 このファイルは存在しない。
+.TP 
+\fI/proc/net/raw\fP
+.\" .TP
+.\" .I /proc/net/route
+.\" No information, but looks similar to
+.\" .BR route (8).
+RAW ソケットテーブルのダンプを保持している。 ほとんどの情報はデバッグ以外では
+使われない。 \&"sl" の値はソケットのカーネルハッシュスロット、
+\&"local_address" はローカルアドレスとプロトコル番号のペア
+[訳者追加: "rem_address" はリモートアドレスとプロトコル番号のペア]。
+\&"st" はソケットの内部状態。 \&"tx_queue" と "rx_queue" はカーネルメモリを
+消費している 送信/受信データキューのサイズ。 \&"tr" と "tm\->when" と
+"rexmits" フィールドは RAW では使われていない。
+\&"uid" フィールドはソケット生成者の実効 UID を保持している。
+.TP 
+\fI/proc/net/snmp\fP
+このファイルは SNMP エージェントが必要とする IP, ICMP, TCP, UDP 管理情報を ASCII データとして保持している。
+.TP 
+\fI/proc/net/tcp\fP
+TCP ソケットテーブルのダンプを保持している。 大部分の情報はデバッグ以外には
+使われない。 sl はソケットのカーネルハッシュスロットの値、 \&"local_address"
+はローカルアドレスとポート番号のペアである。 (ソケットが接続している場合は)
+\&"rem_address" はリモートアドレスとポート番号の対である。 \&"st" はソケット
+の内部状態である。 \&"tx_queue" と "rx_queue" はカーネルメモリを消費している
+送信/受信データキューのサイズ。 \&"tr" と "tm\->when" と "rexmits"
+フィールドはソケット状態のカーネル 内部情報を保持しているが、
+これらはデバッグのときにしか役に立たない。 \&"uid" フィールドはソケット
+生成者の実効 UID を保持している。
+.TP 
+\fI/proc/net/udp\fP
+UDP ソケットテーブルのダンプを保持している。 大部分の情報はデバッグ以外には
+使われない。 sl はソケットのカーネルハッシュスロットの値、 "local_address"
+はローカルアドレスとポート番号のペアである。 (ソケットが接続している場合は)
+"rem_address" はリモートアドレスとポート番号のペアである。 "st" はソケットの
+内部状態である。 "tx_queue" と "rx_queue" はカーネルメモリを消費している
+送信/受信データキューのサイズ。 "tr" と "tm\->when" と "rexmits"
+フィールドは UDP では使われていない。 "uid" フィールドはソケット生成者の
+実効 UID を保持している。 フォーマットは以下のとおり:
+
+.nf
+.in 1n
+\f(CWsl  local_address rem_address   st tx_queue rx_queue tr rexmits  tm\->when uid
+ 1: 01642C89:0201 0C642C89:03FF 01 00000000:00000001 01:000071BA 00000000 0
+ 1: 00000000:0801 00000000:0000 0A 00000000:00000000 00:00000000 6F000100 0
+ 1: 00000000:0201 00000000:0000 0A 00000000:00000000 00:00000000 00000000 0\fP
+.in
+.fi
+.TP 
+\fI/proc/net/unix\fP
+UNIX ドメインソケットのリスト。 フォーマットは以下のとおり:
+.nf
+.sp .5
+\f(CWNum RefCount Protocol Flags    Type St Path
+ 0: 00000002 00000000 00000000 0001 03
+ 1: 00000001 00000000 00010000 0001 01 /dev/printer\fP
+.sp .5
+.fi
+
+ここで、Num はカーネルのテーブルスロット数、 RefCount はソケットを使用して
+いるユーザー数、 Protocol はいまのところいつも 0 で、Flags はソケットの状態
+を保持している カーネル内部のフラグである。 Type はいまのところいつも 1
+(UNIX ドメインのデータグラムソケットは、現在のカーネルではサポートされていない
+[訳注: 2.0.34 ではサポートされているようだ])。
+St はソケットの内部状態で、Path は(もしあれば) ソケットのパス名である。
+.TP 
+\fI/proc/partitions\fP
+各パーティションのメジャー番号とマイナー番号が書かれている。 さらに、ブロック数とパーティション名も書かれている。
+.TP 
+\fI/proc/pci\fP
+カーネルの初期化時に見つかったすべての PCI デバイスのリストと その設定。
+
+.\" FIXME /proc/sched_debug
+.\" .TP
+.\" .IR /proc/sched_debug " (since Linux 2.6.23)"
+.\" See also /proc/[pid]/sched
+このファイルは非推奨であり、新しい PCI 用の \fI/proc\fP インターフェイス (\fI/proc/bus/pci\fP)  を使うこと。
+このファイルは Linux 2.2 でオプションになった (カーネルのコンパイル時に \fBCONFIG_PCI_OLD_PROC\fP
+をセットすると利用可能であった)。 Linux 2.4 で再びオプションなしで有効に戻った。 さらに、Linux 2.6 で非推奨となり
+(\fBCONFIG_PCI_LEGACY_PROC\fP をセットするとまだ利用可能であった)、 最終的に Linux 2.6.17
+以降で完全に削除された。
+.TP 
+\fI/proc/profile\fP (Linux 2.4 以降)
+This file is present only if the kernel was booted with the \fIprofile=1\fP
+command\-line option.  It exposes kernel profiling information in a binary
+format for use by \fBreadprofile\fP(1).  Writing (e.g., an empty string) to
+this file resets the profiling counters; on some architectures, writing a
+binary integer "profiling multiplier" of size \fIsizeof(int)\fP sets the
+profiling interrupt frequency.
+.TP 
+\fI/proc/scsi\fP
+\fIscsi\fP 中間レベル擬似ファイルといくつかの SCSI 低レベルドライバの ディレクトリを含むディレクトリ。 これらのファイルは ASCII
+で表現されているので \fBcat\fP(1)  で読める。
+
+いくつかのファイルは書き込み可能で、サブシステムの設定を変更したり、 特定の機能をオン/オフすることができる。
+.TP 
+\fI/proc/scsi/scsi\fP
+カーネルが知っているすべての SCSI デバイスのリスト。 このリストは起動時に (コンソールで) 見られるものとほぼ同じである。 scsi
+は現在のところ \fIadd\-single\-device\fP コマンドのみをサポートしている。 これによりルート (root)
+は既知のデバイスリストへ活線挿抜 (hotplugged)  デバイスを加えることができる。
+
+次のコマンドを実行すると、
+.in +4n
+.nf
+
+echo \(aqscsi add\-single\-device 1 0 5 0\(aq > /proc/scsi/scsi
+
+.fi
+.in
+ホストアダプタ scsi1 は SCSI チャネル 0 で ID 5 LUN 0 のデバイスを探す。 もしこのアドレスに既知のデバイスがあるか、
+不正なアドレスであったならばエラーが返る。
+.TP 
+\fI/proc/scsi/[drivername]\fP
+いまのところ \fI[drivername]\fP は NCR53c7xx, aha152x, aha1542, aha1740, aic7xxx,
+buslogic, eata_dma, eata_pio, fdomain, in2000, pas16, qlogic, scsi_debug,
+seagate, t128, u15\-24f, ultrastore, wd7000 のどれかである。 少なくとも 1 つの SCSI
+ホストバスアダプタ (HBA) に ドライバが割り当てられていると、そのドライバに対応したディレクトリが現れる。 それぞれのディレクトリには、
+登録されたホストアダプタに対応してファイルが作られる。 このファイルの名前は、システムの初期化の際に ホストアダプタに割り当てられた番号になる。
+
+これらのファイルを読めばドライバとホストアダプタの設定や 統計などを見ることができる。
+
+これらのファイルへの書き込みはホストアダプタごとに異なる動作を引き起こす。 たとえば \fIlatency\fP と \fInolatency\fP
+コマンドを用いると、 ルート (root、スーパーユーザー) は eata_dma ドライバの隠し測定コードの オン/オフを切り替えることができる。
+また \fI lockup\fP と \fIunlock\fP コマンドを用いると、ルートは scsi_debug ドライバがシミュレートするバスロックアップ
+(bus lockup) を 制御することができる。
+.TP 
+\fI/proc/self\fP
+このディレクトリはプロセスに (プロセス自身の)  \fI/proc\fP ファイルシステムへのアクセスを参照させる。 これは \fI/proc\fP 内の
+(このプロセスの) プロセス ID が名前となっている ディレクトリと全く同一である。
+.TP 
+\fI/proc/slabinfo\fP
+Linux 2.6.16 以降では、 カーネル設定オプション \fBCONFIG_SLAB\fP が有効の場合にのみ、このファイルは存在する。
+カーネルキャッシュの情報。 \fI/proc/slabinfo\fP のフィールドは以下のとおり。
+.in +4n
+.nf
+
+cache\-name
+num\-active\-objs
+total\-objs
+object\-size
+num\-active\-slabs
+total\-slabs
+num\-pages\-per\-slab
+.fi
+.in
+
+詳細は \fBslabinfo\fP(5)  を参照すること。
+.TP 
+\fI/proc/stat\fP
+カーネル/システムの統計。 アーキテクチャによって異なる。 共通エントリには以下のものが含まれる。
+.RS
+.TP 
+\fIcpu  3357 0 4313 1362393\fP
+.\" 1024 on Alpha and ia64
+The amount of time, measured in units of USER_HZ (1/100ths of a second on
+most architectures, use \fIsysconf(_SC_CLK_TCK)\fP to obtain the right value),
+that the system spent in various states:
+.RS
+.TP 
+\fIuser\fP
+(1) Time spent in user mode.
+.TP 
+\fInice\fP
+(2) Time spent in user mode with low priority (nice).
+.TP 
+\fIsystem\fP
+(3) Time spent in system mode.
+.TP 
+\fIidle\fP
+.\" FIXME Actually, the following info about the /proc/stat 'cpu' field
+.\"       does not seem to be quite right (at least in 2.6.12 or 3.6):
+.\"       the idle time in /proc/uptime does not quite match this value
+(4) Time spent in the idle task.  This value should be USER_HZ times the
+second entry in the \fI/proc/uptime\fP pseudo\-file.
+.TP 
+\fIiowait\fP (Linux 2.5.41 以降)
+(5) Time waiting for I/O to complete.
+.TP 
+\fIirq\fP (Linux 2.6.0\-test4 以降)
+(6) Time servicing interrupts.
+.TP 
+\fIsoftirq\fP (Linux 2.6.0\-test4 以降)
+(7) Time servicing softirqs.
+.TP 
+\fIsteal\fP (Linux 2.6.11 以降)
+(8) 盗まれた時間 (stolen time)。仮想化環境での動作時に他のオペレーティングシステムにより消費された時間である。
+.TP 
+\fIguest\fP (Linux 2.6.24 以降)
+.\" See Changelog entry for 5e84cfde51cf303d368fcb48f22059f37b3872de
+(9) Linux カーネルの制御下のゲストオペレーティングシステムの仮想 CPU の 実行に消費された時間。
+.TP 
+\fIguest_nice\fP (Linux 2.6.33 以降)
+.\" commit ce0e7b28fb75cb003cfc8d0238613aaf1c55e797
+(10) nice が適用されたゲスト (Linux カーネルの制御下のゲストオペレーティングシステムの仮想 CPU) の 実行に消費された時間。
+.RE
+.TP 
+\fIpage 5741 1808\fP
+システムが (ディスクから) ページイン/ページアウトしたページ数。
+.TP 
+\fIswap 1 0\fP
+スワップイン/スワップアウトされたページ数。
+.TP 
+.\" FIXME The following is not the full picture for the 'intr' of
+.\"       /proc/stat on 2.6:
+\fIintr 1462898\fP
+この行はシステム起動時以降に処理された割り込みの回数を示す。 最初の欄は処理された割り込み全ての合計であり、それ以降の欄は
+個々の割り込みについての合計数である。
+.TP 
+\fIdisk_io: (2,0):(31,30,5764,1,2) (3,0):\fP...
+(メジャー番号, ディスクインデックス番号):(情報なし (noinfo), 読み込み回数, 読み込みブロック数, 書き出し回数, 書き出しブロック数)
+.br
+(Linux 2.4 のみ)
+.TP 
+\fIctxt 115315\fP
+コンテクスト・スイッチの延べ回数。
+.TP 
+\fIbtime 769041601\fP
+起動時刻、紀元 (Epoch; 1970\-01\-01 00:00:00 +0000 (UTC)) からの秒数。
+.TP 
+\fIprocesses 86031\fP
+システム起動時からの延べフォーク (fork) 数。
+.TP 
+\fIprocs_running 6\fP
+実行中状態のプロセス数 (Linux 2.5.45 以降)。
+.TP 
+\fIprocs_blocked 2\fP
+I/O 完了待ちで停止 (blocked) しているプロセス数 (Linux 2.5.45 以降)。
+.RE
+.TP 
+\fI/proc/swaps\fP
+使用中のスワップ領域。 \fBswapon\fP(8)  も参照すること。
+.TP 
+\fI/proc/sys\fP
+このディレクトリ (1.3.57 以降に存在) はカーネル変数に対応するいくつかの
+ファイルとサブディレクトリを含む。 これらの変数は読み出し可能である。
+また場合によっては \fI/proc\fP ファイルシステムや、 (非推奨の) システムコール
+\fBsysctl\fP(2) を用いて書き換えることもできる。
+.TP 
+\fI/proc/sys/abi\fP (Linux 2.4.10 以降)
+.\" On some systems, it is not present.
+このディレクトリにはアプリケーションのバイナリ情報が入ったファイルが置かれる。 更に詳しい情報は、 Linux カーネルソースファイル
+\fIDocumentation/sysctl/abi.txt\fP を参照すること。
+.TP 
+\fI/proc/sys/debug\fP
+このディレクトリは空の場合もある。
+.TP 
+\fI/proc/sys/dev\fP
+このディレクトリにはデバイス特有の情報 (たとえば \fIdev/cdrom/info\fP)  が含まれる。
+このディレクトリが空になっているシステムもある。
+.TP 
+\fI/proc/sys/fs\fP
+このディレクトリには、ファイルシステムに関連するカーネル変数用の
+ディレクトリとサブディレクトリが含まれる。
+.TP 
+\fI/proc/sys/fs/binfmt_misc\fP
+このディレクトリ以下のファイルについてのドキュメントは、 Linux カーネルソースの \fIDocumentation/binfmt_misc.txt\fP
+にある。
+.TP 
+\fI/proc/sys/fs/dentry\-state\fP (Linux 2.2 以降)
+このファイルには、ディレクトリキャッシュ (dcache) の状態に関する情報が 入っている。ファイルには、 \fInr_dentry\fP,
+\fInr_unused\fP, \fIage_limit\fP (秒単位の age), \fIwant_pages\fP (システムがリクエストしたページ数),
+ダミーの 2 つの値、 という 6 つの数字が書かれている。
+.RS
+.IP * 2
+\fInr_dentry\fP は割り当てられた dentry (dcache エントリ) の数である。 このフィールドは Linux 2.2
+では使用されない。
+.IP *
+\fInr_unused\fP は未使用の dentry 数である。
+.IP *
+.\" looks like this is unused in kernels 2.2 to 2.6
+\fIage_limit\fP は、メモリが不足している場合に次に dcache entry を再要求できるように なるまでの残り時間 (秒数) である。
+.IP *
+.\" looks like this is unused in kernels 2.2 to 2.6
+\fIwant_pages\fP は、カーネルが shrink_dcache_pages() を呼び出したが dcache がまだ縮小されていない場合に、0
+以外の値となる。
+.RE
+.TP 
+\fI/proc/sys/fs/dir\-notify\-enable\fP
+このファイルは \fBfcntl\fP(2)  に記述されている \fIdnotify\fP インターフェースをシステム全体で無効にしたり有効にしたりする。
+このファイルに値 0 が書かれている場合はインターフェースが無効になり、 値 1 の場合は有効になる。
+.TP 
+\fI/proc/sys/fs/dquot\-max\fP
+このファイルにはキャッシュされるディスク quota エントリの最大数が書かれている。 (2.4 系の)
+システムの中には、このファイルが存在しないものもある。 キャッシュされるディスク quota エントリの空きが非常に少なく、
+とても多くのシステムユーザーが同時に存在する場合、 この制限を上げるといいかもしれない。
+.TP 
+\fI/proc/sys/fs/dquot\-nr\fP
+このファイルには割り当てられているディスク quota のエントリ数と、 空いているディスク quota のエントリ数が書かれている。
+.TP 
+\fI/proc/sys/fs/epoll\fP (Linux 2.6.28 以降)
+このディレクトリには、ファイル \fImax_user_watches\fP がある。 これらは、 \fIepoll\fP
+インタフェースが消費するカーネルメモリ量を制限するのに使用できる。 詳細は \fBepoll\fP(7)  を参照。
+.TP 
+\fI/proc/sys/fs/file\-max\fP
+This file defines a system\-wide limit on the number of open files for all
+processes.  (See also \fBsetrlimit\fP(2), which can be used by a process to set
+the per\-process limit, \fBRLIMIT_NOFILE\fP, on the number of files it may
+open.)  If you get lots of error messages in the kernel log about running
+out of file handles (look for "VFS: file\-max limit <number>
+reached"), try increasing this value:
+.br
+
+.br
+.nf
+\f(CW    echo 100000 > /proc/sys/fs/file\-max\fP
+.fi
+
+\fIfile\-max\fP に書かれている値は、カーネル定数 \fBNR_OPEN\fP に制限される。
+
+\fI/proc/sys/fs/file\-max\fP を増やした場合は、 \fI/proc/sys/fs/inode\-max\fP を新しい
+\fI/proc/sys/fs/file\-max\fP の値の 3\-4 倍に増やしておくこと。 こうしないと inode を使い果たしてしまうだろう。
+
+特権プロセス (\fBCAP_SYS_ADMIN\fP) は \fIfile\-max\fP 上限を上書きできる。
+.TP 
+\fI/proc/sys/fs/file\-nr\fP
+This (read\-only) file contains three numbers: the number of allocated file
+handles (i.e., the number of files presently opened); the number of free
+file handles; and the maximum number of file handles (i.e., the same value
+as \fI/proc/sys/fs/file\-max\fP).  If the number of allocated file handles is
+close to the maximum, you should consider increasing the maximum.  Before
+Linux 2.6, the kernel allocated file handles dynamically, but it didn't free
+them again.  Instead the free file handles were kept in a list for
+reallocation; the "free file handles" value indicates the size of that
+list.  A large number of free file handles indicates that there was a past
+peak in the usage of open file handles.  Since Linux 2.6, the kernel does
+deallocate freed file handles, and the "free file handles" value is always
+zero.
+.TP 
+\fI/proc/sys/fs/inode\-max\fP
+このファイルには、メモリ内 inode の最大値が書かれている。 (2.4 系の) システムによっては、このファイルが存在しないかもしれない。 この値は
+\fIfile\-max\fP の値の 3\-4 倍にすべきである。 これは \fIstdin\fP, \fIstdout\fP, ネットワークソケットを扱うにも inode
+が必要なためである。 日常的に inode を使い果たしている場合は、この値を増やす必要がある。
+.TP 
+\fI/proc/sys/fs/inode\-nr\fP
+このファイルには、 \fIinode\-state\fP の最初の 2 つの値が書かれている。
+.TP 
+\fI/proc/sys/fs/inode\-state\fP
+このファイルには 7 個の値が書かれている: \fInr_inodes,\fP \fInr_free_inodes\fP, \fIpreshrink\fP と 4
+つのダミーの値である。 \fInr_inodes\fP はシステムが確保する inode の数である。 Linux は 1 度に 1 ページ分いっぱいに
+nr_inode を確保するので、この値が \fIinode\-max\fP より幾分大きくなることもある。 \fInr_free_inodes\fP は空いている
+inode の数を表す。 \fInr_inodes\fP > \fIinode\-max\fP の場合、 \fIpreshrink\fP は 0 以外の値になる。
+この場合システムは inode をさらに確保するのではなく、 inode リストを切り詰める必要がある。
+.TP 
+\fI/proc/sys/fs/inotify\fP (Linux 2.6.13 以降)
+このディレクトリには、ファイル \fImax_queued_events\fP, \fImax_user_instances\fP, and
+\fImax_user_watches\fP がある。これらは、 \fIinotify\fP インタフェースが消費するカーネルメモリ量を制限するのに利用できる。
+詳細は \fBinotify\fP(7)  を参照。
+.TP 
+\fI/proc/sys/fs/lease\-break\-time\fP
+このファイルは、ファイルを保持しているプロセスに対して カーネルがシグナルを送り、
+他のプロセスがそのファイルをオープンするのを待っていることを通知してから、 そのプロセスに対してカーネルがファイルのリース (lease, 貸し出し)
+(\fBfcntl\fP(2)  を参照) を許す猶予期間を指定する。 リースホルダ (lease holder: ファイルの貸し出しを受けているプロセス)
+が 猶予期間中にリースを削除するか階級を低くしない場合、 カーネルはファイルのリースを強制的に止める。
+.TP 
+\fI/proc/sys/fs/leases\-enable\fP
+このファイルはシステム全体でのファイルリース (\fBfcntl\fP(2)  を参照) を有効または無効にする。 ファイルに値 0
+が書き込まれている場合、リースは無効である。 0 以外の場合にはリースは有効である。
+.TP 
+\fI/proc/sys/fs/mqueue\fP (Linux 2.6.6 以降)
+このディレクトリにはファイル \fImsg_max\fP, \fImsgsize_max\fP, and \fIqueues_max\fP がある。これらは POSIX
+メッセージキューで使用されるリソースの 制御を行う。 詳細は \fBmq_overview\fP(7)  を参照。
+.TP 
+\fI/proc/sys/fs/overflowgid\fP と \fI/proc/sys/fs/overflowuid\fP
+これらのファイルにより、ユーザーは固定 UID と固定 GID の値を変更できる。 デフォルトは 65534 である。 Linux の UID と
+GID は 32 ビットであるが、 16 ビットの UID と GID しかサポートしないファイルシステムもある。
+このようなファイルシステムが書き込みを許可してマウントされた場合、 65535 を超える UID と GID は、
+ディスクに書き込まれる前にオーバーフロー値に変換される。
+.TP 
+\fI/proc/sys/fs/pipe\-max\-size\fP (Linux 2.6.35 以降)
+このファイルの値により、 \fBfcntl\fP(2) の \fBF_SETPIPE_SZ\fP
+操作で増やすことができるパイプ容量の上限値が定義される。この上限は非特権プロセスにのみ適用される。このファイルのデフォルト値は 1,048,576
+である。このファイルに設定した値は切り上げられて、実装側で利用するのに都合のよい値に変更される場合がある。切り上げられた値を確認するには、値を設定した後でこのファイルの内容を表示すればよい。このファイルに設定できる最小値はシステムのページサイズである。
+.TP 
+\fI/proc/sys/fs/protected_hardlinks\fP (Linux 3.6 以降)
+.\" commit 800179c9b8a1e796e441674776d11cd4c05d61d7
+When the value in this file is 0, no restrictions are placed on the creation
+of hard links (i.e., this is the historical behaviour before Linux 3.6).
+When the value in this file is 1, a hard link can be created to a target
+file only if one of the following conditions is true:
+.RS
+.IP * 3
+The caller has the \fBCAP_FOWNER\fP capability.
+.IP *
+The file system UID of the process creating the link matches the owner (UID)
+of the target file (as described in \fBcredentials\fP(7), a process's file
+system UID is normally the same as its effective UID).
+.IP *
+All of the following conditions are true:
+.RS 4
+.IP \(bu 3
+the target is a regular file;
+.IP \(bu
+the target file does not have its set\-user\-ID permission bit enabled;
+.IP \(bu
+the target file does not have both its set\-group\-ID and group\-executable
+permission bits enabled; and
+.IP \(bu
+the caller has permission to read and write the target file (either via the
+file's permissions mask or because it has suitable capabilities).
+.RE
+.RE
+.IP
+The default value in this file is 0.  Setting the value to 1 prevents a
+longstanding class of security issues caused by hard\-link\-based
+time\-of\-check, time\-of\-use races, most commonly seen in world\-writable
+directories such as \fI/tmp\fP.  The common method of exploiting this flaw is
+to cross privilege boundaries when following a given hard link (i.e., a root
+process follows a hard link created by another user).  Additionally, on
+systems without separated partitions, this stops unauthorized users from
+"pinning" vulnerable set\-user\-ID and set\-group\-ID files against being
+upgraded by the administrator, or linking to special files.
+.TP 
+\fI/proc/sys/fs/protected_symlinks\fP (Linux 3.6 以降)
+.\" commit 800179c9b8a1e796e441674776d11cd4c05d61d7
+When the value in this file is 0, no restrictions are placed on following
+symbolic links (i.e., this is the historical behaviour before Linux 3.6).
+When the value in this file is 1, symbolic links are followed only in the
+following circumstances:
+.RS
+.IP * 3
+the file system UID of the process following the link matches the owner
+(UID) of the symbolic link (as described in \fBcredentials\fP(7), a process's
+file system UID is normally the same as its effective UID);
+.IP *
+the link is not in a sticky world\-writable directory; or
+.IP *
+the symbolic link and and its parent directory have the same owner (UID)
+.RE
+.IP
+A system call that fails to follow a symbolic link because of the above
+restrictions returns the error \fBEACCES\fP in \fIerrno\fP.
+.IP
+The default value in this file is 0.  Setting the value to 1 avoids a
+longstanding class of security issues based on time\-of\-check, time\-of\-use
+races when accessing symbolic links.
+.TP 
+\fI/proc/sys/fs/suid_dumpable\fP (Linux 2.6.13 以降)
+.\" The following is based on text from Documentation/sysctl/kernel.txt
+このファイルの値により、set\-user\-ID されたバイナリや、 保護がかかった (protected) バイナリ / tainted な
+(汚染された; ライセンスがカーネルと適合しない) バイナリに対して、コアダンプファイルを 生成するかどうかが決定される。 以下の
+3つの値を指定することができる:
+.RS
+.TP 
+\fI0\ (default)\fP
+この値を指定すると、以前と同じ (Linux 2.6.13 より前の) 動作をする。 (\fBseteuid\fP(2), \fBsetgid\fP(2)
+などを呼び出すことや、set\-user\-ID や set\-group\-ID されたプログラムを 実行することで) 資格情報 (credentials)
+が変更されているプロセスや、 プロセスの実行バイナリの読み出し許可がないプロセスに対して、 コアダンプを生成しない。
+.TP 
+\fI1\ ("debug")\fP
+すべてのプロセスで、可能であればコアダンプを行う。 コアダンプファイルの所有者は、ダンプを行うプロセスのファイルシステム UID
+となり、セキュリティ上の考慮は行われない。 この値は、システムデバッグの場面だけを想定して設けられている。 ptrace のチェックも行われない。
+.TP 
+\fI2\ ("suidsafe")\fP
+通常はダンプされないようなバイナリ (上記の "0" 参照) を root だけが読み出し可能な形でダンプする。
+この場合、ユーザはそのコアダンプファイルを削除することはできるが、 読むことはできない。 セキュリティ上の理由から、このモードのコアダンプでは、
+既存のダンプファイルや他のファイルを上書きすることはない。 このモードは、管理者が通常の環境で問題を解析しようとする際に 適している。
+.IP
+.\" 9520628e8ceb69fa9a4aee6b57f22675d9e1b709
+.\" 54b501992dd2a839e94e76aa392c392b55080ce8
+Additionally, since Linux 3.6, \fI/proc/sys/kernel/core_pattern\fP must either
+be an absolute pathname or a pipe command, as detailed in \fBcore\fP(5).
+Warnings will be written to the kernel log if \fIcore_pattern\fP does not
+follow these rules, and no core dump will be produced.
+.RE
+.TP 
+このファイルはスーパブロックの値を制御する。
+この値はカーネルがマウントできるファイルシステムの最大値になる。 現在、 \fIsuper\-max\fP で許可されているファイルシステム数以上に
+マウントする必要がある場合は、この値を増加させるだけでよい。
+.TP 
+\fI/proc/sys/fs/super\-nr\fP
+このファイルには現在マウントされているファイルシステム数が書かれている。
+.TP 
+\fI/proc/sys/kernel\fP
+このディレクトリには、以下で説明する様々なカーネルパラメータを 制御するためのファイルが配置されている。
+.TP 
+\fI/proc/sys/kernel/acct\fP
+このファイルには 3 つの値が含まれている: \fIhighwater\fP, \fIlowwater\fP, \fIfrequency\fP である。
+BSD\-style process accounting が有効になっている場合、 これら 3 つの値が動作を制御する。
+ログファイルのあるファイルシステムの空き領域が \fIlowwater\fP パーセント以下になった場合は、ログ記録を一時停止する。 空き領域が
+\fIhighwater\fP パーセント以上になった場合に、ログ記録を再開する。 \fIfrequency\fP はカーネルが空き領域のチェックをする頻度である
+(単位は秒)。 デフォルトの値は、4, 2, 30 である。 つまり、空き領域が 2% 以下になるとログ記録を一時停止し、 空き領域が 4%
+以上となったときに再開する。 空き領域についての情報は 30 秒間有効である点に注意すること。
+.TP 
+\fI/proc/sys/kernel/cap_last_cap\fP (since Linux 3.2)
+See \fBcapabilities\fP(7).
+.TP 
+\fI/proc/sys/kernel/cap\-bound\fP (Linux 2.2 to 2.6.24 以降)
+\fI/proc/sys/kernel/cap\-bound\fP このファイルにはカーネルの \fIcapability bounding set\fP (符号付き
+10 進数表現) の値が書かれている。 \fBexecve\fP(2)  中は、このセットとプロセスに許可されている権限の AND がとられる。 Linux
+2.6.25 以降では、システム全体のケーパビリティバウンディングセットは なくなり、スレッド単位のバウンディングセットに置き換えられた。
+\fBcapabilities\fP(7)  を参照。
+.TP 
+\fI/proc/sys/kernel/core_pattern\fP
+\fBcore\fP(5)  参照。
+.TP 
+\fI/proc/sys/kernel/core_uses_pid\fP
+\fBcore\fP(5)  参照。
+.TP 
+\fI/proc/sys/kernel/ctrl\-alt\-del\fP
+このファイルはキーボードの Ctrl\-Alt\-Del の扱いを制御する。 このファイルにある値が 0 の場合、 Ctrl\-Alt\-Del が捕捉されると
+\fBinit\fP(8)  プログラムに送られて、正しく再起動される。 値が 0 より大きい場合、Vulcan Nerve Pinch (tm)
+に反応して、 Linux はダーティバッファを同期させることなく、すぐに再起動を行う。 注意: プログラム (dosemu など) に "raw"
+モードのキーボードがある場合、 ctrl\-alt\-del はカーネルの tty レイヤーに到達する前に プログラムに遮断され、
+プログラムに送られてどのように扱うかが決められる。
+.TP 
+\fI/proc/sys/kernel/dmesg_restrict\fP (Linux 2.6.37 以降)
+.\" commit 620f6e8e855d6d447688a5f67a4e176944a084e8
+The value in this file determines who can see kernel syslog contents.  A
+value of 0 in this file imposes no restrictions.  If the value is 1, only
+privileged users can read the kernel syslog.  (See \fBsyslog\fP(2)  for more
+details.)  Since Linux 3.4, only users with the \fBCAP_SYS_ADMIN\fP capability
+may change the value in this file.
+.TP 
+\fI/proc/sys/kernel/domainname\fP と \fI/proc/sys/kernel/hostname\fP
+これらのファイルは、コマンド \fBdomainname\fP(1), \fBhostname\fP(1)  と全く同じ方法で、 マシンの NIS/YP
+ドメイン名とホスト名の設定に使える。 すなわち
+
+.in +4n
+.nf
+#\fB echo \(aqdarkstar\(aq > /proc/sys/kernel/hostname\fP
+#\fB echo \(aqmydomain\(aq > /proc/sys/kernel/domainname\fP
+.fi
+.in
+
+は、以下と同じ効果がある。
+
+.in +4n
+.nf
+#\fB hostname \(aqdarkstar\(aq\fP
+#\fB domainname \(aqmydomain\(aq\fP
+.fi
+.in
+
+注意: 典型的な darkstar.frop.org という名前には、 ホスト名 "darkstar" と DNS (Internet Domain
+Name Server)  ドメイン名 "frop.org" が含まれているが、DNS ドメイン名と NIS (Network Information
+Service) または YP (Yellow Pages) のドメイン名を混同してはならない。 一般にこれら 2 つのドメイン名は異なる。
+詳細な議論は、 \fBhostname\fP(1)  の man ページを参照すること。
+.TP 
+\fI/proc/sys/kernel/hotplug\fP
+このファイルはホットプラグ・ポリシー・エージェントのパスが書かれている。 このファイルのデフォルト値は \fI/sbin/hotplug\fP である。
+.TP 
+\fI/proc/sys/kernel/htab\-reclaim\fP
+(PowerPC のみ) このファイルを 0 以外の値に設定すると、 PowerPC htab (カーネルソースファイル
+\fIDocumentation/powerpc/ppc_htab.txt\fP 参照) を、システムがアイドルループになるたびに切り詰める。
+.TP 
+\fI/proc/sys/kernel/kptr_restrict\fP (Linux 2.6.38 以降)
+.\" 455cd5ab305c90ffc422dd2e0fb634730942b257
+.\" commit 411f05f123cbd7f8aa1edcae86970755a6e2a9d9
+.\" commit 620f6e8e855d6d447688a5f67a4e176944a084e8
+The value in this file determines whether kernel addresses are exposed via
+\fI/proc\fP files and other interfaces.  A value of 0 in this file imposes no
+restrictions.  If the value is 1, kernel pointers printed using the \fI%pK\fP
+format specifier will be replaced with zeros unless the user has the
+\fBCAP_SYSLOG\fP capability.  If the value is 2, kernel pointers printed using
+the \fI%pK\fP format specifier will be replaced with zeros regardless of the
+user's capabilities.  The initial default value for this file was 1, but the
+default was changed to 0 in Linux 2.6.39.  Since Linux 3.4, only users with
+the \fBCAP_SYS_ADMIN\fP capability can change the value in this file.
+.TP 
+\fI/proc/sys/kernel/l2cr\fP
+(PowerPC のみ) このファイルには G3 プロセッサボードの L2 キャッシュを制御するフラグが含まれる。 0 の場合、キャッシュは無効になる。
+0 以外の場合は有効になる。
+.TP 
+\fI/proc/sys/kernel/modprobe\fP
+このファイルには、カーネルモジュールローダへのパスが含まれる。 デフォルトの値は \fI/sbin/modprobe\fP
+である。このファイルは、\fBCONFIG_MODULES\fP オプション (Linux 2.6.26 以前では \fBCONFIG_KMOD\fP)
+を有効にしてカーネルが作成されている場合にのみ存在する。 このファイルについては、Linux カーネルソースファイル
+\fIDocumentation/kmod.txt\fP (カーネル 2.4 以前のみに存在) に記述されている。
+.TP 
+\fI/proc/sys/kernel/modules_disabled\fP (Linux 2.6.31 以降)
+.\" 3d43321b7015387cfebbe26436d0e9d299162ea1
+.\" From Documentation/sysctl/kernel.txt
+A toggle value indicating if modules are allowed to be loaded in an
+otherwise modular kernel.  This toggle defaults to off (0), but can be set
+true (1).  Once true, modules can be neither loaded nor unloaded, and the
+toggle cannot be set back to false.  The file is present only if the kernel
+is built with the \fBCONFIG_MODULES\fP option enabled.
+.TP 
+\fI/proc/sys/kernel/msgmax\fP
+このファイルは、System V メッセージキューに書き込まれる 1 つのメッセージの 最大バイト数を、システム全体で制限する。
+.TP 
+\fI/proc/sys/kernel/msgmni\fP (since Linux 2.4)
+This file defines the system\-wide limit on the number of message queue
+identifiers.
+.TP 
+\fI/proc/sys/kernel/msgmnb\fP
+このファイルは、 \fImsg_qbytes\fP の設定を初期化するシステム全体のパラメータで
+ある。 \fImsg_qbytes\fP は以降で作成されるメッセージキューで使われる。
+\fImsg_qbytes\fP 設定では、メッセージキューに書き込まれる最大バイト数を指定する。
+.TP 
+\fI/proc/sys/kernel/ostype\fP と \fI/proc/sys/kernel/osrelease\fP
+これらのファイルは文字列 \fI/proc/version\fP の各部分を与える。
+.TP 
+\fI/proc/sys/kernel/overflowgid\fP と \fI/proc/sys/kernel/overflowuid\fP
+これらのファイルは \fI/proc/sys/fs/overflowgid\fP と \fI/proc/sys/fs/overflowuid\fP
+を複製したものである。
+.TP 
+\fI/proc/sys/kernel/panic\fP
+このファイルはカーネル変数 \fIpanic_timeout\fP への読み出しと書き込みのアクセスを与える。 この値が 0 ならば、パニック時にカーネルは
+(無限) ループに入る。 0 でなければ、その秒数だけ待ってから自動的に再起動する。 ソフトウェア watchdog ドライバを使っている場合、
+推奨される設定は 60 である。
+.TP 
+\fI/proc/sys/kernel/panic_on_oops\fP (Linux 2.5.68 以降)
+このファイルは、oops や BUG が起こった場合のカーネルの動作を制御する。 ファイルに 0 が書かれている場合、システムは操作を続行しようとする。
+1 が書かれている場合、システムは (klogd が oops 出力を記録する時間を与えるために) 数秒間遅延した後、 panic を起こす。
+\fI/proc/sys/kernel/panic\fP ファイルも 0 でない場合、マシンは再起動される。
+.TP 
+\fI/proc/sys/kernel/pid_max\fP (Linux 2.5.34 以降)
+.\" Prior to 2.6.10, pid_max could also be raised above 32768 on 32-bit
+.\" platforms, but this broke /proc/[pid]
+.\" See http://marc.theaimsgroup.com/?l=linux-kernel&m=109513010926152&w=2
+このファイルは、PID をいくつで終了にするかを指定する (すなわち、このファイルの値は最大 PID より 1 大きい)。 このファイルのデフォルト値は
+32768 であり、 その場合には以前のカーネルと同じ PID の範囲になる。 32ビットのプラットフォームでは、 \fIpid_max\fP の最大値は
+32768 である。 64ビットのプラットフォームでは、 2^22 (\fBPID_MAX_LIMIT\fP, 約 4,000,000)
+までの任意の値を設定できる。
+.TP 
+\fI/proc/sys/kernel/powersave\-nap\fP (PowerPC のみ)
+このファイルにはフラグが書かれている。 フラグが設定されると、Linux\-PPC は 省電力の "nap" モードを使う。
+設定されない場合は、"doze" モードが使われる。
+.TP 
+\fI/proc/sys/kernel/printk\fP
+このファイルにある 4 つの値は、 \fIconsole_loglevel\fP, \fIdefault_message_loglevel\fP,
+\fIminimum_console_loglevel\fP, \fIdefault_console_loglevel\fP である。
+これらの値はエラーメッセージを表示したり記録したりする \fIprintk()\fP の動作に影響する。 各 loglevel の情報については、
+\fBsyslog\fP(2)  を参照すること。 優先度が \fIconsole_loglevel\fP 以上のメッセージは、コンソールに表示される。
+優先度が明示されていないメッセージは、優先度が \fIdefault_message_level\fP のときに表示される。
+\fIminimum_console_loglevel\fP は \fIconsole_loglevel\fP に設定できる最小 (最高) の値である。
+\fIdefault_console_loglevel\fP は \fIconsole_loglevel\fP のデフォルトの値である。
+.TP 
+\fI/proc/sys/kernel/pty\fP (Linux 2.6.4 以降)
+このディレクトリは、UNIX 98 疑似端末 (\fBpts\fP(4) を参照) の数に関連する
+2 つのファイルを含む。
+.TP 
+\fI/proc/sys/kernel/pty/max\fP
+このファイルは疑似端末の最大数を定義する。
+.TP 
+\fI/proc/sys/kernel/pty/nr\fP
+この読み出し専用のファイルは、現在いくつの疑似端末が使われているかを表す。
+.TP 
+\fI/proc/sys/kernel/random\fP
+このディレクトリは、ファイル \fI/dev/random\fP の操作を制御する様々なパラメータが書かれている。 詳細は \fBrandom\fP(4)
+を参照。
+.TP 
+\fI/proc/sys/kernel/real\-root\-dev\fP
+このファイルは Linux カーネルソースファイル \fIDocumentation/initrd.txt\fP に記述されている。
+.TP 
+\fI/proc/sys/kernel/reboot\-cmd\fP (Sparc のみ) 
+このファイルは SPARC ROM/Flash ブートローダに引き数を渡す方法を 提供しているように思われる。
+再起動後に何をするかを指定しているのだろうか？
+.TP 
+\fI/proc/sys/kernel/rtsig\-max\fP
+(2.6.7 までのカーネルにのみ存在する。 \fBsetrlimit\fP(2)  を参照すること)  このファイルはシステムで発行される POSIX
+real\-time (queued) signal の 最大数を調整するのに使用される。
+.TP 
+\fI/proc/sys/kernel/rtsig\-nr\fP
+(2.6.7 までのカーネルにのみ存在する)  このファイルは現在キューに入っている POSIX real\-time signal の数を表す。
+.TP 
+\fI/proc/sys/kernel/sched_rr_timeslice_ms\fP (since Linux 3.9)
+See \fBsched_rr_get_interval\fP(2).
+.TP 
+\fI/proc/sys/kernel/sem\fP (Linux 2.4 以降)
+このファイルには System V IPC セマフォを制限する 4 つの値が書かれている。 これらのフィールドは次の順番に並んでいる:
+.RS
+.IP SEMMSL 8
+セマフォ集合ごとのセマフォ数の最大値。
+.IP SEMMNS 8
+システム全体での、全てのセマフォ集合におけるセマフォ数の制限。
+.IP SEMOPM 8
+\fBsemop\fP(2)  コールに指定されるオペレーション数の最大値。
+.IP SEMMNI 8
+システム全体でのセマフォ識別子の最大値。
+.RE
+.TP 
+\fI/proc/sys/kernel/sg\-big\-buff\fP
+このファイルは、汎用 SCSI デバイス (sg) のバッファサイズの最大値を表す。 今はこれを変更することはできないが、 コンパイル時に
+\fIinclude/scsi/sg.h\fP を編集して \fBSG_BIG_BUFF\fP の値を変えれば変更できる。
+ただし、この値を変更する理由はないだろう。
+.TP 
+\fI/proc/sys/kernel/shm_rmid_forced\fP (since Linux 3.1)
+.\" commit b34a6b1da371ed8af1221459a18c67970f7e3d53
+.\" See also Documentation/sysctl/kernel.txt
+If this file is set to 1, all System V shared memory segments will be marked
+for destruction as soon as the number of attached processes falls to zero;
+in other words, it is no longer possible to create shared memory segments
+that exist independently of any attached process.
+.IP
+The effect is as though a \fBshmctl\fP(2)  \fBIPC_RMID\fP is performed on all
+existing segments as well as all segments created in the future (until this
+file is reset to 0).  Note that existing segments that are attached to no
+process will be immediately destroyed when this file is set to 1.  Setting
+this option will also destroy segments that were created, but never
+attached, upon termination of the process that created the segment with
+\fBshmget\fP(2).
+.IP
+Setting this file to 1 provides a way of ensuring that all System V shared
+memory segments are counted against the resource usage and resource limits
+(see the description of \fBRLIMIT_AS\fP in \fBgetrlimit\fP(2))  of at least one
+process.
+.IP
+Because setting this file to 1 produces behavior that is nonstandard and
+could also break existing applications, the default value in this file is
+0.  Only set this file to 1 if you have a good understanding of the
+semantics of the applications using System V shared memory on your system.
+.TP 
+\fI/proc/sys/kernel/shmall\fP
+このファイルには System V 共有メモリの総ページ数の システム全体での制限が書かれている。
+.TP 
+\fI/proc/sys/kernel/shmmax\fP
+このファイルを通じて、(System V IPC) 共有メモリセグメントを作成するときの 最大サイズの実行時上限 (run\-time limit)
+を取得または設定できる。 現在は 1GB までの共有メモリセグメントが カーネルでサポートされている。 この値のデフォルトは \fBSHMMAX\fP
+である。
+.TP 
+\fI/proc/sys/kernel/shmmni\fP (since Linux 2.4)
+このファイルは、システム全体で作成可能な System V 共有メモリセグメント数を指定する。
+.TP 
+\fI/proc/sys/kernel/sysrq\fP
+このファイルは、SysRq キーにより起動が許可されている関数群を制御する ものである。デフォルトでは、ファイルの内容は 1 であり、
+これは起こり得る全ての SysRq リクエストが許可されることを意味する (古いバージョンのカーネルでは、SysRq はデフォルトでは無効になっており、
+実行時に明示的に有効にする必要があったが、今はそうではない)。 このファイルで指定可能な値は以下の通り。
+
+   0 \- sysrq を完全に無効にする
+   1 \- sysrq の全ての関数を有効にする
+  >1 \- 許可する sysrq 関数のビットマスク。内訳は以下の通り。
+          2 \- コンソールのログ・レベルの制御を有効にする
+          4 \- キーボードの制御を有効にする (SAK, unraw)
+          8 \- プロセスなどのデバッグ・ダンプを有効にする
+         16 \- sync コマンドを有効にする
+         32 \- 読み出し専用での再マウントを有効にする
+         64 \- プロセスへのシグナル発行を有効にする (term, kill, oom\-kill)
+        128 \- リブート/電源オフを許可する
+        256 \- 全てのリアルタイム・タスクの nice 値の変更を許可する
+
+カーネル設定オプション \fBCONFIG_MAGIC_SYSRQ\fP が有効な場合のみ、このファイルは存在する。 詳細は、Linux
+カーネルソースファイル \fIDocumentation/sysrq.txt\fP を参照のこと。
+.TP 
+\fI/proc/sys/kernel/version\fP
+このファイルには、以下のような文字列が書かれている:
+
+    #5 Wed Feb 25 21:49:24 MET 1998
+
+\&"#5" はこのソースで構築された 5 番目のカーネルであることを意味する。 その後にある日付はカーネルが構築された時刻を表す。
+.TP 
+\fI/proc/sys/kernel/threads\-max\fP (Linux 2.3.11 以降)
+このファイルは、システム全体で作成可能なスレッド数 (タスク数) の上限を指定する。
+.TP 
+\fI/proc/sys/kernel/zero\-paged\fP (PowerPC のみ) 
+このファイルはフラグを含む。 (0 以外の値で) 有効された場合、Linux\-PPC はアイドルループで pre\-zero page
+を行うので、get_free_pages の速度が向上する可能性がある。
+.TP 
+\fI/proc/sys/net\fP
+このディレクトリにはネットワーク関係の情報が入っている。 このディレクトリにあるファイルのいくつかについては、 \fBtcp\fP(7)  や
+\fBip\fP(7)  に説明がある。
+.TP 
+\fI/proc/sys/net/core/somaxconn\fP
+このファイルは \fBlisten\fP(2)  の \fIbacklog\fP 引き数の上限値を規定する。 詳細は \fBlisten\fP(2)
+のマニュアルページを参照。
+.TP 
+\fI/proc/sys/proc\fP
+このディレクトリは空の場合もある。
+.TP 
+\fI/proc/sys/sunrpc\fP
+このディレクトリはネットワークファイルシステム (NFS) への Sun remote procedure call (遠隔手続き呼び出し)
+をサポートする。 これが存在しないシステムもある。
+.TP 
+\fI/proc/sys/vm\fP
+このディレクトリにはメモリ管理の調整、バッファやキャッシュ管理のための ファイルがある。
+.TP 
+\fI/proc/sys/vm/drop_caches\fP (Linux 2.6.16 以降)
+このファイルに書き込みを行うことで、クリーンなキャッシュ、dentry、 inode をメモリ上から外し、そのメモリを解放する。
+
+ページキャッシュを解放するには、 \fIecho 1 > /proc/sys/vm/drop_caches\fP とする。 dentry、inode
+を解放するには、 \fIecho 2 > /proc/sys/vm/drop_caches\fP とする。ページキャッシュ、dentry、inode
+を解放するには、 \fIecho 3 > /proc/sys/vm/drop_caches\fP とする。
+
+この操作は非破壊的な操作で、ダーティな (dirty) オブジェクトは 解放されないので、この操作を行う際は最初に \fBsync\fP(8)
+を実行しておくべきである。
+.TP 
+\fI/proc/sys/vm/legacy_va_layout\fP (Linux 2.6.9 以降)
+.\" The following is from Documentation/filesystems/proc.txt
+0 以外の場合、新しい 32ビットメモリマッピング配置が無効になり、 カーネルは全てのプロセスに対して従来の (カーネル 2.4 の) 配置方法を
+使用する。
+.TP 
+\fI/proc/sys/vm/memory_failure_early_kill\fP (Linux 2.6.32 以降)
+.\" The following is based on the text in Documentation/sysctl/vm.txt
+このファイルは、カーネルが処理できない訂正不能なメモリエラー (通常はメモリモジュールでの 2 ビットエラー)
+がバックグラウンドでハードウェアにより検出された際に、プロセスをどのように kill するかを制御する。
+(ページの有効なコピーがディスク上にも存在するなど)
+いくつかの場面では、カーネルはアプリケーションに影響を与えずに透過的に故障を処理する。しかし、データの最新のコピーが他にはない場合には、データ破壊が波及するのを防ぐため、カーネルはプロセスを
+kill する。
+
+このファイルは以下のいずれかの値を持つ。
+.RS
+.IP 1: 4
+データ破壊が検出されるとすぐに、故障が検出され復元できないページ (corrupted\-and\-not\-reloadable page)
+をマップしている全てのプロセスを kill する。この機能は、(カーネル内部で割り当てられたデータやスワップのキャッシュなど)
+少数のいくつかのタイプのページではサポートされていないが、大半のユーザページではこの機能は働く。
+.IP 0: 4
+データ破壊が検出されたページの全てのプロセスからの unmap のみを行い、そのページにアクセスしようとしたプロセスのみを kill する。
+.RE
+.IP
+この kill は \fIsi_code\fP に \fBBUS_MCEERR_AO\fP を設定した \fBSIGBUS\fP
+シグナルを使って行われる。プロセス側では必要であればこのシグナルを処理することができる。詳細は \fBsigaction\fP(2) を参照。
+
+この機能は、高度なマシンチェック機構を持ったアーキテクチャ/プラットフォームにおいてのみ有効であり、ハードウェア機能にも依存している。
+
+アプリケーションは \fBprctl\fP(2) の \fBPR_MCE_KILL\fP 操作を使って個別に
+\fImemory_failure_early_kill\fP の設定を上書きすることができる。
+.IP
+カーネルの設定で \fBCONFIG_MEMORY_FAILURE\fP が有効になっている場合にのみ
+存在する。
+.TP 
+\fI/proc/sys/vm/memory_failure_recovery\fP (Linux 2.6.32 以降)
+.\" The following is based on the text in Documentation/sysctl/vm.txt
+メモリ故障回復 (memory failure recovery) を有効にする
+ (プラットフォームがサポートしている場合)
+.RS
+.IP 1: 4
+回復を試みる。
+.IP 0: 4
+メモリ故障時には常に panic を起こす。
+.RE
+.IP
+カーネルの設定で \fBCONFIG_MEMORY_FAILURE\fP が有効になっている場合にのみ
+存在する。
+.TP 
+\fI/proc/sys/vm/oom_dump_tasks\fP (Linux 2.6.25 以降)
+.\" The following is from Documentation/sysctl/vm.txt
+カーネルが OOM\-killing を実行する際に、システム全体のタスク・ダンプ (カーネルスレッドを除く) を生成するかを制御する。
+ダンプには、タスク (スレッド、プロセス) 毎に以下の情報が出力される: スレッド ID、実ユーザ ID、スレッドグループ ID (プロセス ID)、
+仮想メモリサイズ、Resident Set Size (実メモリ上に存在するページサイズ)、 タスクがスケジューリングされた CPU、 oom_adj
+スコア (\fI/proc/[pid]/oom_adj\fP の説明を参照)、コマンド名。 このダンプ情報は、なぜ OOM\-killer
+が起動されたかを知り、 その原因となったならず者のタスクを特定するのに役に立つ。
+
+このファイルの内容が値 0 の場合、ダンプ情報の出力は行われない。 タスクが何千もある非常に巨大なシステムでは、
+各々のタスクについてメモリ状態をダンプするのは適切でないかもしれない。 そのようなシステムでは、ダンプ情報が必要でもないときに メモリ不足 (OOM)
+の状況で性能面の不利益が起こらないようにすべきだろう。
+
+このファイルの内容が 0 以外の場合、 OOM\-killer が実際にメモリを占有したタスクを kill する度に ダンプ情報が出力される。
+
+デフォルト値は 0 である。
+.TP 
+\fI/proc/sys/vm/oom_kill_allocating_task\fP (Linux 2.6.24 以降)
+.\" The following is from Documentation/sysctl/vm.txt
+このファイルは、メモリ不足 (OOM) の状況が起こった際に、 メモリ不足のきっかけとなったタスクを kill するかどうかを制御する。
+
+このファイルが 0 に設定された場合、 OOM\-killer はタスクリスト全体をスキャンし、経験則に基づき kill するタスクを選択する。
+通常は、kill した場合に多くのメモリが解放できる、 ならず者のメモリ占有タスクが選択される。
+
+このファイルが 0 以外に設定された場合、 OOM\-killer はメモリ不足の状況が発生するきっかけとなったタスクを 単純に kill
+するだけである。 これにより、たいていは重い処理となるタスクリストのスキャンを回避できる。
+
+\fI/proc/sys/vm/panic_on_oom\fP が 0 以外の場合、
+\fI/proc/sys/vm/oom_kill_allocating_task\fP にどのような値が入っていたとしても、
+\fI/proc/sys/vm/panic_on_oom\fP の方が優先される。
+
+デフォルト値は 0 である。
+.TP 
+\fI/proc/sys/vm/overcommit_memory\fP
+このファイルにはカーネル仮想メモリのアカウントモードが書かれている。 値は以下の通り:
+.RS
+.IP
+0: 発見的なオーバーコミット (heuristic overcommit) (これがデフォルトである)
+.br
+1: 常にオーバーコミットし、チェックしない。
+.br
+2: 常にチェックし、オーバーコミットしない。
+.RE
+.IP
+モード 0 では、 \fBMAP_NORESERVE\fP を設定して呼び出された \fBmmap\fP(2)  はチェックされない。
+またデフォルトのチェックはとても脆弱で、 プロセスを "OOM\-kill" してしまうリスクを引き起こす。 Linux 2.4 では 0
+以外の値はモード 1 を意味する。 (Linux 2.6 以降で利用可能な) モード 2 では、 システム上の仮想アドレス空間の合計が (SS +
+RAM*(r/100)) に制限されている。 ここで、SS はスワップ空間のサイズ、 RAM は物理メモリのサイズ、r はファイル
+\fI/proc/sys/vm/overcommit_ratio\fP の内容である。
+.TP 
+\fI/proc/sys/vm/overcommit_ratio\fP
+\fI/proc/sys/vm/overcommit_memory\fP の説明を参照すること。
+.TP 
+\fI/proc/sys/vm/panic_on_oom\fP (Linux 2.6.18 以降)
+.\" The following is adapted from Documentation/sysctl/vm.txt
+このファイルは、メモリ不足時にカーネルパニックを 起こすか起こさないかを制御する。
+
+このファイルに値 0 を設定すると、 カーネルの OOM\-killer がならず者のプロセスを kill する。 普通は、OOM\-killer
+がならず者のプロセスを kill することができ、 システムは何とか動き続けることができる。
+
+このファイルに値 1 を設定すると、 メモリ不足の状況が発生すると、カーネルは普通はパニックする。 しかしながら、プロセスが メモリポリシー
+(\fBmbind\fP(2)  の \fBMPOL_BIND\fP)  や cpusets (\fBcpuset\fP(7))
+を使って特定のノードへのメモリ割り当てを制限していて、 それらのノードでメモリ枯渇状態に至った場合は、 一つのプロセスが OOM\-killer により
+kill されるだけかもしれない。 この場合には、カーネルパニックは発生しない。 なぜなら、他のノードのメモリには空きがあるかもしれず、
+したがって、システム全体としてはメモリ不足の状況にまだ達していないかも しれないからである。
+
+このファイルに値 2 を設定すると、 メモリ不足の状況が発生するとカーネルは常にパニックを起こす。
+
+デフォルト値は 0 である。 1 と 2 はクラスタリングのフェイルオーバー用である。 フェイルオーバーの方針に応じてどちらかの値を選択すること。
+.TP 
+\fI/proc/sys/vm/swappiness\fP
+.\" The following is from Documentation/sysctl/vm.txt
+このファイルの値により、カーネルがどの程度激しくメモリページの スワップを行う
+かが制御される。 大きな値ほどスワップが激しくなり、小さい値ほど激しくなくなる。
+デフォルト値は 60 である。
+.TP 
+\fI/proc/sysrq\-trigger\fP (Linux 2.4.21 以降)
+このファイルに文字 character を書き込むと、 キーボードから ALT\-SysRq\-<character> を入力した場合と
+同じ SysRq 関数が起動される (\fI/proc/sys/kernel/sysrq\fP の説明を参照)。 通常、このファイルへ書き込みができるのは
+\fIroot\fP だけである。詳細については、Linux カーネルソースファイルの \fIDocumentation/sysrq.txt\fP を参照のこと。
+.TP 
+\fI/proc/sysvipc\fP
+疑似ファイル \fImsg\fP, \fIsem\fP, \fIshm\fP を含むサブディレクトリ。 これらのファイルは、現在システム上に存在する System V
+プロセス間通信 (Interprocess Communication, IPC) オブジェクト (それぞれ: メッセージキュー、セマフォ、共有メモリ)
+のリストであり、 \fBipcs\fP(1)  で取得できる情報と同じものを提供する。 これらのファイルにはヘッダがあり、理解しやすいように (1 行につき
+1 個の IPC オブジェクトの形式で) フォーマットされている。 \fBsvipc\fP(7)
+にはこれらのファイルから分かる情報の詳細な背景が書かれている。
+.TP 
+\fI/proc/tty\fP
+疑似ファイルを含むサブディレクトリ。 tty ドライバとライン設定 (line discipline) の書かれた サブディレクトリも含まれる。
+.TP 
+\fI/proc/uptime\fP
+このファイルは システム起動時から経過した時間 (秒) と アイドル (idle) しているプロセスが消費した時間 (秒) の 2 つの数を含む。
+.TP 
+\fI/proc/version\fP
+現在稼働しているカーネルのバージョン識別子である文字列。 これには \fI/proc/sys/ostype\fP,
+\fI/proc/sys/osrelease\fP, \fI/proc/sys/version\fP の内容が含まれる。 たとえばこのように:
+.nf
+.in -2
+\f(CWLinux version 1.0.9 (quinlan@phaze) #1 Sat May 14 01:51:54 EDT 1994\fP
+.in +2
+.fi
+.\" FIXME Document /proc/timer_list
+.\" .TP
+.\" .IR /proc/timer_list " (since Linux 2.6.21)"
+.\" See the 2.6.21 Change log
+.\" FIXME Document /proc/timer_stats
+.\" .TP
+.\" .IR /proc/timer_stats " (since Linux 2.6.21)"
+.\" See the 2.6.21 Change log
+.TP 
+\fI/proc/vmstat\fP (Linux 2.6 以降)
+このファイルは仮想メモリの様々な統計情報を表示する。
+.TP 
+\fI/proc/zoneinfo\fP (Linux 2.6.13 以降)
+.\" FIXME more should be said about /proc/zoneinfo
+このファイルはメモリのゾーン (memory zone) に関する情報を表示する。 仮想メモリの振舞いを分析するのに役立つ。
+.SH 注意
+ほとんどの文字列 (たとえば環境変数やコマンド行) は内部表現のままなので、
+各フィールドは NULL バイト (\(aq\e0\(aq) で区切られている。だから、
+\fIod \-c\fP や \fItr "\e000" "\en"\fP を使えば、それらはより読みやすくなる。
+また \fIecho \`cat <file>\`\fP でもよい。
+
+.\" .SH ACKNOWLEDGEMENTS
+.\" The material on /proc/sys/fs and /proc/sys/kernel is closely based on
+.\" kernel source documentation files written by Rik van Riel.
+このマニュアルは不完全であり、たぶん不正確で、しばしば更新される必要がある。
+.SH 関連項目
+\fBcat\fP(1), \fBdmesg\fP(1), \fBfind\fP(1), \fBfree\fP(1), \fBps\fP(1), \fBtr\fP(1),
+\fBuptime\fP(1), \fBchroot\fP(2), \fBmmap\fP(2), \fBreadlink\fP(2), \fBsyslog\fP(2),
+\fBslabinfo\fP(5), \fBhier\fP(7), \fBtime\fP(7), \fBarp\fP(8), \fBhdparm\fP(8),
+\fBifconfig\fP(8), \fBinit\fP(8), \fBlsmod\fP(8), \fBlspci\fP(8), \fBmount\fP(8),
+\fBnetstat\fP(8), \fBprocinfo\fP(8), \fBroute\fP(8), \fBsysctl\fP(8)
+
+Linux カーネルのソースファイル: \fIDocumentation/filesystems/proc.txt\fP,
+\fIDocumentation/sysctl/vm.txt\fP
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.51 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

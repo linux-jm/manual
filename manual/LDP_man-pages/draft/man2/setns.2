@@ -1,0 +1,165 @@
+.\" Copyright (C) 2011, Eric Biederman <ebiederm@xmission.com>
+.\" and Copyright (C) 2011, 2012, Michael Kerrisk <mtk.manpages@gamil.com>
+.\"
+.\" %%%LICENSE_START(GPLv2_ONELINE)
+.\" Licensed under the GPLv2
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH SETNS 2 2013\-01\-01 Linux "Linux Programmer's Manual"
+.SH 名前
+setns \- スレッドに名前空間を関連付けしなおす
+.SH 書式
+.nf
+\fB#define _GNU_SOURCE\fP             /* feature_test_macros(7) 参照 */
+\fB#include <sched.h>\fP
+.sp
+\fBint setns(int \fP\fIfd\fP\fB, int \fP\fInstype\fP\fB);\fP
+.fi
+.SH 説明
+名前空間を参照するファイルディスクリプタを指定すると、
+呼び出したスレッドにその名前空間を関連付けしなおす。
+
+\fIfd\fP 引き数は、 \fI/proc/[pid]/ns/\fP ディレクトリ内の名前空間エントリ
+のいずれかを参照するファイルディスクリプタである。
+\fI/proc/[pid]/ns/\fP の詳細は \fBproc\fP(5) を参照。
+\fInstype\fP 引き数で指定された制限の範囲内で、
+呼び出したスレッドに \fIfd\fP に対応する名前空間を関連付けしなおす。
+
+\fInstype\fP 引き数は、呼び出したスレッドがどのタイプの名前空間を
+関連付けしなおすことができるかを指定する。
+この引き数には以下のいずれかの値を指定できる。
+.TP 
+\fB0\fP
+どのタイプの名前空間も関連付けることができる。
+.TP 
+\fBCLONE_NEWIPC\fP
+\fIfd\fP は IPC 名前空間を参照していなければならない。
+.TP 
+\fBCLONE_NEWNET\fP
+\fIfd\fP はネットワーク名前空間を参照していなければならない。
+.TP 
+\fBCLONE_NEWUTS\fP
+\fIfd\fP は UTS 名前空間を参照していなければならない。
+.PP
+呼び出し側が \fIfd\fP がどのタイプの名前空間を参照しているかを知っている
+(もしくは気にする必要がない) 場合には、 \fInstype\fP に 0 を指定すれば十分
+である。呼び出し側が \fIfd\fP がどのタイプの名前空間を参照しているかを
+知っておらず、かつ、特定のタイプの名前空間であることを保証したい場合、
+\fInstype\fP に 0 以外の値を指定するとよい。 (ファイルディスクリプタが別の
+プロセスによりオープンされ、例えば、UNIX ドメインソケット経由で呼び出し
+側に渡された場合などでは、呼び出し側が \fIfd\fP がどのタイプの名前空間を
+参照しているかを知らない可能性がある。)
+.SH 返り値
+成功すると \fIsetns\fP() は 0 を返す。
+失敗すると、 \-1 が返され、 \fIerrno\fP にエラーを示す値が設定される。
+.SH エラー
+.TP 
+\fBEBADF\fP
+\fIfd\fP が有効なファイルディスクリプタではない。
+.TP 
+\fBEINVAL\fP
+\fIfd\fP が \fInstype\fP で指定されたタイプと一致しない名前空間を参照している。
+または、指定された名前空間をそのスレッドに関連付けし直す際に問題
+があった。
+.TP 
+\fBENOMEM\fP
+指定された名前空間に変更するのに必要なメモリが割り当てられない。
+.TP 
+\fBEPERM\fP
+呼び出したスレッドがこの操作を行うのに必要な特権 (\fBCAP_SYS_ADMIN\fP) を
+持っていなかった。
+.SH バージョン
+\fBsetns\fP() システムコールはカーネル 3.0 で Linux に初めて登場した。
+ライブラリによるサポートは glibc バージョン 2.14 を追加された。
+.SH 準拠
+\fBsetns\fP() システムコールは Linux 固有である。
+.SH 注意
+新しいスレッドが \fBclone\fP(2) を使って作成された際に共有できる全ての属性を、
+\fBsetns\fP() を使って変更できるわけではない。
+.SH EXAMPLE
+The program below takes two or more arguments.  The first argument specifies
+the pathname of a namespace file in an existing \fI/proc/[pid]/ns/\fP
+directory.  The remaining arguments specify a command and its arguments.
+The program opens the namespace file, joins that namespace using \fBsetns\fP(),
+and executes the specified command inside that namespace.
+
+The following shell session demonstrates the use of this program (compiled
+as a binary named \fIns_exec\fP)  in conjunction with the \fBCLONE_NEWUTS\fP
+example program in the \fBclone\fP(2)  man page (complied as a binary named
+\fInewuts\fP).
+
+We begin by executing the example program in \fBclone\fP(2)  in the
+background.  That program creates a child in a separate UTS namespace.  The
+child changes the hostname in its namespace, and then both processes display
+the hostnames in their UTS namespaces, so that we can see that they are
+different.
+
+.nf
+.in +4n
+$ \fBsu\fP                   # Need privilege for namespace operations
+Password:
+# \fB./newuts bizarro &\fP
+[1] 3549
+clone() returned 3550
+uts.nodename in child:  bizarro
+uts.nodename in parent: antero
+# \fBuname \-n\fP             # Verify hostname in the shell
+antero
+.in
+.fi
+
+We then run the program shown below, using it to execute a shell.  Inside
+that shell, we verify that the hostname is the one set by the child created
+by the first program:
+
+.nf
+.in +4n
+# \fB./ns_exec /proc/3550/ns/uts /bin/bash\fP
+# \fBuname \-n\fP             # Executed in shell started by ns_exec
+bizarro
+.in
+.fi
+.SS プログラムのソース
+.nf
+#define _GNU_SOURCE
+#include <fcntl.h>
+#include <sched.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
+                        } while (0)
+
+int
+main(int argc, char *argv[])
+{
+    int fd;
+
+    if (argc < 3) {
+        fprintf(stderr, "%s /proc/PID/ns/FILE cmd args...\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    fd = open(argv[1], O_RDONLY);   /* Get descriptor for namespace */
+    if (fd == \-1)
+        errExit("open");
+
+    if (setns(fd, 0) == \-1)         /* Join that namespace */
+        errExit("setns");
+
+    execvp(argv[2], &argv[2]);      /* Execute a command in namespace */
+    errExit("execvp");
+}
+.fi
+.SH 関連項目
+\fBclone\fP(2), \fBfork\fP(2), \fBvfork\fP(2), \fBproc\fP(5), \fBunix\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.51 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

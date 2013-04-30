@@ -1,0 +1,209 @@
+.\" Copyright 1993 Giorgio Ciucci (giorgio@crcc.it)
+.\" and Copyright 2004, 2005 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\" Modified Tue Oct 22 08:11:14 EDT 1996 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified Sun Feb 18 01:59:29 2001 by Andries E. Brouwer <aeb@cwi.nl>
+.\" Modified, 27 May 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on CAP_IPC_OWNER requirement
+.\" Modified, 17 Jun 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on CAP_SYS_ADMIN requirement for IPC_SET and IPC_RMID
+.\" Modified, 11 Nov 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Language and formatting clean-ups
+.\"	Added msqid_ds and ipc_perm structure definitions
+.\" 2005-08-02, mtk: Added IPC_INFO, MSG_INFO, MSG_STAT descriptions
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH MSGCTL 2 2012\-05\-31 Linux "Linux Programmer's Manual"
+.SH 名前
+msgctl \- System V メッセージ制御操作
+.SH 書式
+.nf
+\fB#include <sys/types.h>\fP
+\fB#include <sys/ipc.h>\fP
+\fB#include <sys/msg.h>\fP
+
+\fBint msgctl(int \fP\fImsqid\fP\fB, int \fP\fIcmd\fP\fB, struct msqid_ds *\fP\fIbuf\fP\fB);\fP
+.fi
+.SH 説明
+\fBmsgctl\fP()  はメッセージ・キュー識別子 \fImsqid\fP で指定された System V メッセージ・キュー (message
+queue) に対して \fIcmd\fP で指定された制御操作を行なう。
+.PP
+\fImsqid_ds\fP データ構造体は \fI<sys/msg.h>\fP で以下のように定義されている:
+.nf
+.in +4n
+
+struct msqid_ds {
+    struct ipc_perm msg_perm;     /* 所有権と許可 */
+    time_t          msg_stime;    /* 最後の msgsnd(2) の時刻 */
+    time_t          msg_rtime;    /* 最後の msgrcv(2) の時刻 */
+    time_t          msg_ctime;    /* 最後に変更が行われた時刻 */
+    unsigned long   __msg_cbytes; /* キューにある現在のバイト数
+                                     (非標準) */
+    msgqnum_t       msg_qnum;     /* キューにある現在入っている
+                                     メッセージの数 */
+    msglen_t        msg_qbytes;   /* キューに許可されている
+                                     最大バイト数 */
+    pid_t           msg_lspid;    /* 最後の msgsnd(2) の PID */
+    pid_t           msg_lrpid;    /* 最後の msgrcv(2) の PID */
+};
+.in
+.fi
+.PP
+\fIipc_perm\fP 構造体は以下のように定義されている (強調されたフィールドは \fBIPC_SET\fP を使って設定可能である):
+.PP
+.nf
+.in +4n
+struct ipc_perm {
+    key_t          __key;       /* msgget(2) に与えるキー */
+    uid_t          \fBuid\fP;         /* 所有者の実効 UID */
+    gid_t          \fBgid\fP;         /* 所有者の実効 GID */
+    uid_t          cuid;        /* 作成者の実効 UID */
+    gid_t          cgid;        /* 作成者の実効 GID */
+    unsigned short \fBmode\fP;        /* 許可 */
+    unsigned short __seq;       /* シーケンス番号 */
+};
+.in
+.fi
+.PP
+\fIcmd\fP として有効な値は:
+.TP 
+\fBIPC_STAT\fP
+\fImsqid\fP に関連づけられたメッセージ・キュー・データ構造体から、ポインタ \fIbuf\fP が指し示す \fImsqid_ds\fP
+構造体に情報をコピーする。 呼び出し側はメッセージ・キューに対する読み込み許可を持っていなければならない。
+.TP 
+\fBIPC_SET\fP
+ポインタ \fIbuf\fP が指し示す \fImsqid_ds\fP 構造体のメンバーの値を、メッセージ・キューに関連づけられた
+カーネル・データ構造体に書き込み、 \fImsg_ctime\fP メンバーも更新する。 構造体のメンバーのうち、更新されるものを以下に示す:
+\fImsg_qbytes\fP, \fImsg_perm.uid\fP, \fImsg_perm.gid\fP, \fImsg_perm.mode\fP (の下位 9
+ビット)。 呼び出したプロセスの実効ユーザ ID が、メッセージ・キューの所有者 (\fImsg_perm.uid\fP)  または作成者
+(\fImsg_perm.cuid\fP)  と一致するか、呼び出し元が特権を持たなければならない。 \fImsg_qbytes\fP をシステム・パラメータの
+\fBMSGMNB\fP を超えて設定するには、適切な特権 (Linux では \fBCAP_IPC_RESOURCE\fP ケーパビリティ
+(capability)) が必要である。
+.TP 
+\fBIPC_RMID\fP
+メッセージ・キューをただちに削除する。 同時にその構造体の読み書きの待ち状態にあったプロセスに通知する (エラーが返り、 \fIerrno\fP が
+\fBEIDRM\fP に設定される)。 呼び出したプロセスが適切な特権を持っているか、 呼び出したプロセスの実効ユーザ ID がメッセージ・キューの作成者か
+所有者の実効ユーザ ID でなければならない。
+.TP 
+\fBIPC_INFO\fP (Linux 固有)
+システム全体でのメッセージ・キューの制限とパラメータに関する情報を、 \fIbuf\fP が指す構造体に入れて返す。 この構造体は \fImsginfo\fP
+型である (そのためキャストが必要である)。 \fImsginfo\fP は \fB_GNU_SOURCE\fP 機能検査マクロが定義された場合に
+\fI<sys/msg.h>\fP で以下のように定義される:
+.nf
+.in +4n
+
+struct msginfo {
+    int msgpool; /* メッセージ・データの保持に使用される
+                    バッファ・プールの大きさ (1024 バイト単位);
+                    カーネル内では未使用 */
+    int msgmap;  /* メッセージ・マップの最大エントリ数;
+                    カーネル内では未使用 */
+    int msgmax;  /* 一つのメッセージに書き込み可能な
+                    最大バイト数 */
+    int msgmnb;  /* 一つのキューに書き込み可能な最大バイト数;
+                    (msgget(2) での) キュー作成中の msg_qbytes
+                    の初期化に使用される */
+    int msgmni;  /* メッセージ・キューの数の最大値 */
+    int msgssz;  /* メッセージ・セグメントのサイズ;
+                    カーネル内では未使用 */
+    int msgtql;  /* システム上の全キューの最大メッセージ数;
+                    カーネル内では未使用 */
+    unsigned short int msgseg;
+                 /* 最大セグメント数; カーネル内では未使用 */
+};
+
+.in
+.fi
+設定 \fImsgmni ,\fP \fImsgmax ,\fP \fImsgmnb\fP は \fI/proc\fP にある同じ名前のファイル経由で変更可能である。 詳しくは
+\fBproc\fP(5)  を参照。
+.TP 
+\fBMSG_INFO\fP (Linux 固有)
+\fBIPC_INFO\fP のときと同じ情報を格納した \fImsginfo\fP 構造体を返す。 但し、以下のフィールドにはメッセージ・キューが
+消費しているシステム資源に関する情報が格納される点が異なる。 \fImsgpool\fP フィールドは現在システム上に存在するメッセージ・キューの数を返す。
+\fImsgmap\fP フィールドはシステム上の全てのキューに入っているメッセージ総数を返す。 \fImsgtql\fP
+フィールドはシステム上の全てのキューに入っている全メッセージの 総バイト数を返す。
+.TP 
+\fBMSG_STAT\fP (Linux 固有)
+\fBIPC_STAT\fP と同じく \fImsqid_ds\fP 構造体を返す。 但し、 \fImsqid\fP
+引き数は、キュー識別子ではなく、システム上の全てのメッセージ・キュー に関する情報を管理するカーネルの内部配列へのインデックスである。
+.SH 返り値
+成功すると、 \fBIPC_STAT\fP, \fBIPC_SET\fP, \fBIPC_RMID\fP は 0 を返す。 \fBIPC_INFO\fP と
+\fBMSG_INFO\fP 操作は、成功すると、全てのメッセージ・キューに関する情報を 管理しているカーネルの内部配列の使用中エントリのインデックスの
+うち最大値を返す (この情報は、システムの全てのメッセージ・キューに関する情報を 取得するために、 \fBMSG_STAT\fP
+操作を繰り返し実行する際に使用できる)。 \fBMSG_STAT\fP 操作は、成功すると、 \fImsqid\fP
+で指定されたインデックスを持つメッセージ・キューの識別子を返す。
+
+エラーの場合は \-1 を返し、 \fIerrno\fP を適切に設定する。
+.SH エラー
+失敗した場合、 \fIerrno\fP は以下の値の中のどれか一つに設定される:
+.TP 
+\fBEACCES\fP
+引き数 \fIcmd\fP が \fBIPC_STAT\fP または \fBMSG_STAT\fP に等しいが、呼び出したプロセスがメッセージ・キュー \fImsqid\fP
+に対する読み込み許可を持っておらず、かつ \fBCAP_IPC_OWNER\fP ケーパビリティを持っていない。
+.TP 
+\fBEFAULT\fP
+引き数 \fIcmd\fP が \fBIPC_SET\fP か \fBIPC_STAT\fP で、ポインタ \fIbuf\fP で指されているアドレスがアクセス可能でない。
+.TP 
+\fBEIDRM\fP
+メッセージ・キューが削除された。
+.TP 
+\fBEINVAL\fP
+\fIcmd\fP または \fImsqid\fP に不正な値が設定された。 もしくは、 \fBMSG_STAT\fP 操作の場合に、 \fImsqid\fP
+で指定されたインデックス値が現在未使用の配列のスロットを参照いていた。
+.TP 
+\fBEPERM\fP
+引き数 \fIcmd\fP が \fBIPC_SET\fP か \fBIPC_RMID\fP であるが、呼び出したプロセスの実効ユーザ ID がメッセージキューの
+(\fImsg_perm.cuid\fP として見つかる) 作成者 と (\fImsg_perm.uid\fP として見つかる) 所有者のいずれでもなく、
+かつ呼び出したプロセスに特権 (Linux では \fBCAP_SYS_ADMIN\fP ケーパビリティ) がない。
+.SH 準拠
+.\" SVID does not document the EIDRM error condition.
+SVr4, POSIX.1\-2001.
+.SH 注意
+.\" Like Linux, the FreeBSD man pages still document
+.\" the inclusion of these header files.
+The inclusion of \fI<sys/types.h>\fP and \fI<sys/ipc.h>\fP isn't
+required on Linux or by any version of POSIX.  However, some old
+implementations required the inclusion of these header files, and the SVID
+also documented their inclusion.  Applications intended to be portable to
+such old systems may need to include these header files.
+
+\fBIPC_INFO\fP, \fBMSG_STAT\fP, \fBMSG_INFO\fP 操作は、 \fBipcs\fP(1)
+プログラムで割り当て済の資源に関する情報を提供するために 使用されている。将来、これらの操作は変更されたり、 /proc
+ファイルシステムのインタフェースに移動されるかもしれない。
+
+\fIstruct msqid_ds\fP 内の多くのフィールドは、 Linux 2.2 では \fIshort\fP だったが、Linux 2.4 では
+\fIlong\fP になった。 この利点を生かすには、glibc\-2.1.91 以降の環境下で 再コンパイルすれば十分である。
+(カーネルは新しい形式の呼び出しと古い形式の呼び出しを \fIcmd\fP 内の \fBIPC_64\fP フラグで区別する。)
+.SH 関連項目
+\fBmsgget\fP(2), \fBmsgrcv\fP(2), \fBmsgsnd\fP(2), \fBcapabilities\fP(7),
+\fBmq_overview\fP(7), \fBsvipc\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.51 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。
