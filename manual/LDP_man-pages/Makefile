@@ -1,6 +1,6 @@
 PERKAMON_DIR = perkamon
 LANGS = ja
-THRESH = 100
+THRESH = 80
 THRESH_REL = 80
 FLAGS ?=
 PO4AFLAGS ?= -k $(THRESH) $(FLAGS)
@@ -9,9 +9,8 @@ all: translate
 
 translate: jm-setup
 	LC_ALL=C $(MAKE) translate \
-	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR) \
-	  | tee untrans.txt
-	./untrans-list.pl < untrans.txt > untrans.html
+	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
+	# I don't know why untrans.txt is generated in release target
 	$(RM) untrans.txt
 
 translate-%: jm-setup
@@ -23,7 +22,7 @@ release:	jm-setup
 	ln -s ../../release $(PERKAMON_DIR)/build/ja
 	LC_ALL=C $(MAKE) translate \
 	  PO4AFLAGS="-k $(THRESH_REL) $(FLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
-	rm -f $(PERKAMON_DIR)/build/ja
+	$(RM) $(PERKAMON_DIR)/build/ja
 	ln -s ../../draft $(PERKAMON_DIR)/build/ja
 	# Do not remove unreleased pages
 	@sleep 1
@@ -31,6 +30,21 @@ release:	jm-setup
 	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 echo; \
 	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 git checkout; \
 	fi
+	# I don't know why untrans.txt is generated in release target
+	$(RM) untrans.txt
+
+update-stats:	jm-setup
+	mkdir _transtmp
+	$(RM) $(PERKAMON_DIR)/build/ja
+	ln -s ../../_transtmp $(PERKAMON_DIR)/build/ja
+	LC_ALL=C $(MAKE) translate \
+	  PO4AFLAGS="-k 100 $(FLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR) \
+	  | tee _log.txt
+	./untrans-list.pl < _log.txt > untrans.html
+	$(RM) $(PERKAMON_DIR)/build/ja
+	ln -s ../../draft $(PERKAMON_DIR)/build/ja
+	$(RM) -r _transtmp
+	$(RM) _log.txt
 	# I don't know why untrans.txt is generated in release target
 	$(RM) untrans.txt
 
