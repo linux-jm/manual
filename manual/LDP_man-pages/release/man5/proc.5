@@ -64,7 +64,7 @@
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH PROC 5 2013\-02\-11 Linux "Linux Programmer's Manual"
+.TH PROC 5 2013\-04\-17 Linux "Linux Programmer's Manual"
 .SH 名前
 proc \- プロセスの情報を含む擬似ファイルシステム
 .SH 説明
@@ -157,7 +157,7 @@ $\fB cd /proc/20/cwd; /bin/pwd\fP
 .in +4n
 .nf
 
-$\fB (cat /proc/1/environ; echo) | tr \(aq\e000\(aq \(aq\en\(aq\fP
+$\fB strings /proc/1/environ\fP
 .fi
 .in
 .TP 
@@ -248,29 +248,78 @@ flags:  01002002
 .\" commit 3036e7b490bf7878c6dae952eec5fb87b1106589
 This file displays the soft limit, hard limit, and units of measurement for
 each of the process's resource limits (see \fBgetrlimit\fP(2)).  Up to and
-including Linux 2.6.35, this file is protected to only allow reading by the
+including Linux 2.6.35, this file is protected to allow reading only by the
 real UID of the process.  Since Linux 2.6.36, this file is readable by all
 users on the system.
 .TP 
-\fI/proc/[pid]/maps\fP
-現在マップされているメモリ領域とそのアクセスパーミッションを含む。
-
-フォーマットは以下のとおり:
-
+\fI/proc/[pid]/map_files/\fP (since kernel 3.3)
+.\" commit 640708a2cff7f81e246243b0073c66e6ece7e53e
+This subdirectory contains entries corresponding to memory\-mapped files (see
+\fBmmap\fP(2)).  Entries are named by memory region start and end address pair
+(expressed as hexadecimal numbers), and are symbolic links to the mapped
+files themselves.  Here is an example, with the output wrapped and
+reformatted to fit on an 80\-column display:
+.in +4n
 .nf
-\f(CWaddress           perms offset  dev   inode   pathname
-08048000\-08056000 r\-xp 00000000 03:0c 64593   /usr/sbin/gpm
-08056000\-08058000 rw\-p 0000d000 03:0c 64593   /usr/sbin/gpm
-08058000\-0805b000 rwxp 00000000 00:00 0
-40000000\-40013000 r\-xp 00000000 03:0c 4165    /lib/ld\-2.2.4.so
-40013000\-40015000 rw\-p 00012000 03:0c 4165    /lib/ld\-2.2.4.so
-4001f000\-40135000 r\-xp 00000000 03:0c 45494   /lib/libc\-2.2.4.so
-40135000\-4013e000 rw\-p 00115000 03:0c 45494   /lib/libc\-2.2.4.so
-4013e000\-40142000 rw\-p 00000000 00:00 0
-bffff000\-c0000000 rwxp 00000000 00:00 0\fP
-.fi
 
-ここで "address" はプロセスのアドレス空間でそのメモリ領域が占めている アドレスで、"perms" はパーミッションのセットである。
+$\fB ls \-l /proc/self/map_files/\fP
+lr\-\-\-\-\-\-\-\-. 1 root root 64 Apr 16 21:31
+            3252e00000\-3252e20000 \-> /usr/lib64/ld\-2.15.so
+\&...
+.fi
+.in
+
+Although these entries are present for memory regions that were mapped with
+the \fBMAP_FILE\fP flag, the way anonymous shared memory (regions created with
+the \fBMAP_ANON | MAP_SHARED\fP flags)  is implemented in Linux means that such
+regions also appear on this directory.  Here is an example where the target
+file is the deleted \fI/dev/zero\fP one:
+.in +4n
+.nf
+
+
+lrw\-\-\-\-\-\-\-. 1 root root 64 Apr 16 21:33
+            7fc075d2f000\-7fc075e6f000 \-> /dev/zero (deleted)
+.fi
+.in
+
+This directory appears only if the \fBCONFIG_CHECKPOINT_RESTORE\fP kernel
+configuration option is enabled.
+.TP 
+\fI/proc/[pid]/maps\fP
+A file containing the currently mapped memory regions and their access
+permissions.  See \fBmmap\fP(2)  for some further information about memory
+mappings.
+
+The format of the file is:
+
+.in -7n
+.nf
+\fIaddress           perms offset  dev   inode       pathname\fP
+00400000\-00452000 r\-xp 00000000 08:02 173521      /usr/bin/dbus\-daemon
+00651000\-00652000 r\-\-p 00051000 08:02 173521      /usr/bin/dbus\-daemon
+00652000\-00655000 rw\-p 00052000 08:02 173521      /usr/bin/dbus\-daemon
+00e03000\-00e24000 rw\-p 00000000 00:00 0           [heap]
+00e24000\-011f7000 rw\-p 00000000 00:00 0           [heap]
+\&...
+35b1800000\-35b1820000 r\-xp 00000000 08:02 135522  /usr/lib64/ld\-2.15.so
+35b1a1f000\-35b1a20000 r\-\-p 0001f000 08:02 135522  /usr/lib64/ld\-2.15.so
+35b1a20000\-35b1a21000 rw\-p 00020000 08:02 135522  /usr/lib64/ld\-2.15.so
+35b1a21000\-35b1a22000 rw\-p 00000000 00:00 0
+35b1c00000\-35b1dac000 r\-xp 00000000 08:02 135870  /usr/lib64/libc\-2.15.so
+35b1dac000\-35b1fac000 \-\-\-p 001ac000 08:02 135870  /usr/lib64/libc\-2.15.so
+35b1fac000\-35b1fb0000 r\-\-p 001ac000 08:02 135870  /usr/lib64/libc\-2.15.so
+35b1fb0000\-35b1fb2000 rw\-p 001b0000 08:02 135870  /usr/lib64/libc\-2.15.so
+\&...
+f2c6ff8c000\-7f2c7078c000 rw\-p 00000000 00:00 0    [stack:986]
+\&...
+7fffb2c0d000\-7fffb2c2e000 rw\-p 00000000 00:00 0   [stack]
+7fffb2d48000\-7fffb2d49000 r\-xp 00000000 00:00 0   [vdso]
+.fi
+.in
+
+The \fIaddress\fP field is the address space in the process that the mapping
+occupies.  The \fIperms\fP field is a set of permissions:
 
 .nf
 .in +5
@@ -282,9 +331,39 @@ p = private (copy on write)
 .fi
 .in
 
-\&"offset" はファイル (などの) 中でのオフセット、 \&"dev" はデバイス (メジャーデバイス番号:マイナーデバイス番号)、
-\&"inode" はそのデバイスの i ノード番号である。 これが 0 のときは、bss (初期化されていないデータ領域) の場合のように
-このメモリ領域にはどの i ノードも割り当てられていないことを意味している。
+The \fIoffset\fP field is the offset into the file/whatever; \fIdev\fP is the
+device (major:minor); \fIinode\fP is the inode on that device.  0 indicates
+that no inode is associated with the memory region, as would be the case
+with BSS (uninitialized data).
+
+The \fIpathname\fP field will usually be the file that is backing the mapping.
+For ELF files, you can easily coordinate with the \fIoffset\fP field by looking
+at the Offset field in the ELF program headers (\fIreadelf\ \-l\fP).
+
+There are additional helpful pseudo\-paths:
+.RS 12
+.TP 
+\fI[stack]\fP
+The initial process's (also known as the main thread's) stack.
+.TP 
+\fI[stack:<tid>]\fP (since Linux 3.4)
+.\" commit b76437579d1344b612cf1851ae610c636cec7db0
+A thread's stack (where the \fI<tid>\fP is a thread ID).  It
+corresponds to the \fI/proc/[pid]/task/[tid]/\fP path.
+.TP 
+\fI[vdso]\fP
+The virtual dynamically linked shared object.
+.TP 
+\fI[heap]\fP
+The process's heap.
+.in
+.fi
+.RE
+.IP
+If the \fIpathname\fP field is blank, this is an anonymous mapping as obtained
+via the \fBmmap\fP(2)  function.  There is no easy way to coordinate this back
+to a process's source, short of running it through \fBgdb\fP(1), \fBstrace\fP(1),
+or similar.
 
 Linux 2.0 ではパス名を書いたフィールドがない。
 .TP 
@@ -1078,7 +1157,7 @@ a colon, the value of the parameter, and an option unit of measurement
 (e.g., "kB").  The list below describes the parameter names and the format
 specifier required to read the field value.  Except as noted below, all of
 the fields have been present since at least Linux 2.6.0.  Some fileds are
-only displayed if the kernel was configured with various options; those
+displayed only if the kernel was configured with various options; those
 dependencies are noted in the list.
 .RS
 .TP 
@@ -1206,8 +1285,8 @@ Memory used by FUSE for temporary writeback buffers.
 .TP 
 \fICommitLimit\fP %lu (Linux 2.6.10 以降)
 Based on the overcommit ratio ('vm.overcommit_ratio'), this is the total
-amount of memory currently available to be allocated on the system. This
-limit is only adhered to if strict overcommit accounting is enabled (mode 2
+amount of memory currently available to be allocated on the system.  This
+limit is adhered to only if strict overcommit accounting is enabled (mode 2
 in \fI/proc/sys/vm/overcommit_ratio\fP).  The \fICommitLimit\fP is calculated
 using the following formula:
 
@@ -1222,8 +1301,8 @@ source file \fIDocumentation/vm/overcommit\-accounting\fP.
 The amount of memory presently allocated on the system.  The committed
 memory is a sum of all of the memory which has been allocated by processes,
 even if it has not been "used" by them as of yet.  A process which allocates
-1GB of memory (using \fBmalloc\fP(3)  or similar), but only touches 300MB of
-that memory will only show up as using 300MB of memory even if it has the
+1GB of memory (using \fBmalloc\fP(3)  or similar), but touches only 300MB of
+that memory will show up as using only 300MB of memory even if it has the
 address space allocated for the entire 1GB.  This 1GB is memory which has
 been "committed" to by the VM and can be used at any time by the allocating
 application.  With strict overcommit enabled on the system (mode 2
@@ -1426,7 +1505,7 @@ St はソケットの内部状態で、Path は(もしあれば) ソケットの
 (\fBCONFIG_PCI_LEGACY_PROC\fP をセットするとまだ利用可能であった)、 最終的に Linux 2.6.17
 以降で完全に削除された。
 .TP 
-\fI/proc/profile\fP (since Linux 2.4)
+\fI/proc/profile\fP (Linux 2.4 以降)
 This file is present only if the kernel was booted with the \fIprofile=1\fP
 command\-line option.  It exposes kernel profiling information in a binary
 format for use by \fBreadprofile\fP(1).  Writing (e.g., an empty string) to
@@ -1827,6 +1906,9 @@ BSD\-style process accounting が有効になっている場合、 これら 3 �
 (単位は秒)。 デフォルトの値は、4, 2, 30 である。 つまり、空き領域が 2% 以下になるとログ記録を一時停止し、 空き領域が 4%
 以上となったときに再開する。 空き領域についての情報は 30 秒間有効である点に注意すること。
 .TP 
+\fI/proc/sys/kernel/cap_last_cap\fP (since Linux 3.2)
+See \fBcapabilities\fP(7).
+.TP 
 \fI/proc/sys/kernel/cap\-bound\fP (Linux 2.2 to 2.6.24 以降)
 \fI/proc/sys/kernel/cap\-bound\fP このファイルにはカーネルの \fIcapability bounding set\fP (符号付き
 10 進数表現) の値が書かれている。 \fBexecve\fP(2)  中は、このセットとプロセスに許可されている権限の AND がとられる。 Linux
@@ -1916,15 +1998,15 @@ the \fBCAP_SYS_ADMIN\fP capability can change the value in this file.
 A toggle value indicating if modules are allowed to be loaded in an
 otherwise modular kernel.  This toggle defaults to off (0), but can be set
 true (1).  Once true, modules can be neither loaded nor unloaded, and the
-toggle cannot be set back to false.  The file is only present if the kernel
+toggle cannot be set back to false.  The file is present only if the kernel
 is built with the \fBCONFIG_MODULES\fP option enabled.
 .TP 
 \fI/proc/sys/kernel/msgmax\fP
 このファイルは、System V メッセージキューに書き込まれる 1 つのメッセージの 最大バイト数を、システム全体で制限する。
 .TP 
-\fI/proc/sys/kernel/msgmni\fP
-このファイルはメッセージキュー識別子の最大数をシステム全体で制限する。
-(このファイルは Linux 2.4 以降にしか存在しない)。
+\fI/proc/sys/kernel/msgmni\fP (since Linux 2.4)
+This file defines the system\-wide limit on the number of message queue
+identifiers.
 .TP 
 \fI/proc/sys/kernel/msgmnb\fP
 このファイルは、 \fImsg_qbytes\fP の設定を初期化するシステム全体のパラメータで
@@ -1998,6 +2080,9 @@ real\-time (queued) signal の 最大数を調整するのに使用される。
 \fI/proc/sys/kernel/rtsig\-nr\fP
 (2.6.7 までのカーネルにのみ存在する)  このファイルは現在キューに入っている POSIX real\-time signal の数を表す。
 .TP 
+\fI/proc/sys/kernel/sched_rr_timeslice_ms\fP (since Linux 3.9)
+See \fBsched_rr_get_interval\fP(2).
+.TP 
 \fI/proc/sys/kernel/sem\fP (Linux 2.4 以降)
 このファイルには System V IPC セマフォを制限する 4 つの値が書かれている。 これらのフィールドは次の順番に並んでいる:
 .RS
@@ -2016,6 +2101,32 @@ real\-time (queued) signal の 最大数を調整するのに使用される。
 \fIinclude/scsi/sg.h\fP を編集して \fBSG_BIG_BUFF\fP の値を変えれば変更できる。
 ただし、この値を変更する理由はないだろう。
 .TP 
+\fI/proc/sys/kernel/shm_rmid_forced\fP (since Linux 3.1)
+.\" commit b34a6b1da371ed8af1221459a18c67970f7e3d53
+.\" See also Documentation/sysctl/kernel.txt
+If this file is set to 1, all System V shared memory segments will be marked
+for destruction as soon as the number of attached processes falls to zero;
+in other words, it is no longer possible to create shared memory segments
+that exist independently of any attached process.
+.IP
+The effect is as though a \fBshmctl\fP(2)  \fBIPC_RMID\fP is performed on all
+existing segments as well as all segments created in the future (until this
+file is reset to 0).  Note that existing segments that are attached to no
+process will be immediately destroyed when this file is set to 1.  Setting
+this option will also destroy segments that were created, but never
+attached, upon termination of the process that created the segment with
+\fBshmget\fP(2).
+.IP
+Setting this file to 1 provides a way of ensuring that all System V shared
+memory segments are counted against the resource usage and resource limits
+(see the description of \fBRLIMIT_AS\fP in \fBgetrlimit\fP(2))  of at least one
+process.
+.IP
+Because setting this file to 1 produces behavior that is nonstandard and
+could also break existing applications, the default value in this file is
+0.  Only set this file to 1 if you have a good understanding of the
+semantics of the applications using System V shared memory on your system.
+.TP 
 \fI/proc/sys/kernel/shmall\fP
 このファイルには System V 共有メモリの総ページ数の システム全体での制限が書かれている。
 .TP 
@@ -2024,8 +2135,8 @@ real\-time (queued) signal の 最大数を調整するのに使用される。
 を取得または設定できる。 現在は 1GB までの共有メモリセグメントが カーネルでサポートされている。 この値のデフォルトは \fBSHMMAX\fP
 である。
 .TP 
-\fI/proc/sys/kernel/shmmni\fP
-(Linux 2.4 以降で使用可能)  このファイルは、システム全体で作成可能な System V 共有メモリセグメント数を指定する。
+\fI/proc/sys/kernel/shmmni\fP (since Linux 2.4)
+このファイルは、システム全体で作成可能な System V 共有メモリセグメント数を指定する。
 .TP 
 \fI/proc/sys/kernel/sysrq\fP
 このファイルは、SysRq キーにより起動が許可されている関数群を制御する ものである。デフォルトでは、ファイルの内容は 1 であり、
@@ -2268,11 +2379,11 @@ kill されるだけかもしれない。 この場合には、カーネルパ�
 \fBuptime\fP(1), \fBchroot\fP(2), \fBmmap\fP(2), \fBreadlink\fP(2), \fBsyslog\fP(2),
 \fBslabinfo\fP(5), \fBhier\fP(7), \fBtime\fP(7), \fBarp\fP(8), \fBhdparm\fP(8),
 \fBifconfig\fP(8), \fBinit\fP(8), \fBlsmod\fP(8), \fBlspci\fP(8), \fBmount\fP(8),
-\fBnetstat\fP(8), \fBprocinfo\fP(8), \fBroute\fP(8)
+\fBnetstat\fP(8), \fBprocinfo\fP(8), \fBroute\fP(8), \fBsysctl\fP(8)
 
 Linux カーネルのソースファイル: \fIDocumentation/filesystems/proc.txt\fP,
 \fIDocumentation/sysctl/vm.txt\fP
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.50 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.51 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
