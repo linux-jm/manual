@@ -15,9 +15,25 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+ <H2>2013/05/01</H2>
+ <P>
+ _LINK(../INDEX/ldp.html,LDP man-pages 3.51 対応版)を公開しました。
+ </P>
+
+ <H2>2013/04/30</H2>
+ <P>
+  以下のファイルを追加・更新しました。
+ </P>
+ <DL>
+  <DT>GNU_sed (sed 4.2.2 への更新)</DT>
+  <DD>
+   _UPD_PAGE(GNU_sed, sed.1)
+  </DD>
+ </DL>
+
  <H2>2013/03/25</H2>
  <P>
- _LINK(INDEX/ldp.html,LDP man-pages 3.50 対応版)を公開しました。
+ _LINK(../INDEX/ldp.html,LDP man-pages 3.50 対応版)を公開しました。
  </P>
  
  <H2>2012/07/07</H2>
@@ -25,7 +41,7 @@ m4_dnl ML2CVS ADD HERE
   以下のファイルを追加・更新しました。
  </P>
  <DL>
-  <DT>cups</DT>
+  <DT>cups (cups 1.5.3 への更新)</DT>
   <DD>
    _NEW_PAGE(cups, cancel.1)
    _NEW_PAGE(cups, lp.1)
@@ -105,7 +121,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2012/05/31</H2>
  <P>
- _LINK(INDEX/ldp.html,LDP man-pages 3.41 対応版)を公開しました。
+ _LINK(../INDEX/ldp.html,LDP man-pages 3.41 対応版)を公開しました。
  </P>
  
  <H2>2012/05/09</H2>
@@ -125,12 +141,12 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2012/05/03</H2>
  <P>
- _LINK(INDEX/ldp.html,LDP man-pages 3.40 対応版)を公開しました。
+ _LINK(../INDEX/ldp.html,LDP man-pages 3.40 対応版)を公開しました。
  </P>
  
  <H2>2012/04/21</H2>
  <P>
-  _LINK(INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.16 の翻訳)を公開しました。
+  _LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.16 の翻訳)を公開しました。
   (新規公開のため、ファイルリストは掲載していません)
  </P>
 

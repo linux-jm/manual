@@ -17,6 +17,12 @@ m4_dnl _MIRROR_LIST
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.51 対応版)を公開しました。
+ <SMALL>(2013/05/01)</SMALL>
+
+ <LI>_LINK(INDEX/gnu.html#GNU_sed,GNU sed 4.2.2 の翻訳)を公開しました。
+ <SMALL>(2013/04/30)</SMALL>
+
  <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.50 対応版)を公開しました。
  <SMALL>(2013/03/25)</SMALL>
  <UL>
@@ -27,26 +33,11 @@ m4_dnl _MIRROR_LIST
  <LI>_LINK(INDEX/misc.html#cups,cups 1.5.3 の翻訳)を公開しました。
  <SMALL>(2012/07/07)</SMALL>
 
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.41 対応版)を公開しました。
- <SMALL>(2012/05/31)</SMALL>
-
  <LI>_LINK(INDEX/misc.html#sudo,sudo 1.8.4p4 の翻訳)を公開しました。
  <SMALL>(2012/05/09)</SMALL>
 
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.40 対応版)を公開しました。
- <SMALL>(2012/05/03)</SMALL>
-
  <LI>_LINK(INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.16 の翻訳)を公開しました。
  <SMALL>(2012/04/21)</SMALL>
-
- <LI>JM で配布する manpage の文字コードを EUC-JP に UTF-8 に変更しました。<SMALL>(2012/04/10)</SMALL>
- <UL>
-  <LI>日本語マニュアルを EUC-JP で扱うディストリビューションでは、
-  EUC-JP への変換を行って頂きますようお願い致します。
-  <LI>翻訳を行う際に UTF-8 の方が扱いやすいこと、UTF-8 を採用するディストリビューションが
-  増えて来たことを考慮し、UTF-8 に変更することとしました。
-  <LI>_LINK(download.html,ダウンロード) のページで配布している全 tarball が対象となります。
- </UL>
 
  <LI>_LINK(INDEX/gnu.html#GNU_bash,GNU bash 4.2 の翻訳)を公開しました。
  <SMALL>(2012/04/01)</SMALL>
