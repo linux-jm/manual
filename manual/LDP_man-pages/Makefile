@@ -10,7 +10,7 @@ all: translate
 translate: jm-setup
 	LC_ALL=C $(MAKE) translate \
 	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
-	# I don't know why untrans.txt is generated in release target
+	@# I don't know why untrans.txt is generated in release target
 	$(RM) untrans.txt
 
 translate-%: jm-setup
@@ -24,13 +24,13 @@ release:	jm-setup
 	  PO4AFLAGS="-k $(THRESH_REL) $(FLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 	$(RM) $(PERKAMON_DIR)/build/ja
 	ln -s ../../draft $(PERKAMON_DIR)/build/ja
-	# Do not remove unreleased pages
+	@# Do not remove unreleased pages
 	@sleep 1
 	set -e; if git status release | grep deleted >/dev/null; then \
 	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 echo; \
 	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 git checkout; \
 	fi
-	# I don't know why untrans.txt is generated in release target
+	@# I don't know why untrans.txt is generated in release target
 	$(RM) untrans.txt
 
 update-stats:	jm-setup
@@ -45,7 +45,7 @@ update-stats:	jm-setup
 	ln -s ../../draft $(PERKAMON_DIR)/build/ja
 	$(RM) -r _transtmp
 	$(RM) _log.txt
-	# I don't know why untrans.txt is generated in release target
+	@# I don't know why untrans.txt is generated in release target
 	$(RM) untrans.txt
 
 release-tl:
@@ -82,20 +82,20 @@ untrans-stats:	jm-setup
 
 jm-setup:	stamp-jm-setup
 stamp-jm-setup:
-	# Create symlink to po4a/*/po in the top dir.
+	@# Create symlink to po4a/*/po in the top dir.
 	set -e; for d in $(PERKAMON_DIR)/po4a/*; do \
 	  if [ ! -e $$d/po ]; then \
 	    t=$$(echo $$d | sed -e "s|$(PERKAMON_DIR)/||"); \
 	    ln -s ../../../$$t/po $$d/po; \
 	  fi; \
 	done
-	# Create symlink to original dir instead of downloading tarball.
-	#cd $(PERKAMON_DIR) && \
-	#  if [ ! -e man-pages ]; then \
-	#    ln -s ../original man-pages; \
-	#  fi && \
-	#  touch stamp-unpack-release && \
-	#  touch stamp-unpack
+	@# Create symlink to original dir instead of downloading tarball.
+	@#cd $(PERKAMON_DIR) && \
+	@#  if [ ! -e man-pages ]; then \
+	@#    ln -s ../original man-pages; \
+	@#  fi && \
+	@#  touch stamp-unpack-release && \
+	@#  touch stamp-unpack
 	cd $(PERKAMON_DIR) && make setup
 	@set -e; if [ ! -e $(PERKAMON_DIR)/build/ja ]; then \
 	  ln -s ../../draft $(PERKAMON_DIR)/build/ja; \
@@ -108,3 +108,16 @@ clean-setup:
 	$(RM) $(PERKAMON_DIR)/stamp-*
 	$(RM) -rf $(PERKAMON_DIR)/build
 	find $(PERKAMON_DIR) -type l | xargs $(RM)
+
+help:
+	@echo "Available targets:"
+	@echo "   translate       Generate draft from po files"
+	@echo "   translate-<SEC> Generate draft from the specified po file"
+	@echo "   release         Generate release from po files"
+	@echo ""
+	@echo "   update-stats    Update per-page trans stats"
+	@echo "   stats           Display per-po trans stats"
+	@echo "   untrans-stats   Display per-po trans stats (untrans only)"
+	@echo ""
+	@echo "   jm-setup        Setup perkamon environment"
+	@echo "   clean-setup     Clean perkamon environment"
