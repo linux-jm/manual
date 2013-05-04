@@ -5,22 +5,22 @@ THRESH_REL = 80
 FLAGS ?=
 PO4AFLAGS ?= -k $(THRESH) $(FLAGS)
 
+PO4A_SUBDIRS = $(notdir $(wildcard po4a/*))
+
 all: translate
 
-translate: jm-setup
-	LC_ALL=C $(MAKE) translate \
-	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
-	@# I don't know why untrans.txt is generated in release target
-	$(RM) untrans.txt
+translate:	$(patsubst %, translate-%, $(PO4A_SUBDIRS))
 
 translate-%: jm-setup
-	LC_ALL=C $(MAKE) translate-$* \
+	LC_ALL=C $(MAKE) process-$* \
 	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 
-release:	jm-setup
+release:	$(patsubst %, release-%, $(PO4A_SUBDIRS))
+
+release-%:	jm-setup
 	rm -f $(PERKAMON_DIR)/build/ja
 	ln -s ../../release $(PERKAMON_DIR)/build/ja
-	LC_ALL=C $(MAKE) translate \
+	LC_ALL=C $(MAKE) process-$* \
 	  PO4AFLAGS="-k $(THRESH_REL) $(FLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 	$(RM) $(PERKAMON_DIR)/build/ja
 	ln -s ../../draft $(PERKAMON_DIR)/build/ja
@@ -30,23 +30,29 @@ release:	jm-setup
 	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 echo; \
 	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 git checkout; \
 	fi
-	@# I don't know why untrans.txt is generated in release target
-	$(RM) untrans.txt
 
-update-stats:	jm-setup
-	mkdir _transtmp
+update-stats:	untrans.html
+
+untrans.html:	$(patsubst %, stats/%, $(PO4A_SUBDIRS))
+	./tools/generate-list.pl $^ > $@
+
+stats/%:	stamp-jm-setup po4a/%/po/ja.po
+	@echo "*************** $* ***************"
+	mkdir -p stats
+	mkdir -p _transtmp
 	$(RM) $(PERKAMON_DIR)/build/ja
 	ln -s ../../_transtmp $(PERKAMON_DIR)/build/ja
-	LC_ALL=C $(MAKE) translate \
+	LC_ALL=C $(MAKE) process-$* \
 	  PO4AFLAGS="-k 100 $(FLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR) \
 	  | tee _log.txt
-	./untrans-list.pl < _log.txt > untrans.html
+	./tools/extract-untrans.pl < _log.txt > $@
 	$(RM) $(PERKAMON_DIR)/build/ja
 	ln -s ../../draft $(PERKAMON_DIR)/build/ja
 	$(RM) -r _transtmp
 	$(RM) _log.txt
-	@# I don't know why untrans.txt is generated in release target
-	$(RM) untrans.txt
+
+clean-stats:
+	$(RM) -r stats
 
 release-tl:
 	set -e; if git status release | grep modified >/dev/null; then \
@@ -71,11 +77,11 @@ format-%:
 	  cd $$cur; \
 	done
 
-stats:	jm-setup
+postats:	jm-setup
 	@LC_ALL=C $(MAKE) stats \
 	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 
-untrans-stats:	jm-setup
+untrans-postats:	jm-setup
 	@LC_ALL=C $(MAKE) stats \
 	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR) \
 	  2>&1 | grep -vE ' translated messages\.$$'
@@ -116,8 +122,8 @@ help:
 	@echo "   release         Generate release from po files"
 	@echo ""
 	@echo "   update-stats    Update per-page trans stats"
-	@echo "   stats           Display per-po trans stats"
-	@echo "   untrans-stats   Display per-po trans stats (untrans only)"
+	@echo "   postats         Display per-po trans stats"
+	@echo "   untrans-postats Display per-po trans stats (untrans only)"
 	@echo ""
 	@echo "   jm-setup        Setup perkamon environment"
 	@echo "   clean-setup     Clean perkamon environment"

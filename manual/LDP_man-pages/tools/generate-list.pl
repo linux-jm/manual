@@ -1,5 +1,10 @@
 #!/usr/bin/env perl
 
+use File::Basename qw/basename/;
+
+$debug = 0;
+$page_count = 0;
+
 sub print_header {
     print <<EOF;
 <HTML>
@@ -21,6 +26,7 @@ EOF
 
 sub print_footer {
     print <<EOF;
+<TR><TD COLSPAN=3>Total $page_count pages</TD></TR>
 </TABLE>
 </BODY></HTML>
 EOF
@@ -46,33 +52,29 @@ sub print_manpage {
     print "</TR>\n";
 }
 
-$poname = "";
-$poname_print = 1;
+sub process_postat {
+    my $postat = shift;
+    my $poname = basename($postat);
+    my $poname_print = 1;
 
-print_header();
-
-while (<>) {
-    if (/^po4a/) {
-	@dat = split;
-	$cfg = $dat[$#dat];
-	@dat = split('/', $cfg);
-	$poname = $dat[2];
-	$poname =~ s/\.cfg$//;
-	$poname_print = 1;
+    open(POSTAT, $postat);
+    while (<POSTAT>) {
+	next if /^#/;
+	# format: pagename, #complete, #remaining, #total
+	my ($page, $comp, $remaining, $total) = split(',');
+	$ratio = $comp / $total * 100;
+	if ($poname_print) {
+	    print_poname($poname);
+	    $poname_print = 0;
+	}
+	print_manpage($page, $total, $remaining, $ratio);
+	$page_count++;
     }
-    next if ! /^Discard /;
-    s/\(//;
-    s/\)//;
-    @dat = split(' ');
-    $page = $dat[1];
-    $comp = $dat[2];
-    $all  = $dat[4];
-    $ratio = $comp/$all*100;
-    if ($poname_print) {
-	print_poname($poname);
-	$poname_print = 0;
-    }
-    print_manpage($page, $all, $all - $comp, $ratio);
 }
 
+print_header();
+foreach my $name (@ARGV) {
+    print STDERR "$name...\n" if $debug;
+    process_postat($name);
+}
 print_footer();
