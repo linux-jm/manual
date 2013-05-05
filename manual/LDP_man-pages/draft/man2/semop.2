@@ -90,12 +90,9 @@ short          sem_flg;  /* 操作フラグ */
 それぞれの操作はセマフォ集合の \fIsem_num\fP番目 のセマフォに対して実行される。セマフォ集合の最初のセマフォには 番号 0 が振られる。
 そして操作は三種類あり、 \fIsem_op\fP の値で区別される。
 .PP
-If \fIsem_op\fP is a positive integer, the operation adds this value to the
-semaphore value (\fIsemval\fP).  Furthermore, if \fBSEM_UNDO\fP is specified for
-this operation, the system subtracts the value \fIsem_op\fP from the semaphore
-adjustment (\fIsemadj\fP)  value for this semaphore.  This operation can always
-proceed\(emit never forces a thread to wait.  The calling process must have
-alter permission on the semaphore set.
+\fIsem_op\fP が正の整数の場合、その値をセマフォの値 (\fIsemval\fP) に加算する。 さらに、この操作で \fBSEM_UNDO\fP
+が指定されていた場合は、 システムはこのセマフォのの調整値 (\fIsemadj\fP) から値 \fIsem_op\fP を減算する。 この操作は必ず実行でき、
+スレッドの停止は起こらない。 呼び出し元プロセスは対象のセマフォ集合を変更する許可がなければならない。
 .PP
 \fIsem_op\fP が 0 の場合、「ゼロまで待つ」操作である。この場合、プロセスは そのセマフォ集合に対する読み込み許可がなければならない。
 \fIsemval\fP が 0 ならば、操作は直ちに行われる。 \fIsemval\fP が 0 でない場合、 \fIsem_flg\fP に
@@ -113,21 +110,15 @@ alter permission on the semaphore set.
 \fBsemtimedop\fP()  の \fItimeout\fP で指定された制限時間が経過した: このとき \fBsemtimedop\fP()  は失敗し、
 \fIerrno\fP に \fBEAGAIN\fP が設定される。
 .PP
-If \fIsem_op\fP is less than zero, the process must have alter permission on
-the semaphore set.  If \fIsemval\fP is greater than or equal to the absolute
-value of \fIsem_op\fP, the operation can proceed immediately: the absolute
-value of \fIsem_op\fP is subtracted from \fIsemval\fP, and, if \fBSEM_UNDO\fP is
-specified for this operation, the system adds the absolute value of
-\fIsem_op\fP to the semaphore adjustment (\fIsemadj\fP)  value for this
-semaphore.  If the absolute value of \fIsem_op\fP is greater than \fIsemval\fP,
-and \fBIPC_NOWAIT\fP is specified in \fIsem_flg\fP, \fBsemop\fP()  fails, with
-\fIerrno\fP set to \fBEAGAIN\fP (and none of the operations in \fIsops\fP is
-performed).  Otherwise \fIsemncnt\fP (the counter of threads waiting for this
-semaphore's value to increase)  is incremented by one and the thread sleeps
-until one of the following occurs:
+\fIsem_op\fP が 0 未満の場合、プロセスにはそのセマフォ集合を変更する許可がなければ ならない。 \fIsemval\fP が \fIsem_op\fP
+の絶対値以上の場合は、操作は直ちに実行される: \fIsemval\fP から \fIsem_op\fP の絶対値を減算し、さらに、この操作に
+\fBSEM_UNDO\fP が指定されている場合は、このセマフォの調整値 (\fIsemadj\fP) に \fIsem_op\fP の絶対値を加算する。
+\fIsemval\fP が \fIsem_op\fP の絶対値より小さく、 \fIsem_flg\fP に \fBIPC_NOWAIT\fP が指定された場合は、
+\fBsemop\fP()  は失敗し、 \fIerrno\fP に \fBEAGAIN\fP が設定される (このとき \fIsops\fP の操作は全く実行されない)。
+\fIsemval\fP が \fIsem_op\fP の絶対値より小さく、 \fBIPC_WAIT\fP が指定されていない場合は、 \fIsemncnt\fP
+(このセマフォの値が増加するのを待っているスレッド数のカウンタ)  を 1 増加させて、以下のいずれかが起こるまでスレッドを停止 (sleep) する。
 .IP \(bu 3
-\fIsemval\fP becomes greater than or equal to the absolute value of \fIsem_op\fP:
-the operation now proceeds, as described above.
+\fIsemval\fP が \fIsem_op\fP の絶対値以上になった。この時点で、操作は上述の通り実行される。
 .IP \(bu
 セマフォ集合がシステムから削除された: このとき \fBsemop\fP()  は失敗し \fIerrno\fP に \fBEIDRM\fP が設定される。
 .IP \(bu
@@ -207,16 +198,12 @@ Linux や POSIX の全てのバージョンでは、 \fI<sys/types.h>\fP と \fI
 \fBsemop\fP()  はシグナルハンドラによって中断された後に、 決して自動的に再開することはない。 たとえシグナルハンドラの設定時に
 \fBSA_RESTART\fP フラグがセットされていても再開することはない
 
-A semaphore adjustment (\fIsemadj\fP)  value is a per\-process, per\-semaphore
-integer that is the negated sum of all operations performed on a semaphore
-specifying the \fBSEM_UNDO\fP flag.  Each process has a list of \fIsemadj\fP
-values\(emone value for each semaphore on which it has operated using
-\fBSEM_UNDO\fP.  When a process terminates, each of its per\-semaphore \fIsemadj\fP
-values is added to the corresponding semaphore, thus undoing the effect of
-that process's operations on the semaphore (but see BUGS below).  When a
-semaphore's value is directly set using the \fBSETVAL\fP or \fBSETALL\fP request
-to \fBsemctl\fP(2), the corresponding \fIsemadj\fP values in all processes are
-cleared.
+セマフォの調整値 (\fIsemadj\fP) は、プロセス毎のセマフォ毎の整数で、 \fBSEM_UNDO\fP
+フラグを指定して行われた、セマフォに対するすべての操作の合計値を反転したものである。 各プロセスは \fIsemadj\fP の値のリストを保持する \(em
+リストのそれぞれの値は \fBSEM_UNDO\fP を使って操作が行われた個々のセマフォに対応する。 プロセスが終了する際、 セマフォ毎の
+\fIsemadj\fP の各々の値が対応するセマフォに加算される。 これにより、そのプロセスがそのセマフォに対して行った操作の影響が取り消される
+(ただし、下記の「バグ」を参照)。 \fBsemctl\fP(2) の \fBSETVAL\fP や \fBSETALL\fP を使ってセマフォの値が直接設定された場合、
+すべてのプロセスの対応する \fIsemadj\fP の値がクリアされる。
 .PP
 あるセマフォの \fIsemval\fP, \fIsempid\fP, \fIsemzcnt\fP, \fIsemnct\fP の値はいずれも、適切な操作を指定して
 \fBsemctl\fP(2)  を呼び出すことで取得できる。
