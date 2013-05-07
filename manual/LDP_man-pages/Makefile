@@ -7,17 +7,24 @@ PO4AFLAGS ?= -k $(THRESH) $(FLAGS)
 
 PO4A_SUBDIRS = $(notdir $(wildcard po4a/*))
 
-all: translate
+all: translate update-stats
 
-translate:	$(patsubst %, translate-%, $(PO4A_SUBDIRS))
+translate:	$(patsubst %, stamp/%, $(PO4A_SUBDIRS))
+stamp/%:	stamp-jm-setup po4a/%/po/ja.po
+	@echo "*************** translate: $* ***************"
+	mkdir -p stamp
+	LC_ALL=C $(MAKE) process-$* \
+	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
+	touch $@
 
-translate-%: jm-setup
+translate-all:	$(patsubst %, _translate-%, $(PO4A_SUBDIRS))
+_translate-%: jm-setup
 	LC_ALL=C $(MAKE) process-$* \
 	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 
-release:	$(patsubst %, release-%, $(PO4A_SUBDIRS))
+release:	$(patsubst %, _release-%, $(PO4A_SUBDIRS))
 
-release-%:	jm-setup
+_release-%:	jm-setup
 	rm -f $(PERKAMON_DIR)/build/ja
 	ln -s ../../release $(PERKAMON_DIR)/build/ja
 	LC_ALL=C $(MAKE) process-$* \
@@ -34,10 +41,11 @@ release-%:	jm-setup
 update-stats:	untrans.html
 
 untrans.html:	$(patsubst %, stats/%, $(PO4A_SUBDIRS))
+	@echo "*************** Updating translation statistics ***************"
 	./tools/generate-list.pl $^ > $@
 
 stats/%:	stamp-jm-setup po4a/%/po/ja.po
-	@echo "*************** $* ***************"
+	@echo "*************** stats: $* ***************"
 	mkdir -p stats
 	mkdir -p _transtmp
 	$(RM) $(PERKAMON_DIR)/build/ja
@@ -95,13 +103,6 @@ stamp-jm-setup:
 	    ln -s ../../../$$t/po $$d/po; \
 	  fi; \
 	done
-	@# Create symlink to original dir instead of downloading tarball.
-	@#cd $(PERKAMON_DIR) && \
-	@#  if [ ! -e man-pages ]; then \
-	@#    ln -s ../original man-pages; \
-	@#  fi && \
-	@#  touch stamp-unpack-release && \
-	@#  touch stamp-unpack
 	cd $(PERKAMON_DIR) && make setup
 	@set -e; if [ ! -e $(PERKAMON_DIR)/build/ja ]; then \
 	  ln -s ../../draft $(PERKAMON_DIR)/build/ja; \
@@ -122,6 +123,7 @@ help:
 	@echo "   release         Generate release from po files"
 	@echo ""
 	@echo "   update-stats    Update per-page trans stats"
+	@echo "   clean-stats     Remove all caches of per-page trans stats"
 	@echo "   postats         Display per-po trans stats"
 	@echo "   untrans-postats Display per-po trans stats (untrans only)"
 	@echo ""
