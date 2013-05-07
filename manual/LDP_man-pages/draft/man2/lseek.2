@@ -74,47 +74,37 @@ lseek \- ファイルの読み書きオフセットの位置を変える
 \fBlseek\fP()  関数は、オフセットをファイルの末尾を越えた位置に設定できる (但し、これによりファイルのサイズが変わらない)。
 もしデータがこのオフセット位置以降に書き込まれた場合、 間の空隙の部分 ("穴 (hole)") の読み出しがあると、
 実際にそこにデータを書き込まれるまでは NULL バイト (\(aq\e0\(aq) の列が返される。
-.SS "Seeking file data and holes"
-Linux バージョン 3.1 以降では、
-\fIwhence\fP に以下の値も指定することができる。
+.SS ファイルのデータとホールの探索
+Linux バージョン 3.1 以降では、 \fIwhence\fP に以下の値も指定することができる。
 .TP 
 \fBSEEK_DATA\fP
-Adjust the file offset to the next location in the file greater than or
-equal to \fIoffset\fP containing data.  If \fIoffset\fP points to data, then the
-file offset is set to \fIoffset\fP.
+ファイルオフセットを \fIoffset\fP 以上で次にデータがある位置に設定する。 \fIoffset\fP がデータを指している場合には、
+ファイルオフセットは \fIoffset\fP に設定される。
 .TP 
 \fBSEEK_HOLE\fP
-Adjust the file offset to the next hole in the file greater than or equal to
-\fIoffset\fP.  If \fIoffset\fP points into the middle of a hole, then the file
-offset is set to \fIoffset\fP.  If there is no hole past \fIoffset\fP, then the
-file offset is adjusted to the end of the file (i.e., there is an implicit
-hole at the end of any file).
+ファイルオフセットを、 位置が \fIoffset\fP 以上の次のホール (hole) に設定する。 \fIoffset\fP
+がホールの内部にある場合は、ファイルシステムは \fIoffset\fP に設定される。 \fIoffset\fP 以降にホールがない場合は、
+ファイルオフセットはファイル末尾に設定される (つまり、 どのファイルの末尾にも暗黙のホールが存在するということだ)。
 .PP
-In both of the above cases, \fBlseek\fP()  fails if \fIoffset\fP points past the
-end of the file.
+上記のどちらの場合も、 \fIoffset\fP がファイル末尾よりも先を指している場合には \fBlseek\fP() は失敗する。
 
-These operations allow applications to map holes in a sparsely allocated
-file.  This can be useful for applications such as file backup tools, which
-can save space when creating backups and preserve holes, if they have a
-mechanism for discovering holes.
+これらの操作を使うことで、 アプリケーションが、 まばら (sparse ) にページが割り当てられたファイルでホールをマップすることができる。
+この機能はファイルバックアップツールなどのアプリケーションで有用である。 ホールを見つける仕組みがあれば、 ファイルバックアップツールで、
+バックアップを作成する際に保存領域を節約し、ホールを保持することができる。
 
 .\" https://lkml.org/lkml/2011/4/22/79
 .\" http://lwn.net/Articles/440255/
 .\" http://blogs.oracle.com/bonwick/entry/seek_hole_and_seek_data
-For the purposes of these operations, a hole is a sequence of zeros that
-(normally) has not been allocated in the underlying file storage.  However,
-a file system is not obliged to report holes, so these operations are not a
-guaranteed mechanism for mapping the storage space actually allocated to a
-file.  (Furthermore, a sequence of zeros that actually has been written to
-the underlying storage may not be reported as a hole.)  In the simplest
-implementation, a file system can support the operations by making
-\fBSEEK_HOLE\fP always return the offset of the end of the file, and making
-\fBSEEK_DATA\fP always return \fIoffset\fP (i.e., even if the location referred to
-by \fIoffset\fP is a hole, it can be considered to consist of data that is a
-sequence of zeros).
+これらの操作の目的としては、 ホールは (通常は) バックエンドのファイルストレージには割り当てられていない連続する 0 の列である。
+しかし、ファイルシステムにはホールを報告する義務はなく、 そのため、 これらの操作は、
+ファイルに実際に割り当てられたストレージ領域をマッピングする方法としては確実性のある仕組みではない。
+(また、バックエンドのストレージに実際に書き込まれた連続する 0 の列はホールとして報告されないこともある。) 最も単純な実装としては、
+\fBSEEK_HOLE\fP は常にファイル末尾のオフセットを返すようにし、 \fBSEEK_DATA\fP は常に \fIoffset\fP を返すようにすることで、
+ファイルシステムはこれらの操作をサポートすることができる (\fBSEEK_DATA\fP は常に \fIoffset\fP を返すというのは、 \fIoffset\fP
+が参照する場所がホールであったとしても、 連続する 0 の列のデータで構成されているとみなすということである)。
 
-The \fB_GNU_SOURCE\fP feature test macro must be defined in order to obtain the
-definitions of \fBSEEK_DATA\fP and \fBSEEK_HOLE\fP from \fI<unistd.h>\fP.
+\fI<unistd.h>\fP から \fBSEEK_DATA\fP と \fBSEEK_HOLE\fP の定義を得るには、 機能検査マクロ
+\fB_GNU_SOURCE\fP を定義しなければならない。
 .SH 返り値
 成功した場合、 \fBlseek\fP()  は結果のファイル位置をファイルの先頭からのバイト数で返す。 エラーの場合、値 \fI(off_t)\ \-1\fP
 が返され、 \fIerrno\fP にエラーが指示される。
@@ -143,9 +133,8 @@ definitions of \fBSEEK_DATA\fP and \fBSEEK_HOLE\fP from \fI<unistd.h>\fP.
 SVr4, 4.3BSD, POSIX.1\-2001.
 
 .\" FIXME . Review http://austingroupbugs.net/view.php?id=415 in the future
-\fBSEEK_DATA\fP and \fBSEEK_HOLE\fP are nonstandard extensions also present in
-Solaris, FreeBSD, and DragonFly BSD; they are proposed for inclusion in the
-next POSIX revision (Issue 8).
+\fBSEEK_DATA\fP と \fBSEEK_HOLE\fP は非標準の拡張で、 Solaris, FreeBSD, DragonFly BSD
+にも存在する。 これらは POSIX の次の版 (Issue 8) に入れるよう提案されている。
 .SH 注意
 いくつかのデバイスでは seek ができない。 POSIX はどのデバイスが \fBlseek\fP()  に対応すべきかは規定していない。
 
