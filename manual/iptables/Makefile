@@ -13,6 +13,8 @@ MSGMERGE_OPTS = --no-wrap --no-location
 WORK_DIR = .
 
 all:	translate
+cmd:	translate-cmd
+lib:	translate-lib
 
 translate:	translate-cmd translate-lib
 translate-cmd:	$(patsubst %,_translate-%,$(notdir $(MASTER_CMD)))
