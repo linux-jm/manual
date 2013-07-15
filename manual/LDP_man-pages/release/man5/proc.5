@@ -64,7 +64,7 @@
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH PROC 5 2013\-04\-17 Linux "Linux Programmer's Manual"
+.TH PROC 5 2013\-06\-27 Linux "Linux Programmer's Manual"
 .SH 名前
 proc \- プロセスの情報を含む擬似ファイルシステム
 .SH 説明
@@ -180,11 +180,33 @@ Linux 2.0 以前では、 \fI/proc/[pid]/exe\fP は実行されたバイナリ�
 \fI\-inum\fP オプションをつけて \fBfind\fP(1) を使うと、
 このファイルの所在を探すことができる。
 .TP 
-\fI/proc/[pid]/fd\fP
+\fI/proc/[pid]/fd/\fP
 プロセスがオープンしたファイル各々に対するエントリを含むサブディレクトリ。 ファイルディスクリプタがファイル名で、
 実際のファイルへのシンボリックリンクになっている。 したがって 0 は標準入力、1 は標準出力、2 は標準エラー出力、などとなる。
 
-.\" The following was still true as at kernel 2.6.13
+For file descriptors for pipes and sockets, the entries will be symbolic
+links whose content is the file type with the inode.  A \fBreadlink\fP(2)  call
+on this file returns a string in the format:
+
+    type:[inode]
+
+For example, \fIsocket:[2248868]\fP will be a socket and its inode is 2248868.
+For sockets, that inode can be used to find more information in one of the
+files under \fI/proc/net/\fP.
+
+For file descriptors that have no corresponding inode (e.g., file
+descriptors produced by \fBepoll_create\fP(2), \fBeventfd\fP(2),
+\fBinotify_init\fP(2), \fBsignalfd\fP(2), and \fBtimerfd\fP(2)), the entry will be a
+symbolic link with contents of the form
+
+    anon_inode:<file\-type>
+
+In some cases, the \fIfile\-type\fP is surrounded by square brackets.
+
+For example, an epoll file descriptor will have a symbolic link whose
+content is the string \fIanon_inode:[eventpoll]\fP.
+
+.\"The following was still true as at kernel 2.6.13
 マルチスレッドプロセスでは、メインスレッドがすでに終了している場合、 このディレクトリの内容は参照できない (スレッドの終了は通常
 \fBpthread_exit\fP(3)  を呼び出しにより行われる)。
 
@@ -252,7 +274,7 @@ including Linux 2.6.35, this file is protected to allow reading only by the
 real UID of the process.  Since Linux 2.6.36, this file is readable by all
 users on the system.
 .TP 
-\fI/proc/[pid]/map_files/\fP (since kernel 3.3)
+\fI/proc/[pid]/map_files/\fP (kernel 3.3 以降)
 .\" commit 640708a2cff7f81e246243b0073c66e6ece7e53e
 This subdirectory contains entries corresponding to memory\-mapped files (see
 \fBmmap\fP(2)).  Entries are named by memory region start and end address pair
@@ -291,7 +313,7 @@ A file containing the currently mapped memory regions and their access
 permissions.  See \fBmmap\fP(2)  for some further information about memory
 mappings.
 
-The format of the file is:
+ファイルのフォーマットは以下のとおり:
 
 .in -7n
 .nf
@@ -346,7 +368,7 @@ There are additional helpful pseudo\-paths:
 \fI[stack]\fP
 The initial process's (also known as the main thread's) stack.
 .TP 
-\fI[stack:<tid>]\fP (since Linux 3.4)
+\fI[stack:<tid>]\fP (Linux 3.4 以降)
 .\" commit b76437579d1344b612cf1851ae610c636cec7db0
 A thread's stack (where the \fI<tid>\fP is a thread ID).  It
 corresponds to the \fI/proc/[pid]/task/[tid]/\fP path.
@@ -689,7 +711,6 @@ disk sleep)、 Z はゾンビ状態 (zombie)、 T はトレースされている
 \fIminflt\fP %lu
 (10) プロセスが引き起こしたマイナーフォールト (minor fault、ディスクから メモリページへのロードを必要としないフォールト) の回数。
 .TP 
-.\" field 11
 \fIcminflt\fP %lu
 (11) (そのプロセスが終了を待っている) 子プロセスが引き起こしたマイナーフォールトの回数。
 .TP 
@@ -750,7 +771,6 @@ Linux 2.6 より前では、このプロセスに割り当てられたスケジ�
 (20) このプロセスのスレッド数 (Linux 2.6 以降)。 カーネル 2.6 より前では、このフィールドは削除されたフィールドの 場所埋めとして
 0 にハードコードされていた。
 .TP 
-.\" field 21
 \fIitrealvalue\fP %ld
 (21) インターバルタイマによって、次に \fBSIGALRM\fP がプロセスへ送られるまでの時間 (単位 jiffies)。 カーネル 2.6.17
 以降では、このフィールドはメンテナンスされなくなり、 0 にハードコードされている。
@@ -787,7 +807,6 @@ is expressed in clock ticks (divide by \fIsysconf(_SC_CLK_TCK)\fP).
 \fIkstkeip\fP %lu
 (30) 現在の EIP (インストラクションポインタ) の値。
 .TP 
-.\" field 31
 \fIsignal\fP %lu
 (31) 処理待ちのシグナルのビットマップ。 10
 進数で表示される。このフィールドは廃止予定である。リアルタイム・シグナルに関する情報は表示されないからである。代わりに
@@ -829,7 +848,6 @@ is expressed in clock ticks (divide by \fIsysconf(_SC_CLK_TCK)\fP).
 (40) リアルタイム・スケジューリングの優先度。 リアルタイム・ポリシーの元でスケジューリングされるプロセスでは 1 から 99 の範囲の値となり、
 リアルタイム以外のスケジューリングポリシーのプロセスでは 0 となる (\fBsched_setscheduler\fP(2)  参照)。
 .TP 
-.\" field 41
 \fIpolicy\fP %u (Linux 2.5.19 以降; Linux 2.6.22 より前は %lu)
 (41) スケジューリング・ポリシー (\fBsched_setscheduler\fP(2)  参照)。 値は、 \fIlinux/sched.h\fP の
 SCHED_* 定数を使ってデコードすればよい。
@@ -1906,8 +1924,8 @@ BSD\-style process accounting が有効になっている場合、 これら 3 �
 (単位は秒)。 デフォルトの値は、4, 2, 30 である。 つまり、空き領域が 2% 以下になるとログ記録を一時停止し、 空き領域が 4%
 以上となったときに再開する。 空き領域についての情報は 30 秒間有効である点に注意すること。
 .TP 
-\fI/proc/sys/kernel/cap_last_cap\fP (since Linux 3.2)
-See \fBcapabilities\fP(7).
+\fI/proc/sys/kernel/cap_last_cap\fP (Linux 3.2 以降)
+\fBcapabilities\fP(7) 参照。
 .TP 
 \fI/proc/sys/kernel/cap\-bound\fP (Linux 2.2 to 2.6.24 以降)
 \fI/proc/sys/kernel/cap\-bound\fP このファイルにはカーネルの \fIcapability bounding set\fP (符号付き
@@ -2004,7 +2022,7 @@ is built with the \fBCONFIG_MODULES\fP option enabled.
 \fI/proc/sys/kernel/msgmax\fP
 このファイルは、System V メッセージキューに書き込まれる 1 つのメッセージの 最大バイト数を、システム全体で制限する。
 .TP 
-\fI/proc/sys/kernel/msgmni\fP (since Linux 2.4)
+\fI/proc/sys/kernel/msgmni\fP (Linux 2.4 以降)
 This file defines the system\-wide limit on the number of message queue
 identifiers.
 .TP 
@@ -2080,8 +2098,8 @@ real\-time (queued) signal の 最大数を調整するのに使用される。
 \fI/proc/sys/kernel/rtsig\-nr\fP
 (2.6.7 までのカーネルにのみ存在する)  このファイルは現在キューに入っている POSIX real\-time signal の数を表す。
 .TP 
-\fI/proc/sys/kernel/sched_rr_timeslice_ms\fP (since Linux 3.9)
-See \fBsched_rr_get_interval\fP(2).
+\fI/proc/sys/kernel/sched_rr_timeslice_ms\fP (Linux 3.9 以降)
+\fBsched_rr_get_interval\fP(2) 参照。
 .TP 
 \fI/proc/sys/kernel/sem\fP (Linux 2.4 以降)
 このファイルには System V IPC セマフォを制限する 4 つの値が書かれている。 これらのフィールドは次の順番に並んでいる:
@@ -2101,7 +2119,7 @@ See \fBsched_rr_get_interval\fP(2).
 \fIinclude/scsi/sg.h\fP を編集して \fBSG_BIG_BUFF\fP の値を変えれば変更できる。
 ただし、この値を変更する理由はないだろう。
 .TP 
-\fI/proc/sys/kernel/shm_rmid_forced\fP (since Linux 3.1)
+\fI/proc/sys/kernel/shm_rmid_forced\fP (Linux 3.1 以降)
 .\" commit b34a6b1da371ed8af1221459a18c67970f7e3d53
 .\" See also Documentation/sysctl/kernel.txt
 If this file is set to 1, all System V shared memory segments will be marked
@@ -2135,7 +2153,7 @@ semantics of the applications using System V shared memory on your system.
 を取得または設定できる。 現在は 1GB までの共有メモリセグメントが カーネルでサポートされている。 この値のデフォルトは \fBSHMMAX\fP
 である。
 .TP 
-\fI/proc/sys/kernel/shmmni\fP (since Linux 2.4)
+\fI/proc/sys/kernel/shmmni\fP (Linux 2.4 以降)
 このファイルは、システム全体で作成可能な System V 共有メモリセグメント数を指定する。
 .TP 
 \fI/proc/sys/kernel/sysrq\fP
@@ -2384,6 +2402,6 @@ kill されるだけかもしれない。 この場合には、カーネルパ�
 Linux カーネルのソースファイル: \fIDocumentation/filesystems/proc.txt\fP,
 \fIDocumentation/sysctl/vm.txt\fP
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.51 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.52 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -1,0 +1,146 @@
+.\" Copyright (c) 2008, Linux Foundation, written by Michael Kerrisk
+.\"     <mtk.manpages@gmail.com>
+.\" and Copyright 2003,2004 Andi Kleen, SuSE Labs.
+.\" numa_maps material Copyright (c) 2005 Silicon Graphics Incorporated.
+.\"     Christoph Lameter, <cl@linux-foundation.org>.
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH NUMA 7 2012\-08\-05 Linux "Linux Programmer's Manual"
+.SH 名前
+numa \- 非対称型メモリアーキテクチャの概要
+.SH 説明
+非対称型メモリアクセス (Non\-Uniform Memory Access; NUMA) は、
+メモリが複数のメモリノードに分割されているマルチプロセッサシステム
+のことである。メモリノードへのアクセス時間は、アクセス元の CPU と
+アクセス先のノードの相対的な位置関係に依存する
+(これに対し、対称型マルチプロセッサシステムでは、どの CPU から
+どのメモリへのアクセス時間も同じである)。
+通常は、 NUMA システムの各 CPU にはローカルのメモリノードがあり、
+そのメモリノードには、他の CPU のローカルノードや全ての CPU で
+共有されるバス上のメモリよりも早くアクセスすることができる。
+.SS "NUMA システムコール"
+Linux カーネルには、次に示す NUMA 関連のシステムコールが実装されている:
+\fBget_mempolicy\fP(2), \fBmbind\fP(2), \fBmigrate_pages\fP(2),
+\fBmove_pages\fP(2), \fBset_mempolicy\fP(2).
+ただし、アプリケーションは通常は \fIlibnuma\fP が提供するインターフェース
+を使用すべきである。下記の「ライブラリによるサポート」を参照。
+.SS "/proc/[number]/numa_maps (Linux 2.6.14 以降)"
+.\" See also Changelog-2.6.14
+このファイルは、プロセスの NUMA メモリポリシーと割り当てに関する
+情報を表示する。
+
+各行に、そのプロセスが使用しているメモリ領域に関する情報が表示される。その他の情報 \(em
+そのメモリ領域に適用されているメモリポリシーや、そのページがどのノード上に割り当てられているか、など \(em もあわせて表示される。
+
+\fInuma_maps\fP は読み出し専用のファイルである。 \fI/proc/<pid>/numa_maps\fP から読み出しが行われると、
+カーネルはそのプロセスの仮想アドレス空間をスキャンし、 メモリの使用状況を報告する。
+プロセスのメモリ領域の情報が 1 行に 1 領域で表示される。
+
+各行の最初のフィールドはメモリ領域の開始アドレスを示す。 このフィールドは \fI/proc/<pid>/maps\fP
+ファイルの内容と対応している。 \fI/proc/<pid>/maps\fP
+には、メモリ領域の末尾のアドレスや、アクセス許可や共有といった他の情報も含まれる。
+
+2 番目のフィールドは、 そのメモリ領域に現在適用されているメモリポリシーを示す。 適用されているポリシーは、
+必ずしもそのプロセスがこのメモリ領域に対して設定したポリシーとは限らない点に注意すること。
+特に、
+プロセスがその領域に対して「デフォルト」ポリシーを設定した場合、その領域に適用されるポリシーはプロセスのポリシーとなり、それが「デフォルト」ポリシーとなる場合もあればそうでない場合もある。
+
+行の残りの部分には、そのメモリ領域に割り当てられたページに関する情報が入る。以下に詳細を示す。
+.TP 
+\fIN<node>=<nr_pages>\fP
+\fI<node>\fP に割り当てられているページ数。 \fI<nr_pages>\fP には、
+そのプロセスが現在マッピングしているページだけが含まれる。 ページの移動やメモリの再利用により、 このメモリ領域に関連付けられているが、
+一時的にマッピングされていないページが存在する場合がある。 プロセスがそれらのページを参照しようとした後には、 これらのページは再び現れる可能性がある。
+メモリ領域が共有メモリやファイルマッピングの場合には、 そのメモリ領域内に別のページを他のプロセスがマッピングしている場合もある。
+.TP 
+\fIfile=<filename>\fP
+そのメモリ領域に関連付けられているファイル。 ファイルがプライベート (非公開) でマッピングされている場合、 書き込みアクセスがあると、
+このメモリ領域に書き込み時コピー (Copy\-On\-Write) ページが生成されることがある。 これらのページは無名ページ (anonymous
+page) として表示される。
+.TP 
+\fIheap\fP
+ヒープに使用されているメモリ範囲。
+.TP 
+\fIstack\fP
+スタックに使用されているメモリ範囲。
+.TP 
+\fIhuge\fP
+ヒュージメモリの範囲。表示されるページ数は、
+通常の大きさのページではなく、ヒュージページの数である。
+.TP 
+\fIanon=<pages>\fP
+メモリ範囲内の無名ページ (anonymous page) の数。
+.TP 
+\fIdirty=<pages>\fP
+dirty (変更された) ページの数。
+.TP 
+\fImapped=<pages>\fP
+マッピングされているページ数。 \fIdirty\fP および \fIanon\fP のページ数と異なる値の場合に表示される。
+.TP 
+\fImapmax=<count>\fP
+スキャン中に検出した mapcount (一つのページをマッピングしているプロセス数) の最大値。 この値は、
+そのメモリ領域でどの程度の共有が行われているかの指標として使うことができる。
+.TP 
+\fIswapcache=<count>\fP
+スワップデバイスに対応するエントリーが存在するページ数。
+.TP 
+\fIactive=<pages>\fP
+アクティブリストに入っているページ数。 このフィールドが表示されるのは、
+値がこのメモリ領域のページ数と異なる場合だけである。このフィールドが表示されるということは、 このメモリ領域に、まもなくスワッパ (swapper)
+によりこの領域から削除される可能性がある inactive なページが存在することを意味する。
+.TP 
+\fIwriteback=<pages>\fP
+現在ディスクに書き出されているページ数。
+.SH 準拠
+NUMA インターフェースについて規定している標準はない。
+.SH 注意
+Linux の NUMA システムコールと \fI/proc\fP インターフェースは、カーネルが
+設定オプション \fBCONFIG_NUMA\fP を有効にして作成されている場合のみ、利用
+可能である。
+.SS ライブラリによるサポート
+システムコールの定義を得るには \fI\-lnuma\fP でリンクすること。
+\fIlibnuma\fP と必要なヘッダファイル \fI<numaif.h>\fP は
+\fInumactl\fP パッケージで提供されている。
+
+ただし、アプリケーションはこれらのシステムコールを直接利用すべきでない。
+推奨される方法は、\fInumactl\fP パッケージの \fBnuma\fP(3) の関数群が提供する
+高レベルインターフェースの利用である。 \fInumactl\fP パッケージは
+.UR ftp://oss.sgi.com\:/www\:/projects\:/libnuma\:/download/
+.UE
+で入手できる。
+このパッケージが収録されている Linux ディストリビューションもある。
+ディストリビューションによっては、開発用のライブラリとヘッダファイルは
+別パッケージ \fInumactl\-devel\fP で提供されている。
+.SH 関連項目
+\fBget_mempolicy\fP(2), \fBmbind\fP(2), \fBmove_pages\fP(2), \fBset_mempolicy\fP(2),
+\fBnuma\fP(3), \fBcpuset\fP(7), \fBnumactl\fP(8)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.52 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。
