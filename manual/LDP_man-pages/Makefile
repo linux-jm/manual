@@ -62,6 +62,20 @@ stats/%:	stamp-jm-setup po4a/%/po/ja.po
 clean-stats:
 	$(RM) -r stats
 
+update-tl-finish:
+	@cat stats/* | grep -v '^#' | cut -d , -f 1 | sort > _stats.txt
+	@grep '^[×☆]' translation_list | cut -d : -f 5-6 | sed -e 's/:/./' | sort > _tr_todo.txt
+	@for p in `comm -23 _tr_todo.txt _stats.txt`; do \
+	  ../../admin/JM-tl-modify.pl -U translation_list $$p RO; \
+	done
+	@$(RM) _stats.txt _tr_todo.txt
+
+check-tl-nofinish:
+	@cat stats/* | grep -v '^#' | cut -d , -f 1 | sort > _stats.txt
+	@grep '^○' translation_list | cut -d : -f 5-6 | sed -e 's/:/./' | sort > _tr_finish.txt
+	@comm -12 _tr_finish.txt _stats.txt
+	@$(RM) _stats.txt _tr_finish.txt
+
 release-tl:
 	set -e; if git status release | grep modified >/dev/null; then \
 	  git status release | grep modified | awk '{print $$3;}' | cut -d / -f 3 | xargs -n1 -IXXXXX ../../admin/JM-tl-modify.pl -U translation_list XXXXX RO; \
