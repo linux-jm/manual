@@ -13,6 +13,7 @@ my %status;
 my $tlist_body = "";
 my $update_timestamp = 1;
 my $update_translator = 1;
+my $backup = 0;
 my $clear_entry = 0;
 my %opts;
 
@@ -25,11 +26,12 @@ BEGIN{
 use strict 'vars';
 use JMtl ('line2hash', 'hash2line');
 
-getopts("tTuUn:e:c", \%opts);
+getopts("tTuUn:e:cb", \%opts);
 $update_timestamp = 1 if $opts{"t"};
 $update_timestamp = 0 if $opts{"T"};
 $update_translator = 1 if $opts{"u"};
 $update_translator = 0 if $opts{"U"};
+$backup = 1 if $opts{"b"};
 
 $clear_entry = 1 if $opts{"c"};
 $ARGV[2] = "_DUMMY_" if $clear_entry;
@@ -48,6 +50,7 @@ if ($#ARGV < 2) {
     print STDERR "    -e MAIL : Update mail field [JM_USER_MAIL]\n";
     print STDERR "    -c : Clear entry of specified pagename\n";
     print STDERR "         (new_status is not required when -c is specified.)\n";
+    print STDERR "    -b : Create backup of translation_list\n";
     exit 0;
 }
 
@@ -158,7 +161,7 @@ while (<TLO>) {
 close TLO;
 if ($ismatch eq "no") {die "No match in $tlist\n"};
 
-system "mv -f $tlist $tlist.orig";
+system "mv -f $tlist $tlist.orig" if $backup;
 open TLN, "| nkf -w > $tlist" or die "cannot open $tlist.new\n";
 print TLN $tlist_body;
 close TLN;
