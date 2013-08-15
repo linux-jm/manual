@@ -24,7 +24,7 @@
 .\" This document is based on the perf_event.h header file, the
 .\" tools/perf/design.txt file, and a lot of bitter experience.
 .\"
-.TH PERF_EVENT_OPEN 2 2013-07-02 "Linux" "Linux Programmer's Manual"
+.TH PERF_EVENT_OPEN 2 2013-07-16 "Linux" "Linux Programmer's Manual"
 .SH NAME
 perf_event_open \- set up performance monitoring
 .SH SYNOPSIS
@@ -654,8 +654,13 @@ Records additional data, if applicable.
 Usually returned by tracepoint events.
 .TP
 .BR PERF_SAMPLE_BRANCH_STACK " (Since Linux 3.4)"
-Records the branch stack.
-See branch_sample_type.
+This provides a record of recent branches, as provided
+by CPU branch sampling hardware (such as Intel Last Branch Record).
+Not all hardware supports this feature.
+
+See the
+.I branch_sample_type
+field for how to filter which branches are reported.
 .TP
 .BR PERF_SAMPLE_REGS_USER " (Since Linux 3.7)"
 Records the current user-level CPU register state
@@ -960,8 +965,17 @@ is a further extension of the
 field.
 .TP
 .IR "branch_sample_type" " (Since Linux 3.4)"
-This is used with the CPUs hardware branch sampling, if available.
-It can have one of the following values:
+If
+.B PERF_SAMPLE_BRANCH_STACK
+is enabled, then this specifies what branches to include
+in the branch record.
+If the user does not set privilege level explicitly, the kernel
+will use the event's privilege level.
+Event and branch privilege levels do not have to match.
+The value is formed by ORing together zero or more of the following values,
+although
+.B PERF_SAMPLE_BRANCH_ANY
+covers all branch types.
 .RS
 .TP
 .B PERF_SAMPLE_BRANCH_USER
@@ -1545,9 +1559,31 @@ is enabled, then a 64-bit value indicating
 the number of records is included, followed by
 .I bnr
 .I perf_branch_entry
-structures.
-These structures have from, to, and flags values indicating
-the from and to addresses from the branches on the callstack.
+structures which each include the fields:
+.RS
+.TP
+.I from
+indicating the source instruction (may not be a branch)
+.TP
+.I to
+the branch target
+.TP
+.I mispred
+the branch target was mispredicted
+.TP
+.I predicted
+the branch target was predicted.
+.RE
+The entries are from most to least recent, so the first entry
+has the most recent branch.
+
+Support for
+.I mispred
+and
+.I predicted
+is optional; if not supported, both
+values will be 0.
+
 .TP
 .IR abi ", " regs[weight(mask)]
 If
@@ -1582,13 +1618,12 @@ or else the maximum record size.
 is the stack data.
 .I dyn_size
 is the amount of data actually dumped (can be less than
-.I size
-).
+.IR size ).
 .TP
 .I weight
 If
 .B PERF_SAMPLE_WEIGHT
-is enabled, then a 64 bit value provided by the hardwre
+is enabled, then a 64 bit value provided by the hardware
 is recorded that indicates how costly the event was.
 This allows expensive events to stand out more clearly
 in profiles.
@@ -1638,7 +1673,7 @@ memory hierarchy level hit or miss, a bitwise combination of
 .B PERF_MEM_LVL_REM_CCE1
 (remote cache 1 hop),
 .B PERF_MEM_LVL_REM_CCE2
-(remote Cache 2 hops),
+(remote cache 2 hops),
 .B PERF_MEM_LVL_IO
 (I/O memory), and
 .B PERF_MEM_LVL_UNC
@@ -1714,8 +1749,8 @@ Sample happened in the guest kernel.
 Sample happened in guest user code.
 .RE
 
-In addition, one of the following bits can be set:
 .RS
+In addition, one of the following bits can be set:
 .TP
 .B PERF_RECORD_MISC_MMAP_DATA
 This is set when the mapping is not executable;
@@ -1731,6 +1766,7 @@ See also
 .TP
 .B PERF_RECORD_MISC_EXT_RESERVED
 This indicates there is extended data available (currently not used).
+.RE
 .TP
 .I size
 This indicates the size of the record.
@@ -1803,7 +1839,8 @@ file descriptor argument.
 If the
 .B PERF_IOC_FLAG_GROUP
 bit is set in the ioctl argument, then all events in a group are
-enabled, even if the event specified is not the group leader.
+enabled, even if the event specified is not the group leader
+(but see BUGS).
 .TP
 .B PERF_EVENT_IOC_DISABLE
 Disables the individual counter or event group specified by the
@@ -1819,7 +1856,8 @@ stops that counter from counting but doesn't affect any other counter.
 If the
 .B PERF_IOC_FLAG_GROUP
 bit is set in the ioctl argument, then all events in a group are
-disabled, even if the event specified is not the group leader.
+disabled, even if the event specified is not the group leader
+(but see BUGS).
 .TP
 .B PERF_EVENT_IOC_REFRESH
 Non-inherited overflow counters can use this
@@ -1837,7 +1875,7 @@ Using an argument of 0 is considered undefined behavior.
 .TP
 .B PERF_EVENT_IOC_RESET
 Reset the event count specified by the
-file descriptor argumentto zero.
+file descriptor argument to zero.
 This resets only the counts; there is no way to reset the
 multiplexing
 .I time_enabled
@@ -1848,14 +1886,8 @@ values.
 If the
 .B PERF_IOC_FLAG_GROUP
 bit is set in the ioctl argument, then all events in a group are
-reset, even if the event specified is not the group leader.
-
-If the
-.B PERF_IOC_FLAG_GROUP
-bit is not set, then the behavior is somwhat unexpected:
-when sent to a group leader only the leader is reset
-(children are left alone);
-when sent to a child all events in a group are reset.
+reset, even if the event specified is not the group leader
+(but see BUGS).
 .TP
 .B PERF_EVENT_IOC_PERIOD
 IOC_PERIOD is the command to update the period; it
@@ -1926,6 +1958,7 @@ The default value is
 
 Maximum number of pages an unprivileged user can mlock (2) .
 The default is 516 (kB).
+
 .RE
 Files in
 .I /sys/bus/event_source/devices/
@@ -1936,30 +1969,59 @@ Information on how to program these PMUs can be found under
 .IR /sys/bus/event_source/devices/ .
 Each subdirectory corresponds to a different PMU.
 .TP
-.I /sys/bus/event_source/devices/*/type
+.IR /sys/bus/event_source/devices/*/type " (Since Linux 2.6.38)"
 This contains an integer that can be used in the
 .I type
 field of perf_event_attr to indicate you wish to use this PMU.
 .TP
-.I /sys/bus/event_source/devices/*/rdpmc
-[To be documented]
+.IR /sys/bus/event_source/devices/*/rdpmc " (Since Linux 3.4)"
+If this file is 1, then direct user-space access to the
+performance counter registers is allowed via the rdpmc instruction.
+This can be disabled by echoing 0 to the file.
 .TP
-.I /sys/bus/event_source/devices/*/format/
-This sub-directory contains information on what bits in the
+.IR /sys/bus/event_source/devices/*/format/ " (Since Linux 3.4)"
+This sub-directory contains information on the architecture-specific
+sub-fields available for programming the various
 .I config
-field of perf_event_attr correspond to.
+fields in the perf_event_attr struct.
+
+The content of each file is the name of the config field, followed
+by a colon, followed by a series of integer bit ranges separated by
+commas.
+For example, the file
+.I event
+may contain the value
+.I config1:1,6-10,44
+which indicates that event is an attribute that occupies bits 1,6-10, and 44
+of perf_event_attr::config1.
 .TP
-.I /sys/bus/event_source/devices/*/events/
+.IR /sys/bus/event_source/devices/*/events/ " (Since Linux 3.4)"
 This sub-directory contains files with pre-defined events.
 The contents are strings describing the event settings
-expressed in terms of the fields found in the
+expressed in terms of the fields found in the previously mentioned
 .I ./format/
 directory.
 These are not necessarily complete lists of all events supported by
 a PMU, but usually a subset of events deemed useful or interesting.
+
+The content of each file is a list of attribute names
+separated by commas.
+Each entry has an optional value (either hex or decimal).
+If no value is specified than it is assumed to be a single-bit
+field with a value of 1.
+An example entry may look like this:
+.I event=0x2,inv,ldlat=3
 .TP
 .I /sys/bus/event_source/devices/*/uevent
-[To be documented]
+This file is the standard kernel device interface
+for injecting hotplug events.
+.TP
+.IR /sys/bus/event_source/devices/*/cpumask " (Since Linux 3.7)"
+The cpumask file contains a comma-separated list of integers that
+indicate a representative cpu number for each socket (package)
+on the motherboard.
+This is needed when setting up uncore or northbridge events, as
+those PMUs present socket-wide events.
 .RE
 .SH RETURN VALUE
 .BR perf_event_open ()
@@ -2041,6 +2103,12 @@ Linux 2.6.36 and Linux 3.0 that ignores the
 "watermark" field and acts as if a wakeup_event
 was chosen if the union has a
 non-zero value in it.
+
+From Linux 2.6.31 to Linux 3.4, the
+.B PERF_IOC_FLAG_GROUP
+ioctl argument was broken and would repeatedly operate
+on the event specified rather than iterating across
+all sibling events in a group.
 
 Always double-check your results!
 Various generalized events have had wrong values.

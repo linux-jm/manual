@@ -47,9 +47,8 @@
 .\" FIXME . Apr 08: The next POSIX revision has O_EXEC, O_SEARCH, and
 .\" O_TTYINIT.  Eventually these may need to be documented.  --mtk
 .\" FIXME Linux 2.6.33 has O_DSYNC, and a hidden __O_SYNC.
-.\" FIXME: Linux 2.6.39 added O_PATH
 .\"
-.TH OPEN 2 2013-02-18 "Linux" "Linux Programmer's Manual"
+.TH OPEN 2 2013-07-21 "Linux" "Linux Programmer's Manual"
 .SH NAME
 open, creat \- open and possibly create a file or device
 .SH SYNOPSIS
@@ -316,9 +315,7 @@ This flag is Linux-specific, and was added in kernel version 2.1.126, to
 avoid denial-of-service problems if
 .BR opendir (3)
 is called on a
-FIFO or tape device, but should not be used outside of the
-implementation of
-.BR opendir (3).
+FIFO or tape device.
 .TP
 .B O_EXCL
 Ensure that this call creates the file:
@@ -424,6 +421,9 @@ If \fIpathname\fP is a symbolic link, then the open fails.
 This is a FreeBSD extension, which was added to Linux in version 2.1.126.
 Symbolic links in earlier components of the pathname will still be
 followed.
+See also
+.BR O_NOPATH
+below.
 .\" The headers from glibc 2.0.100 and later include a
 .\" definition of this flag; \fIkernels before 2.1.126 will ignore it if
 .\" used\fP.
@@ -440,6 +440,96 @@ For a discussion of the effect of
 .B O_NONBLOCK
 in conjunction with mandatory file locks and with file leases, see
 .BR fcntl (2).
+.TP
+.BR O_PATH " (since Linux 2.6.39)"
+.\" commit 1abf0c718f15a56a0a435588d1b104c7a37dc9bd
+.\" commit 326be7b484843988afe57566b627fb7a70beac56
+.\" commit 65cfc6722361570bfe255698d9cd4dccaf47570d
+.\"
+.\" http://thread.gmane.org/gmane.linux.man/2790/focus=3496
+.\"	Subject: Re: [PATCH] open(2): document O_PATH
+.\"	Newsgroups: gmane.linux.man, gmane.linux.kernel
+.\"
+Obtain a file descriptor that can be used for two purposes:
+to indicate a location in the file-system tree and
+to perform operations that act purely at the file descriptor level.
+The file itself is not opened, and other file operations (e.g.,
+.BR read (2),
+.BR write (2),
+.BR fchmod (2),
+.BR fchown (2),
+.BR fgetxattr (2))
+fail with the error
+.BR EBADF .
+
+The following operations
+.I can
+be performed on the resulting file descriptor:
+.RS
+.IP * 3
+.BR close (2);
+.BR fchdir (2)
+(since Linux 3.5);
+.\" commit 332a2e1244bd08b9e3ecd378028513396a004a24
+.BR fstat (2)
+(since Linux 3.6).
+.\" fstat(): commit 55815f70147dcfa3ead5738fd56d3574e2e3c1c2
+.IP *
+Duplicating the file descriptor
+.RB ( dup (2),
+.BR fcntl (2)
+.BR F_DUPFD ,
+etc.).
+.IP *
+Getting and setting file descriptor flags
+.RB ( fcntl (2)
+.BR F_GETFD
+and
+.BR F_SETFD ).
+.IP *
+Retrieving open file status flags using the
+.BR fcntl (2)
+.BR F_GETFL
+operation: the returned flags will include the bit
+.BR O_PATH .
+
+.IP *
+Passing the file descriptor as the
+.IR dirfd
+argument of
+.BR openat (2)
+and the other "*at()" system calls.
+.IP *
+Passing the file descriptor to another process via a UNIX domain socket
+(see
+.BR SCM_RIGHTS
+in
+.BR unix (7)).
+.RE
+.IP
+When
+.B O_PATH
+is specified in
+.IR flags ,
+flag bits other than
+.BR O_DIRECTORY
+and
+.BR O_NOFOLLOW
+are ignored.
+
+If the
+.BR O_NOFOLLOW
+flag is also specified,
+then the call returns a file descriptor referring to the symbolic link.
+This file descriptor can be used as the
+.I dirfd
+argument in calls to
+.BR fchownat (2),
+.BR fstatat (2),
+.BR linkat (2),
+and
+.BR readlinkat (2)
+with an empty pathname to have the calls operate on the symbolic link.
 .TP
 .B O_SYNC
 The file is opened for synchronous I/O.
@@ -631,8 +721,9 @@ SVr4, 4.3BSD, POSIX.1-2001.
 The
 .BR O_DIRECTORY ,
 .BR O_NOATIME ,
+.BR O_NOFOLLOW ,
 and
-.B O_NOFOLLOW
+.BR O_PATH
 flags are Linux-specific, and one may need to define
 .B _GNU_SOURCE
 (before including

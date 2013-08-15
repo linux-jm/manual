@@ -2,7 +2,7 @@
 .\" This is in the public domain
 .\" %%%LICENSE_END
 .\"
-.TH LD.SO 8 2013-02-10 "GNU" "Linux Programmer's Manual"
+.TH LD.SO 8 2013-07-15 "GNU" "Linux Programmer's Manual"
 .SH NAME
 ld.so, ld-linux.so* \- dynamic linker/loader
 .SH SYNOPSIS
@@ -85,19 +85,20 @@ and then
 If the binary was linked with the
 .B \-z nodeflib
 linker option, this step is skipped.
-.SS $ORIGIN and rpath
+.SS Rpath token expansion
 .PP
 .B ld.so
-understands the string
-.I $ORIGIN
-(or equivalently
-.IR ${ORIGIN} )
-in an rpath specification (DT_RPATH or DT_RUNPATH) to mean
+understands certain strings in an rpath specification (DT_RPATH or DT_RUNPATH); those strings are substituted as follows
+.TP
+.IR $ORIGIN " (or equivalently " ${ORIGIN} )
+This expands to
 the directory containing the application executable.
 Thus, an application located in
 .I somedir/app
 could be compiled with
-.I gcc -Wl,-rpath,\(aq$ORIGIN/../lib\(aq
+
+    gcc -Wl,-rpath,\(aq$ORIGIN/../lib\(aq
+
 so that it finds an associated shared library in
 .I somedir/lib
 no matter where
@@ -107,16 +108,33 @@ This facilitates the creation of "turn-key" applications that
 do not need to be installed into special directories,
 but can instead be unpacked into any directory
 and still find their own shared libraries.
-.\" ld.so also understands $LIB, with the same meaning as $ORIGIN/lib,
-.\" it appears.
+.TP
+.IR $LIB " (or equivalently " ${LIB} )
+This expands to
+.I lib
+or
+.I lib64
+depending on the architecture
+(e.g., on x86-64, it expands to
+.IR lib64
+and
+on x86-32, it expands to
+.IR lib ).
+.TP
+.IR $PLATFORM " (or equivalently " ${PLATFORM} )
+This expands to a string corresponding to the processor type
+of the host system (e.g., "x86_64").
+On some architectures, the Linux kernel doesn't provide a platform
+string to the dynamic linker.
+The value of this string is taken from the
+.BR AT_PLATFORM
+value in the auxiliary vector (see
+.BR getauxval (3)).
+.\" To get an idea of the places that $PLATFORM would match,
+.\" look at the output of the following:
 .\"
-.\" There is also $PLATFORM.  This is a kind of wildcard
-.\" of directories related to AT_PLATFORM.  To get an idea of the
-.\" places that $PLATFORM would match, look at the output of the
-.\" following:
-.\"
-.\" mkdir /tmp/d
-.\" LD_LIBRARY_PATH=/tmp/d strace -e open /bin/date 2>&1 | grep /tmp/d
+.\"     mkdir /tmp/d
+.\"     LD_LIBRARY_PATH=/tmp/d strace -e open /bin/date 2>&1 | grep /tmp/d
 .\"
 .\" ld.so lets names be abbreviated, so $O will work for $ORIGIN;
 .\" Don't do this!!
@@ -177,6 +195,54 @@ acpi, apic, clflush, cmov, cx8, dts, fxsr, ht, i386, i486, i586, i686, mca, mmx,
 mtrr, pat, pbe, pge, pn, pse36, sep, ss, sse, sse2, tm
 .SH ENVIRONMENT
 There are four important environment variables.
+.TP
+.B LD_ASSUME_KERNEL
+(glibc since 2.2.3)
+Each shared library can inform the dynamic linker of the minimum kernel ABI
+version that it requires.
+(This requirement is encoded in an ELF note section that is viewable via
+.IR "readelf\ \-n"
+as a section labeled
+.BR NT_GNU_ABI_TAG .)
+At run time,
+the dynamic linker determines the ABI version of the running kernel and
+will reject loading shared libraries that specify minimum ABI versions
+that exceed that ABI version.
+
+.BR LD_ASSUME_KERNEL
+can be used to
+cause the dynamic linker to assume that it is running on a system with
+a different kernel ABI version.
+For example, the following command line causes the
+dynamic linker to assume it is running on Linux 2.2.5 when loading
+the shared libraries required by
+.IR myprog :
+
+.in +4n
+.nf
+$ \fBLD_ASSUME_KERNEL=2.2.5 ./myprog\fP
+.fi
+.in
+
+On systems that provide multiple versions of a shared library
+(in different directories in the search path) that have
+different minimum kernel ABI version requirements,
+.BR LD_ASSUME_KERNEL
+can be used to select the version of the library that is used
+(dependent on the directory search order).
+Historically, the most common use of the
+.BR LD_ASSUME_KERNEL
+feature was to manually select the older
+LinuxThreads POSIX threads implementation on systems that provided both
+LinuxThreads and NPTL
+(which latter was typically the default on such systems);
+see
+.BR pthreads (7).
+.TP
+.B LD_BIND_NOT
+(glibc since 2.2)
+Don't update the Global Offset Table (GOT) and Procedure Linkage Table (PLT)
+when resolving a symbol.
 .TP
 .B LD_BIND_NOW
 (libc5; glibc since 2.1.1)
@@ -274,9 +340,10 @@ is ignored for set-user-ID/set-group-ID binaries.
 .TP
 .B LD_DEBUG_OUTPUT
 (glibc since 2.1)
-File where
+File in which
 .B LD_DEBUG
-output should be fed into, default is standard output.
+output should be written.
+The default is standard output.
 .B LD_DEBUG_OUTPUT
 is ignored for set-user-ID/set-group-ID binaries.
 .TP
@@ -376,9 +443,9 @@ This variable is ignored by set-user-ID and set-group-ID programs.
 (glibc since 2.1)
 If set to a nonempty string,
 output symbol versioning information about the
-program if
+program if the
 .B LD_TRACE_LOADED_OBJECTS
-variable has been set.
+environment variable has been set.
 .TP
 .B LD_WARN
 (ELF only)(glibc since 2.1.3)
