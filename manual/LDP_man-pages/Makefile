@@ -22,21 +22,23 @@ _translate-%: jm-setup
 	LC_ALL=C $(MAKE) process-$* \
 	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 
-release:	$(patsubst %, _release-%, $(PO4A_SUBDIRS))
+# release:	$(patsubst %, _release-%, $(PO4A_SUBDIRS))
 
-_release-%:	jm-setup
-	rm -f $(PERKAMON_DIR)/build/ja
-	ln -s ../../release $(PERKAMON_DIR)/build/ja
-	LC_ALL=C $(MAKE) process-$* \
-	  PO4AFLAGS="-k $(THRESH_REL) $(FLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
-	$(RM) $(PERKAMON_DIR)/build/ja
-	ln -s ../../draft $(PERKAMON_DIR)/build/ja
-	@# Do not remove unreleased pages
-	@sleep 1
-	set -e; if git status release | grep deleted >/dev/null; then \
-	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 echo; \
-	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 git checkout; \
-	fi
+# _release-%:	jm-setup
+# 	rm -f $(PERKAMON_DIR)/build/ja
+# 	ln -s ../../release $(PERKAMON_DIR)/build/ja
+# 	LC_ALL=C $(MAKE) process-$* \
+# 	  PO4AFLAGS="-k $(THRESH_REL) $(FLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
+# 	$(RM) $(PERKAMON_DIR)/build/ja
+# 	ln -s ../../draft $(PERKAMON_DIR)/build/ja
+# 	@# Do not remove unreleased pages
+# 	@sleep 1
+# 	set -e; if git status release | grep deleted >/dev/null; then \
+# 	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 echo; \
+# 	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 git checkout; \
+# 	fi
+release-pages:
+	../../admin/JM-release-all.sh -c
 
 update-stats:	untrans.html
 
