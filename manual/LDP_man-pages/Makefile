@@ -7,7 +7,10 @@ PO4AFLAGS ?= -k $(THRESH) $(FLAGS)
 
 PO4A_SUBDIRS = $(notdir $(wildcard po4a/*))
 
-all: translate update-stats
+.PHONY:	all release
+
+all:	translate update-stats
+release: release-pages update-tl-finish check-tl-nofinish
 
 translate:	$(patsubst %, stamp/%, $(PO4A_SUBDIRS))
 stamp/%:	stamp-jm-setup po4a/%/po/ja.po
@@ -17,26 +20,6 @@ stamp/%:	stamp-jm-setup po4a/%/po/ja.po
 	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
 	touch $@
 
-translate-all:	$(patsubst %, _translate-%, $(PO4A_SUBDIRS))
-_translate-%: jm-setup
-	LC_ALL=C $(MAKE) process-$* \
-	  PO4AFLAGS="$(PO4AFLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
-
-# release:	$(patsubst %, _release-%, $(PO4A_SUBDIRS))
-
-# _release-%:	jm-setup
-# 	rm -f $(PERKAMON_DIR)/build/ja
-# 	ln -s ../../release $(PERKAMON_DIR)/build/ja
-# 	LC_ALL=C $(MAKE) process-$* \
-# 	  PO4AFLAGS="-k $(THRESH_REL) $(FLAGS)" LANGS="$(LANGS)" -C $(PERKAMON_DIR)
-# 	$(RM) $(PERKAMON_DIR)/build/ja
-# 	ln -s ../../draft $(PERKAMON_DIR)/build/ja
-# 	@# Do not remove unreleased pages
-# 	@sleep 1
-# 	set -e; if git status release | grep deleted >/dev/null; then \
-# 	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 echo; \
-# 	  git status release | grep deleted | awk '{print $$3;}' | xargs -n1 git checkout; \
-# 	fi
 release-pages:
 	../../admin/JM-release-all.sh -c
 
@@ -77,11 +60,6 @@ check-tl-nofinish:
 	@grep '^○' translation_list | cut -d : -f 5-6 | sed -e 's/:/./' | sort > _tr_finish.txt
 	@comm -12 _tr_finish.txt _stats.txt
 	@$(RM) _stats.txt _tr_finish.txt
-
-release-tl:
-	set -e; if git status release | grep modified >/dev/null; then \
-	  git status release | grep modified | awk '{print $$3;}' | cut -d / -f 3 | xargs -n1 -IXXXXX ../../admin/JM-tl-modify.pl -U translation_list XXXXX RO; \
-	fi
 
 format:
 	set -e; for d in po4a/*; do \
