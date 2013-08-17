@@ -9,7 +9,7 @@
 use Getopt::Std;
 
 my $DEBUG = 1;
-my %status;
+my %new_status;
 my $tlist_body = "";
 my $update_timestamp = 1;
 my $update_translator = 1;
@@ -58,7 +58,7 @@ my $user_name  = $opts{"n"} || $ENV{'JM_USER_NAME'};
 my $user_mail = $opts{"e"} || $ENV{'JM_USER_MAIL'};
 if ($update_translator && ($user_name eq "" || $user_mail eq "")) {
     print STDERR "Translator name or mail not specified.\n";
-    exit 0;
+    exit 1;
 }
 
 my $tlist = $ARGV[0];
@@ -69,10 +69,10 @@ my $command = $ARGV[2];
 #printf "page = %s\n", $page;
 #printf "command = %s\n", $command;
 
-# %status への代入
+# %new_status への代入
 # 他のフィールドは使用しないので、初期化せず。
-$status{'stat'} = $command;
-$status{'page'} = $page;
+$new_status{'stat'} = $command;
+$new_status{'page'} = $page;
 
 my $ismatch = 'no';
 
@@ -82,7 +82,7 @@ while (<TLO>) {
     my %ti = line2hash($_);
 
     if ($ti{'kind'} eq 'link' &&
-	"$ti{'lname'}.$ti{'lsec'}" eq $status{'page'})
+	"$ti{'lname'}.$ti{'lsec'}" eq $new_status{'page'})
     {
 	if ($clear_entry) {
 	    $ti{'stat'} = '1st_non';
@@ -91,7 +91,7 @@ while (<TLO>) {
 	    $tlist_body .= "$tll\n";
 	    next;
 	}
-	if ($status{'stat'} =~ /^R/) {
+	if ($new_status{'stat'} =~ /^R/) {
 	    $ti{'stat'} = 'up2date';
 	    my $tll = hash2line(%ti);
 	    if ($DEBUG eq "yes") {print "$ismatch MATCH: $tll\n"};
@@ -99,7 +99,7 @@ while (<TLO>) {
 	    next;
 	}
     }
-    unless ("$ti{'fname'}.$ti{'sec'}" eq $status{'page'}) {
+    unless ("$ti{'fname'}.$ti{'sec'}" eq $new_status{'page'}) {
 	$tlist_body .= "$_\n";
 	if ($DEBUG eq "yes") {print "$ismatch : $_\n"};
 	next;
@@ -113,26 +113,26 @@ while (<TLO>) {
 	$ti{'stat'} = "upd_";
     }
   SW1: {
-      if ($status{'stat'} =~ /^TR/){$ti{'stat'} .= 'rsv'; last SW1;}
-      if ($status{'stat'} =~ /^DO/){$ti{'stat'} .= 'dft'; last SW1;}
-      if ($status{'stat'} =~ /^DP/){$ti{'stat'} .= 'prf'; last SW1;}
-      if ($status{'stat'} =~ /^PR/){$ti{'stat'} .= 'prf'; last SW1;}
-      if ($status{'stat'} =~ /^RO/){$ti{'stat'} = 'up2date'; last SW1;}
-      if ($status{'stat'} =~ /^RR/){$ti{'stat'} = 'up2datR'; last SW1;}
+      if ($new_status{'stat'} =~ /^TR/){$ti{'stat'} .= 'rsv'; last SW1;}
+      if ($new_status{'stat'} =~ /^DO/){$ti{'stat'} .= 'dft'; last SW1;}
+      if ($new_status{'stat'} =~ /^DP/){$ti{'stat'} .= 'prf'; last SW1;}
+      if ($new_status{'stat'} =~ /^PR/){$ti{'stat'} .= 'prf'; last SW1;}
+      if ($new_status{'stat'} =~ /^RO/){$ti{'stat'} = 'up2date'; last SW1;}
+      if ($new_status{'stat'} =~ /^RR/){$ti{'stat'} = 'up2datR'; last SW1;}
       if (not $clear_entry) {
 	  die "Invalid new status. Valid status is one of TR DO DP PR RO RR.\n";
       }
   }
 
-    if ($status{'stat'} =~ /^R/){
+    if ($new_status{'stat'} =~ /^R/){
 	$ti{'rver'} = $ti{'over'};
 	$ti{'dver'} = $ti{'over'};
 #	$ti{'newsec'} = $ti{'sec'};
     }
 
-#    $ti{'tdat'}  = $status{'date'};
-#    $ti{'tmail'} = $status{'mail'};
-#    $ti{'tname'} = $status{'name'};
+#    $ti{'tdat'}  = $new_status{'date'};
+#    $ti{'tmail'} = $new_status{'mail'};
+#    $ti{'tname'} = $new_status{'name'};
 
     if ($update_timestamp) {
 	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
@@ -142,6 +142,19 @@ while (<TLO>) {
     if ($update_translator) {
 	$ti{'tname'} = $user_name;
 	$ti{'tmail'} = $user_mail;
+    }
+    # If translator name or email is not set, try to set it.
+    if ($ti{'tname'} eq "" || $ti{'tmail'} eq "") {
+	if ($user_name eq "" || $user_mail eq "") {
+	    die "A translator is not specified for the page. " .
+		"Please set name and mail of the translator.\n";
+	    exit 2;
+	} else {
+	    print "[!!!] $page: Translator name and mail " .
+		"are set automatically.\n";
+	    $ti{'tname'} = $user_name;
+	    $ti{'tmail'} = $user_mail;
+	}
     }
     if ($clear_entry) {
 	$ti{'stat'} = '1st_non';
