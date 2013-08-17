@@ -7,12 +7,13 @@ PO4AFLAGS ?= -k $(THRESH) $(FLAGS)
 
 PO4A_SUBDIRS = $(notdir $(wildcard po4a/*))
 
-.PHONY:	all release
+.PHONY:	all release translate
 
-all:	translate update-stats
-release: release-pages update-tl-finish check-tl-nofinish
+all:	translate
+translate:	translate-pages update-stats
+release: 	release-pages update-tl-finish check-tl-nofinish
 
-translate:	$(patsubst %, stamp/%, $(PO4A_SUBDIRS))
+translate-pages:	$(patsubst %, stamp/%, $(PO4A_SUBDIRS))
 stamp/%:	stamp-jm-setup po4a/%/po/ja.po
 	@echo "*************** translate: $* ***************"
 	mkdir -p stamp
