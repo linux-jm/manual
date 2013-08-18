@@ -1,6 +1,6 @@
-THRETH = 50
+THRESH = 50
 EXTFLAGS =
-PO4AFLAGS += -k $(THRETH) $(EXTFLAGS)
+PO4AFLAGS += -k $(THRESH) $(EXTFLAGS)
 
 LANGS = ja
 PO4ACFG = po4a/e2fsprogs.cfg
