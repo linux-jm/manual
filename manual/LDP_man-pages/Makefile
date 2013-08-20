@@ -102,6 +102,7 @@ stamp-jm-setup:
 	@set -e; if [ ! -e $(PERKAMON_DIR)/build/ja ]; then \
 	  ln -s ../../draft $(PERKAMON_DIR)/build/ja; \
 	fi
+	ln -s ../../add_ja $(PERKAMON_DIR)/po4a
 	touch $@
 
 clean-setup:
