@@ -17,13 +17,15 @@ COPY=0
 FORCE=0
 GUESS=0
 VERBOSE=0
+QUIET=0
 
-while getopts "cfgv" OPT
+while getopts "cfgqv" OPT
 do
   case $OPT in
     "c") COPY=1 ;;
     "f") FORCE=1 ;;
     "g") GUESS=1 ;;
+    "q") QUIET=1 ;;
     "v") VERBOSE=1 ;;
     *)   usage ;;
   esac
@@ -81,10 +83,15 @@ if [ -f $RELEASE -a $FORCE -ne 1 ]; then
 fi
 
 if [ $COPY -eq 1 ]; then
-  cp -fpv $DRAFT $RELEASE
+  if [ $QUIET -eq 0 ]; then
+    OPT_V=-v
+  fi
+  cp -fp $OPT_V $DRAFT $RELEASE
 else
   $SED -e '/^\.\\\"O /d' $DRAFT > $RELEASE
-  echo "$DRAFT -> $RELEASE"
+  if [ $QUIET -eq 0 ]; then
+    echo "$DRAFT -> $RELEASE"
+  fi
 fi
 
 #echo "Succeed"
