@@ -146,7 +146,7 @@ while (<TLO>) {
     # If translator name or email is not set, try to set it.
     if ($ti{'tname'} eq "" || $ti{'tmail'} eq "") {
 	if ($user_name eq "" || $user_mail eq "") {
-	    die "A translator is not specified for the page. " .
+	    die "[$page] A translator is not specified for the page. " .
 		"Please set name and mail of the translator.\n";
 	    exit 2;
 	} else {
