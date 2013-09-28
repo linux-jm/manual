@@ -103,15 +103,16 @@
 .\" Updated 2013-08-16, Akihiro MOTOKI
 .\" Updated 2013-08-30, Akihiro MOTOKI, LDP v3.53
 .\"
-.TH PROC 5 2013\-06\-27 Linux "Linux Programmer's Manual"
+.TH PROC 5 2013\-09\-04 Linux "Linux Programmer's Manual"
 .SH 名前
-proc \- プロセスの情報を含む擬似ファイルシステム
+proc \- process information pseudo\-filesystem
 .SH 説明
-\fIproc\fP ファイルシステムは擬似的なファイルシステムであり、 カーネル内のデータへのインターフェースとして使用される。 一般的には
-\fI/proc\fP にマウントされる。 大部分のファイルは読み出し専用 (read\-only) であるが、 いくつかのファイルは書き込み可能であり、
-そのファイルに書き込めばカーネルの内部変数を変更できる。
+The \fIproc\fP filesystem is a pseudo\-filesystem which provides an interface to
+kernel data structures.  It is commonly mounted at \fI/proc\fP.  Most of it is
+read\-only, but some files allow kernel variables to be changed.
 .LP
-以下は \fI/proc\fP 階層の簡単なあらましである。
+The following list describes many of the files and directories under the
+\fI/proc\fP hierarchy.
 .PD 1
 .TP 
 \fI/proc/[pid]\fP
@@ -297,10 +298,71 @@ flags:  01002002
 \fIpos\fP フィールドは 10 進数で、現在のファイルオフセットを示す。 \fIflags\fP フィールドは 8 進数で、
 ファイルのアクセスモードとファイル状態フラグを示す (\fBopen\fP(2)  参照)。
 
-.\" FIXME document /proc/[pid]/io
-.\" .TP
-.\" .IR /proc/[pid]/io " (since kernel 2.6.20)"
 このディレクトリのファイルは、プロセスの所有者だけが読み出すことができる。
+.TP 
+\fI/proc/[pid]/io\fP (since kernel 2.6.20)
+.\" commit 7c3ab7381e79dfc7db14a67c6f4f3285664e1ec2
+This file contains I/O statistics for the process, for example:
+.in +4n
+.nf
+
+#\fB cat /proc/3828/io\fP
+rchar: 323934931
+wchar: 323929600
+syscr: 632687
+syscw: 632675
+read_bytes: 0
+write_bytes: 323932160
+cancelled_write_bytes: 0
+.fi
+.in
+
+フィールドの詳細は以下の通りである。
+.RS
+.TP 
+\fIrchar\fP: characters read
+The number of bytes which this task has caused to be read from storage.
+This is simply the sum of bytes which this process passed to \fBread\fP(2)  and
+similar system calls.  It includes things such as terminal I/O and is
+unaffected by whether or not actual physical disk I/O was required (the read
+might have been satisfied from pagecache).
+.TP 
+\fIwchar\fP: characters written
+The number of bytes which this task has caused, or shall cause to be written
+to disk.  Similar caveats apply here as with \fIrchar\fP.
+.TP 
+\fIsyscr\fP: read syscalls
+Attempt to count the number of read I/O operations\(emthat is, system calls
+such as \fBread\fP(2)  and \fBpread\fP(2).
+.TP 
+\fIsyscw\fP: write syscalls
+Attempt to count the number of write I/O operations\(emthat is, system calls
+such as \fBwrite\fP(2)  and \fBpwrite\fP(2).
+.TP 
+\fIread_bytes\fP: bytes read
+Attempt to count the number of bytes which this process really did cause to
+be fetched from the storage layer.  This is accurate for block\-backed
+filesystems.
+.TP 
+\fIwrite_bytes\fP: bytes written
+Attempt to count the number of bytes which this process caused to be sent to
+the storage layer.
+.TP 
+\fIcancelled_write_bytes\fP:
+The big inaccuracy here is truncate.  If a process writes 1MB to a file and
+then deletes the file, it will in fact perform no writeout.  But it will
+have been accounted as having caused 1MB of write.  In other words: this
+field represents the number of bytes which this process caused to not
+happen, by truncating pagecache.  A task can cause "negative" I/O too.  If
+this task truncates some dirty pagecache, some I/O which another task has
+been accounted for (in its \fIwrite_bytes\fP)  will not be happening.
+.RE
+.IP
+\fINote\fP: In the current implementation, things are a bit racy on 32\-bit
+systems: if process A reads process B's \fI/proc/[pid]/io\fP while process B is
+updating one of these 64\-bit counters, process A could see an intermediate
+result.
+.RE
 .TP 
 \fI/proc/[pid]/limits\fP (kernel 2.6.24 以降)
 .\" commit 3036e7b490bf7878c6dae952eec5fb87b1106589
@@ -437,10 +499,10 @@ Linux 2.0 ではパス名を書いたフィールドがない。
 parent ID: 親マウントの ID (マウントツリーの最上位の場合は自分自身の ID となる)。
 .TP 
 (3)
-major:minor: ファイルシステム上のファイルの \fIst_dev\fP の値 (\fBstat\fP(2)  参照)。
+major:minor: value of \fIst_dev\fP for files on filesystem (see \fBstat\fP(2)).
 .TP 
 (4)
-ルート: そのファイルシステム内のマウントのルート。
+root: root of the mount within the filesystem.
 .TP 
 (5)
 マウントポイント: マウントポイントのそのプロセスのルートからの相対パス。
@@ -455,10 +517,10 @@ major:minor: ファイルシステム上のファイルの \fIst_dev\fP の値 (
 セパレータ: オプションフィールドの終わりを示す。
 .TP 
 (9)
-ファイルシステム種別: ファイルシステムの名前。 "type[.subtype]" という形式となる。
+filesystem type: name of filesystem in the form "type[.subtype]".
 .TP 
 (10)
-マウント元: ファイルシステム固有の情報。ない場合は "none" となる。
+mount source: filesystem\-specific information or "none".
 .TP 
 (11)
 super options: スーパーブロック単位のオプション。
@@ -488,11 +550,12 @@ mount propagation の詳細については、 Linux カーネルソースツリ�
 \fIDocumentation/filesystems/sharedsubtree.txt\fP を参照。
 .TP 
 \fI/proc/[pid]/mounts\fP (Linux 2.4.19 以降)
-そのプロセスのマウント名前空間に現在マウントされている 全ファイルシステムのリスト。 このファイルのフォーマットは \fBfstab\fP(5)
-に載っている。 カーネル 2.6.15 以降では、このファイルを監視することができる (pollable)。
-このファイルを読み出し用にオープンした後で、このファイルに変更があると (つまりファイルシステムのマウントやアンマウントがあると)、
-\fBselect\fP(2)  ではそのファイルディスクリプタは読み出し可能となり、 \fBpoll\fP(2)  と \fBepoll_wait\fP(2)
-ではそのファイルはエラー状態として通知される。
+This is a list of all the filesystems currently mounted in the process's
+mount namespace.  The format of this file is documented in \fBfstab\fP(5).
+Since kernel version 2.6.15, this file is pollable: after opening the file
+for reading, a change in this file (i.e., a filesystem mount or unmount)
+causes \fBselect\fP(2)  to mark the file descriptor as readable, and \fBpoll\fP(2)
+and \fBepoll_wait\fP(2)  mark the file as having an error condition.
 .TP 
 \fI/proc/[pid]/mountstats\fP (Linux 2.6.17 以降)
 このファイルを通じて、そのプロセスの名前空間内のマウントポイントに関する 各種情報 (統計、設定情報) を参照できる。
@@ -510,14 +573,14 @@ device /dev/sda7 mounted on /home with fstype ext3 [statistics]
 マウントされているデバイス名 (対応するデバイスがない場合は "nodevice" となる)。
 .TP 
 (2)
-マウントポイントのファイルシステムツリーにおけるパス名。
+The mount point within the filesystem tree.
 .TP 
 (3)
-ファイルシステム種別。
+The filesystem type.
 .TP 
 (4)
-追加の統計や設定情報。 現在のところ (Linux 2.6.26 時点では)、 このフィールドで情報が提供されているのは NFS
-ファイルシステムだけである。
+Optional statistics and configuration information.  Currently (as at Linux
+2.6.26), only NFS filesystems export information via this field.
 .RE
 .IP
 このファイルはプロセスの所有者だけが読み出すことができる。
@@ -648,10 +711,9 @@ Writing to \fI/proc/[pid]/oom_score_adj\fP or \fI/proc/[pid]/oom_adj\fP will
 change the other with its scaled value.
 .TP 
 \fI/proc/[pid]/root\fP
-UNIX と Linux では、 ファイルシステムのルート (/) をプロセスごとに別々に
-できる。これはシステムコール \fBchroot\fP(2) によって設定する。 このファイルは
-プロセスのルートディレクトリを指すシンボリックリンクで、 exe や fd/* など
-と同じような動作をする。
+UNIX and Linux support the idea of a per\-process root of the filesystem, set
+by the \fBchroot\fP(2)  system call.  This file is a symbolic link that points
+to the process's root directory, and behaves as exe, fd/*, etc. do.
 
 .\" The following was still true as at kernel 2.6.13
 .\" FIXME Describe /proc/[pid]/seccomp
@@ -971,7 +1033,7 @@ sleep; ディスク待ちの休眠状態)", "T (stopped; 停止状態)", "T (tra
 .IP *
 \fITracerPid\fP: このプロセスをトレースしているプロセスの PID (トレースされていない場合は 0)。
 .IP *
-\fIUid\fP, \fIGid\fP: 実 UID/GID、実効 UID/GID、保存 set\-UID/GID、ファイルシステム UID/GID。
+\fIUid\fP, \fIGid\fP: Real, effective, saved set, and filesystem UIDs (GIDs).
 .IP *
 \fIFDSize\fP: 現在割り当てられているファイルディスクリプタのスロット数。
 .IP *
@@ -1106,13 +1168,16 @@ SMP マシンでは各 CPU についての情報が書かれている。 \fBlscp
 カーネルのコンパイル時に \fBCONFIG_FB\fP が定義されている場合、フレームバッファの情報が書かれる。
 .TP 
 \fI/proc/filesystems\fP
-カーネルが対応しているファイルシステムのテキスト形式のリスト。 カーネルに組み込まれてコンパイルされたファイルシステムと、
-カーネルモジュールが現在ロードされているファイルシステムが列挙される (\fBfilesystems\fP(5)  参照)。 ファイルシステムに
-"nodev" という印が付いている場合、 そのファイルシステムがマウントするためのブロックデバイスを 必要としないことを意味する (例えば、
-仮想ファイルシステム、ネットワークファイルシステムなど)。
+A text listing of the filesystems which are supported by the kernel, namely
+filesystems which were compiled into the kernel or whose kernel modules are
+currently loaded.  (See also \fBfilesystems\fP(5).)  If a filesystem is marked
+with "nodev", this means that it does not require a block device to be
+mounted (e.g., virtual filesystem, network filesystem).
 
-ちなみに、マウント時にファイルシステムが指定されず、 どうやってもファイルシステムの種類を判定できなかった際に、 このファイルを \fBmount\fP(8)
-が使用するかもしれない。 その場合、このファイルに含まれるファイルシステムが試される (ただし、"nodev" の印がついたものは除く)。
+Incidentally, this file may be used by \fBmount\fP(8)  when no filesystem is
+specified and it didn't manage to determine the filesystem type.  Then
+filesystems contained in this file are tried (excepted those that are marked
+with "nodev").
 .TP 
 \fI/proc/fs\fP
 空のサブディレクトリ。
@@ -1381,10 +1446,11 @@ number of surplus huge pages is controlled by
 現在システムにロードされているモジュールのテキスト形式のリスト。 \fBlsmod\fP(8)  も参照。
 .TP 
 \fI/proc/mounts\fP
-カーネル 2.4.19 より前では、このファイルは現在システムにマウントされている 全てのファイルシステムのリストであった。 Linux 2.4.19
-でプロセス単位のマウント名前空間が導入されたことに伴い、 このファイルは \fI/proc/self/mounts\fP へのリンクとなった。
-\fI/proc/self/mounts\fP はそのプロセス自身のマウント名前空間のマウントポイントのリストである。 このファイルのフォーマットは
-\fBfstab\fP(5)  に記述されている。
+Before kernel 2.4.19, this file was a list of all the filesystems currently
+mounted on the system.  With the introduction of per\-process mount
+namespaces in Linux 2.4.19, this file became a link to \fI/proc/self/mounts\fP,
+which lists the mount points of the process's own mount namespace.  The
+format of this file is documented in \fBfstab\fP(5).
 .TP 
 \fI/proc/mtrr\fP
 Memory Type Range Registers。 詳細は、Linux カーネルソースファイル \fIDocumentation/mtrr.txt\fP
@@ -1516,7 +1582,8 @@ UNIX ドメインソケットのリスト。 フォーマットは以下のと�
 St はソケットの内部状態で、Path は(もしあれば) ソケットのパス名である。
 .TP 
 \fI/proc/partitions\fP
-各パーティションのメジャー番号とマイナー番号が書かれている。 さらに、ブロック数とパーティション名も書かれている。
+Contains the major and minor numbers of each partition as well as the number
+of 1024\-byte blocks and the partition name.
 .TP 
 \fI/proc/pci\fP
 カーネルの初期化時に見つかったすべての PCI デバイスのリストと その設定。
@@ -1576,8 +1643,9 @@ seagate, t128, u15\-24f, ultrastore, wd7000 のどれかである。 少なく�
 (bus lockup) を 制御することができる。
 .TP 
 \fI/proc/self\fP
-このディレクトリはプロセスに (プロセス自身の)  \fI/proc\fP ファイルシステムへのアクセスを参照させる。 これは \fI/proc\fP 内の
-(このプロセスの) プロセス ID が名前となっている ディレクトリと全く同一である。
+This directory refers to the process accessing the \fI/proc\fP filesystem, and
+is identical to the \fI/proc\fP directory named by the process ID of the same
+process.
 .TP 
 \fI/proc/slabinfo\fP
 Linux 2.6.16 以降では、 カーネル設定オプション \fBCONFIG_SLAB\fP が有効の場合にのみ、このファイルは存在する。
@@ -1681,10 +1749,10 @@ I/O 完了待ちで停止 (blocked) しているプロセス数 (Linux 2.5.45 �
 使用中のスワップ領域。 \fBswapon\fP(8)  も参照すること。
 .TP 
 \fI/proc/sys\fP
-このディレクトリ (1.3.57 以降に存在) はカーネル変数に対応するいくつかの
-ファイルとサブディレクトリを含む。 これらの変数は読み出し可能である。
-また場合によっては \fI/proc\fP ファイルシステムや、 (非推奨の) システムコール
-\fBsysctl\fP(2) を用いて書き換えることもできる。
+This directory (present since 1.3.57) contains a number of files and
+subdirectories corresponding to kernel variables.  These variables can be
+read and sometimes modified using the \fI/proc\fP filesystem, and the
+(deprecated)  \fBsysctl\fP(2)  system call.
 .TP 
 \fI/proc/sys/abi\fP (Linux 2.4.10 以降)
 .\" On some systems, it is not present.
@@ -1699,8 +1767,8 @@ I/O 完了待ちで停止 (blocked) しているプロセス数 (Linux 2.5.45 �
 このディレクトリが空になっているシステムもある。
 .TP 
 \fI/proc/sys/fs\fP
-このディレクトリには、ファイルシステムに関連するカーネル変数用の
-ディレクトリとサブディレクトリが含まれる。
+This directory contains the files and subdirectories for kernel variables
+related to filesystems.
 .TP 
 \fI/proc/sys/fs/binfmt_misc\fP
 このディレクトリ以下のファイルについてのドキュメントは、 Linux カーネルソースの \fIDocumentation/binfmt_misc.txt\fP
@@ -1755,9 +1823,6 @@ I/O 完了待ちで停止 (blocked) しているプロセス数 (Linux 2.5.45 �
 
 \fIfile\-max\fP に書かれている値は、カーネル定数 \fBNR_OPEN\fP に制限される。
 
-\fI/proc/sys/fs/file\-max\fP を増やした場合は、 \fI/proc/sys/fs/inode\-max\fP を新しい
-\fI/proc/sys/fs/file\-max\fP の値の 3\-4 倍に増やしておくこと。 こうしないと inode を使い果たしてしまうだろう。
-
 特権プロセス (\fBCAP_SYS_ADMIN\fP) は \fIfile\-max\fP 上限を上書きできる。
 .TP 
 \fI/proc/sys/fs/file\-nr\fP
@@ -1774,20 +1839,31 @@ peak in the usage of open file handles.  Since Linux 2.6, the kernel does
 deallocate freed file handles, and the "free file handles" value is always
 zero.
 .TP 
-\fI/proc/sys/fs/inode\-max\fP
-このファイルには、メモリ内 inode の最大値が書かれている。 (2.4 系の) システムによっては、このファイルが存在しないかもしれない。 この値は
-\fIfile\-max\fP の値の 3\-4 倍にすべきである。 これは \fIstdin\fP, \fIstdout\fP, ネットワークソケットを扱うにも inode
-が必要なためである。 日常的に inode を使い果たしている場合は、この値を増やす必要がある。
+\fI/proc/sys/fs/inode\-max\fP (only present until Linux 2.2)
+This file contains the maximum number of in\-memory inodes.  This value
+should be 3\-4 times larger than the value in \fIfile\-max\fP, since \fIstdin\fP,
+\fIstdout\fP and network sockets also need an inode to handle them.  When you
+regularly run out of inodes, you need to increase this value.
+
+Starting with Linux 2.4, there is no longer a static limit on the number of
+inodes, and this file is removed.
 .TP 
 \fI/proc/sys/fs/inode\-nr\fP
 このファイルには、 \fIinode\-state\fP の最初の 2 つの値が書かれている。
 .TP 
 \fI/proc/sys/fs/inode\-state\fP
-このファイルには 7 個の値が書かれている: \fInr_inodes,\fP \fInr_free_inodes\fP, \fIpreshrink\fP と 4
-つのダミーの値である。 \fInr_inodes\fP はシステムが確保する inode の数である。 Linux は 1 度に 1 ページ分いっぱいに
-nr_inode を確保するので、この値が \fIinode\-max\fP より幾分大きくなることもある。 \fInr_free_inodes\fP は空いている
-inode の数を表す。 \fInr_inodes\fP > \fIinode\-max\fP の場合、 \fIpreshrink\fP は 0 以外の値になる。
-この場合システムは inode をさらに確保するのではなく、 inode リストを切り詰める必要がある。
+This file contains seven numbers: \fInr_inodes\fP, \fInr_free_inodes\fP,
+\fIpreshrink\fP, and four dummy values (always zero).
+
+.\" This can be slightly more than
+.\" .I inode-max
+.\" because Linux allocates them one page full at a time.
+\fInr_inodes\fP is the number of inodes the system has allocated.
+\fInr_free_inodes\fP represents the number of free inodes.
+
+\fIpreshrink\fP is nonzero when the \fInr_inodes\fP > \fIinode\-max\fP and the
+system needs to prune the inode list instead of allocating more; since Linux
+2.4, this field is a dummy value (always zero).
 .TP 
 \fI/proc/sys/fs/inotify\fP (Linux 2.6.13 以降)
 このディレクトリには、ファイル \fImax_queued_events\fP, \fImax_user_instances\fP, and
@@ -1809,10 +1885,11 @@ inode の数を表す。 \fInr_inodes\fP > \fIinode\-max\fP の場合、 \fIpres
 メッセージキューで使用されるリソースの 制御を行う。 詳細は \fBmq_overview\fP(7)  を参照。
 .TP 
 \fI/proc/sys/fs/overflowgid\fP と \fI/proc/sys/fs/overflowuid\fP
-これらのファイルにより、ユーザーは固定 UID と固定 GID の値を変更できる。 デフォルトは 65534 である。 Linux の UID と
-GID は 32 ビットであるが、 16 ビットの UID と GID しかサポートしないファイルシステムもある。
-このようなファイルシステムが書き込みを許可してマウントされた場合、 65535 を超える UID と GID は、
-ディスクに書き込まれる前にオーバーフロー値に変換される。
+These files allow you to change the value of the fixed UID and GID.  The
+default is 65534.  Some filesystems support only 16\-bit UIDs and GIDs,
+although in Linux UIDs and GIDs are 32 bits.  When one of these filesystems
+is mounted with writes enabled, any UID or GID that would exceed 65535 is
+translated to the overflow value before being written to disk.
 .TP 
 \fI/proc/sys/fs/pipe\-max\-size\fP (Linux 2.6.35 以降)
 このファイルの値により、 \fBfcntl\fP(2) の \fBF_SETPIPE_SZ\fP 操作で増やすことができるパイプ容量の上限値が定義される。
@@ -1828,8 +1905,9 @@ GID は 32 ビットであるが、 16 ビットの UID と GID しかサポー�
 .IP * 3
 呼び出し元が \fBCAP_FOWNER\fP ケーパビリティを持っている。
 .IP *
-そのリンクを作成中のプロセスのファイルシステム UID が、 リンク先ファイルの所有者 (UID) と一致する (\fBcredentials\fP(7)
-に説明があるが、 通常、 プロセスのファイルシステム UID はプロセスの実効 UID と同じである)。
+The filesystem UID of the process creating the link matches the owner (UID)
+of the target file (as described in \fBcredentials\fP(7), a process's
+filesystem UID is normally the same as its effective UID).
 .IP *
 以下の条件が全て成立する。
 .RS 4
@@ -1861,8 +1939,9 @@ upgraded by the administrator, or linking to special files.
 より前の伝統的な動作である)。 このファイルの値が 1 の場合、 以下の状況においてのみシンボリックリンクが辿られる。
 .RS
 .IP * 3
-そのリンクを辿っているプロセスのファイルシステム UID が、 シンボリックリンクの所有者 (UID) と一致する (\fBcredentials\fP(7)
-に説明があるが、 通常、 プロセスのファイルシステム UID はプロセスの実効 UID と同じである)。
+the filesystem UID of the process following the link matches the owner (UID)
+of the symbolic link (as described in \fBcredentials\fP(7), a process's
+filesystem UID is normally the same as its effective UID);
 .IP *
 そのリンクが world\-writable の sticky ビットがセットされたディレクトリではない。
 .IP *
@@ -1888,8 +1967,9 @@ races when accessing symbolic links.
 が変更されているプロセスや、 プロセスの実行バイナリの読み出し許可がないプロセスに対して、 コアダンプを生成しない。
 .TP 
 \fI1\ ("debug")\fP
-すべてのプロセスで、可能であればコアダンプを行う。 コアダンプファイルの所有者は、ダンプを行うプロセスのファイルシステム UID
-となり、セキュリティ上の考慮は行われない。 この値は、システムデバッグの場面だけを想定して設けられている。 ptrace のチェックも行われない。
+All processes dump core when possible.  The core dump is owned by the
+filesystem user ID of the dumping process and no security is applied.  This
+is intended for system debugging situations only.  Ptrace is unchecked.
 .TP 
 \fI2\ ("suidsafe")\fP
 通常はダンプされないようなバイナリ (上記の "0" 参照) を root だけが読み出し可能な形でダンプする。
@@ -1904,22 +1984,27 @@ races when accessing symbolic links.
 .RE
 .TP 
 このファイルはスーパブロックの値を制御する。
-この値はカーネルがマウントできるファイルシステムの最大値になる。 現在、 \fIsuper\-max\fP で許可されているファイルシステム数以上に
-マウントする必要がある場合は、この値を増加させるだけでよい。
+This file controls the maximum number of superblocks, and thus the maximum
+number of mounted filesystems the kernel can have.  You need increase only
+\fIsuper\-max\fP if you need to mount more filesystems than the current value in
+\fIsuper\-max\fP allows you to.
 .TP 
 \fI/proc/sys/fs/super\-nr\fP
-このファイルには現在マウントされているファイルシステム数が書かれている。
+This file contains the number of filesystems currently mounted.
 .TP 
 \fI/proc/sys/kernel\fP
 このディレクトリには、以下で説明する様々なカーネルパラメータを 制御するためのファイルが配置されている。
 .TP 
 \fI/proc/sys/kernel/acct\fP
-このファイルには 3 つの値が含まれている: \fIhighwater\fP, \fIlowwater\fP, \fIfrequency\fP である。
-BSD\-style process accounting が有効になっている場合、 これら 3 つの値が動作を制御する。
-ログファイルのあるファイルシステムの空き領域が \fIlowwater\fP パーセント以下になった場合は、ログ記録を一時停止する。 空き領域が
-\fIhighwater\fP パーセント以上になった場合に、ログ記録を再開する。 \fIfrequency\fP はカーネルが空き領域のチェックをする頻度である
-(単位は秒)。 デフォルトの値は、4, 2, 30 である。 つまり、空き領域が 2% 以下になるとログ記録を一時停止し、 空き領域が 4%
-以上となったときに再開する。 空き領域についての情報は 30 秒間有効である点に注意すること。
+This file contains three numbers: \fIhighwater\fP, \fIlowwater\fP, and
+\fIfrequency\fP.  If BSD\-style process accounting is enabled these values
+control its behavior.  If free space on filesystem where the log lives goes
+below \fIlowwater\fP percent accounting suspends.  If free space gets above
+\fIhighwater\fP percent accounting resumes.  \fIfrequency\fP determines how often
+the kernel checks the amount of free space (value is in seconds).  Default
+values are 4, 2 and 30.  That is, suspend accounting if 2% or less space is
+free; resume it if 4% or more space is free; consider information about
+amount of free space valid for 30 seconds.
 .TP 
 \fI/proc/sys/kernel/cap_last_cap\fP (Linux 3.2 以降)
 \fBcapabilities\fP(7) 参照。
@@ -2195,21 +2280,33 @@ semantics of the applications using System V shared memory on your system.
 このディレクトリは空の場合もある。
 .TP 
 \fI/proc/sys/sunrpc\fP
-このディレクトリはネットワークファイルシステム (NFS) への Sun remote procedure call (遠隔手続き呼び出し)
-をサポートする。 これが存在しないシステムもある。
+This directory supports Sun remote procedure call for network filesystem
+(NFS).  On some systems, it is not present.
 .TP 
 \fI/proc/sys/vm\fP
 このディレクトリにはメモリ管理の調整、バッファやキャッシュ管理のための ファイルがある。
 .TP 
 \fI/proc/sys/vm/drop_caches\fP (Linux 2.6.16 以降)
-このファイルに書き込みを行うことで、クリーンなキャッシュ、dentry、 inode をメモリ上から外し、そのメモリを解放する。
+Writing to this file causes the kernel to drop clean caches, dentries, and
+inodes from memory, causing that memory to become free.  This can be useful
+for memory management testing and performing reproducible filesystem
+benchmarks.  Because writing to this file causes the benefits of caching to
+be lost, it can degrade overall system performance.
 
-ページキャッシュを解放するには、 \fIecho 1 > /proc/sys/vm/drop_caches\fP とする。 dentry、inode
-を解放するには、 \fIecho 2 > /proc/sys/vm/drop_caches\fP とする。ページキャッシュ、dentry、inode
-を解放するには、 \fIecho 3 > /proc/sys/vm/drop_caches\fP とする。
+To free pagecache, use:
 
-この操作は非破壊的な操作で、ダーティな (dirty) オブジェクトは 解放されないので、この操作を行う際は最初に \fBsync\fP(8)
-を実行しておくべきである。
+    echo 1 > /proc/sys/vm/drop_caches
+
+To free dentries and inodes, use:
+
+    echo 2 > /proc/sys/vm/drop_caches
+
+To free pagecache, dentries and inodes, use:
+
+    echo 3 > /proc/sys/vm/drop_caches
+
+Because writing to this file is a nondestructive operation and dirty objects
+are not freeable, the user should run \fBsync\fP(8)  first.
 .TP 
 \fI/proc/sys/vm/legacy_va_layout\fP (Linux 2.6.9 以降)
 .\" The following is from Documentation/filesystems/proc.txt
@@ -2395,6 +2492,6 @@ kill されるだけかもしれない。 この場合には、カーネルパ�
 Linux カーネルのソースファイル: \fIDocumentation/filesystems/proc.txt\fP,
 \fIDocumentation/sysctl/vm.txt\fP
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.53 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

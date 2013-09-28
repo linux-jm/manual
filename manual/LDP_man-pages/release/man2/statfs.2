@@ -46,7 +46,7 @@
 .\"
 .TH STATFS 2 2010\-11\-21 Linux "Linux Programmer's Manual"
 .SH 名前
-statfs, fstatfs \- ファイルシステムの統計を取得する
+statfs, fstatfs \- get filesystem statistics
 .SH 書式
 \fB#include <sys/vfs.h> \fP/* または <sys/statfs.h> */
 .sp
@@ -54,9 +54,9 @@ statfs, fstatfs \- ファイルシステムの統計を取得する
 .br
 \fBint fstatfs(int \fP\fIfd\fP\fB, struct statfs *\fP\fIbuf\fP\fB);\fP
 .SH 説明
-関数 \fBstatfs\fP()  はマウントされたファイルシステムについての情報を返す。 \fIpath\fP
-はマウントされたファイルシステムにあるファイルのパス名である。 \fIbuf\fP は \fIstatfs\fP
-構造体へのポインターで、およそ以下のように定義される:
+The function \fBstatfs\fP()  returns information about a mounted filesystem.
+\fIpath\fP is the pathname of any file within the mounted filesystem.  \fIbuf\fP
+is a pointer to a \fIstatfs\fP structure defined approximately as follows:
 
 .in +4n
 .nf
@@ -67,20 +67,21 @@ statfs, fstatfs \- ファイルシステムの統計を取得する
 #endif
 
 struct statfs {
-    __SWORD_TYPE f_type;    /* ファイルシステムの種別 (下記参照) */
-    __SWORD_TYPE f_bsize;   /* 最適な転送ブロックサイズ */
-    fsblkcnt_t   f_blocks;  /* ファイルシステムの総データブロック数 */
-    fsblkcnt_t   f_bfree;   /* ファイルシステムの空きブロック数 */
-    fsblkcnt_t   f_bavail;  /* 非特権ユーザが利用可能な空きブロック数 */
-    fsfilcnt_t   f_files;   /* ファイルシステムの総ファイルノード数 */
-    fsfilcnt_t   f_ffree;   /* ファイルシステムの空きファイルノード数 */
-    fsid_t       f_fsid;    /* ファイルシステムの ID */
-    __SWORD_TYPE f_namelen; /* ファイル名の最大長 */
-    __SWORD_TYPE f_frsize;  /* フラグメントサイズ (Linux 2.6 以降) */
+    __SWORD_TYPE f_type;    /* type of filesystem (see below) */
+    __SWORD_TYPE f_bsize;   /* optimal transfer block size */
+    fsblkcnt_t   f_blocks;  /* total data blocks in filesystem */
+    fsblkcnt_t   f_bfree;   /* free blocks in fs */
+    fsblkcnt_t   f_bavail;  /* free blocks available to
+                               unprivileged user */
+    fsfilcnt_t   f_files;   /* total file nodes in filesystem */
+    fsfilcnt_t   f_ffree;   /* free file nodes in fs */
+    fsid_t       f_fsid;    /* filesystem id */
+    __SWORD_TYPE f_namelen; /* maximum length of filenames */
+    __SWORD_TYPE f_frsize;  /* fragment size (since Linux 2.6) */
     __SWORD_TYPE f_spare[5];
 };
 
-ファイルシステムの型:
+Filesystem types:
 
    ADFS_SUPER_MAGIC      0xadf5
    AFFS_SUPER_MAGIC      0xADFF
@@ -132,8 +133,9 @@ struct statfs {
 .PP
 \fIf_fsid\fP にどんな値が入るべきなのかは誰も知らない (但し、下記を参照)。
 .PP
-それぞれのファイルシステムにおいて未定義のフィールドには 0 が 設定される。 \fBfstatfs\fP()  はディスクリプター \fIfd\fP
-によって参照されるオープンされたファイルについて、同じ情報を返す。
+Fields that are undefined for a particular filesystem are set to 0.
+\fBfstatfs\fP()  returns the same information about an open file referenced by
+descriptor \fIfd\fP.
 .SH 返り値
 成功した場合、0 が返される。 失敗した場合、 \-1 が返され、 \fIerrno\fP に適切な値がセットされる。
 .SH エラー
@@ -152,7 +154,7 @@ struct statfs {
 この呼び出しがシグナルで中断された。
 .TP 
 \fBEIO\fP
-ファイルシステムからの読み込みの間に I/O エラーが発生した。
+An I/O error occurred while reading from the filesystem.
 .TP 
 \fBELOOP\fP
 (\fBstatfs\fP()  の場合)  \fIpath\fP を解決するのに辿るべきシンボリックリンクが多すぎる。
@@ -167,7 +169,7 @@ struct statfs {
 十分なカーネルメモリがない。
 .TP 
 \fBENOSYS\fP
-ファイルシステムがこの呼び出しをサポートしていない。
+The filesystem does not support this call.
 .TP 
 \fBENOTDIR\fP
 (\fBstatfs\fP()  の場合)  \fIpath\fP のディレクトリ部分がディレクトリでない。
@@ -200,16 +202,18 @@ statfs\fP を返す (\fI<sys/vfs.h>\fP で定義されている)。 この構造
 が含まれており、 \fIfsid_t\fP は \fIstruct { int val[2]; }\fP と定義されている。 FreeBSD
 でも同じであるが、インクルードファイル \fI<sys/mount.h>\fP を使う。
 
-\fIf_fsid\fP はあるランダムな値を持ち、 (\fIf_fsid\fP,\fIino\fP)  という 1 組の値でファイルを一意に決定できるようにする、
-というのが基本的な考え方である。 いくつかの OS では、デバイス番号 (の変種) を使ったり、
-デバイス番号とファイルシステムタイプを組み合わせて使ったりしている。 OS の中には \fIf_fsid\fP
-フィールドの取得をスーパーユーザに限定しているものもある (非特権ユーザが取得すると 0 となる)。 NFS でエクスポートされる場合、
-このフィールドがファイルシステムのファイルハンドルで使われており、 この値を提供するとセキュリティ上の問題がある。
+The general idea is that \fIf_fsid\fP contains some random stuff such that the
+pair (\fIf_fsid\fP,\fIino\fP)  uniquely determines a file.  Some operating systems
+use (a variation on) the device number, or the device number combined with
+the filesystem type.  Several OSes restrict giving out the \fIf_fsid\fP field
+to the superuser only (and zero it for unprivileged users), because this
+field is used in the filehandle of the filesystem when NFS\-exported, and
+giving it out is a security concern.
 .LP
 いくつかの OS では、 \fIfsid\fP を \fBsysfs\fP(2)  システムコールの第 2 引き数として使用できる。
 .SH 関連項目
 \fBstat\fP(2), \fBstatvfs\fP(2), \fBpath_resolution\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.53 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
