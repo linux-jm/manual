@@ -52,24 +52,19 @@ setfsuid \- ファイルシステムのチェックに用いられるユーザ I
 .sp
 \fBint setfsuid(uid_t \fP\fIfsuid\fP\fB);\fP
 .SH 説明
-The system call \fBsetfsuid\fP()  changes the value of the caller's filesystem
-user ID\(emthe user ID that the Linux kernel uses to check for all accesses
-to the filesystem.  Normally, the value of the filesystem user ID will
-shadow the value of the effective user ID.  In fact, whenever the effective
-user ID is changed, the filesystem user ID will also be changed to the new
-value of the effective user ID.
+\fBsetfsuid\fP()  は、 呼び出し元のファイルシステムユーザー ID \(em ファイルシステムへの全てのアクセスのチェックにおいて
+Linux カーネルが使用するユーザ ID \(em の値を変更する。通常はファイルシステムユーザー ID の値は実効 (effective)
+ユーザID と同じになる。実際、 実効ユーザID が変更される度にファイルシステムユーザー ID もまた新しい実効ユーザ ID の値に変更される。
 
 通常、 \fBsetfsuid\fP()  や \fBsetfsgid\fP() を明示的に呼び出すのは、Linux NFS サーバー のように、
 ファイルアクセスに用いるユーザID / グループID を変更しなければならないが、 対応する実(real)/実効(effective) ユーザID /
 グループID は変更したくないような プログラムに限られる。 NFS サーバーのようなプログラムで、通常のユーザID を変更すると、
 プロセスを望まないシグナルにさらす可能性があり、 セキュリティホールになる。(下記参照)
 
-\fBsetfsuid\fP()  will succeed only if the caller is the superuser or if
-\fIfsuid\fP matches either the caller's real user ID, effective user ID, saved
-set\-user\-ID, or current filesystem user ID.
+\fBsetfsuid\fP()  は、スーパーユーザによって呼び出された場合か、 \fIfsuid\fP が呼び出し元の実ユーザID、実効ユーザID、
+保存セットユーザID (saved set\-user\-ID)、現在のファイルシステムグループ ID の値のいずれかに一致する場合にのみ成功する。
 .SH 返り値
-On both success and failure, this call returns the previous filesystem user
-ID of the caller.
+成功時も失敗時も、 この呼び出しは直前の呼び出し元のファイルシステムユーザー ID の値を返す。
 .SH バージョン
 .\" This system call is present since Linux 1.1.44
 .\" and in libc since libc 4.7.6.
@@ -80,19 +75,13 @@ ID of the caller.
 glibc が引き数がユーザID として不正だと判断した場合は、 システムコールを行わず \fIerrno\fP に \fBEINVAL\fP を設定して \-1
 が返される。
 .LP
-At the time when this system call was introduced, one process could send a
-signal to another process with the same effective user ID.  This meant that
-if a privilged process changed its effective user ID for the purpose of file
-permission checking, then it could become vulnerable to receiving signals
-sent by another (unprivileged) process with the same user ID.  The
-filesystem user ID attribute was thus added to allow a process to change its
-user ID for the purposes of file permission checking without at the same
-time becoming vulnerable to receiving unwanted signals.  Since Linux 2.0,
-signal permission handling is different (see \fBkill\fP(2)), with the result
-that a process change can change its effective user ID without being
-vulnerable to receiving signals from unwanted processes.  Thus,
-\fBsetfsuid\fP()  is nowadays unneeded and should be avoided in new
-applications (likewise for \fBsetfsgid\fP(2)).
+このシステムコールが導入された当時、 あるプロセスは同じ実効ユーザー ID を持つ別のプロセスにシグナルを送信できた。 これは、
+特権プロセスがファイルのアクセス許可をチェックするために自身の実効ユーザー ID を変更すると、 同じユーザー ID を持つ別の (非特権)
+プロセスが送信したシグナルを受け取るようになってしまうことを意味する。そのため、 プロセスが、 受け取りたくないシグナルを受信する状態にならずに、
+ファイルのアクセス許可をチェックするために自身のユーザー ID を変更できるように、 ファイルシステムユーザー ID 属性が追加された。 Linux
+2.0 以降では、 シグナルの送信許可の扱いは異なり (\fBkill\fP(2) 参照)、 プロセスは、
+望まないプロセスからシグナルを受信してしまう状態にならずに、 自身の実効ユーザー ID を変更することができる。 したがって、
+\fBsetfsuid\fP() は今日では不要であり、 新規のアプリケーションでは使用すべきではない (\fBsetfsgid\fP(2) も同様)。
 
 元々の Linux の \fBsetfsuid\fP() システムコールは
 16 ビットのグループ ID だけに対応していた。
@@ -101,14 +90,11 @@ applications (likewise for \fBsetfsgid\fP(2)).
 glibc の \fBsetfsuid\fP() のラッパー関数は
 カーネルバージョンによるこの違いを吸収している。
 .SH バグ
-No error indications of any kind are returned to the caller, and the fact
-that both successful and unsuccessful calls return the same value makes it
-impossible to directly determine whether the call succeeded or failed.
-Instead, the caller must resort to looking at the return value from a
-further call such as \fIsetfsuid(\-1)\fP (which will always fail), in order to
-determine if a preceding call to \fBsetfsuid\fP()  changed the filesystem user
-ID.  At the very least, \fBEPERM\fP should be returned when the call fails
-(because the caller lacks the \fBCAP_SETUID\fP capability).
+いかなる種類のエラーメッセージも返さず、 成功した場合も失敗した場合も呼び出しは同じ値を返すため、
+呼び出しが成功したか失敗したかを直接判定することはできない。 その代わり、 直前の \fBsetfsuid\fP() の呼び出しがファイルシステムグループ
+ID を変更したかどうかを判定するために、 呼び出し元はこの後に \fIsetfsuid(\-1)\fP などを呼び出して返り値を見なければならない
+(\fIsetfsuid(\-1)\fP は常に失敗する)。 最低でも、失敗した場合は \fBEPERM\fP くらいは返すべきである (呼び出し元には
+\fBCAP_SETUID\fP ケーパビリティがなかったのだから)。
 .SH 関連項目
 \fBkill\fP(2), \fBsetfsgid\fP(2), \fBcapabilities\fP(7), \fBcredentials\fP(7)
 .SH この文書について
