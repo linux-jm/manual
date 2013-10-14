@@ -103,7 +103,7 @@
 .\" Updated 2013-08-16, Akihiro MOTOKI
 .\" Updated 2013-08-30, Akihiro MOTOKI, LDP v3.53
 .\"
-.TH PROC 5 2013\-06\-27 Linux "Linux Programmer's Manual"
+.TH PROC 5 2013\-09\-04 Linux "Linux Programmer's Manual"
 .SH 名前
 proc \- プロセスの情報を含む擬似ファイルシステム
 .SH 説明
@@ -111,7 +111,7 @@ proc \- プロセスの情報を含む擬似ファイルシステム
 \fI/proc\fP にマウントされる。 大部分のファイルは読み出し専用 (read\-only) であるが、 いくつかのファイルは書き込み可能であり、
 そのファイルに書き込めばカーネルの内部変数を変更できる。
 .LP
-以下は \fI/proc\fP 階層の簡単なあらましである。
+以下のリストでは \fI/proc\fP 階層以下のファイルやディレクトリの多くについて説明している。
 .PD 1
 .TP 
 \fI/proc/[pid]\fP
@@ -297,10 +297,71 @@ flags:  01002002
 \fIpos\fP フィールドは 10 進数で、現在のファイルオフセットを示す。 \fIflags\fP フィールドは 8 進数で、
 ファイルのアクセスモードとファイル状態フラグを示す (\fBopen\fP(2)  参照)。
 
-.\" FIXME document /proc/[pid]/io
-.\" .TP
-.\" .IR /proc/[pid]/io " (since kernel 2.6.20)"
 このディレクトリのファイルは、プロセスの所有者だけが読み出すことができる。
+.TP 
+\fI/proc/[pid]/io\fP (kernel 2.6.20 以降)
+.\" commit 7c3ab7381e79dfc7db14a67c6f4f3285664e1ec2
+This file contains I/O statistics for the process, for example:
+.in +4n
+.nf
+
+#\fB cat /proc/3828/io\fP
+rchar: 323934931
+wchar: 323929600
+syscr: 632687
+syscw: 632675
+read_bytes: 0
+write_bytes: 323932160
+cancelled_write_bytes: 0
+.fi
+.in
+
+フィールドの詳細は以下の通りである。
+.RS
+.TP 
+\fIrchar\fP: characters read
+The number of bytes which this task has caused to be read from storage.
+This is simply the sum of bytes which this process passed to \fBread\fP(2)  and
+similar system calls.  It includes things such as terminal I/O and is
+unaffected by whether or not actual physical disk I/O was required (the read
+might have been satisfied from pagecache).
+.TP 
+\fIwchar\fP: characters written
+The number of bytes which this task has caused, or shall cause to be written
+to disk.  Similar caveats apply here as with \fIrchar\fP.
+.TP 
+\fIsyscr\fP: read syscalls
+Attempt to count the number of read I/O operations\(emthat is, system calls
+such as \fBread\fP(2)  and \fBpread\fP(2).
+.TP 
+\fIsyscw\fP: write syscalls
+Attempt to count the number of write I/O operations\(emthat is, system calls
+such as \fBwrite\fP(2)  and \fBpwrite\fP(2).
+.TP 
+\fIread_bytes\fP: bytes read
+Attempt to count the number of bytes which this process really did cause to
+be fetched from the storage layer.  This is accurate for block\-backed
+filesystems.
+.TP 
+\fIwrite_bytes\fP: bytes written
+Attempt to count the number of bytes which this process caused to be sent to
+the storage layer.
+.TP 
+\fIcancelled_write_bytes\fP:
+The big inaccuracy here is truncate.  If a process writes 1MB to a file and
+then deletes the file, it will in fact perform no writeout.  But it will
+have been accounted as having caused 1MB of write.  In other words: this
+field represents the number of bytes which this process caused to not
+happen, by truncating pagecache.  A task can cause "negative" I/O too.  If
+this task truncates some dirty pagecache, some I/O which another task has
+been accounted for (in its \fIwrite_bytes\fP)  will not be happening.
+.RE
+.IP
+\fINote\fP: In the current implementation, things are a bit racy on 32\-bit
+systems: if process A reads process B's \fI/proc/[pid]/io\fP while process B is
+updating one of these 64\-bit counters, process A could see an intermediate
+result.
+.RE
 .TP 
 \fI/proc/[pid]/limits\fP (kernel 2.6.24 以降)
 .\" commit 3036e7b490bf7878c6dae952eec5fb87b1106589
@@ -1516,7 +1577,7 @@ UNIX ドメインソケットのリスト。 フォーマットは以下のと�
 St はソケットの内部状態で、Path は(もしあれば) ソケットのパス名である。
 .TP 
 \fI/proc/partitions\fP
-各パーティションのメジャー番号とマイナー番号が書かれている。 さらに、ブロック数とパーティション名も書かれている。
+各パーティションのメジャー番号とマイナー番号が書かれている。 さらに、 1024 バイトブロック数とパーティション名も書かれている。
 .TP 
 \fI/proc/pci\fP
 カーネルの初期化時に見つかったすべての PCI デバイスのリストと その設定。
@@ -1755,9 +1816,6 @@ I/O 完了待ちで停止 (blocked) しているプロセス数 (Linux 2.5.45 �
 
 \fIfile\-max\fP に書かれている値は、カーネル定数 \fBNR_OPEN\fP に制限される。
 
-\fI/proc/sys/fs/file\-max\fP を増やした場合は、 \fI/proc/sys/fs/inode\-max\fP を新しい
-\fI/proc/sys/fs/file\-max\fP の値の 3\-4 倍に増やしておくこと。 こうしないと inode を使い果たしてしまうだろう。
-
 特権プロセス (\fBCAP_SYS_ADMIN\fP) は \fIfile\-max\fP 上限を上書きできる。
 .TP 
 \fI/proc/sys/fs/file\-nr\fP
@@ -1774,20 +1832,30 @@ peak in the usage of open file handles.  Since Linux 2.6, the kernel does
 deallocate freed file handles, and the "free file handles" value is always
 zero.
 .TP 
-\fI/proc/sys/fs/inode\-max\fP
-このファイルには、メモリ内 inode の最大値が書かれている。 (2.4 系の) システムによっては、このファイルが存在しないかもしれない。 この値は
-\fIfile\-max\fP の値の 3\-4 倍にすべきである。 これは \fIstdin\fP, \fIstdout\fP, ネットワークソケットを扱うにも inode
-が必要なためである。 日常的に inode を使い果たしている場合は、この値を増やす必要がある。
+\fI/proc/sys/fs/inode\-max\fP (Linux 2.2 までにのみ存在)
+このファイルには、メモリ内 inode の最大値が書かれている。 この値は \fIfile\-max\fP の値の 3\-4 倍にすべきである。 これは
+\fIstdin\fP, \fIstdout\fP, ネットワークソケットを扱うにも inode が必要なためである。 日常的に inode
+を使い果たしている場合は、この値を増やす必要がある。
+
+Starting with Linux 2.4, there is no longer a static limit on the number of
+inodes, and this file is removed.
 .TP 
 \fI/proc/sys/fs/inode\-nr\fP
 このファイルには、 \fIinode\-state\fP の最初の 2 つの値が書かれている。
 .TP 
 \fI/proc/sys/fs/inode\-state\fP
-このファイルには 7 個の値が書かれている: \fInr_inodes,\fP \fInr_free_inodes\fP, \fIpreshrink\fP と 4
-つのダミーの値である。 \fInr_inodes\fP はシステムが確保する inode の数である。 Linux は 1 度に 1 ページ分いっぱいに
-nr_inode を確保するので、この値が \fIinode\-max\fP より幾分大きくなることもある。 \fInr_free_inodes\fP は空いている
-inode の数を表す。 \fInr_inodes\fP > \fIinode\-max\fP の場合、 \fIpreshrink\fP は 0 以外の値になる。
-この場合システムは inode をさらに確保するのではなく、 inode リストを切り詰める必要がある。
+This file contains seven numbers: \fInr_inodes\fP, \fInr_free_inodes\fP,
+\fIpreshrink\fP, and four dummy values (always zero).
+
+.\" This can be slightly more than
+.\" .I inode-max
+.\" because Linux allocates them one page full at a time.
+\fInr_inodes\fP is the number of inodes the system has allocated.
+\fInr_free_inodes\fP represents the number of free inodes.
+
+\fIpreshrink\fP is nonzero when the \fInr_inodes\fP > \fIinode\-max\fP and the
+system needs to prune the inode list instead of allocating more; since Linux
+2.4, this field is a dummy value (always zero).
 .TP 
 \fI/proc/sys/fs/inotify\fP (Linux 2.6.13 以降)
 このディレクトリには、ファイル \fImax_queued_events\fP, \fImax_user_instances\fP, and
@@ -2202,14 +2270,26 @@ semantics of the applications using System V shared memory on your system.
 このディレクトリにはメモリ管理の調整、バッファやキャッシュ管理のための ファイルがある。
 .TP 
 \fI/proc/sys/vm/drop_caches\fP (Linux 2.6.16 以降)
-このファイルに書き込みを行うことで、クリーンなキャッシュ、dentry、 inode をメモリ上から外し、そのメモリを解放する。
+Writing to this file causes the kernel to drop clean caches, dentries, and
+inodes from memory, causing that memory to become free.  This can be useful
+for memory management testing and performing reproducible filesystem
+benchmarks.  Because writing to this file causes the benefits of caching to
+be lost, it can degrade overall system performance.
 
-ページキャッシュを解放するには、 \fIecho 1 > /proc/sys/vm/drop_caches\fP とする。 dentry、inode
-を解放するには、 \fIecho 2 > /proc/sys/vm/drop_caches\fP とする。ページキャッシュ、dentry、inode
-を解放するには、 \fIecho 3 > /proc/sys/vm/drop_caches\fP とする。
+To free pagecache, use:
 
-この操作は非破壊的な操作で、ダーティな (dirty) オブジェクトは 解放されないので、この操作を行う際は最初に \fBsync\fP(8)
-を実行しておくべきである。
+    echo 1 > /proc/sys/vm/drop_caches
+
+To free dentries and inodes, use:
+
+    echo 2 > /proc/sys/vm/drop_caches
+
+To free pagecache, dentries and inodes, use:
+
+    echo 3 > /proc/sys/vm/drop_caches
+
+このファイルへの書き込みは非破壊的な操作で、 ダーティな (dirty) オブジェクトは 解放されないので、 この操作を行う際は最初に
+\fBsync\fP(8) を実行しておくべきである。
 .TP 
 \fI/proc/sys/vm/legacy_va_layout\fP (Linux 2.6.9 以降)
 .\" The following is from Documentation/filesystems/proc.txt
@@ -2395,6 +2475,6 @@ kill されるだけかもしれない。 この場合には、カーネルパ�
 Linux カーネルのソースファイル: \fIDocumentation/filesystems/proc.txt\fP,
 \fIDocumentation/sysctl/vm.txt\fP
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.53 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
