@@ -176,10 +176,12 @@ struct flock {
 の場合はファイルの末尾からのオフセットと解釈される。 後ろの２つの場合には、 ファイルの先頭より前にならない範囲で、 \fIl_start\fP
 に負の値を指定することができる。
 
-\fIl_len\fP はロックしたいバイト数を示す。 \fIl_len\fP が正の場合、ロックされるバイト範囲は \fIl_start\fP 以上
-\fIl_start\fP+\fIl_len\fP\-\fI1\fP 以下となる。 \fIl_len\fP に 0 を指定した場合は特別な意味を持つ: \fIl_whence\fP
-and \fIl_start\fP で指定される位置からファイルの末尾までの全てのバイトをロックする
-(ファイルがどんなに大きくなったとしてもファイルの末尾までロックする)。
+\fIl_len\fP specifies the number of bytes to be locked.  If \fIl_len\fP is
+positive, then the range to be locked covers bytes \fIl_start\fP up to and
+including \fIl_start\fP+\fIl_len\fP\-1.  Specifying 0 for \fIl_len\fP has the special
+meaning: lock all bytes starting at the location specified by \fIl_whence\fP
+and \fIl_start\fP through to the end of file, no matter how large the file
+grows.
 
 POSIX.1\-2001 では、負の値の \fIl_len\fP をサポートする実装を認めている (必須ではない)。 \fIl_len\fP
 が負の場合、ロックされるバイト範囲は \fIl_start\fP+\fIl_len\fP 以上 \fIl_start\fP\-1 以下となる。 この動作はカーネル
@@ -238,11 +240,12 @@ POSIX.1\-2001 では、負の値の \fIl_len\fP をサポートする実装を�
 フラグが有効になっていないときは、ロックが削除されるか、 ロックがアクセスと互換性のあるモードに変換されるまで、 システムコールは停止 (block)
 される。 \fBO_NONBLOCK\fP フラグが有効になっているときは、システムコールはエラー \fBEAGAIN\fP で失敗する。
 
-強制ロックを使用するためには、ロック対象のファイルが含まれるファイルシステム
-と、ロック対象のファイル自身の両方について、強制ロックが有効になっていなけれ ばならない。ファイルシステムについて強制ロックを有効にするには、
-\fBmount\fP(8)  に "\-o mand" オプションを渡すか、 \fBmount\fP(2)  に \fBMS_MANDLOCK\fP
-フラグを指定する。ファイルについて強制ロックを有効にするには、 そのファイルのグループ実行許可 (group execute permission)
-を無効とし、 かつ set\-group\-ID 許可ビットを有効にする (\fBchmod\fP(1)  と \fBchmod\fP(2)  を参照)。
+To make use of mandatory locks, mandatory locking must be enabled both on
+the filesystem that contains the file to be locked, and on the file itself.
+Mandatory locking is enabled on a filesystem using the "\-o mand" option to
+\fBmount\fP(8), or the \fBMS_MANDLOCK\fP flag for \fBmount\fP(2).  Mandatory locking
+is enabled on a file by disabling group execute permission on the file and
+enabling the set\-group\-ID permission bit (see \fBchmod\fP(1)  and \fBchmod\fP(2)).
 
 Linux の強制ロックの実装は信頼性に欠けるものである。 下記の「バグ」の節を参照のこと。
 .SS シグナルの管理
@@ -418,9 +421,10 @@ breaker") がそのファイルディスクリプタが参照 しているファ
 解放したりできる。 また、これらのファイルディスクリプタのいずれかに対して \fBF_UNLCK\fP
 操作が明示的に実行された場合や、すべてのファイルディスクリプタが 閉じられた場合にも、リースは解放される。
 .P
-リースの取得は通常のファイル (regular file) に対してのみ可能である。 非特権プロセスがリースを取得できるのは、UID (所有者)
-がプロセスの ファイルシステム UID と一致するファイルに対してだけである。 \fBCAP_LEASE\fP
-ケーパビリティを持つプロセスは任意のファイルに対してリースを取得できる。
+Leases may be taken out only on regular files.  An unprivileged process may
+take out a lease only on a file whose UID (owner) matches the filesystem UID
+of the process.  A process with the \fBCAP_LEASE\fP capability may take out
+leases on arbitrary files.
 .TP 
 \fBF_GETLEASE\fP (\fIvoid\fP)
 ファイルディスクリプタ \fIfd\fP に対して設定されているリースの種別を取得する。 \fBF_RDLCK\fP, \fBF_WRLCK\fP, \fBF_UNLCK\fP
@@ -512,9 +516,9 @@ lease holder への通知に使われるデフォルトのシグナルは \fBSIG
 特に \fBDN_MULTISHOT\fP を使う場合は、通知にはリアルタイムシグナルを使うべきである。
 それは、リアルタイムシグナルを使うことで、複数の通知をキューに入れる ことができるからである。
 
-\fB注意:\fP 新しくアプリケーションを書く際には、(カーネル 2.6.13 以降で利用可能となった)  \fIinotify\fP
-インタフェースを使用すべきである。 \fIinotify\fP はファイルシステムイベントの通知を取得するための ずっと優れたインタフェースである。
-\fBinotify\fP(7)  を参照。
+\fBNOTE:\fP New applications should use the \fIinotify\fP interface (available
+since kernel 2.6.13), which provides a much superior interface for obtaining
+notifications of filesystem events.  See \fBinotify\fP(7).
 .SS パイプの容量の変更
 .TP 
 \fBF_SETPIPE_SZ\fP (\fIint\fP; Linux 2.6.35 以降)
@@ -675,6 +679,6 @@ Linux カーネルソースの \fIDocumentation/filesystems/\fP ディレクト�
 \fIDocumentation/\fP ディレクトリ直下にあり、 \fImandatory\-locking.txt\fP は \fImandatory.txt\fP
 という名前であった)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.53 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
