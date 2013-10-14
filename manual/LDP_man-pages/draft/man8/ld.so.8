@@ -68,7 +68,7 @@ Linux のバイナリは、コンパイルの時に \fBld\fP(1)  に対して \f
 それらの文字列は以下のように置き換えられる。
 .TP 
 \fI$ORIGIN\fP (\fI${ORIGIN}\fP も同じ)
-アプリケーションの実行ファイルが入っているディレクトリに展開される。 したがって、 \fIsomedir/app\fP に置かれたアプリケーションを
+これは、 アプリケーションの実行ファイルが入っているディレクトリに展開される。 したがって、 \fIsomedir/app\fP に置かれたアプリケーションを
 
     gcc \-Wl,\-rpath,\(aq$ORIGIN/../lib\(aq
 
@@ -77,8 +77,8 @@ Linux のバイナリは、コンパイルの時に \fBld\fP(1)  に対して \f
 特別なディレクトリではなく任意のディレクトリにインストールしても「ややこしい設定なしで」独自の共有ライブラリを使えるアプリケーションを作成することができる。
 .TP 
 \fI$LIB\fP (\fI${LIB}\fP も同じ)
-アーキテクチャに応じて \fIlib\fP か \fIlib64\fP に展開される (例えば、 x86\-64 では \fIlib64\fP に、 x86\-32 では
-\fIlib\fP に展開される)。
+This expands to \fIlib\fP or \fIlib64\fP depending on the architecture (e.g., on
+x86\-64, it expands to \fIlib64\fP and on x86\-32, it expands to \fIlib\fP).
 .TP 
 \fI$PLATFORM\fP (\fI${PLATFORM}\fP も同じ)
 .\" To get an idea of the places that $PLATFORM would match,
@@ -89,9 +89,11 @@ Linux のバイナリは、コンパイルの時に \fBld\fP(1)  に対して \f
 .\"
 .\" ld.so lets names be abbreviated, so $O will work for $ORIGIN;
 .\" Don't do this!!
-ホストシステムのプロセッサ種別に対応する文字列に展開される (例えば "x86_64")。
-いくつかのアーキテクチャでは、 Linux カーネルから動的リンカにプラットフォームを表す文字列が提供されない。 この文字列の値は補助ベクトルの
-\fBAT_PLATFORM\fP 値から取得される (\fBgetauxval\fP(3) 参照)。
+This expands to a string corresponding to the processor type of the host
+system (e.g., "x86_64").  On some architectures, the Linux kernel doesn't
+provide a platform string to the dynamic linker.  The value of this string
+is taken from the \fBAT_PLATFORM\fP value in the auxiliary vector (see
+\fBgetauxval\fP(3)).
 .SH オプション
 .TP 
 \fB\-\-list\fP
@@ -147,14 +149,18 @@ mmx, mtrr, pat, pbe, pge, pn, pse36, sep, ss, sse, sse2, tm
 4 つの重要な環境変数がある。
 .TP 
 \fBLD_ASSUME_KERNEL\fP
-(glibc 2.2.3 以降)  各共有ライブラリは動的リンカに必要なカーネル ABI の最小バージョンを通知することができる (必要なバージョンは
-ELF の note section に格納され、 \fIreadelf\ \-n\fP で \fBNT_GNU_ABI_TAG\fP
-のラベルが付いたセクションとして見ることができる)。 実行時に、 動的リンカは実行中のカーネルの ABI バージョンを判定し、 カーネルの ABI
-バージョンよりも大きな ABI の最小バージョンが指定された共有ライブラリのロードを行わない。
+(glibc since 2.2.3)  Each shared library can inform the dynamic linker of
+the minimum kernel ABI version that it requires.  (This requirement is
+encoded in an ELF note section that is viewable via \fIreadelf\ \-n\fP as a
+section labeled \fBNT_GNU_ABI_TAG\fP.)  At run time, the dynamic linker
+determines the ABI version of the running kernel and will reject loading
+shared libraries that specify minimum ABI versions that exceed that ABI
+version.
 
-\fBLD_ASSUME_KERNEL\fP を使うことで、 動的リンカに、 異なるカーネル ABI
-バージョンのシステムで実行されているかのように見せることができる。 例えば、 以下のコマンドラインを実行すると、 動的リンカは \fImyprog\fP
-が必要とする共有ライブラリをロードする際に Linux 2.2.5 上で動作していると仮定する。
+\fBLD_ASSUME_KERNEL\fP can be used to cause the dynamic linker to assume that
+it is running on a system with a different kernel ABI version.  For example,
+the following command line causes the dynamic linker to assume it is running
+on Linux 2.2.5 when loading the shared libraries required by \fImyprog\fP:
 
 .in +4n
 .nf
@@ -162,11 +168,14 @@ $ \fBLD_ASSUME_KERNEL=2.2.5 ./myprog\fP
 .fi
 .in
 
-必要なカーネル ABI の最低バージョンが異なる複数の共有ライブラリが (検索パス中の異なるディレクトリに) あるシステムでは、
-\fBLD_ASSUME_KERNEL\fP を使って (ディレクトリ検索順序に基づき) 使用するライブラリのバージョンを選択することができる。
-歴史的に見ると、 \fBLD_ASSUME_KERNEL\fP の最も一般的な使い道は、 LinuxThreads と NPTL
-の両方を提供しているシステムで、 古い LinuxThreads の POSIX スレッド実装を手動で選択するためであった
-(そのようなシステムでは、通常は NPTL がデフォルトであった)。 \fBpthreads\fP(7) を参照。
+On systems that provide multiple versions of a shared library (in different
+directories in the search path) that have different minimum kernel ABI
+version requirements, \fBLD_ASSUME_KERNEL\fP can be used to select the version
+of the library that is used (dependent on the directory search order).
+Historically, the most common use of the \fBLD_ASSUME_KERNEL\fP feature was to
+manually select the older LinuxThreads POSIX threads implementation on
+systems that provided both LinuxThreads and NPTL (which latter was typically
+the default on such systems); see \fBpthreads\fP(7).
 .TP 
 \fBLD_BIND_NOT\fP
 (glibc 2.2 以降) シンボルを解決した際、Global Offset Table (GOT) と Procedure Linkage
@@ -318,8 +327,8 @@ Linux 1.1.52 以降と libc5 以降で使用可能である。
 .\" ld-linux.so: Roland McGrath, Ulrich Drepper and others.
 .\"
 .\" In the above, (libc5) stands for David Engel's ld.so/ld-linux.so.
-\fBldd\fP(1), \fBgetauxval\fP(3), \fBrtld\-audit\fP(7), \fBldconfig\fP(8), \fBsln\fP(8)
+\fBldd\fP(1), \fBsln\fP(1), \fBgetauxval\fP(3), \fBrtld\-audit\fP(7), \fBldconfig\fP(8)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.53 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

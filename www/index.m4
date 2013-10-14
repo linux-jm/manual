@@ -17,9 +17,6 @@ m4_dnl _MIRROR_LIST
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.54 対応版)を公開しました。
- <SMALL>(2013/10/14)</SMALL>
-
  <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.53 対応版)を公開しました。
  <SMALL>(2013/08/16)</SMALL>
 
