@@ -44,27 +44,32 @@
 .\" Modified 2005-02-24, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SETFSUID 2 2010\-11\-22 Linux "Linux Programmer's Manual"
+.TH SETFSUID 2 2013\-08\-08 Linux "Linux Programmer's Manual"
 .SH 名前
 setfsuid \- ファイルシステムのチェックに用いられるユーザ ID を設定する
 .SH 書式
-\fB#include <unistd.h>\fP /* glibc では <sys/fsuid.h> */
+\fB#include <sys/fsuid.h>\fP
 .sp
 \fBint setfsuid(uid_t \fP\fIfsuid\fP\fB);\fP
 .SH 説明
-\fBsetfsuid\fP()  は Linux カーネルがファイルシステムに対する 全てのアクセスのチェックに使用するユーザID を設定する。通常は
-\fIfsuid\fP の値は実効 (effective) ユーザID と同じになる。実際、 実効ユーザID が変更される度に \fIfsuid\fP
-もまた新しい実効ユーザID の値に変更される。
+The system call \fBsetfsuid\fP()  changes the value of the caller's filesystem
+user ID\(emthe user ID that the Linux kernel uses to check for all accesses
+to the filesystem.  Normally, the value of the filesystem user ID will
+shadow the value of the effective user ID.  In fact, whenever the effective
+user ID is changed, the filesystem user ID will also be changed to the new
+value of the effective user ID.
 
 通常、 \fBsetfsuid\fP()  や \fBsetfsgid\fP() を明示的に呼び出すのは、Linux NFS サーバー のように、
 ファイルアクセスに用いるユーザID / グループID を変更しなければならないが、 対応する実(real)/実効(effective) ユーザID /
 グループID は変更したくないような プログラムに限られる。 NFS サーバーのようなプログラムで、通常のユーザID を変更すると、
 プロセスを望まないシグナルにさらす可能性があり、 セキュリティホールになる。(下記参照)
 
-\fBsetfsuid\fP()  は、スーパーユーザによって呼び出された場合か、 \fIfsuid\fP が実ユーザID、実効ユーザID、 保存セットユーザID
-(saved set\-user\-ID)、現在の \fIfsuid\fP の値のいずれかに一致する場合にのみ成功する。
+\fBsetfsuid\fP()  will succeed only if the caller is the superuser or if
+\fIfsuid\fP matches either the caller's real user ID, effective user ID, saved
+set\-user\-ID, or current filesystem user ID.
 .SH 返り値
-成功した場合、 \fIfsuid\fP の以前の値を返す。エラーの場合は \fIfsuid\fP の現在の値を返す。
+On both success and failure, this call returns the previous filesystem user
+ID of the caller.
 .SH バージョン
 .\" This system call is present since Linux 1.1.44
 .\" and in libc since libc 4.7.6.
@@ -75,8 +80,19 @@ setfsuid \- ファイルシステムのチェックに用いられるユーザ I
 glibc が引き数がユーザID として不正だと判断した場合は、 システムコールを行わず \fIerrno\fP に \fBEINVAL\fP を設定して \-1
 が返される。
 .LP
-このシステムコールが導入された当時、プロセスは 同じ実効ユーザIDのプロセスへシグナルを送ることができた。
-今日では、シグナル送信権限の扱いはかなり違うものになっている。
+At the time when this system call was introduced, one process could send a
+signal to another process with the same effective user ID.  This meant that
+if a privilged process changed its effective user ID for the purpose of file
+permission checking, then it could become vulnerable to receiving signals
+sent by another (unprivileged) process with the same user ID.  The
+filesystem user ID attribute was thus added to allow a process to change its
+user ID for the purposes of file permission checking without at the same
+time becoming vulnerable to receiving unwanted signals.  Since Linux 2.0,
+signal permission handling is different (see \fBkill\fP(2)), with the result
+that a process change can change its effective user ID without being
+vulnerable to receiving signals from unwanted processes.  Thus,
+\fBsetfsuid\fP()  is nowadays unneeded and should be avoided in new
+applications (likewise for \fBsetfsgid\fP(2)).
 
 元々の Linux の \fBsetfsuid\fP() システムコールは
 16 ビットのグループ ID だけに対応していた。
@@ -85,11 +101,17 @@ glibc が引き数がユーザID として不正だと判断した場合は、 �
 glibc の \fBsetfsuid\fP() のラッパー関数は
 カーネルバージョンによるこの違いを吸収している。
 .SH バグ
-いかなる種類のエラーメッセージも呼び出し元に返さない。 失敗した場合は (呼び出し元には \fBCAP_SETUID\fP ケーパビリティがなかったのだから)
-最低でも \fBEPERM\fP くらいは返すべきである。
+No error indications of any kind are returned to the caller, and the fact
+that both successful and unsuccessful calls return the same value makes it
+impossible to directly determine whether the call succeeded or failed.
+Instead, the caller must resort to looking at the return value from a
+further call such as \fIsetfsuid(\-1)\fP (which will always fail), in order to
+determine if a preceding call to \fBsetfsuid\fP()  changed the filesystem user
+ID.  At the very least, \fBEPERM\fP should be returned when the call fails
+(because the caller lacks the \fBCAP_SETUID\fP capability).
 .SH 関連項目
 \fBkill\fP(2), \fBsetfsgid\fP(2), \fBcapabilities\fP(7), \fBcredentials\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.53 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
