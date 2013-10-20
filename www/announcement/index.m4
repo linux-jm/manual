@@ -8,6 +8,13 @@ _HEADER(`JM Project: 過去のお知らせ')
  </DIV>
 
 <UL>
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages) の公開方針を変更しました。
+ <SMALL>(2013/03/25)</SMALL>
+ <UL>
+  <LI>一部ページは原文が混じっているものがあります。 LDP man-pages の翻訳では、ドキュメントの正確性を重視し、一部分翻訳が追従していない状態でも公開しております (翻訳率 80% が基準)。
+  <LI>LDP man-pages の翻訳状況は <a href="http://git.sourceforge.jp/view?p=linuxjm/jm.git;a=blob_plain;f=manual/LDP_man-pages/untrans.html;hb=HEAD">こちら</a>で確認できます。
+ </UL>
+
  <LI>JM で配布する manpage の文字コードを EUC-JP に UTF-8 に変更しました。<SMALL>(2012/04/10)</SMALL>
  <UL>
   <LI>日本語マニュアルを EUC-JP で扱うディストリビューションでは、

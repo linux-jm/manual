@@ -20,21 +20,8 @@ m4_dnl _MIRROR_LIST
  <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.54 対応版)を公開しました。
  <SMALL>(2013/10/14)</SMALL>
 
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.53 対応版)を公開しました。
- <SMALL>(2013/08/16)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.51 対応版)を公開しました。
- <SMALL>(2013/05/01)</SMALL>
-
  <LI>_LINK(INDEX/gnu.html#GNU_sed,GNU sed 4.2.2 の翻訳)を公開しました。
  <SMALL>(2013/04/30)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.50 対応版)を公開しました。
- <SMALL>(2013/03/25)</SMALL>
- <UL>
-  <LI>一部ページは原文が混じっているものがあります。 LDP man-pages の翻訳では、ドキュメントの正確性を重視し、一部分翻訳が追従していない状態でも公開しております (翻訳率 80% が基準)。
-  <LI>LDP man-pages の翻訳状況は <a href="http://git.sourceforge.jp/view?p=linuxjm/jm.git;a=blob_plain;f=manual/LDP_man-pages/untrans.html;hb=HEAD">こちら</a>で確認できます。
- </UL>
 
  <LI>_LINK(INDEX/misc.html#cups,cups 1.5.3 の翻訳)を公開しました。
  <SMALL>(2012/07/07)</SMALL>
@@ -44,9 +31,6 @@ m4_dnl _MIRROR_LIST
 
  <LI>_LINK(INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.16 の翻訳)を公開しました。
  <SMALL>(2012/04/21)</SMALL>
-
- <LI>_LINK(INDEX/gnu.html#GNU_bash,GNU bash 4.2 の翻訳)を公開しました。
- <SMALL>(2012/04/01)</SMALL>
 
 </UL>
 
