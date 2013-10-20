@@ -161,28 +161,12 @@ _LINK(http://www.namazu.org/,Namazu)
 -->
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<H2><A NAME="ABOUTJM">JM Project について</A></H2>
+<H2><A NAME="ABOUTJM">JM Project の活動</A></H2>
 <P>
- JM Project は日本語オンラインマニュアルパッケージの作成、
- 配布を行なっているプロジェクトです。
-</P>
-<UL>
- <LI>
- _LINK(http://sourceforge.jp/projects/linuxjm/,SourceForge.JP プロジェクトページ) |
- _LINK(http://sourceforge.jp/projects/linuxjm/lists/archive/discuss/,Linux JM メーリングリスト) |
+ 翻訳状況、翻訳手順、管理者向け情報などは
  _LINK(http://sourceforge.jp/projects/linuxjm/wiki/FrontPage,JM Project Wiki)
- </LI>
- <LI>
- _LINK(http://sourceforge.jp/projects/linuxjm/scm/git/jm/,JM Git Repository) |
- _LINK(https://www.transifex.net/projects/p/man-pages-ja/,LDP man-pages-ja on Transifex) |
- _LINK(html/,HTML ページ) | _LINK(manual/,roff ページ) | _LINK(pod/,pod ページ)
- </LI>
-</UL>
-
-<UL>
- <LI>_LINK(INDEX/progress.html,翻訳作業状況)</LI>
- <LI>_LINK(guidance/index.html,JM 翻訳作業の手引き)</LI>
-</UL>
+ に掲載しています。
+</P>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="BUGREPORT">バグレポートをお寄せください</A></H2>
