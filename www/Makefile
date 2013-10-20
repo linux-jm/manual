@@ -24,7 +24,6 @@ CONTENTS = index.html download.html section.html copyright.html \
 #
 all: contents
 	make -C INDEX/
-	make -C guidance/ WWWROOT=$(WWWROOT)
 	make -C man-ja/
 	make -C rpm/ DATE=$(DATE)
 	make -C announcement/
@@ -54,12 +53,10 @@ clean:
 	-$(RM) -rf per-pkg/
 	-$(RM) -f rpm/*.rpm rpm/index.html
 	make -C INDEX/ clean
-	make -C guidance/ clean
 	make -C man-ja/ clean
 	make -C announcement/ clean
 
 install: all
-	$(MAKE) -C guidance  WWWROOT=$(WWWROOT) install
 	$(RSYNC) -a --delete -v \
 	--exclude='bin' \
 	--exclude='*.m4' \
