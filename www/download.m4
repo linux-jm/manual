@@ -14,10 +14,10 @@ m4_dnl _MIRROR_LIST(download.html)
 
 <P>
  roff ページのアーカイブです。
- 今後は定期的に更新の予定です。
+ 毎月 15日に更新しています。
 </P>
 
-<P>なお、各 roff ページの文字コードは UTF-8 にしています。</P>
+<P>なお、各 roff ページの文字コードは UTF-8 です。</P>
 
 <H2>全体のアーカイブ</H2>
 <UL>
@@ -26,15 +26,6 @@ m4_dnl _MIRROR_LIST(download.html)
  <LI>アーカイブの _LINK(INSTALL.html,INSTALL ファイル)</LI>
 </UL>
 
-<H2>RPM ファイル</H2>
- m4_esyscmd(./bin/link-rpms.perl _DATE ./)
-<P>
- 上記アーカイブをもとにして作成した RPM パッケージです。
- パッケージに関する説明は
- _LINK(rpm/index.html,JM RPM/SRPM パッケージ)
- をご覧になってください。
-</P>
- 
 <H2>パッケージ別アーカイブ</H2>
  m4_esyscmd(./bin/link-partial-archives.perl _DATE)
 
