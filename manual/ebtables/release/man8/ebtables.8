@@ -1,0 +1,1316 @@
+.TH EBTABLES 8  "December 2011"
+.\"
+.\" Man page written by Bart De Schuymer <bdschuym@pandora.be>
+.\" It is based on the iptables man page.
+.\"
+.\" The man page was edited, February 25th 2003, by
+.\"      Greg Morgan <" dr_kludge_at_users_sourceforge_net >
+.\"
+.\" Japanese translation, Feburary 27th 2014, by
+.\"      Hiroaki KAWAI <" kawai_at_stratosphere_co_jp >
+.\"
+.\" Iptables page by Herve Eychenne March 2000.
+.\"
+.\"     This program is free software; you can redistribute it and/or modify
+.\"     it under the terms of the GNU General Public License as published by
+.\"     the Free Software Foundation; either version 2 of the License, or
+.\"     (at your option) any later version.
+.\"
+.\"     This program is distributed in the hope that it will be useful,
+.\"     but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"     GNU General Public License for more details.
+.\"
+.\"     You should have received a copy of the GNU General Public License
+.\"     along with this program; if not, write to the Free Software
+.\"     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.\"
+.SH 名前
+ebtables (v2.0.10-4) \- Ethernet bridge frame table administration
+.SH 書式
+.BR "ebtables " [ -t " table ] " - [ ACDI "] chain rule specification [match extensions] [watcher extensions] target"
+.br
+.BR "ebtables " [ -t " table ] " -P " chain " ACCEPT " | " DROP " | " RETURN
+.br
+.BR "ebtables " [ -t " table ] " -F " [chain]"
+.br
+.BR "ebtables " [ -t " table ] " -Z " [chain]"
+.br
+.BR "ebtables " [ -t " table ] " -L " [" -Z "] [chain] [ [" --Ln "] | ["--Lx "] ] [" --Lc "] [" --Lmac2 ]
+.br
+.BR "ebtables " [ -t " table ] " -N " chain [" "-P ACCEPT " | " DROP " | " RETURN" ]
+.br
+.BR "ebtables " [ -t " table ] " -X " [chain]"
+.br
+.BR "ebtables " [ -t " table ] " -E " old-chain-name new-chain-name"
+.br
+.BR "ebtables " [ -t " table ] " --init-table
+.br
+.BR "ebtables " [ -t " table ] [" --atomic-file " file] " --atomic-commit
+.br
+.BR "ebtables " [ -t " table ] [" --atomic-file " file] " --atomic-init
+.br
+.BR "ebtables " [ -t " table ] [" --atomic-file " file] " --atomic-save
+.br
+.SH 説明
+.B ebtables
+は (Linux kernel内にある) Ethernetフレームの検査ルールを設定管理するプロ
+グラムである。
+.B iptables
+に類似しているが、 Ethernet プロトコルは IP プロトコルよりもずっと単純な
+ので、
+それほど込み入ってはいない。
+.SS チェイン
+3 つの ebtables テーブルがあり、それらの持つチェインは Linux kernel に組
+み込まれている。
+これらのテーブルを使って、機能ごとに別々のルールセットとして整理している。
+それぞれのルールセットのことをチェインと呼んでいる。
+チェインとは Ethernet フレームにマッチングする順序づけられたルールの一覧
+である。
+ルールがある Ethernet フレームにマッチングすると、その対象フレームにどう
+いった処理を施すかが決まる。
+処理の指定は「ターゲット」と呼ばれている。現在のルールにマッチングしな
+かった場合は、
+次のルールが検査される。「ターゲット」として、 (ユーザ独自の) 新しいチェ
+インを作ることもできる。
+ユーザ定義チェインを使うと、ルールを線形検索するのと比べてパフォーマンス
+を改善したり、
+管理しやすい構造化されたフィルタリングルールを構成したりできる。
+.SS ターゲット
+Ethernet フレームに対するファイアウォールルール指定や処理は、ターゲット
+と呼ばれる。
+フレームがルールにマッチングしたときに kernel が次に行う処理は、ターゲッ
+トで指定される。
+ターゲットは次のいずれかの値をとる:
+.BR ACCEPT ,
+.BR DROP ,
+.BR CONTINUE ,
+.BR RETURN ,
+ 'extension' の 1 つ (後述) あるいはユーザ定義チェインへのジャンプ。
+.PP
+.B ACCEPT
+はフレームを通過させる意味になる。
+.B DROP
+はフレームを破棄することを意味する。
+.B BROUTING
+チェイン内では、
+.B ACCEPT
+と
+.B DROP
+は異なる意味を持っている (
+.B -t
+オプションで表示される情報を参照すること) 。
+.B CONTINUE
+は次のルールをチェックすることを意味する。このターゲットは例えば、
+ある地点を通過したフレームの数を数えたり、ログを取ったり、
+フレームに複数のターゲットを適用するのに便利である。
+.B RETURN
+はチェインの探索を打ち切り、前の (呼び出し元の) チェインの次のルールから
+再開することを意味する。
+target extension については、この man ページの
+.B TARGET EXTENSION
+セクションを参照すること。
+.SS テーブル
+前述のとおり Linux kernel には 3 つの ebtables テーブルがある。
+.BR filter ,
+.B nat
+と
+.B broute
+という名前がついている。これら 3 つのテーブルのうち、filter
+テーブルがコマンドのデフォルトのテーブルである。つまり filter
+テーブルについては ebtables の '-t filter' 引数を省略できる。その他 2 つ
+のテーブルについては
+-t 引数が必要である。また -t 引数を使う際は、 ebtables コマンドの最初の
+引数でなければならない。
+.TP
+.B "-t, --table"
+.br
+.B filter
+がデフォルトのテーブルで、3 つの組み込みチェインがある:
+.B INPUT
+(送信先 MAC アドレスのレベルでブリッジ自身に送られたフレームに対して),
+.B OUTPUT
+(local で生成された、あるいは (b)route されたフレームに対して) と
+.B FORWARD
+(ブリッジで転送されるフレームに対して) である。
+.br
+.br
+.B nat
+は MAC アドレスを変更するために使われるもので、3 つの組み込みチェインが
+ある。
+.B PREROUTING
+(フレームが入ってきた時点で変更するため),
+.B OUTPUT
+(local で生成された、あるいは (b)route されたフレームをブリッジする前に
+変更するため) と
+.B POSTROUTING
+ (フレームが出力される時点で変更するため) である。PREROUTING と POSTROUTING
+の名称については、より正確には PREFORWARDING, POSTFORWARDING と呼ばれる
+べきものだが、
+iptables と ebtables の用語を合わせたほうが簡単だということで、このよう
+になっている。
+もしこのデフォルトの名称が気に入らない場合は、変更できる (
+.B -E
+オプション) 。
+.br
+.br
+.B broute
+で brouter を作ることができて、
+.B BROUTING
+という組み込みチェインが1つだけある。
+.B DROP
+と
+.B ACCEPT
+ターゲットは broute テーブル内では特殊な意味を持っている (実装を単純化す
+るために、
+説明的な名称をあえて使っていない) 。
+.B DROP
+はフレームが route されることを意味し、
+.B ACCEPT
+はフレームがブリッジされることを意味する。
+.B BROUTING
+チェインは、とても早い段階で検査される。
+ただしブリッジポートに入ってきて転送状態になっているフレームについてのみ
+検査される。
+フレームは通常ブリッジされるが、ここでその処理を変更できる。
+.B redirect
+ターゲットが便利だ。
+.SH EBTABLES コマンドライン引数
+最初の '-t table' コマンド引数の後に続く引数は、いくつかのグループ、
+「コマンド」「その他コマンド」「ルール指定 (rule specification) 」
+「match extension」
+「watch extension」と「target extension」に分類される。
+.SS コマンド
+ebtables コマンドは -t 引数で定義されたテーブルに対して行う処理を指定する。
+-t 引数を使わなかった場合、デフォルトの filter テーブルに適用される。一
+度には 1
+つのコマンドしか使えない。
+.B -L
+と
+.B -Z
+の組み合わせ、
+.B -N
+と
+.B -P
+の組み合わせ、あるいは
+.B --atomic-file
+を使ったときは例外として複数のコマンドを使える。
+.TP
+.B "-A, --append"
+チェインの最後にルールを追加する。
+.TP
+.B "-D, --delete"
+チェインから指定したルールを削除する。二通りの使い方がある。一つ目の使い
+方は、ルール番号の区間を (
+.B -D
+直後に) 指定する方法である。構文: \fIstart_nr\fP[\fI:end_nr\fP] (
+.B -L --Ln
+を使ってルール番号を表示できる) \fIend_nr\fP が省略された場合
+は、\fIstart_nr\fP
+以降のルールすべてが削除される。負の数も使えるが、詳細は
+.B -I
+引数を参照すること。二つ目の使い方は、追加時と全く同じ完全なルールを使っ
+て指定する方法である。
+合致するルールのうち、一番最初に見つかったもの、つまり最も小さな (正の)
+ルール番号のもののみが削除される。
+.TP
+.B "-C, --change-counters"
+チェイン内にあるルールのカウンタを変更する。二通りの使い方がある。一つ目
+はルール番号の区間を使って (
+.B -C
+直後に) 指定する方法である。
+構文: \fIstart_nr\fP[\fI:end_nr\fP] (
+.B `-L --Ln
+を使ってルール番号を表示できる) 詳細は
+.B -D
+と同様である。二つ目の使い方は、追加時と全く同じ完全なルールを使って指定
+する方法である。
+合致するルールのうち、一番最初に見つかったもの、つまり最も小さな (正の)
+ルール番号のカウンタのみが変更される。
+カウンタ値は、一つ目の方法ではルール区間の直後に指定し、二つ目の方法では
+.B -C
+の直後に指定する。最初にパケットカウンタ値を指定し、次にバイトカウンタ値
+を指定する。
+カウンタ値が '+' で始まっている場合、カウンタ値は現在値にそれぞれ追加し
+た値になる。
+カウンタ値が '-' で始まる場合は、現在値から差し引いた値になる。境界値の
+検査は行われない。
+ '+' や '-' で始まらなかった場合は、指定した値そのものに変更される。
+.TP
+.B "-I, --insert"
+指定したルール番号の位置にルールを追加する。ルール番号が未指定の場合、
+チェインの先頭に追加される。ルールが
+.I N
+個あった場合、
+.I -N
+から
+.I N+1
+の間の数を指定できる。正の数
+.I i
+があったとして、
+.I i
+と
+.I i-N-1
+はチェイン上での同じ挿入位置となる。ルール番号 0 はチェインの最後のルー
+ルを示し、
+.B -A
+コマンドを使ったときと同じになる。0より小さいルール番号は複数のルールを
+一つのチェインに挿入する際に便利である。
+.TP
+.B "-P, --policy"
+チェインのポリシーを、指定したターゲットに設定する。ポリシーは
+.B ACCEPT
+,
+.B DROP
+,
+.B RETURN
+のいずれかである。
+.TP
+.B "-F, --flush"
+指定したチェインを flush する。チェイン指定がない場合、全てのチェインが
+flush される。
+flush ではチェインのポリシーは変更されない。
+.TP
+.B "-Z, --zero"
+指定したチェインのカウンタを 0 にする。チェイン指定がない場合、全ての
+チェインでのカウンタが 0 になる。
+.B "-Z"
+コマンドは
+.B "-L"
+と組み合わせて使える。
+.B "-Z"
+と
+.B "-L"
+を同時に使うと、0 にされる前のカウンタ値が出力される。
+.TP
+.B "-L, --list"
+指定したチェインにあるルール一覧を出力する。チェイン指定がない場合、全て
+のチェインについて一覧が出力される。
+.br
+.B -L
+コマンドの出力形式には次のオプションがある。
+.br
+.B "--Ln"
+.br
+全てのルールの行頭にルール番号を出力する。
+.B --Lx
+とは組み合わせられない。
+.br
+.B "--Lc"
+.br
+全てのルールの行末にルール番号を出力する。フレームカウンタ値 (pcnt) とバ
+イトカウンタ値 (bcnt)
+の両方が表示される。フレームカウンタ値は、あるルールにマッチングした回数
+を示していて、
+バイトカウンタ値はこれらのフレームのサイズを合計した値となる。
+.B --Lx
+オプションと組み合わせると、カウンタ値は
+.B -c <pcnt> <bcnt>
+の形式で出力される。
+.br
+.B "--Lx"
+.br
+チェインの内容を再構築できるような ebtables コマンドの形式で出力する。
+チェイン指定がない場合、
+(もしあれば) ユーザ定義のチェインも含めて、テーブル全体を構築できる
+ebtables コマンドが出力される。
+このコマンドを使って ebtables の起動・再起動スクリプトを作成できる。
+例えばこのコマンドの出力をシステム起動時に使える。
+.B --Lx
+オプションは
+.B --Ln
+オプションと互換性がない。
+.B --Lx
+を
+.B --Lc
+と同時に使うと、カウンタが
+.B -c <pcnt> <bcnt>
+の形式で出力される。
+.br
+.B "--Lmac2"
+.br
+必要に応じて0パディングして、全 MAC アドレスを同じ長さで表示する。
+デフォルトの表示形式では、アドレス先頭の 0 は省略される。
+.TP
+.B "-N, --new-chain"
+指定した名前の新しいユーザ定義チェインを作る。ユーザ定義チェインの個数の
+上限は、
+作り得る名前の数に限られる。ユーザ定義のチェイン名は 31 文字までである。
+ユーザ定義チェインのデフォルトのポリシーは ACCEPT である。
+.B -P
+コマンドを
+.B -N
+コマンドと同時に使うことで新規チェインのポリシーを標準のターゲットと異な
+るもので初期化できる。
+この場合
+.B -P
+コマンドにチェイン名の指定は不要である。
+.TP
+.B "-X, --delete-chain"
+ユーザ定義チェインを削除する。対象チェインを参照している (jumpしてくる)
+ものが残っていてはいけない。
+残っていると ebtables は削除を拒否する。
+チェイン指定がない場合、参照されていない全てのユーザ定義チェインが削除さ
+れる。
+.TP
+.B "-E, --rename-chain"
+指定したチェインを新しい名前に変更する。ユーザ定義チェインの名前を変更で
+きるのはもちろんのこと、
+標準チェインの名前を好きなものに変更することもできる。例えば PREROUTING
+ではなく
+PREFORWARDING にしたい場合、-E コマンドで PREROUTING チェインの名前を変
+更できる。
+標準チェインの名前を変更していたら、ebtables メーリングリストに投稿する
+際には、
+そのことについて言及すること。この ebtables 標準チェインの名称変更では、
+kernel
+ebtables table の構造は影響をうけない。
+.TP
+.B "--init-table"
+現在のテーブルデータを初期テーブルデータで置き換える。
+.TP
+.B "--atomic-init"
+テーブルの kernel の初期データを指定したファイルにコピーする。
+ルールがファイルに追加された後の最初の処理にできる。ファイル名は
+.B --atomic-file
+コマンドを使った指定か、あるいは
+.I EBTABLES_ATOMIC_FILE
+環境変数で指定できる。
+.TP
+.B "--atomic-save"
+kernel の現在のテーブルデータを指定したふぁあいるにコピーする。
+ルールがファイルに追加された後の最初の処理にできる。ファイル名は
+.B --atomic-file
+コマンドを使った指定か、あるいは
+.I EBTABLES_ATOMIC_FILE
+環境変数で指定できる。
+.TP
+.B "--atomic-commit"
+kernel テーブルデータを指定したファイルにあるデータで置き換える。ある
+テーブルの全ルールを
+kernel に一度にロードし、kernel 時間を大幅に節約しつつもアトミックなテー
+ブルの更新を行うので、
+便利なコマンドである。テーブルデータが入っているファイルは
+.B "--atomic-init"
+や
+.B "--atomic-save"
+コマンドで出力した起動ファイルで構成する。その後
+.B "--atomic-file"
+コマンドでルールを構成したり
+.I EBTABLES_ATOMIC_FILE
+環境変数を使うことで、ファイルを拡張したりして完全なテーブルを組み上げた
+後に kernel
+に登録できる。このコマンドは boot スクリプトで ebtables を高速に組み上げ
+るのに大変便利である。
+.SS その他コマンド
+.TP
+.B "-V, --version"
+ebtables ユーザスペースプログラムのバージョンを表示する。
+.TP
+.BR "-h, --help " "[\fIlist of module names\fP]"
+コマンドの構文についての簡単な解説を出力する。extension の名前を指定する
+こともできて、そうすると
+ebtables はこれらの extension のヘルプを表示する。例えば
+.I ebtables -h snat log ip arp
+である。
+.I list_extensions
+と指定すると、ユーザスペースユーティリティでサポートされている全
+extension を出力する。
+.TP
+.BR "-j, --jump " "\fItarget\fP"
+ルールのターゲットである。これは次のいずれかの値をとる:
+.B ACCEPT
+,
+.B DROP
+,
+.B CONTINUE
+,
+.B RETURN
+, target extension (
+.B TARGET EXTENSION
+を参照すること) あるいはユーザ定義チェイン名。
+.TP
+.B --atomic-file "\fIfile\fP"
+preferred,
+指定したファイルに対してコマンドを実行する。
+操作対象のテーブルのデータはファイルから読み取って構築し、操作した結果は
+再びファイルに書き戻される。
+指定する際はコマンド指定の前に置くべきである。他のやり方としては、
+.I EBTABLES_ATOMIC_FILE
+環境変数を使う方法がある。
+.TP
+.B -M, --modprobe "\fIprogram\fP"
+kernel とやり取りする際に、kernel module に
+.I program
+が自動的にロードされるようにする。
+.TP
+.B --concurrent
+ebtables kernel テーブルを更新するスクリプトが同時に複数実行されても大丈
+夫なように、ファイルロックを使いる。
+
+.SS ルール指定
+ルール指定は次のコマンドライン引数で (追加削除のコマンドで使うことで) 構
+築される。
+"!" オプションを指定の前につけると、その否定の意味になる。
+下記の標準ルール指定の他にもいくつか興味深い引数がある。
+.B MATCH EXTENSION
+と
+.B WATCHER EXTENSION
+を参照すること。
+.TP
+.BR "-p, --protocol " "[!] \fIprotocol\fP"
+フレームを構成しているプロトコル。
+.I 0x0600
+より大きい hex の数値か、名前 (例えば
+.I ARP
+) あるいは
+.B LENGTH
+を指定できる。(802.2/802.3ネットワークにおいては) Ethernet フレームのプ
+ロトコルフィールドは、
+ヘッダの長さを表すこともできる。値が
+.I 0x0600
+より小さいか等しいときは、その値はヘッダサイズと等しく、プロトコル番号と
+して扱ってはいけない。
+そのかわり、プロトコルフィールドが長さフィールドとして使われている全ての
+フレームは同じ 'protocol'
+として扱われる。ebtables での、これらのフレームのプロトコル名は
+.B LENGTH
+である。
+.br
+.B /etc/ethertype
+ファイルを見ると、プロトコルを指定する hex 数値の代わりに可読な文字列表
+現が記載されている。例えば
+.I 0x0800
+は
+.I IPV4
+で表現できる。このファイルは大文字小文字を区別しない。詳細はファイルを参
+照すること。
+.B --proto
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "-i, --in-interface " "[!] \fIname\fP"
+フレームを受信したインターフェース (ブリッジポート) を指定する (このオプ
+ションは
+.B INPUT
+,
+.B FORWARD
+,
+.B PREROUTING
+や
+.B BROUTING
+チェインで有効です) 。インターフェース名が '+' で終わっている場合、その
+名前で始まる
+('+'自体は除く) インターフェース名全てがマッチングする。
+.B --in-if
+はこのオプションのエイリアスである。
+.TP
+.BR "--logical-in " "[!] \fIname\fP"
+will match.
+フレームを受信した (論理的な) ブリッジインターフェースを指定する (このオ
+プションは
+.B INPUT
+,
+.B FORWARD
+,
+.B PREROUTING
+や
+.B BROUTING
+チェインで有効です) 。インターフェース名が '+' で終わっている場合、その
+名前で始まる ('+'自体は除く)
+インターフェース名全てがマッチングする。
+.TP
+.BR "-o, --out-interface " "[!] \fIname\fP"
+フレームが送出されるインターフェース (ブリッジポート) を指定する (このオ
+プションは
+.B OUTPUT
+,
+.B FORWARD
+,
+.B POSTROUTING
+チェインで有効です) 。インターフェース名が '+' で終わっている場合、その
+名前で始まる ('+'自体は除く)
+インターフェース名全てがマッチングする。
+.B --out-if
+はこのオプションのエイリアスである。
+.TP
+.BR "--logical-out " "[!] \fIname\fP"
+フレームが送出される (論理的な) ブリッジインターフェースを指定する (この
+オプションは
+.B OUTPUT
+,
+.B FORWARD
+,
+.B POSTROUTING
+チェインで有効です) 。インターフェース名が '+' で終わっている場合、その
+名前で始まる ('+'自体は除く)
+インターフェース名全てがマッチングする。
+.TP
+.BR "-s, --source " "[!] \fIaddress\fP[/\fImask\fP]"
+送信元 MAC アドレス。マスクとアドレスの両方とも hex 数値 6 つをコロン区
+切りで記述する。あるいは
+Unicast, Multicast, Broadcast あるいは BGA (Bridge Group Address) を指定
+できる:
+.br
+.I Unicast =00:00:00:00:00:00/01:00:00:00:00:00
+,
+.I Multicast =01:00:00:00:00:00/01:00:00:00:00:00
+,
+.I Broadcast =ff:ff:ff:ff:ff:ff/ff:ff:ff:ff:ff:ff
+あるいは
+.I BGA =01:80:c2:00:00:00/ff:ff:ff:ff:ff:ff
+である。ブロードキャストあどれすはマルチキャストアドレスにもマッチングす
+ることに注意すること。
+.B --src
+はこのオプションのエイリアスである。
+.TP
+.BR "-d, --destination " "[!] \fIaddress\fP[/\fImask\fP]"
+送信先 MAC アドレス。MAC アドレスの詳細については
+.B -s
+オプションを参照すること。
+.B --dst
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "-c, --set-counter " "\fIpcnt bcnt\fP"
+.B -A
+や
+.B -I
+と組み合わせた場合、新しいルールの
+.I pcnt
+,
+.I bcnt
+それぞれが指定した値になる。
+.B -C
+や
+.B -D
+コマンドと組み合わせた場合、
+.I pcnt
+と
+.I bcnt
+がパケットカウント値とバイトカウント値と等しいルールのみがマッチングする。
+
+.SS MATCH EXTENSION
+ebtables extension はユーザスペースツールに動的に組み込まれる。iptables
+コマンドで -m
+オプションを使っていた時のように、明示的にロードする必要はない。これらの
+extension は
+ebtables core コードに補足的なものとして kernel module でサポートされて
+いる機能を扱っている。
+.SS 802_3
+802.3 DSAP/SSAP フィールドあるいは SNAP タイプを指定する。プロトコルは
+.I LENGTH
+として指定されていなければならない (上記
+.I -p
+オプションを参照) 。
+.TP
+.BR "--802_3-sap " "[!] \fIsap\fP"
+DSAP と SSAP は 802.3 中の 2 つの 1 バイトフィールドである。これらのバイ
+トは常に同じなので、
+1 バイト (hex数値で) の指定のみ必要である。
+.TP
+.BR "--802_3-type " "[!] \fItype\fP"
+802.3 DSAP と SSAP の値が 0xaa の場合、SNAP タイプフィールドがペイロード
+プロトコルを決定する。
+これは 2 つの 1 バイト引数である (hex数値で) 。802.3 DSAP/SSAP 0xaa フ
+レームのみが検査される。
+.SS among
+MAC アドレスあるいは MAC/IP アドレスの組に対して、 MAC アドレスあるいは
+MAC/IP
+アドレスの組の一覧をマッチングさせる。一覧は次のような書式で指定する:
+.I xx:xx:xx:xx:xx:xx[=ip.ip.ip.ip][,]
+。一覧中のエントリはコンマで区切る。IP アドレスを MAC アドレスと組み合わ
+せるのはオプションである。同一
+MAC アドレスで IP アドレスが異なるという複数の MAC/IP アドレスペアを登録
+しても構わない。MAC
+アドレスが一覧にあるどれともマッチングしなかった場合、フレームはルールに
+マッチングしなかったことになる
+("!"が使われていない場合) 。
+.TP
+.BR "--among-dst " "[!] \fIlist\fP"
+MAC 送信先と一覧を比較する。もし Ethernet フレームが
+.I IPv4
+あるいは
+.I ARP
+であれば、一覧中にある送信先 MAC/IP アドレスペアとの比較も可能である。
+.TP
+.BR "--among-src " "[!] \fIlist\fP"
+MAC 送信元と一覧を比較する。もし Ethernet フレームが
+.I IPv4
+あるいは
+.I ARP
+であれば、一覧中にある MAC/IP 送信元アドレスペアとの比較も可能である。
+.TP
+.BR "--among-dst-file " "[!] \fIfile\fP"
+.B --among-dst
+と同様だが、指定したファイルから一覧を読み込む。
+.TP
+.BR "--among-src-file " "[!] \fIfile\fP"
+.B --among-src
+と同様だが、指定したファイルから一覧を読み込む。
+.SS arp
+(R)ARP フィールドを指定する。プロトコルは
+.I ARP
+あるいは
+.I RARP
+でなければならない。
+.TP
+.BR "--arp-opcode " "[!] \fIopcode\fP"
+(R)ARP opcode (10進数か文字列。詳細は
+.B ebtables -h arp
+参照すること)
+.TP
+.BR "--arp-htype " "[!] \fIhardware type\fP"
+ハードウェアタイプで、10進数か文字列
+.I Ethernet
+(
+.I type
+1 になる)。ほとんどの (R)ARP パケットではハードウェアタイプが Ethernet
+になる。
+.TP
+.BR "--arp-ptype " "[!] \fIprotocol type\fP"
+(R)ARP で使われているプロトコルタイプ(hexあるいは 0x0800 を意味する文字列
+.I IPv4
+)。ほとんどの (R)ARP パケットではプロトコルタイプは IPv4 になる。
+.TP
+.BR "--arp-ip-src " "[!] \fIaddress\fP[/\fImask\fP]"
+(R)ARP 送信元 IP アドレス指定。
+.TP
+.BR "--arp-ip-dst " "[!] \fIaddress\fP[/\fImask\fP]"
+(R)ARP 送信先 IP アドレス指定。
+.TP
+.BR "--arp-mac-src " "[!] \fIaddress\fP[/\fImask\fP]"
+(R)ARP 送信元 MAC アドレス指定。
+.TP
+.BR "--arp-mac-dst " "[!] \fIaddress\fP[/\fImask\fP]"
+(R)ARP 送信先 MAC アドレス指定。
+.TP
+.BR "" "[!]" " --arp-gratuitous"
+ARP gratuitous パケットを検査する: ARP ヘッダ中の送信元 IPv4 アドレスと
+送信先
+IPv4 アドレスが等しいものを検査する。
+.SS ip
+IPv4 フィールドを指定する。プロトコルは
+.I IPv4
+でなければならない。
+.TP
+.BR "--ip-source " "[!] \fIaddress\fP[/\fImask\fP]"
+送信元 IP アドレス。
+.B --ip-src
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip-destination " "[!] \fIaddress\fP[/\fImask\fP]"
+.B --ip-dst
+送信先 IP アドレス。
+.B --ip-dst
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip-tos " "[!] \fItos\fP"
+IP サービスタイプを、hex 表記の数値で。
+.B IPv4
+のものである。
+.TP
+.BR "--ip-protocol " "[!] \fIprotocol\fP"
+IP プロトコル。
+.B --ip-proto
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip-source-port " "[!] \fIport1\fP[:\fIport2\fP]"
+IP プロトコル 6 (TCP), 17 (UDP), 33 (DCCP), 132 (SCTP) における、送信元
+ポートあるいはポートの範囲。
+.B --ip-protocol
+オプションで
+.I TCP
+,
+.I UDP
+,
+.I DCCP
+,
+.I SCTP
+のいずれかが指定されていなければならない。
+.I port1
+が省略された場合は
+.I 0:port2
+が使われる。
+.I port2
+が省略されたけれどもコロンが指定された場合は
+.I port1:65535
+が使われる。
+.B --ip-sport
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip-destination-port " "[!] \fIport1\fP[:\fIport2\fP]"
+IP プロトコル 6 (TCP), 17 (UDP), 33 (DCCP), 132 (SCTP) における、送信先
+ポートあるいはポートの範囲。
+.B --ip-protocol
+オプションで
+.I TCP
+,
+.I UDP
+,
+.I DCCP
+,
+.I SCTP
+のいずれかが指定されていなければならない。
+.I port1
+が省略された場合は
+.I 0:port2
+が使われる。
+.I port2
+が省略されたけれどもコロンが指定された場合は
+.I port1:65535
+が使われる。
+.B --ip-dport
+フラグはこのオプションのエイリアスである。
+.SS ip6
+IPv6 のフィールドを指定する。プロトコルは
+.I IPv6
+でなければならない。
+.TP
+.BR "--ip6-source " "[!] \fIaddress\fP[/\fImask\fP]"
+送信元 IPv6 アドレス。
+.B --ipv6-src
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip6-destination " "[!] \fIaddress\fP[/\fImask\fP]"
+送信先 IPv6 アドレス。
+.B --ipv6-dst
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip6-tclass " "[!] \fItclass\fP"
+IPv6 トラフィッククラスを hex 表記の数値で。
+.TP
+.BR "--ip6-protocol " "[!] \fIprotocol\fP"
+IP プロトコル。
+.B --ip6-proto
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip6-source-port " "[!] \fIport1\fP[:\fIport2\fP]"
+IP プロトコル 6 (TCP), 17 (UDP), 33 (DCCP), 132 (SCTP) における、送信元
+ポートあるいはポートの範囲。
+.B --ip6-protocol
+オプションで
+.I TCP
+,
+.I UDP
+,
+.I DCCP
+,
+.I SCTP
+のいずれかが指定されていなければならない。
+.I port1
+が省略された場合は
+.I 0:port2
+が使われる。
+.I port2
+が省略されたけれどもコロンが指定された場合は
+.I port1:65535
+が使われる。
+.B --ip6-sport
+はこのオプションのエイリアスである。
+.TP
+.BR "--ip6-destination-port " "[!] \fIport1\fP[:\fIport2\fP]"
+IP プロトコル 6 (TCP), 17 (UDP), 33 (DCCP), 132 (SCTP) における、送信元
+ポートあるいはポートの範囲。
+.B --ip6-protocol
+オプションで
+.I TCP
+,
+.I UDP
+,
+.I DCCP
+,
+.I SCTP
+のいずれかが指定されていなければならない。
+.I port1
+が省略された場合は
+.I 0:port2
+が使われる。
+.I port2
+が省略されたけれどもコロンが指定された場合は
+.I port1:65535
+が使われる。
+.B --ip6-sport
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip6-icmp-type " "[!]
+{\fItype\fP[:\fItype\fP]/\fIcode\fP[:\fIcode\fP]|\fItypename\fP}"
+マッチングさせる ipv6\-icmp タイプとコード。タイプとコードのどちらも範囲
+指定できる。
+タイプとコードはスラッシュで区切る。タイプとコードは 0 から 255 の間の数
+値である。
+あるタイプのすべてのコードにマッチングさせるには、数値の代わりにシンボル
+名を使って指定する。
+既知のタイプ名については次のコマンドで一覧が表示される。
+.nf
+  ebtables \-\-help ip6
+.fi
+このオプションは \-\-ip6\-protocol ipv6\-icmp についてのみ有効である。
+.SS limit
+このモジュールは token bucket フィルタを使って、マッチングにレートリミッ
+トを付ける。この
+extension を使っているルールは、リミットに到達するまではマッチングする。
+例えば
+.B --log
+watcher と組み合わせて使うと、レートリミットのついたロギングを行うことが
+できる。
+iptables における limit マッチングと同様に使える。
+.TP
+.BR "--limit " "[\fIvalue\fP]"
+マッチングレート最大平均値: 数値指定で、
+.I /second
+,
+.I /minute
+,
+.I /hour
+,
+.I day
+サフィックスを付けることができる; デフォルト値は
+.I 3/hour
+。
+.TP
+.BR "--limit-burst " "[\fInumber\fP]"
+マッチングする初期パケット最大値: 上記のリミットに到達しなかった回ごとに、
+指定した数値までリチャージされる; デフォルト値は
+.I 5
+である。
+.SS mark_m
+.TP
+.BR "--mark " "[!] [\fIvalue\fP][/\fImask\fP]"
+符号なし数値の mark でフレームにマッチングする。
+.I value
+と
+.I mask
+が指定されている場合、フレームの mark 値とユーザ指定の
+.I mask
+値の論理和 (AND) が計算されてから、ユーザ指定の mark
+.I value
+値と比較される。
+.I value
+のみが指定された場合、ユーザ指定の mark
+.I value
+と同一の値の mark を持ったパケットのみがマッチングする。
+.I mask
+のみが指定された場合、フレームの mark 値とユーザ指定の
+.I mask
+値の論理和 (AND) が計算され、結果が非 0 であるフレームがマッチングする。
+.I mask
+のみ指定する方法は、複数の mark 値とマッチングさせるのに便利である。
+.SS pkttype
+.TP
+.BR "--pkttype-type " "[!] \fItype\fP"
+フレームの Ethernet "class" にマッチングし、これは一般的なネットワーク
+コードによって決まる。取りうる値は:
+.I broadcast
+(送信先 MAC アドレスがブロードキャストアドレス),
+.I multicast
+(送信先 MAC アドレスがマルチキャスト),
+.I host
+(送信先 MAC アドレスがネットワークデバイス),
+.I otehrhost
+(それ以外)のいずれかである。
+.SS stp
+stp BPDU (bridge protocol data unit) フィールドを指定する。送信先アドレス (
+.B -d
+) は bridge group address (
+.I BGA
+) が指定されていなければならない。
+数値の範囲指定ができるオプションでは、下限を省略した際は取りうる最小値が
+使われ、
+上限を省略した際 (コロンがついている場合) は、取りうる最大値が使われる。
+.TP
+.BR "--stp-type " "[!] \fItype\fP"
+BPDU type (0-255) である。数値以外で認識できるタイプは
+.I config
+の configuration BPDU (=0) と
+.I tcn
+の topology change notification BPDU (=128) である。
+.TP
+.BR "--stp-flags " "[!] \fIflag\fP"
+BPDU flag (0-255) である。数値以外で認識できるフラグは
+.I topology-change
+の topology change flag (=1) と
+.I topology-change-ack
+の topology change acknowledgement flag (=128) である。
+.TP
+.BR "--stp-root-prio " "[!] [\fIprio\fP][:\fIprio\fP]"
+root 優先度 (0-65535) の範囲。
+.TP
+.BR "--stp-root-addr " "[!] [\fIaddress\fP][/\fImask\fP]"
+root MAC アドレス。詳細は
+.B -s
+オプション参照すること。
+.TP
+.BR "--stp-root-cost " "[!] [\fIcost\fP][:\fIcost\fP]"
+root path コスト (0-4294967295) の範囲。
+.TP
+.BR "--stp-sender-prio " "[!] [\fIprio\fP][:\fIprio\fP]"
+BPDU 送信者優先度 (0-65535) の範囲。
+.TP
+BPDU 送信者の MAC アドレス。詳細は
+.B -s
+オプション参照すること。
+.TP
+.BR "--stp-port " "[!] [\fIport\fP][:\fIport\fP]"
+port 識別子の範囲 (0-65535)。
+.TP
+.BR "--stp-msg-age " "[!] [\fIage\fP][:\fIage\fP]"
+メッセージ age timer の範囲 (0-65535)。
+.TP
+.BR "--stp-max-age " "[!] [\fIage\fP][:\fIage\fP]"
+max age time の範囲 (0-65535)。
+.TP
+.BR "--stp-hello-time " "[!] [\fItime\fP][:\fItime\fP]"
+hello time timer の範囲 (0-65535)。
+.TP
+.BR "--stp-forward-delay " "[!] [\fIdelay\fP][:\fIdelay\fP]"
+forward delay timer の範囲 (0-65535)。
+.SS vlan
+802.1Q タグ制御情報フィールドを指定する。プロトコルは
+.I 802_1Q
+(0x8100) でなければならない。
+.TP
+.BR "--vlan-id " "[!] \fIid\fP"
+VLAN 識別子フィールド (VID)。0 から 4095 の間の10進数の数字。
+.TP
+.BR "--vlan-prio " "[!] \fIprio\fP"
+優先度フィールドで、0 から 7 までの10進数の数字。VID は 0 ("null VID")
+か、無指定であるべきです (後者の無指定の場合 VID は 0 であるとされる) 。
+.TP
+.BR "--vlan-encap " "[!] \fItype\fP"
+格納されている Ethernet フレームの type/length の値。0x0000 から 0xFFFF
+の範囲の hex 数値か
+.B /etc/ethertypes
+にあるシンボル名で指定する。
+
+.SS WATCHER EXTENSIONS
+watchers は通過するフレームを観測するだけで、変更したり accept するかど
+うかを決めたりなどはしない。
+これらの watcher はフレームがルールにマッチングするかどうかを見るだけで、
+それはターゲットが実行される前に行われる。
+.SS log
+log watcher はフレームの説明を syslog に書き出す。
+.TP
+.B "--log"
+.br
+デフォルトの logging オプションでロギングを行う: log-leve=
+.I info
+, log-prefix="", ip ログなし, arp ログなし。
+.TP
+.B --log-level "\fIlevel\fP"
+.br
+logging レベルを定義する。取りうる値は
+.B ebtables -h log
+を参照すること。デフォルトのレベルは
+.I info
+である。
+.TP
+.BR --log-prefix " \fItext\fP"
+.br
+ログ情報の行頭にプリントする
+.I text
+プレフィックスを定義する。
+.TP
+.B --log-ip
+.br
+ルールで ip プロトコルにマッチングした際に生成されるフレームの ip
+情報をログする。デフォルトでは ip 情報はログされない。
+.TP
+.B --log-ip6
+.br
+ルールで ipv6 プロトコルにマッチングした際に生成されるフレームの ipv6
+情報をログする。デフォルトでは ipv6 情報はログされない。
+.TP
+.B --log-arp
+.br
+ルールで (r)arp プロトコルマッチングした際に生成されるフレームの (r)arp
+情報をログする。デフォルトでは (r)arp 情報はログされない。
+.SS nflog
+nflog watcher はパケットをログするためにロードされた logging バックエン
+ドにパケットを渡する。
+これは通常 nfnetlink_log を logging バックエンドとして組み合わせて使わ
+れ、これが netlink
+ソケット経由でパケットを指定した multicast グループに mutlcast する。
+1 つあるいは複数のユーザスペースプロセスがそのグループに参加してパケット
+を受け取ることができる。
+.TP
+.B "--nflog"
+.br
+デフォルトの logging オプションでログする。
+.TP
+.B --nflog-group "\fInlgroup\fP"
+.br
+パケットが送出先である netlink グループ (1 から 2^32-1 の間)
+(nfnetlink_log でのみ有効)。デフォルト値は 1。
+.TP
+.B --nflog-prefix "\fIprefix\fP"
+.br
+ログメッセージに含まれるプレフィックス文字列で、30文字まで。
+ログの中でメッセージを区別するのに便利。
+.TP
+.B --nflog-range "\fIsize\fP"
+.br
+ユーザスペースにコピーされるバイト数 (nfnetlink_logでのみ有効)
+。nfnetlink_log
+インスタンスでも範囲指定可能で、このオプションはそれを上書きする。
+.TP
+.B --nflog-threshold "\fIsize\fP"
+.br
+ユーザスペースに送る前に kernel 内の queue するパケットの数
+(nfnetlink_log でのみ有効)。
+大きな数値にすると 1 パケットあたりのオーバーヘッドは小さくなるが、
+ユーザスペースにパケットが届くまでの遅延は大きくなる。デフォルト値は 1。
+.SS ulog
+ulog watcher は netlink multicast ソケットを使ってユーザランド logging
+デーモンにパケットを渡する。
+パケットの説明ではなくパケット全体が送出されるという点と syslog ではなく
+netlink multicast
+ソケットが使われるという点で log watcher とは異なる。この watcher
+ではユーザスペースのプログラムでパケットを解析することができ、物理ブリッ
+ジの入り口と出口のポートの情報も
+netlink メッセージに含まれている。ulog watcher モジュールは、kernel に
+ロードされる際にパラメータを
+2 つ受け取ることができる (例えば modprobe を使う) ：
+.B nlbufsiz
+で各 netlink multicast group が持つバッファの大きさを指摘できる。例えば
+.I nlbufsiz=8192
+では、ユーザスペースに送り出す前に 8kB の数のパケットまで kernel 内に留
+めることができる。
+128kB 以上に設定することはできない。ここでのバッファサイズは nlgroup そ
+れぞれについて確保されるということにも注意。
+つまり消費 kernel メモリはその倍数で増えていく。デフォルト値は 4096 である。
+queue が埋まらなかったとしても、どれだけの間待ってから flush するかを、
+.B flushtimeout
+で 100 分の 1 秒刻みで指定する。デフォルト値は 10 です (0.1秒) 。
+.TP
+.B "--ulog"
+.br
+デフォルトの設定を使う: ulog-prefix="", ulog-nlgroup=1,
+ulog-cprange=4096, ulog-qthreshold=1
+.TP
+.B --ulog-prefix "\fItext\fP"
+.br
+ユーザスペースに送られるパケットに含まれるプレフィックスを定義する。
+.TP
+.BR --ulog-nlgroup " \fIgroup\fP"
+.br
+どの netlink group number を使うかを定義する (1から32の間の数字) 。
+iptables ULOG ターゲットで使われている netlink group number と
+ebtables ulog watcher のものとは異なるものにすること。
+デフォルトの group number は 1 である。
+.TP
+.BR --ulog-cprange " \fIrange\fP"
+.br
+ルールにマッチングしたパケットについて、ユーザスペースにコピーされる範囲
+の最大値を定義する。
+デフォルトの範囲は 0　で、これは
+.B nlbufsiz
+で与えられた範囲の最大値を意味する。128*1024 より大きな値を指定しても意
+味はない。
+なぜならユーザスペースに送られるパケットサイズには 128*1024 の上限値があ
+るからである。
+.TP
+.BR --ulog-qthreshold " \fIthreshold\fP"
+.br
+netlink ソケット経由でユーザスペースに送りだす前に
+.I threshold
+の数まで packet を queue する。
+queue が埋まる以前であってもパケットは送出されることがあることに注意する
+こと。これは
+ulog kernel タイマが達した際に起こる (このタイマの周期は
+.B flushtimeout
+に依存する)。
+.SS TARGET EXTENSIONS
+.SS arpreply
+.B arpreply
+ターゲットは
+.B nat
+テーブルの
+.B PREROUTING
+チェインで使うことができる。ターゲットが ARP リクエストを発見すると、自
+動的に ARP reply
+を返する。reply に使う MAC アドレスは設定できる。プロトコルは
+.I ARP
+でなければならない。ARP メッセージが ARP リクエストではなかったり、ARP
+リクエストが
+Ethernet ネットワーク上の IP アドレスに対するものではなかった場合、この
+ターゲットでは無視される (
+.B CONTINUE
+)。ARP リクエストが不正だった場合、破棄される (
+.B DROP
+)。
+.TP
+.BR "--arpreply-mac " "\fIaddress\fP"
+reply に返す MAC アドレスを指定する。Ethernet 送信元 MAC アドレスと ARP
+payload
+中の送信元 MAC アドレスの両方がこのアドレスになる。
+.TP
+.BR "--arpreply-target " "\fItarget\fP"
+標準のターゲットを指定する。ARP reply を送信した後に、ebtables がその
+ARP request
+に対してさらに何を行うかを指定する。デフォルトのターゲットは
+.B DROP
+である。
+.SS dnat
+.B dnat
+は
+.B broute
+テーブルの
+.B BROUTING
+チェインと、
+.B nat
+テーブルの
+.B PREROUTING
+と
+.B OUTPUT
+チェインでのみ使える。送信先 MAC アドレスを変更するときに指定する。
+.TP
+.BR "--to-destination " "\fIaddress\fP"
+.br
+送信先 MAC アドレスを指定した
+.I address
+に変更する。
+.B --to-dst
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--dnat-target " "\fItarget\fP"
+.br
+標準のターゲットを指定する。dnat を行った後に、ebtables がその dnat
+されたフレームに対してさらに何を行うかを指定する。デフォルトのターゲットは
+.B ACCEPT
+である。
+.B CONTINUE
+にすると、同一フレームに対して複数の target extension を使える。
+.B DROP
+は
+.B BROUTING
+チェインで
+.B redirect
+ターゲットと使うときにのみ意味がある。
+.B RETURN
+を基本チェインで使うことはできない(理由は明らかでしょう)。
+.SS mark
+.B mark
+ターゲットはどの table のどのチェインでも使える。bridge-nf が kernel に
+組み込まれていれば
+ebtables と iptables の両方で mark できる。どちらも同じ場所に mark を記
+録するので、
+ebtablesとiptables間の通信にもなる。
+.TP
+.BR "--mark-set " "\fIvalue\fP"
+.br
+フレームに非負数の
+.I value
+を mark する。
+.TP
+.BR "--mark-or " "\fIvalue\fP"
+.br
+フレームに非負数の
+.I value
+で OR した値を記録する。
+.TP
+.BR "--mark-and " "\fIvalue\fP"
+.br
+フレームに非負数の
+.I value
+で AND した値を記録する。
+.TP
+.BR "--mark-xor " "\fIvalue\fP"
+.br
+フレームに非負数の
+.I value
+で XOR した値を記録する。
+.TP
+.BR "--mark-target " "\fItarget\fP"
+.br
+標準のターゲットを指定する。mark を行った後に、ebtables がその dnat
+されたフレームに対してさらに何を行うかを指定する。デフォルトのターゲットは
+.B ACCEPT
+である。
+.B CONTINUE
+にすると、後続のチェインのルールでフレームに対して何らかの他の処理ができる。
+.SS redirect
+.B redirect
+ターゲットは　MAC ターゲットアドレスをフレームが到達したブリッジデバイス
+のものに変更する。
+このターゲットは
+.B broute
+テーブルの
+.B BROUTING
+チェインと
+.B nat
+テーブルの
+.B PREROUTING
+チェインでのみ使える。
+.B BROUTING
+チェインではブリッジポートの MAC アドレスが送信先アドレスとして使われ、
+.B PREROUTING
+チェインではブリッジの MAC アドレスが使われる。
+.TP
+.BR "--redirect-target " "\fItarget\fP"
+.br
+標準のターゲットを指定する。MAC リダイレクトを行った後に、ebtables がさ
+らに何を行うかを指定する。
+デフォルトのターゲットは
+.B ACCEPT
+である。
+.B CONTINUE
+にすると、同一フレームに対して複数の target extension を使える。
+.B BROUTING
+チェイン中で
+.B DROP
+を使うと、そのフレームは route される。
+.B RETURN
+も使うことができる。
+.B RETURN
+を基本チェインで使うことはできない。
+.SS snat
+.B snat
+ターゲットは
+.B nat
+テーブルの
+.B POSTROUTING
+でのみ使うことができる。送信元 MAC アドレスを変更する際に使いる。
+.TP
+.BR "--to-source " "\fIaddress\fP"
+.br
+送信元 MAC アドレスを指定した
+.I address
+に変更する。
+.B --to-src
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--snat-target " "\fItarget\fP"
+.br
+標準のターゲットを指定する。snat を行った後に、ebtables がさらに何を行う
+かを指定する。
+デフォルトのターゲットは
+.B ACCEPT
+である。
+.B CONTINUE
+にすると、同一フレームに対して複数の target extension を使える。
+.B DROP
+は 意味をなさないが、実行することはできる。
+.B RETURN
+も使える。
+.B RETURN
+を基本チェインで使うことはできない。
+.br
+.TP
+.BR "--snat-arp "
+.br
+パケットが arp メッセージであり、かつ、arp ヘッダ中のハードウェアアドレ
+スの長さが 6
+バイトの長さであった場合に、arp ヘッダ中のハードウェア送信元アドレスも変
+更する。
+.br
+.SH FILES
+.I /etc/ethertypes
+.I /var/lib/ebtables/lock
+.SH ENVIRONMENT VARIABLES
+.I EBTABLES_ATOMIC_FILE
+.SH MAILINGLISTS
+.BR "" "See " http://netfilter.org/mailinglists.html
+.SH SEE ALSO
+.BR iptables "(8), " brctl "(8), " ifconfig "(8), " route (8)
+.PP
+.BR "" "See " http://ebtables.sf.net

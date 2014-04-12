@@ -1,0 +1,2084 @@
+.TH EBTABLES 8  "December 2011"
+.\"
+.\" Man page written by Bart De Schuymer <bdschuym@pandora.be>
+.\" It is based on the iptables man page.
+.\"
+.\" The man page was edited, February 25th 2003, by
+.\"      Greg Morgan <" dr_kludge_at_users_sourceforge_net >
+.\"
+.\" Japanese translation, Feburary 27th 2014, by
+.\"      Hiroaki KAWAI <" kawai_at_stratosphere_co_jp >
+.\"
+.\" Iptables page by Herve Eychenne March 2000.
+.\"
+.\"     This program is free software; you can redistribute it and/or modify
+.\"     it under the terms of the GNU General Public License as published by
+.\"     the Free Software Foundation; either version 2 of the License, or
+.\"     (at your option) any later version.
+.\"
+.\"     This program is distributed in the hope that it will be useful,
+.\"     but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"     GNU General Public License for more details.
+.\"
+.\"     You should have received a copy of the GNU General Public License
+.\"     along with this program; if not, write to the Free Software
+.\"     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.\"
+.\"O .SH NAME
+.SH 名前
+ebtables (v2.0.10-4) \- Ethernet bridge frame table administration
+.\"O .SH SYNOPSIS
+.SH 書式
+.BR "ebtables " [ -t " table ] " - [ ACDI "] chain rule specification [match extensions] [watcher extensions] target"
+.br
+.BR "ebtables " [ -t " table ] " -P " chain " ACCEPT " | " DROP " | " RETURN
+.br
+.BR "ebtables " [ -t " table ] " -F " [chain]"
+.br
+.BR "ebtables " [ -t " table ] " -Z " [chain]"
+.br
+.BR "ebtables " [ -t " table ] " -L " [" -Z "] [chain] [ [" --Ln "] | ["--Lx "] ] [" --Lc "] [" --Lmac2 ]
+.br
+.BR "ebtables " [ -t " table ] " -N " chain [" "-P ACCEPT " | " DROP " | " RETURN" ]
+.br
+.BR "ebtables " [ -t " table ] " -X " [chain]"
+.br
+.BR "ebtables " [ -t " table ] " -E " old-chain-name new-chain-name"
+.br
+.BR "ebtables " [ -t " table ] " --init-table
+.br
+.BR "ebtables " [ -t " table ] [" --atomic-file " file] " --atomic-commit
+.br
+.BR "ebtables " [ -t " table ] [" --atomic-file " file] " --atomic-init
+.br
+.BR "ebtables " [ -t " table ] [" --atomic-file " file] " --atomic-save
+.br
+.\"O .SH DESCRIPTION
+.SH 説明
+.B ebtables
+.\"O is an application program used to set up and maintain the
+.\"O tables of rules (inside the Linux kernel) that inspect
+.\"O Ethernet frames.
+は (Linux kernel内にある) Ethernetフレームの検査ルールを設定管理するプロ
+グラムである。
+.\"O It is analogous to the
+.\"O .B iptables
+.\"O application, but less complicated, due to the fact that the Ethernet protocol
+.\"O is much simpler than the IP protocol.
+.B iptables
+に類似しているが、 Ethernet プロトコルは IP プロトコルよりもずっと単純な
+ので、
+それほど込み入ってはいない。
+.\"O .SS CHAINS
+.\"O There are three ebtables tables with built-in chains in the
+.\"O Linux kernel. These tables are used to divide functionality into
+.\"O different sets of rules. Each set of rules is called a chain.
+.\"O Each chain is an ordered list of rules that can match Ethernet frames. If a
+.\"O rule matches an Ethernet frame, then a processing specification tells
+.\"O what to do with that matching frame. The processing specification is
+.\"O called a 'target'. However, if the frame does not match the current
+.\"O rule in the chain, then the next rule in the chain is examined and so forth.
+.\"O The user can create new (user-defined) chains that can be used as the 'target'
+.\"O of a rule. User-defined chains are very useful to get better performance
+.\"O over the linear traversal of the rules and are also essential for structuring
+.\"O the filtering rules into well-organized and maintainable sets of rules.
+.SS チェイン
+3 つの ebtables テーブルがあり、それらの持つチェインは Linux kernel に組
+み込まれている。
+これらのテーブルを使って、機能ごとに別々のルールセットとして整理している。
+それぞれのルールセットのことをチェインと呼んでいる。
+チェインとは Ethernet フレームにマッチングする順序づけられたルールの一覧
+である。
+ルールがある Ethernet フレームにマッチングすると、その対象フレームにどう
+いった処理を施すかが決まる。
+処理の指定は「ターゲット」と呼ばれている。現在のルールにマッチングしな
+かった場合は、
+次のルールが検査される。「ターゲット」として、 (ユーザ独自の) 新しいチェ
+インを作ることもできる。
+ユーザ定義チェインを使うと、ルールを線形検索するのと比べてパフォーマンス
+を改善したり、
+管理しやすい構造化されたフィルタリングルールを構成したりできる。
+.\"O .SS TARGETS
+.SS ターゲット
+.\"O A firewall rule specifies criteria for an Ethernet frame and a frame
+.\"O processing specification called a target.  When a frame matches a rule,
+.\"O then the next action performed by the kernel is specified by the target.
+.\"O The target can be one of these values:
+.\"O .BR ACCEPT ,
+.\"O .BR DROP ,
+.\"O .BR CONTINUE ,
+.\"O .BR RETURN ,
+.\"O an 'extension' (see below) or a jump to a user-defined chain.
+Ethernet フレームに対するファイアウォールルール指定や処理は、ターゲット
+と呼ばれる。
+フレームがルールにマッチングしたときに kernel が次に行う処理は、ターゲッ
+トで指定される。
+ターゲットは次のいずれかの値をとる:
+.BR ACCEPT ,
+.BR DROP ,
+.BR CONTINUE ,
+.BR RETURN ,
+ 'extension' の 1 つ (後述) あるいはユーザ定義チェインへのジャンプ。
+.PP
+.\"O .B ACCEPT
+.\"O means to let the frame through.
+.\"O .B DROP
+.\"O means the frame has to be dropped. In the
+.\"O .BR BROUTING " chain however, the " ACCEPT " and " DROP " target have different"
+.\"O meanings (see the info provided for the
+.\"O .BR -t " option)."
+.\"O .B CONTINUE
+.\"O means the next rule has to be checked. This can be handy, f.e., to know how many
+.\"O frames pass a certain point in the chain, to log those frames or to apply multiple
+.\"O targets on a frame.
+.\"O .B RETURN
+.\"O means stop traversing this chain and resume at the next rule in the
+.\"O previous (calling) chain.
+.\"O For the extension targets please refer to the
+.\"O .B "TARGET EXTENSIONS"
+.\"O section of this man page.
+.B ACCEPT
+はフレームを通過させる意味になる。
+.B DROP
+はフレームを破棄することを意味する。
+.B BROUTING
+チェイン内では、
+.B ACCEPT
+と
+.B DROP
+は異なる意味を持っている (
+.B -t
+オプションで表示される情報を参照すること) 。
+.B CONTINUE
+は次のルールをチェックすることを意味する。このターゲットは例えば、
+ある地点を通過したフレームの数を数えたり、ログを取ったり、
+フレームに複数のターゲットを適用するのに便利である。
+.B RETURN
+はチェインの探索を打ち切り、前の (呼び出し元の) チェインの次のルールから
+再開することを意味する。
+target extension については、この man ページの
+.B TARGET EXTENSION
+セクションを参照すること。
+.\"O .SS TABLES
+.\"O As stated earlier, there are three ebtables tables in the Linux
+.\"O kernel.  The table names are
+.\"O .BR filter ", " nat " and " broute .
+.\"O Of these three tables,
+.\"O the filter table is the default table that the command operates on.
+.\"O If you are working with the filter table, then you can drop the '-t filter'
+.\"O argument to the ebtables command.  However, you will need to provide
+.\"O the -t argument for the other two tables.  Moreover, the -t argument must be the
+.\"O first argument on the ebtables command line, if used.
+.SS テーブル
+前述のとおり Linux kernel には 3 つの ebtables テーブルがある。
+.BR filter ,
+.B nat
+と
+.B broute
+という名前がついている。これら 3 つのテーブルのうち、filter
+テーブルがコマンドのデフォルトのテーブルである。つまり filter
+テーブルについては ebtables の '-t filter' 引数を省略できる。その他 2 つ
+のテーブルについては
+-t 引数が必要である。また -t 引数を使う際は、 ebtables コマンドの最初の
+引数でなければならない。
+.TP
+.B "-t, --table"
+.\"O .br
+.\"O .B filter
+.\"O is the default table and contains three built-in chains:
+.\"O .B INPUT
+.\"O (for frames destined for the bridge itself, on the level of the MAC destination address),
+.\"O .B OUTPUT
+.\"O (for locally-generated or (b)routed frames) and
+.\"O .B FORWARD
+.\"O (for frames being forwarded by the bridge).
+.br
+.B filter
+がデフォルトのテーブルで、3 つの組み込みチェインがある:
+.B INPUT
+(送信先 MAC アドレスのレベルでブリッジ自身に送られたフレームに対して),
+.B OUTPUT
+(local で生成された、あるいは (b)route されたフレームに対して) と
+.B FORWARD
+(ブリッジで転送されるフレームに対して) である。
+.br
+.br
+.\"O .B nat
+.\"O is mostly used to change the mac addresses and contains three built-in chains:
+.\"O .B PREROUTING
+.\"O (for altering frames as soon as they come in),
+.\"O .B OUTPUT
+.\"O (for altering locally generated or (b)routed frames before they are bridged) and
+.\"O .B POSTROUTING
+.\"O (for altering frames as they are about to go out). A small note on the naming
+.\"O of chains PREROUTING and POSTROUTING: it would be more accurate to call them
+.\"O PREFORWARDING and POSTFORWARDING, but for all those who come from the
+.\"O iptables world to ebtables it is easier to have the same names. Note that you
+.\"O can change the name
+.\"O .BR "" ( -E )
+.\"O if you don't like the default.
+.B nat
+は MAC アドレスを変更するために使われるもので、3 つの組み込みチェインが
+ある。
+.B PREROUTING
+(フレームが入ってきた時点で変更するため),
+.B OUTPUT
+(local で生成された、あるいは (b)route されたフレームをブリッジする前に
+変更するため) と
+.B POSTROUTING
+ (フレームが出力される時点で変更するため) である。PREROUTING と POSTROUTING
+の名称については、より正確には PREFORWARDING, POSTFORWARDING と呼ばれる
+べきものだが、
+iptables と ebtables の用語を合わせたほうが簡単だということで、このよう
+になっている。
+もしこのデフォルトの名称が気に入らない場合は、変更できる (
+.B -E
+オプション) 。
+.br
+.br
+.\"O .B broute
+.\"O is used to make a brouter, it has one built-in chain:
+.\"O .BR BROUTING .
+.\"O The targets
+.\"O .BR DROP " and " ACCEPT
+.\"O have a special meaning in the broute table (these names are used instead of
+.\"O more descriptive names to keep the implementation generic).
+.\"O .B DROP
+.\"O actually means the frame has to be routed, while
+.\"O .B ACCEPT
+.\"O means the frame has to be bridged. The
+.\"O .B BROUTING
+.\"O chain is traversed very early. However, it is only traversed by frames entering on
+.\"O a bridge port that is in forwarding state. Normally those frames
+.\"O would be bridged, but you can decide otherwise here. The
+.\"O .B redirect
+.\"O target is very handy here.
+.B broute
+で brouter を作ることができて、
+.B BROUTING
+という組み込みチェインが1つだけある。
+.B DROP
+と
+.B ACCEPT
+ターゲットは broute テーブル内では特殊な意味を持っている (実装を単純化す
+るために、
+説明的な名称をあえて使っていない) 。
+.B DROP
+はフレームが route されることを意味し、
+.B ACCEPT
+はフレームがブリッジされることを意味する。
+.B BROUTING
+チェインは、とても早い段階で検査される。
+ただしブリッジポートに入ってきて転送状態になっているフレームについてのみ
+検査される。
+フレームは通常ブリッジされるが、ここでその処理を変更できる。
+.B redirect
+ターゲットが便利だ。
+.\"O .SH EBTABLES COMMAND LINE ARGUMENTS
+.SH EBTABLES コマンドライン引数
+.\"O After the initial ebtables '-t table' command line argument, the remaining
+.\"O arguments can be divided into several groups.  These groups
+.\"O are commands, miscellaneous commands, rule specifications, match extensions,
+.\"O watcher extensions and target extensions.
+最初の '-t table' コマンド引数の後に続く引数は、いくつかのグループ、
+「コマンド」「その他コマンド」「ルール指定 (rule specification) 」
+「match extension」
+「watch extension」と「target extension」に分類される。
+.\"O .SS COMMANDS
+.SS コマンド
+.\"O The ebtables command arguments specify the actions to perform on the table
+.\"O defined with the -t argument.  If you do not use the -t argument to name
+.\"O a table, the commands apply to the default filter table.
+.\"O Only one command may be used on the command line at a time, except when
+.\"O the commands
+.\"O .BR -L " and " -Z
+.\"O are combined, the commands
+.\"O .BR -N " and " -P
+.\"O are combined, or when
+.\"O .B --atomic-file
+.\"O is used.
+ebtables コマンドは -t 引数で定義されたテーブルに対して行う処理を指定する。
+-t 引数を使わなかった場合、デフォルトの filter テーブルに適用される。一
+度には 1
+つのコマンドしか使えない。
+.B -L
+と
+.B -Z
+の組み合わせ、
+.B -N
+と
+.B -P
+の組み合わせ、あるいは
+.B --atomic-file
+を使ったときは例外として複数のコマンドを使える。
+.TP
+.B "-A, --append"
+.\"O Append a rule to the end of the selected chain.
+チェインの最後にルールを追加する。
+.TP
+.B "-D, --delete"
+.\"O Delete the specified rule or rules from the selected chain. There are two ways to
+.\"O use this command. The first is by specifying an interval of rule numbers
+.\"O to delete (directly after
+.\"O .BR -D ).
+.\"O Syntax: \fIstart_nr\fP[\fI:end_nr\fP] (use
+.\"O .B -L --Ln
+.\"O to list the rules with their rule number). When \fIend_nr\fP is omitted, all rules starting
+.\"O from \fIstart_nr\fP are deleted. Using negative numbers is allowed, for more
+.\"O details about using negative numbers, see the
+.\"O .B -I
+.\"O command. The second usage is by
+.\"O specifying the complete rule as it would have been specified when it was added. Only
+.\"O the first encountered rule that is the same as this specified rule, in other
+.\"O words the matching rule with the lowest (positive) rule number, is deleted.
+チェインから指定したルールを削除する。二通りの使い方がある。一つ目の使い
+方は、ルール番号の区間を (
+.B -D
+直後に) 指定する方法である。構文: \fIstart_nr\fP[\fI:end_nr\fP] (
+.B -L --Ln
+を使ってルール番号を表示できる) \fIend_nr\fP が省略された場合
+は、\fIstart_nr\fP
+以降のルールすべてが削除される。負の数も使えるが、詳細は
+.B -I
+引数を参照すること。二つ目の使い方は、追加時と全く同じ完全なルールを使っ
+て指定する方法である。
+合致するルールのうち、一番最初に見つかったもの、つまり最も小さな (正の)
+ルール番号のもののみが削除される。
+.TP
+.B "-C, --change-counters"
+.\"O Change the counters of the specified rule or rules from the selected chain. There are two ways to
+.\"O use this command. The first is by specifying an interval of rule numbers
+.\"O to do the changes on (directly after
+.\"O .BR -C ).
+.\"O Syntax: \fIstart_nr\fP[\fI:end_nr\fP] (use
+.\"O .B -L --Ln
+.\"O to list the rules with their rule number). The details are the same as for the
+.\"O .BR -D " command. The second usage is by"
+.\"O specifying the complete rule as it would have been specified when it was added. Only
+.\"O the counters of the first encountered rule that is the same as this specified rule, in other
+.\"O words the matching rule with the lowest (positive) rule number, are changed.
+.\"O In the first usage, the counters are specified directly after the interval specification,
+.\"O in the second usage directly after
+.\"O .BR -C .
+.\"O First the packet counter is specified, then the byte counter. If the specified counters start
+.\"O with a '+', the counter values are added to the respective current counter values.
+.\"O If the specified counters start with a '-', the counter values are decreased from the respective
+.\"O current counter values. No bounds checking is done. If the counters don't start with '+' or '-',
+.\"O the current counters are changed to the specified counters.
+チェイン内にあるルールのカウンタを変更する。二通りの使い方がある。一つ目
+はルール番号の区間を使って (
+.B -C
+直後に) 指定する方法である。
+構文: \fIstart_nr\fP[\fI:end_nr\fP] (
+.B `-L --Ln
+を使ってルール番号を表示できる) 詳細は
+.B -D
+と同様である。二つ目の使い方は、追加時と全く同じ完全なルールを使って指定
+する方法である。
+合致するルールのうち、一番最初に見つかったもの、つまり最も小さな (正の)
+ルール番号のカウンタのみが変更される。
+カウンタ値は、一つ目の方法ではルール区間の直後に指定し、二つ目の方法では
+.B -C
+の直後に指定する。最初にパケットカウンタ値を指定し、次にバイトカウンタ値
+を指定する。
+カウンタ値が '+' で始まっている場合、カウンタ値は現在値にそれぞれ追加し
+た値になる。
+カウンタ値が '-' で始まる場合は、現在値から差し引いた値になる。境界値の
+検査は行われない。
+ '+' や '-' で始まらなかった場合は、指定した値そのものに変更される。
+.TP
+.B "-I, --insert"
+.\"O Insert the specified rule into the selected chain at the specified rule number. If the
+.\"O rule number is not specified, the rule is added at the head of the chain.
+.\"O If the current number of rules equals
+.\"O .IR N ,
+.\"O then the specified number can be
+.\"O between
+.\"O .IR -N " and " N+1 .
+.\"O For a positive number
+.\"O .IR i ,
+.\"O it holds that
+.\"O .IR i " and " i-N-1
+.\"O specify the same place in the chain where the rule should be inserted. The rule number
+.\"O 0 specifies the place past the last rule in the chain and using this number is therefore
+.\"O equivalent to using the
+.\"O .BR -A " command."
+.\"O Rule numbers structly smaller than 0 can be useful when more than one rule needs to be inserted
+.\"O in a chain.
+指定したルール番号の位置にルールを追加する。ルール番号が未指定の場合、
+チェインの先頭に追加される。ルールが
+.I N
+個あった場合、
+.I -N
+から
+.I N+1
+の間の数を指定できる。正の数
+.I i
+があったとして、
+.I i
+と
+.I i-N-1
+はチェイン上での同じ挿入位置となる。ルール番号 0 はチェインの最後のルー
+ルを示し、
+.B -A
+コマンドを使ったときと同じになる。0より小さいルール番号は複数のルールを
+一つのチェインに挿入する際に便利である。
+.TP
+.B "-P, --policy"
+.\"O Set the policy for the chain to the given target. The policy can be
+.\"O .BR ACCEPT ", " DROP " or " RETURN .
+チェインのポリシーを、指定したターゲットに設定する。ポリシーは
+.B ACCEPT
+,
+.B DROP
+,
+.B RETURN
+のいずれかである。
+.TP
+.B "-F, --flush"
+.\"O Flush the selected chain. If no chain is selected, then every chain will be
+.\"O flushed. Flushing a chain does not change the policy of the
+.\"O chain, however.
+指定したチェインを flush する。チェイン指定がない場合、全てのチェインが
+flush される。
+flush ではチェインのポリシーは変更されない。
+.TP
+.B "-Z, --zero"
+.\"O Set the counters of the selected chain to zero. If no chain is selected, all the counters
+.\"O are set to zero. The
+.\"O .B "-Z"
+.\"O command can be used in conjunction with the
+.\"O .B "-L"
+.\"O command.
+.\"O When both the
+.\"O .B "-Z"
+.\"O and
+.\"O .B "-L"
+.\"O commands are used together in this way, the rule counters are printed on the screen
+.\"O before they are set to zero.
+指定したチェインのカウンタを 0 にする。チェイン指定がない場合、全ての
+チェインでのカウンタが 0 になる。
+.B "-Z"
+コマンドは
+.B "-L"
+と組み合わせて使える。
+.B "-Z"
+と
+.B "-L"
+を同時に使うと、0 にされる前のカウンタ値が出力される。
+.TP
+.B "-L, --list"
+.\"O List all rules in the selected chain. If no chain is selected, all chains
+.\"O are listed.
+.\"O .br
+.\"O The following options change the output of the
+.\"O .B "-L"
+.\"O command.
+指定したチェインにあるルール一覧を出力する。チェイン指定がない場合、全て
+のチェインについて一覧が出力される。
+.br
+.B -L
+コマンドの出力形式には次のオプションがある。
+.br
+.B "--Ln"
+.br
+.\"O Places the rule number in front of every rule. This option is incompatible with the
+.\"O .BR --Lx " option."
+全てのルールの行頭にルール番号を出力する。
+.B --Lx
+とは組み合わせられない。
+.br
+.B "--Lc"
+.br
+.\"O Shows the counters at the end of each rule displayed by the
+.\"O .B "-L"
+.\"O command. Both a frame counter (pcnt) and a byte counter (bcnt) are displayed.
+.\"O The frame counter shows how many frames have matched the specific rule, the byte
+.\"O counter shows the sum of the frame sizes of these matching frames. Using this option
+.\"O .BR "" "in combination with the " --Lx " option causes the counters to be written out"
+.\"O .BR "" "in the '" -c " <pcnt> <bcnt>' option format."
+全てのルールの行末にルール番号を出力する。フレームカウンタ値 (pcnt) とバ
+イトカウンタ値 (bcnt)
+の両方が表示される。フレームカウンタ値は、あるルールにマッチングした回数
+を示していて、
+バイトカウンタ値はこれらのフレームのサイズを合計した値となる。
+.B --Lx
+オプションと組み合わせると、カウンタ値は
+.B -c <pcnt> <bcnt>
+の形式で出力される。
+.br
+.B "--Lx"
+.br
+.\"O Changes the output so that it produces a set of ebtables commands that construct
+.\"O the contents of the chain, when specified.
+.\"O If no chain is specified, ebtables commands to construct the contents of the
+.\"O table are given, including commands for creating the user-defined chains (if any).
+.\"O You can use this set of commands in an ebtables boot or reload
+.\"O script.  For example the output could be used at system startup.
+.\"O The
+.\"O .B "--Lx"
+.\"O option is incompatible with the
+.\"O .B "--Ln"
+.\"O listing option. Using the
+.\"O .BR --Lx " option together with the " --Lc " option will cause the counters to be written out"
+.\"O .BR "" "in the '" -c " <pcnt> <bcnt>' option format."
+チェインの内容を再構築できるような ebtables コマンドの形式で出力する。
+チェイン指定がない場合、
+(もしあれば) ユーザ定義のチェインも含めて、テーブル全体を構築できる
+ebtables コマンドが出力される。
+このコマンドを使って ebtables の起動・再起動スクリプトを作成できる。
+例えばこのコマンドの出力をシステム起動時に使える。
+.B --Lx
+オプションは
+.B --Ln
+オプションと互換性がない。
+.B --Lx
+を
+.B --Lc
+と同時に使うと、カウンタが
+.B -c <pcnt> <bcnt>
+の形式で出力される。
+.br
+.B "--Lmac2"
+.br
+.\"O Shows all MAC addresses with the same length, adding leading zeroes
+.\"O if necessary. The default representation omits leading zeroes in the addresses.
+必要に応じて0パディングして、全 MAC アドレスを同じ長さで表示する。
+デフォルトの表示形式では、アドレス先頭の 0 は省略される。
+.TP
+.B "-N, --new-chain"
+.\"O Create a new user-defined chain with the given name. The number of
+.\"O user-defined chains is limited only by the number of possible chain names.
+.\"O A user-defined chain name has a maximum
+.\"O length of 31 characters. The standard policy of the user-defined chain is
+.\"O ACCEPT. The policy of the new chain can be initialized to a different standard
+.\"O target by using the
+.\"O .B -P
+.\"O command together with the
+.\"O .B -N
+.\"O command. In this case, the chain name does not have to be specified for the
+.\"O .B -P
+.\"O command.
+指定した名前の新しいユーザ定義チェインを作る。ユーザ定義チェインの個数の
+上限は、
+作り得る名前の数に限られる。ユーザ定義のチェイン名は 31 文字までである。
+ユーザ定義チェインのデフォルトのポリシーは ACCEPT である。
+.B -P
+コマンドを
+.B -N
+コマンドと同時に使うことで新規チェインのポリシーを標準のターゲットと異な
+るもので初期化できる。
+この場合
+.B -P
+コマンドにチェイン名の指定は不要である。
+.TP
+.B "-X, --delete-chain"
+.\"O Delete the specified user-defined chain. There must be no remaining references (jumps)
+.\"O to the specified chain, otherwise ebtables will refuse to delete it. If no chain is
+.\"O specified, all user-defined chains that aren't referenced will be removed.
+ユーザ定義チェインを削除する。対象チェインを参照している (jumpしてくる)
+ものが残っていてはいけない。
+残っていると ebtables は削除を拒否する。
+チェイン指定がない場合、参照されていない全てのユーザ定義チェインが削除さ
+れる。
+.TP
+.B "-E, --rename-chain"
+.\"O Rename the specified chain to a new name.  Besides renaming a user-defined
+.\"O chain, you can rename a standard chain to a name that suits your
+.\"O taste. For example, if you like PREFORWARDING more than PREROUTING,
+.\"O then you can use the -E command to rename the PREROUTING chain. If you do
+.\"O rename one of the standard ebtables chain names, please be sure to mention
+.\"O this fact should you post a question on the ebtables mailing lists.
+.\"O It would be wise to use the standard name in your post. Renaming a standard
+.\"O ebtables chain in this fashion has no effect on the structure or functioning
+.\"O of the ebtables kernel table.
+指定したチェインを新しい名前に変更する。ユーザ定義チェインの名前を変更で
+きるのはもちろんのこと、
+標準チェインの名前を好きなものに変更することもできる。例えば PREROUTING
+ではなく
+PREFORWARDING にしたい場合、-E コマンドで PREROUTING チェインの名前を変
+更できる。
+標準チェインの名前を変更していたら、ebtables メーリングリストに投稿する
+際には、
+そのことについて言及すること。この ebtables 標準チェインの名称変更では、
+kernel
+ebtables table の構造は影響をうけない。
+.TP
+.B "--init-table"
+.\"O Replace the current table data by the initial table data.
+現在のテーブルデータを初期テーブルデータで置き換える。
+.TP
+.B "--atomic-init"
+.\"O Copy the kernel's initial data of the table to the specified
+.\"O file. This can be used as the first action, after which rules are added
+.\"O to the file. The file can be specified using the
+.\"O .B --atomic-file
+.\"O command or through the
+.\"O .IR EBTABLES_ATOMIC_FILE " environment variable."
+テーブルの kernel の初期データを指定したファイルにコピーする。
+ルールがファイルに追加された後の最初の処理にできる。ファイル名は
+.B --atomic-file
+コマンドを使った指定か、あるいは
+.I EBTABLES_ATOMIC_FILE
+環境変数で指定できる。
+.TP
+.B "--atomic-save"
+.\"O Copy the kernel's current data of the table to the specified
+.\"O file. This can be used as the first action, after which rules are added
+.\"O to the file. The file can be specified using the
+.\"O .B --atomic-file
+.\"O command or through the
+.\"O .IR EBTABLES_ATOMIC_FILE " environment variable."
+kernel の現在のテーブルデータを指定したふぁあいるにコピーする。
+ルールがファイルに追加された後の最初の処理にできる。ファイル名は
+.B --atomic-file
+コマンドを使った指定か、あるいは
+.I EBTABLES_ATOMIC_FILE
+環境変数で指定できる。
+.TP
+.B "--atomic-commit"
+.\"O Replace the kernel table data with the data contained in the specified
+.\"O file. This is a useful command that allows you to load all your rules of a
+.\"O certain table into the kernel at once, saving the kernel a lot of precious
+.\"O time and allowing atomic updates of the tables. The file which contains
+.\"O the table data is constructed by using either the
+.\"O .B "--atomic-init"
+.\"O or the
+.\"O .B "--atomic-save"
+.\"O command to generate a starting file. After that, using the
+.\"O .B "--atomic-file"
+.\"O command when constructing rules or setting the
+.\"O .IR EBTABLES_ATOMIC_FILE " environment variable"
+.\"O allows you to extend the file and build the complete table before
+.\"O committing it to the kernel. This command can be very useful in boot scripts
+.\"O to populate the ebtables tables in a fast way.
+kernel テーブルデータを指定したファイルにあるデータで置き換える。ある
+テーブルの全ルールを
+kernel に一度にロードし、kernel 時間を大幅に節約しつつもアトミックなテー
+ブルの更新を行うので、
+便利なコマンドである。テーブルデータが入っているファイルは
+.B "--atomic-init"
+や
+.B "--atomic-save"
+コマンドで出力した起動ファイルで構成する。その後
+.B "--atomic-file"
+コマンドでルールを構成したり
+.I EBTABLES_ATOMIC_FILE
+環境変数を使うことで、ファイルを拡張したりして完全なテーブルを組み上げた
+後に kernel
+に登録できる。このコマンドは boot スクリプトで ebtables を高速に組み上げ
+るのに大変便利である。
+.\"O .SS MISCELLANOUS COMMANDS
+.SS その他コマンド
+.TP
+.B "-V, --version"
+.\"O Show the version of the ebtables userspace program.
+ebtables ユーザスペースプログラムのバージョンを表示する。
+.TP
+.BR "-h, --help " "[\fIlist of module names\fP]"
+.\"O Give a brief description of the command syntax. Here you can also specify
+.\"O names of extensions and ebtables will try to write help about those
+.\"O extensions. E.g.
+.\"O .IR "ebtables -h snat log ip arp" .
+.\"O Specify
+.\"O .I list_extensions
+.\"O to list all extensions supported by the userspace
+.\"O utility.
+コマンドの構文についての簡単な解説を出力する。extension の名前を指定する
+こともできて、そうすると
+ebtables はこれらの extension のヘルプを表示する。例えば
+.I ebtables -h snat log ip arp
+である。
+.I list_extensions
+と指定すると、ユーザスペースユーティリティでサポートされている全
+extension を出力する。
+.TP
+.BR "-j, --jump " "\fItarget\fP"
+.\"O The target of the rule. This is one of the following values:
+.\"O .BR ACCEPT ,
+.\"O .BR DROP ,
+.\"O .BR CONTINUE ,
+.\"O .BR RETURN ,
+.\"O a target extension (see
+.\"O .BR "TARGET EXTENSIONS" ")"
+.\"O or a user-defined chain name.
+ルールのターゲットである。これは次のいずれかの値をとる:
+.B ACCEPT
+,
+.B DROP
+,
+.B CONTINUE
+,
+.B RETURN
+, target extension (
+.B TARGET EXTENSION
+を参照すること) あるいはユーザ定義チェイン名。
+.TP
+.B --atomic-file "\fIfile\fP"
+.\"O Let the command operate on the specified
+.\"O .IR file .
+.\"O The data of the table to
+.\"O operate on will be extracted from the file and the result of the operation
+.\"O will be saved back into the file. If specified, this option should come
+.\"O before the command specification. An alternative that should be
+preferred,
+.\"O is setting the
+.\"O .IR EBTABLES_ATOMIC_FILE " environment variable."
+指定したファイルに対してコマンドを実行する。
+操作対象のテーブルのデータはファイルから読み取って構築し、操作した結果は
+再びファイルに書き戻される。
+指定する際はコマンド指定の前に置くべきである。他のやり方としては、
+.I EBTABLES_ATOMIC_FILE
+環境変数を使う方法がある。
+.TP
+.B -M, --modprobe "\fIprogram\fP"
+.\"O When talking to the kernel, use this
+.\"O .I program
+.\"O to try to automatically load missing kernel modules.
+kernel とやり取りする際に、kernel module に
+.I program
+が自動的にロードされるようにする。
+.TP
+.B --concurrent
+.\"O Use a file lock to support concurrent scripts updating the ebtables kernel tables.
+ebtables kernel テーブルを更新するスクリプトが同時に複数実行されても大丈
+夫なように、ファイルロックを使いる。
+
+.\"O .SS
+.\"O RULE SPECIFICATIONS
+.SS ルール指定
+.\"O The following command line arguments make up a rule specification (as used
+.\"O in the add and delete commands). A "!" option before the specification
+.\"O inverts the test for that specification. Apart from these standard rule
+.\"O specifications there are some other command line arguments of interest.
+.\"O See both the
+.\"O .BR "MATCH EXTENSIONS"
+.\"O and the
+.\"O .BR "WATCHER EXTENSIONS"
+.\"O below.
+ルール指定は次のコマンドライン引数で (追加削除のコマンドで使うことで) 構
+築される。
+"!" オプションを指定の前につけると、その否定の意味になる。
+下記の標準ルール指定の他にもいくつか興味深い引数がある。
+.B MATCH EXTENSION
+と
+.B WATCHER EXTENSION
+を参照すること。
+.TP
+.BR "-p, --protocol " "[!] \fIprotocol\fP"
+.\"O The protocol that was responsible for creating the frame. This can be a
+.\"O hexadecimal number, above
+.\"O .IR 0x0600 ,
+.\"O a name (e.g.
+.\"O .I ARP
+.\"O ) or
+.\"O .BR LENGTH .
+.\"O The protocol field of the Ethernet frame can be used to denote the
+.\"O length of the header (802.2/802.3 networks). When the value of that field is
+.\"O below or equals
+.\"O .IR 0x0600 ,
+.\"O the value equals the size of the header and shouldn't be used as a
+.\"O protocol number. Instead, all frames where the protocol field is used as
+.\"O the length field are assumed to be of the same 'protocol'. The protocol
+.\"O name used in ebtables for these frames is
+.\"O .BR LENGTH .
+フレームを構成しているプロトコル。
+.I 0x0600
+より大きい hex の数値か、名前 (例えば
+.I ARP
+) あるいは
+.B LENGTH
+を指定できる。(802.2/802.3ネットワークにおいては) Ethernet フレームのプ
+ロトコルフィールドは、
+ヘッダの長さを表すこともできる。値が
+.I 0x0600
+より小さいか等しいときは、その値はヘッダサイズと等しく、プロトコル番号と
+して扱ってはいけない。
+そのかわり、プロトコルフィールドが長さフィールドとして使われている全ての
+フレームは同じ 'protocol'
+として扱われる。ebtables での、これらのフレームのプロトコル名は
+.B LENGTH
+である。
+.br
+.\"O The file
+.\"O .B /etc/ethertypes
+.\"O can be used to show readable
+.\"O characters instead of hexadecimal numbers for the protocols. For example,
+.\"O .I 0x0800
+.\"O will be represented by
+.\"O .IR IPV4 .
+.\"O The use of this file is not case sensitive.
+.\"O See that file for more information. The flag
+.\"O .B --proto
+.\"O is an alias for this option.
+.B /etc/ethertype
+ファイルを見ると、プロトコルを指定する hex 数値の代わりに可読な文字列表
+現が記載されている。例えば
+.I 0x0800
+は
+.I IPV4
+で表現できる。このファイルは大文字小文字を区別しない。詳細はファイルを参
+照すること。
+.B --proto
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "-i, --in-interface " "[!] \fIname\fP"
+.\"O The interface (bridge port) via which a frame is received (this option is useful in the
+.\"O .BR INPUT ,
+.\"O .BR FORWARD ,
+.\"O .BR PREROUTING " and " BROUTING
+.\"O chains). If the interface name ends with '+', then
+.\"O any interface name that begins with this name (disregarding '+') will match.
+.\"O The flag
+.\"O .B --in-if
+.\"O is an alias for this option.
+フレームを受信したインターフェース (ブリッジポート) を指定する (このオプ
+ションは
+.B INPUT
+,
+.B FORWARD
+,
+.B PREROUTING
+や
+.B BROUTING
+チェインで有効です) 。インターフェース名が '+' で終わっている場合、その
+名前で始まる
+('+'自体は除く) インターフェース名全てがマッチングする。
+.B --in-if
+はこのオプションのエイリアスである。
+.TP
+.BR "--logical-in " "[!] \fIname\fP"
+.\"O The (logical) bridge interface via which a frame is received (this option is useful in the
+.\"O .BR INPUT ,
+.\"O .BR FORWARD ,
+.\"O .BR PREROUTING " and " BROUTING
+.\"O chains).
+.\"O If the interface name ends with '+', then
+.\"O any interface name that begins with this name (disregarding '+')
+will match.
+フレームを受信した (論理的な) ブリッジインターフェースを指定する (このオ
+プションは
+.B INPUT
+,
+.B FORWARD
+,
+.B PREROUTING
+や
+.B BROUTING
+チェインで有効です) 。インターフェース名が '+' で終わっている場合、その
+名前で始まる ('+'自体は除く)
+インターフェース名全てがマッチングする。
+.TP
+.BR "-o, --out-interface " "[!] \fIname\fP"
+.\"O The interface (bridge port) via which a frame is going to be sent (this option is useful in the
+.\"O .BR OUTPUT ,
+.\"O .B FORWARD
+.\"O and
+.\"O .B POSTROUTING
+.\"O chains). If the interface name ends with '+', then
+.\"O any interface name that begins with this name (disregarding '+') will match.
+.\"O The flag
+.\"O .B --out-if
+.\"O is an alias for this option.
+フレームが送出されるインターフェース (ブリッジポート) を指定する (このオ
+プションは
+.B OUTPUT
+,
+.B FORWARD
+,
+.B POSTROUTING
+チェインで有効です) 。インターフェース名が '+' で終わっている場合、その
+名前で始まる ('+'自体は除く)
+インターフェース名全てがマッチングする。
+.B --out-if
+はこのオプションのエイリアスである。
+.TP
+.BR "--logical-out " "[!] \fIname\fP"
+.\"O The (logical) bridge interface via which a frame is going to be sent (this option
+.\"O is useful in the
+.\"O .BR OUTPUT ,
+.\"O .B FORWARD
+.\"O and
+.\"O .B POSTROUTING
+.\"O chains).
+.\"O If the interface name ends with '+', then
+.\"O any interface name that begins with this name (disregarding '+') will match.
+フレームが送出される (論理的な) ブリッジインターフェースを指定する (この
+オプションは
+.B OUTPUT
+,
+.B FORWARD
+,
+.B POSTROUTING
+チェインで有効です) 。インターフェース名が '+' で終わっている場合、その
+名前で始まる ('+'自体は除く)
+インターフェース名全てがマッチングする。
+.TP
+.BR "-s, --source " "[!] \fIaddress\fP[/\fImask\fP]"
+.\"O The source MAC address. Both mask and address are written as 6 hexadecimal
+.\"O numbers separated by colons. Alternatively one can specify Unicast,
+.\"O Multicast, Broadcast or BGA (Bridge Group Address):
+送信元 MAC アドレス。マスクとアドレスの両方とも hex 数値 6 つをコロン区
+切りで記述する。あるいは
+Unicast, Multicast, Broadcast あるいは BGA (Bridge Group Address) を指定
+できる:
+.br
+.\"O .IR "Unicast" "=00:00:00:00:00:00/01:00:00:00:00:00,"
+.\"O .IR "Multicast" "=01:00:00:00:00:00/01:00:00:00:00:00,"
+.\"O .IR "Broadcast" "=ff:ff:ff:ff:ff:ff/ff:ff:ff:ff:ff:ff or"
+.\"O .IR "BGA" "=01:80:c2:00:00:00/ff:ff:ff:ff:ff:ff."
+.\"O Note that a broadcast
+.\"O address will also match the multicast specification. The flag
+.\"O .B --src
+.\"O is an alias for this option.
+.I Unicast =00:00:00:00:00:00/01:00:00:00:00:00
+,
+.I Multicast =01:00:00:00:00:00/01:00:00:00:00:00
+,
+.I Broadcast =ff:ff:ff:ff:ff:ff/ff:ff:ff:ff:ff:ff
+あるいは
+.I BGA =01:80:c2:00:00:00/ff:ff:ff:ff:ff:ff
+である。ブロードキャストあどれすはマルチキャストアドレスにもマッチングす
+ることに注意すること。
+.B --src
+はこのオプションのエイリアスである。
+.TP
+.BR "-d, --destination " "[!] \fIaddress\fP[/\fImask\fP]"
+.\"O The destination MAC address. See
+.\"O .B -s
+.\"O (above) for more details on MAC addresses. The flag
+.\"O .B --dst
+.\"O is an alias for this option.
+送信先 MAC アドレス。MAC アドレスの詳細については
+.B -s
+オプションを参照すること。
+.B --dst
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "-c, --set-counter " "\fIpcnt bcnt\fP"
+.\"O If used with
+.\"O .BR -A " or " -I ", then the packet and byte counters of the new rule will be set to
+.\"O .IR pcnt ", resp. " bcnt ".
+.\"O If used with the
+.\"O .BR -C " or " -D " commands, only rules with a packet and byte count equal to"
+.\"O .IR pcnt ", resp. " bcnt " will match."
+.B -A
+や
+.B -I
+と組み合わせた場合、新しいルールの
+.I pcnt
+,
+.I bcnt
+それぞれが指定した値になる。
+.B -C
+や
+.B -D
+コマンドと組み合わせた場合、
+.I pcnt
+と
+.I bcnt
+がパケットカウント値とバイトカウント値と等しいルールのみがマッチングする。
+
+.\"O .SS MATCH EXTENSIONS
+.SS MATCH EXTENSION
+.\"O Ebtables extensions are dynamically loaded into the userspace tool,
+.\"O there is therefore no need to explicitly load them with a
+.\"O -m option like is done in iptables.
+.\"O These extensions deal with functionality supported by kernel modules supplemental to
+.\"O the core ebtables code.
+ebtables extension はユーザスペースツールに動的に組み込まれる。iptables
+コマンドで -m
+オプションを使っていた時のように、明示的にロードする必要はない。これらの
+extension は
+ebtables core コードに補足的なものとして kernel module でサポートされて
+いる機能を扱っている。
+.SS 802_3
+.\"O Specify 802.3 DSAP/SSAP fields or SNAP type.  The protocol must be specified as
+.\"O .IR "LENGTH " "(see the option " " -p " above).
+802.3 DSAP/SSAP フィールドあるいは SNAP タイプを指定する。プロトコルは
+.I LENGTH
+として指定されていなければならない (上記
+.I -p
+オプションを参照) 。
+.TP
+.BR "--802_3-sap " "[!] \fIsap\fP"
+.\"O DSAP and SSAP are two one byte 802.3 fields.  The bytes are always
+.\"O equal, so only one byte (hexadecimal) is needed as an argument.
+DSAP と SSAP は 802.3 中の 2 つの 1 バイトフィールドである。これらのバイ
+トは常に同じなので、
+1 バイト (hex数値で) の指定のみ必要である。
+.TP
+.BR "--802_3-type " "[!] \fItype\fP"
+.\"O If the 802.3 DSAP and SSAP values are 0xaa then the SNAP type field must
+.\"O be consulted to determine the payload protocol.  This is a two byte
+.\"O (hexadecimal) argument.  Only 802.3 frames with DSAP/SSAP 0xaa are
+.\"O checked for type.
+802.3 DSAP と SSAP の値が 0xaa の場合、SNAP タイプフィールドがペイロード
+プロトコルを決定する。
+これは 2 つの 1 バイト引数である (hex数値で) 。802.3 DSAP/SSAP 0xaa フ
+レームのみが検査される。
+.SS among
+.\"O Match a MAC address or MAC/IP address pair versus a list of MAC addresses
+.\"O and MAC/IP address pairs.
+.\"O A list entry has the following format:
+.\"O .IR xx:xx:xx:xx:xx:xx[=ip.ip.ip.ip][,] ". Multiple"
+.\"O list entries are separated by a comma, specifying an IP address corresponding to
+.\"O the MAC address is optional. Multiple MAC/IP address pairs with the same MAC address
+.\"O but different IP address (and vice versa) can be specified. If the MAC address doesn't
+.\"O match any entry from the list, the frame doesn't match the rule (unless "!" was used).
+MAC アドレスあるいは MAC/IP アドレスの組に対して、 MAC アドレスあるいは
+MAC/IP
+アドレスの組の一覧をマッチングさせる。一覧は次のような書式で指定する:
+.I xx:xx:xx:xx:xx:xx[=ip.ip.ip.ip][,]
+。一覧中のエントリはコンマで区切る。IP アドレスを MAC アドレスと組み合わ
+せるのはオプションである。同一
+MAC アドレスで IP アドレスが異なるという複数の MAC/IP アドレスペアを登録
+しても構わない。MAC
+アドレスが一覧にあるどれともマッチングしなかった場合、フレームはルールに
+マッチングしなかったことになる
+("!"が使われていない場合) 。
+.TP
+.BR "--among-dst " "[!] \fIlist\fP"
+.\"O Compare the MAC destination to the given list. If the Ethernet frame has type
+.\"O .IR IPv4 " or " ARP ,
+.\"O then comparison with MAC/IP destination address pairs from the
+.\"O list is possible.
+MAC 送信先と一覧を比較する。もし Ethernet フレームが
+.I IPv4
+あるいは
+.I ARP
+であれば、一覧中にある送信先 MAC/IP アドレスペアとの比較も可能である。
+.TP
+.BR "--among-src " "[!] \fIlist\fP"
+.\"O Compare the MAC source to the given list. If the Ethernet frame has type
+.\"O .IR IPv4 " or " ARP ,
+.\"O then comparison with MAC/IP source address pairs from the list
+.\"O is possible.
+MAC 送信元と一覧を比較する。もし Ethernet フレームが
+.I IPv4
+あるいは
+.I ARP
+であれば、一覧中にある MAC/IP 送信元アドレスペアとの比較も可能である。
+.TP
+.BR "--among-dst-file " "[!] \fIfile\fP"
+.\"O Same as
+.\"O .BR --among-dst " but the list is read in from the specified file."
+.B --among-dst
+と同様だが、指定したファイルから一覧を読み込む。
+.TP
+.BR "--among-src-file " "[!] \fIfile\fP"
+.\"O Same as
+.\"O .BR --among-src " but the list is read in from the specified file."
+.B --among-src
+と同様だが、指定したファイルから一覧を読み込む。
+.SS arp
+.\"O Specify (R)ARP fields. The protocol must be specified as
+.\"O .IR ARP " or " RARP .
+(R)ARP フィールドを指定する。プロトコルは
+.I ARP
+あるいは
+.I RARP
+でなければならない。
+.TP
+.BR "--arp-opcode " "[!] \fIopcode\fP"
+.\"O The (R)ARP opcode (decimal or a string, for more details see
+.\"O .BR "ebtables -h arp" ).
+(R)ARP opcode (10進数か文字列。詳細は
+.B ebtables -h arp
+参照すること)
+.TP
+.BR "--arp-htype " "[!] \fIhardware type\fP"
+.\"O The hardware type, this can be a decimal or the string
+.\"O .I Ethernet
+.\"O (which sets
+.\"O .I type
+.\"O to 1). Most (R)ARP packets have Eternet as hardware type.
+ハードウェアタイプで、10進数か文字列
+.I Ethernet
+(
+.I type
+1 になる)。ほとんどの (R)ARP パケットではハードウェアタイプが Ethernet
+になる。
+.TP
+.BR "--arp-ptype " "[!] \fIprotocol type\fP"
+.\"O The protocol type for which the (r)arp is used (hexadecimal or the string
+.\"O .IR IPv4 ,
+.\"O denoting 0x0800).
+.\"O Most (R)ARP packets have protocol type IPv4.
+(R)ARP で使われているプロトコルタイプ(hexあるいは 0x0800 を意味する文字列
+.I IPv4
+)。ほとんどの (R)ARP パケットではプロトコルタイプは IPv4 になる。
+.TP
+.BR "--arp-ip-src " "[!] \fIaddress\fP[/\fImask\fP]"
+.\"O The (R)ARP IP source address specification.
+(R)ARP 送信元 IP アドレス指定。
+.TP
+.BR "--arp-ip-dst " "[!] \fIaddress\fP[/\fImask\fP]"
+.\"O The (R)ARP IP destination address specification.
+(R)ARP 送信先 IP アドレス指定。
+.TP
+.BR "--arp-mac-src " "[!] \fIaddress\fP[/\fImask\fP]"
+.\"O The (R)ARP MAC source address specification.
+(R)ARP 送信元 MAC アドレス指定。
+.TP
+.BR "--arp-mac-dst " "[!] \fIaddress\fP[/\fImask\fP]"
+.\"O The (R)ARP MAC destination address specification.
+(R)ARP 送信先 MAC アドレス指定。
+.TP
+.BR "" "[!]" " --arp-gratuitous"
+.\"O Checks for ARP gratuitous packets: checks equality of IPv4 source
+.\"O address and IPv4 destination address inside the ARP header.
+ARP gratuitous パケットを検査する: ARP ヘッダ中の送信元 IPv4 アドレスと
+送信先
+IPv4 アドレスが等しいものを検査する。
+.SS ip
+.\"O Specify IPv4 fields. The protocol must be specified as
+.\"O .IR IPv4 .
+IPv4 フィールドを指定する。プロトコルは
+.I IPv4
+でなければならない。
+.TP
+.BR "--ip-source " "[!] \fIaddress\fP[/\fImask\fP]"
+.\"O The source IP address.
+.\"O The flag
+.\"O .B --ip-src
+.\"O is an alias for this option.
+送信元 IP アドレス。
+.B --ip-src
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip-destination " "[!] \fIaddress\fP[/\fImask\fP]"
+.\"O The destination IP address.
+.\"O The flag
+.B --ip-dst
+.\"O is an alias for this option.
+送信先 IP アドレス。
+.B --ip-dst
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip-tos " "[!] \fItos\fP"
+.\"O The IP type of service, in hexadecimal numbers.
+.\"O .BR IPv4 .
+IP サービスタイプを、hex 表記の数値で。
+.B IPv4
+のものである。
+.TP
+.BR "--ip-protocol " "[!] \fIprotocol\fP"
+.\"O The IP protocol.
+.\"O The flag
+.\"O .B --ip-proto
+.\"O is an alias for this option.
+IP プロトコル。
+.B --ip-proto
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip-source-port " "[!] \fIport1\fP[:\fIport2\fP]"
+.\"O The source port or port range for the IP protocols 6 (TCP), 17
+.\"O (UDP), 33 (DCCP) or 132 (SCTP). The
+.\"O .B --ip-protocol
+.\"O option must be specified as
+.\"O .IR TCP ", " UDP ", " DCCP " or " SCTP .
+.\"O If
+.\"O .IR port1 " is omitted, " 0:port2 " is used; if " port2 " is omitted but a colon is specified, " port1:65535 " is used."
+.\"O The flag
+.\"O .B --ip-sport
+.\"O is an alias for this option.
+IP プロトコル 6 (TCP), 17 (UDP), 33 (DCCP), 132 (SCTP) における、送信元
+ポートあるいはポートの範囲。
+.B --ip-protocol
+オプションで
+.I TCP
+,
+.I UDP
+,
+.I DCCP
+,
+.I SCTP
+のいずれかが指定されていなければならない。
+.I port1
+が省略された場合は
+.I 0:port2
+が使われる。
+.I port2
+が省略されたけれどもコロンが指定された場合は
+.I port1:65535
+が使われる。
+.B --ip-sport
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip-destination-port " "[!] \fIport1\fP[:\fIport2\fP]"
+.\"O The destination port or port range for ip protocols 6 (TCP), 17
+.\"O (UDP), 33 (DCCP) or 132 (SCTP). The
+.\"O .B --ip-protocol
+.\"O option must be specified as
+.\"O .IR TCP ", " UDP ", " DCCP " or " SCTP .
+.\"O If
+.\"O .IR port1 " is omitted, " 0:port2 " is used; if " port2 " is omitted but a colon is specified, " port1:65535 " is used."
+.\"O The flag
+.\"O .B --ip-dport
+.\"O is an alias for this option.
+IP プロトコル 6 (TCP), 17 (UDP), 33 (DCCP), 132 (SCTP) における、送信先
+ポートあるいはポートの範囲。
+.B --ip-protocol
+オプションで
+.I TCP
+,
+.I UDP
+,
+.I DCCP
+,
+.I SCTP
+のいずれかが指定されていなければならない。
+.I port1
+が省略された場合は
+.I 0:port2
+が使われる。
+.I port2
+が省略されたけれどもコロンが指定された場合は
+.I port1:65535
+が使われる。
+.B --ip-dport
+フラグはこのオプションのエイリアスである。
+.SS ip6
+.\"O Specify IPv6 fields. The protocol must be specified as
+.\"O .IR IPv6 .
+IPv6 のフィールドを指定する。プロトコルは
+.I IPv6
+でなければならない。
+.TP
+.BR "--ip6-source " "[!] \fIaddress\fP[/\fImask\fP]"
+.\"O The source IPv6 address.
+.\"O The flag
+.\"O .B --ip6-src
+.\"O is an alias for this option.
+送信元 IPv6 アドレス。
+.B --ipv6-src
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip6-destination " "[!] \fIaddress\fP[/\fImask\fP]"
+.\"O The destination IPv6 address.
+.\"O The flag
+.\"O .B --ip6-dst
+.\"O is an alias for this option.
+送信先 IPv6 アドレス。
+.B --ipv6-dst
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip6-tclass " "[!] \fItclass\fP"
+.\"O The IPv6 traffic class, in hexadecimal numbers.
+IPv6 トラフィッククラスを hex 表記の数値で。
+.TP
+.BR "--ip6-protocol " "[!] \fIprotocol\fP"
+.\"O The IP protocol.
+.\"O The flag
+.\"O .B --ip6-proto
+.\"O is an alias for this option.
+IP プロトコル。
+.B --ip6-proto
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip6-source-port " "[!] \fIport1\fP[:\fIport2\fP]"
+.\"O The source port or port range for the IPv6 protocols 6 (TCP), 17
+.\"O (UDP), 33 (DCCP) or 132 (SCTP). The
+.\"O .B --ip6-protocol
+.\"O option must be specified as
+.\"O .IR TCP ", " UDP ", " DCCP " or " SCTP .
+.\"O If
+.\"O .IR port1 " is omitted, " 0:port2 " is used; if " port2 " is omitted but a colon is specified, " port1:65535 " is used."
+.\"O The flag
+.\"O .B --ip6-sport
+.\"O is an alias for this option.
+IP プロトコル 6 (TCP), 17 (UDP), 33 (DCCP), 132 (SCTP) における、送信元
+ポートあるいはポートの範囲。
+.B --ip6-protocol
+オプションで
+.I TCP
+,
+.I UDP
+,
+.I DCCP
+,
+.I SCTP
+のいずれかが指定されていなければならない。
+.I port1
+が省略された場合は
+.I 0:port2
+が使われる。
+.I port2
+が省略されたけれどもコロンが指定された場合は
+.I port1:65535
+が使われる。
+.B --ip6-sport
+はこのオプションのエイリアスである。
+.TP
+.BR "--ip6-destination-port " "[!] \fIport1\fP[:\fIport2\fP]"
+.\"O The destination port or port range for IPv6 protocols 6 (TCP), 17
+.\"O (UDP), 33 (DCCP) or 132 (SCTP). The
+.\"O .B --ip6-protocol
+.\"O option must be specified as
+.\"O .IR TCP ", " UDP ", " DCCP " or " SCTP .
+.\"O If
+.\"O .IR port1 " is omitted, " 0:port2 " is used; if " port2 " is omitted but a colon is specified, " port1:65535 " is used."
+.\"O The flag
+.\"O .B --ip6-dport
+.\"O is an alias for this option.
+IP プロトコル 6 (TCP), 17 (UDP), 33 (DCCP), 132 (SCTP) における、送信元
+ポートあるいはポートの範囲。
+.B --ip6-protocol
+オプションで
+.I TCP
+,
+.I UDP
+,
+.I DCCP
+,
+.I SCTP
+のいずれかが指定されていなければならない。
+.I port1
+が省略された場合は
+.I 0:port2
+が使われる。
+.I port2
+が省略されたけれどもコロンが指定された場合は
+.I port1:65535
+が使われる。
+.B --ip6-sport
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--ip6-icmp-type " "[!]
+{\fItype\fP[:\fItype\fP]/\fIcode\fP[:\fIcode\fP]|\fItypename\fP}"
+.\"O Specify ipv6\-icmp type and code to match.
+.\"O Ranges for both type and code are supported. Type and code are
+.\"O separated by a slash. Valid numbers for type and range are 0 to 255.
+.\"O To match a single type including all valid codes, symbolic names can
+.\"O be used instead of numbers. The list of known type names is shown by the command
+マッチングさせる ipv6\-icmp タイプとコード。タイプとコードのどちらも範囲
+指定できる。
+タイプとコードはスラッシュで区切る。タイプとコードは 0 から 255 の間の数
+値である。
+あるタイプのすべてのコードにマッチングさせるには、数値の代わりにシンボル
+名を使って指定する。
+既知のタイプ名については次のコマンドで一覧が表示される。
+.nf
+  ebtables \-\-help ip6
+.fi
+.\"O This option is only valid for \-\-ip6-prococol ipv6-icmp.
+このオプションは \-\-ip6\-protocol ipv6\-icmp についてのみ有効である。
+.SS limit
+.\"O This module matches at a limited rate using a token bucket filter.
+.\"O A rule using this extension will match until this limit is reached.
+.\"O It can be used with the
+.\"O .B --log
+.\"O watcher to give limited logging, for example. Its use is the same
+.\"O as the limit match of iptables.
+このモジュールは token bucket フィルタを使って、マッチングにレートリミッ
+トを付ける。この
+extension を使っているルールは、リミットに到達するまではマッチングする。
+例えば
+.B --log
+watcher と組み合わせて使うと、レートリミットのついたロギングを行うことが
+できる。
+iptables における limit マッチングと同様に使える。
+.TP
+.BR "--limit " "[\fIvalue\fP]"
+.\"O Maximum average matching rate: specified as a number, with an optional
+.\"O .IR /second ", " /minute ", " /hour ", or " /day " suffix; the default is " 3/hour .
+マッチングレート最大平均値: 数値指定で、
+.I /second
+,
+.I /minute
+,
+.I /hour
+,
+.I day
+サフィックスを付けることができる; デフォルト値は
+.I 3/hour
+。
+.TP
+.BR "--limit-burst " "[\fInumber\fP]"
+.\"O Maximum initial number of packets to match: this number gets recharged by
+.\"O one every time the limit specified above is not reached, up to this
+.\"O number; the default is
+.\"O .IR 5 .
+マッチングする初期パケット最大値: 上記のリミットに到達しなかった回ごとに、
+指定した数値までリチャージされる; デフォルト値は
+.I 5
+である。
+.SS mark_m
+.TP
+.BR "--mark " "[!] [\fIvalue\fP][/\fImask\fP]"
+.\"O Matches frames with the given unsigned mark value. If a
+.\"O .IR value " and " mask " are specified, the logical AND of the mark value of the frame and"
+.\"O the user-specified
+.\"O .IR mask " is taken before comparing it with the"
+.\"O user-specified mark
+.\"O .IR value ". When only a mark "
+.\"O .IR value " is specified, the packet"
+.\"O only matches when the mark value of the frame equals the user-specified
+.\"O mark
+.\"O .IR value .
+.\"O If only a
+.\"O .IR mask " is specified, the logical"
+.\"O AND of the mark value of the frame and the user-specified
+.\"O .IR mask " is taken and the frame matches when the result of this logical AND is"
+.\"O non-zero. Only specifying a
+.\"O .IR mask " is useful to match multiple mark values."
+符号なし数値の mark でフレームにマッチングする。
+.I value
+と
+.I mask
+が指定されている場合、フレームの mark 値とユーザ指定の
+.I mask
+値の論理和 (AND) が計算されてから、ユーザ指定の mark
+.I value
+値と比較される。
+.I value
+のみが指定された場合、ユーザ指定の mark
+.I value
+と同一の値の mark を持ったパケットのみがマッチングする。
+.I mask
+のみが指定された場合、フレームの mark 値とユーザ指定の
+.I mask
+値の論理和 (AND) が計算され、結果が非 0 であるフレームがマッチングする。
+.I mask
+のみ指定する方法は、複数の mark 値とマッチングさせるのに便利である。
+.SS pkttype
+.TP
+.BR "--pkttype-type " "[!] \fItype\fP"
+.\"O Matches on the Ethernet "class" of the frame, which is determined by the
+.\"O generic networking code. Possible values:
+.\"O .IR broadcast " (MAC destination is the broadcast address),"
+.\"O .IR multicast " (MAC destination is a multicast address),"
+.\"O .IR host " (MAC destination is the receiving network device), or "
+.\"O .IR otherhost " (none of the above)."
+フレームの Ethernet "class" にマッチングし、これは一般的なネットワーク
+コードによって決まる。取りうる値は:
+.I broadcast
+(送信先 MAC アドレスがブロードキャストアドレス),
+.I multicast
+(送信先 MAC アドレスがマルチキャスト),
+.I host
+(送信先 MAC アドレスがネットワークデバイス),
+.I otehrhost
+(それ以外)のいずれかである。
+.SS stp
+.\"O Specify stp BPDU (bridge protocol data unit) fields. The destination
+.\"O address
+.\"O .BR "" ( -d ") must be specified as the bridge group address"
+.\"O .IR "" ( BGA ).
+.\"O For all options for which a range of values can be specified, it holds that
+.\"O if the lower bound is omitted (but the colon is not), then the lowest possible lower bound
+.\"O for that option is used, while if the upper bound is omitted (but the colon again is not), the
+.\"O highest possible upper bound for that option is used.
+stp BPDU (bridge protocol data unit) フィールドを指定する。送信先アドレス (
+.B -d
+) は bridge group address (
+.I BGA
+) が指定されていなければならない。
+数値の範囲指定ができるオプションでは、下限を省略した際は取りうる最小値が
+使われ、
+上限を省略した際 (コロンがついている場合) は、取りうる最大値が使われる。
+.TP
+.BR "--stp-type " "[!] \fItype\fP"
+.\"O The BPDU type (0-255), recognized non-numerical types are
+.\"O .IR config ", denoting a configuration BPDU (=0), and"
+.\"O .IR tcn ", denothing a topology change notification BPDU (=128)."
+BPDU type (0-255) である。数値以外で認識できるタイプは
+.I config
+の configuration BPDU (=0) と
+.I tcn
+の topology change notification BPDU (=128) である。
+.TP
+.BR "--stp-flags " "[!] \fIflag\fP"
+.\"O The BPDU flag (0-255), recognized non-numerical flags are
+.\"O .IR topology-change ", denoting the topology change flag (=1), and"
+.\"O .IR topology-change-ack ", denoting the topology change acknowledgement flag (=128)."
+BPDU flag (0-255) である。数値以外で認識できるフラグは
+.I topology-change
+の topology change flag (=1) と
+.I topology-change-ack
+の topology change acknowledgement flag (=128) である。
+.TP
+.BR "--stp-root-prio " "[!] [\fIprio\fP][:\fIprio\fP]"
+.\"O The root priority (0-65535) range.
+root 優先度 (0-65535) の範囲。
+.TP
+.BR "--stp-root-addr " "[!] [\fIaddress\fP][/\fImask\fP]"
+.\"O The root mac address, see the option
+.\"O .BR -s " for more details."
+root MAC アドレス。詳細は
+.B -s
+オプション参照すること。
+.TP
+.BR "--stp-root-cost " "[!] [\fIcost\fP][:\fIcost\fP]"
+.\"O The root path cost (0-4294967295) range.
+root path コスト (0-4294967295) の範囲。
+.TP
+.BR "--stp-sender-prio " "[!] [\fIprio\fP][:\fIprio\fP]"
+.\"O The BPDU's sender priority (0-65535) range.
+BPDU 送信者優先度 (0-65535) の範囲。
+.TP
+.\"O .BR "--stp-sender-addr " "[!] [\fIaddress\fP][/\fImask\fP]"
+.\"O The BPDU's sender mac address, see the option
+.\"O .BR -s " for more details."
+BPDU 送信者の MAC アドレス。詳細は
+.B -s
+オプション参照すること。
+.TP
+.BR "--stp-port " "[!] [\fIport\fP][:\fIport\fP]"
+.\"O The port identifier (0-65535) range.
+port 識別子の範囲 (0-65535)。
+.TP
+.BR "--stp-msg-age " "[!] [\fIage\fP][:\fIage\fP]"
+.\"O The message age timer (0-65535) range.
+メッセージ age timer の範囲 (0-65535)。
+.TP
+.BR "--stp-max-age " "[!] [\fIage\fP][:\fIage\fP]"
+.\"O The max age timer (0-65535) range.
+max age time の範囲 (0-65535)。
+.TP
+.BR "--stp-hello-time " "[!] [\fItime\fP][:\fItime\fP]"
+.\"O The hello time timer (0-65535) range.
+hello time timer の範囲 (0-65535)。
+.TP
+.BR "--stp-forward-delay " "[!] [\fIdelay\fP][:\fIdelay\fP]"
+.\"O The forward delay timer (0-65535) range.
+forward delay timer の範囲 (0-65535)。
+.SS vlan
+.\"O Specify 802.1Q Tag Control Information fields.
+.\"O The protocol must be specified as
+.\"O .IR 802_1Q " (0x8100)."
+802.1Q タグ制御情報フィールドを指定する。プロトコルは
+.I 802_1Q
+(0x8100) でなければならない。
+.TP
+.BR "--vlan-id " "[!] \fIid\fP"
+.\"O The VLAN identifier field (VID). Decimal number from 0 to 4095.
+VLAN 識別子フィールド (VID)。0 から 4095 の間の10進数の数字。
+.TP
+.BR "--vlan-prio " "[!] \fIprio\fP"
+.\"O The user priority field, a decimal number from 0 to 7.
+.\"O The VID should be set to 0 ("null VID") or unspecified
+.\"O (in the latter case the VID is deliberately set to 0).
+優先度フィールドで、0 から 7 までの10進数の数字。VID は 0 ("null VID")
+か、無指定であるべきです (後者の無指定の場合 VID は 0 であるとされる) 。
+.TP
+.BR "--vlan-encap " "[!] \fItype\fP"
+.\"O The encapsulated Ethernet frame type/length.
+.\"O Specified as a hexadecimal
+.\"O number from 0x0000 to 0xFFFF or as a symbolic name
+.\"O from
+.\"O .BR /etc/ethertypes .
+格納されている Ethernet フレームの type/length の値。0x0000 から 0xFFFF
+の範囲の hex 数値か
+.B /etc/ethertypes
+にあるシンボル名で指定する。
+
+.SS WATCHER EXTENSIONS
+.\"O Watchers only look at frames passing by, they don't modify them nor decide
+.\"O to accept the frames or not. These watchers only
+.\"O see the frame if the frame matches the rule, and they see it before the
+.\"O target is executed.
+watchers は通過するフレームを観測するだけで、変更したり accept するかど
+うかを決めたりなどはしない。
+これらの watcher はフレームがルールにマッチングするかどうかを見るだけで、
+それはターゲットが実行される前に行われる。
+.SS log
+.\"O The log watcher writes descriptive data about a frame to the syslog.
+log watcher はフレームの説明を syslog に書き出す。
+.TP
+.B "--log"
+.br
+.\"O Log with the default loggin options: log-level=
+.\"O .IR info ,
+.\"O log-prefix="", no ip logging, no arp logging.
+デフォルトの logging オプションでロギングを行う: log-leve=
+.I info
+, log-prefix="", ip ログなし, arp ログなし。
+.TP
+.B --log-level "\fIlevel\fP"
+.br
+.\"O Defines the logging level. For the possible values, see
+.\"O .BR "ebtables -h log" .
+.\"O The default level is
+.\"O .IR info .
+logging レベルを定義する。取りうる値は
+.B ebtables -h log
+を参照すること。デフォルトのレベルは
+.I info
+である。
+.TP
+.BR --log-prefix " \fItext\fP"
+.br
+.\"O Defines the prefix
+.\"O .I text
+.\"O to be printed at the beginning of the line with the logging information.
+ログ情報の行頭にプリントする
+.I text
+プレフィックスを定義する。
+.TP
+.B --log-ip
+.br
+.\"O Will log the ip information when a frame made by the ip protocol matches
+.\"O the rule. The default is no ip information logging.
+ルールで ip プロトコルにマッチングした際に生成されるフレームの ip
+情報をログする。デフォルトでは ip 情報はログされない。
+.TP
+.B --log-ip6
+.br
+.\"O Will log the ipv6 information when a frame made by the ipv6 protocol matches
+.\"O the rule. The default is no ipv6 information logging.
+ルールで ipv6 プロトコルにマッチングした際に生成されるフレームの ipv6
+情報をログする。デフォルトでは ipv6 情報はログされない。
+.TP
+.B --log-arp
+.br
+.\"O Will log the (r)arp information when a frame made by the (r)arp protocols
+.\"O matches the rule. The default is no (r)arp information logging.
+ルールで (r)arp プロトコルマッチングした際に生成されるフレームの (r)arp
+情報をログする。デフォルトでは (r)arp 情報はログされない。
+.SS nflog
+.\"O The nflog watcher passes the packet to the loaded logging backend
+.\"O in order to log the packet. This is usually used in combination with
+.\"O nfnetlink_log as logging backend, which will multicast the packet
+.\"O through a
+.\"O .IR netlink
+.\"O socket to the specified multicast group. One or more userspace processes
+.\"O may subscribe to the group to receive the packets.
+nflog watcher はパケットをログするためにロードされた logging バックエン
+ドにパケットを渡する。
+これは通常 nfnetlink_log を logging バックエンドとして組み合わせて使わ
+れ、これが netlink
+ソケット経由でパケットを指定した multicast グループに mutlcast する。
+1 つあるいは複数のユーザスペースプロセスがそのグループに参加してパケット
+を受け取ることができる。
+.TP
+.B "--nflog"
+.br
+.\"O Log with the default logging options
+デフォルトの logging オプションでログする。
+.TP
+.B --nflog-group "\fInlgroup\fP"
+.br
+.\"O The netlink group (1 - 2^32-1) to which packets are (only applicable for
+.\"O nfnetlink_log). The default value is 1.
+パケットが送出先である netlink グループ (1 から 2^32-1 の間)
+(nfnetlink_log でのみ有効)。デフォルト値は 1。
+.TP
+.B --nflog-prefix "\fIprefix\fP"
+.br
+.\"O A prefix string to include in the log message, up to 30 characters
+.\"O long, useful for distinguishing messages in the logs.
+ログメッセージに含まれるプレフィックス文字列で、30文字まで。
+ログの中でメッセージを区別するのに便利。
+.TP
+.B --nflog-range "\fIsize\fP"
+.br
+.\"O The number of bytes to be copied to userspace (only applicable for
+.\"O nfnetlink_log). nfnetlink_log instances may specify their own
+.\"O range, this option overrides it.
+ユーザスペースにコピーされるバイト数 (nfnetlink_logでのみ有効)
+。nfnetlink_log
+インスタンスでも範囲指定可能で、このオプションはそれを上書きする。
+.TP
+.B --nflog-threshold "\fIsize\fP"
+.br
+.\"O Number of packets to queue inside the kernel before sending them
+.\"O to userspace (only applicable for nfnetlink_log). Higher values
+.\"O result in less overhead per packet, but increase delay until the
+.\"O packets reach userspace. The default value is 1.
+ユーザスペースに送る前に kernel 内の queue するパケットの数
+(nfnetlink_log でのみ有効)。
+大きな数値にすると 1 パケットあたりのオーバーヘッドは小さくなるが、
+ユーザスペースにパケットが届くまでの遅延は大きくなる。デフォルト値は 1。
+.SS ulog
+.\"O The ulog watcher passes the packet to a userspace
+.\"O logging daemon using netlink multicast sockets. This differs
+.\"O from the log watcher in the sense that the complete packet is
+.\"O sent to userspace instead of a descriptive text and that
+.\"O netlink multicast sockets are used instead of the syslog.
+.\"O This watcher enables parsing of packets with userspace programs, the
+.\"O physical bridge in and out ports are also included in the netlink messages.
+.\"O The ulog watcher module accepts 2 parameters when the module is loaded
+.\"O into the kernel (e.g. with modprobe):
+.\"O .B nlbufsiz
+.\"O specifies how big the buffer for each netlink multicast
+.\"O group is. If you say
+.\"O .IR nlbufsiz=8192 ,
+.\"O for example, up to eight kB of packets will
+.\"O get accumulated in the kernel until they are sent to userspace. It is
+.\"O not possible to allocate more than 128kB. Please also keep in mind that
+.\"O this buffer size is allocated for each nlgroup you are using, so the
+.\"O total kernel memory usage increases by that factor. The default is 4096.
+.\"O .B flushtimeout
+.\"O specifies after how many hundredths of a second the queue should be
+.\"O flushed, even if it is not full yet. The default is 10 (one tenth of
+.\"O a second).
+ulog watcher は netlink multicast ソケットを使ってユーザランド logging
+デーモンにパケットを渡する。
+パケットの説明ではなくパケット全体が送出されるという点と syslog ではなく
+netlink multicast
+ソケットが使われるという点で log watcher とは異なる。この watcher
+ではユーザスペースのプログラムでパケットを解析することができ、物理ブリッ
+ジの入り口と出口のポートの情報も
+netlink メッセージに含まれている。ulog watcher モジュールは、kernel に
+ロードされる際にパラメータを
+2 つ受け取ることができる (例えば modprobe を使う) ：
+.B nlbufsiz
+で各 netlink multicast group が持つバッファの大きさを指摘できる。例えば
+.I nlbufsiz=8192
+では、ユーザスペースに送り出す前に 8kB の数のパケットまで kernel 内に留
+めることができる。
+128kB 以上に設定することはできない。ここでのバッファサイズは nlgroup そ
+れぞれについて確保されるということにも注意。
+つまり消費 kernel メモリはその倍数で増えていく。デフォルト値は 4096 である。
+queue が埋まらなかったとしても、どれだけの間待ってから flush するかを、
+.B flushtimeout
+で 100 分の 1 秒刻みで指定する。デフォルト値は 10 です (0.1秒) 。
+.TP
+.B "--ulog"
+.br
+.\"O Use the default settings: ulog-prefix="", ulog-nlgroup=1,
+.\"O ulog-cprange=4096, ulog-qthreshold=1.
+デフォルトの設定を使う: ulog-prefix="", ulog-nlgroup=1,
+ulog-cprange=4096, ulog-qthreshold=1
+.TP
+.B --ulog-prefix "\fItext\fP"
+.br
+.\"O Defines the prefix included with the packets sent to userspace.
+ユーザスペースに送られるパケットに含まれるプレフィックスを定義する。
+.TP
+.BR --ulog-nlgroup " \fIgroup\fP"
+.br
+.\"O Defines which netlink group number to use (a number from 1 to 32).
+.\"O Make sure the netlink group numbers used for the iptables ULOG
+.\"O target differ from those used for the ebtables ulog watcher.
+.\"O The default group number is 1.
+どの netlink group number を使うかを定義する (1から32の間の数字) 。
+iptables ULOG ターゲットで使われている netlink group number と
+ebtables ulog watcher のものとは異なるものにすること。
+デフォルトの group number は 1 である。
+.TP
+.BR --ulog-cprange " \fIrange\fP"
+.br
+.\"O Defines the maximum copy range to userspace, for packets matching the
+.\"O rule. The default range is 0, which means the maximum copy range is
+.\"O given by
+.\"O .BR nlbufsiz .
+.\"O A maximum copy range larger than
+.\"O 128*1024 is meaningless as the packets sent to userspace have an upper
+.\"O size limit of 128*1024.
+ルールにマッチングしたパケットについて、ユーザスペースにコピーされる範囲
+の最大値を定義する。
+デフォルトの範囲は 0　で、これは
+.B nlbufsiz
+で与えられた範囲の最大値を意味する。128*1024 より大きな値を指定しても意
+味はない。
+なぜならユーザスペースに送られるパケットサイズには 128*1024 の上限値があ
+るからである。
+.TP
+.BR --ulog-qthreshold " \fIthreshold\fP"
+.br
+.\"O Queue at most
+.\"O .I threshold
+.\"O number of packets before sending them to
+.\"O userspace with a netlink socket. Note that packets can be sent to
+.\"O userspace before the queue is full, this happens when the ulog
+.\"O kernel timer goes off (the frequency of this timer depends on
+.\"O .BR flushtimeout ).
+netlink ソケット経由でユーザスペースに送りだす前に
+.I threshold
+の数まで packet を queue する。
+queue が埋まる以前であってもパケットは送出されることがあることに注意する
+こと。これは
+ulog kernel タイマが達した際に起こる (このタイマの周期は
+.B flushtimeout
+に依存する)。
+.SS TARGET EXTENSIONS
+.SS arpreply
+.\"O The
+.\"O .B arpreply
+.\"O target can be used in the
+.\"O .BR PREROUTING " chain of the " nat " table."
+.\"O If this target sees an ARP request it will automatically reply
+.\"O with an ARP reply. The used MAC address for the reply can be specified.
+.\"O The protocol must be specified as
+.\"O .IR ARP .
+.\"O When the ARP message is not an ARP request or when the ARP request isn't
+.\"O for an IP address on an Ethernet network, it is ignored by this target
+.\"O .BR "" ( CONTINUE ).
+.\"O When the ARP request is malformed, it is dropped
+.\"O .BR "" ( DROP ).
+.B arpreply
+ターゲットは
+.B nat
+テーブルの
+.B PREROUTING
+チェインで使うことができる。ターゲットが ARP リクエストを発見すると、自
+動的に ARP reply
+を返する。reply に使う MAC アドレスは設定できる。プロトコルは
+.I ARP
+でなければならない。ARP メッセージが ARP リクエストではなかったり、ARP
+リクエストが
+Ethernet ネットワーク上の IP アドレスに対するものではなかった場合、この
+ターゲットでは無視される (
+.B CONTINUE
+)。ARP リクエストが不正だった場合、破棄される (
+.B DROP
+)。
+.TP
+.BR "--arpreply-mac " "\fIaddress\fP"
+.\"O Specifies the MAC address to reply with: the Ethernet source MAC and the
+.\"O ARP payload source MAC will be filled in with this address.
+reply に返す MAC アドレスを指定する。Ethernet 送信元 MAC アドレスと ARP
+payload
+中の送信元 MAC アドレスの両方がこのアドレスになる。
+.TP
+.BR "--arpreply-target " "\fItarget\fP"
+.\"O Specifies the standard target. After sending the ARP reply, the rule still
+.\"O has to give a standard target so ebtables knows what to do with the ARP request.
+.\"O The default target
+.\"O .BR "" "is " DROP .
+標準のターゲットを指定する。ARP reply を送信した後に、ebtables がその
+ARP request
+に対してさらに何を行うかを指定する。デフォルトのターゲットは
+.B DROP
+である。
+.SS dnat
+.\"O The
+.\"O .B dnat
+.\"O target can only be used in the
+.\"O .BR BROUTING " chain of the " broute " table and the "
+.\"O .BR PREROUTING " and " OUTPUT " chains of the " nat " table."
+.\"O It specifies that the destination MAC address has to be changed.
+.B dnat
+は
+.B broute
+テーブルの
+.B BROUTING
+チェインと、
+.B nat
+テーブルの
+.B PREROUTING
+と
+.B OUTPUT
+チェインでのみ使える。送信先 MAC アドレスを変更するときに指定する。
+.TP
+.BR "--to-destination " "\fIaddress\fP"
+.br
+.\"O Change the destination MAC address to the specified
+.\"O .IR address .
+.\"O The flag
+.\"O .B --to-dst
+.\"O is an alias for this option.
+送信先 MAC アドレスを指定した
+.I address
+に変更する。
+.B --to-dst
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--dnat-target " "\fItarget\fP"
+.br
+.\"O Specifies the standard target. After doing the dnat, the rule still has to
+.\"O give a standard target so ebtables knows what to do with the dnated frame.
+.\"O The default target is
+.\"O .BR ACCEPT .
+.\"O Making it
+.\"O .BR CONTINUE " could let you use"
+.\"O multiple target extensions on the same frame. Making it
+.\"O .BR DROP " only makes"
+.\"O sense in the
+.\"O .BR BROUTING " chain but using the " redirect " target is more logical there. " RETURN " is also allowed. Note that using " RETURN
+.\"O in a base chain is not allowed (for obvious reasons).
+標準のターゲットを指定する。dnat を行った後に、ebtables がその dnat
+されたフレームに対してさらに何を行うかを指定する。デフォルトのターゲットは
+.B ACCEPT
+である。
+.B CONTINUE
+にすると、同一フレームに対して複数の target extension を使える。
+.B DROP
+は
+.B BROUTING
+チェインで
+.B redirect
+ターゲットと使うときにのみ意味がある。
+.B RETURN
+を基本チェインで使うことはできない(理由は明らかでしょう)。
+.SS mark
+.\"O .BR "" "The " mark " target can be used in every chain of every table. It is possible"
+.\"O to use the marking of a frame/packet in both ebtables and iptables,
+.\"O if the bridge-nf code is compiled into the kernel. Both put the marking at the
+.\"O same place. This allows for a form of communication between ebtables and iptables.
+.B mark
+ターゲットはどの table のどのチェインでも使える。bridge-nf が kernel に
+組み込まれていれば
+ebtables と iptables の両方で mark できる。どちらも同じ場所に mark を記
+録するので、
+ebtablesとiptables間の通信にもなる。
+.TP
+.BR "--mark-set " "\fIvalue\fP"
+.br
+.\"O Mark the frame with the specified non-negative
+.\"O .IR value .
+フレームに非負数の
+.I value
+を mark する。
+.TP
+.BR "--mark-or " "\fIvalue\fP"
+.br
+.\"O Or the frame with the specified non-negative
+.\"O .IR value .
+フレームに非負数の
+.I value
+で OR した値を記録する。
+.TP
+.BR "--mark-and " "\fIvalue\fP"
+.br
+.\"O And the frame with the specified non-negative
+.\"O .IR value .
+フレームに非負数の
+.I value
+で AND した値を記録する。
+.TP
+.BR "--mark-xor " "\fIvalue\fP"
+.br
+.\"O Xor the frame with the specified non-negative
+.\"O .IR value .
+フレームに非負数の
+.I value
+で XOR した値を記録する。
+.TP
+.BR "--mark-target " "\fItarget\fP"
+.br
+.\"O Specifies the standard target. After marking the frame, the rule
+.\"O still has to give a standard target so ebtables knows what to do.
+.\"O The default target is
+.\"O .BR ACCEPT ". Making it " CONTINUE " can let you do other"
+.\"O things with the frame in subsequent rules of the chain.
+標準のターゲットを指定する。mark を行った後に、ebtables がその dnat
+されたフレームに対してさらに何を行うかを指定する。デフォルトのターゲットは
+.B ACCEPT
+である。
+.B CONTINUE
+にすると、後続のチェインのルールでフレームに対して何らかの他の処理ができる。
+.SS redirect
+.\"O The
+.\"O .B redirect
+.\"O target will change the MAC target address to that of the bridge device the
+.\"O frame arrived on. This target can only be used in the
+.\"O .BR BROUTING " chain of the " broute " table and the "
+.\"O .BR PREROUTING " chain of the " nat " table."
+.\"O In the
+.\"O .BR BROUTING " chain, the MAC address of the bridge port is used as destination address,"
+.\"O .BR "" "in the " PREROUTING " chain, the MAC address of the bridge is used."
+.B redirect
+ターゲットは　MAC ターゲットアドレスをフレームが到達したブリッジデバイス
+のものに変更する。
+このターゲットは
+.B broute
+テーブルの
+.B BROUTING
+チェインと
+.B nat
+テーブルの
+.B PREROUTING
+チェインでのみ使える。
+.B BROUTING
+チェインではブリッジポートの MAC アドレスが送信先アドレスとして使われ、
+.B PREROUTING
+チェインではブリッジの MAC アドレスが使われる。
+.TP
+.BR "--redirect-target " "\fItarget\fP"
+.br
+.\"O Specifies the standard target. After doing the MAC redirect, the rule
+.\"O still has to give a standard target so ebtables knows what to do.
+.\"O The default target is
+.\"O .BR ACCEPT ". Making it " CONTINUE " could let you use"
+.\"O multiple target extensions on the same frame. Making it
+.\"O .BR DROP " in the " BROUTING " chain will let the frames be routed. " RETURN " is also allowed. Note"
+.\"O .BR "" "that using " RETURN " in a base chain is not allowed."
+標準のターゲットを指定する。MAC リダイレクトを行った後に、ebtables がさ
+らに何を行うかを指定する。
+デフォルトのターゲットは
+.B ACCEPT
+である。
+.B CONTINUE
+にすると、同一フレームに対して複数の target extension を使える。
+.B BROUTING
+チェイン中で
+.B DROP
+を使うと、そのフレームは route される。
+.B RETURN
+も使うことができる。
+.B RETURN
+を基本チェインで使うことはできない。
+.SS snat
+.\"O The
+.\"O .B snat
+.\"O target can only be used in the
+.\"O .BR POSTROUTING " chain of the " nat " table."
+.\"O It specifies that the source MAC address has to be changed.
+.B snat
+ターゲットは
+.B nat
+テーブルの
+.B POSTROUTING
+でのみ使うことができる。送信元 MAC アドレスを変更する際に使いる。
+.TP
+.BR "--to-source " "\fIaddress\fP"
+.br
+.\"O Changes the source MAC address to the specified
+.\"O .IR address ". The flag"
+.\"O .B --to-src
+.\"O is an alias for this option.
+送信元 MAC アドレスを指定した
+.I address
+に変更する。
+.B --to-src
+フラグはこのオプションのエイリアスである。
+.TP
+.BR "--snat-target " "\fItarget\fP"
+.br
+.\"O Specifies the standard target. After doing the snat, the rule still has
+.\"O to give a standard target so ebtables knows what to do.
+.\"O .BR "" "The default target is " ACCEPT ". Making it " CONTINUE " could let you use"
+.\"O .BR "" "multiple target extensions on the same frame. Making it "DROP " doesn't"
+.\"O .BR "" "make sense, but you could do that too. " RETURN " is also allowed. Note"
+.\"O .BR "" "that using " RETURN " in a base chain is not allowed."
+標準のターゲットを指定する。snat を行った後に、ebtables がさらに何を行う
+かを指定する。
+デフォルトのターゲットは
+.B ACCEPT
+である。
+.B CONTINUE
+にすると、同一フレームに対して複数の target extension を使える。
+.B DROP
+は 意味をなさないが、実行することはできる。
+.B RETURN
+も使える。
+.B RETURN
+を基本チェインで使うことはできない。
+.br
+.TP
+.BR "--snat-arp "
+.br
+.\"O Also change the hardware source address inside the arp header if the packet is an
+.\"O arp message and the hardware address length in the arp header is 6 bytes.
+パケットが arp メッセージであり、かつ、arp ヘッダ中のハードウェアアドレ
+スの長さが 6
+バイトの長さであった場合に、arp ヘッダ中のハードウェア送信元アドレスも変
+更する。
+.br
+.SH FILES
+.I /etc/ethertypes
+.I /var/lib/ebtables/lock
+.SH ENVIRONMENT VARIABLES
+.I EBTABLES_ATOMIC_FILE
+.SH MAILINGLISTS
+.BR "" "See " http://netfilter.org/mailinglists.html
+.SH SEE ALSO
+.BR iptables "(8), " brctl "(8), " ifconfig "(8), " route (8)
+.PP
+.BR "" "See " http://ebtables.sf.net
