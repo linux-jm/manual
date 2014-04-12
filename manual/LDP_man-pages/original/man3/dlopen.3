@@ -32,7 +32,7 @@
 .\" Modified by Walter Harms: dladdr, dlvsym
 .\" Modified by Petr Baudis <pasky@suse.cz>, 2008-12-04: dladdr caveat
 .\"
-.TH DLOPEN 3 2008-12-06 "Linux" "Linux Programmer's Manual"
+.TH DLOPEN 3 2014-01-08 "Linux" "Linux Programmer's Manual"
 .SH NAME
 dladdr, dlclose, dlerror, dlopen, dlsym, dlvsym \- programming interface to
 dynamic linking loader
@@ -58,7 +58,7 @@ implement the interface to the dynamic linking loader.
 .SS dlerror()
 The function
 .BR dlerror ()
-returns a human readable string describing the most recent error
+returns a human-readable string describing the most recent error
 that occurred from
 .BR dlopen (),
 .BR dlsym ()
@@ -192,7 +192,7 @@ This flag is not specified in POSIX.1-2001.
 .PP
 If
 .I filename
-is a NULL pointer, then the returned handle is for the main program.
+is NULL, then the returned handle is for the main program.
 When given to
 .BR dlsym (),
 this handle causes a search for a symbol in the main program,
@@ -353,8 +353,8 @@ typedef struct {
                                contains address */
     void       *dli_fbase;  /* Address at which shared object
                                is loaded */
-    const char *dli_sname;  /* Name of nearest symbol with address
-                               lower than \fIaddr\fP */
+    const char *dli_sname;  /* Name of symbol whose definition
+                               overlaps \fIaddr\fP */
     void       *dli_saddr;  /* Exact address of symbol named
                                in \fIdli_sname\fP */
 } Dl_info;
@@ -466,17 +466,29 @@ main(int argc, char **argv)
 
     dlerror();    /* Clear any existing error */
 
-    /* Writing: cosine = (double (*)(double)) dlsym(handle, "cos");
-       would seem more natural, but the C99 standard leaves
-       casting from "void *" to a function pointer undefined.
-       The assignment used below is the POSIX.1\-2003 (Technical
-       Corrigendum 1) workaround; see the Rationale for the
-       POSIX specification of dlsym(). */
+    cosine = (double (*)(double)) dlsym(handle, "cos");
 
-    *(void **) (&cosine) = dlsym(handle, "cos");
-.\" But in fact "gcc -O2 -Wall" will complain about the preceding cast.
+    /* According to the ISO C standard, casting between function
+       pointers and 'void *', as done above, produces undefined results.
+       POSIX.1-2003 and POSIX.1-2008 accepted this state of affairs and
+       proposed the following workaround:
 
-    if ((error = dlerror()) != NULL)  {
+           *(void **) (&cosine) = dlsym(handle, "cos");
+
+       This (clumsy) cast conforms with the ISO C standard and will
+       avoid any compiler warnings.
+
+       The 2013 Technical Corrigendum to POSIX.1-2008 (a.k.a.
+       POSIX.1-2013) improved matters by requiring that conforming
+       implementations support casting 'void *' to a function pointer.
+       Nevertheless, some compilers (e.g., gcc with the '-pedantic'
+       option) may complain about the cast used in this program. */
+.\" http://pubs.opengroup.org/onlinepubs/009695399/functions/dlsym.html#tag_03_112_08
+.\" http://pubs.opengroup.org/onlinepubs/9699919799/functions/dlsym.html#tag_16_96_07
+.\" http://austingroupbugs.net/view.php?id=74
+
+    error = dlerror();
+    if (error != NULL) {
         fprintf(stderr, "%s\en", error);
         exit(EXIT_FAILURE);
     }

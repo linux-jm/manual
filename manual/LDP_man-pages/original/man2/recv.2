@@ -38,7 +38,7 @@
 .\" Modified 1998,1999 by Andi Kleen
 .\" 2001-06-19 corrected SO_EE_OFFENDER, bug report by James Hawtin
 .\"
-.TH RECV 2 2013-04-19 "Linux" "Linux Programmer's Manual"
+.TH RECV 2 2014-02-11 "Linux" "Linux Programmer's Manual"
 .SH NAME
 recv, recvfrom, recvmsg \- receive a message from a socket
 .SH SYNOPSIS
@@ -58,54 +58,17 @@ recv, recvfrom, recvmsg \- receive a message from a socket
 .fi
 .SH DESCRIPTION
 The
-.BR recvfrom ()
+.BR recv (),
+.BR recvfrom (),
 and
 .BR recvmsg ()
-calls are used to receive messages from a socket, and may be used
-to receive data on a socket whether or not it is connection-oriented.
+calls are used to receive messages from a socket.
+They may be used
+to receive data on both connectionless and connection-oriented sockets.
+This page first describes common features of all three system calls,
+and then describes the differences between the calls.
 .PP
-If
-.I src_addr
-is not NULL, and the underlying protocol provides the source address,
-this source address is filled in.
-When
-.I src_addr
-is NULL, nothing is filled in; in this case,
-.I addrlen
-is not used, and should also be NULL.
-.\" (Note: for datagram sockets in both the UNIX and Internet domains,
-.\" .I src_addr
-.\" is filled in.
-.\" .I src_addr
-.\" is also filled in for stream sockets in the UNIX domain, but is not
-.\" filled in for stream sockets in the Internet domain.)
-.\" [The above notes on AF_UNIX and AF_INET sockets apply as at
-.\" Kernel 2.4.18. (MTK, 22 Jul 02)]
-The argument
-.I addrlen
-is a value-result argument,
-which the caller should initialize before the call to
-the size of the buffer associated with
-.IR src_addr ,
-and modified on return to indicate the actual size of the source address.
-The returned address is truncated if the buffer provided is too small;
-in this case,
-.I addrlen
-will return a value greater than was supplied to the call.
-.PP
-The
-.BR recv ()
-call is normally used only on a
-.I connected
-socket (see
-.BR connect (2))
-and is identical to
-.BR recvfrom ()
-with a NULL
-.I src_addr
-argument.
-.PP
-All three routines return the length of the message on successful
+All three calls return the length of the message on successful
 completion.
 If a message is too long to fit in the supplied buffer, excess
 bytes may be discarded depending on the type of socket the message is
@@ -121,17 +84,16 @@ is set to
 The receive calls normally return any data available, up to the requested
 amount, rather than waiting for receipt of the full amount requested.
 .PP
-The
-.BR select (2)
+An application can used
+.BR select (2),
+.BR poll (2),
 or
-.BR poll (2)
-call may be used to determine when more data arrives.
-.PP
+.BR epoll (7)
+to determine when more data arrives on a socket.
+.SS The flags argument
 The
 .I flags
-argument to a
-.BR recv ()
-call is formed by ORing one or more of the following values:
+argument is formed by ORing one or more of the following values:
 .TP
 .BR MSG_CMSG_CLOEXEC " (" recvmsg "() only; since Linux 2.6.23)"
 Set the close-on-exec flag for the file descriptor received
@@ -266,12 +228,9 @@ subsequent receive call will return the same data.
 For raw
 .RB ( AF_PACKET ),
 Internet datagram (since Linux 2.4.27/2.6.8),
-netlink (since Linux 2.6.22) and UNIX datagram (since Linux 3.4) sockets:
+netlink (since Linux 2.6.22), and UNIX datagram (since Linux 3.4) sockets:
 return the real length of the packet or datagram,
 even when it was longer than the passed buffer.
-Not implemented for UNIX domain
-.RB ( unix (7))
-sockets.
 
 For use with Internet stream sockets, see
 .BR tcp (7).
@@ -282,7 +241,60 @@ satisfied.
 However, the call may still return less data than requested if
 a signal is caught, an error or disconnect occurs, or the next data to be
 received is of a different type than that returned.
-.PP
+.\"
+.SS recvfrom()
+.BR recvfrom ()
+places the received message into the buffer
+.IR buf .
+The caller must specify the size of the buffer in
+.IR len .
+
+If
+.I src_addr
+is not NULL,
+and the underlying protocol provides the source address of the message,
+that source address is placed in the buffer pointed to by
+.IR src_addr .
+.\" (Note: for datagram sockets in both the UNIX and Internet domains,
+.\" .I src_addr
+.\" is filled in.
+.\" .I src_addr
+.\" is also filled in for stream sockets in the UNIX domain, but is not
+.\" filled in for stream sockets in the Internet domain.)
+.\" [The above notes on AF_UNIX and AF_INET sockets apply as at
+.\" Kernel 2.4.18. (MTK, 22 Jul 02)]
+In this case,
+.I addrlen
+is a value-result argument.
+Before the call,
+it should be initialized to the size of the buffer associated with
+.IR src_addr .
+Upon return,
+.I addrlen
+is updated to contain the actual size of the source address.
+The returned address is truncated if the buffer provided is too small;
+in this case,
+.I addrlen
+will return a value greater than was supplied to the call.
+
+If the caller is not interested in the source address,
+.I src_addr
+should be specified as NULL and
+.I addrlen
+should be specified as 0.
+.\"
+.SS recv()
+The
+.BR recv ()
+call is normally used only on a
+.I connected
+socket (see
+.BR connect (2)).
+It is equivalent to the call:
+
+    recvfrom(fd, buf, len, flags, NULL, 0));
+.\"
+.SS recvmsg()
 The
 .BR recvmsg ()
 call uses a
@@ -316,7 +328,7 @@ and
 .I msg_namelen
 specify the source address if the socket is unconnected;
 .I msg_name
-may be given as a NULL pointer if no names are desired or required.
+may be given as a null pointer if no names are desired or required.
 The fields
 .I msg_iov
 and
@@ -391,8 +403,16 @@ if an error occurred.
 In the event of an error,
 .I errno
 is set to indicate the error.
-The return value will be 0 when the
-peer has performed an orderly shutdown.
+
+When a stream socket peer has performed an orderly shutdown,
+the return value will be 0 (the traditional "end-of-file" return).
+
+Datagram sockets in various domains (e.g., the UNIX and Internet domains)
+permit zero-length datagrams.
+When such a datagram is received, the return value is 0.
+
+The value 0 may also be returned if the requested number of bytes
+to receive from a stream socket was 0.
 .SH ERRORS
 These are some standard errors generated by the socket layer.
 Additional errors
