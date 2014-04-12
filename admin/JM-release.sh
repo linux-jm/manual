@@ -9,13 +9,12 @@ usage() {
     echo "Options:"
     echo "  -c : Copy mode. By default, sed is used to remove JM comments."
     echo "  -f : Force Override the existing page"
-    echo "  -g : Guess the release directory from the draft location"
     echo "  -v : Verbose mode"
 }
 
 COPY=0
 FORCE=0
-GUESS=0
+GUESS=1
 VERBOSE=0
 QUIET=0
 
@@ -24,7 +23,6 @@ do
   case $OPT in
     "c") COPY=1 ;;
     "f") FORCE=1 ;;
-    "g") GUESS=1 ;;
     "q") QUIET=1 ;;
     "v") VERBOSE=1 ;;
     *)   usage ;;
@@ -47,11 +45,9 @@ fi
 DRAFT=$1
 RELDIR=$2
 MANPAGE=`basename $DRAFT`
-if [ $GUESS -eq 1 ]; then
-  RELEASE=`echo $RELDIR/$(dirname $DRAFT | sed -e 's/^.*\///')/$MANPAGE`
-else
-  RELEASE=`echo $RELDIR/$MANPAGE`
-fi
+SECTION_NAME=$(basename $(dirname $DRAFT))
+RELSECDIR=$RELDIR/$SECTION_NAME
+RELEASE=$RELSECDIR/$MANPAGE
 
 if [ ! -f $DRAFT ]; then
   echo "draft file $DRAFT does not exist!"
@@ -61,6 +57,11 @@ fi
 if [ ! -d $RELDIR ]; then
   echo "release directory $RELDIR does not exist!"
   exit 1
+fi
+
+if [ ! -d $RELSECDIR ]; then
+  mkdir $RELSECDIR
+  echo "Created $RELSECDIR."
 fi
 
 if test -f $RELEASE && cmp $DRAFT $RELEASE > /dev/null; then
