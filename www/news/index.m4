@@ -17,7 +17,7 @@ m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2>2014/04/13</H2>
  <P>
- _LINK(INDEX/linux.html#ebtables,ebtables 2.0.10-4 の翻訳)を公開しました。
+ ebtables 2.0.10-4 の翻訳を公開しました。
  <UL>
  <LI>_NEW_PAGE(ebtables, ebtables.8)
  </UL>
