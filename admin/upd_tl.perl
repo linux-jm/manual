@@ -49,12 +49,14 @@ use JMtl('hash2line', 'line2hash');
 my (%ti, %tl, $package, $newver);
 
 if (@ARGV < 2) { die "$0 translation_list update_list new_version\n";}
+$translation_list = $ARGV[0];
+$update_list = $ARGV[1];
 $newver = $ARGV[2];
 
 #
 # import old tranalation_list
 #
-open TL, $ARGV[0] || die "cannot open $ARGV[0]\n";
+open TL, $translation_list || die "cannot open $translation_list\n";
 while(<TL>){
     chomp;
     %ti = line2hash($_);
@@ -67,7 +69,7 @@ $package = $ti{pkg};
 #
 # parse update_list
 #
-open UL, $ARGV[1] || die "cannot open $ARGV[1]\n";
+open UL, $update_list || die "cannot open $update_list\n";
 while (<UL>){
     chomp;
     if (/^\#/) {next};
@@ -209,7 +211,7 @@ foreach my $n (keys %tl){
 
 }
 
-open NTL, "> $ARGV[0].$newver";
+open NTL, "> $translation_list.$newver";
 foreach $n (sort keys %tl){
     if (${$tl{$n}}{stat} eq undef){next;}
 
