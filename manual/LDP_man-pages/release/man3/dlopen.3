@@ -50,7 +50,7 @@
 .\" Updated 2006-01-20, Akihiro MOTOKI
 .\" Updated 2009-03-02, Akihiro MOTOKI, LDP v3.19
 .\"
-.TH DLOPEN 3 2008\-12\-06 Linux "Linux Programmer's Manual"
+.TH DLOPEN 3 2014\-01\-08 Linux "Linux Programmer's Manual"
 .SH 名前
 dlclose, dlerror, dlopen, dlsym \- 動的リンクを行うローダへの プログラミングインターフェース
 .SH 書式
@@ -137,7 +137,7 @@ lazy binding (手抜きなシンボルの結び付け) が行う。 シンボル
 このライブラリ内のシンボルの参照領域をグローバル領域よりも前に配置する。 つまり、内蔵型のライブラリでは、すでにロードされたライブラリに含まれる
 同じ名前のグローバルなシンボルよりも自ライブラリ内のシンボルが優先して 使われる。 このフラグは POSIX.1\-2001 では規定されていない。
 .PP
-\fIfilename\fP が NULL ポインタである場合は、 返されるハンドルはメイン・プログラムのものになる。 このハンドルが \fBdlsym\fP()
+\fIfilename\fP が NULL である場合は、 返されるハンドルはメイン・プログラムのものになる。 このハンドルが \fBdlsym\fP()
 に渡されると、シンボルの検索は、メイン・プログラム内、 プログラムの起動時にロードされる全ての共有ライブラリ、 \fBdlopen\fP()  によって
 \fBRTLD_GLOBAL\fP フラグ付きでロードされた全ての共有ライブラリ、の順序で行われる。
 .PP
@@ -209,8 +209,8 @@ typedef struct {
                                contains address */
     void       *dli_fbase;  /* Address at which shared object
                                is loaded */
-    const char *dli_sname;  /* Name of nearest symbol with address
-                               lower than \fIaddr\fP */
+    const char *dli_sname;  /* Name of symbol whose definition
+                               overlaps \fIaddr\fP */
     void       *dli_saddr;  /* Exact address of symbol named
                                in \fIdli_sname\fP */
 } Dl_info;
@@ -278,17 +278,29 @@ main(int argc, char **argv)
 
     dlerror();    /* Clear any existing error */
 
-    /* Writing: cosine = (double (*)(double)) dlsym(handle, "cos");
-       would seem more natural, but the C99 standard leaves
-       casting from "void *" to a function pointer undefined.
-       The assignment used below is the POSIX.1\-2003 (Technical
-       Corrigendum 1) workaround; see the Rationale for the
-       POSIX specification of dlsym(). */
+    cosine = (double (*)(double)) dlsym(handle, "cos");
 
-.\" But in fact "gcc -O2 -Wall" will complain about the preceding cast.
-    *(void **) (&cosine) = dlsym(handle, "cos");
+    /* According to the ISO C standard, casting between function
+       pointers and 'void *', as done above, produces undefined results.
+       POSIX.1\-2003 and POSIX.1\-2008 accepted this state of affairs and
+       proposed the following workaround:
 
-    if ((error = dlerror()) != NULL)  {
+           *(void **) (&cosine) = dlsym(handle, "cos");
+
+       This (clumsy) cast conforms with the ISO C standard and will
+       avoid any compiler warnings.
+
+.\" http://pubs.opengroup.org/onlinepubs/009695399/functions/dlsym.html#tag_03_112_08
+.\" http://pubs.opengroup.org/onlinepubs/9699919799/functions/dlsym.html#tag_16_96_07
+.\" http://austingroupbugs.net/view.php?id=74
+       The 2013 Technical Corrigendum to POSIX.1\-2008 (a.k.a.
+       POSIX.1\-2013) improved matters by requiring that conforming
+       implementations support casting 'void *' to a function pointer.
+       Nevertheless, some compilers (e.g., gcc with the '\-pedantic'
+       option) may complain about the cast used in this program. */
+
+    error = dlerror();
+    if (error != NULL) {
         fprintf(stderr, "%s\en", error);
         exit(EXIT_FAILURE);
     }
@@ -317,6 +329,6 @@ main(int argc, char **argv)
 
 ld.so info pages, gcc info pages, ld info pages
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

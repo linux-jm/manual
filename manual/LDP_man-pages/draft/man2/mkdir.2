@@ -1,6 +1,7 @@
 .\" This manpage is Copyright (C) 1992 Drew Eckhardt;
 .\"             and Copyright (C) 1993 Michael Haardt
-.\"             and Copyright (C) 1993,1994 Ian Jackson.
+.\"             and Copyright (C) 1993,1994 Ian Jackson
+.\"		and Copyright (C) 2006, 2014 Michael Kerrisk
 .\"
 .\" %%%LICENSE_START(GPL_NOVERSION_ONELINE)
 .\" You may distribute it under the terms of the GNU General
@@ -27,9 +28,9 @@
 .\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH MKDIR 2 2013\-01\-27 Linux "Linux Programmer's Manual"
+.TH MKDIR 2 2014\-02\-21 Linux "Linux Programmer's Manual"
 .SH 名前
-mkdir \- ディレクトリを作成する
+mkdir, mkdirat \- ディレクトリを作成する
 .SH 書式
 .nf
 .\" .B #include <unistd.h>
@@ -37,6 +38,30 @@ mkdir \- ディレクトリを作成する
 \fB#include <sys/types.h>\fP
 .sp
 \fBint mkdir(const char *\fP\fIpathname\fP\fB, mode_t \fP\fImode\fP\fB);\fP
+.sp
+\fB#include <fcntl.h>           \fP/* AT_* 定数の定義 */
+\fB#include <sys/stat.h>\fP
+.sp
+\fBint mkdirat(int \fP\fIdirfd\fP\fB, const char *\fP\fIpathname\fP\fB, mode_t \fP\fImode\fP\fB);\fP
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.in
+.sp
+\fBmkdirat\fP():
+.PD 0
+.ad l
+.RS 4
+.TP  4
+glibc 2.10 以降:
+_XOPEN_SOURCE\ >=\ 700 || _POSIX_C_SOURCE\ >=\ 200809L
+.TP 
+glibc 2.10 より前:
+_ATFILE_SOURCE
+.RE
+.ad
+.PD
 .fi
 .SH 説明
 \fBmkdir\fP()  は \fIpathname\fP で示される名前のディレクトリを作成しようとする。
@@ -51,10 +76,29 @@ group ID ビットがセットされていたり、ファイルシステムが B
 新たに作成されたディレクトリのグループ所有権は親ディレクトリの ものが継承される (親ディレクトリと同じになる)。
 それ以外の場合は、グループ所有権はプロセスの実効グループ ID となる。
 
+.\"
+.\"
 もし親ディレクトリに set group ID ビットがセットされていれば新しく作成される ディレクトリにも set group ID
 ビットがセットされる。
+.SS mkdirat()
+The \fBmkdirat\fP()  system call operates in exactly the same way as
+\fBmkdir\fP(), except for the differences described here.
+
+If the pathname given in \fIpathname\fP is relative, then it is interpreted
+relative to the directory referred to by the file descriptor \fIdirfd\fP
+(rather than relative to the current working directory of the calling
+process, as is done by \fBmkdir\fP()  for a relative pathname).
+
+If \fIpathname\fP is relative and \fIdirfd\fP is the special value \fBAT_FDCWD\fP,
+then \fIpathname\fP is interpreted relative to the current working directory of
+the calling process (like \fBmkdir\fP()).
+
+If \fIpathname\fP is absolute, then \fIdirfd\fP is ignored.
+.PP
+See \fBopenat\fP(2)  for an explanation of the need for \fBmkdirat\fP().
 .SH 返り値
-\fBmkdir\fP()  は成功した場合 0 を、失敗した場合 \-1 を返す (また、 \fIerrno\fP がエラーの内容にしたがって適切に設定される)。
+\fBmkdir\fP() と \fBmkdirat\fP() は成功した場合 0 を、失敗した場合 \-1 を返す (また、 \fIerrno\fP
+がエラーの内容にしたがって適切に設定される)。
 .SH エラー
 .TP 
 \fBEACCES\fP
@@ -100,9 +144,23 @@ group ID ビットがセットされていたり、ファイルシステムが B
 .TP 
 \fBEROFS\fP
 \fIpathname\fP が読み出し専用ファイルシステム上のファイルを指している。
+.PP
+The following additional errors can occur for \fBmkdirat\fP():
+.TP 
+\fBEBADF\fP
+\fIdirfd\fP が適切なファイルディスクリプタでない。
+.TP 
+\fBENOTDIR\fP
+\fIpathname\fP is relative and \fIdirfd\fP is a file descriptor referring to a
+file other than a directory.
+.SH バージョン
+\fBmkdirat\fP()  was added to Linux in kernel 2.6.16; library support was added
+to glibc in version 2.4.
 .SH 準拠
 .\" SVr4 documents additional EIO, EMULTIHOP
-SVr4, BSD, POSIX.1\-2001.
+\fBmkdir\fP(): SVr4, BSD, POSIX.1\-2001, POSIX.1\-2008.
+
+\fBmkdirat\fP(): POSIX.1\-2008.
 .SH 注意
 Linux では、許可ビット以外で意味を持つのは、 \fBS_ISVTX\fP モードビットだけである。 つまり、Linux
 では作成されたディレクトリは実際には (\fImode\fP & ~\fIumask\fP & 01777)  のモードを持つことになる。 \fBstat\fP(2)
@@ -110,10 +168,9 @@ Linux では、許可ビット以外で意味を持つのは、 \fBS_ISVTX\fP �
 .PP
 NFS を実現しているプロトコルには多くの不備が存在し、 それら中には \fBmkdir\fP()  に影響を与えるものもある。
 .SH 関連項目
-\fBmkdir\fP(1), \fBchmod\fP(2), \fBchown\fP(2), \fBmkdirat\fP(2), \fBmknod\fP(2),
-\fBmount\fP(2), \fBrmdir\fP(2), \fBstat\fP(2), \fBumask\fP(2), \fBunlink\fP(2),
-\fBpath_resolution\fP(7)
+\fBmkdir\fP(1), \fBchmod\fP(2), \fBchown\fP(2), \fBmknod\fP(2), \fBmount\fP(2),
+\fBrmdir\fP(2), \fBstat\fP(2), \fBumask\fP(2), \fBunlink\fP(2), \fBpath_resolution\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

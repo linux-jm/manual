@@ -81,7 +81,7 @@
 .\" Updated 2012-05-08, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH FCNTL 2 2012\-04\-15 Linux "Linux Programmer's Manual"
+.TH FCNTL 2 2014\-02\-20 Linux "Linux Programmer's Manual"
 .SH 名前
 fcntl \- ファイルディスクリプタの操作を行う
 .SH 書式
@@ -138,15 +138,14 @@ fcntl \- ファイルディスクリプタの操作を行う
 \fIarg\fP は無視される。
 .TP 
 \fBF_SETFL\fP (\fIint\fP)
-.\" FIXME . According to POSIX.1-2001, O_SYNC should also be modifiable
-.\" via fcntl(2), but currently Linux does not permit this
-.\" See http://bugzilla.kernel.org/show_bug.cgi?id=5994
-ファイル状態フラグに \fIarg\fP で指定された値を設定する。 \fIarg\fP のうち、ファイルのアクセスモード (\fBO_RDONLY\fP,
-\fBO_WRONLY\fP, \fBO_RDWR\fP)  とファイル作成フラグ (すなわち \fBO_CREAT\fP, \fBO_EXCL\fP,
-\fBO_NOCTTY\fP, \fBO_TRUNC\fP)  に関するビットは無視される。 Linux では、このコマンドで変更できるのは
-\fBO_APPEND\fP, \fBO_ASYNC\fP, \fBO_DIRECT\fP, \fBO_NOATIME\fP, \fBO_NONBLOCK\fP フラグだけである。
+Set the file status flags to the value specified by \fIarg\fP.  File access
+mode (\fBO_RDONLY\fP, \fBO_WRONLY\fP, \fBO_RDWR\fP)  and file creation flags (i.e.,
+\fBO_CREAT\fP, \fBO_EXCL\fP, \fBO_NOCTTY\fP, \fBO_TRUNC\fP)  in \fIarg\fP are ignored.  On
+Linux this command can change only the \fBO_APPEND\fP, \fBO_ASYNC\fP, \fBO_DIRECT\fP,
+\fBO_NOATIME\fP, and \fBO_NONBLOCK\fP flags.  It is not possible to change the
+\fBO_DSYNC\fP and \fBO_SYNC\fP flags; see BUGS, below.
 .SS アドバイザリロック
-\fBF_GETLK\fP, \fBF_SETLK\fP, \fBF_SETLKW\fP は、レコードロックの獲得／解放／テストのために使用する
+\fBF_SETLK\fP, \fBF_SETLKW\fP, \fBF_GETLK\fP は、レコードロックの獲得／解放／テストのために使用する
 (レコードロックはファイルセグメントロックや ファイル領域ロックとも呼ばれる)。 三番目の引き数 \fIlock\fP
 は、以下に示すフィールドを含む構造体へのポインタである (フィールドの順序は関係なく、構造体に他のフィールドがあってもよい)。
 .in +4n
@@ -204,12 +203,15 @@ POSIX.1\-2001 では、負の値の \fIl_len\fP をサポートする実装を�
 \fBEINTR\fP が設定される; \fBsignal\fP(7)  参照)。
 .TP 
 \fBF_GETLK\fP (\fIstruct flock *\fP)
-このコールの呼び出し時には、 \fIlock\fP にはそのファイルに適用しようとするロックに関する情報が入っている。 ロックを適用できる場合には、
-\fBfcntl\fP()  は実際にはロックを行わず、構造体 \fIlock\fP の \fIl_type\fP フィールドに \fBF_UNLCK\fP
-を設定し、他のフィールドは変更せずに、復帰する。 違う種別のロックが (一つもしくは複数) 適用されていて ロックを適用できないような場合には、
-\fBfcntl\fP()  は、原因となったロックの一つについての詳細情報を構造体 \fIlock\fP のフィールド \fIl_type\fP,
-\fIl_whence\fP, \fIl_start\fP, \fIl_len\fP に格納し、また \fIl_pid\fP にロックを保持しているプロセスの PID
-を設定して、復帰する。
+On input to this call, \fIlock\fP describes a lock we would like to place on
+the file.  If the lock could be placed, \fBfcntl\fP()  does not actually place
+it, but returns \fBF_UNLCK\fP in the \fIl_type\fP field of \fIlock\fP and leaves the
+other fields of the structure unchanged.  If one or more incompatible locks
+would prevent this lock being placed, then \fBfcntl\fP()  returns details about
+one of these locks in the \fIl_type\fP, \fIl_whence\fP, \fIl_start\fP, and \fIl_len\fP
+fields of \fIlock\fP and sets \fIl_pid\fP to be the PID of the process holding
+that lock.  Note that the information returned by \fBF_GETLK\fP may already be
+out of date by the time the caller inspects it.
 .P
 読み出しロックを適用するには、 \fIfd\fP は読み出し用にオープンされていなければならない。 書き込みロックを適用するには、 \fIfd\fP
 は書き込み用にオープンされていなければならない。 読み書き両方のロックを適用するには、読み書き両用で ファイルをオープンしなければならない。
@@ -382,10 +384,13 @@ ID が \fIpid\fP で指定された値のプロセスグループにそのシグ
 これらの機構を使用することで、ほとんどの場合で \fBselect\fP(2)  や \fBpoll\fP(2)  を使用せずに完全な非同期 I/O
 を実装することができる。
 .PP
-\fBO_ASYNC\fP, \fBF_GETOWN\fP, \fBF_SETOWN\fP の使用は BSD と Linux に特有である。
-\fBF_GETOWN_EX\fP, \fBF_SETOWN_EX\fP, \fBF_GETSIG\fP, \fBF_SETSIG\fP は Linux 固有である。POSIX
-には、同様のことを行うために、非同期 I/O と \fIaio_sigevent\fP 構造体がある。Linux では、GNU C ライブラリ (Glibc)
-の一部として これらも利用可能である。
+The use of \fBO_ASYNC\fP is specific to BSD and Linux.  The only use of
+\fBF_GETOWN\fP and \fBF_SETOWN\fP specified in POSIX.1 is in conjunction with the
+use of the \fBSIGURG\fP signal on sockets.  (POSIX does not specify the
+\fBSIGIO\fP signal.)  \fBF_GETOWN_EX\fP, \fBF_SETOWN_EX\fP, \fBF_GETSIG\fP, and
+\fBF_SETSIG\fP are Linux\-specific.  POSIX has asynchronous I/O and the
+\fIaio_sigevent\fP structure to achieve similar things; these are also
+available in Linux as part of the GNU C Library (Glibc).
 .SS "リース (leases)"
 (Linix 2.4 以降で利用可能)  \fBF_SETLEASE\fP は、 \fIfd\fP
 が参照するオープンファイル記述に対して新しいリースを設定するのに使用される。 \fBF_GETLEASE\fP は、 \fIfd\fP
@@ -642,6 +647,14 @@ SVr4, 4.3BSD, POSIX.1\-2001.  POSIX.1\-2001 で規定されている操作は、
 はっきりと言えることは、ロックを保持しているプロセスが別のマシンに存在 する場合には、 \fIl_pid\fP
 だけはあまり役にたたないだろうということである。
 .SH バグ
+.SS F_SETFL
+.\" FIXME . According to POSIX.1-2001, O_SYNC should also be modifiable
+.\" via fcntl(2), but currently Linux does not permit this
+.\" See http://bugzilla.kernel.org/show_bug.cgi?id=5994
+It is not possible to use \fBF_SETFL\fP to change the state of the \fBO_DSYNC\fP
+and \fBO_SYNC\fP flags.  Attempts to change the state of these flags are
+silently ignored.
+.SS F_GETOWN
 .\" glibc source: sysdeps/unix/sysv/linux/i386/sysdep.h
 .\" mtk, Dec 04: some limited testing on alpha and ia64 seems to
 .\" indicate that ANY negative PGID value will cause F_GETOWN
@@ -655,12 +668,12 @@ glibc はこの返り値をシステムコールでエラーが起こったと�
 が設定されることになる。Linux 固有の \fBF_GETOWN_EX\fP ではこの問題を回避できる。
 glibc バージョン 2.11 以降では、glibc では \fBF_GETOWN_EX\fP を使って
 \fBF_GETOWN\fP を実装することで、カーネルの \fBF_GETOWN\fP の問題を見えないようにしている。
-
+.SS F_SETOWN
 Linux 2.4 以前では、非特権プロセスが \fBF_SETOWN\fP を使って、ソケットのファイルディスクリプタの所有者に 呼び出し元以外のプロセス
 (やプロセスグループ) を指定すると 発生するバグがある。この場合、 呼び出し元が所有者として指定したプロセス (やプロセスグループ) に
 シグナルを送る許可を持っていたとしても、 \fBfcntl\fP()  が \-1 を返し \fIerrno\fP に \fBEPERM\fP を設定することがある。
 このエラーが返ったにもかかわらず、ファイルディスクリプタの所有者 は設定され、シグナルはその所有者に送られる。
-
+.SS "強制ロック (mandatory locking)"
 .\" http://marc.info/?l=linux-kernel&m=119013491707153&w=2
 これまでの Linux の全てのバージョンにおける強制ロックの実装は、 競合条件下で強制ロックが不完全になるような場合がある。
 ロックと重なって実行された \fBwrite\fP(2)  の呼び出しは強制ロックが獲得された後にもデータを変更することができる。 ロックと重なって実行された
@@ -675,6 +688,6 @@ Linux カーネルソースの \fIDocumentation/filesystems/\fP ディレクト�
 \fIDocumentation/\fP ディレクトリ直下にあり、 \fImandatory\-locking.txt\fP は \fImandatory.txt\fP
 という名前であった)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

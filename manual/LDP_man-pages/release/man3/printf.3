@@ -51,7 +51,7 @@
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-07-22, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH PRINTF 3 2013\-09\-04 GNU "Linux Programmer's Manual"
+.TH PRINTF 3 2013\-12\-30 GNU "Linux Programmer's Manual"
 .SH 名前
 printf, fprintf, sprintf, snprintf, vprintf, vfprintf, vsprintf, vsnprintf \-
 指定された書式に変換して出力を行う
@@ -117,10 +117,13 @@ C99 と POSIX.1\-2001 では、 \fBsprintf\fP(), \fBsnprintf\fP(), \fBvsprintf\f
 .SS "Return Values"
 成功時には、上記の関数は書き込まれた文字数を返す (文字列の最後を示すために使用する NULL バイトは数に含まれない)。
 
-\fBsnprintf\fP()  と \fBvsnprintf\fP()  は、 \fIsize\fP バイトを越える文字数を書き込まない (\fIsize\fP
-には文字列を終端する NULL バイト (\(aq\e0\(aq) も含まれる)。 この制限によって出力が切り詰められた場合には、
-もし十分なスペースがあれば書き込まれたであろう文字の個数 (文字列を終端する NULL バイトを除く) を返す。 従って、返り値が \fIsize\fP
-以上だった場合、出力が切り詰められたことを意味する (後述の注意も参照のこと)。
+The functions \fBsnprintf\fP()  and \fBvsnprintf\fP()  do not write more than
+\fIsize\fP bytes (including the terminating null byte (\(aq\e0\(aq)).  If the
+output was truncated due to this limit, then the return value is the number
+of characters (excluding the terminating null byte)  which would have been
+written to the final string if enough space had been available.  Thus, a
+return value of \fIsize\fP or more means that the output was truncated.  (See
+also below under NOTES.)
 
 エラーが発生した場合は、負の数を返す。
 .SS フォーマット文字列のフォーマット
@@ -479,8 +482,6 @@ fprintf(stdout, format,
 であれば、 "Sonntag, 3. Juli, 10:02" という結果になる。
 .PP
 十分に大きな文字列領域を確保して、そこにメッセージを格納するには (glibc 2.0 と glibc 2.1 の両方で正しく動作するコード):
-.PP
-バージョン 2.0.6 より前の glibc で切り詰めが起こった場合、切り詰めは適切に処理されず、エラーとして扱われる。
 .nf
 
 #include <stdio.h>
@@ -495,7 +496,8 @@ make_message(const char *fmt, ...)
     char *p, *np;
     va_list ap;
 
-    if ((p = malloc(size)) == NULL)
+    p = malloc(size);
+    if (p == NULL)
         return NULL;
 
     while (1) {
@@ -508,8 +510,10 @@ make_message(const char *fmt, ...)
 
         /* Check error code */
 
-        if (n < 0)
+        if (n < 0) {
+            free(p);
             return NULL;
+        }
 
         /* If that worked, return the string */
 
@@ -521,7 +525,8 @@ make_message(const char *fmt, ...)
         size = n + 1;       /* Precisely what is needed */
 
 
-        if ((np = realloc (p, size)) == NULL) {
+        np = realloc(p, size);
+        if (np == NULL) {
             free(p);
             return NULL;
         } else {
@@ -530,10 +535,12 @@ make_message(const char *fmt, ...)
     }
 }
 .fi
+.PP
+バージョン 2.0.6 より前の glibc で切り詰めが起こった場合、切り詰めは適切に処理されず、エラーとして扱われる。
 .SH 関連項目
 \fBprintf\fP(1), \fBasprintf\fP(3), \fBdprintf\fP(3), \fBscanf\fP(3), \fBsetlocale\fP(3),
 \fBwcrtomb\fP(3), \fBwprintf\fP(3), \fBlocale\fP(5)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

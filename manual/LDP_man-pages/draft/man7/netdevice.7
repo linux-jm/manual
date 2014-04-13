@@ -28,7 +28,7 @@
 .\" Updated 2012-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH NETDEVICE 7 2012\-04\-26 Linux "Linux Programmer's Manual"
+.TH NETDEVICE 7 2014\-01\-24 Linux "Linux Programmer's Manual"
 .SH 名前
 netdevice \- Linux ネットワークデバイスへの低レベルアクセス
 .SH 書式
@@ -39,7 +39,7 @@ netdevice \- Linux ネットワークデバイスへの低レベルアクセス
 この man ページでは、ネットワークデバイスを設定するために 用いるソケットインターフェースについて解説する。
 
 Linux はネットワークデバイスを設定するための標準的な ioctl を いくつか備えている。これらはどんなソケットのファイルディスクリプタにも
-用いることができる。ファミリーやタイプは何でもよい。 これらの ioctl は \fIifreq\fP 構造体を渡す。
+用いることができる。ファミリーやタイプは何でもよい。 これらの ioctl のほとんどは \fIifreq\fP 構造体を渡す。
 
 .in +4n
 .nf
@@ -59,14 +59,6 @@ struct ifreq {
         char            ifr_slave[IFNAMSIZ];
         char            ifr_newname[IFNAMSIZ];
         char           *ifr_data;
-    };
-};
-
-struct ifconf {
-    int                 ifc_len; /* size of buffer */
-    union {
-        char           *ifc_buf; /* buffer address */
-        struct ifreq   *ifc_req; /* array of structures */
     };
 };
 .fi
@@ -212,6 +204,38 @@ ifmap 構造体の解釈はデバイスドライバとアーキテクチャに�
 up していない 時にのみ使用できる。
 .TP 
 \fBSIOCGIFCONF\fP
+Return a list of interface (transport layer) addresses.  This currently
+means only addresses of the \fBAF_INET\fP (IPv4) family for compatibility.
+Unlike the others, this ioctl passes an \fIifconf\fP structure:
+
+.in +4n
+.nf
+struct ifconf {
+    int                 ifc_len; /* size of buffer */
+    union {
+        char           *ifc_buf; /* buffer address */
+        struct ifreq   *ifc_req; /* array of structures */
+    };
+};
+.fi
+.in
+
+If \fIifc_req\fP is NULL, \fBSIOCGIFCONF\fP returns the necessary buffer size in
+bytes for receiving all available addresses in \fIifc_len\fP.  Otherwise
+\fIifc_req\fP contains a pointer to an array of \fIifreq\fP structures to be
+filled with all currently active L3 interface addresses.  \fIifc_len\fP
+contains the size of the array in bytes.  Within each \fIifreq\fP structure,
+\fIifr_name\fP will receive the interface name, and \fIifr_addr\fP the address.
+The actual number of bytes transferred is returned in \fIifc_len\fP.
+
+If the size specified by \fIifc_len\fP is insufficient to store all the
+addresses, the kernel will skip the exceeding ones and return success.
+There is no reliable way of detecting this condition once it has occurred.
+It is therefore recommended to either determine the necessary buffer size
+beforehand by calling \fBSIOCGIFCONF\fP with \fIifc_req\fP set to NULL, or to
+retry the call with a bigger buffer whenever \fIifc_len\fP upon return differs
+by less than \fIsizeof(struct ifreq)\fP from its original value.
+
 .\" Slaving isn't supported in 2.2
 .\" .
 .\" .TP
@@ -221,17 +245,11 @@ up していない 時にのみ使用できる。
 .\" Setting the slave device is a privileged operation.
 .\" .PP
 .\" FIXME add amateur radio stuff.
-インターフェース(トランスポート層)アドレスのリストを返す。 現在のところ、互換性のために \fBAF_INET\fP (IPv4)
-ファミリーのアドレスのみである。 ユーザーは \fIifconf\fP 構造体を ioctl の引数として渡す。 \fIifconf\fP 構造体には、
-\fIifreq\fP 構造体の配列へのポインタである \fIifc_req\fP と、バイト単位の配列の長さを指定する \fIifc_len\fP が含まれる。
-カーネルは ifreqs を現在動作している全ての L3 インターフェースアドレスで埋める。 \fIifr_name\fP にはインターフェース名
-(eth0:1 など) が入り、 \fIifr_addr\fP にはアドレスが入る。 カーネルは実際の長さを \fIifc_len\fP に返す。
-\fIifc_len\fP が元のバッファの長さと同じだった場合、 オーバーフローを起こしている可能性があるので、
-全てのアドレスを取得するためにより大きなバッファで再試行するべきである。 エラーがなかった場合は ioctl は 0 を返す。 エラーがあった場合は
-\-1 を返す。 オーバーフローはエラーとは見なされない。
+If an error occurs accessing the \fIifconf\fP or \fIifreq\fP structures, \fBEFAULT\fP
+will be returned.
 .PP
 ほとんどのプロトコルには、専用のインターフェースオプションを 設定するための独自の ioctl が存在する。 説明は各プロトコルの man
-ページを見よ。
+ページを見よ。 IP アドレスの設定に関しては \fBip\fP(7) を参照。
 .PP
 さらに、デバイスによってはプライベートな ioctl がある。 これらはここでは説明しない。
 .SH 注意
@@ -257,6 +275,6 @@ glibc 2.1 では \fI<net/if.h>\fP に \fIifr_newname\fP マクロがない。
 .SH 関連項目
 \fBproc\fP(5), \fBcapabilities\fP(7), \fBip\fP(7), \fBrtnetlink\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

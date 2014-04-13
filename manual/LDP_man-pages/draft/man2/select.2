@@ -57,7 +57,7 @@
 .\" Updated 2012-05-30, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SELECT 2 2013\-09\-04 Linux "Linux Programmer's Manual"
+.TH SELECT 2 2014\-01\-31 Linux "Linux Programmer's Manual"
 .SH 名前
 select, pselect, FD_CLR, FD_ISSET, FD_SET, FD_ZERO \- 同期 I/O の多重化
 .SH 書式
@@ -129,14 +129,22 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 .PP
 \fInfds\fP は 3 つの集合に含まれるファイルディスクリプタの最大値に 1 を足したものである。
 .PP
-\fItimeout\fP 引き数で、ファイルディスクリプタが ready になるのを待って
-\fBselect\fP() が停止する停止時間を指定する
-(この停止時間はシステムクロックの粒度に切り上げられ、
-カーネルのスケジューリング遅延により少しだけ長くなる可能性がある)。
-\fItimeval\fP 構造体の両方のフィールドが 0 の場合、 \fBselect\fP() はすぐに復
-帰する (この機能はポーリング (polling) を行うのに便利である)。
-\fItimeout\fP に NULL (タイムアウトなし) が指定されると、 \fBselect\fP() は無
-期限に停止 (block) する。
+The \fItimeout\fP argument specifies the interval that \fBselect\fP()  should
+block waiting for a file descriptor to become ready.  The call will block
+until either:
+.IP * 3
+a file descriptor becomes ready;
+.IP *
+the call is interrupted by a signal handler; or
+.IP *
+タイムアウト時間が満了した。
+.PP
+Note that the \fItimeout\fP interval will be rounded up to the system clock
+granularity, and kernel scheduling delays mean that the blocking interval
+may overrun by a small amount.  If both fields of the \fItimeval\fP structure
+are zero, then \fBselect\fP()  returns immediately.  (This is useful for
+polling.)  If \fItimeout\fP is NULL (no timeout), \fBselect\fP()  can block
+indefinitely.
 .PP
 \fIsigmask\fP は、シグナルマスク (\fBsigprocmask\fP(2)  を参照) へのポインタである。 \fIsigmask\fP が NULL
 でない場合、 \fBpselect\fP()  は \fIsigmask\fP が指しているシグナルマスクで現在のシグナルマスクを置き換えてから、 "select"
@@ -202,10 +210,13 @@ Linux では、 \fBselect\fP()  は \fItimeout\fP を変更し、残りの停止
 構造体を初期化せずにそのまま再利用して \fBselect\fP()  を複数回行なっているコードを Linux へ移植する場合にも、問題が起こる。
 \fBselect\fP()  から復帰した後は \fItimeout\fP は未定義であると考えるべきである。
 .SH 返り値
-成功した場合、 \fBselect\fP()  と \fBpselect\fP()  は更新された 3 つのディスクリプタ集合に含まれている
-ファイルディスクリプタの数 (つまり、 \fIreadfds\fP, \fIwritefds\fP, \fIexceptfds\fP 中の 1 になっているビットの総数)
-を返す。 何も起こらずに時間切れになった場合、 ディスクリプタの数は 0 になることもある。 エラーならば \-1 を返し、 \fIerrno\fP
-に適切な値が設定される; 集合と \fItimeout\fP は未定義となるので、エラーが起こった後はそれらの内容を信頼してはならない。
+On success, \fBselect\fP()  and \fBpselect\fP()  return the number of file
+descriptors contained in the three returned descriptor sets (that is, the
+total number of bits that are set in \fIreadfds\fP, \fIwritefds\fP, \fIexceptfds\fP)
+which may be zero if the timeout expires before anything interesting
+happens.  On error, \-1 is returned, and \fIerrno\fP is set to indicate the
+error; the file descriptor sets are unmodified, and \fItimeout\fP becomes
+undefined.
 .SH エラー
 .TP 
 \fBEBADF\fP
@@ -364,6 +375,6 @@ main(void)
 
 考察と使用例の書かれたチュートリアルとして、 \fBselect_tut\fP(2)  がある。
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

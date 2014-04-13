@@ -1,6 +1,6 @@
 .\" This manpage is Copyright (C) 1992 Drew Eckhardt;
 .\"             and Copyright (C) 1993 Michael Haardt, Ian Jackson.
-.\" and Copyright (C) 2007 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" and Copyright (C) 2004, 2006, 2007, 2014 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -58,14 +58,38 @@
 .\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH ACCESS 2 2013\-09\-13 Linux "Linux Programmer's Manual"
+.TH ACCESS 2 2014\-02\-21 Linux "Linux Programmer's Manual"
 .SH 名前
-access \- ファイルに対する実ユーザーでのアクセス権をチェックする
+access, faccessat \- ユーザのファイルへのアクセス権をチェックする
 .SH 書式
 .nf
 \fB#include <unistd.h>\fP
 .sp
 \fBint access(const char *\fP\fIpathname\fP\fB, int \fP\fImode\fP\fB);\fP
+
+\fB#include <fcntl.h>           \fP/* AT_* 定数の定義 */
+\fB#include <unistd.h>\fP
+.sp
+\fBint faccessat(int \fP\fIdirfd\fP\fB, const char *\fP\fIpathname\fP\fB, int \fP\fImode\fP\fB, int \fP\fIflags\fP\fB);\fP
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.in
+.sp
+\fBfaccessat\fP():
+.PD 0
+.ad l
+.RS 4
+.TP  4
+glibc 2.10 以降:
+_XOPEN_SOURCE\ >=\ 700 || _POSIX_C_SOURCE\ >=\ 200809L
+.TP 
+glibc 2.10 より前:
+_ATFILE_SOURCE
+.RE
+.ad
+.PD
 .fi
 .SH 説明
 \fBaccess\fP()  は、呼び出し元プロセスがファイル \fIpathname\fP にアクセスできるかどうかをチェックする。 \fIpathname\fP
@@ -82,12 +106,39 @@ access \- ファイルに対する実ユーザーでのアクセス権をチェ�
 
 呼び出し元プロセスが特権プロセス (つまり、プロセスの実 UID が 0) の場合、 通常のファイルに対する \fBX_OK\fP
 のチェックは、そのファイルの所有者、グループ、他人のいずれかの 実行許可が有効になっていれば成功する。
+.SS "faccessat ()"
+The \fBfaccessat\fP()  system call operates in exactly the same way as
+\fBaccess\fP(), except for the differences described here.
+
+If the pathname given in \fIpathname\fP is relative, then it is interpreted
+relative to the directory referred to by the file descriptor \fIdirfd\fP
+(rather than relative to the current working directory of the calling
+process, as is done by \fBaccess\fP()  for a relative pathname).
+
+If \fIpathname\fP is relative and \fIdirfd\fP is the special value \fBAT_FDCWD\fP,
+then \fIpathname\fP is interpreted relative to the current working directory of
+the calling process (like \fBaccess\fP()).
+
+If \fIpathname\fP is absolute, then \fIdirfd\fP is ignored.
+
+\fIflags\fP is constructed by ORing together zero or more of the following
+values:
+.TP 
+\fBAT_EACCESS\fP
+Perform access checks using the effective user and group IDs.  By default,
+\fBfaccessat\fP()  uses the real IDs (like \fBaccess\fP()).
+.TP 
+\fBAT_SYMLINK_NOFOLLOW\fP
+If \fIpathname\fP is a symbolic link, do not dereference it: instead return
+information about the link itself.
+.PP
+See \fBopenat\fP(2)  for an explanation of the need for \fBfaccessat\fP().
 .SH 返り値
 成功した場合 (要求した全てについて許可が得られたか、 \fImode\fP が \fBF_OK\fP でファイルが存在した場合)、ゼロが返される。 エラーの場合
 (\fImode\fP の少なくとも一つのビットで要求した許可がなかった場合、 \fImode\fP が \fBF_OK\fP
 でファイルが存在しなかった場合、他のエラーが起こった場合)、\-1 が返され、 \fIerrno\fP が適切に設定される。
 .SH エラー
-\fBaccess\fP()  は以下の場合に失敗する。
+\fBaccess\fP() と \fBfaccessat\fP() は以下の場合に失敗する。
 .TP 
 \fBEACCES\fP
 要求されたアクセスは そのファイル自身に拒否されたか \fIpathname\fP へ至るまでディレクトリのいずれかに対する検索許可 (search
@@ -108,7 +159,7 @@ permission) が得られなかった。 (\fBpath_resolution\fP(7)  も参照の�
 \fBEROFS\fP
 読み込み専用 (read\-only) のファイルシステムに対して書き込み許可を 要求した。
 .PP
-\fBaccess\fP()  は以下の理由により失敗することがある。
+\fBaccess\fP() と \fBfaccessat\fP() は以下の理由により失敗することがある。
 .TP 
 \fBEFAULT\fP
 \fIpathname\fP がアクセス可能なアドレス空間の外を指している。
@@ -124,25 +175,39 @@ I/O エラーが発生した。
 .TP 
 \fBETXTBSY\fP
 実行中のファイルに対して書き込みを要求した。
+.PP
+The following additional errors can occur for \fBfaccessat\fP():
+.TP 
+\fBEBADF\fP
+\fIdirfd\fP が適切なファイルディスクリプタでない。
+.TP 
+\fBEINVAL\fP
+\fIflags\fP に無効なフラグが指定された。
+.TP 
+\fBENOTDIR\fP
+\fIpathname\fP is relative and \fIdirfd\fP is a file descriptor referring to a
+file other than a directory.
+.SH バージョン
+\fBfaccessat\fP()  はバージョン 2.6.16 で Linux に追加された。 ライブラリによるサポートは glibc バージョン 2.4
+で追加された。
 .SH 準拠
-SVr4, 4.3BSD, POSIX.1\-2001.
+\fBaccess\fP(): SVr4, 4.3BSD, POSIX.1\-2001, POSIX.1\-2008.
+
+\fBfaccessat\fP(): POSIX.1\-2008.
 .SH 注意
 .PP
-\fB警告\fP: あるユーザが、例えば \fBopen\fP(2) によるアクセスが可能かどうかを、
-(実際に行う前に) \fBaccess\fP() を使ってチェックするのは、セキュリティホール
-の原因になる。なぜならチェックをしてから 実際にファイルのオープン操作を
-する間の短い間隔を悪用できるからである。 \fBこの理由があるので、この
-システムコールを使うのは避けるべきである。\fP
-(ここで説明した例の場合には、より安全な方法としては、
-そのプロセスの実効ユーザ ID を実ユーザ ID に一時的に切り替えてから
-\fBopen\fP(2) を呼び出す方法がある。)
+\fB警告\fP: あるユーザが、例えば \fBopen\fP(2) によるアクセスが可能かどうかを、 (実際に行う前に)
+これらのシステムコールを使ってチェックするのは、セキュリティホールの原因になる。なぜならチェックをしてから
+実際にファイルのオープン操作をする間の短い間隔を悪用できるからである。 \fBこの理由があるので、このシステムコールを使うのは避けるべきである。\fP
+(ここで説明した例の場合には、より安全な方法としては、 そのプロセスの実効ユーザ ID を実ユーザ ID に一時的に切り替えてから \fBopen\fP(2)
+を呼び出す方法がある。)
 .PP
 \fBaccess\fP() は常にシンボリックリンクの展開を行う。
 シンボリックリンクのアクセス許可を確認する必要がある場合は、
 \fBAT_SYMLINK_NOFOLLOW\fP フラグ付きで \fBfaccessat\fP(2) を使うこと。
 .PP
 \fImode\fP で指定されたアクセス種別のいずれか一つでも拒否されると、 たとえ \fImode\fP で指定された他のアクセス種別が許可されたとしても、
-\fBaccess\fP()  はエラーを返す。
+これらのシステムコールはエラーを返す。
 .PP
 .\" HPU-UX 11 and Tru64 5.1 do this.
 POSIX.1\-2001 では、 呼び出し元プロセスが適切な特権を持っている場合 (つまり、スーパーユーザの場合)、
@@ -157,9 +222,17 @@ POSIX.1\-2001 では、 呼び出し元プロセスが適切な特権を持っ�
 ファイルを作成することが可能なことを意味するのであり、ディレクトリに ファイルとして書き込むことができるわけではない。 同様に DOS
 のファイルは「実行可能」と判断されるが、 \fBexecve\fP(2)  コールは失敗するだろう。
 .PP
-\fBaccess\fP() は、 UID マッピングを使用した NFSv2 ファイルシステムでは正常に機能しないかもしれない。なぜならば UID
+.\"
+.\"
+これらのシステムコールは、 UID マッピングを使用した NFSv2 ファイルシステムでは正常に機能しないかもしれない。なぜならば UID
 のマッピングはサーバーで 行なわれ、権利のチェックをするクライアントには見えないからである。 (NFS バージョン 3
 以降ではサーバー側でチェックが実行される。) 同様の問題は FUSE マウントでも起こり得る。
+.SS "faccessat ()"
+The raw \fBfaccessat\fP()  system call takes only the first three arguments.
+The \fBAT_EACCESS\fP and \fBAT_SYMLINK_NOFOLLOW\fP flags are actually implemented
+within the glibc wrapper function for \fBfaccessat\fP().  If either of these
+flags is specified, then the wrapper function employs \fBfstatat\fP(2)  to
+determine access permissions.
 .SH バグ
 .\" This behavior appears to have been an implementation accident.
 バージョン 2.4 (とそれ以前) のカーネルには、スーパーユーザでの \fBX_OK\fP のチェックの扱いに奇妙な点がある。 ディレクトリ以外のファイルで
@@ -167,14 +240,14 @@ POSIX.1\-2001 では、 呼び出し元プロセスが適切な特権を持っ�
 \fBX_OK\fP だけが指定されたときだけであり \fImode\fP に \fBR_OK\fP や \fBW_OK\fP が一緒に指定された場合には
 \fBaccess\fP()  は 0 を返す。 (バージョン 2.6.3 以前の) 初期の 2.6 系のカーネルも 2.4 系のカーネルと同様の動作をする。
 
-2.6.20 より前のカーネルでは、 ファイルが存在するファイルシステムを \fBmount\fP(2)  する際に指定された \fBMS_NOEXEC\fP
-フラグの効果を、 \fBaccess\fP()  は無視していた。 カーネル 2.6.20 以降では、 \fBaccess\fP()
-はこのフラグを考慮するようになっている。
+In kernels before 2.6.20, these calls ignored the effect of the \fBMS_NOEXEC\fP
+flag if it was used to \fBmount\fP(2)  the underlying filesystem.  Since kernel
+2.6.20, the \fBMS_NOEXEC\fP is honored
 .SH 関連項目
-\fBchmod\fP(2), \fBchown\fP(2), \fBfaccessat\fP(2), \fBopen\fP(2), \fBsetgid\fP(2),
-\fBsetuid\fP(2), \fBstat\fP(2), \fBeauidaccess\fP(3), \fBcredentials\fP(7),
-\fBpath_resolution\fP(7)
+\fBchmod\fP(2), \fBchown\fP(2), \fBopen\fP(2), \fBsetgid\fP(2), \fBsetuid\fP(2),
+\fBstat\fP(2), \fBeuidaccess\fP(3), \fBcredentials\fP(7), \fBpath_resolution\fP(7),
+\fBsymlink\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

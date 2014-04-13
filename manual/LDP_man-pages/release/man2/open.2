@@ -1,6 +1,7 @@
 .\" This manpage is Copyright (C) 1992 Drew Eckhardt;
-.\"             and Copyright (C) 1993 Michael Haardt, Ian Jackson.
-.\"             and Copyright (C) 2008 Greg Banks
+.\" and Copyright (C) 1993 Michael Haardt, Ian Jackson.
+.\" and Copyright (C) 2008 Greg Banks
+.\" and Copyright (C) 2006, 2008, 2013, 2014 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -46,7 +47,6 @@
 .\"
 .\" FIXME . Apr 08: The next POSIX revision has O_EXEC, O_SEARCH, and
 .\" O_TTYINIT.  Eventually these may need to be documented.  --mtk
-.\" FIXME Linux 2.6.33 has O_DSYNC, and a hidden __O_SYNC.
 .\"
 .\"*******************************************************************
 .\"
@@ -80,9 +80,9 @@
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-08-16, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH OPEN 2 2013\-08\-09 Linux "Linux Programmer's Manual"
+.TH OPEN 2 2014\-03\-16 Linux "Linux Programmer's Manual"
 .SH 名前
-open, creat \- ファイルやデバイスのオープン、作成を行う
+open, openat, creat \- ファイルのオープン、作成を行う
 .SH 書式
 .nf
 \fB#include <sys/types.h>\fP
@@ -93,7 +93,28 @@ open, creat \- ファイルやデバイスのオープン、作成を行う
 \fBint open(const char *\fP\fIpathname\fP\fB, int \fP\fIflags\fP\fB, mode_t \fP\fImode\fP\fB);\fP
 
 \fBint creat(const char *\fP\fIpathname\fP\fB, mode_t \fP\fImode\fP\fB);\fP
+.sp
+\fBint openat(int \fP\fIdirfd\fP\fB, const char *\fP\fIpathname\fP\fB, int \fP\fIflags\fP\fB);\fP
+\fBint openat(int \fP\fIdirfd\fP\fB, const char *\fP\fIpathname\fP\fB, int \fP\fIflags\fP\fB, mode_t \fP\fImode\fP\fB);\fP
 .fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.in
+.sp
+\fBopenat\fP():
+.PD 0
+.ad l
+.RS 4
+.TP  4
+glibc 2.10 以降:
+_XOPEN_SOURCE\ >=\ 700 || _POSIX_C_SOURCE\ >=\ 200809L
+.TP 
+glibc 2.10 より前:
+_ATFILE_SOURCE
+.RE
+.ad
+.PD
 .SH 説明
 ファイルの \fIpathname\fP を与えると、 \fBopen\fP()  はファイルディスクリプタを返す。
 ファイルディスクリプタは、この後に続くシステムコール (\fBread\fP(2), \fBwrite\fP(2), \fBlseek\fP(2),
@@ -130,9 +151,11 @@ open, creat \- ファイルやデバイスのオープン、作成を行う
 さらに、 \fIflags\fP には、ファイル作成フラグ (file creation flag) とファイル状態フラグ (file status
 flag) を 0 個以上「ビット単位の OR (bitwise\-or)」で 指定することができる。 \fIファイル作成フラグ\fP は
 \fBO_CLOEXEC\fP, \fBO_CREAT\fP, \fBO_DIRECTORY\fP, \fBO_EXCL\fP, \fBO_NOCTTY\fP,
-\fBO_NOFOLLOW\fP, \fBO_TRUNC\fP, \fBO_TTY_INIT\fP である。 \fIファイル状態フラグ\fP
-は以下のリストのうち上記以外の残りのものである。 二種類のフラグの違いは、ファイル状態フラグの方は \fBfcntl\fP(2)
-を使ってその内容を取得したり (場合によっては) 変更したりできる点にある。 ファイル作成フラグとファイル状態フラグの全リストを以下に示す:
+\fBO_NOFOLLOW\fP, \fBO_TMPFILE\fP, \fBO_TRUNC\fP, \fBO_TTY_INIT\fP である。 \fIファイル状態フラグ\fP
+は以下のリストのうち上記以外の残りのものである。 二種類のフラグの違いは、ファイル状態フラグの方はその内容を取得したり (場合によっては)
+変更したりできる点にある。詳細は \fBfcntl\fP(2) を参照。
+
+The full list of file creation flags and file status flags is as follows:
 .TP 
 \fBO_APPEND\fP
 .\" For more background, see
@@ -148,7 +171,7 @@ flag) を 0 個以上「ビット単位の OR (bitwise\-or)」で 指定する�
 シグナル駆動 I/O (signal\-driven I/O) を有効にする: このファイルディスクリプタへの
 入力または出力が可能になった場合に、シグナルを生成する (デフォルトは \fBSIGIO\fP であるが、 \fBfcntl\fP(2)
 によって変更可能である)。 この機能が使用可能なのは端末、疑似端末、ソケットのみであり、 (Linux 2.6 以降では) パイプと FIFO
-に対しても使用できる。 さらに詳しい説明は \fBfcntl\fP(2)  を参照すること。
+に対しても使用できる。 さらに詳しい説明は \fBfcntl\fP(2)  を参照すること。 下記の「バグ」も参照。
 .TP 
 \fBO_CLOEXEC\fP (Linux 2.6.23 以降)
 .\" This flag fixes only one form of the race condition;
@@ -170,9 +193,11 @@ flag) を 0 個以上「ビット単位の OR (bitwise\-or)」で 指定する�
 .RS
 .PP
 \fImode\fP は新しいファイルを作成する場合に使用するアクセス許可 (permission) を指定する。 \fIflags\fP に \fBO_CREAT\fP
-が指定されている場合、 \fImode\fP を指定しなければならない。 \fBO_CREAT\fP が指定されていない場合、 \fImode\fP は無視される。
-有効なアクセス許可は、普段と同じようにプロセスの \fIumask\fP によって修正され、作成されたファイルの許可は \fI(mode\ &\ ~umask)\fP となる。 このモードは、新しく作成されたファイルに対するそれ以降のアクセス にのみ適用される点に注意すること。
-読み取り専用のファイルを作成する \fBopen\fP()  コールであっても、 読み書き可能なファイルディスクリプタを返すことがありうる。
+か \fBO_TMPFILE\fP が指定されている場合、 \fImode\fP を指定しなければならない。 \fBO_CREAT\fP も \fBO_TMPFILE\fP
+も指定されていない場合、 \fImode\fP は無視される。 有効なアクセス許可は、普段と同じようにプロセスの \fIumask\fP
+によって修正され、作成されたファイルの許可は \fI(mode\ &\ ~umask)\fP となる。
+このモードは、新しく作成されたファイルに対するそれ以降のアクセス にのみ適用される点に注意すること。 読み取り専用のファイルを作成する
+\fBopen\fP()  コールであっても、 読み書き可能なファイルディスクリプタを返すことがありうる。
 .PP
 \fImode\fP のために以下のシンボル定数が提供されている :
 .TP  9
@@ -230,6 +255,15 @@ flag) を 0 個以上「ビット単位の OR (bitwise\-or)」で 指定する�
 \fIpathname\fP がディレクトリでなければオープンは失敗する。 このフラグは Linux 特有であり、 \fBopendir\fP(3)  が FIFO
 やテープデバイスに対してコールされた場合の サービス不能 (denial\-of\-service) 攻撃を避けるために カーネル 2.1.126
 で追加された。
+.TP 
+\fBO_DSYNC\fP
+Write operations on the file will complete according to the requirements of
+synchronized I/O \fIdata\fP integrity completion.
+
+By the time \fBwrite\fP(2)  (and similar)  return, the output data has been
+transferred to the underlying hardware, along with any file metadata that
+would be required to retrieve that data (i.e., as though each \fBwrite\fP(2)
+was followed by a call to \fBfdatasync\fP(2)).  \fISee NOTES below\fP.
 .TP 
 \fBO_EXCL\fP
 この呼び出しでファイルが作成されることを保証する。このフラグが \fBO_CREAT\fP と
@@ -330,28 +364,101 @@ PID を組み合わせた名前) を作成し、 \fBlink\fP(2)  を使用して�
 \fIflags\fP に \fBO_PATH\fP が指定された場合、 \fBO_DIRECTORY\fP と \fBO_NOFOLLOW\fP
 以外のフラグビットは無視される。
 
-\fBO_NOFOLLOW\fP フラグも合わせて指定された場合、 この呼び出しではシンボリックリンクを参照するファイルディスクリプタを返す。
-このファイルディスクリプタは、 空のパス名を指定した \fBfchownat\fP(2), \fBfstatat\fP(2), \fBlinkat\fP(2),
-\fBreadlinkat\fP(2) の呼び出しで \fIdirfd\fP 引数として使うことで、 そのシンボリックリンクに対して操作を行うことができる。
+\fIpathname\fP がシンボリックリンクで \fBO_NOFOLLOW\fP フラグも合わせて指定された場合、
+この呼び出しではシンボリックリンクを参照するファイルディスクリプタを返す。 このファイルディスクリプタは、 空のパス名を指定した
+\fBfchownat\fP(2), \fBfstatat\fP(2), \fBlinkat\fP(2), \fBreadlinkat\fP(2) の呼び出しで
+\fIdirfd\fP 引数として使うことで、 そのシンボリックリンクに対して操作を行うことができる。
 .TP 
 \fBO_SYNC\fP
-ファイルは同期 (synchronous) I/O モードでオープンされる。 \fBopen\fP()  が返したファイルディスクリプタに対して
-\fBwrite\fP(2)  を行うと、必ず呼び出したプロセスをブロックし、 該当ハードウェアに物理的に書き込まれるまで返らない。
-\fI以下の「注意」の章も参照。\fP
+Write operations on the file will complete according to the requirements of
+synchronized I/O \fIfile\fP integrity completion (by contrast with contrast
+with the synchronized I/O \fIdata\fP integrity completion provided by
+\fBO_DSYNC\fP.)
+
+By the time \fBwrite\fP(2)  (and similar)  return, the output data and
+associated file metadata have been transferred to the underlying hardware
+(i.e., as though each \fBwrite\fP(2)  was followed by a call to \fBfsync\fP(2)).
+\fISee NOTES below\fP.
+.TP 
+\fBO_TMPFILE\fP (Linux 3.11 以降)
+.\" commit 60545d0d4610b02e55f65d141c95b18ccf855b6e
+.\" commit f4e0c30c191f87851c4a53454abb55ee276f4a7e
+.\" commit bb458c644a59dbba3a1fe59b27106c5e68e1c4bd
+Create an unnamed temporary file.  The \fIpathname\fP argument specifies a
+directory; an unnamed inode will be created in that directory's filesystem.
+Anything written to the resulting file will be lost when the last file
+descriptor is closed, unless the file is given a name.
+
+\fBO_TMPFILE\fP must be specified with one of \fBO_RDWR\fP or \fBO_WRONLY\fP and,
+optionally, \fBO_EXCL\fP.  If \fBO_EXCL\fP is not specified, then \fBlinkat\fP(2)
+can be used to link the temporary file into the filesystem, making it
+permanent, using code like the following:
+
+.in +4n
+.nf
+char path[PATH_MAX];
+fd = open("/path/to/dir", O_TMPFILE | O_RDWR,
+                        S_IRUSR | S_IWUSR);
+
+/* File I/O on 'fd'... */
+
+snprintf(path, PATH_MAX,  "/proc/self/fd/%d", fd);
+linkat(AT_FDCWD, path, AT_FDCWD, "/path/for/file",
+                        AT_SYMLINK_FOLLOW);
+.fi
+.in
+
+In this case, the \fBopen\fP()  \fImode\fP argument determines the file permission
+mode, as with \fBO_CREAT\fP.
+
+Specifying \fBO_EXCL\fP in conjunction with \fBO_TMPFILE\fP prevents a temporary
+file from being linked into the filesystem in the above manner.  (Note that
+the meaning of \fBO_EXCL\fP in this case is different from the meaning of
+\fBO_EXCL\fP otherwise.)
+
+
+.\" Inspired by http://lwn.net/Articles/559147/
+There are two main use cases for \fBO_TMPFILE\fP:
+.RS
+.IP * 3
+Improved \fBtmpfile\fP(3)  functionality: race\-free creation of temporary files
+that (1) are automatically deleted when closed; (2) can never be reached via
+any pathname; (3) are not subject to symlink attacks; and (4) do not require
+the caller to devise unique names.
+.IP *
+Creating a file that is initially invisible, which is then populated with
+data and adjusted to have appropriate filesystem attributes (\fBchown\fP(2),
+\fBchmod\fP(2), \fBfsetxattr\fP(2), etc.)  before being atomically linked into the
+filesystem in a fully formed state (using \fBlinkat\fP(2)  as described above).
+.RE
+.IP
+.\" As at 3.13, there's support for at least ext2, ext3, ext4
+\fBO_TMPFILE\fP requires support by the underlying filesystem; only a subset of
+Linux filesystems provide that support.
 .TP 
 \fBO_TRUNC\fP
-ファイルが既に存在し、通常ファイルであり、 書き込み可モードでオープンされている (つまり、 \fBO_RDWR\fPまたは\fBO_WRONLY\fP の)
-場合、長さ 0 に切り詰め (truncate) られる。 ファイルが FIFO または端末デバイスファイルの場合、 \fBO_TRUNC\fP
+ファイルが既に存在し、通常ファイルであり、 アクセスモードで書き込みが許可されている (つまり、 \fBO_RDWR\fP または \fBO_WRONLY\fP
+の) 場合、長さ 0 に切り詰め (truncate) られる。 ファイルが FIFO または端末デバイスファイルの場合、 \fBO_TRUNC\fP
 フラグは無視される。 それ以外の場合、 \fBO_TRUNC\fP の効果は未定義である。
-.PP
-これらの選択フラグのいくつかはファイルをオープンした後でも \fBfcntl\fP(2)  を使用して変更することができる。
-
+.SS creat()
 \fBcreat\fP()  は \fIflags\fP に \fBO_CREAT|O_WRONLY|O_TRUNC\fP を指定して \fBopen\fP()
 を行うのと等価である。
+.SS openat()
+\fBopenat\fP() システムコールは \fBopen\fP() と全く同様に動作するが、以下で説明する点が異なる。
+
+\fIpathname\fP で指定されたパス名が相対パスの場合、このパス名はファイルディスクリプター \fIdirfd\fP
+が参照するディレクトリに対する相対パスと解釈される (\fBopen\fP()
+に相対パス名を渡した場合のように、呼び出したプロセスのカレントワーキングディレクトリに対する相対パスではない)。
+
+\fIpathname\fP で指定されたパス名が相対パスで、 \fIdirfd\fP が特別な値 \fBAT_FDCWD\fP の場合、 (\fBopen\fP()
+と同様に) \fIpathname\fP は呼び出したプロセスのカレントワーキングディレクトリに対する相対パスと解釈される。
+
+\fIpathname\fP で指定されたパス名が絶対パスの場合、 \fIdirfd\fP は無視される。
 .SH 返り値
-\fBopen\fP()  と \fBcreat\fP()  は新しいファイルディスクリプタを返す。 エラーが発生した場合は \-1 を返す (その場合は
-\fIerrno\fP が適切に設定される)。
+\fBopen\fP(), \fBopenat\fP(), \fBcreat\fP() は新しいファイルディスクリプタを返す。 エラーが発生した場合は \-1 を返す
+(その場合は \fIerrno\fP が適切に設定される)。
 .SH エラー
+\fBopen\fP(), \fBopenat\fP(), and \fBcreat\fP()  can fail with the following errors:
 .TP 
 \fBEACCES\fP
 ファイルに対する要求されたアクセスが許されていないか、 \fIpathname\fP のディレクトリ部分の何れかのディレクトリに検索許可がなかった。
@@ -376,13 +483,29 @@ PID を組み合わせた名前) を作成し、 \fBlink\fP(2)  を使用して�
 \fBEINVAL\fP
 ファイルシステムが \fBO_DIRECT\fP フラグをサポートしていない。 詳細は\fB注意\fPを参照。
 .TP 
+\fBEINVAL\fP
+.\" In particular, __O_TMPFILE instead of O_TMPFILE
+Invalid value in \fIflags\fP.
+.TP 
+\fBEINVAL\fP
+\fBO_TMPFILE\fP was specified in \fIflags\fP, but neither \fBO_WRONLY\fP nor
+\fBO_RDWR\fP was specified.
+.TP 
 \fBEISDIR\fP
 \fIpathname\fP はディレクトリを参照しており、書き込み要求が含まれていた (つまり \fBO_WRONLY\fP または \fBO_RDWR\fP
 が設定されている)。
 .TP 
+\fBEISDIR\fP
+\fIpathname\fP refers to an existing directory, \fBO_TMPFILE\fP and one of
+\fBO_WRONLY\fP or \fBO_RDWR\fP were specified in \fIflags\fP, but this kernel version
+does not provide the \fBO_TMPFILE\fP functionality.
+.TP 
 \fBELOOP\fP
-\fIpathname\fP を解決する際に遭遇したシンボリックリンクが多過ぎる。 または \fBO_NOFOLLOW\fP が指定されており、
-\fIpathname\fP がシンボリックリンクだった。
+\fIpathname\fP を解決する際に遭遇したシンボリックリンクが多過ぎる。
+.TP 
+\fBELOOP\fP
+\fIpathname\fP was a symbolic link, and \fIflags\fP specified \fBO_NOFOLLOW\fP but
+not \fBO_PATH\fP.
 .TP 
 \fBEMFILE\fP
 プロセスがオープンしているファイル数がすでに最大数に達している。
@@ -401,6 +524,11 @@ PID を組み合わせた名前) を作成し、 \fBlink\fP(2)  を使用して�
 \fBO_CREAT\fP が設定されておらず、かつ指定されたファイルが存在しない。 または、 \fIpathname\fP のディレクトリ部分が存在しないか壊れた
 (dangling) シンボリックリンクである。
 .TP 
+\fBENOENT\fP
+\fIpathname\fP refers to a nonexistent directory, \fBO_TMPFILE\fP and one of
+\fBO_WRONLY\fP or \fBO_RDWR\fP were specified in \fIflags\fP, but this kernel version
+does not provide the \fBO_TMPFILE\fP functionality.
+.TP 
 \fBENOMEM\fP
 十分なカーネルメモリーがない。
 .TP 
@@ -414,6 +542,9 @@ PID を組み合わせた名前) を作成し、 \fBlink\fP(2)  を使用して�
 \fBENXIO\fP
 \fBO_NONBLOCK\fP | \fBO_WRONLY\fP が設定されており、指定したファイルが FIFO で
 そのファイルを読み込みのためにオープンしているプロセスが存在しない。 または、ファイルがデバイススペシャルファイルで 対応するデバイスが存在しない。
+.TP 
+\fBEOPNOTSUPP\fP
+The filesystem containing \fIpathname\fP does not support \fBO_TMPFILE\fP.
 .TP 
 \fBEOVERFLOW\fP
 .\" See http://bugzilla.kernel.org/show_bug.cgi?id=7253
@@ -438,33 +569,40 @@ POSIX.1\-2001 で規定されているエラーである。 2.6.24 より前の�
 .TP 
 \fBEWOULDBLOCK\fP
 \fBO_NONBLOCK\fP フラグが指定されたが、そのファイルには矛盾するリースが設定されていた (\fBfcntl\fP(2)  参照)。
+.PP
+\fBopenat\fP() では以下のエラーも発生する。
+.TP 
+\fBEBADF\fP
+\fIdirfd\fP が有効なファイルディスクリプタではない。
+.TP 
+\fBENOTDIR\fP
+\fIpathname\fP が相対パスで、 \fIdirfd\fP がディレクトリ以外のファイルを参照しているファイルディスクリプタである。
+.SH バージョン
+\fBopenat\fP()  はカーネル 2.6.16 で Linux に追加された。 ライブラリによるサポートはバージョン 2.4 で glibc
+に追加された。
 .SH 準拠
-SVr4, 4.3BSD, POSIX.1\-2001.  フラグ \fBO_DIRECTORY\fP, \fBO_NOATIME\fP,
-\fBO_NOFOLLOW\fP, \fBO_PATH\fP は Linux 特有のものであり、 これらのフラグの定義を得るためには、
-(「どの」ヘッダファイルをインクルードするよりも前に)  \fB_GNU_SOURCE\fP を定義する必要があるかもしれない。
+\fBopen\fP(), \fBcreat\fP()  SVr4, 4.3BSD, POSIX.1\-2001, POSIX.1\-2008.
 
-\fBO_CLOEXEC\fP フラグは POSIX.1\-2001 では規定されていないが、 POSIX.1\-2008 で規定されている。
+\fBopenat\fP(): POSIX.1\-2008.
 
-\fBO_DIRECT\fP は POSIX では規定されていない。 \fBO_DIRECT\fP の定義を得るには
-(「どの」ヘッダファイルをインクルードするよりも前に)  \fB_GNU_SOURCE\fP を定義しなければならない。
+The \fBO_DIRECT\fP, \fBO_NOATIME\fP, \fBO_PATH\fP, and \fBO_TMPFILE\fP flags are
+Linux\-specific.  One must define \fB_GNU_SOURCE\fP to obtain their definitions.
+
+The \fBO_CLOEXEC\fP, \fBO_DIRECTORY\fP, and \fBO_NOFOLLOW\fP flags are not specified
+in POSIX.1\-2001, but are specified in POSIX.1\-2008.  Since glibc 2.12, one
+can obtain their definitions by defining either \fB_POSIX_C_SOURCE\fP with a
+value greater than or equal to 200809L or \fB_XOPEN_SOURCE\fP with a value
+greater than or equal to 700.  In glibc 2.11 and earlier, one obtains the
+definitions by defining \fB_GNU_SOURCE\fP.
+
+As noted in \fBfeature_test_macros\fP(7), feature test macros such as
+\fB_POSIX_C_SOURCE\fP, \fB_XOPEN_SOURCE\fP, and \fB_GNU_SOURCE\fP must be defined
+before including \fIany\fP header files.
 .SH 注意
 Linux では、 \fBO_NONBLOCK\fP フラグは、 open を実行したいが read または write を実行する意図は
 必ずしもないことを意味する。 これは \fBioctl\fP(2)  のためのファイルディスクリプタを取得するために、
 デバイスをオープンするときによく用いられる。
 
-.\" See for example util-linux's disk-utils/setfdprm.c
-.\" For some background on access mode 3, see
-.\" http://thread.gmane.org/gmane.linux.kernel/653123
-.\" "[RFC] correct flags to f_mode conversion in __dentry_open"
-.\" LKML, 12 Mar 2008
-「アクセスモード」の値 \fBO_RDONLY\fP, \fBO_WRONLY\fP, \fBO_RDWR\fP は、 \fIflags\fP
-に指定できる他の値と違い、個々のビットを指定するものではなく、 これらの値は \fIflags\fP の下位 2 ビットを定義する。 \fBO_RDONLY\fP,
-\fBO_WRONLY\fP, \fBO_RDWR\fP はそれぞれ 0, 1, 2 に定義されている。 言い換えると、 \fBO_RDONLY |
-O_WRONLY\fP の組み合わせは論理的に間違いであり、確かに \fBO_RDWR\fP と同じ意味ではない。 Linux
-では、特別な、非標準なアクセスモードとして 3 (バイナリでは 11) が 予約されており \fIflags\fP に指定できる。
-このアクセスモードを指定すると、ファイルの読み出し/書き込み許可をチェックし、 読み出しにも書き込みにも使用できないディスクリプタを返す。
-この非標準のアクセスモードはいくつかの Linux ドライバで、デバイス固有の \fBioctl\fP(2)
-操作にのみ使用されるディスクリプタを返すために使われている。
 .LP
 .\" Linux 2.0, 2.5: truncate
 .\" Solaris 5.7, 5.8: truncate
@@ -473,28 +611,110 @@ O_WRONLY\fP の組み合わせは論理的に間違いであり、確かに \fBO
 .\" HP-UX 11.22: truncate
 .\" FreeBSD 4.7: truncate
 \fBO_RDONLY | O_TRUNC\fP の影響は未定義であり、その動作は実装によって異なる。 多くのシステムではファイルは実際に切り詰められる。
-.PP
-NFS を実現しているプロトコルには多くの不備があり、特に \fBO_SYNC\fP と \fBO_NDELAY\fP に影響する。
-
-POSIX では、3 種類の同期 I/O が提供されており、 \fBO_SYNC\fP, \fBO_DSYNC\fP, \fBO_RSYNC\fP
-フラグがこれに対応するものである。 今のところ (カーネル 2.6.31)、 Linux では \fBO_SYNC\fP だけが実装されているが、 glibc
-は \fBO_DSYNC\fP と \fBO_RSYNC\fP に \fBO_SYNC\fP と同じ数値を割り当てている。 ほとんどの Linux
-のファイルシステムは、実際には POSIX の \fBO_SYNC\fP の動作ではなく \fBO_DSYNC\fP の動作だけを実装している。 POSIX の
-\fBO_SYNC\fP では、 \fBopen\fP()  がユーザ空間に返る際に、書き込みに関する全てのメタデータの
-更新がディスクに書き込まれている必要がある。 一方、 \fBO_DSYNC\fP では、 \fBopen\fP()
-が返るまでに、実際のファイルのデータとそのデータを取得するために 必要なメタデータだけがディスクに書き込まれていればよい。
 
 \fBopen\fP()  はスペシャルファイルをオープンすることができるが、 \fBcreat\fP()  でスペシャルファイルを作成できない点に注意すること。
 代わりに \fBmknod\fP(2)  を使用する。
-.LP
-UID マッピングを使用している NFS ファイルシステムでは、 \fBopen\fP()  がファイルディスクリプタを返した場合でも \fBread\fP(2)
-が \fBEACCES\fP で拒否される場合がある。 これはクライアントがアクセス許可のチェックを行って \fBopen\fP()
-を実行するが、読み込みや書き込みの際には サーバーで UID マッピングが行われるためである。
 
+.\"
+.\"
 ファイルが新しく作成されると、 ファイルの \fIst_atime\fP, \fIst_ctime\fP, \fIst_mtime\fP フィールド
 (それぞれ最終アクセス時刻、最終状態変更時刻、最終修正時刻である。 \fBstat\fP(2)  参照) が現在時刻に設定される。 さらに親ディレクトリの
 \fIst_ctime\fP と \fIst_mtime\fP も現在時刻に設定される。 それ以外の場合で、O_TRUNC フラグでファイルが修正されたときは、
 ファイルの \fIst_ctime\fP と \fIst_mtime\fP フィールドが現在時刻に設定される。
+.SS "Synchronized I/O"
+The POSIX.1\-2008 "synchronized I/O" option specifies different variants of
+synchronized I/O, and specifies the \fBopen\fP()  flags \fBO_SYNC\fP, \fBO_DSYNC\fP,
+and \fBO_RSYNC\fP for controlling the behavior.  Regardless of whether an
+implementation supports this option, it must at least support the use of
+\fBO_SYNC\fP for regular files.
+
+Linux implements \fBO_SYNC\fP and \fBO_DSYNC\fP, but not \fBO_RSYNC\fP.  (Somewhat
+incorrectly, glibc defines \fBO_RSYNC\fP to have the same value as \fBO_SYNC\fP.)
+
+\fBO_SYNC\fP provides synchronized I/O \fIfile\fP integrity completion, meaning
+write operations will flush data and all associated metadata to the
+underlying hardware.  \fBO_DSYNC\fP provides synchronized I/O \fIdata\fP integrity
+completion, meaning write operations will flush data to the underlying
+hardware, but will only flush metadata updates that are required to allow a
+subsequent read operation to complete successfully.  Data integrity
+completion can reduce the number of disk operations that are required for
+applications that don't need the guarantees of file integrity completion.
+
+To understand the difference between the the two types of completion,
+consider two pieces of file metadata: the file last modification timestamp
+(\fIst_mtime\fP)  and the file length.  All write operations will update the
+last file modification timestamp, but only writes that add data to the end
+of the file will change the file length.  The last modification timestamp is
+not needed to ensure that a read completes successfully, but the file length
+is.  Thus, \fBO_DSYNC\fP would only guarantee to flush updates to the file
+length metadata (whereas \fBO_SYNC\fP would also always flush the last
+modification timestamp metadata).
+
+Before Linux 2.6.33, Linux implemented only the \fBO_SYNC\fP flag for
+\fBopen\fP().  However, when that flag was specified, most filesystems actually
+provided the equivalent of synchronized I/O \fIdata\fP integrity completion
+(i.e., \fBO_SYNC\fP was actually implemented as the equivalent of \fBO_DSYNC\fP).
+
+.\"
+.\"
+Since Linux 2.6.33, proper \fBO_SYNC\fP support is provided.  However, to
+ensure backward binary compatibility, \fBO_DSYNC\fP was defined with the same
+value as the historical \fBO_SYNC\fP, and \fBO_SYNC\fP was defined as a new
+(two\-bit) flag value that includes the \fBO_DSYNC\fP flag value.  This ensures
+that applications compiled against new headers get at least \fBO_DSYNC\fP
+semantics on pre\-2.6.33 kernels.
+.SS NFS
+NFS を実現しているプロトコルには多くの不備があり、特に \fBO_SYNC\fP と \fBO_NDELAY\fP に影響する。
+
+.\"
+.\"
+UID マッピングを使用している NFS ファイルシステムでは、 \fBopen\fP()  がファイルディスクリプタを返した場合でも \fBread\fP(2)
+が \fBEACCES\fP で拒否される場合がある。 これはクライアントがアクセス許可のチェックを行って \fBopen\fP()
+を実行するが、読み込みや書き込みの際には サーバーで UID マッピングが行われるためである。
+.SS "File access mode"
+Unlike the other values that can be specified in \fIflags\fP, the \fIaccess
+mode\fP values \fBO_RDONLY\fP, \fBO_WRONLY\fP, and \fBO_RDWR\fP do not specify
+individual bits.  Rather, they define the low order two bits of \fIflags\fP,
+and are defined respectively as 0, 1, and 2.  In other words, the
+combination \fBO_RDONLY | O_WRONLY\fP is a logical error, and certainly does
+not have the same meaning as \fBO_RDWR\fP.
+
+.\" See for example util-linux's disk-utils/setfdprm.c
+.\" For some background on access mode 3, see
+.\" http://thread.gmane.org/gmane.linux.kernel/653123
+.\" "[RFC] correct flags to f_mode conversion in __dentry_open"
+.\" LKML, 12 Mar 2008
+.\"
+.\"
+Linux reserves the special, nonstandard access mode 3 (binary 11) in
+\fIflags\fP to mean: check for read and write permission on the file and return
+a descriptor that can't be used for reading or writing.  This nonstandard
+access mode is used by some Linux drivers to return a descriptor that is to
+be used only for device\-specific \fBioctl\fP(2)  operations.
+.SS "Rationale for openat() and other directory file descriptor APIs"
+\fBopenat\fP()  and the other system calls and library functions that take a
+directory file descriptor argument (i.e., \fBfaccessat\fP(2),
+\fBfanotify_mark\fP(2), \fBfchmodat\fP(2), \fBfchownat\fP(2), \fBfstatat\fP(2),
+\fBfutimesat\fP(2), \fBlinkat\fP(2), \fBmkdirat\fP(2), \fBmknodat\fP(2),
+\fBname_to_handle_at\fP(2), \fBreadlinkat\fP(2), \fBrenameat\fP(2), \fBsymlinkat\fP(2),
+\fBunlinkat\fP(2), \fButimensat\fP(2)  \fBmkfifoat\fP(3), and \fBscandirat\fP(3))  are
+supported for two reasons.  Here, the explanation is in terms of the
+\fBopenat\fP()  call, but the rationale is analogous for the other interfaces.
+
+First, \fBopenat\fP()  allows an application to avoid race conditions that
+could occur when using \fBopen\fP()  to open files in directories other than
+the current working directory.  These race conditions result from the fact
+that some component of the directory prefix given to \fBopen\fP()  could be
+changed in parallel with the call to \fBopen\fP().  Such races can be avoided
+by opening a file descriptor for the target directory, and then specifying
+that file descriptor as the \fIdirfd\fP argument of \fBopenat\fP().
+
+.\"
+.\"
+Second, \fBopenat\fP()  allows the implementation of a per\-thread "current
+working directory", via file descriptor(s) maintained by the application.
+(This functionality can also be obtained by tricks based on the use of
+\fI/proc/self/fd/\fPdirfd, but less efficiently.)
 .SS O_DIRECT
 .LP
 \fBO_DIRECT\fP フラグを使用する場合、ユーザ空間バッファの長さやアドレス、 I/O
@@ -558,12 +778,15 @@ NFS で \fBO_DIRECT\fP を使った場合の動作はローカルのファイル
 .\" See http://bugzilla.kernel.org/show_bug.cgi?id=5993
 現在のところ、 \fBopen\fP()  の呼び出し時に \fBO_ASYNC\fP を指定してシグナル駆動 I/O を有効にすることはできない。
 このフラグを有効にするには \fBfcntl\fP(2)  を使用すること。
+
+One must check for two different error codes, \fBEISDIR\fP and \fBENOENT\fP, when
+trying to determine whether the kernel supports \fBO_TMPFILE\fP functionality.
 .SH 関連項目
 \fBchmod\fP(2), \fBchown\fP(2), \fBclose\fP(2), \fBdup\fP(2), \fBfcntl\fP(2), \fBlink\fP(2),
-\fBlseek\fP(2), \fBmknod\fP(2), \fBmmap\fP(2), \fBmount\fP(2), \fBopenat\fP(2), \fBread\fP(2),
-\fBsocket\fP(2), \fBstat\fP(2), \fBumask\fP(2), \fBunlink\fP(2), \fBwrite\fP(2),
-\fBfopen\fP(3), \fBfifo\fP(7), \fBpath_resolution\fP(7), \fBsymlink\fP(7)
+\fBlseek\fP(2), \fBmknod\fP(2), \fBmmap\fP(2), \fBmount\fP(2), \fBread\fP(2), \fBsocket\fP(2),
+\fBstat\fP(2), \fBumask\fP(2), \fBunlink\fP(2), \fBwrite\fP(2), \fBfopen\fP(3), \fBfifo\fP(7),
+\fBpath_resolution\fP(7), \fBsymlink\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -103,7 +103,7 @@
 .\" Updated 2013-08-16, Akihiro MOTOKI
 .\" Updated 2013-08-30, Akihiro MOTOKI, LDP v3.53
 .\"
-.TH PROC 5 2013\-09\-04 Linux "Linux Programmer's Manual"
+.TH PROC 5 2014\-03\-17 Linux "Linux Programmer's Manual"
 .SH 名前
 proc \- プロセスの情報を含む擬似ファイルシステム
 .SH 説明
@@ -220,8 +220,10 @@ Linux 2.0 以前では、 \fI/proc/[pid]/exe\fP は実行されたバイナリ�
 このファイルの所在を探すことができる。
 .TP 
 \fI/proc/[pid]/fd/\fP
-プロセスがオープンしたファイル各々に対するエントリを含むサブディレクトリ。 ファイルディスクリプタがファイル名で、
-実際のファイルへのシンボリックリンクになっている。 したがって 0 は標準入力、1 は標準出力、2 は標準エラー出力、などとなる。
+This is a subdirectory containing one entry for each file which the process
+has open, named by its file descriptor, and which is a symbolic link to the
+actual file.  Thus, 0 is standard input, 1 standard output, 2 standard
+error, and so on.
 
 パイプやソケットのファイルディスクリプタでは、 エントリーはファイル種別が inode という内容を持つシンボリックリンクとなる。 このファイルに対して
 \fBreadlink\fP(2) を呼び出すと以下の形式の文字列が返る。
@@ -361,7 +363,6 @@ been accounted for (in its \fIwrite_bytes\fP)  will not be happening.
 systems: if process A reads process B's \fI/proc/[pid]/io\fP while process B is
 updating one of these 64\-bit counters, process A could see an intermediate
 result.
-.RE
 .TP 
 \fI/proc/[pid]/limits\fP (kernel 2.6.24 以降)
 .\" commit 3036e7b490bf7878c6dae952eec5fb87b1106589
@@ -467,7 +468,6 @@ p = private (copy on write)
 \fI[heap]\fP
 プロセスのヒープ。
 .in
-.fi
 .RE
 .IP
 \fIpathname\fP が空の場合、 その領域は \fBmmap\fP(2) を使って確保された無名マッピングである。 \fBgdb\fP(1),
@@ -709,10 +709,10 @@ Writing to \fI/proc/[pid]/oom_score_adj\fP or \fI/proc/[pid]/oom_adj\fP will
 change the other with its scaled value.
 .TP 
 \fI/proc/[pid]/root\fP
-UNIX と Linux では、 ファイルシステムのルート (/) をプロセスごとに別々に
-できる。これはシステムコール \fBchroot\fP(2) によって設定する。 このファイルは
-プロセスのルートディレクトリを指すシンボリックリンクで、 exe や fd/* など
-と同じような動作をする。
+UNIX and Linux support the idea of a per\-process root of the filesystem, set
+by the \fBchroot\fP(2)  system call.  This file is a symbolic link that points
+to the process's root directory, and behaves in the same way as \fIexe\fP, and
+\fIfd/*\fP.
 
 .\" The following was still true as at kernel 2.6.13
 .\" FIXME Describe /proc/[pid]/seccomp
@@ -910,10 +910,9 @@ Linux 2.6 以降では、 値の単位はクロック tick である (\fIsysconf
 リアルタイム・シグナルに関する情報は表示されないからである。 代わりに \fI/proc/[pid]/status\fP を使うこと。
 .TP 
 \fIwchan\fP %lu
-(35) プロセスが待っている「チャネル」。これはシステムコールのアドレスであり、
-文字名が必要ならば (アドレスとシステムコール名との) 対応表から見つけられる
-(もし \fI/etc/psdatabase\fP [訳注: このファイル名はパッケージによる] を更新
-しているならば、 \fIps \-l\fP して WCHAN フィールドを見よ)。
+(35) This is the "channel" in which the process is waiting.  It is the
+address of a location in the kernel where the process is sleeping.  The
+corresponding symbolic name can be found in \fI/proc/[pid]/wchan\fP.
 .TP 
 \fInswap\fP %lu
 .\" nswap was added in 2.0
@@ -1103,6 +1102,10 @@ sleep; ディスク待ちの休眠状態)", "T (stopped; 停止状態)", "T (tra
 マルチスレッドプロセスでは、メインスレッドがすでに終了している場合、 \fI/proc/[pid]/task\fP ディレクトリの内容は参照できない
 (スレッドの終了は通常 \fBpthread_exit\fP(3)  を呼び出しにより行われる)。
 .TP 
+\fI/proc/[pid]/wchan\fP (since Linux 2.6.0)
+The symbolic name corresponding to the location in the kernel where the
+process is sleeping.
+.TP 
 \fI/proc/apm\fP
 Advanced Power Management のバージョンとバッテリ情報。 カーネルのコンパイル時に \fBCONFIG_APM\fP
 を定義したときに存在する。
@@ -1112,6 +1115,55 @@ Advanced Power Management のバージョンとバッテリ情報。 カーネ�
 .TP 
 \fI/proc/bus/pccard\fP
 PCMCIA デバイスの情報が書かれるサブディレクトリ。 カーネルのコンパイル時に \fBCONFIG_PCMCIA\fP を定義したときに存在する。
+.TP 
+\fI/proc/[pid]/timers\fP (Linux 3.10 以降)
+.\" commit 5ed67f05f66c41e39880a6d61358438a25f9fee5
+.\" commit 48f6a7a511ef8823fdff39afee0320092d43a8a0
+A list of the POSIX timers for this process.  Each timer is listed with a
+line that started with the string "ID:".  For example:
+
+.in +4n
+.nf
+ID: 1
+signal: 60/00007fff86e452a8
+notify: signal/pid.2634
+ClockID: 0
+ID: 0
+signal: 60/00007fff86e452a8
+notify: signal/pid.2634
+ClockID: 1
+.fi
+.in
+
+The lines shown for each timer have the following meanings:
+.RS
+.TP 
+\fIID\fP
+The ID for this timer.  This is not the same as the timer ID returned by
+\fBtimer_create\fP(2); rather, it is the same kernel\-internal ID that is
+available via the \fIsi_timerid\fP field of the \fIsiginfo_t\fP structure (see
+\fBsigaction\fP(2)).
+.TP 
+\fIsignal\fP
+This is the signal number that this timer uses to deliver notifications
+followed by a slash, and then the \fIsigev_value.sival_ptr\fP value supplied to
+the signal handler.  Valid only for timers that notify via a signal.
+.TP 
+\fInotify\fP
+The part before the slash specifies the mechanism that this timer uses to
+deliver notifications, and is one of "thread", "signal", or "none".
+Immediately following the slash is either the string "tid" for timers with
+\fBSIGEV_THREAD_ID\fP notification, or "pid" for timers that notify by other
+mechanisms.  Following the "." is the PID of the process that will be
+delivered a signal if the timer delivers notifications via a signal.
+.TP 
+\fIClockID\fP
+This field identifies the clock that the timer uses for measuring time.  For
+most clocks, this is a number that matches one of the user\-space \fBCLOCK_*\fP
+constants exposed via \fI<time.h>\fP.  \fBCLOCK_PROCESS_CPUTIME_ID\fP
+timers display with a value of \-6 in this field.  \fBCLOCK_THREAD_CPUTIME_ID\fP
+timers display with a value of \-2 in this field.
+.RE
 .TP 
 \fI/proc/bus/pccard/drivers\fP
 .TP 
@@ -1127,10 +1179,13 @@ PCI デバイスの情報。 \fBlspci\fP(8)  や \fBsetpci\fP(8)  でアクセ�
 といったブートマネージャを使って行われる。
 .TP 
 \fI/proc/config.gz\fP (Linux 2.6 以降)
-このファイルでは、現在実行中のカーネルの構築時に使用された 設定オプションを参照できる。 書式は、 (\fImake xconfig\fP, \fImake
-config\fP などを使って) カーネルの設定を変更した際に生成される \fI.config\fP ファイルのものと同じである。
-ファイルの内容は圧縮されており、 \fBzcat\fP(1), \fBzgrep\fP(1)  などを使うと、表示や検索ができる。 ファイルが変更されていない限り、
-\fI/proc/config.gz\fP の内容は次のコマンドで得られる内容と同じである。
+This file exposes the configuration options that were used to build the
+currently running kernel, in the same format as they would be shown in the
+\&\fI.config\fP file that resulted when configuring the kernel (using \fImake
+xconfig\fP, \fImake config\fP, or similar).  The file contents are compressed;
+view or search them using \fBzcat\fP(1)  and \fBzgrep\fP(1).  As long as no
+changes have been made to the following file, the contents of
+\fI/proc/config.gz\fP are the same as those provided by :
 .in +4n
 .nf
 
@@ -1261,7 +1316,8 @@ Linux 2.4 における I/O メモリマップ。
 .RS
 .TP 
 \fIMemTotal\fP %lu
-使用可能な RAM の総量 (つまり、 物理 RAM サイズからいくつかの予約ビットとカーネルのバイナリコードの分を引いた値)。
+Total usable RAM (i.e., physical RAM minus a few reserved bits and the
+kernel binary code).
 .TP 
 \fIMemFree\fP %lu
 \fILowFree\fP+\fIHighFree\fP の合計値。
@@ -1377,7 +1433,9 @@ limit is adhered to only if strict overcommit accounting is enabled (mode 2
 in \fI/proc/sys/vm/overcommit_ratio\fP).  The \fICommitLimit\fP is calculated
 using the following formula:
 
-    CommitLimit = (overcommit_ratio * Physical RAM) + Swap
+    CommitLimit =
+        ([total RAM pages] \- [total huge TLB pages]) *
+        overcommit_ratio / 100 + [total swap pages]
 
 For example, on a system with 1GB of physical RAM and 7GB of swap with a
 \fIovercommit_ratio\fP of 30, this formula yields a \fICommitLimit\fP of 7.3GB.
@@ -1629,7 +1687,8 @@ seagate, t128, u15\-24f, ultrastore, wd7000 のどれかである。 少なく�
 ホストバスアダプタ (HBA) に ドライバが割り当てられていると、そのドライバに対応したディレクトリが現れる。 それぞれのディレクトリには、
 登録されたホストアダプタに対応してファイルが作られる。 このファイルの名前は、システムの初期化の際に ホストアダプタに割り当てられた番号になる。
 
-これらのファイルを読めばドライバとホストアダプタの設定や 統計などを見ることができる。
+Reading these files will usually show driver and host configuration,
+statistics, and so on.
 
 これらのファイルへの書き込みはホストアダプタごとに異なる動作を引き起こす。 たとえば \fIlatency\fP と \fInolatency\fP
 コマンドを用いると、 ルート (root、スーパーユーザー) は eata_dma ドライバの隠し測定コードの オン/オフを切り替えることができる。
@@ -1934,7 +1993,7 @@ upgraded by the administrator, or linking to special files.
 .IP *
 そのリンクが world\-writable の sticky ビットがセットされたディレクトリではない。
 .IP *
-シンボリックリンクとその親ディレクトリが同じ所有者 (UID) である。
+the symbolic link and its parent directory have the same owner (UID)
 .RE
 .IP
 システムコールが上記の制約によりシンボリックリンクを辿れなかった場合は、 \fIerrno\fP にエラー \fBEACCES\fP が設定される。
@@ -2092,6 +2151,10 @@ the \fBCAP_SYS_ADMIN\fP capability can change the value in this file.
 ある。 \fImsg_qbytes\fP は以降で作成されるメッセージキューで使われる。
 \fImsg_qbytes\fP 設定では、メッセージキューに書き込まれる最大バイト数を指定する。
 .TP 
+\fI/proc/sys/kernel/ngroups_max\fP (since Linux 2.6.4)
+This is a read\-only file that displays the upper limit on the number of a
+process's group memberships.
+.TP 
 \fI/proc/sys/kernel/ostype\fP と \fI/proc/sys/kernel/osrelease\fP
 これらのファイルは文字列 \fI/proc/version\fP の各部分を与える。
 .TP 
@@ -2144,6 +2207,10 @@ the \fBCAP_SYS_ADMIN\fP capability can change the value in this file.
 \fI/proc/sys/kernel/random\fP
 このディレクトリは、ファイル \fI/dev/random\fP の操作を制御する様々なパラメータが書かれている。 詳細は \fBrandom\fP(4)
 を参照。
+.TP 
+\fI/proc/sys/kernel/random/uuid\fP (since Linux 2.4)
+Each read from this read\-only file returns a randomly generated 128\-bit
+UUID, as a string in the standard UUID format.
 .TP 
 \fI/proc/sys/kernel/real\-root\-dev\fP
 このファイルは Linux カーネルソースファイル \fIDocumentation/initrd.txt\fP に記述されている。
@@ -2472,9 +2539,10 @@ kill されるだけかもしれない。 この場合には、カーネルパ�
 \fBifconfig\fP(8), \fBinit\fP(8), \fBlsmod\fP(8), \fBlspci\fP(8), \fBmount\fP(8),
 \fBnetstat\fP(8), \fBprocinfo\fP(8), \fBroute\fP(8), \fBsysctl\fP(8)
 
-Linux カーネルのソースファイル: \fIDocumentation/filesystems/proc.txt\fP,
-\fIDocumentation/sysctl/vm.txt\fP
+The Linux kernel source files: \fIDocumentation/filesystems/proc.txt\fP
+\fIDocumentation/sysctl/fs.txt\fP, \fIDocumentation/sysctl/kernel.txt\fP,
+\fIDocumentation/sysctl/net.txt\fP, and \fIDocumentation/sysctl/vm.txt\fP.
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
