@@ -22,9 +22,9 @@ sub cvfn()
 {
 	my($fn) = @_;
 	if($fn =~ m@man./([-.\w]+)\.(\d)$@){
-		return "$1:$2";
+		return (1, "$1:$2");
 	} else {
-		return '';
+		return (0, "$fn");
 	}
 }
 
@@ -46,6 +46,43 @@ sub getdate()
 	}
 }
 
+sub read_file_head() {
+	my ($fn) = @_;
+	my $top;
+	open F, "<$fn";
+	$top = <F>;
+	close F;
+	return $top;
+}
+
+sub get_prefix() {
+	my ($valid) = @_;
+	if (not $valid) {
+		return '# ';
+	} else {
+		return '';
+	}
+}
+
+sub print_entry() {
+	# NOTE: $mode should be either of 'A' or 'U'.
+	my ($mode, $fn, $top) = @_;
+	my ($valid, $cvfn) = &cvfn($fn);
+	my $prefix = &get_prefix($valid);
+	if($top =~ /^.so ([-\w]+)/i){
+		print $prefix . 'L' . ' ' . &cvfn($fn) . ' ' . &cvfn($top) . "\n";
+	} else {
+		print $prefix . $mode . ' ' . &cvfn($fn) . " " . &getdate($fn) . "\n";
+	}
+}
+
+sub print_removed_entry() {
+	my ($fn) = @_;
+	my ($valid, $cvfn) = &cvfn($fn);
+	my $prefix = &get_prefix($valid);
+	print $prefix . 'R ' . $cvfn . "\n";
+}
+
 $state = "start";
 
 while(<>){
@@ -57,41 +94,22 @@ while(<>){
 	next if $state ne "target";
 
 	s/^#[ \t]*//;
-	#print "$_\n";
 	my($mode, $fn) = split(/: +/);
 	if($mode eq 'new file'){
-		open F, "<$fn";
-		$top = <F>;
-		close F;
-		if($top =~ /^.so ([-\w]+)/i){
-			print 'L ' . &cvfn($fn) . ' ' . &cvfn($top) . "\n";
-		} else {
-			print 'A ' . &cvfn($fn) . " " . &getdate($fn) . "\n";
-		}
+		$top = &read_file_head($fn);
+		&print_entry('A', $fn, $top);
 	}
 	if($mode eq 'modified'){
-		open F, "<$fn";
-		$top = <F>;
-		close F;
-		if($top =~ /^.so ([-\w]+)/i){
-			print 'L ' . &cvfn($fn) . ' ' . &cvfn($top) . "\n";
-		} else {
-			print 'U ' . &cvfn($fn) . " " . &getdate($fn) . "\n";
-		}
+		$top = &read_file_head($fn);
+		&print_entry('U', $fn, $top);
 	}
 	if($mode eq 'deleted'){
-		print 'R ' . &cvfn($fn) . "\n";
+		&print_removed_entry($fn);
 	}
 	if($mode eq 'renamed'){
 		my ($fn_old, $fn_new) = split(' -> ', $fn);
-		open F, "<$fn_new";
-		$top = <F>;
-		close F;
-		if($top =~ /^.so ([-\w]+)/i){
-			print 'L ' . &cvfn($fn_new) . ' ' . &cvfn($top) . "\n";
-		} else {
-			print 'A ' . &cvfn($fn_new) . " " . &getdate($fn_new) . "\n";
-		}
-		print 'R ' . &cvfn($fn_old) . "\n";
+		$top = &read_file_head($fn_new);
+		&print_entry('A', $fn_new, $top);
+		&print_removed_entry($fn_old);
 	}
 }
