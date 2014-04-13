@@ -91,6 +91,18 @@ untrans-postats:	jm-setup
 
 jm-setup:	stamp-jm-setup
 stamp-jm-setup:
+	@# Check perkamon/po4a and JM/po4a
+	ls -1 $(PERKAMON_DIR)/po4a | sort > _po4a_list_perkamon
+	ls -1 po4a | sort > _po4a_list_jm
+	set -e; for d in `comm -13 _po4a_list_perkamon _po4a_list_jm`; do \
+	  echo $$d; \
+	  rm -vrf po4a/$$d; \
+	done
+	set -e; for d in `comm -23 _po4a_list_perkamon _po4a_list_jm`; do \
+	  echo $$d; \
+	  mkdir -vp po4a/$$d/po; \
+	done
+	rm _po4a_list_jm _po4a_list_perkamon
 	@# Create symlink to po4a/*/po in the top dir.
 	set -e; for d in $(PERKAMON_DIR)/po4a/*; do \
 	  if [ ! -e $$d/po ]; then \
@@ -111,6 +123,12 @@ clean-setup:
 	$(RM) $(PERKAMON_DIR)/stamp-*
 	$(RM) -rf $(PERKAMON_DIR)/build
 	find $(PERKAMON_DIR) -type l | xargs $(RM)
+
+upgrade:
+	$(MAKE) clean-setup
+	$(MAKE) jm-setup
+	$(MAKE) FLAGS="--no-translations -v --force" translate-pages
+	$(MAKE) update-stats
 
 help:
 	@echo "Available targets:"
