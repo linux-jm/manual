@@ -3,7 +3,7 @@
 CMDDIR=$(dirname $0)
 CMD=$CMDDIR/JM-release.sh
 
-OPTS="-f -g -q"
+OPTS="-f -q"
 
 TARGET_DIR="draft/man?"
 
