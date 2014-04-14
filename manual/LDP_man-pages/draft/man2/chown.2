@@ -1,6 +1,6 @@
 .\" Copyright (c) 1992 Drew Eckhardt (drew@cs.colorado.edu), March 28, 1992
 .\" and Copyright (c) 1998 Andries Brouwer (aeb@cwi.nl)
-.\" and Copyright (c) 2007, 2008 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" and Copyright (c) 2006, 2007, 2008, 2014 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -51,17 +51,26 @@
 .\" Updated 2008-08-09, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.05
 .\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH CHOWN 2 2010\-11\-22 Linux "Linux Programmer's Manual"
+.TH CHOWN 2 2014\-02\-21 Linux "Linux Programmer's Manual"
 .SH 名前
-chown, fchown, lchown \- ファイルの所有者を変更する
+chown, fchown, lchown, fchownat \- ファイルの所有者を変更する
 .SH 書式
+.nf
 \fB#include <unistd.h>\fP
 .sp
-\fBint chown(const char *\fP\fIpath\fP\fB, uid_t \fP\fIowner\fP\fB, gid_t \fP\fIgroup\fP\fB);\fP
+\fBint chown(const char *\fP\fIpathname\fP\fB, uid_t \fP\fIowner\fP\fB, gid_t \fP\fIgroup\fP\fB);\fP
 .br
 \fBint fchown(int \fP\fIfd\fP\fB, uid_t \fP\fIowner\fP\fB, gid_t \fP\fIgroup\fP\fB);\fP
 .br
-\fBint lchown(const char *\fP\fIpath\fP\fB, uid_t \fP\fIowner\fP\fB, gid_t \fP\fIgroup\fP\fB);\fP
+\fBint lchown(const char *\fP\fIpathname\fP\fB, uid_t \fP\fIowner\fP\fB, gid_t \fP\fIgroup\fP\fB);\fP
+.sp
+\fB#include <fcntl.h>           \fP/* AT_* 定数の定義 */
+\fB#include <unistd.h>\fP
+.sp
+\fBint fchownat(int \fP\fIdirfd\fP\fB, const char *\fP\fIpathname\fP\fB,\fP
+\fB             uid_t \fP\fIowner\fP\fB, gid_t \fP\fIgroup\fP\fB, int \fP\fIflags\fP\fB);\fP
+.fi
+.sp
 .sp
 .in -4n
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
@@ -75,12 +84,25 @@ _BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTEND
 .br
 || /* glibc 2.12 以降: */ _POSIX_C_SOURCE\ >=\ 200809L
 .RE
+.sp
+\fBfchownat\fP():
+.PD 0
+.ad l
+.RS 4
+.TP  4
+glibc 2.10 以降:
+_XOPEN_SOURCE\ >=\ 700 || _POSIX_C_SOURCE\ >=\ 200809L
+.TP 
+glibc 2.10 より前:
+_ATFILE_SOURCE
+.RE
 .ad
 .PD
 .SH 説明
-これらのシステムコールは、いずれもファイルの所有者 (owner) とグループを変更する。システムコール間の違いは、ファイルの指定の仕方だけである。
+これらのシステムコールは、いずれもファイルの所有者 (owner) とグループを変更する。システムコール \fBchown\fP(),
+\fBfchown\fP(), \fBlchown\fP() 間の違いは、ファイルの指定の仕方だけである。
 .IP * 2
-\fBchown\fP()  は \fIpath\fP で指定されたファイルの所有権を変更する。 \fIpath\fP
+\fBchown\fP()  は \fIpathname\fP で指定されたファイルの所有権を変更する。 \fIpathname\fP
 がシンボリックリンクの場合は、リンクの展開が行われる。
 .IP *
 \fBfchown\fP()  はオープンされたファイルディスクリプタ \fIfd\fP により参照されるファイルの所有権を変更する。
@@ -101,22 +123,52 @@ POSIX はこの動作やルートが \fBchown\fP()  を行なった場合につ�
 における動作はカーネルのバージョンに依存する。 非グループ実行ファイル (\fBS_IXGRP\fP ビットが設定されていないファイル) の場合には
 \fBS_ISGID\fP ビットは強制ロック (mandatory locking) を意味している。 そしてそれは \fBchown\fP()
 ではクリアできない。
+.SS fchownat()
+\fBfchownat\fP() システムコールは \fBchown\fP() と全く同様に動作するが、以下で説明する点が異なる。
+
+\fIpathname\fP で指定されたパス名が相対パスの場合、このパス名はファイルディスクリプター \fIdirfd\fP
+が参照するディレクトリに対する相対パスと解釈される (\fBchown\fP()
+に相対パス名を渡した場合のように、呼び出したプロセスのカレントワーキングディレクトリに対する相対パスではない)。
+
+\fIpathname\fP で指定されたパス名が相対パスで、 \fIdirfd\fP が特別な値 \fBAT_FDCWD\fP の場合、 (\fBchown\fP()
+と同様に) \fIpathname\fP は呼び出したプロセスのカレントワーキングディレクトリに対する相対パスと解釈される。
+
+\fIpathname\fP で指定されたパス名が絶対パスの場合、 \fIdirfd\fP は無視される。
+
+\fIflags\fP 引き数は、以下に示す値の 0 個以上の OR (論理和) をとって作成される ビットマスクである。
+.TP 
+\fBAT_EMPTY_PATH\fP (Linux 2.6.39 以降)
+.\" commit 65cfc6722361570bfe255698d9cd4dccaf47570d
+.\" Before glibc 2.16, defining _ATFILE_SOURCE sufficed
+\fIpathname\fP が空文字列の場合、 \fIdirfd\fP が参照するファイルに対して操作を行う (\fIdirfd\fP は \fBopen\fP(2)
+\fBO_PATH\fP フラグを使って取得することができる)。この場合、 \fIdirfd\fP
+は、ディレクトリだけでなく、任意のタイプのファイルを参照することができる。このフラグは Linux 固有であり、その定義を得るにあ
+\fB_GNU_SOURCE\fP を定義すること。
+
+.TP 
+\fBAT_SYMLINK_NOFOLLOW\fP
+\fIpathname\fP がシンボリックリンクの場合、リンクの展開を行わない。代わりに、\fBlchown\fP()
+同様、リンク自身に対して操作を行う。(デフォルトでは \fBfchownat\fP() は \fBchown\fP() と同様にシンボリックリンクの展開を行う。)
+.PP
+\fBfchownat\fP() の必要性についての説明については \fBopenat\fP(2) を参照。
 .SH 返り値
 成功した場合は 0 が返される。エラーの場合は \-1 が返され、 \fIerrno\fP が適切に設定される。
 .SH エラー
-ファイルシステムによっては他のエラーが返される事がある。 \fBchmod\fP で一般的なエラーを以下に挙げる。
+ファイルシステムによっては、下記の一覧にない他のエラーが返されることもある。
+
+\fBchown\fP()  でごく一般的なエラーを以下に挙げる:
 .TP 
 \fBEACCES\fP
 パス名の構成要素に検索許可がない (\fBpath_resolution\fP(7)  も見よ)。
 .TP 
 \fBEFAULT\fP
-\fIpath\fP がアクセスできるアドレス空間外を指している。
+\fIpathname\fP がアクセス可能なアドレス空間の外を指している。
 .TP 
 \fBELOOP\fP
-\fIpath\fP を解決する際に遭遇したシンボリックリンクが多過ぎる。
+\fIpathname\fP を解決するときに、解決すべきシンボリックリンクが多すぎた。
 .TP 
 \fBENAMETOOLONG\fP
-\fIpath\fP が長過ぎる。
+\fIpathname\fP が長過ぎる。
 .TP 
 \fBENOENT\fP
 ファイルが存在しない。
@@ -149,8 +201,23 @@ i ノード (inode) を変更する際に低レベル I/O エラーが発生し�
 .TP 
 \fBEROFS\fP
 上記を参照。
+.PP
+\fBchown\fP() で発生するのと同じエラーが \fBfchownat\fP() でも起こる。 \fBfchownat\fP() では以下のエラーも発生する。
+.TP 
+\fBEBADF\fP
+\fIdirfd\fP が適切なファイルディスクリプタでない。
+.TP 
+\fBEINVAL\fP
+\fIflags\fP に無効なフラグが指定された。
+.TP 
+\fBENOTDIR\fP
+\fIpathname\fP が相対パスで、 \fIdirfd\fP がディレクトリ以外のファイルを参照しているファイルディスクリプタである。
+.SH バージョン
+\fBfchownat\fP()  はカーネル 2.6.16 で Linux に追加された。 ライブラリによるサポートはバージョン 2.4 以降の glibc
+で利用できる。
 .SH 準拠
-4.4BSD, SVr4, POSIX.1\-2001.
+\fBchown\fP(), \fBfchown\fP(), \fBlchown\fP(): 4.4BSD, SVr4, POSIX.1\-2001,
+POSIX.1\-2008.
 
 .\" chown():
 .\" SVr4 documents EINVAL, EINTR, ENOLINK and EMULTIHOP returns, but no
@@ -159,6 +226,8 @@ i ノード (inode) を変更する際に低レベル I/O エラーが発生し�
 .\" SVr4 documents additional EINVAL, EIO, EINTR, and ENOLINK
 .\" error conditions.
 4.4BSD 版ではスーパーユーザーのみが使用できる (つまり、普通のユーザーはファイルを手放すことはできない)。
+
+\fBfchownat\fP(): POSIX.1\-2008.
 .SH 注意
 元々の Linux の \fBchown\fP(), \fBfchown\fP(), \fBlchown\fP() システムコールは、
 16 ビットのユーザ ID とグループ ID だけに対応していた。
@@ -199,8 +268,8 @@ Linux 2.1.81 以降では \fBchown\fP()  はシンボリックリンクを追跡
 以下のプログラムは、 二つ目のコマンドライン引き数で指定された名前のファイルの所有者を、 一つ目のコマンドライン引き数で指定された値に変更する。
 新しい所有者は、数字のユーザ ID かユーザ名のいずれかで指定できる (ユーザ名で指定した場合には、 \fBgetpwnam\fP(3)
 を使ってシステムのパスワードファイルの検索が行われ、 ユーザ ID への変換が行われる)。
+.SS プログラムのソース
 .nf
-
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -239,9 +308,8 @@ main(int argc, char *argv[])
 }
 .fi
 .SH 関連項目
-\fBchmod\fP(2), \fBfchownat\fP(2), \fBflock\fP(2), \fBpath_resolution\fP(7),
-\fBsymlink\fP(7)
+\fBchmod\fP(2), \fBflock\fP(2), \fBpath_resolution\fP(7), \fBsymlink\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

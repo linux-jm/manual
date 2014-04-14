@@ -61,7 +61,7 @@
 .\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-07-22, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH RECV 2 2013\-04\-19 Linux "Linux Programmer's Manual"
+.TH RECV 2 2014\-02\-11 Linux "Linux Programmer's Manual"
 .SH 名前
 recv, recvfrom, recvmsg \- ソケットからメッセージを受け取る
 .SH 書式
@@ -80,28 +80,13 @@ recv, recvfrom, recvmsg \- ソケットからメッセージを受け取る
 \fBssize_t recvmsg(int \fP\fIsockfd\fP\fB, struct msghdr *\fP\fImsg\fP\fB, int \fP\fIflags\fP\fB);\fP
 .fi
 .SH 説明
-\fBrecvfrom\fP()  と \fBrecvmsg\fP()  コールは、ソケットからメッセージを受け取るのに使用する。
-またソケットのデータ受信にも使うことができ、 このときソケットは接続指向 (connection\-oriened) であってもなくてもよい。
+The \fBrecv\fP(), \fBrecvfrom\fP(), and \fBrecvmsg\fP()  calls are used to receive
+messages from a socket.  They may be used to receive data on both
+connectionless and connection\-oriented sockets.  This page first describes
+common features of all three system calls, and then describes the
+differences between the calls.
 .PP
-.\" (Note: for datagram sockets in both the UNIX and Internet domains,
-.\" .I src_addr
-.\" is filled in.
-.\" .I src_addr
-.\" is also filled in for stream sockets in the UNIX domain, but is not
-.\" filled in for stream sockets in the Internet domain.)
-.\" [The above notes on AF_UNIX and AF_INET sockets apply as at
-.\" Kernel 2.4.18. (MTK, 22 Jul 02)]
-\fIsrc_addr\fP が NULL 以外で、下層のプロトコルから送信元アドレスが分かる場合、 \fIsrc_addr\fP
-にはこの送信元アドレスが入れられる。 \fIsrc_addr\fP が NULL の場合、 \fIsrc_addr\fP には何も入らない。この場合、
-\fIaddrlen\fP は使用されず、この引き数は NULL にしておくべきである。 引き数 \fIaddrlen\fP
-は入出力両用の引き数である。呼び出し時には、呼び出し元が \fIsrc_addr\fP に割り当てたバッファの大きさで初期化しておくべきである。
-返ってくる時には、送信元アドレスの実際の大きさに変更される。 渡されたバッファが小さ過ぎる場合には、返されるアドレスの末尾は
-切り詰められる。この場合には、 \fIaddrlen\fP では、呼び出し時に渡された値よりも大きな値が返される。
-.PP
-\fBrecv\fP()  コールは通常 \fI接続済みの (connected)\fP ソケット (\fBconnect\fP(2)  を参照) についてのみ使用され、
-\fIsrc_addr\fP 引き数に NULL を指定した \fBrecvfrom\fP()  と等価である。
-.PP
-これらの三つのルーチンはいずれも、成功した場合にはメッセージの長さを返す。 メッセージが長過ぎて指定されたバッファに入り切らなかった場合には、
+これらの三つのシステムコールはいずれも、成功した場合にはメッセージの長さを返す。 メッセージが長過ぎて指定されたバッファに入り切らなかった場合には、
 メッセージを受信したソケットの種類によっては余分のバイトが捨てられる かもしれない。
 .PP
 ソケットに受け取るメッセージが存在しなかった場合、 受信用のコールはメッセージが到着するまで待つ。 ただし、ソケットが非停止 (nonblocking)
@@ -109,9 +94,10 @@ recv, recvfrom, recvmsg \- ソケットからメッセージを受け取る
 \fBEWOULDBLOCK\fP を設定する。 これらの受信用のコールは、受信したデータのサイズが要求したサイズに
 達するまで待つのではなく、何らかのデータを受信すると復帰する (受信されるデータの最大サイズは要求したサイズである)。
 .PP
-\fBselect\fP(2)  や \fBpoll\fP(2)  コールを使って、次のデータがいつ届くかを判断できる。
-.PP
-\fBrecv\fP()  コールの \fIflags\fP 引き数には、以下の値を 1つ以上、ビット単位の論理和 を取ったものを指定する:
+アプリケーションは \fBselect\fP(2), \fBpoll\fP(2), \fBepoll\fP(7)
+を使って、ソケットにさらにデータが到着しているかを判定することができる。
+.SS "The flags argument"
+\fIflags\fP 引き数には、以下の値を 1つ以上、ビット単位の論理和 を取ったものを指定する:
 .TP 
 \fBMSG_CMSG_CLOEXEC\fP (\fBrecvmsg\fP() のみ; Linux 2.6.23)
 (\fBunix\fP(7)  で説明されている)  \fBSCM_RIGHTS\fP 操作を使って UNIX ドメインのファイルディスクリプタ経由で受信した
@@ -185,15 +171,45 @@ struct sockaddr *SO_EE_OFFENDER(struct sock_extended_err *);
 \fBMSG_TRUNC\fP (Linux 2.2 以降)
 raw ソケット (\fBAF_PACKET\fP)、 Internet datagram ソケット (Linux 2.4.27/2.6.8 以降)、
 netlink (Linux 2.6.22 以降) ソケット、 UNIX datagram ソケット (Linux 3.4 以降)
-の場合、パケットやデータグラムの長さが渡したバッファよりも長かった場合にも、 パケットやデータグラムの実際の長さを返す。 UNIX ドメインソケット
-(\fBunix\fP(7))  ソケットについては実装されていない。
+の場合、パケットやデータグラムの長さが渡したバッファよりも長かった場合にも、 パケットやデータグラムの実際の長さを返す。
 
 Internet ストリームソケットでの利用については \fBtcp\fP(7)  を参照。
 .TP 
 \fBMSG_WAITALL\fP (Linux 2.2 以降)
+.\"
 このフラグは、要求した量いっぱいのデータが到着するまで、 操作を停止 (block) するよう要求する。 但し、シグナルを受信したり、エラーや切断
 (disconnect) が発生したり、 次に受信されるデータが異なる型だったりした場合には、 要求した量よりデータが少なくても返ることがある。
-.PP
+.SS recvfrom()
+\fBrecvfrom\fP()  places the received message into the buffer \fIbuf\fP.  The
+caller must specify the size of the buffer in \fIlen\fP.
+
+.\" (Note: for datagram sockets in both the UNIX and Internet domains,
+.\" .I src_addr
+.\" is filled in.
+.\" .I src_addr
+.\" is also filled in for stream sockets in the UNIX domain, but is not
+.\" filled in for stream sockets in the Internet domain.)
+.\" [The above notes on AF_UNIX and AF_INET sockets apply as at
+.\" Kernel 2.4.18. (MTK, 22 Jul 02)]
+If \fIsrc_addr\fP is not NULL, and the underlying protocol provides the source
+address of the message, that source address is placed in the buffer pointed
+to by \fIsrc_addr\fP.  In this case, \fIaddrlen\fP is a value\-result argument.
+Before the call, it should be initialized to the size of the buffer
+associated with \fIsrc_addr\fP.  Upon return, \fIaddrlen\fP is updated to contain
+the actual size of the source address.  The returned address is truncated if
+the buffer provided is too small; in this case, \fIaddrlen\fP will return a
+value greater than was supplied to the call.
+
+.\"
+If the caller is not interested in the source address, \fIsrc_addr\fP should be
+specified as NULL and \fIaddrlen\fP should be specified as 0.
+.SS recv()
+\fBrecv\fP()  コールは通常 \fI接続済みの (connected)\fP ソケットに対してのみ使用される (\fBconnect\fP(2)
+参照)。次の呼び出しと等価である。
+
+.\"
+    recvfrom(fd, buf, len, flags, NULL, 0));
+.SS recvmsg()
 \fBrecvmsg\fP()  コールは、直接渡す引き数の数を減らすために \fImsghdr\fP 構造体を使用する。この構造体は
 \fI<sys/socket.h>\fP で以下のように定義されている:
 .in +4n
@@ -262,7 +278,16 @@ struct cmsghdr {
 データは受信しなかったが ソケットのエラー・キューから拡張エラーを受信したことを示す。
 .SH 返り値
 これらのコールは受信したバイト数を返す。 エラーの場合は \-1 を返し、 \fIerrno\fP にエラーを示す値を設定する。
-接続先が正しくシャットダウンを実行した場合は、返り値は 0 となる。
+
+ストリームソケットの接続相手が正しくシャットダウンを実行した場合は、
+返り値は 0 (昔ながらの "end\-of\-file" の戻り値) となる。
+
+Datagram sockets in various domains (e.g., the UNIX and Internet domains)
+permit zero\-length datagrams.  When such a datagram is received, the return
+value is 0.
+
+The value 0 may also be returned if the requested number of bytes to receive
+from a stream socket was 0.
 .SH エラー
 これらはソケット層で発生する一般的なエラーである。 他のエラーが下層のプロトコル・モジュールで生成され、 返されるかもしれない。
 それらのマニュアルを参照すること。
@@ -325,6 +350,6 @@ POSIX.1\-2001 では、構造体 \fImsghdr\fP のフィールド \fImsg_controll
 \fBfcntl\fP(2), \fBgetsockopt\fP(2), \fBread\fP(2), \fBrecvmmsg\fP(2), \fBselect\fP(2),
 \fBshutdown\fP(2), \fBsocket\fP(2), \fBcmsg\fP(3), \fBsockatmark\fP(3), \fBsocket\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

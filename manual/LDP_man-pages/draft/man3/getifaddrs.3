@@ -43,7 +43,7 @@
 .\"         all rights reserved.
 .\" Translated 2013-07-31, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH GETIFADDRS 3 2012\-11\-11 GNU "Linux Programmer's Manual"
+.TH GETIFADDRS 3 2014\-02\-26 GNU "Linux Programmer's Manual"
 .SH 名前
 getifaddrs, freeifaddrs \- インターフェースのアドレスを取得する
 .SH 書式
@@ -140,21 +140,29 @@ Linux では、 返されるアドレスは通常インターフェースに割�
 .nf
 
 $ \fB./a.out\fP
-lo      address family: 17 (AF_PACKET)
-eth0    address family: 17 (AF_PACKET)
-lo      address family: 2 (AF_INET)
-        address: <127.0.0.1>
-eth0    address family: 2 (AF_INET)
-        address: <10.1.1.4>
-lo      address family: 10 (AF_INET6)
-        address: <::1>
-eth0    address family: 10 (AF_INET6)
-        address: <fe80::2d0:59ff:feda:eb51%eth0>
+lo       AF_PACKET (17)
+                tx_packets =        524; rx_packets =        524
+                tx_bytes   =      38788; rx_bytes   =      38788
+wlp3s0   AF_PACKET (17)
+                tx_packets =     108391; rx_packets =     130245
+                tx_bytes   =   30420659; rx_bytes   =   94230014
+em1      AF_PACKET (17)
+                tx_packets =          0; rx_packets =          0
+                tx_bytes   =          0; rx_bytes   =          0
+lo       AF_INET (2)
+                address: <127.0.0.1>
+wlp3s0   AF_INET (2)
+                address: <192.168.235.137>
+lo       AF_INET6 (10)
+                address: <::1>
+wlp3s0   AF_INET6 (10)
+                address: <fe80::7ee9:d3ff:fef5:1a91%wlp3s0>
 .fi
 .in
 .SS プログラムのソース
 \&
 .nf
+#define _GNU_SOURCE     /* To get defns of NI_MAXSERV and NI_MAXHOST */
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -162,12 +170,12 @@ eth0    address family: 10 (AF_INET6)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <linux/if_link.h>
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     struct ifaddrs *ifaddr, *ifa;
-    int family, s;
+    int family, s, n;
     char host[NI_MAXHOST];
 
     if (getifaddrs(&ifaddr) == \-1) {
@@ -178,7 +186,7 @@ main(int argc, char *argv[])
     /* Walk through linked list, maintaining head pointer so we
        can free list later */
 
-    for (ifa = ifaddr; ifa != NULL; ifa = ifa\->ifa_next) {
+    for (ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa\->ifa_next, n++) {
         if (ifa\->ifa_addr == NULL)
             continue;
 
@@ -187,11 +195,12 @@ main(int argc, char *argv[])
         /* Display interface name and family (including symbolic
            form of the latter for the common families) */
 
-        printf("%s\t  address family: %d%s\en",
-                ifa\->ifa_name, family,
-                (family == AF_PACKET) ? " (AF_PACKET)" :
-                (family == AF_INET) ?   " (AF_INET)" :
-                (family == AF_INET6) ?  " (AF_INET6)" : "");
+        printf("%\-8s %s (%d)\en",
+               ifa\->ifa_name,
+               (family == AF_PACKET) ? "AF_PACKET" :
+               (family == AF_INET) ? "AF_INET" :
+               (family == AF_INET6) ? "AF_INET6" : "???",
+               family);
 
         /* For an AF_INET* interface address, display the address */
 
@@ -199,12 +208,22 @@ main(int argc, char *argv[])
             s = getnameinfo(ifa\->ifa_addr,
                     (family == AF_INET) ? sizeof(struct sockaddr_in) :
                                           sizeof(struct sockaddr_in6),
-                    host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+                    host, NI_MAXHOST,
+                    NULL, 0, NI_NUMERICHOST);
             if (s != 0) {
                 printf("getnameinfo() failed: %s\en", gai_strerror(s));
                 exit(EXIT_FAILURE);
             }
-            printf("\etaddress: <%s>\en", host);
+
+            printf("\et\etaddress: <%s>\en", host);
+
+        } else if (family == AF_PACKET && ifa\->ifa_data != NULL) {
+            struct rtnl_link_stats *stats = ifa\->ifa_data;
+
+            printf("\et\ettx_packets = %10u; rx_packets = %10u\en"
+                   "\et\ettx_bytes   = %10u; rx_bytes   = %10u\en",
+                   stats\->tx_packets, stats\->rx_packets,
+                   stats\->tx_bytes, stats\->rx_bytes);
         }
     }
 
@@ -215,6 +234,6 @@ main(int argc, char *argv[])
 .SH 関連項目
 \fBbind\fP(2), \fBgetsockname\fP(2), \fBsocket\fP(2), \fBpacket\fP(7), \fBifconfig\fP(8)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

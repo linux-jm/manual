@@ -1,4 +1,7 @@
 .\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\" and Copyright (C) 2008 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Note also that many pieces are drawn from the kernel source file
+.\" Documentation/networking/ip-sysctl.txt.
 .\"
 .\" %%%LICENSE_START(VERBATIM_ONE_PARA)
 .\" Permission is granted to distribute possibly modified copies
@@ -17,9 +20,6 @@
 .\"     (other than the remaining FIXMEs in the page source below).
 .\"
 .\" FIXME The following need to be documented
-.\" 	TCP_CONGESTION (new in 2.6.13)
-.\"	    commit 5f8ef48d240963093451bcf83df89f1a1364f51d
-.\"	    Author: Stephen Hemminger <shemminger@osdl.org>
 .\"	TCP_MD5SIG (2.6.20)
 .\"	    commit cfb6eeb4c860592edd123fdea908d23c6ad1c7dc
 .\"	    Author was yoshfuji@linux-ipv6.org
@@ -40,15 +40,17 @@
 .\"	    Author: William Allen Simpson <william.allen.simpson@gmail.com>
 .\"	    commit e56fb50f2b7958b931c8a2fc0966061b3f3c8f3a
 .\"	    Author: William Allen Simpson <william.allen.simpson@gmail.com>
+.\"
+.\"	    REMOVED in Linux 3.10
+.\" 		commit 1a2c6181c4a1922021b4d7df373bba612c3e5f04
+.\"		Author: Christoph Paasch <christoph.paasch@uclouvain.be>
+.\"
 .\"	TCP_THIN_LINEAR_TIMEOUTS (2.6.34)
 .\"	    commit 36e31b0af58728071e8023cf8e20c5166b700717
 .\"	    Author: Andreas Petlund <apetlund@simula.no>
-.\"	TCP_THIN_DUPACK (2..6.34)
+.\"	TCP_THIN_DUPACK (2.6.34)
 .\"	    commit 7e38017557bc0b87434d184f8804cadb102bb903
 .\"	    Author: Andreas Petlund <apetlund@simula.no>
-.\"	TCP_USER_TIMEOUT (new in 2.6.37)
-.\"	    Author: Jerry Chu <hkchu@google.com>
-.\"	    commit dca43c75e7e545694a9dd6288553f55c53e2a3a3
 .\"	TCP_REPAIR (3.5)
 .\"	    commit ee9952831cfd0bbe834f4a26489d7dce74582e37
 .\"	    Author: Pavel Emelyanov <xemul@parallels.com>
@@ -61,8 +63,17 @@
 .\"	TCP_REPAIR_OPTIONS (3.5)
 .\"	    commit b139ba4e90dccbf4cd4efb112af96a5c9e0b098c
 .\"	    Author: Pavel Emelyanov <xemul@parallels.com>
+.\"     TCP_FASTOPEN (3.6)
+.\"         (Fast Open server side implementation completed in 3.7)
+.\"	    http://lwn.net/Articles/508865/
+.\"     TCP_TIMESTAMP (3.9)
+.\"        commit 93be6ce0e91b6a94783e012b1857a347a5e6e9f2
+.\"        Author: Andrey Vagin <avagin@openvz.org>
+.\"     TCP_NOTSENT_LOWAT (3.12)
+.\"        commit c9bee3b7fdecb0c1d070c7b54113b3bdfb9a3d36
+.\"        Author: Eric Dumazet <edumazet@google.com>
 .\"
-.TH TCP  7 2013-06-21 "Linux" "Linux Programmer's Manual"
+.TH TCP  7 2014-01-23 "Linux" "Linux Programmer's Manual"
 .SH NAME
 tcp \- TCP protocol
 .SH SYNOPSIS
@@ -284,9 +295,10 @@ Show/set the congestion control algorithm choices available to unprivileged
 processes (see the description of the
 .B TCP_CONGESTION
 socket option).
+The items in the list are separated by white space and
+terminated by a newline character.
 The list is a subset of those listed in
 .IR tcp_available_congestion_control .
-.\" FIXME How are the items in this delimited? Null bytes, spaces, commas?
 The default value for this list is "reno" plus the default setting of
 .IR tcp_congestion_control .
 .TP
@@ -294,7 +306,8 @@ The default value for this list is "reno" plus the default setting of
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
 Show a list of the congestion-control algorithms
 that are registered.
-.\" FIXME How are the items in this delimited? Null bytes, spaces, commas?
+The items in the list are separated by white space and
+terminated by a newline character.
 This list is a limiting set for the list in
 .IR tcp_allowed_congestion_control .
 More congestion-control algorithms may be available as modules,
@@ -874,6 +887,22 @@ socket options are valid on TCP sockets.
 For more information see
 .BR ip (7).
 .TP
+.BR TCP_CONGESTION " (since Linux 2.6.13)"
+.\"	    commit 5f8ef48d240963093451bcf83df89f1a1364f51d
+.\"	    Author: Stephen Hemminger <shemminger@osdl.org>
+The argument for this option is a string.
+This option allows the caller to set the TCP congestion control
+algorithm to be used, on a per-socket basis.
+Unprivileged processes are restricted to choosing one of the algorithms in
+.IR tcp_allowed_congestion_control
+(described above).
+Privileged processes
+.RB ( CAP_NET_ADMIN )
+can choose from any of the available congestion-control algorithms
+(see the description of
+.IR tcp_available_congestion_control
+above).
+.TP
 .BR TCP_CORK " (since Linux 2.2)"
 .\" precisely: since 2.1.127
 If set, don't send out partial frames.
@@ -892,6 +921,9 @@ This option should not be used in code intended to be portable.
 .TP
 .BR TCP_DEFER_ACCEPT " (since Linux 2.4)"
 .\" Precisely: since 2.3.38
+.\" Useful references:
+.\" http://www.techrepublic.com/article/take-advantage-of-tcp-ip-options-to-optimize-data-transmission/
+.\" http://unix.stackexchange.com/questions/94104/real-world-use-of-tcp-defer-accept
 Allow a listener to be awakened only when data arrives on the socket.
 Takes an integer value (seconds), this can
 bound the maximum number of attempts TCP will make to
@@ -986,6 +1018,51 @@ aborting the attempt to connect.
 It cannot exceed 255.
 This option should not be used in code intended to be portable.
 .TP
+.BR TCP_USER_TIMEOUT " (since Linux 2.6.37)"
+.\"	    commit dca43c75e7e545694a9dd6288553f55c53e2a3a3
+.\"	    Author: Jerry Chu <hkchu@google.com>
+.\" The following text taken nearly verbatim from Jerry Chu's (excellent)
+.\" commit message.
+.\"
+This option takes an
+.IR "unsigned int"
+as an argument.
+When the value is greater than 0,
+it specifies the maximum amount of time in milliseconds that transmitted
+data may remain unacknowledged before TCP will forcibly close the
+corresponding connection and return
+.B ETIMEDOUT
+to the application.
+If the option value is specified as 0,
+TCP will to use the system default.
+
+Increasing user timeouts allows a TCP connection to survive extended
+periods without end-to-end connectivity.
+Decreasing user timeouts
+allows applications to "fail fast", if so desired.
+Otherwise, failure may take up to 20 minutes with
+the current system defaults in a normal WAN environment.
+
+This option can be set during any state of a TCP connection,
+but is only effective during the synchronized states of a connection
+(ESTABLISHED, FIN-WAIT-1, FIN-WAIT-2, CLOSE-WAIT, CLOSING, and LAST-ACK).
+Moreover, when used with the TCP keepalive
+.RB ( SO_KEEPALIVE )
+option,
+.B TCP_USER_TIMEOUT
+will override keepalive to determine when to close a
+connection due to keepalive failure.
+
+The option has no effect on when TCP retransmits a packet,
+nor when a keepalive probe is sent.
+
+This option, like many others, will be inherited by the socket returned by
+.BR accept (2),
+if it was set on the listening socket.
+
+Further details on the user timeout feature can be found in
+RFC\ 793 and RFC\ 5482 ("TCP User Timeout Option").
+.TP
 .BR TCP_WINDOW_CLAMP " (since Linux 2.4)"
 .\" Precisely: since 2.3.41
 Bound the size of the advertised window to this value.
@@ -1010,7 +1087,7 @@ It can be changed via
 .IR /proc/sys/net/ipv4/tcp_stdurg .
 
 It is possible to peek at out-of-band data using the
-.IR recv (2)
+.BR recv (2)
 .B MSG_PEEK
 flag.
 
@@ -1025,7 +1102,7 @@ argument of
 This flag causes the received bytes of data to be discarded,
 rather than passed back in a caller-supplied buffer.
 Since Linux 2.4.4,
-.BR MSG_PEEK
+.BR MSG_TRUNC
 also has this effect when used in conjunction with
 .BR MSG_OOB
 to receive out-of-band data.

@@ -1,4 +1,7 @@
 .\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\" and Copyright (C) 2008 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Note also that many pieces are drawn from the kernel source file
+.\" Documentation/networking/ip-sysctl.txt.
 .\"
 .\" %%%LICENSE_START(VERBATIM_ONE_PARA)
 .\" Permission is granted to distribute possibly modified copies
@@ -17,9 +20,6 @@
 .\"     (other than the remaining FIXMEs in the page source below).
 .\"
 .\" FIXME The following need to be documented
-.\" 	TCP_CONGESTION (new in 2.6.13)
-.\"	    commit 5f8ef48d240963093451bcf83df89f1a1364f51d
-.\"	    Author: Stephen Hemminger <shemminger@osdl.org>
 .\"	TCP_MD5SIG (2.6.20)
 .\"	    commit cfb6eeb4c860592edd123fdea908d23c6ad1c7dc
 .\"	    Author was yoshfuji@linux-ipv6.org
@@ -40,15 +40,17 @@
 .\"	    Author: William Allen Simpson <william.allen.simpson@gmail.com>
 .\"	    commit e56fb50f2b7958b931c8a2fc0966061b3f3c8f3a
 .\"	    Author: William Allen Simpson <william.allen.simpson@gmail.com>
+.\"
+.\"	    REMOVED in Linux 3.10
+.\" 		commit 1a2c6181c4a1922021b4d7df373bba612c3e5f04
+.\"		Author: Christoph Paasch <christoph.paasch@uclouvain.be>
+.\"
 .\"	TCP_THIN_LINEAR_TIMEOUTS (2.6.34)
 .\"	    commit 36e31b0af58728071e8023cf8e20c5166b700717
 .\"	    Author: Andreas Petlund <apetlund@simula.no>
-.\"	TCP_THIN_DUPACK (2..6.34)
+.\"	TCP_THIN_DUPACK (2.6.34)
 .\"	    commit 7e38017557bc0b87434d184f8804cadb102bb903
 .\"	    Author: Andreas Petlund <apetlund@simula.no>
-.\"	TCP_USER_TIMEOUT (new in 2.6.37)
-.\"	    Author: Jerry Chu <hkchu@google.com>
-.\"	    commit dca43c75e7e545694a9dd6288553f55c53e2a3a3
 .\"	TCP_REPAIR (3.5)
 .\"	    commit ee9952831cfd0bbe834f4a26489d7dce74582e37
 .\"	    Author: Pavel Emelyanov <xemul@parallels.com>
@@ -61,6 +63,15 @@
 .\"	TCP_REPAIR_OPTIONS (3.5)
 .\"	    commit b139ba4e90dccbf4cd4efb112af96a5c9e0b098c
 .\"	    Author: Pavel Emelyanov <xemul@parallels.com>
+.\"     TCP_FASTOPEN (3.6)
+.\"         (Fast Open server side implementation completed in 3.7)
+.\"	    http://lwn.net/Articles/508865/
+.\"     TCP_TIMESTAMP (3.9)
+.\"        commit 93be6ce0e91b6a94783e012b1857a347a5e6e9f2
+.\"        Author: Andrey Vagin <avagin@openvz.org>
+.\"     TCP_NOTSENT_LOWAT (3.12)
+.\"        commit c9bee3b7fdecb0c1d070c7b54113b3bdfb9a3d36
+.\"        Author: Eric Dumazet <edumazet@google.com>
 .\"
 .\"*******************************************************************
 .\"
@@ -82,7 +93,7 @@
 .\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-07-22, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH TCP 7 2013\-06\-21 Linux "Linux Programmer's Manual"
+.TH TCP 7 2014\-01\-23 Linux "Linux Programmer's Manual"
 .SH 名前
 tcp \- TCP プロトコル
 .SH 書式
@@ -179,17 +190,20 @@ ACK が遅延 ACK (delayed acknowledgment) を相殺するための 2 セグメ�
 .TP 
 \fItcp_allowed_congestion_control\fP (String; default: see text; Linux 2.4.20 以降)
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
-.\" FIXME How are the items in this delimited? Null bytes, spaces, commas?
-非特権プロセスで利用できる輻輳制御アルゴリズムの選択肢を表示/設定する (\fBTCP_CONGESTION\fP ソケットオプションの説明を参照のこと)。
-このリストは \fItcp_available_congestion_control\fP で表示されるリストの部分集合となる。
-このリストのデフォルト値は、"reno" と \fItcp_congestion_control\fP のデフォルト設定をあわせたものとなる。
+Show/set the congestion control algorithm choices available to unprivileged
+processes (see the description of the \fBTCP_CONGESTION\fP socket option).  The
+items in the list are separated by white space and terminated by a newline
+character.  The list is a subset of those listed in
+\fItcp_available_congestion_control\fP.  The default value for this list is
+"reno" plus the default setting of \fItcp_congestion_control\fP.
 .TP 
 \fItcp_available_congestion_control\fP (String; read\-only; Linux 2.4.20 以降)
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
-.\" FIXME How are the items in this delimited? Null bytes, spaces, commas?
-登録されている輻輳制御アルゴリズムのリストを表示する。 このリストに載っているものだけが、
-\fItcp_allowed_congestion_control\fP に表示される。 他の輻輳制御アルゴリズムがモジュールとして利用可能だが、
-モジュールがロードされていないこともある。
+Show a list of the congestion\-control algorithms that are registered.  The
+items in the list are separated by white space and terminated by a newline
+character.  This list is a limiting set for the list in
+\fItcp_allowed_congestion_control\fP.  More congestion\-control algorithms may
+be available as modules, but not loaded.
 .TP 
 \fItcp_app_win\fP (integer; default: 31; Linux 2.4 以降)
 .\" Since 2.4.0-test7
@@ -556,6 +570,17 @@ TCP ソケットのオプションは、 オプションレベル引数に \fIIP
 \fBgetsockopt\fP(2)  で取得できる。 注釈がない限り、 \fIoptval\fP は \fIint\fP へのポインタである。 さらに、ほとんどの
 \fBIPPROTO_IP\fP ソケットオプションも TCP ソケットに対して有効である。詳細は \fBip\fP(7)  を見よ。
 .TP 
+\fBTCP_CONGESTION\fP (Linux 2.6.13 以降)
+.\"	    commit 5f8ef48d240963093451bcf83df89f1a1364f51d
+.\"	    Author: Stephen Hemminger <shemminger@osdl.org>
+The argument for this option is a string.  This option allows the caller to
+set the TCP congestion control algorithm to be used, on a per\-socket basis.
+Unprivileged processes are restricted to choosing one of the algorithms in
+\fItcp_allowed_congestion_control\fP (described above).  Privileged processes
+(\fBCAP_NET_ADMIN\fP)  can choose from any of the available congestion\-control
+algorithms (see the description of \fItcp_available_congestion_control\fP
+above).
+.TP 
 \fBTCP_CORK\fP (Linux 2.2 以降)
 .\" precisely: since 2.1.127
 セットされると、 partial フレームを送信しない。 このオプションが解除されると、 キューイングされた partial フレームが送られる。これは
@@ -566,6 +591,9 @@ TCP ソケットのオプションは、 オプションレベル引数に \fIIP
 .TP 
 \fBTCP_DEFER_ACCEPT\fP (Linux 2.4 以降)
 .\" Precisely: since 2.3.38
+.\" Useful references:
+.\" http://www.techrepublic.com/article/take-advantage-of-tcp-ip-options-to-optimize-data-transmission/
+.\" http://unix.stackexchange.com/questions/94104/real-world-use-of-tcp-defer-accept
 これを用いると、リスナはデータがソケットに到着した時のみ目覚めるようになる。 整数値 (秒) をとり、 TCP
 が接続を完了しようと試みる回数を制限できる。 移植性の必要なプログラムではこのオプションを用いるべきではない。
 .TP 
@@ -620,6 +648,39 @@ quickack モードでは ack はすぐに送信される。 このフラグは�
 接続の試行を中止させる前に TCP が送る SYN 再送数を設定する。 これは 255 より大きくはできない。
 移植性の必要なプログラムではこのオプションを用いるべきではない。
 .TP 
+\fBTCP_USER_TIMEOUT\fP (Linux 2.6.37 以降)
+.\"	    commit dca43c75e7e545694a9dd6288553f55c53e2a3a3
+.\"	    Author: Jerry Chu <hkchu@google.com>
+.\" The following text taken nearly verbatim from Jerry Chu's (excellent)
+.\" commit message.
+.\"
+This option takes an \fIunsigned int\fP as an argument.  When the value is
+greater than 0, it specifies the maximum amount of time in milliseconds that
+transmitted data may remain unacknowledged before TCP will forcibly close
+the corresponding connection and return \fBETIMEDOUT\fP to the application.  If
+the option value is specified as 0, TCP will to use the system default.
+
+Increasing user timeouts allows a TCP connection to survive extended periods
+without end\-to\-end connectivity.  Decreasing user timeouts allows
+applications to "fail fast", if so desired.  Otherwise, failure may take up
+to 20 minutes with the current system defaults in a normal WAN environment.
+
+This option can be set during any state of a TCP connection, but is only
+effective during the synchronized states of a connection (ESTABLISHED,
+FIN\-WAIT\-1, FIN\-WAIT\-2, CLOSE\-WAIT, CLOSING, and LAST\-ACK).  Moreover, when
+used with the TCP keepalive (\fBSO_KEEPALIVE\fP)  option, \fBTCP_USER_TIMEOUT\fP
+will override keepalive to determine when to close a connection due to
+keepalive failure.
+
+The option has no effect on when TCP retransmits a packet, nor when a
+keepalive probe is sent.
+
+This option, like many others, will be inherited by the socket returned by
+\fBaccept\fP(2), if it was set on the listening socket.
+
+Further details on the user timeout feature can be found in RFC\ 793 and
+RFC\ 5482 ("TCP User Timeout Option").
+.TP 
 \fBTCP_WINDOW_CLAMP\fP (Linux 2.4 以降)
 .\" Precisely: since 2.3.41
 広報するウィンドウのサイズをこの値に固定する。 カーネルによって最小サイズは SOCK_MIN_RCVBUF/2 に制限されている。
@@ -637,7 +698,7 @@ Linux は、デフォルトでは urgent ポインタフィールドの解釈に
 
 Linux 2.4 以降では、 \fBrecv\fP(2)  (や \fBrecvmsg\fP(2))  の \fIflags\fP 引き数に \fBMSG_TRUNC\fP
 を使うことができる。 このフラグを指定すると、受信データは、呼び出し元から渡されたバッファ にコピーされて返されるのではなく、廃棄されるようになる。
-Linux 2.4.4 以降では、 \fBMSG_PEEK\fP を、帯域外データを受信するための \fBMSG_OOB\fP
+Linux 2.4.4 以降では、 \fBMSG_TRUNC\fP を、帯域外データを受信するための \fBMSG_OOB\fP
 と組み合わせて使った場合にも、これと同じ効果を持つようになっている。
 .SS ioctl
 以下の \fBioctl\fP(2) 呼び出しは \fIvalue\fP に情報を入れて返す。
@@ -736,6 +797,6 @@ RFC\ 2581: TCP 輻輳制御アルゴリズム。
 .br
 RFC\ 2018 と RFC\ 2883: SACK とその拡張。
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

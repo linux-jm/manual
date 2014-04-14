@@ -81,7 +81,7 @@
 .\" Updated 2012-05-08, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH FCNTL 2 2012\-04\-15 Linux "Linux Programmer's Manual"
+.TH FCNTL 2 2014\-02\-20 Linux "Linux Programmer's Manual"
 .SH 名前
 fcntl \- ファイルディスクリプタの操作を行う
 .SH 書式
@@ -138,15 +138,13 @@ fcntl \- ファイルディスクリプタの操作を行う
 \fIarg\fP は無視される。
 .TP 
 \fBF_SETFL\fP (\fIint\fP)
-.\" FIXME . According to POSIX.1-2001, O_SYNC should also be modifiable
-.\" via fcntl(2), but currently Linux does not permit this
-.\" See http://bugzilla.kernel.org/show_bug.cgi?id=5994
 ファイル状態フラグに \fIarg\fP で指定された値を設定する。 \fIarg\fP のうち、ファイルのアクセスモード (\fBO_RDONLY\fP,
 \fBO_WRONLY\fP, \fBO_RDWR\fP)  とファイル作成フラグ (すなわち \fBO_CREAT\fP, \fBO_EXCL\fP,
 \fBO_NOCTTY\fP, \fBO_TRUNC\fP)  に関するビットは無視される。 Linux では、このコマンドで変更できるのは
-\fBO_APPEND\fP, \fBO_ASYNC\fP, \fBO_DIRECT\fP, \fBO_NOATIME\fP, \fBO_NONBLOCK\fP フラグだけである。
+\fBO_APPEND\fP, \fBO_ASYNC\fP, \fBO_DIRECT\fP, \fBO_NOATIME\fP, \fBO_NONBLOCK\fP
+フラグだけである。フラグ \fBO_DSYNC\fP, \fBO_SYNC\fP を変更することはできない。下記の「バグ」を参照。
 .SS アドバイザリロック
-\fBF_GETLK\fP, \fBF_SETLK\fP, \fBF_SETLKW\fP は、レコードロックの獲得／解放／テストのために使用する
+\fBF_SETLK\fP, \fBF_SETLKW\fP, \fBF_GETLK\fP は、レコードロックの獲得／解放／テストのために使用する
 (レコードロックはファイルセグメントロックや ファイル領域ロックとも呼ばれる)。 三番目の引き数 \fIlock\fP
 は、以下に示すフィールドを含む構造体へのポインタである (フィールドの順序は関係なく、構造体に他のフィールドがあってもよい)。
 .in +4n
@@ -209,7 +207,7 @@ POSIX.1\-2001 では、負の値の \fIl_len\fP をサポートする実装を�
 を設定し、他のフィールドは変更せずに、復帰する。 違う種別のロックが (一つもしくは複数) 適用されていて ロックを適用できないような場合には、
 \fBfcntl\fP()  は、原因となったロックの一つについての詳細情報を構造体 \fIlock\fP のフィールド \fIl_type\fP,
 \fIl_whence\fP, \fIl_start\fP, \fIl_len\fP に格納し、また \fIl_pid\fP にロックを保持しているプロセスの PID
-を設定して、復帰する。
+を設定して、復帰する。 \fBF_GETLK\fP が返す情報は呼び出し元がその情報を使用するときにはすでに古くなっている可能性がある点に注意すること。
 .P
 読み出しロックを適用するには、 \fIfd\fP は読み出し用にオープンされていなければならない。 書き込みロックを適用するには、 \fIfd\fP
 は書き込み用にオープンされていなければならない。 読み書き両方のロックを適用するには、読み書き両用で ファイルをオープンしなければならない。
@@ -382,10 +380,11 @@ ID が \fIpid\fP で指定された値のプロセスグループにそのシグ
 これらの機構を使用することで、ほとんどの場合で \fBselect\fP(2)  や \fBpoll\fP(2)  を使用せずに完全な非同期 I/O
 を実装することができる。
 .PP
-\fBO_ASYNC\fP, \fBF_GETOWN\fP, \fBF_SETOWN\fP の使用は BSD と Linux に特有である。
-\fBF_GETOWN_EX\fP, \fBF_SETOWN_EX\fP, \fBF_GETSIG\fP, \fBF_SETSIG\fP は Linux 固有である。POSIX
-には、同様のことを行うために、非同期 I/O と \fIaio_sigevent\fP 構造体がある。Linux では、GNU C ライブラリ (Glibc)
-の一部として これらも利用可能である。
+\fBO_ASYNC\fP の使用方法は BSD と Linux に特有である。 POSIX.1 で規定されている \fBF_GETOWN\fP と
+\fBF_SETOWN\fP の使用方法は、ソケットに対する \fBSIGURG\fP シグナルとの組み合わせだけである (POSIX は \fBSIGIO\fP
+シグナルは規定していない)。 \fBF_GETOWN_EX\fP, \fBF_SETOWN_EX\fP, \fBF_GETSIG\fP, \fBF_SETSIG\fP は
+Linux 固有である。POSIX には、同様のことを行うために、非同期 I/O と \fIaio_sigevent\fP 構造体がある。Linux
+では、GNU C ライブラリ (Glibc) の一部として これらも利用可能である。
 .SS "リース (leases)"
 (Linix 2.4 以降で利用可能)  \fBF_SETLEASE\fP は、 \fIfd\fP
 が参照するオープンファイル記述に対して新しいリースを設定するのに使用される。 \fBF_GETLEASE\fP は、 \fIfd\fP
@@ -642,6 +641,13 @@ SVr4, 4.3BSD, POSIX.1\-2001.  POSIX.1\-2001 で規定されている操作は、
 はっきりと言えることは、ロックを保持しているプロセスが別のマシンに存在 する場合には、 \fIl_pid\fP
 だけはあまり役にたたないだろうということである。
 .SH バグ
+.SS F_SETFL
+.\" FIXME . According to POSIX.1-2001, O_SYNC should also be modifiable
+.\" via fcntl(2), but currently Linux does not permit this
+.\" See http://bugzilla.kernel.org/show_bug.cgi?id=5994
+\fBF_SETFL\fP を使って、 フラグ \fBO_DSYNC\fP と \fBO_SYNC\fP
+の状態を変更することはできない。これらのフラグの状態を変更しようとした場合には、黙って無視される。
+.SS F_GETOWN
 .\" glibc source: sysdeps/unix/sysv/linux/i386/sysdep.h
 .\" mtk, Dec 04: some limited testing on alpha and ia64 seems to
 .\" indicate that ANY negative PGID value will cause F_GETOWN
@@ -655,12 +661,12 @@ glibc はこの返り値をシステムコールでエラーが起こったと�
 が設定されることになる。Linux 固有の \fBF_GETOWN_EX\fP ではこの問題を回避できる。
 glibc バージョン 2.11 以降では、glibc では \fBF_GETOWN_EX\fP を使って
 \fBF_GETOWN\fP を実装することで、カーネルの \fBF_GETOWN\fP の問題を見えないようにしている。
-
+.SS F_SETOWN
 Linux 2.4 以前では、非特権プロセスが \fBF_SETOWN\fP を使って、ソケットのファイルディスクリプタの所有者に 呼び出し元以外のプロセス
 (やプロセスグループ) を指定すると 発生するバグがある。この場合、 呼び出し元が所有者として指定したプロセス (やプロセスグループ) に
 シグナルを送る許可を持っていたとしても、 \fBfcntl\fP()  が \-1 を返し \fIerrno\fP に \fBEPERM\fP を設定することがある。
 このエラーが返ったにもかかわらず、ファイルディスクリプタの所有者 は設定され、シグナルはその所有者に送られる。
-
+.SS "強制ロック (mandatory locking)"
 .\" http://marc.info/?l=linux-kernel&m=119013491707153&w=2
 これまでの Linux の全てのバージョンにおける強制ロックの実装は、 競合条件下で強制ロックが不完全になるような場合がある。
 ロックと重なって実行された \fBwrite\fP(2)  の呼び出しは強制ロックが獲得された後にもデータを変更することができる。 ロックと重なって実行された
@@ -675,6 +681,6 @@ Linux カーネルソースの \fIDocumentation/filesystems/\fP ディレクト�
 \fIDocumentation/\fP ディレクトリ直下にあり、 \fImandatory\-locking.txt\fP は \fImandatory.txt\fP
 という名前であった)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

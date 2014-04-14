@@ -37,7 +37,7 @@
 .\"	Added notes on /proc files
 .\" FIXME . Add example programs to this page.
 .\"
-.TH MSGOP 2 2012-05-31 "Linux" "Linux Programmer's Manual"
+.TH MSGOP 2 2014-03-17 "Linux" "Linux Programmer's Manual"
 .SH NAME
 msgrcv, msgsnd \- System V message queue operations
 .SH SYNOPSIS
@@ -65,7 +65,7 @@ in order to send a message, and read permission to receive a message.
 .PP
 The
 .I msgp
-argument is a pointer to caller-defined structure
+argument is a pointer to a caller-defined structure
 of the following general form:
 .in +4n
 .nf
@@ -192,9 +192,14 @@ the system call fails returning \-1 with
 set to
 .BR E2BIG .
 .PP
-The argument
+Unless
+.B MSG_COPY
+is specified in
+.IR msgflg
+(see below),
+the
 .I msgtyp
-specifies the type of message requested as follows:
+argument specifies the type of message requested, as follows:
 .IP * 2
 If
 .I msgtyp
@@ -234,6 +239,35 @@ The system call fails with
 .I errno
 set to
 .BR ENOMSG .
+.TP
+.BR MSG_COPY " (since Linux 3.8)"
+.\" commit 4a674f34ba04a002244edaf891b5da7fc1473ae8
+Nondestructively fetch a copy of the message at the ordinal position
+in the queue specified by
+.I msgtyp
+(messages are considered to be numbered starting at 0).
+
+This flag must be specified in conjunction with
+.BR IPC_NOWAIT ,
+with the result that, if there is no message available at the given position,
+the call fails immediately with the error
+.BR ENOMSG .
+Because they alter the meaning of
+.I msgtyp
+in orthogonal ways,
+.BR MSG_COPY
+and
+.BR MSG_EXCEPT
+may not both be specified in
+.IR msgflg .
+
+The
+.BR MSG_COPY
+flag was added for the implementation of
+the kernel checkpoint-restore facility and
+is available only if the kernel was built with the
+.B CONFIG_CHECKPOINT_RESTORE
+option.
 .TP
 .B MSG_EXCEPT
 Used with
@@ -391,13 +425,54 @@ was invalid, or
 .I msgsz
 was less than 0.
 .TP
+.BR EINVAL " (since Linux 3.14)"
+.I msgflg
+specified
+.BR MSG_COPY ,
+but not
+.BR IPC_NOWAIT .
+.TP
+.BR EINVAL " (since Linux 3.14)"
+.I msgflg
+specified both
+.BR MSG_COPY
+and
+.BR MSG_EXCEPT .
+.TP
 .B ENOMSG
 .B IPC_NOWAIT
 was specified in
 .I msgflg
 and no message of the requested type existed on the message queue.
+.TP
+.B ENOMSG
+.B IPC_NOWAIT
+and
+.B MSG_COPY
+were specified in
+.I msgflg
+and the queue contains less than
+.I msgtyp
+messages.
+.TP
+.BR ENOSYS " (since Linux 3.8)"
+.I MSG_COPY
+was specified in
+.IR msgflg ,
+and this kernel was configured without
+.BR CONFIG_CHECKPOINT_RESTORE .
 .SH CONFORMING TO
 SVr4, POSIX.1-2001.
+
+The
+.B MSG_EXCEPT
+and
+.B MSG_COPY
+flags are Linux-specific;
+their definitions can be obtained by defining the
+.B _GNU_SOURCE
+.\" MSG_COPY since glibc 2.18
+feature test macro.
 .SH NOTES
 The inclusion of
 .I <sys/types.h>
@@ -443,6 +518,42 @@ number of message headers
 .RB ( MSGTQL )
 and for the system wide maximum size in bytes of the message pool
 .RB ( MSGPOOL ).
+.SH BUGS
+In Linux 3.13 and earlier,
+if
+.BR msgrcv ()
+was called with the
+.BR MSG_COPY
+flag, but without
+.BR IPC_NOWAIT ,
+and the message queue contained less than
+.I msgtyp
+messages, then the call would block until the next message is written
+to the queue.
+.\" FIXME http://marc.info/?l=linux-kernel&m=139048542803605&w=2
+At that point, the call would return a copy of the message,
+.I regardless
+of whether that message was at the ordinal position
+.IR msgtyp .
+This bug is fixed
+.\" commit 4f87dac386cc43d5525da7a939d4b4e7edbea22c
+in Linux 3.14.
+
+Specifying both
+.B MSG_COPY
+and
+.B MSC_EXCEPT
+in
+.I msgflg
+is a logical error (since these flags impose different interpretations on
+.IR msgtyp ).
+In Linux 3.13 and earlier,
+.\" FIXME http://marc.info/?l=linux-kernel&m=139048542803605&w=2
+this error was not diagnosed by
+.BR msgrcv ().
+This bug is fixed
+.\" commit 4f87dac386cc43d5525da7a939d4b4e7edbea22c
+in Linux 3.14.
 .SH SEE ALSO
 .BR msgctl (2),
 .BR msgget (2),

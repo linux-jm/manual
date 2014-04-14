@@ -21,7 +21,7 @@
 .\" The following are not yet documented:
 .\"	SO_PEERNAME (2.4?)
 .\"		get only
-.\"		Seems to do something similar to getpeernam(), but then
+.\"		Seems to do something similar to getpeername(), but then
 .\"		why is it necessary / how does it differ?
 .\"	SO_TIMESTAMPNS (2.6.22)
 .\"		Documentation/networking/timestamping.txt
@@ -31,9 +31,6 @@
 .\"		Documentation/networking/timestamping.txt
 .\"		commit cb9eff097831007afb30d64373f29d99825d0068
 .\"		Author: Patrick Ohly <patrick.ohly@intel.com>
-.\"	SO_RXQ_OVFL (2.6.33)
-.\"		commit 3b885787ea4112eaa80945999ea0901bf742707f
-.\"		Author: Neil Horman <nhorman@tuxdriver.com>
 .\" 	SO_WIFI_STATUS (3.3)
 .\"		commit 6e3e939f3b1bf8534b32ad09ff199d88800835a0
 .\"		Author: Johannes Berg <johannes.berg@intel.com>
@@ -41,6 +38,20 @@
 .\"	SO_NOFCS (3.4)
 .\"		commit 3bdc0eba0b8b47797f4a76e377dd8360f317450f
 .\"		Author: Ben Greear <greearb@candelatech.com>
+.\" 	SO_GET_FILTER (3.8)
+.\"		commit a8fc92778080c845eaadc369a0ecf5699a03bef0
+.\"		Author: Pavel Emelyanov <xemul@parallels.com>
+.\"	SO_REUSEPORT (3.9)
+.\"		commit c617f398edd4db2b8567a28e899a88f8f574798d
+.\"		https://lwn.net/Articles/542629/
+.\"	SO_LOCK_FILTER (3.9)
+.\"		commit d59577b6ffd313d0ab3be39cb1ab47e29bdc9182
+.\"		Author: Vincent Bernat <bernat@luffy.cx>
+.\"	SO_SELECT_ERR_QUEUE (3.10)
+.\"             commit 7d4c04fc170087119727119074e72445f2bb192b
+.\"		Author: Keller, Jacob E <jacob.e.keller@intel.com>
+.\"     SO_MAX_PACING_RATE (3.13)
+.\"             commit 62748f32d501f5d3712a7c372bbb92abc7c62bc7
 .\"
 .\"*******************************************************************
 .\"
@@ -61,7 +72,7 @@
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-07-24, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SOCKET 7 2013\-06\-21 Linux "Linux Programmer's Manual"
+.TH SOCKET 7 2014\-02\-21 Linux "Linux Programmer's Manual"
 .SH 名前
 socket \- Linux のソケットインターフェース
 .SH 書式
@@ -70,11 +81,13 @@ socket \- Linux のソケットインターフェース
 \fIsockfd\fP\fB = socket(int \fP\fIsocket_family\fP\fB, int \fP\fIsocket_type\fP\fB, int
 \fP\fIprotocol\fP\fB);\fP
 .SH 説明
-このマニュアルページは Linux ネットワークのソケット層に対する ユーザインターフェースを記述するものである。 BSD
-互換ソケットは、ユーザプロセスとカーネル内部の ネットワークプロトコルスタック群との間に、 統一的なインターフェースを提供するものである。
-プロトコルモジュールは \fIプロトコルファミリー (protocol familiy)\fP (例： \fBAF_INET\fP, \fBAF_IPX\fP,
-\fBAF_PACKET\fP)  と \fIソケットタイプ (socket types)\fP (例： \fBSOCK_STREAM\fP,
-\fBSOCK_DGRAM\fP)  に分類できる。 これらに関するより詳しい情報は \fBsocket\fP(2)  を参照のこと。
+This manual page describes the Linux networking socket layer user
+interface.  The BSD compatible sockets are the uniform interface between the
+user process and the network protocol stacks in the kernel.  The protocol
+modules are grouped into \fIprotocol families\fP such as \fBAF_INET\fP, \fBAF_IPX\fP,
+and \fBAF_PACKET\fP, and \fIsocket types\fP such as \fBSOCK_STREAM\fP or
+\fBSOCK_DGRAM\fP.  See \fBsocket\fP(2)  for more information on families and
+types.
 .SS ソケット層の関数群
 これらの関数はユーザプロセスがパケットを送受信したり、その他のソケット操作を 行ったりするために用いられる。詳細はそれぞれのマニュアルページを
 見てほしい。
@@ -276,12 +289,13 @@ struct linger {
 .TP 
 \fBSO_PEEK_OFF\fP (Linux 3.4 以降)
 .\" commit ef64a54f6e558155b4f149bb10666b9e914b6c54
-\fBMSG_PEEK\fP フラグと一緒に使用された場合 \fBrecv\fP(2) システムコールの "peek offset"
-にこのオプションの値が設定される。現在のところ、このオプションは \fBunix\fP(7) ソケットでのみサポートされている。
+This option, which is currently supported only for \fBunix\fP(7)  sockets, sets
+the value of the "peek offset" for the \fBrecv\fP(2)  system call when used
+with \fBMSG_PEEK\fP flag.
 
-このオプションが負の値に設定された場合、従来の動作となる。 つまり \fBMSG_PEEK\fP フラグが指定された \fBrecv\fP(2)
-は、キューの先頭のデータに対して peek 処理を行う (データを読み出すが、キューからデータの削除を行わない)。
-新規のソケットではこのオプションの値は必ず \-1 に設定される。
+When this option is set to a negative value (it is set to \-1 for all new
+sockets), traditional behavior is provided: \fBrecv\fP(2)  with the \fBMSG_PEEK\fP
+flag will peek data from the front of the queue.
 
 このオプションに 0 以上の値が設定されると、 そのソケットのキュー上のオプション値で指定されたバイトオフセットにあるデータが次の peek
 処理で返される。 同時に、 "peek offset" がキューから peek 処理されたバイト数だけ加算される。したがって、次の peek
@@ -376,6 +390,12 @@ recv(fd, buf, 2, MSG_PEEK);  // Peeks "ee"; offset set to 8
 状態のソケットがアドレス \fBINADDR_ANY\fP で特定のポートにバインドされている場合には、
 このポートに対しては、どんなローカルアドレスでもバインドできない。 引き数はブール整数のフラグである。
 .TP 
+\fBSO_RXQ_OVFL\fP (Linux 2.6.33 以降)
+.\" commit 3b885787ea4112eaa80945999ea0901bf742707f
+Indicates that an unsigned 32\-bit value ancilliary msg (cmsg)  should be
+attached to received skbs indicating the number of packets dropped by the
+socket between the last received packet and this received packet
+.TP 
 \fBSO_SNDBUF\fP
 .\" Most (all?) other implementations do not do this -- MTK, Dec 05
 .\" See also the comment to SO_RCVBUF (17 Jul 2012 LKML mail)
@@ -396,6 +416,23 @@ recv(fd, buf, 2, MSG_PEEK);  // Peeks "ee"; offset set to 8
 \fBSO_TYPE\fP
 ソケットのタイプを整数で取得する (例: \fBSOCK_STREAM\fP)。
 このソケットオプションは読み出し専用である。
+.TP 
+\fBSO_BUSY_POLL\fP (Linux 3.11 以降)
+Sets the approximate time in microseconds to busy poll on a blocking receive
+when there is no data.  Increasing this value requires \fBCAP_NET_ADMIN\fP.
+The default for this option is controlled by the
+\fI/proc/sys/net/core/busy_read\fP file.
+
+The value in the \fI/proc/sys/net/core/busy_poll\fP file determines how long
+\fBselect\fP(2)  and \fBpoll\fP(2)  will busy poll when they operate on sockets
+with \fBSO_BUSY_POLL\fP set and no events to report are found.
+
+In both cases, busy polling will only be done when the socket last received
+data from a network device that supports this option.
+
+While busy polling may improve latency of some applications, care must be
+taken when using it since this will increase both CPU utilization and power
+usage.
 .SS シグナル
 (ローカルもしくはリモート側で) 切断された 接続指向 (connection\-oriented) のソケットに対して
 書き込みを行うと、その書き込みを行ったプロセスに \fBSIGPIPE\fP が送られ、 \fBEPIPE\fP が返される。 write 呼び出しに
@@ -496,10 +533,10 @@ Linux では、 \fBSO_REUSEADDR\fP オプションでポートの再利用が許
 \fBCONFIG_FILTER\fP ソケットオプションである \fBSO_ATTACH_FILTER\fP と \fBSO_DETACH_FILTER\fP
 について記載されていない。これらは libpcap ライブラリを通して 用いる方が良い。
 .SH 関連項目
-\fBgetsockopt\fP(2), \fBconnect\fP(2), \fBsetsockopt\fP(2), \fBsocket\fP(2),
+\fBconnect\fP(2), \fBgetsockopt\fP(2), \fBsetsockopt\fP(2), \fBsocket\fP(2),
 \fBcapabilities\fP(7), \fBddp\fP(7), \fBip\fP(7), \fBpacket\fP(7), \fBtcp\fP(7), \fBudp\fP(7),
 \fBunix\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

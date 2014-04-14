@@ -1,7 +1,7 @@
 .\" t
 .\" Copyright (c) 1992 Drew Eckhardt (drew@cs.colorado.edu), March 28, 1992
 .\" Parts Copyright (c) 1995 Nicolai Langfeldt (janl@ifi.uio.no), 1/1/95
-.\" and Copyright (c) 2007 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" and Copyright (c) 2006, 2007, 2014 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -61,21 +61,29 @@
 .\" Updated 2012-05-29, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH STAT 2 2012\-11\-11 Linux "Linux Programmer's Manual"
+.TH STAT 2 2014\-03\-17 Linux "Linux Programmer's Manual"
 .SH 名前
-stat, fstat, lstat \- ファイルの状態を取得する
+stat, fstat, lstat, fstatat \- ファイルの状態を取得する
 .SH 書式
+.nf
 \fB#include <sys/types.h>\fP
 .br
 \fB#include <sys/stat.h>\fP
 .br
 \fB#include <unistd.h>\fP
 .sp
-\fBint stat(const char *\fP\fIpath\fP\fB, struct stat *\fP\fIbuf\fP\fB);\fP
+\fBint stat(const char *\fP\fIpathname\fP\fB, struct stat *\fP\fIbuf\fP\fB);\fP
 .br
 \fBint fstat(int \fP\fIfd\fP\fB, struct stat *\fP\fIbuf\fP\fB);\fP
 .br
-\fBint lstat(const char *\fP\fIpath\fP\fB, struct stat *\fP\fIbuf\fP\fB);\fP
+\fBint lstat(const char *\fP\fIpathname\fP\fB, struct stat *\fP\fIbuf\fP\fB);\fP
+.sp
+\fB#include <fcntl.h>           \fP/* AT_* 定数の定義 */
+\fB#include <sys/stat.h>\fP
+.sp
+\fBint fstatat(int \fP\fIdirfd\fP\fB, const char *\fP\fIpathname\fP\fB, struct stat *\fP\fIbuf\fP\fB,\fP
+\fB            int \fP\fIflags\fP\fB);\fP
+.fi
 .sp
 .in -4n
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
@@ -89,46 +97,74 @@ _BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTEND
 .br
 || /* glibc 2.10 以降: */ _POSIX_C_SOURCE\ >=\ 200112L
 .RE
+.sp
+\fBfstatat\fP():
+.PD 0
+.ad l
+.RS 4
+.TP  4
+Since glibc 2.10:
+_XOPEN_SOURCE\ >=\ 700 || _POSIX_C_SOURCE\ >=\ 200809L
+.TP 
+Before glibc 2.10:
+_ATFILE_SOURCE
+.RE
 .PD
 .ad
 .SH 説明
 .PP
-これらの関数はファイルについての情報を返す。
-ファイルそのものに対するアクセス許可は必要としないが、
-\(em\fBstat\fP() と \fBlstat\fP()  の場合には \(em
-そのファイルへ至る \fIpath\fP を構成する全てのディレクトリに対する
-実行 (検索) 許可が必要である。
+These functions return information about a file, in the buffer pointed to by
+\fIstat\fP.  No permissions are required on the file itself, but\(emin the case
+of \fBstat\fP(), \fBfstatat\fP(), and \fBlstat\fP()\(emexecute (search) permission is
+required on all of the directories in \fIpathname\fP that lead to the file.
 .PP
-\fBstat\fP()  は \fIpath\fP で指定されたファイルの状態を取得して \fIbuf\fP へ格納する。
+\fBstat\fP()  and \fBfstatat\fP()  retrieve information about the file pointed to
+by \fIpathname\fP; the differences for \fBfstatat\fP()  are described below.
 
-\fBlstat\fP()  は \fBstat\fP()  と同じであるが、 \fIpath\fP がシンボリックリンクの場合、リンクが参照しているファイルではなく、
-リンク自身の状態を取得する点が異なる。
+\fBlstat\fP()  is identical to \fBstat\fP(), except that if \fIpathname\fP is a
+symbolic link, then it returns information about the link itself, not the
+file that it refers to.
 
-\fBfstat\fP()  は \fBstat\fP()  と同じだが、 状態を取得するファイルをファイル・ディスクリプタ \fIfd\fP で指定する。
+\fBfstat\fP()  is identical to \fBstat\fP(), except that the file about which
+informat is to be retrieved is specified by the file descriptor \fIfd\fP.
 .PP
 これらのシステムコールはいずれも、結果を \fIstat\fP 構造体に入れて返す。 \fIstat\fP 構造体には以下のフィールドが含まれている:
 .PP
 .in +4n
 .nf
 struct stat {
-    dev_t     st_dev;     /* ファイルがあるデバイスの ID */
-    ino_t     st_ino;     /* inode 番号 */
-    mode_t    st_mode;    /* アクセス保護 */
-    nlink_t   st_nlink;   /* ハードリンクの数 */
-    uid_t     st_uid;     /* 所有者のユーザ ID */
-    gid_t     st_gid;     /* 所有者のグループ ID */
-    dev_t     st_rdev;    /* デバイス ID (特殊ファイルの場合) */
-    off_t     st_size;    /* 全体のサイズ (バイト単位) */
-    blksize_t st_blksize; /* ファイルシステム I/O での
-                             ブロックサイズ */
-    blkcnt_t  st_blocks;  /* 割り当てられた 512B のブロック数 */
-    time_t    st_atime;   /* 最終アクセス時刻 */
-    time_t    st_mtime;   /* 最終修正時刻 */
-    time_t    st_ctime;   /* 最終状態変更時刻 */
+    dev_t     st_dev;         /* ID of device containing file */
+    ino_t     st_ino;         /* inode number */
+    mode_t    st_mode;        /* protection */
+    nlink_t   st_nlink;       /* number of hard links */
+    uid_t     st_uid;         /* user ID of owner */
+    gid_t     st_gid;         /* group ID of owner */
+    dev_t     st_rdev;        /* device ID (if special file) */
+    off_t     st_size;        /* total size, in bytes */
+    blksize_t st_blksize;     /* blocksize for filesystem I/O */
+    blkcnt_t  st_blocks;      /* number of 512B blocks allocated */
+
+    /* Since Linux 2.6, the kernel supports nanosecond
+       precision for the following timestamp fields.
+       For the details before Linux 2.6, see NOTES. */
+
+    struct timespec st_atim;  /* time of last access */
+    struct timespec st_mtim;  /* time of last modification */
+    struct timespec st_ctim;  /* time of last status change */
+
+#define st_atime st_atim.tv_sec      /* Backward compatibility */
+#define st_mtime st_mtim.tv_sec
+#define st_ctime st_ctim.tv_sec
 };
 .fi
 .in
-.PP
+
+\fINote:\fP the order of fields in the \fIstat\fP structure varies somewhat across
+architectures.  In addition, the definition above does not show the padding
+bytes that may be present between some fields on various architectures.
+Consult the the glibc and kernel source code if you need to know the
+details.
+
 \fIst_dev\fP フィールドは、このファイルが存在するデバイスを示す (マクロ \fBmajor\fP(3), \fBminor\fP(3)
 は、このフィールドのデバイス ID を分解するのに役立つだろう)。
 
@@ -222,15 +258,60 @@ BSD 方式で使用される ことを示す。つまり、そのディレクト
 ビットが設定される。グループ実行ビット (\fBS_IXGRP\fP)  が設定されていないファイルに設定された場合は、 set\-group\-ID
 ビットはファイル/レコードの 強制的な (mandatory) ロックを表す。
 .P
+.\"
+.\"
 ディレクトリにスティッキービット (S_ISVTX) が設定された場合は、 そのディレクトリのファイルの名前を変更したり、削除したりできるのは、
 そのファイルの所有者か、そのディレクトリの所有者か、特権プロセス だけとなる。
+.SS fstatat()
+\fBfstatat\fP() システムコールは \fBstat\fP() と全く同様に動作するが、以下で説明する点が異なる。
+
+If the pathname given in \fIpathname\fP is relative, then it is interpreted
+relative to the directory referred to by the file descriptor \fIdirfd\fP
+(rather than relative to the current working directory of the calling
+process, as is done by \fBstat\fP()  for a relative pathname).
+
+If \fIpathname\fP is relative and \fIdirfd\fP is the special value \fBAT_FDCWD\fP,
+then \fIpathname\fP is interpreted relative to the current working directory of
+the calling process (like \fBstat\fP()).
+
+If \fIpathname\fP is absolute, then \fIdirfd\fP is ignored.
+
+\fIflags\fP can either be 0, or include one or more of the following flags
+ORed:
+.TP 
+\fBAT_EMPTY_PATH\fP (Linux 2.6.39 以降)
+.\" commit 65cfc6722361570bfe255698d9cd4dccaf47570d
+.\" Before glibc 2.16, defining _ATFILE_SOURCE sufficed
+If \fIpathname\fP is an empty string, operate on the file referred to by
+\fIdirfd\fP (which may have been obtained using the \fBopen\fP(2)  \fBO_PATH\fP
+flag).  In this case, \fIdirfd\fP can refer to any type of file, not just a
+directory.  This flag is Linux\-specific; define \fB_GNU_SOURCE\fP to obtain its
+definition.
+.TP 
+\fBAT_NO_AUTOMOUNT\fP (Linux 2.6.38 以降)
+.\" Before glibc 2.16, defining _ATFILE_SOURCE sufficed
+Don't automount the terminal ("basename") component of \fIpathname\fP if it is
+a directory that is an automount point.  This allows the caller to gather
+attributes of an automount point (rather than the location it would mount).
+This flag can be used in tools that scan directories to prevent
+mass\-automounting of a directory of automount points.  The
+\fBAT_NO_AUTOMOUNT\fP flag has no effect if the mount point has already been
+mounted over.  This flag is Linux\-specific; define \fB_GNU_SOURCE\fP to obtain
+its definition.
+.TP 
+\fBAT_SYMLINK_NOFOLLOW\fP
+If \fIpathname\fP is a symbolic link, do not dereference it: instead return
+information about the link itself, like \fBlstat\fP().  (By default,
+\fBfstatat\fP()  dereferences symbolic links, like \fBstat\fP().)
+.PP
+See \fBopenat\fP(2)  for an explanation of the need for \fBfstatat\fP().
 .SH 返り値
 成功した場合、0 が返される。 失敗した場合、 \-1 が返され、 \fIerrno\fP に適切な値がセットされる。
 .SH エラー
 .TP 
 \fBEACCES\fP
-\fIpath\fP が所属するディレクトリとその上位のディレクトリのいずれかに 対する検索許可がなかった (\fBpath_resolution\fP(7)
-も参照のこと)。
+\fIpathname\fP が所属するディレクトリとその上位のディレクトリのいずれかに 対する検索許可がなかった
+(\fBpath_resolution\fP(7)  も参照のこと)。
 .TP 
 \fBEBADF\fP
 \fIfd\fP が不正である。
@@ -242,24 +323,39 @@ BSD 方式で使用される ことを示す。つまり、そのディレクト
 パスを辿る際に解決すべきシンボリックリンクが多過ぎた。
 .TP 
 \fBENAMETOOLONG\fP
-\fIpath\fP が長過ぎる。
+\fIpathname\fP が長過ぎる。
 .TP 
 \fBENOENT\fP
-\fIpath\fP の構成要素が存在しないか、 \fIpath\fP が空文字列である。
+\fIpathname\fP の構成要素が存在しないか、 \fIpathname\fP が空文字列である。
 .TP 
 \fBENOMEM\fP
 カーネルのメモリが足りない。
 .TP 
 \fBENOTDIR\fP
-\fIpath\fP の前半部分 (prefix) の構成要素がディレクトリではない。
+\fIpathname\fP の前半部分 (prefix) の構成要素がディレクトリではない。
 .TP 
 \fBEOVERFLOW\fP
-\fIpath\fP または \fIfd\fP が、ファイルサイズ、inode 番号、ブロック数が
+\fIpathname\fP または \fIfd\fP が、ファイルサイズ、inode 番号、ブロック数が
 それぞれ \fIoff_t\fP 型、 \fIino_t\fP 型、 \fIblkcnt_t\fP 型で表現できないファイルを
 参照している。このエラーが起こるのは、例えば、32 ビットプラットフォーム上で
 \fI\-D_FILE_OFFSET_BITS=64\fP を指定せずにコンパイルされたアプリケーションが、
 ファイルサイズが \fI(1<<31)\-1\fP バイトを超えるファイルに対して
 \fBstat\fP() を呼び出した場合である。
+.PP
+The following additional errors can occur for \fBfstatat\fP():
+.TP 
+\fBEBADF\fP
+\fIdirfd\fP が有効なファイルディスクリプタでない。
+.TP 
+\fBEINVAL\fP
+Invalid flag specified in \fIflags\fP.
+.TP 
+\fBENOTDIR\fP
+\fIpathname\fP is relative and \fIdirfd\fP is a file descriptor referring to a
+file other than a directory.
+.SH バージョン
+\fBfstatat\fP()  was added to Linux in kernel 2.6.16; library support was added
+to glibc in version 2.4.
 .SH 準拠
 .\" SVr4 documents additional
 .\" .BR fstat ()
@@ -269,9 +365,9 @@ BSD 方式で使用される ことを示す。つまり、そのディレクト
 .\" and
 .\" .BR lstat ()
 .\" error conditions EINTR, EMULTIHOP, ENOLINK, and EOVERFLOW.
-これらのシステムコールは SVr4, 4.3BSD, POSIX.1\-2001 に準拠している。 \fBstat\fP()  と \fBfstat\fP()
-コールは SVr4, SVID, POSIX, X/OPEN, 4.3BSD に準拠している。 \fBlstat\fP()  コールは 4.3BSD と
-SVr4 に準拠している。
+\fBstat\fP(), \fBfstat\fP(), \fBlstat\fP(): SVr4, 4.3BSD, POSIX.1\-2001, POSIX.1.2008.
+
+\fBfstatat\fP(): POSIX.1\-2008.
 
 POSIX.1\-2001 では、シンボリックリンクに対する \fBlstat\fP() で
 有効な情報を返すように求められていたのは、 \fIstat\fP 構造体の \fIst_size\fP
@@ -357,27 +453,33 @@ T}
 
 スティッキー コマンドは Version 32V AT&T UNIX で登場した。
 .SH 注意
-.\" As at kernel 2.6.25, XFS and JFS support nanosecond timestamps,
-.\" but ext2, ext3, and Reiserfs do not.
-カーネル 2.5.48 以降では、 \fIstat\fP 構造体は 3 つのファイルのタイムスタンプ
-関連のフィールドでナノ秒単位の精度に対応している。 glibc では、機能検査
-マクロ \fB_BSD_SOURCE\fP か \fB_SVID_SOURCE\fP が定義された場合に、各フィールドの
-ナノ秒の情報を \fIst_atim.tv_nsec\fP という形式の名前で公開する。
-これらのフィールドは POSIX.1\-2008 で規定されており、
-バージョン 2.12 以降の glibc では、
-\fB_POSIX_C_SOURCE\fP が 200809L 以上の値で定義されるか、
-\fB_XOPEN_SOURCE\fP が 700 以上の値で定義された場合に、
-これらのフィールドが公開される。
-上記のマクロのいずれも定義されていない場合、ナノ秒の値は
-\fIst_atimensec\fP という形式の名前で公開される。
-秒より細かいタイムスタンプをサポートしていないファイルシステムでは、
-ナノ秒のフィールドは 0 に設定される。
-
 Linux では、 \fBlstat\fP() は一般には自動マウント動作 (automounter action) の
 きっかけとならないが、 \fBstat\fP() はきっかけとなる (\fBfstatat\fP(2) を参照)。
 
 \fI/proc\fP ディレクトリ以下にあるファイルのほとんどでは、 \fBstat\fP()  を呼び出した際に、 \fIst_size\fP
 フィールドにファイルサイズが返されない。 代わりに \fIst_size\fP フィールドには 0 が返される。
+.SS "Timestamp fields"
+Older kernels and older standards did not support nanosecond timestamp
+fields.  Instead, there were three timestamp fields\(em\fIst_atime\fP,
+\fIst_mtime\fP, and \fIst_ctime\fP\(emtyped as \fItime_t\fP that recorded timestamps
+with one\-second precision.
+
+Since kernel 2.5.48, the \fIstat\fP structure supports nanosecond resolution
+for the three file timestamp fields.  The nanosecond components of each
+timestamp are available via names of the form \fIst_atim.tv_nsec\fP if the
+\fB_BSD_SOURCE\fP or \fB_SVID_SOURCE\fP feature test macro is defined.  Nanosecond
+timestamps are nowadays standardized, starting with POSIX.1\-2008, and,
+starting with version 2.12, glibc also exposes the nanosecond component
+names if \fB_POSIX_C_SOURCE\fP is defined with the value 200809L or greater, or
+\fB_XOPEN_SOURCE\fP is defined with the value 700 or greater.  If none of the
+aforementioned macros are defined, then the nanosecond values are exposed
+with names of the form \fIst_atimensec\fP.
+
+.\" commit ef7f38359ea8b3e9c7f2cae9a4d4935f55ca9e80
+Nanosecond timestamps are supported on XFS, JFS, Btrfs, and ext4 (since
+Linux 2.6.23).  Nanosecond timestamps are not supported in ext2, ext3, and
+Resierfs.  On filesystems that do not support subsecond timestamps, the
+nanosecond fields are returned with the value 0.
 .SS 背後のカーネル・インタフェース
 .\"
 .\" A note from Andries Brouwer, July 2007
@@ -413,6 +515,9 @@ Linux では、 \fBlstat\fP() は一般には自動マウント動作 (automount
 の \fBstat\fP()  ラッパー関数はこれらの詳細をアプリケーションから隠蔽してくれる。
 具体的には、カーネルが提供しているシステムコールのうち最新のバージョンを 起動し、古いバイナリの場合には必要に応じて返された情報を再構成
 (repack) する。 \fBfstat\fP()  と \fBlstat\fP()  についても同様である。
+
+The underlying system call employed by the glibc \fBfstatat\fP()  wrapper
+function is actually called \fBfstatat64\fP().
 .SH 例
 以下のプログラムは \fBstat\fP()  を呼び出し、返ってきた \fIstat\fP 構造体のフィールドのいくつかを表示する。
 .nf
@@ -475,9 +580,9 @@ main(int argc, char *argv[])
 }
 .fi
 .SH 関連項目
-\fBaccess\fP(2), \fBchmod\fP(2), \fBchown\fP(2), \fBfstatat\fP(2), \fBreadlink\fP(2),
-\fButime\fP(2), \fBcapabilities\fP(7), \fBsymlink\fP(7)
+\fBls\fP(1), \fBstat\fP(1), \fBaccess\fP(2), \fBchmod\fP(2), \fBchown\fP(2),
+\fBreadlink\fP(2), \fButime\fP(2), \fBcapabilities\fP(7), \fBsymlink\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.54 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -1,4 +1,6 @@
+'\" t -*- coding: UTF-8 -*-
 .\" Copyright (c) Bruno Haible <haible@clisp.cons.org>
+.\" and Copyright 2014 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(GPLv2+_DOC_ONEPARA)
 .\" This is free documentation; you can redistribute it and/or
@@ -13,7 +15,7 @@
 .\"   OpenGroup's Single UNIX specification http://www.UNIX-systems.org/online.html
 .\"   ISO/IEC 9899:1999
 .\"
-.TH MBSTOWCS 3  2011-09-28 "GNU" "Linux Programmer's Manual"
+.TH MBSTOWCS 3  2014-03-18 "GNU" "Linux Programmer's Manual"
 .SH NAME
 mbstowcs \- convert a multibyte string to a wide-character string
 .SH SYNOPSIS
@@ -25,7 +27,7 @@ mbstowcs \- convert a multibyte string to a wide-character string
 .SH DESCRIPTION
 If
 .I dest
-is not a NULL pointer,
+is not NULL,
 the
 .BR mbstowcs ()
 function converts the
@@ -78,7 +80,7 @@ and that no length limit exists.
 In order to avoid the case 2 above, the programmer should make sure
 .I n
 is
-greater or equal to
+greater than or equal to
 .IR "mbstowcs(NULL,src,0)+1" .
 .SH RETURN VALUE
 The
@@ -104,6 +106,117 @@ The function
 .BR mbsrtowcs (3)
 provides a better interface to the same
 functionality.
+.SH EXAMPLE
+The program below illustrates the use of
+.BR mbstowcs (),
+as well as some of the wider character classification functions.
+An example run is the following:
+.in +4n
+.nf
+
+$ ./t_mbstowcs de_DE.UTF\-8 Grüße!
+Length of source string (excluding terminator):
+    8 bytes
+    6 multibyte characters
+
+Wide character string is: Grüße! (6 characters)
+    G alpha upper
+    r alpha lower
+    ü alpha lower
+    ß alpha lower
+    e alpha lower
+    ! !alpha
+.fi
+.in
+.SS Program source
+.nf
+#include <locale.h>
+#include <wchar.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+int
+main(int argc, char *argv[])
+{
+    size_t mbslen;      /* Number of multibyte characters in source */
+    wchar_t *wcs;       /* Pointer to converted wide character string */
+    wchar_t *wp;
+
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <locale> <string>\\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Apply the specified locale */
+
+    if (setlocale(LC_ALL, argv[1]) == NULL) {
+        perror("setlocale");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Calculate the length required to hold argv[2] converted to
+       a wide character string */
+
+    mbslen = mbstowcs(NULL, argv[2], 0);
+    if (mbslen == (size_t) \-1) {
+        perror("mbstowcs");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Describe the source string to the user */
+
+    printf("Length of source string (excluding terminator):\\n");
+    printf("    %zu bytes\\n", strlen(argv[2]));
+    printf("    %zu multibyte characters\\n\\n", mbslen);
+
+    /* Allocate wide character string of the desired size.  Add 1
+       to allow for terminating null wide character (L\(aq\\0\(aq). */
+
+    wcs = calloc(mbslen + 1, sizeof(wchar_t));
+    if (wcs == NULL) {
+        perror("calloc");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Convert the multibyte character string in argv[2] to a
+       wide character string */
+
+    if (mbstowcs(wcs, argv[2], mbslen + 1) == (size_t) \-1) {
+        perror("mbstowcs");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Wide character string is: %ls (%zu characters)\\n",
+            wcs, mbslen);
+
+    /* Now do some inspection of the classes of the characters in
+       the wide character string */
+
+    for (wp = wcs; *wp != 0; wp++) {
+        printf("    %lc ", (wint_t) *wp);
+
+        if (!iswalpha(*wp))
+            printf("!");
+        printf("alpha ");
+
+        if (iswalpha(*wp)) {
+            if (iswupper(*wp))
+                printf("upper ");
+
+            if (iswlower(*wp))
+                printf("lower ");
+        }
+
+        putchar(\(aq\\n\(aq);
+    }
+
+    exit(EXIT_SUCCESS);
+}
+.fi
 .SH SEE ALSO
+.BR mblen (3),
 .BR mbsrtowcs (3),
+.BR mbtowc (3),
+.BR wctomb (3),
 .BR wcstombs (3)
