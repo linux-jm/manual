@@ -37,7 +37,7 @@
 .\"     Enhanced the discussion of "raw" mode for cfmakeraw().
 .\"     Document CMSPAR.
 .\"
-.TH TERMIOS 3 2013-10-22 "Linux" "Linux Programmer's Manual"
+.TH TERMIOS 3 2014-03-21 "Linux" "Linux Programmer's Manual"
 .SH NAME
 termios, tcgetattr, tcsetattr, tcsendbreak, tcdrain, tcflush, tcflow,
 cfmakeraw, cfgetospeed, cfgetispeed, cfsetispeed, cfsetospeed, cfsetspeed \-
@@ -724,8 +724,8 @@ and TIME
 determine the circumstances in which a
 .BR read (2)
 completes; there are four distinct cases:
-.IP * 2
-MIN == 0; TIME == 0:
+.TP
+MIN == 0, TIME == 0 (polling read)
 If data is available,
 .BR read (2)
 returns immediately, with the lesser of the number of bytes
@@ -733,13 +733,13 @@ available, or the number of bytes requested.
 If no data is available,
 .BR read (2)
 returns 0.
-.IP * 2
-MIN > 0; TIME == 0:
+.TP
+MIN > 0, TIME == 0 (blocking read)
 .BR read (2)
-blocks until the lesser of MIN bytes or the number of bytes requested
-are available, and returns the lesser of these two values.
-.IP * 2
-MIN == 0; TIME > 0:
+blocks until MIN bytes are available,
+and returns up to the number of bytes requested.
+.TP
+MIN == 0, TIME > 0 (read with timeout)
 TIME specifies the limit for a timer in tenths of a second.
 The timer is started when
 .BR read (2)
@@ -750,17 +750,56 @@ or when the timer expires.
 If the timer expires without any input becoming available,
 .BR read (2)
 returns 0.
-.IP * 2
-MIN > 0; TIME > 0:
+If data is already available at the time of the call to
+.BR read (),
+the call behaves as though the data was received immediately after the call.
+.TP
+MIN > 0, TIME > 0 (read with interbyte timeout)
 TIME specifies the limit for a timer in tenths of a second.
 Once an initial byte of input becomes available,
 the timer is restarted after each further byte is received.
 .BR read (2)
-returns either when the lesser of the number of bytes requested or
-MIN byte have been read,
-or when the interbyte timeout expires.
+returns when any of the following conditions is met:
+.RS
+.IP * 3
+MIN bytes have been received.
+.IP *
+The interbyte timer expires.
+.IP *
+The number of bytes requested by
+.BR read (2)
+has been received.
+(POSIX does not specify this termination condition,
+and on some other implementations
+.\" e.g., Solaris
+.BR read ()
+does not return in this case.)
+.RE
+.IP
 Because the timer is started only after the initial byte
 becomes available, at least one byte will be read.
+If data is already available at the time of the call to
+.BR read (),
+the call behaves as though the data was received immediately after the call.
+.PP
+POSIX
+.\" POSIX.1-2008 XBD 11.1.7
+does not specify whether the setting of the
+.B O_NONBLOCK
+file status flag takes precedence over the MIN and TIME settings.
+If
+.B O_NONBLOCK
+is set, a
+.BR read ()
+in noncanonical mode may return immediately,
+regardless of the setting of MIN or TIME.
+Furthermore, if no data is available,
+POSIX permits a
+.BR read ()
+in noncanonical mode to return either 0, or \-1 with
+.I errno
+set to
+.BR EAGAIN .
 .SS Raw mode
 .LP
 .BR cfmakeraw ()
@@ -996,3 +1035,11 @@ behaves like
 .BR console_ioctl (4),
 .BR tty_ioctl (4),
 .BR setserial (8)
+.SH COLOPHON
+This page is part of release 3.64 of the Linux
+.I man-pages
+project.
+A description of the project,
+and information about reporting bugs,
+can be found at
+\%http://www.kernel.org/doc/man\-pages/.

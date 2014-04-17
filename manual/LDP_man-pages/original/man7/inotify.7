@@ -1,5 +1,5 @@
 '\" t
-.\" Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright (C) 2006, 2014 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -23,7 +23,7 @@
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
 .\"
-.TH INOTIFY 7 2013-09-16 "Linux" "Linux Programmer's Manual"
+.TH INOTIFY 7 2014-04-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 inotify \- monitoring filesystem events
 .SH DESCRIPTION
@@ -36,15 +36,7 @@ When a directory is monitored, inotify will return events
 for the directory itself, and for files inside the directory.
 
 The following system calls are used with this API:
-.BR inotify_init (2)
-(or
-.BR inotify_init1 (2)),
-.BR inotify_add_watch (2),
-.BR inotify_rm_watch (2),
-.BR read (2),
-and
-.BR close (2).
-
+.IP * 3
 .BR inotify_init (2)
 creates an inotify instance and returns a file descriptor
 referring to the inotify instance.
@@ -52,8 +44,10 @@ The more recent
 .BR inotify_init1 (2)
 is like
 .BR inotify_init (2),
-but provides some extra functionality.
-
+but has a
+.IR flags
+argument that provides access to some extra functionality.
+.IP *
 .BR inotify_add_watch (2)
 manipulates the "watch list" associated with an inotify instance.
 Each item ("watch") in the watch list specifies the pathname of
@@ -66,16 +60,32 @@ Each watch has a unique "watch descriptor", an integer
 returned by
 .BR inotify_add_watch (2)
 when the watch is created.
-
+.IP *
+When events occur for monitored files and directories,
+those events are made available to the application as structured data that
+can be read from the inotify file descriptor using
+.BR read (2)
+(see below).
+.IP *
 .BR inotify_rm_watch (2)
 removes an item from an inotify watch list.
-
+.IP *
 When all file descriptors referring to an inotify
-instance have been closed,
+instance have been closed (using
+.BR close (2)),
 the underlying object and its resources are
 freed for reuse by the kernel;
 all associated watches are automatically freed.
 
+With careful programming,
+an application can use inotify to efficiently monitor and cache
+the state of a set of filesystem objects.
+However, robust applications should allow for the fact that bugs
+in the monitoring logic or races of the kind described below
+may leave the cache inconsistent with the filesystem state.
+It is probably wise to to do some consistency checking,
+and rebuild the cache when inconsistencies are detected.
+.SS Reading events from an inotify file descriptor
 To determine what events have occurred, an application
 .BR read (2)s
 from the inotify file descriptor.
@@ -184,48 +194,75 @@ and may be returned in the
 field returned by
 .BR read (2):
 .RS 4
-.sp
-.PD 0
-.TP 18
-.B IN_ACCESS
-File was accessed (read) (*).
 .TP
-.B IN_ATTRIB
-Metadata changed\(emfor example, permissions, timestamps, extended attributes,
-link count (since Linux 2.6.25), UID, or GID. (*).
+.BR IN_ACCESS " (*)"
+File was accessed (e.g.,
+.BR read (2),
+.BR execve (2)).
 .TP
-.B IN_CLOSE_WRITE
-File opened for writing was closed (*).
+.BR IN_ATTRIB " (*)"
+Metadata changed\(emfor example, permissions (e.g.,
+.BR chmod (2)),
+timestamps (e.g.,
+.BR utimensat (2)),
+extended attributes
+.RB ( setxattr (2)),
+link count (since Linux 2.6.25; e.g.,
+for the target of
+.BR link (2)
+and for
+.BR unlink (2)),
+and user/group ID (e.g.,
+.BR chown (2)).
 .TP
-.B IN_CLOSE_NOWRITE
-File not opened for writing was closed (*).
+.BR IN_CLOSE_WRITE " (*)"
+File opened for writing was closed.
 .TP
-.B IN_CREATE
-File/directory created in watched directory (*).
+.BR IN_CLOSE_NOWRITE " (*)"
+File not opened for writing was closed.
 .TP
-.B IN_DELETE
-File/directory deleted from watched directory (*).
+.BR IN_CREATE " (*)"
+File/directory created in watched directory (e.g.,
+.BR open (2)
+.BR O_CREAT ,
+.BR mkdir (2),
+.BR link (2),
+.BR symlink (2),
+.BR bind (2)
+on a UNIX domain socket).
+.TP
+.BR IN_DELETE " (*)"
+File/directory deleted from watched directory.
 .TP
 .B IN_DELETE_SELF
 Watched file/directory was itself deleted.
+(This event also occurs if an object is moved to another filesystem,
+since
+.BR mv (1)
+in effect copies the file to the other filesystem and
+then deletes it from the original filesystem.)
+In addition, an
+.B IN_IGNORED
+event will subsequently be generated for the watch descriptor.
 .TP
-.B IN_MODIFY
-File was modified (*).
+.BR IN_MODIFY " (*)"
+File was modified (e.g.,
+.BR write (2),
+.BR truncate (2)).
 .TP
 .B IN_MOVE_SELF
 Watched file/directory was itself moved.
 .TP
-.B IN_MOVED_FROM
+.BR IN_MOVED_FROM " (*)"
 Generated for the directory containing the old filename
-when a file is renamed (*).
+when a file is renamed.
 .TP
-.B IN_MOVED_TO
+.BR IN_MOVED_TO " (*)"
 Generated for the directory containing the new filename
-when a file is renamed (*).
+when a file is renamed.
 .TP
-.B IN_OPEN
-File was opened (*).
-.PD
+.BR IN_OPEN " (*)"
+File was opened.
 .RE
 .PP
 When monitoring a directory,
@@ -244,23 +281,24 @@ This macro can be used as the
 argument when calling
 .BR inotify_add_watch (2).
 
-Two additional convenience macros are
-.BR IN_MOVE ,
-which equates to
-IN_MOVED_FROM|IN_MOVED_TO,
-and
-.BR IN_CLOSE ,
-which equates to
-IN_CLOSE_WRITE|IN_CLOSE_NOWRITE.
+Two additional convenience macros are defined:
+.RS 4
+.TP
+.BR IN_MOVE
+Equates to
+.BR "IN_MOVED_FROM | IN_MOVED_TO" .
+.TP
+.BR IN_CLOSE
+Equates to
+.BR "IN_CLOSE_WRITE | IN_CLOSE_NOWRITE" .
+.RE
 .PP
 The following further bits can be specified in
 .I mask
 when calling
 .BR inotify_add_watch (2):
 .RS 4
-.sp
-.PD 0
-.TP 18
+.TP
 .BR IN_DONT_FOLLOW " (since Linux 2.6.15)"
 Don't dereference
 .I pathname
@@ -296,7 +334,6 @@ watch list.
 Only watch
 .I pathname
 if it is a directory.
-.PD
 .RE
 .PP
 The following bits may be set in the
@@ -304,13 +341,12 @@ The following bits may be set in the
 field returned by
 .BR read (2):
 .RS 4
-.sp
-.PD 0
-.TP 18
+.TP
 .B IN_IGNORED
 Watch was removed explicitly
 .RB ( inotify_rm_watch (2))
 or automatically (file was deleted, or filesystem was unmounted).
+See also BUGS.
 .TP
 .B IN_ISDIR
 Subject of this event is a directory.
@@ -322,7 +358,165 @@ is \-1 for this event).
 .TP
 .B IN_UNMOUNT
 Filesystem containing watched object was unmounted.
-.PD
+In addition, an
+.B IN_IGNORED
+event will subsequently be generated for the watch descriptor.
+.RE
+.SS Examples
+Suppose an application is watching the directory
+.I dir
+and the file
+.IR dir/myfile
+for all events.
+The examples below show some events that will be generated
+for these two objects.
+.RS 4
+.TP
+fd = open("dir/myfile", O_RDWR);
+Generates
+.B IN_OPEN
+events for both
+.I dir
+and
+.IR dir/myfile .
+.TP
+read(fd, buf, count);
+Generates
+.B IN_ACCESS
+events for both
+.I dir
+and
+.IR dir/myfile .
+.TP
+write(fd, buf, count);
+Generates
+.B IN_MODIFY
+events for both
+.I dir
+and
+.IR dir/myfile .
+.TP
+fchmod(fd, mode);
+Generates
+.B IN_ATTRIB
+events for both
+.I dir
+and
+.IR dir/myfile .
+.TP
+close(fd);
+Generates
+.B IN_CLOSE_WRITE
+events for both
+.I dir
+and
+.IR dir/myfile .
+.RE
+.PP
+Suppose an application is watching the directories
+.I dir1
+and
+.IR dir ,
+and the file
+.IR dir1/myfile .
+The following examples show some events that may be generated.
+.RS 4
+.TP
+link("dir/myfile", "dir2/new");
+Generates an
+.B IN_ATTRIB
+event for
+.IR myfile
+and an
+.B IN_CREATE
+event for
+.IR dir2 .
+.TP
+rename("dir1/myfile", "dir2/myfile");
+Generates an
+.B IN_MOVED_FROM
+event for
+.IR dir1 ,
+an
+.B IN_MOVED_TO
+event for
+.IR dir2 ,
+and an
+.B IN_MOVE_SELF
+event for
+.IR myfile .
+The
+.B IN_MOVED_FROM
+and
+.B IN_MOVED_TO
+events will have the same
+.I cookie
+value.
+.RE
+.PP
+Suppose that
+.IR dir1/xx
+and
+.IR dir2/yy
+are (the only) links to the same file, and an application is watching
+.IR dir1 ,
+.IR dir2 ,
+.IR dir1/xx ,
+and
+.IR dir2/yy .
+Executing the following calls in the order given below will generate
+the following events:
+.RS 4
+.TP
+unlink("dir2/yy");
+Generates
+.BR IN_ATTRIB
+event for
+.IR xx
+(because its link count changes)
+and an
+.B IN_DELETE
+event for
+.IR dir2 .
+.TP
+unlink("dir1/xx");
+Generates
+.BR IN_ATTRIB ,
+.BR IN_DELETE_SELF ,
+and
+.BR IN_IGNORED
+events for
+.IR xx ,
+and an
+.BR IN_DELETE
+for
+.IR dir1 .
+.RE
+.PP
+Suppose an application is watching the directory
+.IR dir
+and (the empty) directory
+.IR dir/subdir .
+The following examples show some events that may be generated.
+.RS 4
+.TP
+mkdir("dir/new", mode);
+Generates an
+.B "IN_CREATE | IN_ISDIR"
+event for
+.IR dir .
+.TP
+rmdir("dir/sub");
+Generates
+.B IN_DELETE_SELF
+and
+.B IN_IGNORED
+events for
+.IR subdir ,
+and an
+.B "IN_DELETE | IN_ISDIR"
+event for
+.IR dir .
 .RE
 .SS /proc interfaces
 The following interfaces can be used to limit the amount of
@@ -351,7 +545,7 @@ The required library interfaces were added to glibc in version 2.4.
 .BR IN_MASK_ADD ,
 and
 .B IN_ONLYDIR
-were added in version 2.5.)
+were added in glibc version 2.5.)
 .SH CONFORMING TO
 The inotify API is Linux-specific.
 .SH NOTES
@@ -397,9 +591,12 @@ inotify file descriptor are identical (same
 .IR mask ,
 .IR cookie ,
 and
-.IR name )
+.IR name ),
 then they are coalesced into a single event if the
 older event has not yet been read (but see BUGS).
+This reduces the amount of kernel memory required for the event queue,
+but also means that an application can't use inotify to reliably count
+file events.
 
 The events returned by reading from an inotify file descriptor
 form an ordered queue.
@@ -413,11 +610,6 @@ The
 returns the number of bytes available to read from an
 inotify file descriptor.
 .SS Limitations and caveats
-Inotify monitoring of directories is not recursive:
-to monitor subdirectories under a directory,
-additional watches must be created.
-This can take a significant amount time for large directory trees.
-
 The inotify API provides no information about the user or process that
 triggered the inotify event.
 In particular, there is no easy
@@ -425,28 +617,135 @@ way for a process that is monitoring events via inotify
 to distinguish events that it triggers
 itself from those that are triggered by other processes.
 
-Note that the event queue can overflow.
-In this case, events are lost.
-Robust applications should handle the possibility of
-lost events gracefully.
+Inotify reports only events that a user-space program triggers through
+the filesystem API.
+As a result, it does not catch remote events that occur
+on network filesystems.
+(Applications must fall back to polling the filesystem
+to catch such events.)
+Furthermore, various pseudo-filesystems such as
+.IR /proc ,
+.IR /sys ,
+and
+.IR /dev/pts
+are not monitorable with inotify.
+
+The inotify API does not report file accesses and modifications that
+may occur because of
+.BR mmap (2)
+and
+.BR msync (2).
 
 The inotify API identifies affected files by filename.
 However, by the time an application processes an inotify event,
 the filename may already have been deleted or renamed.
 
+The inotify API identifies events via watch descriptors.
+It is the application's responsibility to cache a mapping
+(if one is needed) between watch descriptors and pathnames.
+Be aware that directory renamings may affect multiple cached pathnames.
+
+Inotify monitoring of directories is not recursive:
+to monitor subdirectories under a directory,
+additional watches must be created.
+This can take a significant amount time for large directory trees.
+
 If monitoring an entire directory subtree,
-and a new subdirectory is created in that tree,
+and a new subdirectory is created in that tree or an existing directory
+is renamed into that tree,
 be aware that by the time you create a watch for the new subdirectory,
-new files may already have been created in the subdirectory.
+new files (and subdirectories) may already exist inside the subdirectory.
 Therefore, you may want to scan the contents of the subdirectory
-immediately after adding the watch.
+immediately after adding the watch (and, if desired,
+recursively add watches for any subdirectories that it contains).
+
+Note that the event queue can overflow.
+In this case, events are lost.
+Robust applications should handle the possibility of
+lost events gracefully.
+For example, it may be necessary to rebuild part or all of
+the application cache.
+(One simple, but possibly expensive,
+approach is to close the inotify file descriptor, empty the cache,
+create a new inotify file descriptor,
+and then re-create watches and cache entries
+for the objects to be monitored.)
+.SS Dealing with rename() events
+As noted above, the
+.B IN_MOVED_FROM
+and
+.B IN_MOVED_TO
+event pair that is generated by
+.BR rename (2)
+can be matched up via their shared cookie value.
+However, the task of matching has some challenges.
+
+These two events are usually consecutive in the event stream available
+when reading from the inotify file descriptor.
+However, this is not guaranteed.
+If multiple processes are triggering events for monitored objects,
+then (on rare occasions) an arbitrary number of
+other events may appear between the
+.B IN_MOVED_FROM
+and
+.B IN_MOVED_TO
+events.
+
+Matching up the
+.B IN_MOVED_FROM
+and
+.B IN_MOVED_TO
+event pair generated by
+.BR rename (2)
+is thus inherently racy.
+(Don't forget that if an object is renamed outside of a monitored directory,
+there may not even be an
+.BR IN_MOVED_TO
+event.)
+Heuristic approaches (e.g., assume the events are always consecutive)
+can be used to ensure a match in most cases,
+but will inevitably miss some cases,
+causing the application to perceive the
+.B IN_MOVED_FROM
+and
+.B IN_MOVED_TO
+events as being unrelated.
+If watch descriptors are destroyed and re-created as a result,
+then those watch descriptors will be inconsistent with
+the watch descriptors in any pending events.
+(Re-creating the inotify file descriptor and rebuilding the cache may
+be useful to deal with this scenario.)
+
+Applications should also allow for the possibility that the
+.B IN_MOVED_FROM
+event was the last event that could fit in the buffer
+returned by the current call to
+.BR read (2),
+and the accompanying
+.B IN_MOVED_TO
+event might be fetched only on the next
+.BR read (2).
 .SH BUGS
+.\" FIXME kernel commit 611da04f7a31b2208e838be55a42c7a1310ae321
+.\" implies that unmount events were buggy 2.6.11 to 2.6.36
+.\"
 In kernels before 2.6.16, the
 .B IN_ONESHOT
 .I mask
 flag does not work.
 
+As originally designed and implemented, the
+.B IN_ONESHOT
+flag did not cause an
+.B IN_IGNORED
+event to be generated when the watch was dropped after one event.
+However, as an unintended effect of other changes,
+since Linux 2.6.36, an
+.B IN_IGNORED
+event is generated in this case.
+
 Before kernel 2.6.25,
+.\" commit 1c17d18e3775485bf1e0ce79575eb637a94494a2
 the kernel code that was intended to coalesce successive identical events
 (i.e., the two most recent events could potentially be coalesced
 if the older had not yet been read)
@@ -465,3 +764,11 @@ unread event.
 
 .IR Documentation/filesystems/inotify.txt
 in the Linux kernel source tree
+.SH COLOPHON
+This page is part of release 3.64 of the Linux
+.I man-pages
+project.
+A description of the project,
+and information about reporting bugs,
+can be found at
+\%http://www.kernel.org/doc/man\-pages/.
