@@ -1,5 +1,5 @@
 .\" t
-.\" Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright (C) 2006, 2014 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -42,7 +42,7 @@
 .\" Updated 2013-07-22, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-08-21, Akihiro MOTOKI <amotoki@gmail.com>, LDP v3.53
 .\"
-.TH INOTIFY 7 2013\-09\-16 Linux "Linux Programmer's Manual"
+.TH INOTIFY 7 2014\-04\-01 Linux "Linux Programmer's Manual"
 .SH 名前
 inotify \- ファイルシステムイベントを監視する
 .SH 説明
@@ -50,23 +50,34 @@ inotify \- ファイルシステムイベントを監視する
 は個々のファイルやディレクトリを監視するのに使える。 ディレクトリを監視する場合、inotify はディレクトリ自身と
 ディレクトリ内のファイルのイベントを返す。
 
-以下のシステムコールがこの API と共に使用される: \fBinotify_init\fP(2)  (や \fBinotify_init1\fP(2)),
-\fBinotify_add_watch\fP(2), \fBinotify_rm_watch\fP(2), \fBread\fP(2), \fBclose\fP(2).
-
+この API では以下のシステムコールが使用される。
+.IP * 3
 \fBinotify_init\fP(2)  は inotify インスタンスを作成し、inotify インスタンスを参照する ファイルディスクリプタを返す。
-もっと新しい \fBinotify_init1\fP(2)  も \fBinotify_init\fP(2)  と同様だが、いくつかの追加の機能が提供されている。
-
+もっと新しい \fBinotify_init1\fP(2)  も \fBinotify_init\fP(2)  と同様だが、いくつかの追加の機能を利用するための
+\fIflags\fP 引き数を持っている。
+.IP *
 \fBinotify_add_watch\fP(2)  は inotify インスタンスに関連づけられた「監視対象 (watch) リスト」を操作する。
 監視対象リストの各アイテム ("watch") は、 ファイルまたはディレクトリのパス名と、 そのパス名で参照されるファイルに対して
 カーネルが監視する複数のイベントの集合を指定する。 \fBinotify_add_watch\fP(2)
 は新しい監視アイテムの作成や既存の監視対象の変更ができる。 各監視対象は一意の「監視対象ディスクリプタ」を持つ。 これは監視対象を作成したときに
 \fBinotify_add_watch\fP(2)  から返される整数である。
-
+.IP *
+When events occur for monitored files and directories, those events are made
+available to the application as structured data that can be read from the
+inotify file descriptor using \fBread\fP(2)  (see below).
+.IP *
 \fBinotify_rm_watch\fP(2)  は inotify の監視対象リストからアイテムを削除する。
+.IP *
+inotify インスタンスを指している 全てのファイルディスクリプタが (\fBclose\fP(2) を使って) クローズされた場合、
+その下層にあるオブジェクトとそのリソースは、 カーネルで再利用するために解放される。 関連が切られた監視対象は自動的に解放される。
 
-inotify インスタンスを指している 全てのファイルディスクリプタがクローズされた場合、 その下層にあるオブジェクトとそのリソースは、
-カーネルで再利用するために解放される。 関連が切られた監視対象は自動的に解放される。
-
+With careful programming, an application can use inotify to efficiently
+monitor and cache the state of a set of filesystem objects.  However, robust
+applications should allow for the fact that bugs in the monitoring logic or
+races of the kind described below may leave the cache inconsistent with the
+filesystem state.  It is probably wise to to do some consistency checking,
+and rebuild the cache when inconsistencies are detected.
+.SS "inotify ファイルディスクリプタからのイベントの読み出し"
 どのようなイベントが起こっていたかを知るには、 アプリケーションで inotify ファイルディスクリプタを \fBread\fP(2)  すればよい。
 これまでに何もイベントが起こっていない場合、 停止 (blocking) モードのファイルディスクリプタであれば、 少なくとも 1
 つのイベントが起こるまで \fBread\fP(2)  は停止する (シグナルにより割り込まれなかった場合。
@@ -125,46 +136,49 @@ struct inotify_event {
 ビットマスクである。 以下のビットが \fBinotify_add_watch\fP(2)  を呼ぶときの \fImask\fP に指定可能であり、
 \fBread\fP(2)  で返される \fImask\fP フィールドで返される:
 .RS 4
-.sp
-.PD 0
-.TP  18
-\fBIN_ACCESS\fP
-ファイルがアクセス (read) された。(*)
 .TP 
-\fBIN_ATTRIB\fP
-メタデータが変更された。 メタデータとは、例えば、許可 (permission)、タイムスタンプ、拡張属性、 リンクカウント (Linux 2.6.25
-以降)、UID、GID などである。(*)
+\fBIN_ACCESS\fP (*)
+(\fBread\fP(2), \fBexecve\fP(2) などで) ファイルがアクセスされた。
 .TP 
-\fBIN_CLOSE_WRITE\fP
-書き込みのためにオープンされたファイルがクローズされた。(*)
+\fBIN_ATTRIB\fP (*)
+メタデータが変更された。 メタデータとは、例えば、アクセス許可 (\fBchmod\fP(2))、タイムスタンプ (\fButimensat\fP(2)
+など)、拡張属性 (\fBsetxattr\fP(2))、 リンクカウント (Linux 2.6.25 以降; \fBlink\fP(2) のリンク先や
+\fBunlink\fP(2) など)、ユーザー/グループ ID (\fBchown\fP(2) など) などである。
 .TP 
-\fBIN_CLOSE_NOWRITE\fP
-書き込み以外のためにオープンされたファイルがクローズされた。(*)
+\fBIN_CLOSE_WRITE\fP (*)
+書き込みのためにオープンされたファイルがクローズされた。
 .TP 
-\fBIN_CREATE\fP
-監視対象ディレクトリ内でファイルやディレクトリが作成された。(*)
+\fBIN_CLOSE_NOWRITE\fP (*)
+書き込み以外のためにオープンされたファイルがクローズされた。
 .TP 
-\fBIN_DELETE\fP
-監視対象ディレクトリ内でファイルやディレクトリが削除された。(*)
+\fBIN_CREATE\fP (*)
+監視対象ディレクトリ内でファイルやディレクトリが作成された (\fBopen\fP(2)  \fBO_CREAT\fP, \fBmkdir\fP(2),
+\fBlink\fP(2), \fBsymlink\fP(2), UNIX ドメインソケットに対する \fBbind\fP(2) など)。
+.TP 
+\fBIN_DELETE\fP (*)
+監視対象ディレクトリ内でファイルやディレクトリが削除された。
 .TP 
 \fBIN_DELETE_SELF\fP
-監視対象のディレクトリまたはファイル自身が削除された。
+Watched file/directory was itself deleted.  (This event also occurs if an
+object is moved to another filesystem, since \fBmv\fP(1)  in effect copies the
+file to the other filesystem and then deletes it from the original
+filesystem.)  In addition, an \fBIN_IGNORED\fP event will subsequently be
+generated for the watch descriptor.
 .TP 
-\fBIN_MODIFY\fP
-ファイルが修正された。(*)
+\fBIN_MODIFY\fP (*)
+ファイルが変更された (\fBwrite\fP(2), \fBtruncate\fP(2) など)。
 .TP 
 \fBIN_MOVE_SELF\fP
 監視対象のディレクトリまたはファイル自身が移動された。
 .TP 
-\fBIN_MOVED_FROM\fP
-ファイル名の変更を行った際に変更前のファイル名が含まれるディレクトリに対して生成される。 (*)
+\fBIN_MOVED_FROM\fP (*)
+ファイル名の変更を行った際に変更前のファイル名が含まれるディレクトリに対して生成される。
 .TP 
-\fBIN_MOVED_TO\fP
-ファイル名の変更を行った際に新しいファイル名が含まれるディレクトリに対して生成される。 (*)
+\fBIN_MOVED_TO\fP (*)
+ファイル名の変更を行った際に新しいファイル名が含まれるディレクトリに対して生成される。
 .TP 
-\fBIN_OPEN\fP
-ファイルがオープンされた。(*)
-.PD
+\fBIN_OPEN\fP (*)
+ファイルがオープンされた。
 .RE
 .PP
 ディレクトリを監視する場合、 上記でアスタリスク (*) を付けたイベントは、 そのディレクトリ内のファイルに対して発生する。 このとき
@@ -173,16 +187,20 @@ struct inotify_event {
 \fBIN_ALL_EVENTS\fP マクロは上記のイベント全てのマスクとして定義される。 このマクロは \fBinotify_add_watch\fP(2)
 を呼び出すときの \fImask\fP 引き数として使える。
 
-さらに 2 つの便利なマクロがある。
-\fBIN_MOVE\fP は IN_MOVED_FROM|IN_MOVED_TO と同じで、
-\fBIN_CLOSE\fP は IN_CLOSE_WRITE|IN_CLOSE_NOWRITE と同じである。
+以下の 2 つの便利なマクロが定義されている。
+.RS 4
+.TP 
+\fBIN_MOVE\fP
+\fBIN_MOVED_FROM | IN_MOVED_TO\fP と等価。
+.TP 
+\fBIN_CLOSE\fP
+\fBIN_CLOSE_WRITE | IN_CLOSE_NOWRITE\fP と等価。
+.RE
 .PP
 その他にも以下のビットを \fBinotify_add_watch\fP(2)  を呼ぶときの \fImask\fP に指定できる:
 .RS 4
-.sp
-.PD 0
-.TP  18
-\fBIN_DONT_FOLLOW\fP
+.TP 
+\fBIN_DONT_FOLLOW\fP (Linux 2.6.15 以降)
 \fIpathname\fP がシンボリックリンクである場合に辿らない。 (Linux 2.6.15 以降)
 .TP 
 \fBIN_EXCL_UNLINK\fP (Linux 2.6.36 以降)
@@ -201,17 +219,14 @@ struct inotify_event {
 .TP 
 \fBIN_ONLYDIR\fP (Linux 2.6.15 以降)
 \fIpathname\fP がディレクトリの場合にのみ監視する。
-.PD
 .RE
 .PP
 以下のビットが \fBread\fP(2)  で返される \fImask\fP フィールドに設定される:
 .RS 4
-.sp
-.PD 0
-.TP  18
+.TP 
 \fBIN_IGNORED\fP
 監視対象が (\fBinotify_rm_watch\fP(2) により) 明示的に 削除された。もしくは (ファイルの削除、またはファイル
-システムのアンマウントにより) 自動的に削除された。
+システムのアンマウントにより) 自動的に削除された。「バグ」も参照のこと。
 .TP 
 \fBIN_ISDIR\fP
 このイベントの対象がディレクトリである。
@@ -220,8 +235,71 @@ struct inotify_event {
 イベントキューが溢れた (このイベントの場合、\fIwd\fP は \-1 である)。
 .TP 
 \fBIN_UNMOUNT\fP
-監視対象オブジェクトを含むファイルシステムがアンマウントされた。
-.PD
+監視対象オブジェクトを含むファイルシステムがアンマウントされた。さらに、この監視対象ディスクリプタに対して \fBIN_IGNORED\fP
+イベントが生成される。
+.RE
+.SS 例
+Suppose an application is watching the directory \fIdir\fP and the file
+\fIdir/myfile\fP for all events.  The examples below show some events that will
+be generated for these two objects.
+.RS 4
+.TP 
+fd = open("dir/myfile", O_RDWR);
+\fIdir\fP と \fIdir/myfile\fP の両方に対して \fBIN_OPEN\fP イベントが生成される。
+.TP 
+read(fd, buf, count);
+\fIdir\fP と \fIdir/myfile\fP の両方に対して \fBIN_ACCESS\fP イベントが生成される
+.TP 
+write(fd, buf, count);
+\fIdir\fP と \fIdir/myfile\fP の両方に対して \fBIN_MODIFY\fP イベントが生成される
+.TP 
+fchmod(fd, mode);
+\fIdir\fP と \fIdir/myfile\fP の両方に対して \fBIN_ATTRIB\fP イベントが生成される
+.TP 
+close(fd);
+\fIdir\fP と \fIdir/myfile\fP の両方に対して \fBIN_CLOSE_WRITE\fP イベントが生成される
+.RE
+.PP
+Suppose an application is watching the directories \fIdir1\fP and \fIdir\fP, and
+the file \fIdir1/myfile\fP.  The following examples show some events that may
+be generated.
+.RS 4
+.TP 
+link("dir/myfile", "dir2/new");
+\fImyfile\fP に対して \fBIN_ATTRIB\fP イベントが生成され、 \fIdir2\fP に対して \fBIN_CREATE\fP イベントが生成される。
+.TP 
+rename("dir1/myfile", "dir2/myfile");
+\fIdir1\fP に対してイベント \fBIN_MOVED_FROM\fP が、 \fIdir2\fP に対してイベント \fBIN_MOVED_TO\fP が、
+\fImyfile\fP に対してイベント \fBIN_MOVE_SELF\fP が生成される。この際 イベント \fBIN_MOVED_FROM\fP と
+\fBIN_MOVED_TO\fP は同じ \fIcookie\fP 値を持つ。
+.RE
+.PP
+Suppose that \fIdir1/xx\fP and \fIdir2/yy\fP are (the only) links to the same
+file, and an application is watching \fIdir1\fP, \fIdir2\fP, \fIdir1/xx\fP, and
+\fIdir2/yy\fP.  Executing the following calls in the order given below will
+generate the following events:
+.RS 4
+.TP 
+unlink("dir2/yy");
+Generates \fBIN_ATTRIB\fP event for \fIxx\fP (because its link count changes)  and
+an \fBIN_DELETE\fP event for \fIdir2\fP.
+.TP 
+unlink("dir1/xx");
+Generates \fBIN_ATTRIB\fP, \fBIN_DELETE_SELF\fP, and \fBIN_IGNORED\fP events for
+\fIxx\fP, and an \fBIN_DELETE\fP for \fIdir1\fP.
+.RE
+.PP
+Suppose an application is watching the directory \fIdir\fP and (the empty)
+directory \fIdir/subdir\fP.  The following examples show some events that may
+be generated.
+.RS 4
+.TP 
+mkdir("dir/new", mode);
+Generates an \fBIN_CREATE | IN_ISDIR\fP event for \fIdir\fP.
+.TP 
+rmdir("dir/sub");
+Generates \fBIN_DELETE_SELF\fP and \fBIN_IGNORED\fP events for \fIsubdir\fP, and an
+\fBIN_DELETE | IN_ISDIR\fP event for \fIdir\fP.
 .RE
 .SS "/proc インターフェース"
 以下のインターフェースは、inotify で消費される カーネルメモリの総量を制限するのに使用できる:
@@ -237,7 +315,8 @@ struct inotify_event {
 作成可能な監視対象の数の実 UID 単位の上限を指定する。
 .SH バージョン
 inotify は 2.6.13 の Linux カーネルに組込まれた。 これに必要なライブラリのインターフェースは、 glibc のバージョン 2.4
-に追加された (\fBIN_DONT_FOLLOW\fP, \fBIN_MASK_ADD\fP, \fBIN_ONLYDIR\fP はバージョン 2.5 で追加された)。
+に追加された (\fBIN_DONT_FOLLOW\fP, \fBIN_MASK_ADD\fP, \fBIN_ONLYDIR\fP は glibc バージョン 2.5
+で追加された)。
 .SH 準拠
 inotify API は Linux 独自のものである。
 .SH 注意
@@ -251,9 +330,12 @@ Linux 2.6.25 以降では、シグナル駆動 (signal\-driven) I/O の通知が
 inotify ファイルディスクリプタ番号が、 \fIsi_signo\fP にはシグナル番号が、 \fIsi_code\fP には \fBPOLL_IN\fP が、
 \fIsi_band\fP には \fBPOLLIN\fP が設定される。
 
-inotify ファイルディスクリプタに対して 連続して生成される出力 inotify イベントが同一の場合 (\fIwd\fP, \fImask\fP,
-\fIcookie\fP, \fIname\fP が等しい場合)、 前のイベントがまだ読み込まれていなければ、 連続するイベントが 1 つのイベントにまとめられる
-(ただし「バグ」の節も参照のこと)。
+If successive output inotify events produced on the inotify file descriptor
+are identical (same \fIwd\fP, \fImask\fP, \fIcookie\fP, and \fIname\fP), then they are
+coalesced into a single event if the older event has not yet been read (but
+see BUGS).  This reduces the amount of kernel memory required for the event
+queue, but also means that an application can't use inotify to reliably
+count file events.
 
 inotify ファイルディスクリプタの読み込みで返されるイベントは、 順序付けられたキューになる。
 従って、たとえば、あるディレクトリの名前を別の名前に変更した場合、 inotify ファイルディスクリプタについての正しい順番で
@@ -261,29 +343,85 @@ inotify ファイルディスクリプタの読み込みで返されるイベン
 
 \fBFIONREAD\fP \fBioctl\fP(2)  は inotify ファイルディスクリプタから何バイト読み込めるかを返す。
 .SS 制限と警告
-inotify によるディレクトリの監視は再帰的に行われない: あるディレクトリ以下の
-サブディレクトリを監視する場合、 監視対象を追加で作成しなければならない。
-大きなディレクトリツリーの場合には、この作業にかなり時間がかかることがある。
-
 inotify API では、inotify イベントが発生するきっかけとなったユーザやプロセスに関する情報は提供されない。とりわけ、inotify
 経由でイベントを監視しているプロセスが、自分自身がきっかけとなったイベントと他のプロセスがきっかけとなったイベントを区別する簡単な手段はない。
 
-イベントキューは溢れる場合があることに注意すること。この場合にはイベントは
-失われてしまう。堅牢性が必要なアプリケーションでは、イベントが失われる可能性
-を適切に扱う必要がある。
+Inotify reports only events that a user\-space program triggers through the
+filesystem API.  As a result, it does not catch remote events that occur on
+network filesystems.  (Applications must fall back to polling the filesystem
+to catch such events.)  Furthermore, various pseudo\-filesystems such as
+\fI/proc\fP, \fI/sys\fP, and \fI/dev/pts\fP are not monitorable with inotify.
+
+The inotify API does not report file accesses and modifications that may
+occur because of \fBmmap\fP(2)  and \fBmsync\fP(2).
 
 inotify API では影響が受けるファイルをファイル名で特定する。
 しかしながら、アプリケーションが inotify イベントを処理する時点では、
 そのファイル名がすでに削除されたり変更されたりしている可能性がある。
 
-ディレクトリツリー全体を監視していて、そのツリー内に新しいサブディレクトリが
-作成される場合、新しいサブディレクトリに対する watch を作成するまでに、
-新しいファイルがそのサブディレクトリ内にすでに作成されている場合がある点に
-注意すること。したがって、watch を追加した直後にサブディレクトリの内容を
-スキャンしたいと思う場合もあるだろう。
+The inotify API identifies events via watch descriptors.  It is the
+application's responsibility to cache a mapping (if one is needed) between
+watch descriptors and pathnames.  Be aware that directory renamings may
+affect multiple cached pathnames.
+
+inotify によるディレクトリの監視は再帰的に行われない: あるディレクトリ以下の
+サブディレクトリを監視する場合、 監視対象を追加で作成しなければならない。
+大きなディレクトリツリーの場合には、この作業にかなり時間がかかることがある。
+
+If monitoring an entire directory subtree, and a new subdirectory is created
+in that tree or an existing directory is renamed into that tree, be aware
+that by the time you create a watch for the new subdirectory, new files (and
+subdirectories) may already exist inside the subdirectory.  Therefore, you
+may want to scan the contents of the subdirectory immediately after adding
+the watch (and, if desired, recursively add watches for any subdirectories
+that it contains).
+
+Note that the event queue can overflow.  In this case, events are lost.
+Robust applications should handle the possibility of lost events
+gracefully.  For example, it may be necessary to rebuild part or all of the
+application cache.  (One simple, but possibly expensive, approach is to
+close the inotify file descriptor, empty the cache, create a new inotify
+file descriptor, and then re\-create watches and cache entries for the
+objects to be monitored.)
+.SS "rename() イベントの取り扱い"
+As noted above, the \fBIN_MOVED_FROM\fP and \fBIN_MOVED_TO\fP event pair that is
+generated by \fBrename\fP(2)  can be matched up via their shared cookie value.
+However, the task of matching has some challenges.
+
+These two events are usually consecutive in the event stream available when
+reading from the inotify file descriptor.  However, this is not guaranteed.
+If multiple processes are triggering events for monitored objects, then (on
+rare occasions) an arbitrary number of other events may appear between the
+\fBIN_MOVED_FROM\fP and \fBIN_MOVED_TO\fP events.
+
+Matching up the \fBIN_MOVED_FROM\fP and \fBIN_MOVED_TO\fP event pair generated by
+\fBrename\fP(2)  is thus inherently racy.  (Don't forget that if an object is
+renamed outside of a monitored directory, there may not even be an
+\fBIN_MOVED_TO\fP event.)  Heuristic approaches (e.g., assume the events are
+always consecutive)  can be used to ensure a match in most cases, but will
+inevitably miss some cases, causing the application to perceive the
+\fBIN_MOVED_FROM\fP and \fBIN_MOVED_TO\fP events as being unrelated.  If watch
+descriptors are destroyed and re\-created as a result, then those watch
+descriptors will be inconsistent with the watch descriptors in any pending
+events.  (Re\-creating the inotify file descriptor and rebuilding the cache
+may be useful to deal with this scenario.)
+
+Applications should also allow for the possibility that the \fBIN_MOVED_FROM\fP
+event was the last event that could fit in the buffer returned by the
+current call to \fBread\fP(2), and the accompanying \fBIN_MOVED_TO\fP event might
+be fetched only on the next \fBread\fP(2).
 .SH バグ
+.\" FIXME kernel commit 611da04f7a31b2208e838be55a42c7a1310ae321
+.\" implies that unmount events were buggy 2.6.11 to 2.6.36
+.\"
 2.6.16 以前のカーネルでは \fBIN_ONESHOT\fP \fImask\fP フラグが働かない。
 
+As originally designed and implemented, the \fBIN_ONESHOT\fP flag did not cause
+an \fBIN_IGNORED\fP event to be generated when the watch was dropped after one
+event.  However, as an unintended effect of other changes, since Linux
+2.6.36, an \fBIN_IGNORED\fP event is generated in this case.
+
+.\" commit 1c17d18e3775485bf1e0ce79575eb637a94494a2
 カーネル 2.6.25 より前では、 連続する同一のイベントを一つにまとめることを意図したコード (古い方のイベントがまだ読み込まれていない場合に、
 最新の 2 つのイベントを一つにまとめられる可能性がある) が、 最新のイベントが「最も古い」読み込まれていないイベントとまとめられるか
 をチェックするようになっていた。
@@ -294,6 +432,6 @@ inotify API では影響が受けるファイルをファイル名で特定す�
 
 Linux カーネルソース内の \fIDocumentation/filesystems/inotify.txt\fP
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.64 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
