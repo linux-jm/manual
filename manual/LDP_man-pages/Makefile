@@ -127,6 +127,16 @@ clean-setup:
 upgrade:
 	$(MAKE) clean-setup
 	$(MAKE) jm-setup
+	cd $(PERKAMON_DIR)/man-pages \
+	  && ../../../../admin/JM-orig-upd.sh ../../original \
+	  && cp README man-pages-* Changes* ../../original
+	cd original \
+	  sed -e 's/\^\\\.SH /^\\.S[Hh] /' ../perkamon/man-pages/scripts/remove_COLOPHON.sh \
+	  sh ../perkamon/man-pages/scripts/remove_COLOPHON.sh man?/*.[1-8]
+	git add --all original/
+	git status original | ../../admin/git2upd > upd.txt
+	../../admin/upd_tl.perl translation_list upd.txt `grep "^V = " $(PERKAMON_DIR)/Makefile | awk '{print $$2}'`
+	mv translation_list.* translation_list
 	$(MAKE) FLAGS="--no-translations -v --force" translate-pages
 	$(MAKE) update-stats
 
