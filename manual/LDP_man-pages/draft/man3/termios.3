@@ -55,7 +55,7 @@
 .\" Updated 2007-05-01, Akihiro MOTOKI, LDP v2.46
 .\" Updated 2007-09-06, Akihiro MOTOKI, LDP v2.64
 .\"
-.TH TERMIOS 3 2013\-10\-22 Linux "Linux Programmer's Manual"
+.TH TERMIOS 3 2014\-03\-21 Linux "Linux Programmer's Manual"
 .SH 名前
 termios, tcgetattr, tcsetattr, tcsendbreak, tcdrain, tcflush, tcflow,
 cfmakeraw, cfgetospeed, cfgetispeed, cfsetispeed, cfsetospeed, cfsetspeed \-
@@ -482,22 +482,53 @@ LNEXT も効果を持つ)。 \fBread\fP(2)  は最大でも 1行の入力しか�
 非カノニカルモードでは、入力は即座に利用可能となり (ユーザは行区切り文字を打ち込む必要はない)、入力処理は実行されず、行編集は無効となる。 MIN
 (\fIc_cc[VMIN]\fP) と TIME (\fIc_cc[VTIME]\fP) の設定により、 \fBread\fP(2)
 が完了する条件が決定される。4種類の場合がある:
-.IP * 2
-MIN == 0; TIME == 0: データが利用可能であれば、 \fBread\fP(2)
-はすぐに返る。このときの返り値は、そのとき利用可能なバイト数か \fBread\fP(2)  の要求バイト数のうち小さい方となる。 利用可能なデータがない場合
-\fBread\fP(2)  は 0 を返す。
-.IP * 2
-MIN > 0; TIME == 0: \fBread\fP(2)  は、利用可能なデータが MIN バイトか要求バイト数のいずれかに達するまで
-停止する。返り値は、MIN か要求バイト数の小さい方となる。
-.IP * 2
-MIN == 0; TIME > 0: TIME はタイマの上限を規定し、単位は 1/10 秒である。 タイマは \fBread\fP(2)
-が呼ばれた時点で開始される。 \fBread\fP(2)  が返るのは、少なくとも 1バイトのデータが利用可能となった時点、
-またはタイマが時間切れとなった時点である。 入力が全くなくタイマが時間切れとなった場合、 \fBread\fP(2)  は 0 を返す。
-.IP * 2
-MIN > 0; TIME > 0: TIME はタイマの上限を規定し、単位は 1/10 秒である。
-入力の最初のバイトが利用可能になった後は、 新たに 1バイト受信する度にタイマがリセットされる。 \fBread\fP(2)  が返るのは、MIN
-バイトか要求バイト数のうち少ない方まで読み出された時点か、 バイト間タイマが時間切れとなった時点である。
-は最初のバイトが利用可能にならないとタイマは開始されないので、 少なくとも 1バイトは読み込まれる。
+.TP 
+MIN == 0, TIME == 0 (polling read)
+If data is available, \fBread\fP(2)  returns immediately, with the lesser of
+the number of bytes available, or the number of bytes requested.  If no data
+is available, \fBread\fP(2)  returns 0.
+.TP 
+MIN > 0, TIME == 0 (blocking read)
+\fBread\fP(2)  blocks until MIN bytes are available, and returns up to the
+number of bytes requested.
+.TP 
+MIN == 0, TIME > 0 (read with timeout)
+TIME specifies the limit for a timer in tenths of a second.  The timer is
+started when \fBread\fP(2)  is called.  \fBread\fP(2)  returns either when at
+least one byte of data is available, or when the timer expires.  If the
+timer expires without any input becoming available, \fBread\fP(2)  returns 0.
+If data is already available at the time of the call to \fBread\fP(), the call
+behaves as though the data was received immediately after the call.
+.TP 
+MIN > 0, TIME > 0 (read with interbyte timeout)
+TIME specifies the limit for a timer in tenths of a second.  Once an initial
+byte of input becomes available, the timer is restarted after each further
+byte is received.  \fBread\fP(2)  returns when any of the following conditions
+is met:
+.RS
+.IP * 3
+MIN bytes have been received.
+.IP *
+The interbyte timer expires.
+.IP *
+.\" e.g., Solaris
+The number of bytes requested by \fBread\fP(2)  has been received.  (POSIX does
+not specify this termination condition, and on some other implementations
+\fBread\fP()  does not return in this case.)
+.RE
+.IP
+Because the timer is started only after the initial byte becomes available,
+at least one byte will be read.  If data is already available at the time of
+the call to \fBread\fP(), the call behaves as though the data was received
+immediately after the call.
+.PP
+.\" POSIX.1-2008 XBD 11.1.7
+POSIX does not specify whether the setting of the \fBO_NONBLOCK\fP file status
+flag takes precedence over the MIN and TIME settings.  If \fBO_NONBLOCK\fP is
+set, a \fBread\fP()  in noncanonical mode may return immediately, regardless of
+the setting of MIN or TIME.  Furthermore, if no data is available, POSIX
+permits a \fBread\fP()  in noncanonical mode to return either 0, or \-1 with
+\fIerrno\fP set to \fBEAGAIN\fP.
 .SS "Raw mode"
 .LP
 \fBcfmakeraw\fP()  は、端末を昔の Version 7 端末ドライバの "raw" モードのように設定する。
@@ -633,6 +664,6 @@ DU, Tru64 は \fIduration\fP ミリ秒のブレークを送信する。 FreeBSD,
 .SH 関連項目
 \fBstty\fP(1), \fBconsole_ioctl\fP(4), \fBtty_ioctl\fP(4), \fBsetserial\fP(8)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.63 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.64 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
