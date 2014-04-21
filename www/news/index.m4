@@ -15,6 +15,131 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+ <H2><A NAME="20140420">2014/04/20</A></H2>
+ <P>
+ _LINK(../INDEX/ldp.html,LDP man-pages 3.64 対応版)を公開しました。
+ </P>
+ <DL>
+  <DT>LDP_man-pages</DT>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, clock_getres.2)
+   _UPD_PAGE(LDP_man-pages, fallocate.2)
+   _UPD_PAGE(LDP_man-pages, link.2)
+   _UPD_PAGE(LDP_man-pages, lseek.2)
+   _UPD_PAGE(LDP_man-pages, open.2)
+   _UPD_PAGE(LDP_man-pages, pipe.2)
+   _UPD_PAGE(LDP_man-pages, readlink.2)
+   _UPD_PAGE(LDP_man-pages, shmctl.2)
+  </DD>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, catopen.3)
+   _UPD_PAGE(LDP_man-pages, ctime.3)
+   _UPD_PAGE(LDP_man-pages, dlopen.3)
+   _UPD_PAGE(LDP_man-pages, duplocale.3)
+   _UPD_PAGE(LDP_man-pages, exit.3)
+   _UPD_PAGE(LDP_man-pages, fseek.3)
+   _UPD_PAGE(LDP_man-pages, fseeko.3)
+   _UPD_PAGE(LDP_man-pages, ftw.3)
+   _UPD_PAGE(LDP_man-pages, getaddrinfo.3)
+   _UPD_PAGE(LDP_man-pages, getdate.3)
+   _UPD_PAGE(LDP_man-pages, getline.3)
+   _UPD_PAGE(LDP_man-pages, gets.3)
+   _UPD_PAGE(LDP_man-pages, isalpha.3)
+   _UPD_PAGE(LDP_man-pages, mkfifo.3)
+   _UPD_PAGE(LDP_man-pages, printf.3)
+   _UPD_PAGE(LDP_man-pages, scanf.3)
+   _UPD_PAGE(LDP_man-pages, setjmp.3)
+   _UPD_PAGE(LDP_man-pages, strfmon.3)
+   _UPD_PAGE(LDP_man-pages, strftime.3)
+   _UPD_PAGE(LDP_man-pages, strptime.3)
+   _UPD_PAGE(LDP_man-pages, toascii.3)
+  </DD>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, elf.5)
+   _UPD_PAGE(LDP_man-pages, nscd.conf.5)
+   _UPD_PAGE(LDP_man-pages, resolv.conf.5)
+  </DD>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, locale.7)
+   _UPD_PAGE(LDP_man-pages, tcp.7)
+  </DD>
+ </DL>
+
+ <H2><A NAME="20140414">2014/04/14</A></H2>
+ <P>
+ _LINK(../INDEX/ldp.html,LDP man-pages 3.63 対応版)を公開しました。
+ </P>
+ <DL>
+  <DT>LDP_man-pages</DT>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, access.2)
+   _UPD_PAGE(LDP_man-pages, alarm.2)
+   _UPD_PAGE(LDP_man-pages, capget.2)
+   _UPD_PAGE(LDP_man-pages, chmod.2)
+   _UPD_PAGE(LDP_man-pages, chown.2)
+   _UPD_PAGE(LDP_man-pages, clone.2)
+   _UPD_PAGE(LDP_man-pages, close.2)
+   _UPD_PAGE(LDP_man-pages, epoll_wait.2)
+   _UPD_PAGE(LDP_man-pages, execve.2)
+   _UPD_PAGE(LDP_man-pages, fcntl.2)
+   _UPD_PAGE(LDP_man-pages, getgroups.2)
+   _UPD_PAGE(LDP_man-pages, getrlimit.2)
+   _UPD_PAGE(LDP_man-pages, mkdir.2)
+   _UPD_PAGE(LDP_man-pages, msgctl.2)
+   _UPD_PAGE(LDP_man-pages, poll.2)
+   _UPD_PAGE(LDP_man-pages, reboot.2)
+   _UPD_PAGE(LDP_man-pages, recv.2)
+   _UPD_PAGE(LDP_man-pages, select.2)
+   _UPD_PAGE(LDP_man-pages, select_tut.2)
+   _UPD_PAGE(LDP_man-pages, send.2)
+   _UPD_PAGE(LDP_man-pages, seteuid.2)
+   _UPD_PAGE(LDP_man-pages, setfsuid.2)
+   _UPD_PAGE(LDP_man-pages, setpgid.2)
+   _UPD_PAGE(LDP_man-pages, setreuid.2)
+   _UPD_PAGE(LDP_man-pages, sigpending.2)
+   _UPD_PAGE(LDP_man-pages, socket.2)
+   _UPD_PAGE(LDP_man-pages, stat.2)
+   _UPD_PAGE(LDP_man-pages, swapon.2)
+   _UPD_PAGE(LDP_man-pages, umount.2)
+   _UPD_PAGE(LDP_man-pages, utime.2)
+  </DD>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, atof.3)
+   _UPD_PAGE(LDP_man-pages, atoi.3)
+   _UPD_PAGE(LDP_man-pages, bsd_signal.3)
+   _UPD_PAGE(LDP_man-pages, crypt.3)
+   _UPD_PAGE(LDP_man-pages, fexecve.3)
+   _UPD_PAGE(LDP_man-pages, fts.3)
+   _UPD_PAGE(LDP_man-pages, ftw.3)
+   _UPD_PAGE(LDP_man-pages, mbstowcs.3)
+   _UPD_PAGE(LDP_man-pages, mkstemp.3)
+   _UPD_PAGE(LDP_man-pages, mktemp.3)
+   _UPD_PAGE(LDP_man-pages, raise.3)
+   _UPD_PAGE(LDP_man-pages, setenv.3)
+   _UPD_PAGE(LDP_man-pages, sigpause.3)
+   _UPD_PAGE(LDP_man-pages, sigqueue.3)
+   _UPD_PAGE(LDP_man-pages, sigsetops.3)
+   _UPD_PAGE(LDP_man-pages, sigwait.3)
+   _UPD_PAGE(LDP_man-pages, statvfs.3)
+   _UPD_PAGE(LDP_man-pages, strerror.3)
+   _UPD_PAGE(LDP_man-pages, string.3)
+   _UPD_PAGE(LDP_man-pages, strsep.3)
+   _UPD_PAGE(LDP_man-pages, strsignal.3)
+   _UPD_PAGE(LDP_man-pages, strspn.3)
+   _UPD_PAGE(LDP_man-pages, strstr.3)
+   _UPD_PAGE(LDP_man-pages, strtod.3)
+   _UPD_PAGE(LDP_man-pages, strtoimax.3)
+   _UPD_PAGE(LDP_man-pages, strtol.3)
+   _UPD_PAGE(LDP_man-pages, strtoul.3)
+   _UPD_PAGE(LDP_man-pages, sysv_signal.3)
+  </DD>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, capabilities.7)
+   _UPD_PAGE(LDP_man-pages, environ.7)
+   _UPD_PAGE(LDP_man-pages, socket.7)
+  </DD>
+ </DL>
+
  <H2>2014/04/13</H2>
  <P>
  ebtables 2.0.10-4 の翻訳を公開しました。
