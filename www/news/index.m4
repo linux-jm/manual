@@ -16,11 +16,8 @@ _HEADER(JM 新着情報)
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2><A NAME="20140420">2014/04/20</A></H2>
- <P>
- _LINK(../INDEX/ldp.html,LDP man-pages 3.64 対応版)を公開しました。
- </P>
  <DL>
-  <DT>LDP_man-pages</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.64 対応版)を公開しました。</DT>
   <DD>
    _UPD_PAGE(LDP_man-pages, clock_getres.2)
    _UPD_PAGE(LDP_man-pages, fallocate.2)
@@ -66,11 +63,8 @@ m4_dnl ML2CVS ADD HERE
  </DL>
 
  <H2><A NAME="20140414">2014/04/14</A></H2>
- <P>
- _LINK(../INDEX/ldp.html,LDP man-pages 3.63 対応版)を公開しました。
- </P>
  <DL>
-  <DT>LDP_man-pages</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.63 対応版)を公開しました。</DT>
   <DD>
    _UPD_PAGE(LDP_man-pages, access.2)
    _UPD_PAGE(LDP_man-pages, alarm.2)
@@ -141,23 +135,18 @@ m4_dnl ML2CVS ADD HERE
  </DL>
 
  <H2>2014/04/13</H2>
- <P>
- ebtables 2.0.10-4 の翻訳を公開しました。
- <UL>
- <LI>_NEW_PAGE(ebtables, ebtables.8)
+ <DL>
+  <DT>ebtables 2.0.10-4 の翻訳を公開しました。</DT>
+  <DD>_NEW_PAGE(ebtables, ebtables.8)</DD>
  </UL>
- </P>
 
  <H2>2013/10/14</H2>
  <P>
  _LINK(../INDEX/ldp.html,LDP man-pages 3.54 対応版)を公開しました。
  </P>
  <H2>2013/08/16</H2>
- <P>
- _LINK(../INDEX/ldp.html,LDP man-pages 3.53 対応版)を公開しました。
- </P>
  <DL>
-  <DT>LDP_man-pages</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.53 対応版)を公開しました。</DT>
   <DD>
    _NEW_PAGE(LDP_man-pages, kcmp.2)
    _NEW_PAGE(LDP_man-pages, CPU_SET.3)
