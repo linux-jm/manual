@@ -135,10 +135,15 @@ upgrade:
 	  sh ../perkamon/man-pages/scripts/remove_COLOPHON.sh man?/*.[1-8]
 	git add --all original/
 	git status original | ../../admin/git2upd > upd.txt
-	../../admin/upd_tl.perl translation_list upd.txt `grep "^V = " $(PERKAMON_DIR)/Makefile | awk '{print $$2}'`
+	$(eval VERSION = $(shell grep "^V = " $(PERKAMON_DIR)/Makefile | awk '{print $$3}'))
+	../../admin/upd_tl.perl translation_list upd.txt $(VERSION)
 	mv translation_list.* translation_list
 	$(MAKE) FLAGS="--no-translations -v --force" translate-pages
 	$(MAKE) update-stats
+	git add translation_list
+	git commit -m "LDP: Update original to LDP v$(VERSION)" original/ translation_list
+	git add po4a/ stats/ untrans.html
+	git commit -m "LDP: Update POT and ja.po to LDP v$(VERSION)" po4a/ stats/ untrans.html
 
 help:
 	@echo "Available targets:"
