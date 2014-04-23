@@ -48,7 +48,7 @@
 .\" FIXME . Apr 08: The next POSIX revision has O_EXEC, O_SEARCH, and
 .\" O_TTYINIT.  Eventually these may need to be documented.  --mtk
 .\"
-.TH OPEN 2 2014-04-06 "Linux" "Linux Programmer's Manual"
+.TH OPEN 2 2014-04-20 "Linux" "Linux Programmer's Manual"
 .SH NAME
 open, openat, creat \- open and possibly create a file
 .SH SYNOPSIS
@@ -208,6 +208,7 @@ for further details.
 See also BUGS, below.
 .TP
 .BR O_CLOEXEC " (since Linux 2.6.23)"
+.\" NOTE! several otehr man pages refer to this text
 Enable the close-on-exec flag for the new file descriptor.
 Specifying this flag permits a program to avoid additional
 .BR fcntl (2)
@@ -215,19 +216,32 @@ Specifying this flag permits a program to avoid additional
 operations to set the
 .B FD_CLOEXEC
 flag.
-Additionally,
-use of this flag is essential in some multithreaded programs
-since using a separate
+
+Note that the use of this flag is essential in some multithreaded programs,
+because using a separate
 .BR fcntl (2)
 .B F_SETFD
 operation to set the
 .B FD_CLOEXEC
 flag does not suffice to avoid race conditions
-where one thread opens a file descriptor at the same
-time as another thread does a
+where one thread opens a file descriptor and
+attempts to set its close-on-exec flag using
+.BR fcntl (2)
+at the same time as another thread does a
 .BR fork (2)
 plus
 .BR execve (2).
+Depending on the order of execution,
+the race may lead to the file desriptor returned by
+.BR open ()
+being unintentionally leaked to the program executed by the child process
+created by
+.BR fork (2).
+(This kind of race is in principle possible for any system call
+that creates a file descriptor whose close-on-exec flag should be set,
+and various other Linux system calls provide an equivalent of the
+.BR O_CLOEXEC
+flag to deal with this problem.)
 .\" This flag fixes only one form of the race condition;
 .\" The race can also occur with, for example, descriptors
 .\" returned by accept(), pipe(), etc.
@@ -342,7 +356,7 @@ If \fIpathname\fP is not a directory, cause the open to fail.
 .\" http://marc.theaimsgroup.com/?t=112748702800001&r=1&w=2
 .\" [PATCH] open: O_DIRECTORY and O_CREAT together should fail
 .\" O_DIRECTORY | O_CREAT causes O_DIRECTORY to be ignored.
-This flag is Linux-specific, and was added in kernel version 2.1.126, to
+This flag was added in kernel version 2.1.126, to
 avoid denial-of-service problems if
 .BR opendir (3)
 is called on a
@@ -693,8 +707,13 @@ as described above).
 .IP
 .B O_TMPFILE
 requires support by the underlying filesystem;
-.\" As at 3.13, there's support for at least ext2, ext3, ext4
 only a subset of Linux filesystems provide that support.
+In the initial implementation, support was provided in
+the ex2, ext3, ext4, UDF, Minix, and shmem filesystems.
+XFS support was added
+.\" commit 99b6436bc29e4f10e4388c27a3e4810191cc4788
+.\" commit ab29743117f9f4c22ac44c13c1647fb24fb2bafe
+in Linux 3.15.
 .TP
 .B O_TRUNC
 If the file already exists and is a regular file and the access mode allows
@@ -1445,7 +1464,7 @@ functionality.
 .BR path_resolution (7),
 .BR symlink (7)
 .SH COLOPHON
-This page is part of release 3.64 of the Linux
+This page is part of release 3.65 of the Linux
 .I man-pages
 project.
 A description of the project,

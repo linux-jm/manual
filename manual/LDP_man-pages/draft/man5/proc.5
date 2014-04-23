@@ -103,7 +103,7 @@
 .\" Updated 2013-08-16, Akihiro MOTOKI
 .\" Updated 2013-08-30, Akihiro MOTOKI, LDP v3.53
 .\"
-.TH PROC 5 2014\-03\-17 Linux "Linux Programmer's Manual"
+.TH PROC 5 2014\-04\-12 Linux "Linux Programmer's Manual"
 .SH 名前
 proc \- プロセスの情報を含む擬似ファイルシステム
 .SH 説明
@@ -148,14 +148,65 @@ cgroup の各階層についてエントリーが 1 つあり、
 プロセスが所属する階層内のコントロールグループ
 .RE
 .IP
-.\"
-.\" FIXME Describe /proc/[pid]/clear_refs
-.\"       Added in 2.6.22
-.\"       "Clears page referenced bits shown in smaps output"
-.\"       write-only
-.\"       CONFIG_PROC_PAGE_MONITOR
 このファイルが存在するのは、カーネルのコンフィギュレーション・オプショ
 ン \fBCONFIG_CGROUPS\fP を有効にした場合だけである。
+.TP 
+\fI/proc/[pid]/clear_refs\fP (Linux 2.6.22 以降)
+
+.\" commit b813e931b4c8235bb42e301096ea97dbdee3e8fe (2.6.22)
+.\" commit 398499d5f3613c47f2143b8c54a04efb5d7a6da9 (2.6.32)
+.\" commit 040fa02077de01c7e08fa75be6125e4ca5636011 (3.11)
+.\"
+.\"       "Clears page referenced bits shown in smaps output"
+.\"       write-only, writable only by the owner of the process
+このファイルは書き込み専用ファイルで、書き込めるのはプロセスの所有者だけである。
+
+The following values may be written to the file:
+.RS
+.TP 
+1 (Linux 2.6.22 以降)
+.\" Internally: CLEAR_REFS_ALL
+Reset the PG_Referenced and ACCESSED/YOUNG bits for all the pages associated
+with the process.  (Before kernel 2.6.32, writing any nonzero value to this
+file had this effect.)
+.TP 
+2 (Linux 2.6.32 以降)
+.\" Internally: CLEAR_REFS_ANON
+Reset the PG_Referenced and ACCESSED/YOUNG bits for all anonymous pages
+associated with the process.
+.TP 
+3 (Linux 2.6.32 以降)
+.\" Internally: CLEAR_REFS_MAPPED
+Reset the PG_Referenced and ACCESSED/YOUNG bits for all file\-mapped pages
+associated with the process.
+.RE
+.IP
+Clearing the PG_Referenced and ACCESSED/YOUNG bits provides a method to
+measure approximately how much memory a process is using.  One first
+inspects the values in the "Referenced:" fields for the VMAs shown in
+\fI/proc/[pid]/smaps\fP to get an idea of the memory footprint of the process.
+One then clears the PG_Referenced and ACCESSED/YOUNG bits and, after some
+measured time interval, once again inspects the values in the "Referenced:"
+fields to get an idea of the change in memory footprint of the process
+during the measured interval.  If one is interested only in inspecting the
+selected mapping types, then the value 2 or 3 can be used instead of 1.
+
+A further value can be written to affect a different bit:
+.RS
+.TP 
+4 (Linux 3.11 以降)
+.\" Internally: CLEAR_REFS_SOFT_DIRTY
+Clear the soft\-dirty bit for all the pages associated with the process.
+This is used (in conjunction with \fI/proc/[pid]/pagemap\fP)  by the
+check\-point restore system to discover which pages of a process have been
+dirtied since the file \fI/proc/[pid]/clear_refs\fP was written to.
+.RE
+.IP
+Writing any value to \fI/proc/[pid]/clear_refs\fP other than those listed above
+has no effect.
+
+\fI/proc/[pid]/clear_refs\fP ファイルが存在するのは、カーネルのコンフィギュレーション・オプション
+\fBCONFIG_PROC_PAGE_MONITOR\fP を有効にした場合だけである。
 .TP 
 \fI/proc/[pid]/cmdline\fP
 .\" In 2.3.26, this also used to be true if the process was swapped out.
@@ -743,26 +794,88 @@ UNIX と Linux では、 ファイルシステムのルート (/) をプロセ�
 \fBpthread_exit\fP(3)  を呼び出しにより行われる)。
 .TP 
 \fI/proc/[pid]/smaps\fP (Linux 2.6.14 以降)
-.\"       CONFIG_PROC_PAGE_MONITOR
 このファイルは、そのプロセスの各マッピングのメモリ消費量を表示する。 マッピングのそれぞれについて、以下のような内容が表示される。
 .in +4n
 .nf
 
-08048000\-080bc000 r\-xp 00000000 03:02 13130      /bin/bash
-Size:               464 kB
-Rss:                424 kB
-Shared_Clean:       424 kB
-Shared_Dirty:         0 kB
-Private_Clean:        0 kB
-Private_Dirty:        0 kB
+00400000\-0048a000 r\-xp 00000000 fd:03 960637       /bin/bash
+Size:                552 kB
+Rss:                 460 kB
+Pss:                 100 kB
+Shared_Clean:        452 kB
+Shared_Dirty:          0 kB
+Private_Clean:         8 kB
+Private_Dirty:         0 kB
+Referenced:          460 kB
+Anonymous:             0 kB
+AnonHugePages:         0 kB
+Swap:                  0 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Locked:                0 kB
 
 .fi
 .in
-最初の行には、 \fI/proc/[pid]/maps\fP で表示されるマッピングと同じ情報が表示される。 残りの行には、マッピングのサイズ、現在 RAM
-上に存在するマッピングの量、 マッピング内の共有ページのうちクリーンなページ数、ダーティなページ数、
-マッピング内のプライベートページのうちクリーンなページ数、 ダーティなページ数、を示す。
+The first of these lines shows the same information as is displayed for the
+mapping in \fI/proc/[pid]/maps\fP.  The remaining lines show the size of the
+mapping, the amount of the mapping that is currently resident in RAM
+("Rss"), the process' proportional share of this mapping ("Pss"), the number
+of clean and dirty shared pages in the mapping, and the number of clean and
+dirty private pages in the mapping.  "Referenced" indicates the amount of
+memory currently marked as referenced or accessed.  "Anonymous" shows the
+amount of memory that does not belong to any file.  "Swap" shows how much
+would\-be\-anonymous memory is also used, but out on swap.
 
-このファイルが存在するのは、カーネルのコンフィギュレーション・オプション \fBCONFIG_MMU\fP を有効にした場合だけである。
+The "KernelPageSize" entry is the page size used by the kernel to back a
+VMA.  This matches the size used by the MMU in the majority of cases.
+However, one counter\-example occurs on PPC64 kernels whereby a kernel using
+64K as a base page size may still use 4K pages for the MMU on older
+processors.  To distinguish, this patch reports "MMUPageSize" as the page
+size used by the MMU.
+
+The "Locked" indicates whether the mapping is locked in memory or not.
+
+"VmFlags" field represents the kernel flags associated with the particular
+virtual memory area in two letter encoded manner.  The codes are the
+following:
+
+    rd  \- readable
+    wr  \- writable
+    ex  \- executable
+    sh  \- shared
+    mr  \- may read
+    mw  \- may write
+    me  \- may execute
+    ms  \- may share
+    gd  \- stack segment growns down
+    pf  \- pure PFN range
+    dw  \- disabled write to the mapped file
+    lo  \- pages are locked in memory
+    io  \- memory mapped I/O area
+    sr  \- sequential read advise provided
+    rr  \- random read advise provided
+    dc  \- do not copy area on fork
+    de  \- do not expand area on remapping
+    ac  \- area is accountable
+    nr  \- swap space is not reserved for the area
+    ht  \- area uses huge tlb pages
+    nl  \- non\-linear mapping
+    ar  \- architecture specific flag
+    dd  \- do not include area into core dump
+    sd  \- soft\-dirty flag
+    mm  \- mixed map area
+    hg  \- huge page advise flag
+    nh  \- no\-huge page advise flag
+    mg  \- mergable advise flag
+
+\fI/proc/[pid]/smaps\fP ファイルが存在するのは、カーネルのコンフィギュレーション・オプション
+\fBCONFIG_PROC_PAGE_MONITOR\fP を有効にした場合だけである。
+.TP 
+\fI/proc/[pid]/stack\fP (Linux 2.6.29 以降)
+.\" 2ec220e27f5040aec1e88901c1b6ea3d135787ad
+This file provides a symbolic trace of the function calls in this process's
+kernel stack.  This file is provided only if the kernel was built with the
+\fBCONFIG_STACKTRACE\fP configuration option.
 .TP 
 \fI/proc/[pid]/stat\fP
 プロセスの状態についての情報。 これは \fBps\fP(1)  で使われ、 \fI/usr/src/linux/fs/proc/array.c\fP
@@ -2145,13 +2258,13 @@ the \fBCAP_SYS_ADMIN\fP capability can change the value in this file.
 に設定することができる。 一度オンにすると、 モジュールをロードすることもアンロードすることもできなくなり、 この値をオフに戻すこともできない。
 このファイルが存在するのは、 カーネルが \fBCONFIG_MODULES\fP オプションを有効にしてコンパイルされている場合だけである。
 .TP 
-\fI/proc/sys/kernel/msgmax\fP
+\fI/proc/sys/kernel/msgmax\fP (Linux 2.2 以降)
 このファイルは、System V メッセージキューに書き込まれる 1 つのメッセージの 最大バイト数を、システム全体で制限する。
 .TP 
 \fI/proc/sys/kernel/msgmni\fP (Linux 2.4 以降)
 このファイルはメッセージキュー識別子の最大数をシステム全体で制限する。
 .TP 
-\fI/proc/sys/kernel/msgmnb\fP
+\fI/proc/sys/kernel/msgmnb\fP (Linux 2.2 以降)
 このファイルは、 \fImsg_qbytes\fP の設定を初期化するシステム全体のパラメータで
 ある。 \fImsg_qbytes\fP は以降で作成されるメッセージキューで使われる。
 \fImsg_qbytes\fP 設定では、メッセージキューに書き込まれる最大バイト数を指定する。
@@ -2278,10 +2391,10 @@ could also break existing applications, the default value in this file is
 0.  Only set this file to 1 if you have a good understanding of the
 semantics of the applications using System V shared memory on your system.
 .TP 
-\fI/proc/sys/kernel/shmall\fP
+\fI/proc/sys/kernel/shmall\fP (Linux 2.2 以降)
 このファイルには System V 共有メモリの総ページ数の システム全体での制限が書かれている。
 .TP 
-\fI/proc/sys/kernel/shmmax\fP
+\fI/proc/sys/kernel/shmmax\fP (Linux 2.2 以降)
 このファイルを通じて、(System V IPC) 共有メモリセグメントを作成するときの 最大サイズの実行時上限 (run\-time limit)
 を取得または設定できる。 現在は 1GB までの共有メモリセグメントが カーネルでサポートされている。 この値のデフォルトは \fBSHMMAX\fP
 である。
@@ -2548,6 +2661,6 @@ Linux カーネルのソースファイル: \fIDocumentation/filesystems/proc.tx
 \fIDocumentation/sysctl/fs.txt\fP, \fIDocumentation/sysctl/kernel.txt\fP,
 \fIDocumentation/sysctl/net.txt\fP, and \fIDocumentation/sysctl/vm.txt\fP.
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.64 の一部
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.65 の一部
 である。プロジェクトの説明とバグ報告に関する情報は
 http://www.kernel.org/doc/man\-pages/ に書かれている。
