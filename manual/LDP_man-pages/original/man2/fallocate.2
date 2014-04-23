@@ -8,7 +8,7 @@
 .\" 2011-09-19: Added FALLOC_FL_PUNCH_HOLE
 .\" 2011-09-19: Substantial restructuring of the page
 .\"
-.TH FALLOCATE 2 2014-01-24 "Linux" "Linux Programmer's Manual"
+.TH FALLOCATE 2 2014-04-17 "Linux" "Linux Programmer's Manual"
 .SH NAME
 fallocate \- manipulate file space
 .SH SYNOPSIS
@@ -124,6 +124,62 @@ Btrfs (since Linux 3.7)
 .IP *
 tmpfs (since Linux 3.5)
 .\" commit 83e4fa9c16e4af7122e31be3eca5d57881d236fe
+.SS Collapsing file space
+.\" commit 00f5e61998dd17f5375d9dfc01331f104b83f841
+Specifying the
+.BR FALLOC_FL_COLLAPSE_RANGE
+flag (available since Linux 3.15) in
+.I mode
+removes a byte range from a file, without leaving a hole.
+The byte range to be collapsed starts at
+.I offset
+and continues for
+.I len
+bytes.
+At the completion of the operation,
+the contents of the file starting at the location
+.I offset+len
+will be appended at the location
+.IR offset ,
+and the file will be
+.I len
+bytes smaller.
+
+A filesystem may place limitations on the granularity of the operation,
+in order to ensure efficient implementation.
+Typically,
+.I offset
+and
+.I len
+must be a multiple of the filesystem logical block size,
+which varies according to the filesystem type and configuration.
+If a filesystem has such a requirement,
+.BR fallocate ()
+will fail with the error
+.BR EINVAL
+if this requirement is violated.
+
+If the region specified by
+.I offset
+plus
+.I len
+reaches or passes the end of file, an error is returned;
+instead, use
+.BR ftruncate (2)
+to truncate a file.
+
+No other flags may be specified in
+.IR mode
+in conjunction with
+.BR FALLOC_FL_COLLAPSE_RANGE .
+
+As at Linux 3.15,
+.B FALLOC_FL_COLLAPSE_RANGE
+is supported by
+ext4 (only for extent-based files)
+.\" commit 9eb79482a97152930b113b51dff530aba9e28c8e
+and XFS.
+.\" commit e1d8fb88a64c1f8094b9f6c3b6d2d9e6719c970d
 .SH RETURN VALUE
 On success,
 .BR fallocate ()
@@ -155,6 +211,47 @@ was less than 0, or
 .\" 21 Sep 2012
 .\" http://thread.gmane.org/gmane.linux.file-systems/48331/focus=1193526
 was less than or equal to 0.
+.TP
+.B EINVAL
+.I mode
+is
+.BR FALLOC_FL_COLLAPSE_RANGE
+and the range specified by
+.I offset
+plus
+.I len
+reaches or passes the end of the file.
+.TP
+.B EINVAL
+.I mode
+is
+.BR FALLOC_FL_COLLAPSE_RANGE ,
+but either
+.I offset
+or
+.I len
+is not a multiple of the filesystem block size.
+.TP
+.B EINVAL
+mode contains both
+.B FALLOC_FL_COLLAPSE_RANGE
+and other flags;
+no other flags are permitted with
+.BR FALLOC_FL_COLLAPSE_RANGE .
+.TP EINVAL
+.I mode
+is
+.BR FALLOC_FL_COLLAPSE_RANGE ,
+but the file referred to by
+.I fd
+is not a regular file.
+.\" There was a inconsistency in 3.15-rc1, that should be resolved so that all
+.\" filesystems use this error for this case. (Tytso says ex4 will change.)
+.\" http://thread.gmane.org/gmane.comp.file-systems.xfs.general/60485/focus=5521
+.\" From: Michael Kerrisk (man-pages <mtk.manpages@...>
+.\" Subject: Re: [PATCH v5 10/10] manpage: update FALLOC_FL_COLLAPSE_RANGE flag in fallocate
+.\" Newsgroups: gmane.linux.man, gmane.linux.file-systems
+.\" Date: 2014-04-17 13:40:05 GMT
 .TP
 .B EIO
 An I/O error occurred while reading from or writing to a filesystem.
@@ -193,6 +290,8 @@ Or:
 .I mode
 specifies
 .BR FALLOC_FL_PUNCH_HOLE
+or
+.BR FALLOC_FL_COLLAPSE_RANGE
 and
 the file referred to by
 .I fd
@@ -203,6 +302,14 @@ is marked append-only
 .B ESPIPE
 .I fd
 refers to a pipe or FIFO.
+.TP
+.B ETXTBSY
+.I mode
+specifies
+.BR FALLOC_FL_COLLAPSE_RANGE ,
+but the file referred to by
+.IR fd
+is currently being executed.
 .SH VERSIONS
 .BR fallocate ()
 is available on Linux since kernel 2.6.23.
@@ -220,7 +327,7 @@ is Linux-specific.
 .BR posix_fadvise (3),
 .BR posix_fallocate (3)
 .SH COLOPHON
-This page is part of release 3.64 of the Linux
+This page is part of release 3.65 of the Linux
 .I man-pages
 project.
 A description of the project,
