@@ -14,6 +14,47 @@ _BUILD_DATE
 
 m4_dnl _MIRROR_LIST
 
+<H2>全文検索</H2>
+<!-- SiteSearch Google -->
+<form method=get action="http://www.google.co.jp/search">
+<table bgcolor="#F5F5DC"><tr valign=top><td>
+<!--a href="http://www.google.co.jp/">
+<img src="http://www.google.com/logos/Logo_40wht.gif" border="0" alt="Google" align="absmiddle"></a-->
+</td>
+<td>
+<input type=text name=q size=31 maxlength=255 value="">
+<input type=hidden name=ie value=Shift_JIS>
+<input type=hidden name=oe value=Shift_JIS>
+<input type=hidden name=hl value="ja">
+<input type=submit name=btnG value="Google で JM マニュアルを検索">
+<font size=-1>
+<input type=hidden name=domains value="linuxjm.sourceforge.jp"><br>
+<!--<input type=radio name=sitesearch value=""> WWW を検索 -->
+<!--<input type=radio name=sitesearch value="linuxjm.sourceforge.jp" checked> linuxjm.sourceforge.jp を検索-->
+<input type=hidden name=sitesearch value="linuxjm.sourceforge.jp" checked>
+</font>
+</td></tr></table>
+</form>
+<!-- SiteSearch Google -->
+
+<!--
+<div id="googlesearch">
+<script>
+  (function() {
+    var cx = '009079235866882919939:6xvbv842dji';
+    var gcse = document.createElement('script');
+    gcse.type = 'text/javascript';
+    gcse.async = true;
+    gcse.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') +
+        '//www.google.com/cse/cse.js?cx=' + cx;
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(gcse, s);
+  })();
+</script>
+<gcse:search></gcse:search>
+</div>
+-->
+
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
