@@ -15,6 +15,18 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+ <H2><A NAME="20140424">2014/04/24</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.65 対応版)を公開しました。</DT>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, mlock.2)
+   _UPD_PAGE(LDP_man-pages, shmget.2)
+   _UPD_PAGE(LDP_man-pages, getcontext.3)
+   _UPD_PAGE(LDP_man-pages, makecontext.3)
+   _UPD_PAGE(LDP_man-pages, libc.7)
+  </DD>
+ </DL>
+
  <H2><A NAME="20140420">2014/04/20</A></H2>
  <DL>
   <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.64 対応版)を公開しました。</DT>
