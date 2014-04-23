@@ -19,11 +19,26 @@ m4_dnl ML2CVS ADD HERE
  <DL>
   <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.65 対応版)を公開しました。</DT>
   <DD>
+   _UPD_PAGE(LDP_man-pages, fcntl.2)
    _UPD_PAGE(LDP_man-pages, mlock.2)
+   _UPD_PAGE(LDP_man-pages, msgop.2)
+   _UPD_PAGE(LDP_man-pages, personality.2)
    _UPD_PAGE(LDP_man-pages, shmget.2)
+   _UPD_PAGE(LDP_man-pages, shmget.2)
+  </DD>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, fexecve.3)
    _UPD_PAGE(LDP_man-pages, getcontext.3)
+   _UPD_PAGE(LDP_man-pages, inet.3)
    _UPD_PAGE(LDP_man-pages, makecontext.3)
+   _UPD_PAGE(LDP_man-pages, pthread_kill.3)
+   _UPD_PAGE(LDP_man-pages, termios.3)
+  </DD>
+  <DD>
+   _UPD_PAGE(LDP_man-pages, credentials.7)
    _UPD_PAGE(LDP_man-pages, libc.7)
+   _UPD_PAGE(LDP_man-pages, netdevice.7)
+   _UPD_PAGE(LDP_man-pages, socket.7)
   </DD>
  </DL>
 
