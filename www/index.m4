@@ -18,7 +18,6 @@ m4_dnl _MIRROR_LIST
 <!-- SiteSearch Google -->
 <form method=get action="http://www.google.co.jp/search">
 <table bgcolor="#F5F5DC"><tr valign=top><td>
-<!--a href="http://www.google.co.jp/">
 <img src="http://www.google.com/logos/Logo_40wht.gif" border="0" alt="Google" align="absmiddle"></a-->
 </td>
 <td>
@@ -29,8 +28,6 @@ m4_dnl _MIRROR_LIST
 <input type=submit name=btnG value="Google で JM マニュアルを検索">
 <font size=-1>
 <input type=hidden name=domains value="linuxjm.sourceforge.jp"><br>
-<!--<input type=radio name=sitesearch value=""> WWW を検索 -->
-<!--<input type=radio name=sitesearch value="linuxjm.sourceforge.jp" checked> linuxjm.sourceforge.jp を検索-->
 <input type=hidden name=sitesearch value="linuxjm.sourceforge.jp" checked>
 </font>
 </td></tr></table>
