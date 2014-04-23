@@ -142,7 +142,7 @@ upgrade:
 	$(MAKE) update-stats
 	git add translation_list
 	git commit -m "LDP: Update original to LDP v$(VERSION)" original/ translation_list
-	git add po4a/ stats/ untrans.html
+	git add po4a/ stats/ untrans.html perkamon
 	git commit -m "LDP: Update POT and ja.po to LDP v$(VERSION)" po4a/ stats/ untrans.html
 
 help:
