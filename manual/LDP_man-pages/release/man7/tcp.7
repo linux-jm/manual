@@ -198,12 +198,11 @@ ACK が遅延 ACK (delayed acknowledgment) を相殺するための 2 セグメ�
 \fItcp_autocorking\fP (ブール値; デフォルト: 有効; Linux 3.14 以降)
 .\" commit f54b311142a92ea2e42598e347b84e1655caf8e3
 .\" Text heavily based on Documentation/networking/ip-sysctl.txt
-If this option is enabled, the kernel tries to coalesce small writes (from
-consecutive \fBwrite\fP(2)  and \fBsendmsg\fP(2)  calls) as much as possible, in
-order to decrease the total number of sent packets.  Coalescing is done if
-at least one prior packet for the flow is waiting in Qdisc queues or device
-transmit queue.  Applications can still use the \fBTCP_CORK\fP socket option to
-obtain optimal behavior when they know how/when to uncork their sockets.
+このオプションを有効にすると、 送信総パケット数を減らすため、 カーネルは小さな write (連続する \fBwrite\fP(2) や
+\fBsendmsg\fP(2) の呼び出し) を可能な限り結合しようとする。 パケットの結合が行われるのは、そのフローの前のパケットが少なくとも一つは
+qdisc キューかデバイスの送信キューで送信待ちの場合である。 このオプションが有効な場合でも \fBTCP_CORK\fP
+オプションを使うことができ、アプリケーションがソケットの「コルク解除」(送信待ち状態の解除)
+をいつどのように行えばよいか分かっている場合には、最適な動作をさせることができる。
 .TP 
 \fItcp_available_congestion_control\fP (String; read\-only; Linux 2.4.20 以降)
 .\" The following is from 2.6.28-rc4: Documentation/networking/ip-sysctl.txt
@@ -579,13 +578,10 @@ TCP ソケットのオプションは、 オプションレベル引数に \fIIP
 \fBTCP_CONGESTION\fP (Linux 2.6.13 以降)
 .\"	    commit 5f8ef48d240963093451bcf83df89f1a1364f51d
 .\"	    Author: Stephen Hemminger <shemminger@osdl.org>
-The argument for this option is a string.  This option allows the caller to
-set the TCP congestion control algorithm to be used, on a per\-socket basis.
-Unprivileged processes are restricted to choosing one of the algorithms in
-\fItcp_allowed_congestion_control\fP (described above).  Privileged processes
-(\fBCAP_NET_ADMIN\fP)  can choose from any of the available congestion\-control
-algorithms (see the description of \fItcp_available_congestion_control\fP
-above).
+このオプションの引き数は文字列である。 このオプションを使うと、呼び出し元がソケット単位に使用する TCP 輻輳制御アルゴリズムを設定することができる。
+非特権プロセスが使用できるアルゴリズムは (上述の) \fItcp_allowed_congestion_control\fP
+で設定されたものだけに制限される。 特権プロセス (\fBCAP_NET_ADMIN\fP) は任意の輻輳制御アルゴリズムを選択することができる (上記の
+\fBtcp_available_congestion_control\fP の説明を参照)。
 .TP 
 \fBTCP_CORK\fP (Linux 2.2 以降)
 .\" precisely: since 2.1.127
@@ -660,32 +656,24 @@ quickack モードでは ack はすぐに送信される。 このフラグは�
 .\" The following text taken nearly verbatim from Jerry Chu's (excellent)
 .\" commit message.
 .\"
-This option takes an \fIunsigned int\fP as an argument.  When the value is
-greater than 0, it specifies the maximum amount of time in milliseconds that
-transmitted data may remain unacknowledged before TCP will forcibly close
-the corresponding connection and return \fBETIMEDOUT\fP to the application.  If
-the option value is specified as 0, TCP will to use the system default.
+このオプションは \fIunsigned int\fP 型の引き数を取る。 値が 0 より大きい場合、その値は、 どのくらいの時間、送信されたデータが ACK
+を受信しないままの状態が続くと、 TCP がその接続を強制的にクローズし、アプリケーションに \fBETIMEDOUT\fP を返すかを、
+ミリ秒単位で指定する。 オプションの値が 0 の場合、TCP はシステムのデフォルト値を使用する。
 
-Increasing user timeouts allows a TCP connection to survive extended periods
-without end\-to\-end connectivity.  Decreasing user timeouts allows
-applications to "fail fast", if so desired.  Otherwise, failure may take up
-to 20 minutes with the current system defaults in a normal WAN environment.
+ユーザータイムアウトを長くすると、 通信の両端での接続性がない場合でも長い時間 TCP 接続が維持されるようになる。 ユーザータイムアウトを短くすると、
+アプリケーションは必要であれば「早く失敗」できるようになる。 設定しなかった場合は、 通常の WAN 環境では現在のシステムのデフォルトの 20
+分で失敗することになる。
 
-This option can be set during any state of a TCP connection, but is only
-effective during the synchronized states of a connection (ESTABLISHED,
-FIN\-WAIT\-1, FIN\-WAIT\-2, CLOSE\-WAIT, CLOSING, and LAST\-ACK).  Moreover, when
-used with the TCP keepalive (\fBSO_KEEPALIVE\fP)  option, \fBTCP_USER_TIMEOUT\fP
-will override keepalive to determine when to close a connection due to
-keepalive failure.
+このオプションは TCP 接続がどの状態の場合でも設定することができるが、 接続が同期状態 (ESTABLISHED, FIN\-WAIT\-1,
+FIN\-WAIT\-2, CLOSE\-WAIT, CLOSING, LAST\-ACK) の場合のみ効果がある。 また、 TCP keepalive
+(\fBSO_KEEPALIVE\fP) オプションとともに使用された場合、 \fBTCP_USER_TIMEOUT\fP は keepalive
+失敗による接続クローズを判定するための keepalive 値を上書きする。
 
-The option has no effect on when TCP retransmits a packet, nor when a
-keepalive probe is sent.
+このオプションは TCP がパケットを再送する際や keepalive プローブを送信する際には影響を及ぼさない。
 
-This option, like many others, will be inherited by the socket returned by
-\fBaccept\fP(2), if it was set on the listening socket.
+他の多くのオプション同様、リッスン中のソケットでこのオプションがセットされていれば \fBaccept\fP(2) が返すソケットにオプションが継承される。
 
-Further details on the user timeout feature can be found in RFC\ 793 and
-RFC\ 5482 ("TCP User Timeout Option").
+ユーザータイムアウト機能の詳細は RFC\ 793 と  RFC\ 5482 ("TCP User Timeout Option") に書かれている。
 .TP 
 \fBTCP_WINDOW_CLAMP\fP (Linux 2.4 以降)
 .\" Precisely: since 2.3.41

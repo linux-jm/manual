@@ -29,7 +29,7 @@ packet \- デバイスレベルのパケットインターフェース
 .br
 \fB#include <netpacket/packet.h>\fP
 .br
-\fB#include <net/ethernet.h> /* the L2 protocols */\fP
+\fB#include <net/ethernet.h> /* L2 プロトコル */\fP
 .sp
 \fBpacket_socket = socket(AF_PACKET, int \fP\fIsocket_type\fP\fB, int \fP\fIprotocol\fP\fB);\fP
 .fi
@@ -140,16 +140,15 @@ struct packet_mreq {
 .TP 
 \fBPACKET_AUXDATA\fP (Linux 2.6.21 以降)
 .\" commit 8dc4194474159660d7f37c495e3fc3f10d0db8cc
-If this binary option is enabled, the packet socket passes a metadata
-structure along with each packet in the \fBrecvmsg\fP(2)  control field.  The
-structure can be read with \fBcmsg\fP(3).  It is defined as
+ブール値のオプションを有効すると、 パケットソケットは、パケットと一緒にメタデータ構造体を \fBrecvmsg\fP(2) コントロールフィールドで渡す。
+この構造体は \fBcmsg\fP(3) を使って読むことができる。 定義は以下の通りである。
 
 .in +4n
 .nf
 struct tpacket_auxdata {
     __u32 tp_status;
-    __u32 tp_len;      /* packet length */
-    __u32 tp_snaplen;  /* captured length */
+    __u32 tp_len;      /* パケット長 */
+    __u32 tp_snaplen;  /* キャプチャした長さ */
     __u16 tp_mac;
     __u16 tp_net;
     __u16 tp_vlan_tci;
@@ -160,124 +159,99 @@ struct tpacket_auxdata {
 .TP 
 \fBPACKET_FANOUT\fP (Linux 3.1 以降)
 .\" commit dc99f600698dcac69b8f56dda9a8a00d645c5ffc
-To scale processing across threads, packet sockets can form a fanout group.
-In this mode, each matching packet is enqueued onto only one socket in the
-group.  A socket joins a fanout group by calling \fBsetsockopt\fP(2)  with
-level \fBSOL_PACKET\fP and option \fBPACKET_FANOUT\fP.  Each network namespace can
-have up to 65536 independent groups.  A socket selects a group by encoding
-the ID in the first 16 bits of the integer option value.  The first packet
-socket to join a group implicitly creates it.  To successfully join an
-existing group, subsequent packet sockets must have the same protocol,
-device settings, fanout mode and flags (see below).  Packet sockets can
-leave a fanout group only by closing the socket.  The group is deleted when
-the last socket is closed.
+スレッドにまたがって処理をスケールさせるため、 パケットソケットはファンアウトグループを構成することができる。 このモードでは、
+マッチしたそれぞれのパケットはグループ内のいずれか一つのソケットにだけキューイングされる。 ソケットをファンアウトグループに参加させるには、 レベル
+\fBSOL_PACKET\fP でオプション \fBPACKET_FANOUT\fP を指定して \fBsetsockopt\fP(2) を呼び出す。
+ネットワーク名前空間毎に最大 65536 個の独立したグループを持つことができる。 整数のオプション値の先頭 16 ビットに ID
+をエンコードすることで、 ソケットはグループを選択する。 あるグループへの最初のパケットソケットの参加があった時点で、
+グループは暗黙のうちに作成される。 既存のグループへの参加が成功するためには、 それ以降にそのグループに参加しようとするパケットソケットは、
+プロトコロ、 デバイス設定、ファンアウトモード、フラグが同じである必要がある (下記参照)。 パケットソケットがファンアウトグループから抜けるのは、
+そのソケットをクローズした場合だけである。 ファンアウトグループは最後のソケットがクローズした場合に削除される。
 
 .\" commit 2d36097d26b5991d71a2cf4a20c1a158f0f1bfcd
-Fanout supports multiple algorithms to spread traffic between sockets.  The
-default mode, \fBPACKET_FANOUT_HASH\fP, sends packets from the same flow to the
-same socket to maintain per\-flow ordering.  For each packet, it chooses a
-socket by taking the packet flow hash modulo the number of sockets in the
-group, where a flow hash is a hash over network\-layer address and optional
-transport\-layer port fields.  The load\-balance mode \fBPACKET_FANOUT_LB\fP
-implements a round\-robin algorithm.  \fBPACKET_FANOUT_CPU\fP selects the socket
-based on the CPU that the packet arrived on.  \fBPACKET_FANOUT_ROLLOVER\fP
-processes all data on a single socket, moves to the next when one becomes
-backlogged.  \fBPACKET_FANOUT_RND\fP selects the socket using a pseudo\-random
-number generator.  \fBPACKET_FANOUT_QM\fP (available since Linux 3.14)  selects
-the socket using the recorded queue_mapping of the received skb.
+ファンアウトでは、 複数のソケットにトラフィックを分散させるアルゴリズムを複数サポートしている。 デフォルトのモードである
+\fBPACKET_FANOUT_HASH\fP では、同じフローのパケットは同じソケットに送信され、 フロー単位の順序が維持される。
+パケットごとに、パケットフローのハッシュの、そのグループのソケット数に対する剰余が計算され、ソケットが選択される。
+なお、フローハッシュはネットワーク層のアドレスとトランスポート層のポートフィールドに対するハッシュである (トランスポート層ポートは存在する場合のみ)。
+負荷分散モード \fBPACKET_FANOUT_LB\fP はラウンドロビンアルゴリズムが採用されている。 \fBPACKET_FANOUT_CPU\fP では、
+パケットが到着した CPU に基づいてソケットを選択する。 \fBPACKET_FANOUT_ROLLOVER\fP
+はすべてのデータを一つのソケットで処理し、 そのソケットで処理待ち (backlog) が発生した場合に次のソケットに移る。
+\fBPACKET_FANOUT_RND\fP では擬似乱数発生器を使ってソケットが選択される。 \fBPACKET_FANOUT_QM\fP (Linux
+3.14 以降で利用可能) では受信 skb に記録された queue_mapping を使ってソケットが選択される。
 
-Fanout modes can take additional options.  IP fragmentation causes packets
-from the same flow to have different flow hashes.  The flag
-\fBPACKET_FANOUT_FLAG_DEFRAG\fP, if set, causes packet to be defragmented
-before fanout is applied, to preserve order even in this case.  Fanout mode
-and options are communicated in the second 16 bits of the integer option
-value.  The flag \fBPACKET_FANOUT_FLAG_ROLLOVER\fP enables the roll over
-mechanism as a backup strategy: if the original fanout algorithm selects a
-backlogged socket, the packet rolls over to the next available one.
+ファンアウトモードでは追加のオプションがある。 IP フラグメンテーションが起こると、
+同じフローのパケットのフローハッシュが異なるハッシュを持つことになる。 フラグ \fBPACKET_FANOUT_FLAG_DEFRAG\fP
+をセットすると、 パケットはファンアウトを行う前にフラグメント再構築が行われるようになり、 フラグメントがあった場合でも順序が維持される。
+ファンアウトモードとオプションは、 整数のオプション値の下位 16 ビットで指定される。 フラグ
+\fBPACKET_FANOUT_FLAG_ROLLOVER\fP を指定すると、 バックアップ戦略としてロールオーバー方式が有効になる。
+元のファンアウトアルゴリズムが backlog ソケットを選択していれば、 パケットは次の利用可能なソケットにロールオーバーされる。
 .TP 
-\fBPACKET_LOSS\fP (with \fBPACKET_TX_RING\fP)
-If set, do not silently drop a packet on transmission error, but return it
-with status set to \fBTP_STATUS_WRONG_FORMAT\fP.
+\fBPACKET_LOSS\fP (\fBPACKET_TX_RING\fP で使用)
+有効にすると、転送エラーの場合にパケットをエラーなしに黙って破棄せず、 ステータスを \fBTP_STATUS_WRONG_FORMAT\fP
+にセットして返る。
 .TP 
-\fBPACKET_RESERVE\fP (with \fBPACKET_RX_RING\fP)
-By default, a packet receive ring writes packets immediately following the
-metadata structure and alignment padding.  This integer option reserves
-additional headroom.
+\fBPACKET_RESERVE\fP (\fBPACKET_RX_RING\fP で使用)
+デフォルトでは、パケット受信リングはメタデータ構造体とアライメント用のパディングの直後にパケットを書き込む。
+この整数オプションを設定すると、パケットの前に追加で領域が予約される。
 .TP 
 \fBPACKET_RX_RING\fP
-Create a memory\-mapped ring buffer for asynchronous packet reception.  The
-packet socket reserves a contiguous region of application address space,
-lays it out into an array of packet slots and copies packets (up to
-\fItp_snaplen\fP)  into subsequent slots.  Each packet is preceded by a
-metadata structure similar to \fItpacket_auxdata\fP.  The protocol fields
-encode the offset to the data from the start of the metadata header.
-\fItp_net\fP stores the offset to the network layer.  If the packet socket is
-of type \fBSOCK_DGRAM\fP, then \fItp_mac\fP is the same.  If it is of type
-\fBSOCK_RAW\fP, then that field stores the offset to the link\-layer frame.
-Packet socket and application communicate the head and tail of the ring
-through the \fItp_status\fP field.  The packet socket owns all slots with
-status \fBTP_STATUS_KERNEL\fP.  After filling a slot, it changes the status of
-the slot to transfer ownership to the application.  During normal operation,
-the new status is \fBTP_STATUS_USER\fP, to signal that a correctly received
-packet has been stored.  When the application has finished processing a
-packet, it transfers ownership of the slot back to the socket by setting the
-status to \fBTP_STATUS_KERNEL\fP.  Packet sockets implement multiple variants
-of the packet ring.  The implementation details are described in
-\fIDocumentation/networking/packet_mmap.txt\fP in the Linux kernel source tree.
+非同期でのパケット受信用のメモリマップされたリングバッファを作成する。 パケットソケットはアプリケーションのアドレス空間に連続する領域を確保し、
+そこにパケットスロットの配列を構成し、 (最大 \fItp_snaplen\fP 個の) パケットを順にスロットにコピーする。 各パケットの前には
+\fItpacket_auxdata\fP に似たメタデータ構造体が置かれる。
+プロトコルフィールドには、データの、メタデータヘッダーの先頭からのオフセットが入る。 \fItp_net\fP にはネットワーク層へのオフセットが格納される。
+パケットソケットが \fBSOCK_DGRAM\fP 型の場合、 \fItp_mac\fP も同じである。 \fBSOCK_RAW\fP 型の場合、 \fItp_net\fP
+にはリンク層のフレームへのオフセットが入る。 パケットソケットとアプリケーションは \fItp_status\fP フィールドを通してリングの先頭
+(head) と末尾 (tail) の情報を受け渡す。 パケットソケットはすべてのスロットをステータス \fBTP_STATUS_KERNEL\fP
+で所有しており、 スロットにデータが入ると、パケットソケットはそのスロットのステータスをアプリケーションに所有権を渡す状態に変更する。
+通常の動作では、新しいステータスは \fBTP_STATUS_USER\fP であり、これは正しく受信されたパケットが格納されたことを示している。
+アプリケーションがパケットの処理を終えると、アプリケーションはそのスロットのステータスを \fBTP_STATUS_KERNEL\fP
+に設定し、そのスロットの所有権をソケットに返す。 パケットソケットは、複数バージョンのパケットリングを実装している。 実装の詳細は Linux
+カーネルソースツリーの \fIDocumentation/networking/packet_mmap.txt\fP で説明されている。
 .TP 
 \fBPACKET_STATISTICS\fP
-Retrieve packet socket statistics in the form of a structure
+パケットソケットの統計情報を次の構造体形式で取得する。
 
 .in +4n
 .nf
 struct tpacket_stats {
-    unsigned int tp_packets;  /* Total packet count */
-    unsigned int tp_drops;    /* Dropped packet count */
+    unsigned int tp_packets;  /* 総パケット数 */
+    unsigned int tp_drops;    /* ドロップパケット数 */
 };
 .fi
 .in
 
-Receiving statistics resets the internal counters.  The statistics structure
-differs when using a ring of variant \fBTPACKET_V3\fP.
+統計情報を取得すると、内部カウンターはリセットされる。 \fBTPACKET_V3\fP のリングを使う場合には、統計情報構造体は違うものになる。
 .TP 
-\fBPACKET_TIMESTAMP\fP (with \fBPACKET_RX_RING\fP; since Linux 2.6.36)
+\fBPACKET_TIMESTAMP\fP (\fBPACKET_RX_RING\fP で使用; Linux 2.6.36 以降)
 .\" commit 614f60fa9d73a9e8fdff3df83381907fea7c5649
-The packet receive ring always stores a timestamp in the metadata header.
-By default, this is a software generated timestamp generated when the packet
-is copied into the ring.  This integer option selects the type of
-timestamp.  Besides the default, it support the two hardware formats
-described in \fIDocumentation/networking/timestamping.txt\fP in the Linux
-kernel source tree.
+パケット受信リングでは常にタイムスタンプがメタデータヘッダーに格納される。
+デフォルトでは、タイムスタンプはパケットがリングにコピーされた時点で生成されるソフトウェアによるタイムスタンプである。
+この整数オプションによりタイムスタンプの種類を選択できる。 デフォルト以外では、 Linux カーネルソースツリーの
+\fIDocumentation/networking/timestamping.txt\fP に説明がある 2
+種類のハードウェアフォーマットがサポートされている。
 .TP 
 \fBPACKET_TX_RING\fP (Linux 2.6.31 以降)
 .\" commit 69e3c75f4d541a6eb151b3ef91f34033cb3ad6e1
-Create a memory\-mapped ring buffer for packet transmission.  This option is
-similar to \fBPACKET_RX_RING\fP and takes the same arguments.  The application
-writes packets into slots with status \fBTP_STATUS_AVAILABLE\fP and schedules
-them for transmission by changing the status to \fBTP_STATUS_SEND_REQUEST\fP.
-When packets are ready to be transmitted, the application calls \fBsend\fP(2)
-or a variant thereof.  The \fIbuf\fP and \fIlen\fP fields of this call are
-ignored.  If an address is passed using \fBsendto\fP(2)  or \fBsendmsg\fP(2), then
-that overrides the socket default.  On successful transmission, the socket
-resets the slot to \fBTP_STATUS_AVAILABLE\fP.  It discards packets silently on
-error unless \fBPACKET_LOSS\fP is set.
+パケット送信用のメモリマップされたリングバッファを作成する。 このオプションは \fBPACKET_RX_RING\fP と同様で、同じ引き数を取る。
+アプリケーションはステータスが \fBTP_STATUS_AVAILABLE\fP のスロットにパケットを書き込み、
+\fBTP_STATUS_SEND_REQUEST\fP にステータスを変更することでそのパケットが送信できるようにする。
+パケットの送信準備ができたら、アプリケーションは続けて \fBsend\fP(2) 系のシステムコールを呼び出す。 システムコールの引き数 \fIbuf\fP と
+\fIlen\fP は無視される。 \fBsendto\fP(2) や \fBsendmsg\fP(2) を使ってアドレスが渡された場合、
+ソケットのデフォルト値ではなくそのアドレスが使用される。 送信に成功すると、ソケットはそのスロットを \fBTP_STATUS_AVAILABLE\fP
+に戻す。 エラーの場合、 \fBPACKET_LOSS\fP がセットされていなければエラーなしでパケットは廃棄される。
 .TP 
-\fBPACKET_VERSION\fP (with \fBPACKET_RX_RING\fP; since Linux 2.6.27)
+\fBPACKET_VERSION\fP (\fBPACKET_RX_RING\fP で使用; Linux 2.6.27 以降)
 .\" commit bbd6ef87c544d88c30e4b762b1b61ef267a7d279
-By default, \fBPACKET_RX_RING\fP creates a packet receive ring of variant
-\fBTPACKET_V1\fP.  To create another variant, configure the desired variant by
-setting this integer option before creating the ring.
+デフォルトでは、 \fBPACKET_RX_RING\fP は \fBTPACKET_V1\fP
+のパケット受信リングを作成する。別のバージョンのリングを作成するには、そのリングを作成する前に希望するバージョンが使われるようにこの整数オプションを設定すること。
 .TP 
 \fBPACKET_QDISC_BYPASS\fP (Linux 3.14 以降)
 .\" commit d346a3fae3ff1d99f5d0c819bf86edf9094a26a1
-By default, packets sent through packet sockets pass through the kernel's
-qdisc (traffic control) layer, which is fine for the vast majority of use
-cases.  For traffic generator appliances using packet sockets that intend to
-brute\-force flood the network\(emfor example, to test devices under load in
-a similar fashion to pktgen\(emthis layer can be bypassed by setting this
-integer option to 1.  A side effect is that packet buffering in the qdisc
-layer is avoided, which will lead to increased drops when network device
-transmit queues are busy; therefore, use at your own risk.
+デフォルトでは、パケットはカーネルの qdisc (トラフィック制御) レイヤー経由で渡される。 これは大半のユースケースに合っている。
+ネットワークに対して可能な限りパケットを送信する (例えば pkggen と同様の方法で負荷対象のデバイスを試験する)
+のにパケットソケットを使うトラフィック生成アプライアンスでは、この整数オプションを 1 に設定することで qdisc レイヤーを飛ばすことができる。
+qdisc レイヤーでのパケットバッファが行われなくなるという副作用がある。 これにより、
+ネットワークデバイスの送信キューの使用量が高い場合にパケット廃棄が起きやすくなる。
 .SS ioctl
 .\" FIXME Document SIOCGSTAMPNS
 \fBSIOCGSTAMP\fP を用いると、最後に受信したパケットのタイムスタンプを得ることができる。 引き数は \fIstruct timeval\fP
