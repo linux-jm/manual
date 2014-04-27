@@ -16,7 +16,7 @@ $(HTMLFILE):	$(TEXIFILE)
 	$(TEXI2HTML) --output=$(HTMLDIR) --split node $<
 
 clean:
-	$(RM) html/*
+	$(RM) -r $(HTMLDIR)
 
 install:	$(HTMLFILE)
 	mkdir -p $(WWWDEST)
