@@ -57,6 +57,16 @@ _HEADER(`JM インデックス')
  </DD> 
 </DL>
 
+<H2>Info ページ</H2>
+<DL>
+ <DT>_LINK(INDEX/info.html,info ページ)</DT>
+ <DD>
+  info 形式で配布されているマニュアルでsu。
+ _LINK(http://www.gnu.org/,GNU) ソフトウェアでは
+ 詳しいマニュアルは info 形式で配布されています。</LI>
+ </DD>
+</DL>
+
 <H2>POD ページ</H2>
 <DL>
  <DT><A HREF="pod.html">POD pages</A>

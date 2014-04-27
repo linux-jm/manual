@@ -137,6 +137,10 @@ JM Project で翻訳された_LINK(INDEX/,マニュアルの一覧)です。
  <LI>_LINK(INDEX/misc.html,Miscellaneous packages) :
  Unix 汎用のソフトウェアのうち、 GNU 以外のものを集めました。</LI>
 
+ <LI>_LINK(INDEX/info.html,info ページ) :
+ info 形式で配布されているマニュアルです。
+ _LINK(http://www.gnu.org/,GNU) ソフトウェアでは詳しいマニュアルは info 形式で配布されています。</LI>
+
  <LI>_LINK(INDEX/pod.html,POD ページ) :
  Perl 関連パッケージで良く用いられる、 POD (plain old documentation) 形式で書かれたページです。</LI>
 </UL>
