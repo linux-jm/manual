@@ -1,0 +1,601 @@
+@c ===========================================================================
+@c
+@c This file was generated with po4a. Translate the source file.
+@c
+@c ===========================================================================
+@c GNU date syntax documentation
+
+@c Copyright (C) 1994-2006, 2009-2012 Free Software Foundation, Inc.
+
+@c Permission is granted to copy, distribute and/or modify this document
+@c under the terms of the GNU Free Documentation License, Version 1.3 or
+@c any later version published by the Free Software Foundation; with no
+@c Invariant Sections, with no Front-Cover Texts, and with no Back-Cover
+@c Texts.  A copy of the license is included in the ``GNU Free
+@c Documentation License'' file as part of this distribution.
+
+@node Date input formats
+@chapter 日付入力の書式
+
+@cindex date input formats
+@findex parse_datetime
+
+まず、引用から始める。
+
+@quotation
+時間を計るための我々の単位は、秒から月にいたるまで、あまりにも
+複雑で、一貫性がなく、ばらばらなので、時間について間違わずに暗算
+をすることなど、ほとんど不可能なほどだ。まったくの話、どこかの
+横暴な神様が、人間の知能を時間の奴隷にしてやろうと企んだとしても
+--- 腐った決まりごとや不愉快な不意打ちに隷従せずに済ますことなど、
+人間にはほとんど不可能にしてやろうと企んだとしても --- 現在我々が
+使っているシステムをお下げ渡しになる以上のことは、できなかったに
+違いない。我々の時間計算のシステムは、垂直な面も水平な面もない
+台形の建築ブロックの集まりのようなものだ。あるいは、ほんの簡単な
+考えを述べるにも、凝りに凝った構成や、無駄な不変化詞や、長々しい
+婉曲表現が必要な言語のようなものだ。言語や科学のもっとうまく行って
+いる思考様式は、我々が経験に果敢に立ち向かうことを、少なくとも
+冷静に立ち向かうことを可能にしてくれる。ところが、そうしたものとは
+違って、我々の時間計算のシステムは、密かに、しかも執拗に時間に
+対する我々の恐怖をかきたてるのである。
+
+@dots{} それは、建築家が長さをフィートで、幅をメートルで、高さをエルで
+測らなければならないようなものだ。あるいは、基本的な使用説明書を
+読むのに、五つの異なった言語の知識が必要なようなものだ。だから、
+我々が、自分にとってすぐ最近の過去や未来を表す、この前の火曜日
+(last Tuesday) とか、来週の日曜日 (a week from Sunday) とかいった
+表現について、それは一体いつを指しているのだろうと考え込んでは、
+どうしようもない混乱を覚えることがよくあるのも、無理からぬこと
+なのである。@dots{}
+
+
+--- Robert Grudin, @cite{Time and the Art of Living}.
+@end quotation
+
+この章では、@sc{gnu} のプログラムが認識する日付表現文字列について説明
+する。そうした文字列は、ユーザである読者が、様々なプログラムに引数
+として渡すことのできるものだ。C のインターフェース (@code{parse_datetime}
+関数で使用する) については、ここでは説明しない。
+
+@menu
+* General date syntax::      共通規則。
+* Calendar date items::      暦日の項目 (19 Dec 1994)。
+* Time of day items::        時刻の項目 (9:20pm)。
+* Time zone items::          タイムゾーンの項目 (@sc{est}, @sc{pdt}, @sc{gmt})。
+* Combined date and time of day items::  暦日と時刻を組み合わせた項目 
+                                           (1972-09-24T20:02:00,000000-0500)。
+* Day of week items::        曜日の項目 (Monday, Tuesday)。
+* Relative items in date strings::  相対表現の項目 
+                                      (next tuesday, 2 years ago)。
+* Pure numbers in date strings::    純粋な数値 (19931219, 1440)。
+* Seconds since the Epoch::         紀元からの秒数 (@@1078100502)。
+* Specifying time zone rules::      タイムゾーン・ルールの指定 
+                                      (TZ="America/New_York", TZ="UTC0")。
+* Authors of parse_datetime::       parse_datetime の作者 (Bellovin, Eggert, 
+                                      Salz, Berets, et al)。
+@end menu
+
+
+@node General date syntax
+@section 日付書式の全体
+
+@cindex general date syntax
+
+@cindex items in date strings
+日付 (@dfn{date}) は、空文字列のこともある文字列であり、空白 (whitespace)
+で区切られた多くの項目を含んでいる。各項目の意味に曖昧さが生じないなら、
+空白は省略できる。空の文字列は、今日の始まり (すなわち、真夜中) を意味
+している。項目の順序は重要ではない。日付文字列では、様々な種類の項目を
+指定することができる。
+
+@itemize @bullet
+@item 暦日の項目
+@item 時刻の項目
+@item タイムゾーンの項目
+@item 日付と時刻を組み合わせた項目
+@item 曜日の項目
+@item 相対表現の項目
+@item 純粋な数値
+@end itemize
+
+@noindent 個々の項目については、次節以下で順番に説明する。
+
+@cindex numbers, written-out
+@cindex ordinal numbers
+@findex first @r{in date strings}
+@findex next @r{in date strings}
+@findex last @r{in date strings}
+何番目かを示す序数の中には、現れる場所によっては、単語で表現できる
+ものがいくつかある。これは、曜日や相対的表現の項目を指定するとき、
+たいへん便利だ (下記参照)。使用頻度のきわめて高い序数を取り上げると、
+@samp{last} という単語は @math{-1} を表し、@samp{this} は 0 を、@samp{first} と
+@samp{next} は
+両方とも 1 を表している。@samp{second} という単語は時間の単位でもあるので、
+序数の 2 を単語で表現する方法はない。だが、便宜を考えて、@samp{third} は
+3 を、@samp{fourth} は 4 を、@samp{fifth} は 5 を、@samp{sixth} は 6 を、@samp{seventh}
+は
+7 を、@samp{eighth} は 8 を、@samp{ninth} は 9 を、@samp{tenth} は 10
+を、@samp{eleventh} は
+11 を、@samp{twelfth} は 12 を表すことになっている。
+
+@cindex months, written-out
+月がこの形で表現されたときも、やはり数値として (訳注: たとえば、今月
+から何ヶ月後と) 指定されたと見なされるのであって、月の名前の省略なしの
+表記と解釈されるわけではない (訳注: たとえば、third month を March の
+別名の完全表記とは考えない)。そのため、March のような月名を使った場合
+とは、指定できる文字列が違ってくる。
+
+@cindex language, in dates
+現在の実装で使用できる単語は、英語の単語とその省略形のみである。
+すなわち、@samp{AM}, @samp{DST}, @samp{EST}, @samp{first}, @samp{January},
+@samp{Sunday}, @samp{tomorrow}, @samp{year} などだ。
+
+@cindex language, in dates
+@cindex time zone item
+@command{date} コマンドの出力だからと言って、日付文字列としての条件を
+必ずしも満たしているとはかぎらない。言語の問題のせいばかりではない。
+@samp{IST} のようなタイムゾーン項目には、標準的な意味が存在しないからでも
+ある。@command{date} を使用して日付文字列を生成し、それに対して後で構文解析を
+行うつもりなら、日付の書式には、言語が何であるかに依存せず、@samp{UTC}
+と @samp{Z} 以外のタイムゾーン項目を使用しないものを指定するべきである。
+それを行う方法をいくつか挙げておく。
+
+@example
+$ LC_ALL=C TZ=UTC0 date
+Mon Mar  1 00:21:42 UTC 2004
+$ TZ=UTC0 date +'%Y-%m-%d %H:%M:%SZ'
+2004-03-01 00:21:42Z
+$ date --rfc-3339=ns  # --rfc-3339 は GNU の拡張。
+2004-02-29 16:21:42.692722128-08:00
+$ date --rfc-2822  # GNU の拡張。
+Sun, 29 Feb 2004 16:21:42 -0800
+$ date +'%Y-%m-%d %H:%M:%S %z'  # %z は GNU の拡張。
+2004-02-29 16:21:42 -0800
+$ date +'@@%s.%N'  # %s と %N も GNU の拡張。
+@@1078100502.692722128
+@end example
+
+@cindex case, ignored in dates
+@cindex comments, in dates
+日付を指定する際、アルファベットの大文字と小文字は全く区別されない。
+丸カッコで囲めば、コメントを入れることができる。ただし、丸カッコを入れ子
+にするときは、開きカッコと閉じカッコがきちんと対応していなければならない。
+数字が後に続かないハイフンは、現在のところ無視される。また、数値の前に
+付けた 0 も無視される。
+
+@cindex leap seconds
+@samp{2005-02-29} のような無効な日付や @samp{24:00} のような無効な時刻は、
+却下される。閏秒をサポートしていないホストでは、@samp{23:59:60} のような
+時刻は、たとえ閏秒に正しく対応する値であっても、却下されるのが普通である。
+
+
+@node Calendar date items
+@section 暦日の項目
+
+@cindex calendar date item
+
+暦日の項目 (@dfn{calendar date item}) では、ある年のある一日を指定する。
+月を数字で指定するか、文字で指定するかにかによって、日付の指定法が変わって
+くる。以下に挙げる文字列は、すべて暦の上の同じ日付を指定している。
+
+@example
+1972-09-24     # @sc{iso} 8601 形式。
+72-9-24        # 69 から 99 までは、19xx 年と見なし、
+               # 00 から 68 までは、20xx 年と見なす。
+72-09-24       # 先頭の 0 は無視される。
+9/24/72        # アメリカでよく使われる書き方。
+24 September 1972
+24 Sept 72     # September には、4 文字の省略形もある。
+24 Sep 72      # 3 文字の省略形は、何月に対しても使用できる。
+Sep 24, 1972
+24-sep-72
+24sep72
+@end example
+
+年を省略することもできる。その場合は、日付文字列の後方で指定された
+年が使用される (訳注: たとえば、@code{date -d "5/3 2:00 UTC 2015"} のような
+場合だろう)。それもない場合は、今年が使われる。例を挙げると、次のような
+形である。
+
+@example
+9/24
+sep 24
+@end example
+
+要するに、ルールはこうだ。
+
+@cindex @sc{iso} 8601 date format
+@cindex date format, @sc{iso} 8601
+月を数字で表す場合、@sc{iso} 8601 の形式、すなわち @samp{@var{year}-@var{month}-@var{day}} が
+使用できる。ここで @var{year} は任意の正の数であり、@var{month} は 01 から 12
+までの数、@var{day} は 01 から 31 までの数である。数が 10 未満のときは、
+0 を前に付けることになる。@var{year} が 68 以下の場合は、@var{year} に2000 が加算
+される。また、@var{year} が 69 以上、100 未満ならば、1900 が加算される。
+アメリカ合衆国で一般的な @samp{@var{month}/@var{day}/@var{year}} という書式も使うことが
+できる。年を省略した @samp{@var{month}/@var{day}} も有効である。
+
+@cindex month names in date strings
+@cindex abbreviations for months
+月の名前を使用する場合は、フルスペルで書いてもよい。すなわち、
+@samp{January}, @samp{February}, @samp{March}, @samp{April}, @samp{May},
+@samp{June}, @samp{July},
+@samp{August}, @samp{September}, @samp{October}, @samp{November},
+@samp{December} である。月の
+名前は、最初の 3 文字に省略することができる。省略の印のピリオドは、付け
+ても付けなくてもよい。また、@samp{September} の代わりに、@samp{Sept} と書くことも
+認められている。
+
+月名を使用する場合、暦の上の日付は、以下のどの形で指定してもよい。
+
+@example
+@var{day} @var{month} @var{year}
+@var{day} @var{month}
+@var{month} @var{day} @var{year}
+@var{day}-@var{month}-@var{year}
+@end example
+
+年を省略することもできる。
+
+@example
+@var{month} @var{day}
+@end example
+
+
+@node Time of day items
+@section 時刻の項目
+
+@cindex time of day item
+
+日付文字列中の時刻の項目 (@dfn{time of day item}) では、当日の時刻を指定
+する。以下に挙げるいくつかの例は、すべて同じ時刻を表している。
+
+@example
+20:02:00.000000
+20:02
+8:02pm
+20:02-0500      # @sc{est} (U.S. Eastern Standard Time)
+@end example
+
+@cindex leap seconds
+もっと一般的に言うと、時刻は @samp{@var{hour}:@var{minute}:@var{second}} の形で指定できる。
+@var{hour} は 0 から 23 までの数であり、@var{minute} は 0 から 59 までの数である。
+@var{second} は 0 から 59 までの数であり、@samp{.} や @samp{,} を後ろに付けて、一桁以上
+の数字からなる小数を続けてもよい。なお、@samp{:@var{second}} は省略することもでき、
+その場合は 0 を指定したことになる。閏秒をサポートするホストもまれには
+あり、そうしたところでは @var{second} に 60 を指定することができる。
+
+@findex am @r{in date strings}
+@findex pm @r{in date strings}
+@findex midnight @r{in date strings}
+@findex noon @r{in date strings}
+時刻に @samp{am} や @samp{pm} (または @samp{a.m.} や @samp{p.m.}) が続く場合は、@var{hour}
+が
+1 から 12 までになる。@samp{:@var{minute}} は省略してもよい (0 を指定したものと
+見なされる)。@samp{am} は一日の前半を示し、@samp{pm} は一日の後半を示す。この
+表記法では、1 の前が 12 になる。すなわち、真夜中は @samp{12am} であり、正午
+は @samp{12pm} である。(これは @samp{12am} や @samp{12pm} の 12 を 0 のように見なす解釈
+であり、正午を @samp{12m}、深夜を @samp{12pm} とするラテン文化から来た従来の習慣
+とは逆になっている。)
+
+@cindex time zone correction
+@cindex minutes, time zone correction by
+また、時刻にはタイムゾーン補正を続けてもよい。補正は @samp{@var{s}@var{hh}@var{mm}} という
+形で表現され、@var{s} は @samp{+} または @samp{-} 符号、@var{hh} は時間帯の時間差、@var{mm} は分差の
+部分である。分差の部分 @var{mm} は指定しなくてもよく、その場合は、1 桁ないし
+2 桁の補正は、時間差の指定と見なされる。なお、@var{hh} と @var{mm} の間をコロンで
+区切ってもよい。タイムゾーン補正をこの方法で指定した場合、それが、それ
+までに指定したいかなるタイムゾーンよりも、また、ローカル・タイムゾーン
+よりも優先され、指定した時刻が、協定世界時 (@sc{utc}) よりも補正分進んでいる
+(あるいは、遅れている) タイムゾーンの時刻として解釈されることになる。
+一例を挙げると、@samp{+0530} と @samp{+05:30} は両方とも、@sc{utc} より 5.5 時間進んだ
+タイムゾーンを表している (たとえば、インドである)。これは、タイムゾーン
+補正を 1 時間以下の部分まで指定する最善の方法である。タイムゾーン補正の
+最大値は、24 時間である。
+
+@samp{am}/@samp{pm} とタイムゾーン補正は、どちらか一方のみが指定できる。両方を
+指定することはできない。
+
+
+@node Time zone items
+@section タイムゾーンの項目
+
+@cindex time zone item
+
+タイムゾーン項目 (@dfn{time zone item}) では、国際時間帯を指定する。これは
+数個の文字によって表されるもので、たとえば、協定世界時 (Coordinated
+Universal Time) なら @samp{UTC} または @samp{Z} である。省略の印のピリオドは、
+すべて無視される。標準時のタイムゾーン (a non-daylight-saving time
+zone) の後ろに、文字列 @samp{DST} を独立した単語として (すなわち、空白、
+タブなどを間に置いて) 続けると、対応する夏時間のタイムゾーンを指定
+することができる。ちなみに、標準時のタイムゾーンの後ろに、タイムゾーン
+補正を続けて、両方の値を加算することもできる。ただし、その指定法は、
+通常 @samp{UTC} に対してしか行われない。たとえば、@samp{UTC+05:30} は @samp{+05:30} と
+同じことである。
+
+@samp{UTC} と @samp{Z} 以外のタイムゾーン項目は、時代遅れになりかかっている
+ので、使用しない方がよい。理由は解釈が一定しないからであり、たとえば、
+@samp{EST} はオーストラリアとアメリカ合衆国で違った意味を持っている。タイム
+ゾーン項目を使用するよりも、前節で述べた @samp{-0500} のような、数値による
+タイムゾーン補正を使った方が、曖昧さがないので、賢明である。
+
+タイムゾーン項目とタイムゾーン補正のどちらも指定されていない場合、
+日付の解釈は、デフォルトのタイムゾーンのルールを用いて行われる (@pxref{Specifying time zone rules})。
+
+
+@node Combined date and time of day items
+@section 暦日と時刻を組み合わせた項目
+
+@cindex combined date and time of day item
+
+日付と時刻を組み合わせた項目 (@dfn{combined date and time of day item})
+では、ある年のある特定の一日の時刻を指定する。このタイプの項目が
+必要になるのは、暦日の項目 (@pxref{Calendar date items}) と 時刻の項目
+(@pxref{Time of day items}) をばらばらに指定したのでは、意味が曖昧に
+なってしまう場合である。
+
+@example
+# ISO 8601 拡張日時書式
+1972-09-24T20:02:00,000000-0500
+@end example
+
+@cindex @sc{iso} 8601 date and time of day format
+@cindex date and time of day format, @sc{iso} 8601
+
+@sc{iso} 8601 の拡張日時書式は、@sc{iso} 8601 形式の日付、@samp{T} という区切り
+文字、@sc{iso} 8601 形式の時刻という構成になっている。
+
+
+@node Day of week items
+@section 曜日の項目
+
+@cindex day of week item
+
+曜日を明示的に指定すると、未来のその曜日にまで日付を前に進めることに
+なる (これが行われるのは、その必要があるときだけである)。
+
+曜日は省略なしに書いてもよい。すなわち、@samp{Sunday}, @samp{Monday}, @samp{Tuesday},
+@samp{Wednesday}, @samp{Thursday}, @samp{Friday}, @samp{Saturday} である。最初の
+3 文字に短縮することもでき、その場合、省略の印のピリオドは付けても
+付けなくてもよい。@samp{Tuesday} には @samp{Tues}、@samp{Wednesday} には @samp{Wednes}、
+@samp{Thursday} には @samp{Thur} または @samp{Thurs} という特殊な省略形もある。
+
+@findex next @var{day}
+@findex last @var{day}
+曜日項目の前に数値を付けてもよい。週がその分だけ前に進むことに
+なる。これは、@samp{third monday} のような表現で使うのが、一番よい。その
+伝で、@samp{last @var{day}} や @samp{next @var{day}} という表現も許されている。それぞれ、
+単独の @var{day} (曜日) が表すことになる日付より 1 週間前、または 1 週間後の
+日付になる。
+@sp 1
+(訳注: 上記のことが成り立つのは、@var{day} が今日の曜日のときだけである。
+それ以外の場合は、@var{day} と @samp{next @var{day}} は同じになる。)
+
+曜日項目の後ろにコンマがあっても、無視される。
+@sp 1
+(訳注: 確かに @samp{-d "Thu, 2013-03-07"} といった指定では、コンマが無視
+されるが、@samp{-d "next Thu,"} や @samp{-d "3 Thu,"} といった指定では、``invalid date''
+と言われ、エラーになる。)
+
+
+@node Relative items in date strings
+@section 相対表現の項目
+
+@cindex relative items in date strings
+@cindex displacement of dates
+
+相対表現の項目 (@dfn{Relative items}) は、日付を (指定しない場合は、現在の
+日付を) 前後に移動させる。また、相対表現の項目の作用は、加算されていく。
+相対表現の項目とは、次のようなものである。
+
+@example
+1 year
+1 year ago
+3 years
+2 days
+@end example
+
+@findex year @r{in date strings}
+@findex month @r{in date strings}
+@findex fortnight @r{in date strings}
+@findex week @r{in date strings}
+@findex day @r{in date strings}
+@findex hour @r{in date strings}
+@findex minute @r{in date strings}
+時間をどれくらい移動するかの単位は、文字列を使って選択する。まる
+数年、あるいは、まる数ヶ月ずらすのなら、@samp{year} や @samp{month} という文字列
+を使う。年も月も、曖昧な単位である。すべての年や月が、同じ長さをしている
+わけではないからだ。もっと厳密な単位としては、@samp{fortnight} (14 日間)、
+@samp{week} (7 日間)、@samp{day} (24 時間)、@samp{hour} (60 分間)、@samp{minute} または
+@samp{min} (60 秒間)、@samp{second} または @samp{sec} (1 秒間) がある。こうした単位
+には、複数語尾の @samp{s} を付けてもよいが、付けても無視される。
+
+@findex ago @r{in date strings}
+時間の単位の前に、何倍かを示す乗数を置くことができる。乗数には、
+@samp{+} または @samp{-} の符号を付けてもよい。符号なしの数値には、@samp{+} の符号が
+付いているものと見なされる。数値を指定しなければ、乗数に 1 を指定した
+ことになる。相対表現の項目に @samp{ago} を続けるのは、単位の前にマイナスの
+乗数を置くのと同じことである。
+
+@findex day @r{in date strings}
+@findex tomorrow @r{in date strings}
+@findex yesterday @r{in date strings}
+@samp{tomorrow} という文字列は、1 日分未来ということである (@samp{day} と
+等しい)。@samp{yesterday} は、1 日分過去ということだ (@samp{day ago} と等しい)。
+
+@findex now @r{in date strings}
+@findex today @r{in date strings}
+@findex this @r{in date strings}
+@samp{now} や @samp{today} という文字列は、値 0 の時間移動に対応する相対表現の
+項目である。値 0 の時間移動は、先行する項目によって別の日時に変更されて
+いないかぎり、今現在の日時を表すということから、@samp{now} (今) や @samp{today}
+(今日) という言い方ができるわけだ。こうしたものは、他の項目を強調する
+ために、たとえば、@samp{12:00 today} といった具合に使うこともできる。
+@samp{this} という文字列にも、値 0 の時間移動という意味があるが、こちらは
+@samp{this thursday} のような日付文字列で使用される。
+
+相対表現の項目によって生成される日付が、標準時と夏時間の切り替えを
+典型とするような、時刻調整の境界を越えたものになる場合、生成される日時
+は適切に調整される。
+
+単位の曖昧さが、相対表現の項目では問題を起こすことがある。たとえば、
+@samp{2003-07-31 -1 month} は、2003-07-01 と評価されるかもしれない。
+2003-06-31 が無効な日付だからだ。先月が何月かをもっと確実に引き出す
+ためには、今月の 15 日よりも前に、先行する月を求めればよい。例を挙げる。
+
+@example
+$ date -R
+Thu, 31 Jul 2003 13:02:39 -0700
+$ date --date='-1 month' +'Last month was %B?'
+Last month was July?
+$ date --date="$(date +%Y-%m-15) -1 month" +'Last month was %B!'
+Last month was June!
+@end example
+
+なお、標準時と夏時間の切り替えのような時刻変更があるときの前後で
+日付の操作を行う場合には、注意した方がよい。24 時間も加算されたり、
+減算されたりしてしまうことも、ないとは言えないからだ。そこで、
+たいていの場合、日付の計算に取りかかる前に、環境変数 @env{TZ} を @samp{UTC0}
+に設定して、協定世界時を採用するのが賢明である。
+
+@node Pure numbers in date strings
+@section 日付文字列中の純粋な数値
+
+@cindex pure numbers in date strings
+
+純粋な 10 進数をどう解釈するかは、日付文字列の文脈次第である。
+
+10 進数が @var{yyyy}@var{mm}@var{dd} の形をとり、日付文字列中のそれより前に他の暦日の
+項目 (@pxref{Calendar date items}) が存在しない場合は、@var{yyyy} は暦の上の
+ある 1 日の年の部分と見なされる。@var{mm} は何番目の月かということ、@var{dd} は
+その月の日にちである。
+
+10 進数が @var{hh}@var{mm} の形をとり、日付文字列中のそれより前に他の時刻の
+項目が存在しない場合は、@var{hh} はある 1 日の時刻の何時の部分と、@var{mm} は
+何分の部分と見なされる。@var{mm} を省略してもよい。
+
+日付文字列中で、ある数値の左側に暦の上の日にちとその日の時刻の両方が
+存在し、相対表現の項目が存在しない場合は、その数値が今年の代わりに
+使われる。
+@sp 1
+(訳注: たとえば、@code{date -d "3/27 10:10 2012"} と指定すると、今年の
+代わりに 2012 が使われるということらしい。@code{date -d "3/27/2001 10:10 2012"}
+は無効な日付になるし、@code{date -d "3/27 1010 2012"} は、1010 年 3 月 27 日
+20:12:00 になる。)
+
+
+@node Seconds since the Epoch
+@section Unix 紀元 (the Epoch) からの秒数
+
+@samp{@@} に数値を続けると、それは、秒数として、システム内部で使われるタイム
+スタンプを表すことになる。数値には、小数点 (@samp{.} または @samp{,}) が含まれて
+いてもよい。内部表現がサポートしていない余分な精度は、マイナスの無限に
+向けて切り詰められる。@samp{@@} で始まるこうした数値は、他の日付項目のいかなる
+ものとも組み合わせて使うことができない。欠けるところのない完全なタイム
+スタンプの指定だからである。
+
+@cindex beginning of time, for POSIX
+@cindex epoch, for POSIX
+コンピュータの内部では、時間は、ある紀元 (an epoch) --- きちんと定義
+された時間中のある一点 --- からの秒数として表現されている。GNU や POSIX
+のシステムでは、紀元は 1970-01-01 00:00:00 @sc{utc} である。従って、@samp{@@0} は
+その時刻を表し、@samp{@@1} は 1970-01-01 00:00:01 @sc{utc} を表す、以下同様と
+いうことになる。GNU を始め、POSIX に準拠したほとんどのシステムでは、
+POSIX に対する拡張として、こうした時間表記をマイナスの秒数を使うことも
+含めて、サポートしている。従って、@samp{@@-1} は 1969-12-31 23:59:59 @sc{utc} を
+表すことになる。
+
+伝統的な Unix システムでは、秒を 32 ビットの 2 の補数である整数で
+数えており、1901-12-13 20:45:52 から 2038-01-19 03:14:07 @sc{utc} まで
+表すことができる。もっと新しいシステムでは、64 ビットの秒数計算を、
+ナノセコンドのサブカウント付きで使用しており、宇宙の寿命として
+知られている時間のうちのあらゆる時刻を 1 ナノセコンドの精密さで表す
+ことができる。
+
+@cindex leap seconds
+ほとんどのホストのこうした計算では、閏秒の存在が無視されている。
+たとえば、ほとんどのホストで @samp{@@915148799} は 1998-12-31 23:59:59 @sc{utc} を
+表し、@samp{@@915148800} は 1999-01-01 00:00:00 @sc{utc} を表している。従って、
+間にある 1998-12-31 23:59:60 @sc{utc} という閏秒を表現する方法は存在しない。
+
+@node Specifying time zone rules
+@section タイムゾーン・ルールの指定
+
+@vindex TZ
+通常、日付の解釈は、現在のタイムゾーンのルールを使って行われる。そして、
+その現在のタイムゾーンのルールを指定しているのは、環境変数 @env{TZ} か、
+@env{TZ} が設定されていなければ、システムのデフォルト設定である。今、
+ある一つの日付のみに別のタイムゾーンでデフォルトとして使われる一連の
+ルールを適用したいとしよう。その場合は、日付を @samp{TZ="@var{rule}"} という文字列
+で始めればよい。日付中では、対になった引用符 (@samp{"}) を必ず使わなければ
+ならない。また、@var{rule} 中に引用符やバックスラッシュがあるときは、それを
+バックスラッシュでエスケープしなければならない。
+
+一例を挙げると、GNU の @command{date} コマンドを使って、「パリで
+2004 年 10
+月 31 日 午前 6 時 30 分のとき、ニューヨークでは何時か？」という質問に
+答えることができる、以下で示すように、@samp{TZ="Europe/Paris"}で始まる
+日付を使うのである。
+
+@example
+$ export TZ="America/New_York"
+$ date --date='TZ="Europe/Paris" 2004-10-31 06:30'
+Sun Oct 31 01:30:00 EDT 2004
+@end example
+
+この例では、@option{--date} のオペランドの最初の部分で、それ自身の @env{TZ} が
+設定されている。そこで、このオペランドの残りの部分は、@samp{Europe/Paris} の
+ルールに従って処理され、@samp{2004-10-31 06:30} という文字列が、パリの日時で
+あるかのように扱われる。ところが、@command{date} コマンドの出力は、全体のタイム
+ゾーンのルールに従って処理されるので、出力にはニューヨークの時刻が使用
+されるのである。(2004 年には、パリは通常ニューヨークより 6 時間進んで
+いた。しかし、この例は、時差が 5 時間だったハロウィーンの日のほんの短い
+時間のことを言っている。)
+
+@env{TZ} の値はルールであり、ルールには通常、@samp{tz} データベースの地域名が
+付けられている (@uref{http://www.twinsun.com/tz/tz-link.htm})。地域名の最新の
+一覧は、TWiki Date and Time Gateway で見ることができる
+(@uref{http://twiki.org/cgi-bin/xtra/tzdate})。なお、GNU 以外のホストの中
+には、@env{TZ} を設定するとき、@samp{TZ=":America/New_York"} のように、地域名の
+前にコロンを置く必要があるものもある。
+
+@samp{tz} データベースには、@samp{Arctic/Longyearbyen} から @samp{Antarctica/South
+_Pole} に至るまで、実にさまざまな地域が含まれている。それでも、目下
+航海の最中でタイムゾーンが船特有のものである場合や、@samp{tz} データベースに
+対応していない non-GNU のホストを使用している場合は、@samp{tz} データベース
+の地域名で表されるルールの代わりに、POSIX 式のルールを使う必要がある
+かもしれない。@samp{UTC0} のような POSIX 式の単純なルールだと、夏時間なしの
+タイムゾーン指定になるが、簡単な夏時間制度なら指定できる他のルールも
+存在する。 @xref{TZ Variable,, Specifying the Time Zone with @code{TZ}, libc,
+The GNU C Library}.
+
+@node Authors of parse_datetime
+@section @code{parse_datetime} の作者
+@c the anchor keeps the old node name, to try to avoid breaking links
+@anchor{Authors of get_date}
+
+@cindex authors of @code{parse_datetime}
+
+@cindex Bellovin, Steven M.
+@cindex Salz, Rich
+@cindex Berets, Jim
+@cindex MacKenzie, David
+@cindex Meyering, Jim
+@cindex Eggert, Paul
+@code{parse_datetime} は、@code{getdate} として誕生した。最初の実装を行ったのは、
+Steven M. Bellovin (@email{smb@@research.att.com}) であり、ノースカロライナ大学
+チャペルヒル校に在学中のことだった。その後、Usenet 上で数人によって
+機能が追加され、1990 年 8 月に Rich $alz (@email{rsalz@@bbn.com}) と Jim Berets
+(@email{jberets@@bbn.com}) によって徹底的なオーバーホールがなされた。@sc{gnu} シス
+テムのための様々な改訂は、David MacKenzie, Jim Meyering, Paul Eggert
+などによって行われた。ほぼ同様の機能を持つ Posix の @code{getdate} 関数との
+衝突を避けるために @code{get_date} と名前を変えたのも、この改訂の一部であり、
+さらに後に、@code{parse_datetime} と改名した。Posix の @code{getdate} 関数は、
+@code{strptime} の使用によりロケール特有の日付の解析に優れているが、環境変数
+や外部のファイルに依存しており、@code{parse_datetime} の持つスレッド安全性
+(thread-safety) を欠いている。
+
+@cindex Pinard, F.
+@cindex Berry, K.
+この章は、Fran@,{c}ois Pinard (@email{pinard@@iro.umontreal.ca}) がソースコード
+の @file{parse_datetime.y} を元にして最初に作成し、その後、K. Berry
+(@email{kb@@cs.umb.edu}) が増補改訂した。
