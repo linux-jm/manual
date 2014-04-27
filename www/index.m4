@@ -14,6 +14,8 @@ _BUILD_DATE
 
 m4_dnl _MIRROR_LIST
 
+JM プロジェクトは、主に Linux 関連のマニュアルページの日本語ページを翻訳・公開しています。
+
 <H2>全文検索</H2>
 <div id="googlesearch">
 <script>
@@ -34,6 +36,10 @@ m4_dnl _MIRROR_LIST
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.65 対応版)の翻訳を更新しました。
+  詳細は_LINK(news/index.html#20140427,こちら)。
+ <SMALL>(2014/04/27)</SMALL>
+
  <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.65 対応版)を公開しました。
   詳細は_LINK(news/index.html#20140424,こちら)。
  <SMALL>(2014/04/24)</SMALL>
