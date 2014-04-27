@@ -36,6 +36,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils の info)の翻訳を公開しました。
+ <SMALL>(2014/04/27)</SMALL>
+
  <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.65 対応版)の翻訳を更新しました。
   詳細は_LINK(news/index.html#20140427,こちら)。
  <SMALL>(2014/04/27)</SMALL>

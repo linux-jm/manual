@@ -16,6 +16,11 @@ _HEADER(JM 新着情報)
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2><A NAME="20140427">2014/04/27</A></H2>
+ <P>
+ _LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils の info)の翻訳を公開しました。
+ </P>
+
+ <H2><A NAME="20140427">2014/04/27</A></H2>
  <DL>
   <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.65 対応版)の翻訳を追加しました。</DT>
   <DD>
@@ -185,7 +190,7 @@ m4_dnl ML2CVS ADD HERE
  <DL>
   <DT>ebtables 2.0.10-4 の翻訳を公開しました。</DT>
   <DD>_NEW_PAGE(ebtables, ebtables.8)</DD>
- </UL>
+ </DL>
 
  <H2>2013/10/14</H2>
  <P>
