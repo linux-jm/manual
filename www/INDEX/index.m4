@@ -59,7 +59,7 @@ _HEADER(`JM インデックス')
 
 <H2>Info ページ</H2>
 <DL>
- <DT>_LINK(INDEX/info.html,info ページ)</DT>
+ <DT>_LINK(./info.html,info ページ)</DT>
  <DD>
   info 形式で配布されているマニュアルです。
  _LINK(http://www.gnu.org/,GNU) ソフトウェアでは
