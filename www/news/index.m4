@@ -19,7 +19,6 @@ m4_dnl ML2CVS ADD HERE
  <DL>
   <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.65 対応版)の翻訳を追加しました。</DT>
   <DD>
-   _UPD_PAGE(LDP_man-pages, alloca.2)
    _UPD_PAGE(LDP_man-pages, fallocate.2)
    _UPD_PAGE(LDP_man-pages, intro.2)
    _UPD_PAGE(LDP_man-pages, madvise.2)
@@ -27,6 +26,7 @@ m4_dnl ML2CVS ADD HERE
    _UPD_PAGE(LDP_man-pages, open.2)
    _UPD_PAGE(LDP_man-pages, readahead.2)
    _UPD_PAGE(LDP_man-pages, stat.2)
+   _UPD_PAGE(LDP_man-pages, alloca.3)
    _UPD_PAGE(LDP_man-pages, feature_test_macros.7)
    _UPD_PAGE(LDP_man-pages, locale.7)
    _UPD_PAGE(LDP_man-pages, man-pages.7)
