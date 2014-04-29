@@ -1,9 +1,8 @@
-.\" Hey Emacs! This file is -*- nroff -*- source.
-.\"
 .\" Copyright (C) 1998 Andries Brouwer (aeb@cwi.nl)
-.\" and Copyright (C) 2002 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" and Copyright (C) 2002, 2006, 2008, 2012, 2013 Michael Kerrisk <mtk.manpages@gmail.com>
 .\" and Copyright Guillem Jover <guillem@hadrons.org>
 .\"
+.\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
@@ -23,6 +22,7 @@
 .\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
 .\"
 .\" Modified Thu Nov 11 04:19:42 MET 1999, aeb: added PR_GET_PDEATHSIG
 .\" Modified 27 Jun 02, Michael Kerrisk
@@ -41,16 +41,31 @@
 .\" 2012-04 Cyrill Gorcunov, Document PR_SET_MM
 .\" 2012-04-25 Michael Kerrisk, Document PR_TASK_PERF_EVENTS_DISABLE and
 .\"				PR_TASK_PERF_EVENTS_ENABLE
+.\" 2012-09-20 Kees Cook, update PR_SET_SECCOMP for mode 2
+.\" 2012-09-20 Kees Cook, document PR_SET_NO_NEW_PRIVS, PR_GET_NO_NEW_PRIVS
+.\" 2012-10-25 Michael Kerrisk, Document PR_SET_TIMERSLACK and
+.\"                             PR_GET_TIMERSLACK
+.\" 2013-01-10 Kees Cook, document PR_SET_PTRACER
+.\" 2012-02-04 Michael kerrisk, document PR_{SET,GET}_CHILD_SUBREAPER
 .\"
-.\" FIXME: Document PR_SET_TIMERSLACK and PR_GET_TIMERSLACK (new in 2.6.28)
-.\"		commit 6976675d94042fbd446231d1bd8b7de71a980ada
 .\"
 .\"*******************************************************************
 .\"
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH PRCTL 2 2012\-04\-23 Linux "Linux Programmer's Manual"
+.\"
+.\" Japanese Version Copyright (c) 1998-1999 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1999-04-03, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2002-12-20, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-09-06, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-10-07, Akihiro MOTOKI
+.\" Updated 2007-01-08, Akihiro MOTOKI, LDP v2.43
+.\" Updated 2007-10-12, Akihiro MOTOKI, LDP v2.66
+.\" Updated 2008-08-12, Akihiro MOTOKI, LDP v3.05
+.\"
+.TH PRCTL 2 2014\-04\-14 Linux "Linux Programmer's Manual"
 .SH 名前
 prctl \- プロセスの操作を行なう
 .SH 書式
@@ -66,7 +81,7 @@ prctl \- プロセスの操作を行なう
 .TP 
 \fBPR_CAPBSET_READ\fP (Linux 2.6.25 以降)
 で指定されたケーパビリティが呼び出したスレッドのケーパビリティ バインディングセット (capability bounding set)
-に含まれている場合、 (関数の返り値として) 1 を返し、そうでない場合 0 を返す (ケーパビリティ定数は
+に含まれている場合、 (関数の結果として) 1 を返し、そうでない場合 0 を返す (ケーパビリティ定数は
 \fI<linux/capability.h>\fP で定義されている)。 ケーパビリティバウンディングセットは、 \fBexecve\fP(2)
 を呼び出した際に、ファイルの許可 (permitted) ケーパビリティの中で そのプロセスが獲得できるケーパビリティを指示するものである。
 
@@ -80,30 +95,41 @@ prctl \- プロセスの操作を行なう
 に指定されたケーパビリティが有効でない場合、 \fBEINVAL\fP で失敗する。 ファイルケーパビリティがカーネルで有効になっていない場合
 (この場合にはバウンディングセットがサポートされない)、 \fBEINVAL\fP で失敗する。
 .TP 
+\fBPR_SET_CHILD_SUBREAPER\fP (Linux 3.4 以降)
+.\" commit ebec18a6d3aa1e7d84aab16225e87fd25170ec2b
+If \fIarg2\fP is nonzero, set the "child subreaper" attribute of the calling
+process; if \fIarg2\fP is zero, unset the attribute.  When a process is marked
+as a child subreaper, all of the children that it creates, and their
+descendants, will be marked as having a subreaper.  In effect, a subreaper
+fulfills the role of \fBinit\fP(1)  for its descendant processes.  Upon
+termination of a process that is orphaned (i.e., its immediate parent has
+already terminated)  and marked as having a subreaper, the nearest still
+living ancestor subreaper will receive a \fBSIGCHLD\fP signal and be able to
+\fBwait\fP(2)  on the process to discover its termination status.
+.TP 
+\fBPR_GET_CHILD_SUBREAPER\fP (Linux 3.4 以降)
+Return the "child subreaper" setting of the caller, in the location pointed
+to by \fI(int\ *) arg2\fP.
+.TP 
 \fBPR_SET_DUMPABLE\fP (Linux 2.3.20 以降)
 .\" See http://marc.theaimsgroup.com/?l=linux-kernel&m=115270289030630&w=2
 .\" Subject:    Fix prctl privilege escalation (CVE-2006-2451)
 .\" From:       Marcel Holtmann <marcel () holtmann ! org>
 .\" Date:       2006-07-12 11:12:00
-(Linux 2.3.20 以降) デフォルトの振る舞いではコアダンプを引き起こすよう
-なシグナルを受信したときに、 コアダンプするかどうかを決定するフラグを
-設定する (通常このフラグは、デフォルトではセットされているが、
-set\-user\-ID あるいは set\-group\-ID プログラムが実行されたり、 さまざまな
-システムコールによってプロセスの UID や GID が操作されたときに クリアさ
-れる)。 2.6.12 以前のカーネルでは、 \fIarg2\fP は 0 (プロセスはダンプ不可)
-あるいは 1 (プロセスはダンプ可能) の どちらかでなければならない。
-2.6.13 から 2.6.17 までのカーネルでは、値 2 も認められていた。 この値を
-指定すると、通常はダンプされないバイナリが root だけが 読み込み可能な形
-でダンプされた。 セキュリティ上の理由から、この機能は削除された
-(\fBproc\fP(5) の \fI/proc/sys/fs/suid_dumpable\fP の説明も参照)。
-ダンプ不可のプロセスを \fBptrace(2)\fP \fBPTRACE_ATTACH\fP 経由で接続すること
-はできない。
+(Linux 2.3.20 以降)
+デフォルトの振る舞いではコアダンプを引き起こすようなシグナルを受信したときに、呼び出し元のプロセスでコアダンプを生成するかどうかを決定するフラグを設定する
+(通常このフラグは、デフォルトではセットされているが、 set\-user\-ID あるいは set\-group\-ID プログラムが実行されたり、
+さまざまなシステムコールによってプロセスの UID や GID が操作されたときに クリアされる)。 2.6.12 以前のカーネルでは、 \fIarg2\fP
+は 0 (プロセスはダンプ不可) あるいは 1 (プロセスはダンプ可能) の どちらかでなければならない。 2.6.13 から 2.6.17
+までのカーネルでは、値 2 も認められていた。 この値を指定すると、通常はダンプされないバイナリが root だけが 読み込み可能な形でダンプされた。
+セキュリティ上の理由から、この機能は削除された (\fBproc\fP(5) の \fI/proc/sys/fs/suid_dumpable\fP の説明も参照)。
+ダンプ不可のプロセスを \fBptrace\fP(2) \fBPTRACE_ATTACH\fP 経由で接続することはできない。
 .TP 
 \fBPR_GET_DUMPABLE\fP (Linux 2.3.20 以降)
 .\" Since Linux 2.6.13, the dumpable flag can have the value 2,
 .\" but in 2.6.13 PR_GET_DUMPABLE simply returns 1 if the dumpable
 .\" flags has a nonzero value.  This was fixed in 2.6.14.
-(Linux 2.3.20 以降)  呼び出し元プロセスにおけるダンプ可能フラグの 現在の状態を (関数の返り値として) 返す。
+(Linux 2.3.20 以降)  呼び出し元プロセスにおけるダンプ可能フラグの 現在の状態を (関数の結果として) 返す。
 .TP 
 \fBPR_SET_ENDIAN\fP (Linux 2.6.18 以降、PowerPC のみ)
 .\" Respectively 0, 1, 2
@@ -136,65 +162,164 @@ set\-user\-ID あるいは set\-group\-ID プログラムが実行されたり�
 浮動小数点例外モードの値を \fI(int\ *) arg2\fP が指す場所に格納して返す。
 .TP 
 \fBPR_SET_KEEPCAPS\fP (Linux 2.2.18 以降)
-スレッドの「ケーパビリティ保持」フラグを設定する。
-このフラグは、スレッドの実 UID、実効 UID、保存 set\-user\-ID のうち少なく
-とも一つが 0 であった状態から、これら全てが 0 以外に変更されたとき、
+スレッドの「ケーパビリティ保持」フラグを設定する。 このフラグは、スレッドの実 UID、実効 UID、保存 set\-user\-ID
+のうち少なくとも一つが 0 であった状態から、これら全てが 0 以外に変更されたとき、
 スレッドの許可ケーパビリティ集合がクリアされるかどうかを決定する。
-デフォルトでは、このような変更が行われた場合、許可ケーパビリティセット
-はクリアされる。「ケーパビリティ保持」フラグを設定すると、
-許可ケーパビリティセットはクリアされなくなる。
-\fIarg2\fP は 0 (許可ケーパビリティをクリアする) か 1 (許可ケーパビリティ
-を保持する) の どちらかでなければならない。
-(このような ID の変更が行われた場合、「ケーパビリティ保持」フラグの設定
-に関わらず、スレッドの\fI実効\fPケーパビリティセットは常にクリアされる。)
-\fBexecve\fP(2) が呼び出されると、「ケーパビリティ保持」フラグは 0
-にリセットされる。
+デフォルトでは、このような変更が行われた場合、許可ケーパビリティセットはクリアされる。「ケーパビリティ保持」フラグを設定すると、許可ケーパビリティセットはクリアされなくなる。
+\fIarg2\fP は 0 (許可ケーパビリティをクリアする) か 1 (許可ケーパビリティを保持する) の どちらかでなければならない。 (このような
+ID の変更が行われた場合、「ケーパビリティ保持」フラグの設定に関わらず、スレッドの\fI実効\fPケーパビリティセットは常にクリアされる。)
+\fBexecve\fP(2) が呼び出されると、「ケーパビリティ保持」フラグは 0 にリセットされる。
 .TP 
 \fBPR_GET_KEEPCAPS\fP (Linux 2.2.18 以降)
-呼び出し元スレッドにおける「ケーパビリティ保持」フラグの 現在の状態を (関数の返り値として) 返す。
+呼び出し元スレッドにおける「ケーパビリティ保持」フラグの 現在の状態を (関数の結果として) 返す。
 .TP 
 \fBPR_SET_NAME\fP (Linux 2.6.9 以降)
 .\" TASK_COMM_LEN in include/linux/sched.h
-呼び出し元プロセスのプロセス名を \fI(char\ *) arg2\fP が指す場所に格納された値を使って設定する。 名前は最大で 16 バイトであり、
-それより少ないバイト数の場合は NULL で終端すべきである。
+呼び出し元スレッドのプロセス名を \fI(char\ *) arg2\fP が指す場所に格納された値を使って設定する。 名前は最大で 16 バイトであり、
+それより少ないバイト数の場合はヌルで終端すべきである。 これは、 \fBpthread_setname_np\fP(3) で設定でき、
+\fBpthread_getname_np\fP(3) で取得できるのと同じ属性である。 同様に、 \fItid\fP が呼び出し元スレッドの ID の場合、
+この属性は \fI/proc/self/task/[tid]/comm\fP 経由でもアクセス可能である。
 .TP 
 \fBPR_GET_NAME\fP (Linux 2.6.11 以降)
-呼び出し元プロセスのプロセス名を \fI(char\ *) arg2\fP が指す場所に格納して返す。 バッファは最大で 16
-バイトを格納できるようにすべきである。 返される文字列は、長さが 16 バイトより短い場合は NULL 終端される。
+呼び出し元スレッドの名前を \fI(char\ *) arg2\fP が指す場所に格納して返す。 バッファは最大で 16
+バイトを格納できるようにすべきである。 返される文字列は、長さが 16 バイトより短い場合はヌル終端される。
+.TP 
+\fBPR_SET_NO_NEW_PRIVS\fP (Linux 3.5 以降)
+Set the calling process's \fIno_new_privs\fP bit to the value in \fIarg2\fP.  With
+\fIno_new_privs\fP set to 1, \fBexecve\fP(2)  promises not to grant privileges to
+do anything that could not have been done without the \fBexecve\fP(2)  call
+(for example, rendering the set\-user\-ID and set\-group\-ID permission bits,
+and file capabilities non\-functional).  Once set, this bit cannot be unset.
+The setting of this bit is inherited by children created by \fBfork\fP(2)  and
+\fBclone\fP(2), and preserved across \fBexecve\fP(2).
+
+詳しい情報は、カーネルソースファイル \fIDocumentation/prctl/no_new_privs.txt\fP を参照。
+.TP 
+\fBPR_GET_NO_NEW_PRIVS\fP (Linux 3.5 以降)
+Return (as the function result) the value of the \fIno_new_privs\fP bit for the
+current process.  A value of 0 indicates the regular \fBexecve\fP(2)
+behavior.  A value of 1 indicates \fBexecve\fP(2)  will operate in the
+privilege\-restricting mode described above.
 .TP 
 \fBPR_SET_PDEATHSIG\fP (Linux 2.1.57 以降)
-親プロセス死亡シグナル (parent process death signal) を \fIarg2\fP に設定
-する (設定できるシグナル値の範囲は 1..maxsig であり、0 は通知の解除であ
-る)。 呼び出し元プロセスの親プロセスが死んだ際に、ここで設定した値が シ
-グナルとして通知される。この値は \fBfork\fP(2) の子プロセスでは解除される。
-(Linux 2.5.36 以降および 2.6.23 以降では) set\-user\-ID もしくは
-set\-group\-ID されたバイナリを実行した場合にも、このフラグは解除される。
+親プロセス死亡シグナル (parent process death signal) を \fIarg2\fP に設定する (設定できるシグナル値の範囲は
+1..maxsig であり、0 は通知の解除である)。 呼び出し元プロセスの親プロセスが死んだ際に、ここで設定した値が
+シグナルとして通知される。この値は \fBfork\fP(2) の子プロセスでは解除される。 (Linux 2.4.36 以降および 2.6.23 以降では)
+set\-user\-ID もしくは set\-group\-ID されたバイナリを実行した場合にも、このフラグは解除される。この値は \fBexecve\fP(2)
+の前後で保持される。
 .TP 
 \fBPR_GET_PDEATHSIG\fP (Linux 2.3.15 以降)
 親プロセス死亡シグナルの現在の値を \fI(int\ *) arg2\fP が指す場所に格納して返す。
+.TP 
+\fBPR_SET_PTRACER\fP (Linux 3.4 以降)
+.\" commit 2d514487faf188938a4ee4fb3464eeecfbdcf8eb
+.\" commit bf06189e4d14641c0148bea16e9dd24943862215
+This is meaningful only when the Yama LSM is enabled and in mode 1
+("restricted ptrace", visible via \fI/proc/sys/kernel/yama/ptrace_scope\fP).
+When a "ptracer process ID" is passed in \fIarg2\fP, the caller is declaring
+that the ptracer process can \fBptrace\fP(2)  the calling process as if it were
+a direct process ancestor.  Each \fBPR_SET_PTRACER\fP operation replaces the
+previous "ptracer process ID".  Employing \fBPR_SET_PTRACER\fP with \fIarg2\fP set
+to 0 clears the caller's "ptracer process ID".  If \fIarg2\fP is
+\fBPR_SET_PTRACER_ANY\fP, the ptrace restrictions introduced by Yama are
+effectively disabled for the calling process.
+
+詳しい情報は、カーネルソースファイル \fIDocumentation/security/Yama.txt\fP を参照。
 .TP 
 \fBPR_SET_SECCOMP\fP (Linux 2.6.23 以降)
 .\" See http://thread.gmane.org/gmane.linux.kernel/542632
 .\" [PATCH 0 of 2] seccomp updates
 .\" andrea@cpushare.com
-呼び出したスレッドの secure computing モードを設定する。 現在の実装では、 \fIarg2\fP は 1 にしなければならない。
-secure computing モードを 1 に設定すると、 そのスレッドが呼び出しを許可されるシステムコールは \fBread\fP(2),
-\fBwrite\fP(2), \fB_exit\fP(2), \fBsigreturn\fP(2)  だけになる。 それ以外のシステムコールを呼び出すと、シグナル
-\fBSIGKILL\fP が配送される。 パイプやソケットから読み込んだ、信頼できないバイトコードを実行する
-必要がある大量の演算を行うアプリケーションにおいて、 secure computing モードは役立つ。 この操作は利用できるのは、カーネルが
-CONFIG_SECCOMP を有効にして 作成されている場合だけである。
+呼び出したスレッドのセキュアコンピューティング (seccomp) モードを設定する。 seccomp
+モードは利用できるシステムコールを制限するものである。 seccomp モードは \fIarg2\fP で指定できる (seccomp 定数は
+\fI<linux/seccomp.h>\fP で定義されている)。
+
+\fIarg2\fP を \fBSECCOMP_MODE_STRICT\fP に設定すると、 そのスレッドが呼び出しを許可されるシステムコールは
+\fBread\fP(2), \fBwrite\fP(2), \fB_exit\fP(2), \fBsigreturn\fP(2) だけになる。
+それ以外のシステムコールを呼び出すと、シグナル \fBSIGKILL\fP が配送される。 パイプやソケットから読み込んだ、
+信頼できないバイトコードを実行する必要がある大量の演算を行うアプリケーションにおいて、 strict secure computing モードは役立つ。
+この操作は利用できるのは、 カーネルが \fBCONFIG_SECCOMP\fP を有効にして作成されている場合だけである。
+
+\fIarg2\fP を \fBSECCOMP_MODE_FILTER\fP (Linux 3.5 以降) に設定すると、 許可されるシステムコールは
+\fIarg3\fP で渡された Berkeley Packet Filter へのポインターで定義される。 この引き数は \fIstruct
+sock_fprog\fP へのポインターである。 これは任意のシステムコールやシステムコール引き数をフィルタリングするために設計された。
+このモードはカーネルで \fBCONFIG_SECCOMP_FILTER\fP が有効になっている場合にのみ利用可能である。
+
+\fBSECCOMP_MODE_FILTER\fP フィルターで \fBfork\fP(2) が許可されている場合、 seccomp モードは \fBfork\fP(2)
+で作成された子プロセスに継承される。 \fBexecve\fP(2) が許可されている場合、 seccomp モードは \fBexecve\fP(2)
+の前後で維持される。 フィルターで \fBprctl\fP() コールが許可されている場合、 追加でフィルターが定義され、
+これらのフィルターは許可されないものが見つかるまで指定された順序で実行される。
+
+詳しい情報は、カーネルソースファイル \fIDocumentation/prctl/seccomp_filter.txt\fP を参照。
 .TP 
 \fBPR_GET_SECCOMP\fP (Linux 2.6.23 以降)
-呼び出したスレッドの secure computing モードを返す。 現在の実装 (モードは 1 固定) はあまり役に立たないが、
-将来他のモードが実装されると役立つようになるかもしれない。 呼び出したスレッドが secure computing モードでなかった場合、 この操作は
-0 を返す。 呼び出したスレッドが secure computing モードの場合、 \fBprctl\fP()  を呼び出すとシグナル \fBSIGKILL\fP
-がそのプロセスに送信される。 この操作が利用できるのは、カーネルが CONFIG_SECCOMP を有効にして 作成されている場合だけである。
+呼び出したスレッドの secure computing モードを (関数の結果として) 返す。 呼び出したスレッドが secure computing
+モードでなかった場合、 この操作は 0 を返す。 呼び出したスレッドが secure computing モードの場合、 \fBprctl\fP()
+を呼び出すとシグナル \fBSIGKILL\fP がそのプロセスに送信される。 呼び出したスレッドがフィルタモードで、 このシステムコールが seccomp
+フィルタにより許可されている場合、 2 を返す。 この操作が利用できるのは、カーネルが \fBCONFIG_SECCOMP\fP
+を有効にして作成されている場合だけである。
 .TP 
 \fBPR_SET_SECUREBITS\fP (Linux 2.6.26 以降)
 呼び出したスレッドの "securebits" フラグを \fIarg2\fP で渡された値に設定する。 \fBcapabilities\fP(7)  参照。
 .TP 
 \fBPR_GET_SECUREBITS\fP (Linux 2.6.26 以降)
-呼び出したスレッドの "securebits" フラグを (関数の返り値として) 返す。 \fBcapabilities\fP(7)  参照。
+呼び出したスレッドの "securebits" フラグを (関数の結果として) 返す。 \fBcapabilities\fP(7)  参照。
+.TP 
+\fBPR_SET_THP_DISABLE\fP (Linux 3.15 以降)
+.\" commit a0715cc22601e8830ace98366c0c2bd8da52af52
+呼び出したスレッドの "THP disable" (THP 無効) フラグの状態を設定する。 \fIarg2\fP が 0
+以外の場合、フラグは有効になり、そうでない場合はクリーンされる。 このフラグを設定する方法により、 コードを変更できなかったり
+\fBmadvise\fP(2) の malloc hook をが有効ではないジョブ (この方法は静的に割り当てられたデータには有効ではない)に対して、
+transparent huge pages を無効にする手段が提供される。 "THP disable" フラグの設定は \fBfork\fP(2)
+で作成された子プロセスに継承され、 \fBexecve\fP の前後で維持される。
+.TP 
+\fBPR_GET_THP_DISABLE\fP (Linux 3.15 以降)
+呼び出し元スレッドの "THP disable" フラグの現在の設定を (関数の結果として) 返す。フラグがセットされている場合は 1
+が、セットされていない場合は 0 が返る。
+.TP 
+\fBPR_GET_TID_ADDRESS\fP (Linux 3.5 以降)
+.\" commit 300f786b2683f8bb1ec0afb6e1851183a479c86d
+\fBset_tid_address\fP(2) や \fBclone\fP(2) \fBCLONE_CHILD_CLEARTID\fP フラグで設定された
+\fIclear_child_tid\fP を取得し、 \fI(int\ **)\ arg2\fP が指す場所に格納して返す。 この機能はカーネルが
+\fBCONFIG_CHECKPOINT_RESTORE\fP オプションを有効にして作成されている場合にのみ利用できる。
+.TP 
+\fBPR_SET_TIMERSLACK\fP (Linux 2.6.28 以降)
+.\" See https://lwn.net/Articles/369549/
+.\" commit 6976675d94042fbd446231d1bd8b7de71a980ada
+.\" It seems that it's not possible to set the timer slack to zero;
+.\" The minimum value is 1? Seems a little strange.
+Set the current timer slack for the calling thread to the nanosecond value
+supplied in \fIarg2\fP.  If \fIarg2\fP is less than or equal to zero, reset the
+current timer slack to the thread's default timer slack value.  The timer
+slack is used by the kernel to group timer expirations for the calling
+thread that are close to one another; as a consequence, timer expirations
+for the thread may be up to the specified number of nanoseconds late (but
+will never expire early).  Grouping timer expirations can help reduce system
+power consumption by minimizing CPU wake\-ups.
+
+.\" List obtained by grepping for futex usage in glibc source
+The timer expirations affected by timer slack are those set by \fBselect\fP(2),
+\fBpselect\fP(2), \fBpoll\fP(2), \fBppoll\fP(2), \fBepoll_wait\fP(2), \fBepoll_pwait\fP(2),
+\fBclock_nanosleep\fP(2), \fBnanosleep\fP(2), and \fBfutex\fP(2)  (and thus the
+library functions implemented via futexes, including
+\fBpthread_cond_timedwait\fP(3), \fBpthread_mutex_timedlock\fP(3),
+\fBpthread_rwlock_timedrdlock\fP(3), \fBpthread_rwlock_timedwrlock\fP(3), and
+\fBsem_timedwait\fP(3)).
+
+Timer slack is not applied to threads that are scheduled under a real\-time
+scheduling policy (see \fBsched_setscheduler\fP(2)).
+
+Each thread has two associated timer slack values: a "default" value, and a
+"current" value.  The current value is the one that governs grouping of
+timer expirations.  When a new thread is created, the two timer slack values
+are made the same as the current value of the creating thread.  Thereafter,
+a thread can adjust its current timer slack value via \fBPR_SET_TIMERSLACK\fP
+(the default value can't be changed).  The timer slack values of \fIinit\fP
+(PID 1), the ancestor of all processes, are 50,000 nanoseconds (50
+microseconds).  The timer slack values are preserved across \fBexecve\fP(2).
+.TP 
+\fBPR_GET_TIMERSLACK\fP (Linux 2.6.28 以降)
+呼び出し元スレッドの現在のタイマーのスラック値を (関数の結果として) 返す。
 .TP 
 \fBPR_SET_TIMING\fP (Linux 2.6.0\-test4 以降)
 .\" 0
@@ -202,34 +327,29 @@ CONFIG_SECCOMP を有効にして 作成されている場合だけである。
 .\" PR_TIMING_TIMESTAMP doesn't do anything in 2.6.26-rc8,
 .\" and looking at the patch history, it appears
 .\" that it never did anything.
-(通常の、伝統的に使われてきた) 統計的なプロセスタイミングを使用するか、
-正確なタイムスタンプに基づくプロセスタイミングを使用するかを設定する。
-\fIarg2\fP に指定できる値は \fBPR_TIMING_STATISTICAL\fP か
-\fBPR_TIMING_TIMESTAMP\fP である。 \fBPR_TIMING_TIMESTAMP\fP は現在のところ実
-装されていない (このモードに設定しようとするとエラー \fBEINVAL\fP が起こる
-ことだろう)。
+(通常の、伝統的に使われてきた) 統計的なプロセスタイミングを使用するか、 正確なタイムスタンプに基づくプロセスタイミングを使用するかを設定する。
+\fIarg2\fP に指定できる値は \fBPR_TIMING_STATISTICAL\fP か \fBPR_TIMING_TIMESTAMP\fP である。
+\fBPR_TIMING_TIMESTAMP\fP は現在のところ実装されていない (このモードに設定しようとするとエラー \fBEINVAL\fP
+が起こることだろう)。
 .TP 
 \fBPR_GET_TIMING\fP (Linux 2.6.0\-test4 以降)
-現在使用中のプロセスタイミングを決める方法を返す。
+現在使用中のプロセスタイミングを決める方法を (関数の結果として) 返す。
 .TP 
 \fBPR_TASK_PERF_EVENTS_DISABLE\fP (Linux 2.6.31 以降)
-Disable all performance counters attached to the calling process, regardless
-of whether the counters were created by this process or another process.
-Performance counters created by the calling process for other processes are
-unaffected.  For more information on performance counters, see the kernel
-source file \fItools/perf/design.txt\fP.
+呼び出したプロセスに接続されたすべての性能カウンターを無効にする。 カウンターがこのプロセスにより作成されたか他のプロセスにより作成されたかは関係ない。
+呼び出したプロセスが他のプロセス用に作成した性能カウンターは影響を受けない。 性能カウンターの詳細については Linux カーネルソースの
+\fItools/perf/design.txt\fP を参照。
 .IP
 .\" commit 1d1c7ddbfab358445a542715551301b7fc363e28
-Originally called \fBPR_TASK_PERF_COUNTERS_DISABLE\fP; renamed (with same
-numerical value)  in Linux 2.6.32.
+以前は \fBPR_TASK_PERF_COUNTERS_DISABLE\fP と呼ばれていた。 Linux 2.6.32 で名前が変更された
+(数値は同じままである)。
 .TP 
 \fBPR_TASK_PERF_EVENTS_ENABLE\fP (Linux 2.6.31 以降)
-The converse of \fBPR_TASK_PERF_EVENTS_DISABLE\fP; enable performance counters
-attached to the calling process.
+\fBPR_TASK_PERF_EVENTS_DISABLE\fP の逆。 呼び出したプロセスに接続された性能カウンターを有効にする。
 .IP
 .\" commit 1d1c7ddbfab358445a542715551301b7fc363e28
 .\" commit cdd6c482c9ff9c55475ee7392ec8f672eddb7be6
-Originally called \fBPR_TASK_PERF_COUNTERS_ENABLE\fP; renamed in Linux 2.6.32.
+以前は \fBPR_TASK_PERF_COUNTERS_ENABLE\fP と呼ばれていた。 Linux 2.6.32 で名前が変更された。
 .TP 
 \fBPR_SET_TSC\fP (Linux 2.6.26 以降, x86 のみ)
 そのプロセスがタイムスタンプ・カウンタを読み出せるかを決定する フラグの状態を設定する。 読み出しを許可する場合は \fIarg2\fP に
@@ -259,8 +379,8 @@ In this case, \fIarg3\fP defines whether the policy is \fIearly kill\fP
 (\fBPR_MCE_KILL_EARLY\fP), \fIlate kill\fP (\fBPR_MCE_KILL_LATE\fP), or the
 system\-wide default (\fBPR_MCE_KILL_DEFAULT\fP).  Early kill means that the
 thread receives a \fBSIGBUS\fP signal as soon as hardware memory corruption is
-detected inside its address space.  In late kill mode, the process is only
-killed when it accesses a corrupted page.  See \fBsigaction\fP(2)  for more
+detected inside its address space.  In late kill mode, the process is killed
+only when it accesses a corrupted page.  See \fBsigaction\fP(2)  for more
 information on the \fBSIGBUS\fP signal.  The policy is inherited by children.
 The remaining unused \fBprctl\fP()  arguments must be zero for future
 compatibility.
@@ -270,120 +390,85 @@ Return the current per\-process machine check kill policy.  All unused
 \fBprctl\fP()  arguments must be zero.
 .TP 
 \fBPR_SET_MM\fP (Linux 3.3 以降)
-Modify certain kernel memory map descriptor fields of the calling process.
-Usually these fields are set by the kernel and dynamic loader (see
-\fBld.so\fP(8)  for more information) and a regular application should not use
-this feature.  However, there are cases, such as self\-modifying programs,
-where a program might find it useful to change its own memory map.  This
-feature is available only if the kernel is built with the
-\fBCONFIG_CHECKPOINT_RESTORE\fP option enabled.  The calling process must have
-the \fBCAP_SYS_RESOURCE\fP capability.  The value in \fIarg2\fP is one of the
-options below, while \fIarg3\fP provides a new value for the option.
+.\" commit 028ee4be34a09a6d48bdf30ab991ae933a7bc036
+呼び出したプロセスのカーネルメモリマップディスクリプタのフィールドを変更する。 これらのフィールドは通常カーネルと動的リンカーにより設定される
+(詳しい情報は \fBld.so\fP を参照)。 通常のアプリケーションはこの機能を利用すべきではない。 しかしながら、自分を書き換えるプログラムなど、
+プログラムが自分自身のメモリマップを変更するのが有用な場面もある。 この機能はカーネルが \fBCONFIG_CHECKPOINT_RESTORE\fP
+オプションを有効にして作成されている場合にのみ利用できる。 呼び出したプロセスは \fBCAP_SYS_RESOURCE\fP
+ケーパビリティを持っていなければならない。 \fIarg2\fP の値には以下のいずれかを指定し、 \fIarg3\fP でそのオプションの新しい値を指定する。
 .RS
 .TP 
 \fBPR_SET_MM_START_CODE\fP
-Set the address above which the program text can run.  The corresponding
-memory area must be readable and executable, but not writable or sharable
-(see \fBmprotect\fP(2)  and \fBmmap\fP(2)  for more information).
+プログラムテキストを実行できるアドレスの上限を設定する。 対応するメモリ領域は読み出し可能で実行可能でなければならないが、
+書き込み可能だったり共有可能だったりしてはならない (詳しい情報は \fBmprotect\fP(2) と \fBmmap\fP(2) 参照)。
 .TP 
 \fBPR_SET_MM_END_CODE\fP
-Set the address below which the program text can run.  The corresponding
-memory area must be readable and executable, but not writable or sharable.
+プログラムテキストを実行できるアドレスの下限を設定する。 対応するメモリ領域は読み出し可能で実行可能でなければならないが、
+書き込み可能だったり共有可能だったりしてはならない。
 .TP 
 \fBPR_SET_MM_START_DATA\fP
-Set the address above which initialized and uninitialized (bss) data are
-placed.  The corresponding memory area must be readable and writable, but
-not executable or sharable.
+初期化済データや未初期化 (bss) データを配置する領域のアドレス上限を指定する。 対応するメモリ領域は読み書き可能でなければならないが、
+実行可能だったり共有可能だったりしてはならない。
 .TP 
 \fBPR_SET_MM_END_DATA\fP
-Set the address below which initialized and uninitialized (bss) data are
-placed.  The corresponding memory area must be readable and writable, but
-not executable or sharable.
+初期化済データや未初期化 (bss) データを配置する領域のアドレス下限を指定する。 対応するメモリ領域は読み書き可能でなければならないが、
+実行可能だったり共有可能だったりしてはならない。
 .TP 
 \fBPR_SET_MM_START_STACK\fP
-Set the start address of the stack.  The corresponding memory area must be
-readable and writable.
+スタックの開始アドレスを設定する。 対応するメモリ領域は読み書き可能でなければならない。
 .TP 
 \fBPR_SET_MM_START_BRK\fP
-Set the address above which the program heap can be expanded with \fBbrk\fP(2)
-call.  The address must be greater than the ending address of the current
-program data segment.  In addition, the combined size of the resulting heap
-and the size of the data segment can't exceed the \fBRLIMIT_DATA\fP resource
-limit (see \fBsetrlimit\fP(2)).
+\fBbrk\fP(2) コールで拡張できるプログラムのヒープ領域のアドレス上限を設定する。
+このアドレスは、プログラムの現在のデータセグメントの最終アドレスより大きくなければならない。 また、
+変更後のヒープとデータセグメントのサイズを合わせたサイズが \fBRLIMIT_DATA\fP リソースリミットを超えることはできない
+(\fBsetrlimit\fP(2) 参照)。
 .TP 
 \fBPR_SET_MM_BRK\fP
-.\" FIXME The following (until ========) is not yet in mainline kernel,
-.\" so commented out for the moment.
-.\" .TP
-.\" .BR PR_SET_MM_ARG_START
-.\" Set the address above which the program command line is placed.
-.\" .TP
-.\" .BR PR_SET_MM_ARG_END
-.\" Set the address below which the program command line is placed.
-.\" .TP
-.\" .BR PR_SET_MM_ENV_START
-.\" Set the address above which the program environment is placed.
-.\" .TP
-.\" .BR PR_SET_MM_ENV_END
-.\" Set the address below which the program environment is placed.
-.\" .IP
-.\" The address passed with
-.\" .BR PR_SET_MM_ARG_START ,
-.\" .BR PR_SET_MM_ARG_END ,
-.\" .BR PR_SET_MM_ENV_START ,
-.\" and
-.\" .BR PR_SET_MM_ENV_END
-.\" should belong to a process stack area.
-.\" Thus, the corresponding memory area must be readable, writable, and
-.\" (depending on the kernel configuration) have the
-.\" .BR MAP_GROWSDOWN
-.\" attribute set (see
-.\" .BR mmap (2)).
-.\" .TP
-.\" .BR PR_SET_MM_AUXV
-.\" Set a new auxiliary vector.
-.\" The
-.\" .I arg3
-.\" argument should provide the address of the vector.
-.\" The
-.\" .I arg4
-.\" is the size of the vector.
-.\" .TP
-.\" .BR PR_SET_MM_EXE_FILE
-.\" Supersede the
-.\" .IR /proc/pid/exe
-.\" symbolic link with a new one pointing to a new executable file
-.\" identified by the file descriptor provided in
-.\" .I arg3
-.\" argument.
-.\" The file descriptor should be obtained with a regular
-.\" .BR open (2)
-.\" call.
-.\" .IP
-.\" To change the symbolic link, one needs to unmap all existing
-.\" executable memory areas, including those created by the kernel itself
-.\" (for example the kernel usually creates at least one executable
-.\" memory area for the ELF
-.\" .IR .text
-.\" section).
-.\" .IP
-.\" The second limitation is that such transitions can be done only once
-.\" in a process life time.
-.\" Any further attempts will be rejected.
-.\" This should help system administrators to monitor unusual
-.\" symbolic-link transitions over all process running in a system.
-.\" ========== END FIXME
-Set the current \fBbrk\fP(2)  value.  The requirements for the address are the
-same as for the \fBPR_SET_MM_START_BRK\fP option.
+現在の \fBbrk\fP(2) 値を設定する。 このアドレスの要件は \fBPR_SET_MM_START_BRK\fP オプションと同じである。
+.P
+.\" commit fe8c7f5cbf91124987106faa3bdf0c8b955c4cf7
+以下のオプションは Linux 3.5 以降で利用できる。
+.TP 
+\fBPR_SET_MM_ARG_START\fP
+プログラムのコマンドラインを配置するアドレスの上限を設定する。
+.TP 
+\fBPR_SET_MM_ARG_END\fP
+プログラムのコマンドラインを配置するアドレスの下限を設定する。
+.TP 
+\fBPR_SET_MM_ENV_START\fP
+プログラムの環境情報 (environment) を配置するアドレスの上限を設定する。
+.TP 
+\fBPR_SET_MM_ENV_END\fP
+プログラムの環境情報 (environment) を配置するアドレスの下限を設定する。
+.IP
+\fBPR_SET_MM_ARG_START\fP, \fBPR_SET_MM_ARG_END\fP, \fBPR_SET_MM_ENV_START\fP,
+\fBPR_SET_MM_ENV_END\fP で指定されるアドレスはプロセスのスタック領域に属している必要がある。
+したがって、これらのメモリ領域は読み書き可能でなければならない。 また、 (カーネル設定によっては) \fBMAP_GROWSDOWN\fP
+属性がセットされていなければならない (\fBmmap\fP(2) 参照)。
+.TP 
+\fBPR_SET_MM_AUXV\fP
+新しい補助ベクトル (auxiliary vector) を設定する。 \fIarg3\fP 引き数はベクトルのアドレスを指定し、 \fIarg4\fP
+はベクトルのサイズを指定する。
+.TP 
+\fBPR_SET_MM_EXE_FILE\fP
+.\" commit b32dfe377102ce668775f8b6b1461f7ad428f8b6
+\fI/proc/pid/exe\fP シンボリックリンクを \fIarg3\fP
+引き数で渡された新しい実行可能なファイルディスクリプタを指すシンボリックリンクで置き換える。 ファイルディスクリプタは通常の \fBopen\fP(2)
+コールで取得すべきである。
+.IP
+シンボリックリンクを変更するには、 既存の実行可能なメモリ領域のすべてをアンマップする必要がある。これにはカーネル自身が作成した領域も含まれる
+(例えば、カーネルは通常 ELF \fI.text\fP セクションに少なくとも一つの実行可能なメモリ領域を作成する)。
+.IP
+二つ目の制限は、このような変更はプロセスの生存期間で一度だけ行うことができるという点である。 一度変更を行った後で変更を行おうとすると拒否される。
+この動作は、 システム管理者が、 システムで動作するすべてのプロセスが行う、 普通でないシンボリックリンクの変更を監視するのを楽にする。
 .RE
 .\"
 .SH 返り値
-成功すると、 \fBPR_GET_DUMPABLE\fP, \fBPR_GET_KEEPCAPS\fP,
-\fBPR_CAPBSET_READ\fP, \fBPR_GET_TIMING\fP, \fBPR_GET_SECUREBITS\fP,
-\fBPR_MCE_KILL_GET\fP, \fBPR_GET_SECCOMP\fP は上述の負でない値を返す (なお、
-\fBPR_GET_SECCOMP\fP は返らない場合もある)。 \fIoption\fP が他の値の場合は
-成功時に 0 を返す。
-エラーの場合、\-1 を返し、 \fIerrno\fP に適切な値を設定する。
+成功すると、 \fBPR_GET_DUMPABLE\fP, \fBPR_GET_KEEPCAPS\fP, \fBPR_GET_NO_NEW_PRIVS\fP,
+\fBPR_GET_THP_DISABLE\fP, \fBPR_CAPBSET_READ\fP, \fBPR_GET_TIMING\fP,
+\fBPR_GET_TIMERSLACK\fP, \fBPR_GET_SECUREBITS\fP, \fBPR_MCE_KILL_GET\fP,
+\fBPR_GET_SECCOMP\fP は上述の負でない値を返す (なお、\fBPR_GET_SECCOMP\fP は返らない場合もある)。 \fIoption\fP
+が他の値の場合は成功時に 0 を返す。 エラーの場合、\-1 を返し、 \fIerrno\fP に適切な値を設定する。
 .SH エラー
 .TP 
 \fBEFAULT\fP
@@ -393,8 +478,8 @@ same as for the \fBPR_SET_MM_START_BRK\fP option.
 \fIoption\fP の値が理解できない。
 .TP 
 \fBEINVAL\fP
-\fIoption\fP is \fBPR_MCE_KILL\fP or \fBPR_MCE_KILL_GET\fP or \fBPR_SET_MM\fP, and
-unused \fBprctl\fP()  arguments were not specified as zero.
+\fIoption\fP が \fBPR_MCE_KILL\fP, \fBPR_MCE_KILL_GET\fP, \fBPR_SET_MM\fP のいずれかで、かつ未使用の
+\fBprctl\fP() 引き数に 0 が指定されていなかった。
 .TP 
 \fBEINVAL\fP
 \fIarg2\fP が指定された \fIoption\fP で有効な値ではない。
@@ -404,22 +489,50 @@ unused \fBprctl\fP()  arguments were not specified as zero.
 を有効にして作成されていなかった。
 .TP 
 \fBEINVAL\fP
-\fIoption\fP is \fBPR_SET_MM\fP, and one of the following is true
+\fIoption\fP が \fBPR_SET_MM\fP で、以下のいずれかが真である。
 .RS
 .IP * 3
-\fIarg4\fP or \fIarg5\fP is nonzero;
+\fIarg4\fP が \fIarg5\fP で 0 以外である。
 .IP *
-\fIarg3\fP is greater than \fBTASK_SIZE\fP (the limit on the size of the user
-address space for this architecture);
+\fIarg3\fP が \fBTASK_SIZE\fP よりも大きい  (\fBTASK_SIZE\fP
+はこのアーキテクチャーでユーザー空間アドレススペースの最大サイズである)。
 .IP *
-\fIarg2\fP is \fBPR_SET_MM_START_CODE\fP, \fBPR_SET_MM_END_CODE\fP,
-\fBPR_SET_MM_START_DATA\fP, \fBPR_SET_MM_END_DATA\fP, or \fBPR_SET_MM_START_STACK,\fP
-and the permissions of the corresponding memory area are not as required;
+\fIarg2\fP が \fBPR_SET_MM_START_CODE\fP, \fBPR_SET_MM_END_CODE\fP,
+\fBPR_SET_MM_START_DATA\fP, \fBPR_SET_MM_END_DATA\fP, \fBPR_SET_MM_START_STACK\fP
+のどれかで、対応するメモリ領域のアクセス許可が要件を満たしていない。
 .IP *
-\fIarg2\fP is \fBPR_SET_MM_START_BRK\fP or \fBPR_SET_MM_BRK\fP, and \fIarg3\fP is less
-than or equal to the end of the data segment or specifies a value that would
-cause the \fBRLIMIT_DATA\fP resource limit to be exceeded.
+\fIarg2\fP が \fBPR_SET_MM_START_BRK\fP か \fBPR_SET_MM_BRK\fP で、 \fIarg3\fP
+データセグメントの末尾と同じかそれより前か、 \fIarg3\fP に \fBRLIMIT_DATA\fP リソースリミットを超えてしまうような値が指定されている。
 .RE
+.TP 
+\fBEINVAL\fP
+\fIoption\fP が \fBPR_SET_PTRACER\fP で \fIarg2\fP が 0, \fBPR_SET_PTRACER_ANY\fP, 既存プロセスの
+PID のいずれでもない。
+.TP 
+\fBEINVAL\fP
+\fIoption\fP が \fBPR_SET_PDEATHSIG\fP で、 \fIarg2\fP で指定された値は無効なシグナル番号である。
+.TP 
+\fBEINVAL\fP
+\fIoption\fP が \fBPR_SET_DUMPABLE\fP で、 \fIarg2\fP が \fBSUID_DUMP_DISABLE\fP でも
+\fBSUID_DUMP_USER\fP でもない。
+.TP 
+\fBEINVAL\fP
+\fIoption\fP が \fBPR_SET_TIMING\fP で、 \fIarg2\fP が \fBPR_TIMING_STATISTICAL\fP ではない。
+.TP 
+\fBEINVAL\fP
+\fIoption\fP が \fBPR_SET_NO_NEW_PRIVS\fP で、 \fIarg2\fP が 1 以外か、 \fIarg3\fP, \fIarg4\fP,
+\fIarg5\fP のどれかが 0 ではない。
+.TP 
+\fBEINVAL\fP
+\fIoption\fP が \fBPR_GET_NO_NEW_PRIVS\fP で、 \fIarg2\fP, \fIarg3\fP, \fIarg4\fP, \fIarg5\fP
+のどれかが 0 ではない。
+.TP 
+\fBEINVAL\fP
+\fIoption\fP が \fBPR_SET_THP_DISABLE\fP で \fIarg3\fP, \fIarg4\fP, \fIarg5\fP のどれかが 0 ではない。
+.TP 
+\fBEINVAL\fP
+\fIoption\fP が \fBPR_GET_THP_DISABLE\fP で \fIarg2\fP, \fIarg3\fP, \fIarg4\fP, \fIarg5\fP のいずれが
+0 ではない。
 .TP 
 \fBEPERM\fP
 \fIoption\fP が \fBPR_SET_SECUREBITS\fP で、呼び出し元がケーパビリティ \fBCAP_SETPCAP\fP を持っていない。
@@ -434,41 +547,16 @@ cause the \fBRLIMIT_DATA\fP resource limit to be exceeded.
 \fIoption\fP が \fBPR_CAPBSET_DROP\fP で、呼び出し元がケーパビリティ \fBCAP_SETPCAP\fP を持っていない。
 .TP 
 \fBEPERM\fP
-.\" FIXME The following (until ========) is not yet in mainline kernel,
-.\" so commented out for the moment.
-.\" .TP
-.\" .B EACCES
-.\" .I option
-.\" is
-.\" .BR PR_SET_MM ,
-.\" and
-.\" .I arg3
-.\" is
-.\" .BR PR_SET_MM_EXE_FILE ,
-.\" the file is not executable.
-.\" .TP
-.\" .B EBUSY
-.\" .I option
-.\" is
-.\" .BR PR_SET_MM ,
-.\" .I arg3
-.\" is
-.\" .BR PR_SET_MM_EXE_FILE ,
-.\" and this the second attempt to change the
-.\" .I /proc/pid/exe
-.\" symbolic link, which is prohibited.
-.\" .TP
-.\" .B EBADF
-.\" .I option
-.\" is
-.\" .BR PR_SET_MM ,
-.\" .I arg3
-.\" is
-.\" .BR PR_SET_MM_EXE_FILE ,
-.\" and the file descriptor passed in
-.\" .I arg4
-.\" is not valid.
-.\" ========== END FIXME
+\fIoption\fP が \fBPR_SET_MM\fP で、呼び出し元がケーパビリティ \fBCAP_SYS_RESOURCE\fP を持っていない。
+.TP 
+\fBEACCES\fP
+\fIoption\fP が \fBPR_SET_MM\fP、かつ \fIarg3\fP が \fBPR_SET_MM_EXE_FILE\fP で、ファイルが実行可能ではない。
+.TP 
+\fBEBUSY\fP
+\fIoption\fP が \fBPR_SET_MM\fP で、 \fIarg3\fP が \fBPR_SET_MM_EXE_FILE\fP で、
+\fI/proc/pid/exe\fP シンボリックリンクを変更しようとしたが、 禁止されている。
+.TP 
+\fBEBADF\fP
 .\" The following can't actually happen, because prctl() in
 .\" seccomp mode will cause SIGKILL.
 .\" .TP
@@ -477,8 +565,8 @@ cause the \fBRLIMIT_DATA\fP resource limit to be exceeded.
 .\" is
 .\" .BR PR_SET_SECCOMP ,
 .\" and secure computing mode is already 1.
-\fIoption\fP が \fBPR_SET_MM\fP で、呼び出し元がケーパビリティ
-\fBCAP_SYS_RESOURCE\fP を持っていない。
+\fIoption\fP が \fBPR_SET_MM\fP で、 \fIarg3\fP が \fBPR_SET_MM_EXE_FILE\fP で、 \fIarg4\fP
+で渡されたファイルディスクリプタが有効ではない。
 .SH バージョン
 .\" The library interface was added in glibc 2.0.6
 \fBprctl\fP()  システムコールは Linux 2.1.57 で導入された。
@@ -493,6 +581,5 @@ irix_prctl として Linux 2.1.44 で同様に導入された)、 そのプロ�
 .SH 関連項目
 \fBsignal\fP(2), \fBcore\fP(5)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.40 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.65 の一部である。
+プロジェクトの説明とバグ報告に関する情報は \%http://www.kernel.org/doc/man\-pages/ に書かれている。
