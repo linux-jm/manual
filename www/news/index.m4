@@ -15,6 +15,11 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+ <H2>2012/05/05</H2>
+ <P>
+  _LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.22 の翻訳)を公開しました。
+ </P>
+
  <H2><A NAME="20140427">2014/04/27</A></H2>
  <P>
  _LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils の info)の翻訳を公開しました。
