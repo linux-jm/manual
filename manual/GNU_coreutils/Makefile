@@ -1,5 +1,5 @@
 NAME = coreutils
-V = 8.21
+V = 8.22
 
 DEST = draft/man1
 
