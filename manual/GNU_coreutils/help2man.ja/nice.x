@@ -4,4 +4,4 @@ nice \- 変更したスケジューリング優先度でプログラムを実行
 [説明]
 .\" Add any additional description here
 [関連項目]
-nice(2)
+nice(2), renice(1)
