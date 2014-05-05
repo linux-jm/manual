@@ -30,8 +30,7 @@ df \- ファイルシステムのディスク使用量を報告する
 .\"O mounted file system,
 .\"O .B df
 .\"O shows the space available on that file system rather than on the
-.\"O file system containing the device node (which is always the root
-.\"O file system).  This version of
+.\"O file system containing the device node.  This version of
 .\"O .B df
 .\"O cannot show the space available on unmounted file systems, because on
 .\"O most kinds of systems doing so requires very nonportable intimate
@@ -39,8 +38,7 @@ df \- ファイルシステムのディスク使用量を報告する
 引き数がマウントされたファイルシステムが含まれる
 ディスクデバイスノードの絶対ファイル名であった場合には、
 デバイスノードを含むファイルシステムではなく、
-指定されたファイルシステムの利用可能な容量を表示します
-(デバイスノードを含むファイルシステムは常に root ファイルシステムになります)。
+指定されたファイルシステムの利用可能な容量を表示します。
 このバージョンの
 .B df
 ではマウントされていないファイルシステムの利用可能な容量は表示できません。
