@@ -1,12 +1,9 @@
 NAME = coreutils
-V = 8.16
+V = 8.20
 
 DEST = draft/man1
 
 # You must compile coreutils in advance.
-# Use 'make all_programs' to compile binaries which are not
-# compiled in default (like arch, hostname).
-#srcdir = $(HOME)/JM-work/coreutils-8.16
 srcdir = ./$(NAME)-$(V)
 tarball = $(NAME)-$(V).tar.xz
 
@@ -15,6 +12,7 @@ PACKAGE_VERSION = $(V)
 PACKAGE_STRING = $(PACKAGE_NAME) $(PACKAGE_VERSION)
 
 all:	build-man
+source:	stamp-build
 
 #------------------------------------------------------------
 
@@ -40,8 +38,8 @@ stamp-configure:	stamp-setup
 stamp-build:	stamp-configure
 	@(cd source \
 	 && make \
-	 && cd src \
-	 && make all_programs \
+	 && make src/arch \
+	 && make src/hostname \
 	)
 	touch $@
 
@@ -59,7 +57,7 @@ $(gmo-ja):	$(po-ja)
 
 catalog:	$(mo-ja)
 
-build-man:	catalog
+build-man:	stamp-build catalog
 	$(MAKE) -C help2man.ja $@ PACKAGE_VERSION=$(PACKAGE_VERSION)
 
 install:	build-man
