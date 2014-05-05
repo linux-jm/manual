@@ -1,5 +1,5 @@
 NAME = coreutils
-V = 8.20
+V = 8.21
 
 DEST = draft/man1
 
@@ -40,6 +40,8 @@ stamp-build:	stamp-configure
 	 && make \
 	 && make src/arch \
 	 && make src/hostname \
+	 && make man/arch.1 \
+	 && make man/hostname.1 \
 	)
 	touch $@
 
