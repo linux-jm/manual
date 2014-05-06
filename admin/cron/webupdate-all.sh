@@ -14,6 +14,7 @@ touch $LOGFILE
 cd $JMHOME/jm.git
 echo "===== git pull =====" >> $LOGFILE 2>&1
 git pull >> $LOGFILE 2>&1
+git submodule update --init --recursive >> $LOGFILE 2>&1
 
 echo "===== Update web contents =====" >> $LOGFILE 2>&1
 rm admin/site/sitemap.xml
