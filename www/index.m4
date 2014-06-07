@@ -36,6 +36,14 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.68 対応版)を公開しました。
+  詳細は_LINK(news/index.html#20140608,こちら)。
+ <SMALL>(2014/06/08)</SMALL>
+
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.67 対応版)を公開しました。
+  詳細は_LINK(news/index.html#20140607,こちら)。
+ <SMALL>(2014/06/07)</SMALL>
+
  <LI>_LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.22 の翻訳)を公開しました。
  <SMALL>2012/05/05</SMALL>
 
@@ -60,21 +68,6 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 
  <LI>_LINK(INDEX/linux.html#ebtables,ebtables 2.0.10-4 の翻訳)を公開しました。
  <SMALL>(2014/04/13)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.54 対応版)を公開しました。
- <SMALL>(2013/10/14)</SMALL>
-
- <LI>_LINK(INDEX/gnu.html#GNU_sed,GNU sed 4.2.2 の翻訳)を公開しました。
- <SMALL>(2013/04/30)</SMALL>
-
- <LI>_LINK(INDEX/misc.html#cups,cups 1.5.3 の翻訳)を公開しました。
- <SMALL>(2012/07/07)</SMALL>
-
- <LI>_LINK(INDEX/misc.html#sudo,sudo 1.8.4p4 の翻訳)を公開しました。
- <SMALL>(2012/05/09)</SMALL>
-
- <LI>_LINK(INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.16 の翻訳)を公開しました。
- <SMALL>(2012/04/21)</SMALL>
 
 </UL>
 

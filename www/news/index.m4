@@ -15,6 +15,70 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+ <H2><A NAME="20140608">2014/06/08</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.68 対応版)を公開しました。</DT>
+ </DL>
+
+ <H2><A NAME="20140607">2014/06/07</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.67 対応版)を公開しました。</DT>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, bind.2)
+    _UPD_PAGE(LDP_man-pages, chown.2)
+    _UPD_PAGE(LDP_man-pages, clone.2)
+    _UPD_PAGE(LDP_man-pages, connect.2)
+    _UPD_PAGE(LDP_man-pages, execve.2)
+    _UPD_PAGE(LDP_man-pages, fallocate.2)
+    _UPD_PAGE(LDP_man-pages, fork.2)
+    _UPD_PAGE(LDP_man-pages, getrusage.2)
+    _UPD_PAGE(LDP_man-pages, listen.2)
+    _UPD_PAGE(LDP_man-pages, msgctl.2)
+    _UPD_PAGE(LDP_man-pages, msgget.2)
+    _UPD_PAGE(LDP_man-pages, msgop.2)
+    _UPD_PAGE(LDP_man-pages, recv.2)
+    _UPD_PAGE(LDP_man-pages, recv.2)
+    _UPD_PAGE(LDP_man-pages, recvmmsg.2)
+    _UPD_PAGE(LDP_man-pages, sched_get_priority_max.2)
+    _UPD_PAGE(LDP_man-pages, sched_rr_get_interval.2)
+    _UPD_PAGE(LDP_man-pages, sched_setaffinity.2)
+    _UPD_PAGE(LDP_man-pages, sched_setparam.2)
+    _UPD_PAGE(LDP_man-pages, sched_setscheduler.2)
+    _UPD_PAGE(LDP_man-pages, semget.2)
+    _UPD_PAGE(LDP_man-pages, semop.2)
+    _UPD_PAGE(LDP_man-pages, send.2)
+    _UPD_PAGE(LDP_man-pages, send.2)
+    _UPD_PAGE(LDP_man-pages, set_mempolicy.2)
+    _UPD_PAGE(LDP_man-pages, shmget.2)
+    _UPD_PAGE(LDP_man-pages, shmop.2)
+    _UPD_PAGE(LDP_man-pages, stat.2)
+  </DD>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, inet.3)
+    _UPD_PAGE(LDP_man-pages, malloc.3)
+    _UPD_PAGE(LDP_man-pages, pthread_setcancelstate.3)
+    _UPD_PAGE(LDP_man-pages, rcmd.3)
+    _UPD_PAGE(LDP_man-pages, rexec.3)
+    _UPD_PAGE(LDP_man-pages, stpcpy.3)
+    _UPD_PAGE(LDP_man-pages, stpncpy.3)
+    _UPD_PAGE(LDP_man-pages, strcasecmp.3)
+  </DD>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, networks.5)
+    _UPD_PAGE(LDP_man-pages, proc.5)
+    _UPD_PAGE(LDP_man-pages, services.5)
+  </DD>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, ddp.7)
+    _UPD_PAGE(LDP_man-pages, ip.7)
+    _UPD_PAGE(LDP_man-pages, ip.7)
+    _UPD_PAGE(LDP_man-pages, mq_overview.7)
+    _UPD_PAGE(LDP_man-pages, netdevice.7)
+    _UPD_PAGE(LDP_man-pages, packet.7)
+    _UPD_PAGE(LDP_man-pages, udp.7)
+  </DD>
+ </DL>
+
  <H2>2012/05/05</H2>
  <P>
   _LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.22 の翻訳)を公開しました。
