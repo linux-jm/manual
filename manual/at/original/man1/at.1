@@ -1,16 +1,25 @@
-.Id $Id: at.1.in,v 1.7 1997/03/13 00:15:13 ig25 Exp $
-.TH AT 1 "Nov 1996" local "Linux Programmer's Manual"
+.TH AT 1 2009-11-14
 .SH NAME
 at, batch, atq, atrm \- queue, examine or delete jobs for later execution
 .SH SYNOPSIS
 .B at
 .RB [ -V ]
-.RB [ -q 
+.RB [ -q
 .IR queue ]
 .RB [ -f
 .IR file ]
-.RB [ -mldbv ]
-.B TIME
+.RB [ -mMlv ]
+.IR timespec ...
+.br
+.B at
+.RB [ -V ]
+.RB [ -q
+.IR queue ]
+.RB [ -f
+.IR file ]
+.RB [ -mMkv ]
+.RB [ -t
+.IR time ]
 .br
 .B "at -c"
 .I job
@@ -20,7 +29,11 @@ at, batch, atq, atrm \- queue, examine or delete jobs for later execution
 .RB [ -V ]
 .RB [ -q
 .IR queue ]
-.RB [ -v ]
+.br
+.B at
+.RB [ -rd ]
+.I job
+.RI [ job... ]
 .br
 .B atrm
 .RB [ -V ]
@@ -28,13 +41,8 @@ at, batch, atq, atrm \- queue, examine or delete jobs for later execution
 .RI [ job... ]
 .br
 .B batch
-.RB [ -V ]
-.RB [ -q
-.IR queue ]
-.RB [ -f
-.IR file ]
-.RB [ -mv ]
-.RB [ TIME ]
+.br
+.B "at -b"
 .SH DESCRIPTION
 .B at
 and
@@ -48,20 +56,21 @@ executes commands at a specified time.
 .TP 8
 .BR atq
 lists the user's pending jobs, unless the user is the superuser; in that
-case, everybody's jobs are listed.
+case, everybody's jobs are listed.  The format of the output lines (one
+for each job) is: Job number, date, hour, queue, and username.
 .TP 8
 .BR atrm
-deletes jobs.
+deletes jobs, identified by their job number.
 .TP 8
 .BR batch
 executes commands when system load levels permit; in other words, when the load average
-drops below 0.8, or the value specified in the invocation of
-.BR atrun .
+drops below @LOADAVG_MX@, or the value specified in the invocation of
+.BR atd .
 .PP
 .B At
 allows fairly complex time
 specifications, extending the POSIX.2 standard.  It accepts times
-of the form 
+of the form
 .B HH:MM
 to run a job at a specific time of day.
 (If that time is already past, the next day is assumed.)
@@ -83,11 +92,11 @@ by giving a date in the form
 with an optional
 .B year,
 or giving a date of the form
-.B MMDDYY
+.IR MMDD [ CC ] YY ,
+.IR MM / DD /[ CC ] YY ,
+.IR DD . MM .[ CC ] YY
 or
-.B MM/DD/YY
-or
-.B DD.MM.YY.
+.RI [ CC ] YY - MM - DD .
 The specification of a date
 .I must
 follow the specification of the time of day.
@@ -116,8 +125,8 @@ to run a job at 10:00am on July 31, you would do
 and to run a job at 1am tomorrow, you would do
 .B at 1am tomorrow.
 .PP
-The exact definition of the time specification can be found in
-.IR /usr/doc/at/timespec .
+The definition of the time specification can be found in
+.IR @prefix@/share/doc/at/timespec .
 .PP
 For both
 .BR at " and " batch ,
@@ -126,65 +135,61 @@ with the
 .B -f
 option and executed.
 The working directory, the environment (except for the variables
+.BR BASH_VERSINFO ,
+.BR DISPLAY ,
+.BR EUID ,
+.BR GROUPS ,
+.BR SHELLOPTS ,
 .BR TERM ,
-.BR DISPLAY
+.BR UID ,
 and
 .BR _ )
 and the umask are retained from the time of invocation.
+
+As
+.BR at
+is currently implemented as a setuid program, other environment variables (e.g.
+.BR LD_LIBRARY_PATH " or " LD_PRELOAD )
+are also not exported.  This may change in the future.  As a workaround,
+set these variables explicitly in your job.
+
 An
 .BR "at " \-
 or
 .BR "batch "\-
-command invoked from a 
+command invoked from a
 .B su(1)
 shell will retain the current userid.
 The user will be mailed standard error and standard output from his
 commands, if any.
 Mail will be sent using the command
-.BR /usr/sbin/sendmail .
+.BR @MAIL_CMD@ .
 If
 .B at
-is executed from a 
+is executed from a
 .B su(1)
 shell, the owner of the login shell will receive the mail.
 .PP
 The superuser may use these commands in any case.
 For other users, permission to use at is determined by the files
-.I /etc/at.allow
+.I @ETCDIR@/at.allow
 and
-.IR /etc/at.deny .
-.PP
-If the file
-.I /etc/at.allow
-exists, only usernames mentioned in it are allowed to use
-.BR at .
-.PP
-If
-.I /etc/at.allow
-does not exist,
-.I /etc/at.deny
-is checked, every username not mentioned in it is then allowed
-to use
-.BR at .
-.PP
-If neither exists, only the superuser is allowed use of at.
-.PP
-An empty 
-.I /etc/at.deny
-means that every user is allowed use these commands, this is the
-default configuration.
+.IR @ETCDIR@/at.deny .
+See
+.BR at.allow (5)
+for details.
 .SH OPTIONS
 .TP 8
 .B -V
-prints the version number to standard error.
+prints the version number to standard error and exit successfully.
 .TP 8
 .BI \-q " queue"
 uses the specified queue.
 A queue designation consists of a single letter; valid queue designations
 range from
 .B a
-to 
-.BR z .
+to
+.BR z
 and
 .B A
 to
@@ -200,8 +205,10 @@ queue for
 Queues with higher letters run with increased niceness.  The special
 queue "=" is reserved for jobs which are currently running.
 .P
-If a job is submitted to a queue designated with an uppercase letter, it
-is treated as if it had been submitted to batch at that time.
+If a job is submitted to a queue designated with an uppercase letter, the
+job is treated as if it were submitted to batch at the time of the job.
+Once the time is reached, the batch processing rules with respect to load
+average apply.
 If
 .BR atq
 is given a specific queue, it will only show jobs pending in that queue.
@@ -210,48 +217,63 @@ is given a specific queue, it will only show jobs pending in that queue.
 Send mail to the user when the job has completed even if there was no
 output.
 .TP 8
+.B \-M
+Never send mail to the user.
+.TP 8
 .BI \-f " file"
 Reads the job from
-.BI file
+.I file
 rather than standard input.
+.TP 8
+.BI \-t " time"
+run the job at
+.IR time ,
+given in the format [[CC]YY]MMDDhhmm[.ss]
 .TP 8
 .B \-l
 Is an alias for
 .B atq.
 .TP
+.B \-r
+Is an alias for
+.B atrm.
+.TP
 .B \-d
 Is an alias for
 .B atrm.
 .TP
+.B \-b
+is an alias for
+.BR batch .
 .TP
 .B \-v
-For
-.BR atq ,
-shows completed but not yet deleted jobs in the queue; otherwise
-shows the time the job will be executed.
+Shows the time the job will be executed before reading the job.
 .P
-Times displayed will be in the format "1997-02-20 14:50" unless the
-environment variable
-.B POSIXLY_CORRECT 
-is set; then, it will be "Thu Feb 20 14:50:00 1996".
+Times displayed will be in the format "Thu Feb 20 14:50:00 1997".
 .TP
 .B
 \-c
-cats the jobs listed on the command line to standart output.
+cats the jobs listed on the command line to standard output.
 .SH FILES
-.I /var/spool/atjobs
+.I @ATJBD@
 .br
-.I /var/spool/atspool
+.I @ATSPD@
 .br
 .I /proc/loadavg
 .br
 .I /var/run/utmp
 .br
-.I /etc/at.allow
+.I @ETCDIR@/at.allow
 .br
-.I /etc/at.deny
+.I @ETCDIR@/at.deny
 .SH SEE ALSO
-cron(1), nice(1), sh(1), umask(2), atd(8)
+.BR at.allow (5),
+.BR at.deny (5),
+.BR atd (8),
+.BR cron (1),
+.BR nice (1),
+.BR sh (1),
+.BR umask (2).
 .SH BUGS
 The correct operation of
 .B batch
@@ -263,7 +285,7 @@ type directory mounted on
 If the file
 .I /var/run/utmp
 is not available or corrupted, or if the user is not logged on at the
-time 
+time
 .B at
 is invoked, the mail is sent to the userid found
 in the environment variable
