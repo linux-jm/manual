@@ -1,0 +1,345 @@
+#!/usr/bin/perl
+#
+# JMpost (admin/tools/Jmpost) を用いてポストされた
+# メールから Git への登録 (translation_list 変更他)
+# をする perl スクリプト.
+#
+# メールは UTF-8 変換後に標準入力から流してください。
+#
+# cat <mail> | nkf -Lu -w | ml2git
+#
+my $DEBUG = "off";
+my ($epath, %status);
+
+$ENV{"LANG"} = "C";
+
+BEGIN{
+    $epath = `dirname $0`; chomp $epath;
+    my $lpath = "$epath/../bin";
+    unshift (@INC, $lpath);
+}
+use strict 'vars';
+use JMtl ('line2hash', 'hash2line');
+
+my $ROFFROOT = "$epath/../manual";
+my $WWW_ROOT = "$epath/../www";
+my $DISTROOT = "$epath/../dist";
+
+my $draft_body = "";
+my $release_body = "";
+
+#
+# parse the post
+#
+my $context = "header";
+my ($mlnumber);
+my $subject;
+my $maildate;
+
+while (<>){
+    chomp;
+    if ($DEBUG eq "on") {print "$context : $_ \n";}
+    
+    if ($context eq "header"){
+	if (/^Subject:/) {
+	    if($_ =~ /\(non-menber post\)/){
+		print STDERR "non-member post. ignore.\n";
+		exit 0;
+	    }
+
+	    $subject = $_;
+	    $subject =~ s/Subject: *//;
+
+	    (my $trash, $mlnumber) = split;
+
+	    if ($mlnumber !~ /\[JM:[0-9]{5,5}\]/){
+		$mlnumber = '[LOCAL]';
+	    }
+	}
+	if (/^Date:/) {
+	    $maildate = $_;
+	    $maildate =~ s/Date: *//;
+	}
+	if (/^<STATUS>/) { $context = "status"; next;}
+    }
+    
+    if ($context eq "status"){
+	my $val = $_; $val =~ s/^[a-z]{4}: +//; $val =~ s/ +$//;
+	if (/^stat:/){$status{'stat'} =  $val; next;}
+	if (/^ppkg:/){$status{'ppkg'} =  $val; next;}
+	if (/^page:/){$status{'page'} =  $val; next;}
+	if (/^date:/){$status{'date'} =  $val; next;}
+	if (/^mail:/){$status{'mail'} =  $val; next;}
+	if (/^name:/){$status{'name'} =  $val; next;}
+	if (/^<\/STATUS>/) { $context = "intermission"; next;}
+    }
+
+    if ($context eq "intermission"){
+	unless (/^$/){ $context = "body";}
+	# ここは next; が入らない!
+    }
+
+    if ($context eq "body"){
+	if (/^_{40,}$/) { $context = "end"; next; }
+	$draft_body .= "$_\n";
+	unless ($_ =~ /\.\\\"O/){
+	    $release_body .= "$_\n";
+	}
+    }
+
+    if ($context eq "end") { next; }
+}
+
+if ($DEBUG eq "on") {
+    for my $key (keys %status){
+	print "$key: $status{$key}\n";
+    }
+}
+
+# Delete bogus blank lines at the bottom
+$draft_body =~ s/\n+\n$/\n/;
+$release_body =~ s/\n+\n$/\n/;
+
+#
+# determine filenames
+#
+my $ppkg = $status{'ppkg'};
+my $dir = $ppkg; $dir =~ s/ /_/eg;
+my $name = $status{'page'};
+($name =~ /.*\.([1-9])$/) || die "Filename match failed\n";
+my $sec = $1;
+
+my $bdir = "$ROFFROOT/$dir";
+
+my $ddir = "$bdir/draft/man$sec";
+my $rdir = "$bdir/release/man$sec";
+
+my $draft   = "$ddir/$name";
+my $release = "$rdir/$name";
+
+my ($df_stat, $rf_stat);
+if (-f $draft)   {$df_stat = "upd";} else {$df_stat = "new";}
+if (-f $release) {$rf_stat = "upd";} else {$rf_stat = "new";}
+
+my $tlist = "$bdir/translation_list";
+my $clog  = "$bdir/ChangeLog";
+
+my $clog_ins = $maildate; chomp $clog_ins;
+$clog_ins .= "  JM ML to Git Gateway\n\n";
+
+#
+# translation_list
+#
+my $tlist_body = "";
+my $ismatch = "no";
+
+open TLO, $tlist or die "cannot open $tlist\n";
+while (<TLO>){
+    chomp;
+    my %ti = line2hash($_);
+    
+    if ($ti{'kind'} eq 'link' &&
+	"$ti{'lname'}.$ti{'lsec'}" eq $status{'page'} &&
+	$status{'stat'} =~ /^R/)
+    {
+	$ti{'stat'} = 'up2date';
+	my $tll = hash2line(%ti);
+	if ($DEBUG eq "yes") {print "$ismatch MATCH: $tll\n"};
+	$tlist_body .= "$tll\n";
+	next;
+    }
+
+    unless ("$ti{'fname'}.$ti{'sec'}" eq $status{'page'}) {
+	$tlist_body .= "$_\n";
+	if ($DEBUG eq "yes") {print "$ismatch : $_\n"};
+	next;
+    }
+
+    $ismatch = "on";
+
+    if ($ti{'stat'} =~ /^1st/){
+	$ti{'stat'} = "1st_";
+    } else {
+	$ti{'stat'} = "upd_";
+    }
+  SW1:{
+      if ($status{'stat'} =~ /^TR/){$ti{'stat'} .= 'rsv'; last SW1;}
+      if ($status{'stat'} =~ /^DO/){$ti{'stat'} .= 'dft'; last SW1;}
+      if ($status{'stat'} =~ /^DP/){$ti{'stat'} .= 'prf'; last SW1;}
+      if ($status{'stat'} =~ /^PR/){$ti{'stat'} .= 'prf'; last SW1;}
+      if ($status{'stat'} =~ /^RO/){$ti{'stat'} = 'up2date'; last SW1;}
+      if ($status{'stat'} =~ /^RR/){$ti{'stat'} = 'up2datR'; last SW1;}
+      die "error in STAT description\n";
+  }
+    
+    if ($status{'stat'} =~ /^R/){
+	$ti{'rver'} = $ti{'over'};
+	$ti{'dver'} = $ti{'over'};
+#	$ti{'newsec'} = $ti{'sec'};
+    }
+
+    $ti{'tdat'}  = $status{'date'};
+    $ti{'tmail'} = $status{'mail'};
+    $ti{'tname'} = $status{'name'};
+
+    my $tll = hash2line(%ti);
+
+    if ($DEBUG eq "yes") {print "$ismatch MATCH: $tll\n"};
+    $tlist_body .= "$tll\n";
+}
+close TLO;
+if ($ismatch eq "no") {die "No match in $tlist\n"};
+
+system "mv -f $tlist $tlist.orig";
+open TLN, "| nkf -w > $tlist" or die "cannot open $tlist.new\n";
+print TLN $tlist_body;
+close TLN;
+print "UPDATE: $tlist\n";
+
+$clog_ins .= "\t* translation_list: $mlnumber\n";
+
+#
+# draft page
+#
+if ($status{'stat'} =~ /^D/ || $status{'stat'} =~ /^R/){
+    system "mkdir -p $ddir";
+    open DF, "| nkf -w > $draft" || die "cannot open $draft";
+    print DF $draft_body;
+    close DF;
+
+    $clog_ins .= "\t* draft/man$sec/$name: $mlnumber\n";
+
+    if ($df_stat eq "upd") {print "UPDATE: $draft\n" }
+    else {print "CREATE: $draft\n";}
+}
+
+#
+# release page
+#
+if ($status{'stat'} =~ /^R/){
+    system "mkdir -p $rdir";
+    open RF, "| nkf -w > $release" || die "cannot open $release";
+    print RF $release_body;
+    close RF;
+
+    $clog_ins .= "\t* release/man$sec/$name: $mlnumber\n";
+
+    if ($rf_stat eq "upd") {print "UPDATE: $release\n" }
+    else {print "CREATE: $release\n";}
+}
+
+#
+# ChangeLog
+#
+my $clog_body = `cat $clog`;
+$clog_body =~ s/^/$clog_ins\n/;
+
+system "mv -f $clog $clog.orig";
+open CL, "| nkf -w > $clog" || die "cannot oepn $clog for writing\n";
+print CL $clog_body;
+close CL;
+
+print "UPDATE: $clog\n";
+
+
+unless ($status{'stat'} =~ /^R/) {exit 0;}
+#
+# $ppkg:	パッケージ名
+# $dir:		$ppkg のスペースを _ に置換した文字列
+# $name:	ファイル名
+
+#
+# www/news.m4
+#
+my ($pagelink);
+if ($rf_stat eq "new") {
+    $pagelink = "   _NEW_PAGE($ppkg, $name)\n";
+} else {
+    $pagelink = "   _UPD_PAGE($ppkg, $name)\n";
+}
+
+my $newsfile = "$WWW_ROOT/news.m4";
+system "mv -f $newsfile $newsfile.orig";
+open NMO, "nkf -w $newsfile.orig |" || die "cannot open $newsfile.orig for reading\n";
+open NMN, "| nkf -w > $newsfile" || die "cannot open $newsfile for writing\n";
+
+my $date = `date "+%Y/%m/%d"`; chomp $date;
+NEWS: while (<NMO>){
+    unless (m/ML2CVS ADD HERE/) {print NMN; next;}
+
+    print NMN;
+    my $tmp = <NMO>;
+
+    unless ($tmp =~ $date) { # 日付がマッチしなかった
+	print NMN " <H2>$date</H2>\n";
+	print NMN " <P>\n";
+	print NMN "  以下のファイルを追加・更新しました。\n";
+	print NMN " </P>\n";
+	print NMN " <DL>\n";
+	print NMN "  <DT>$ppkg</DT>\n  <DD>\n";
+	print NMN $pagelink;
+	print NMN "  </DD>\n </DL>\n\n";
+
+	print NMN $tmp;
+	next;
+    }
+
+    # 日付がマッチした
+    #
+    print NMN $tmp; # 日付行を出力
+
+    while (($tmp = <NMO>) !~ /<\/DL>/) {
+	unless ($tmp =~ /<DT>$ppkg/){
+	    print NMN $tmp;
+	    next;
+	}
+
+	# パッケージがマッチ
+	#
+	do {
+	    print NMN $tmp;
+	    $tmp = <NMO>;
+	} until ($tmp =~ /<\/DD>/);
+	print NMN $pagelink;
+	print NMN $tmp;  #</DD> 行
+	next NEWS;
+    }
+
+    # 日付はマッチしたが、マッチするパッケージがなかった
+    print NMN "  <DT>$ppkg</DT>\n  <DD>\n";
+    print NMN $pagelink;
+    print NMN "  </DD>\n";
+
+    print NMN $tmp;
+}
+close NMO; # news.m4.orig
+close NMN; # news.m4
+
+print "UPDATE: $newsfile\n";
+
+
+if ($rf_stat eq "new") {
+#
+# dist/script/pkgs.list
+#
+    my $pkgsfile = "$DISTROOT/script/pkgs.list";
+    if (`grep $dir $pkgsfile` == 0) {
+
+	system "cp -f $pkgsfile $pkgsfile.orig";
+	open PL, "nkf -w >> $pkgsfile" || die "cannot open $pkgsfile for addition\n";
+	print PL "$dir\tY\n";
+	close PL;
+	print "UPDATE: $pkgsfile\n";
+    }
+}
+
+# add files to git
+{
+    my $author = "$status{name} <$status{mail}>";
+
+    system "git add manual www dist\n";
+    print "git commit -m \'$subject\' --date=\'$maildate\' --author=\'$author\'\n";
+}
+
+exit 0;
+
