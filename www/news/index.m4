@@ -18,6 +18,13 @@ m4_dnl ML2CVS ADD HERE
  <H2><A NAME="20140608">2014/06/08</A></H2>
  <DL>
   <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.68 対応版)を公開しました。</DT>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, fork.2)
+    _UPD_PAGE(LDP_man-pages, getrlimit.2)
+    _UPD_PAGE(LDP_man-pages, nl_langinfo.3)
+    _UPD_PAGE(LDP_man-pages, pthread_create.3)
+    _UPD_PAGE(LDP_man-pages, proc.5)
+  </DD>
  </DL>
 
  <H2><A NAME="20140607">2014/06/07</A></H2>
