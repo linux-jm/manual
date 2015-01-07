@@ -52,26 +52,7 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
  <SMALL>(2014/06/07)</SMALL>
 
  <LI>_LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.22 の翻訳)を公開しました。
- <SMALL>2012/05/05</SMALL>
-
- <LI>_LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils の info)の翻訳を公開しました。
- <SMALL>(2014/04/27)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.65 対応版)の翻訳を更新しました。
-  詳細は_LINK(news/index.html#20140427,こちら)。
- <SMALL>(2014/04/27)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.65 対応版)を公開しました。
-  詳細は_LINK(news/index.html#20140424,こちら)。
- <SMALL>(2014/04/24)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.64 対応版)を公開しました。
-  詳細は_LINK(news/index.html#20140420,こちら)。
- <SMALL>(2014/04/20)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.63 対応版)を公開しました。
-  詳細は_LINK(news/index.html#20140414,こちら)。
- <SMALL>(2014/04/14)</SMALL>
+ <SMALL>2014/05/05</SMALL>
 
  <LI>_LINK(INDEX/linux.html#ebtables,ebtables 2.0.10-4 の翻訳)を公開しました。
  <SMALL>(2014/04/13)</SMALL>
@@ -81,7 +62,7 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <UL>
 m4_dnl m4_esyscmd(`./bin/info-whole-archive.perl')
 
- <LI>_LINK(news/index.html,更新・追加情報)
+ <LI>_LINK(news/index.html,すべての更新・追加情報)
    <SMALL>(m4_esyscmd(`./bin/file_date.perl news/index.m4'))</SMALL></LI>
 
  <LI>_LINK(announcement/index.html,以前のお知らせ)

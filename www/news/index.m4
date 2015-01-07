@@ -107,7 +107,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="20141125">2011/11/25</A></H2>
+ <H2><A NAME="20141125">2014/11/25</A></H2>
  <P>
  _LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils info)の翻訳を 8.22 に更新しました。
  </P>
@@ -171,7 +171,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2>2012/05/05</H2>
+ <H2>2014/05/05</H2>
  <P>
   _LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.22 の翻訳)を公開しました。
  </P>
