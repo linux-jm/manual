@@ -107,6 +107,11 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
+ <H2><A NAME="20141125">2011/11/25</A></H2>
+ <P>
+ _LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils info)の翻訳を 8.22 に更新しました。
+ </P>
+
  <H2><A NAME="20140607">2014/06/07</A></H2>
  <DL>
   <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.67 対応版)を公開しました。</DT>
