@@ -15,7 +15,87 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
- <H2><A NAME="20140608">2014/06/08</A></H2>
+ <H2><A NAME="20150107">2015/01/07</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.76 対応版)を公開しました。</DT>
+  <DD>
+    _NEW_PAGE(LDP_man-pages, group_member.3)
+    _NEW_PAGE(LDP_man-pages, isfdtype.3)
+    _NEW_PAGE(LDP_man-pages, pthread_rwlockattr_setkind_np.3)
+    _NEW_PAGE(LDP_man-pages, namespaces.7)
+  </DD>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, clock_nanosleep.2)
+    _UPD_PAGE(LDP_man-pages, clone.2)
+    _UPD_PAGE(LDP_man-pages, create_module.2)
+    _UPD_PAGE(LDP_man-pages, dup.2)
+    _UPD_PAGE(LDP_man-pages, epoll_ctl.2)
+    _UPD_PAGE(LDP_man-pages, execve.2)
+    _UPD_PAGE(LDP_man-pages, fallocate.2)
+    _UPD_PAGE(LDP_man-pages, getitimer.2)
+    _UPD_PAGE(LDP_man-pages, getpriority.2)
+    _UPD_PAGE(LDP_man-pages, getrlimit.2)
+    _UPD_PAGE(LDP_man-pages, inotify_add_watch.2)
+    _UPD_PAGE(LDP_man-pages, kexec_load.2)
+    _UPD_PAGE(LDP_man-pages, link.2)
+    _UPD_PAGE(LDP_man-pages, lseek.2)
+    _UPD_PAGE(LDP_man-pages, madvise.2)
+    _UPD_PAGE(LDP_man-pages, pipe.2)
+    _UPD_PAGE(LDP_man-pages, poll.2)
+    _UPD_PAGE(LDP_man-pages, query_module.2)
+    _UPD_PAGE(LDP_man-pages, readlink.2)
+    _UPD_PAGE(LDP_man-pages, readv.2)
+    _UPD_PAGE(LDP_man-pages, rename.2)
+    _UPD_PAGE(LDP_man-pages, sched_setaffinity.2)
+    _UPD_PAGE(LDP_man-pages, seteuid.2)
+    _UPD_PAGE(LDP_man-pages, setgid.2)
+    _UPD_PAGE(LDP_man-pages, setns.2)
+    _UPD_PAGE(LDP_man-pages, setresuid.2)
+    _UPD_PAGE(LDP_man-pages, setreuid.2)
+    _UPD_PAGE(LDP_man-pages, setsid.2)
+    _UPD_PAGE(LDP_man-pages, setuid.2)
+    _UPD_PAGE(LDP_man-pages, sgetmask.2)
+    _UPD_PAGE(LDP_man-pages, shmget.2)
+    _UPD_PAGE(LDP_man-pages, shmop.2)
+    _UPD_PAGE(LDP_man-pages, sigaction.2)
+    _UPD_PAGE(LDP_man-pages, sigwaitinfo.2)
+    _UPD_PAGE(LDP_man-pages, splice.2)
+    _UPD_PAGE(LDP_man-pages, statfs.2)
+    _UPD_PAGE(LDP_man-pages, symlink.2)
+    _UPD_PAGE(LDP_man-pages, tee.2)
+    _UPD_PAGE(LDP_man-pages, unlink.2)
+    _UPD_PAGE(LDP_man-pages, unshare.2)
+    _UPD_PAGE(LDP_man-pages, vmsplice.2)
+  </DD>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, ether_aton.3)
+    _UPD_PAGE(LDP_man-pages, fseeko.3)
+    _UPD_PAGE(LDP_man-pages, ftw.3)
+    _UPD_PAGE(LDP_man-pages, getgrent.3)
+    _UPD_PAGE(LDP_man-pages, getnameinfo.3)
+    _UPD_PAGE(LDP_man-pages, lseek64.3)
+    _UPD_PAGE(LDP_man-pages, mq_getattr.3)
+    _UPD_PAGE(LDP_man-pages, mq_open.3)
+    _UPD_PAGE(LDP_man-pages, perror.3)
+    _UPD_PAGE(LDP_man-pages, siginterrupt.3)
+    _UPD_PAGE(LDP_man-pages, sigvec.3)
+    _UPD_PAGE(LDP_man-pages, tzset.3)
+  </DD>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, charmap.5)
+    _UPD_PAGE(LDP_man-pages, resolv.conf.5)
+  </DD>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, capabilities.7)
+    _UPD_PAGE(LDP_man-pages, epoll.7)
+    _UPD_PAGE(LDP_man-pages, inotify.7)
+    _UPD_PAGE(LDP_man-pages, ip.7)
+    _UPD_PAGE(LDP_man-pages, mq_overview.7)
+    _UPD_PAGE(LDP_man-pages, packet.7)
+    _UPD_PAGE(LDP_man-pages, svipc.7)
+  </DD>
+ </DL>
+
  <DL>
   <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.68 対応版)を公開しました。</DT>
   <DD>
