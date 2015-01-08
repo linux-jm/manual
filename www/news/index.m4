@@ -98,7 +98,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20141125">2014/11/25</A></H2>
  <P>
- _LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils info)の翻訳を 8.22 に更新しました。
+ _LINK(/info/GNU_coreutils/coreutils-ja.html,GNU coreutils info)の翻訳を 8.22 に更新しました。
  </P>
 
  <H2><A NAME="20140608">2014/06/08</A></H2>
