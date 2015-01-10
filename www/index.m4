@@ -36,6 +36,10 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.77 対応版)を公開しました。
+  詳細は_LINK(news/index.html#20150111,こちら)。
+ <SMALL>(2015/01/11)</SMALL>
+
  <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.76 対応版)を公開しました。
   詳細は_LINK(news/index.html#20150107,こちら)。
  <SMALL>(2015/01/07)</SMALL>
