@@ -16,6 +16,21 @@ _HEADER(JM 新着情報)
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
 
+ <H2><A NAME="20150118">2015/01/18</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.77 対応版)を更新しました。</DT>
+  <DD>
+    _NEW_PAGE(LDP_man-pages, iconv.1)
+    _UPD_PAGE(LDP_man-pages, adjtimex.2)
+    _NEW_PAGE(LDP_man-pages, fanotify_mark.2)
+    _UPD_PAGE(LDP_man-pages, fcntl.2)
+    _UPD_PAGE(LDP_man-pages, futimesat.2)
+    _UPD_PAGE(LDP_man-pages, sigreturn.2)
+    _NEW_PAGE(LDP_man-pages, utimensat.2)
+    _UPD_PAGE(LDP_man-pages, proc.5)
+  </DD>
+ </DL>
+
  <H2><A NAME="20150112">2015/01/12</A></H2>
  <DL>
   <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.77 対応版)を更新しました。</DT>
@@ -34,7 +49,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20150111">2015/01/11</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.77 対応版)を更新しました。</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.77 対応版)を公開しました。</DT>
   <DD>
     _NEW_PAGE(LDP_man-pages, fanotify_init.2)
     _UPD_PAGE(LDP_man-pages, posix_fadvise.2)
