@@ -43,6 +43,7 @@ my $MANWROOT='../../../manual';
 my $MAIN='<A HREF="../../../index.html">JM Home Page</A>';
 my $MAN2HTMLPAGE='<A HREF="../../man/man1/man2html.1.html">man2html</A>';
 my $MLANG='<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">';
+my $JMCSS='<LINK REL="stylesheet" TYPE="text/css" HREF="../../../jm_man2html.css">';
 my $JMCSS='<LINK REL="stylesheet" TYPE="text/css" HREF="../../../jm.css">';
 my $CONTCSS='<LINK REL="stylesheet" TYPE="text/css" HREF="../../../contrib.css">';
 my $SELECT='0MultiFileIdx';
