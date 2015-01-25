@@ -55,14 +55,6 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
  <LI>_LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils info)の翻訳を 8.22 に更新しました。
  <SMALL>(2014/11/25)</SMALL>
 
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.68 対応版)を公開しました。
-  詳細は_LINK(news/index.html#20140608,こちら)。
- <SMALL>(2014/06/08)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.67 対応版)を公開しました。
-  詳細は_LINK(news/index.html#20140607,こちら)。
- <SMALL>(2014/06/07)</SMALL>
-
  <LI>_LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.22 の翻訳)を公開しました。
  <SMALL>2014/05/05</SMALL>
 
