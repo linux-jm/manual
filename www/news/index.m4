@@ -68,6 +68,7 @@ m4_dnl ML2CVS ADD HERE
     _UPD_PAGE(LDP_man-pages, shm_open.3)
   </DD>
   <DD>
+    _UPD_PAGE(LDP_man-pages, locale.5)
     _UPD_PAGE(LDP_man-pages, proc.5)
     _UPD_PAGE(LDP_man-pages, repertoiremap.5)
     _UPD_PAGE(LDP_man-pages, locale.7)
