@@ -24,6 +24,7 @@ m4_dnl ML2CVS ADD HERE
     _NEW_PAGE(LDP_man-pages, execveat.2)
     _NEW_PAGE(LDP_man-pages, memfd_create.2)
     _NEW_PAGE(LDP_man-pages, open_by_handle_at.2)
+    _NEW_PAGE(LDP_man-pages, restart_syscall.2)
     _NEW_PAGE(LDP_man-pages, fopencookie.3)
     _NEW_PAGE(LDP_man-pages, uselocale.3)
     _NEW_PAGE(LDP_man-pages, symlink.7)
