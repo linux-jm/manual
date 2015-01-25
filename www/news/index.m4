@@ -16,6 +16,64 @@ _HEADER(JM 新着情報)
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
 
+ <H2><A NAME="20150125">2015/01/25</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.78 対応版)を公開しました。</DT>
+  <DD>
+    _NEW_PAGE(LDP_man-pages, locale.1)
+    _NEW_PAGE(LDP_man-pages, execveat.2)
+    _NEW_PAGE(LDP_man-pages, memfd_create.2)
+    _NEW_PAGE(LDP_man-pages, open_by_handle_at.2)
+    _NEW_PAGE(LDP_man-pages, fopencookie.3)
+    _NEW_PAGE(LDP_man-pages, uselocale.3)
+    _NEW_PAGE(LDP_man-pages, symlink.7)
+    _NEW_PAGE(LDP_man-pages, vdso.7)
+    _NEW_PAGE(LDP_man-pages, iconvconfig.8)
+  </DD>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, dup.2)
+    _UPD_PAGE(LDP_man-pages, execve.2)
+    _UPD_PAGE(LDP_man-pages, exit_group.2)
+    _UPD_PAGE(LDP_man-pages, fallocate.2)
+    _UPD_PAGE(LDP_man-pages, fcntl.2)
+    _UPD_PAGE(LDP_man-pages, fcntl.2)
+    _UPD_PAGE(LDP_man-pages, getrlimit.2)
+    _UPD_PAGE(LDP_man-pages, mbind.2)
+    _UPD_PAGE(LDP_man-pages, mmap.2)
+    _UPD_PAGE(LDP_man-pages, open.2)
+    _UPD_PAGE(LDP_man-pages, readv.2)
+    _UPD_PAGE(LDP_man-pages, sched_setattr.2)
+    _UPD_PAGE(LDP_man-pages, select.2)
+    _UPD_PAGE(LDP_man-pages, setns.2)
+    _UPD_PAGE(LDP_man-pages, setup.2)
+    _UPD_PAGE(LDP_man-pages, shmget.2)
+    _UPD_PAGE(LDP_man-pages, sigaction.2)
+    _UPD_PAGE(LDP_man-pages, syscall.2)
+    _UPD_PAGE(LDP_man-pages, syscalls.2)
+    _UPD_PAGE(LDP_man-pages, truncate.2)
+    _UPD_PAGE(LDP_man-pages, utimensat.2)
+    _UPD_PAGE(LDP_man-pages, write.2)
+  </DD>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, errno.3)
+    _UPD_PAGE(LDP_man-pages, exec.3)
+    _UPD_PAGE(LDP_man-pages, fclose.3)
+    _UPD_PAGE(LDP_man-pages, fexecve.3)
+    _UPD_PAGE(LDP_man-pages, fmemopen.3)
+    _UPD_PAGE(LDP_man-pages, gwtpw.3)
+    _UPD_PAGE(LDP_man-pages, malloc_info.3)
+    _UPD_PAGE(LDP_man-pages, posix_fallocate.3)
+    _UPD_PAGE(LDP_man-pages, setlocale.3)
+    _UPD_PAGE(LDP_man-pages, shm_open.3)
+  </DD>
+  <DD>
+    _UPD_PAGE(LDP_man-pages, proc.5)
+    _UPD_PAGE(LDP_man-pages, repertoiremap.5)
+    _UPD_PAGE(LDP_man-pages, locale.7)
+    _UPD_PAGE(LDP_man-pages, zdump.8)
+  </DD>
+ </DL>
+
  <H2><A NAME="20150118">2015/01/18</A></H2>
  <DL>
   <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.77 対応版)を更新しました。</DT>
