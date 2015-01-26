@@ -16,9 +16,9 @@ _HEADER(JM 新着情報)
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
 
- <H2><A NAME="20150125">2015/01/25</A></H2>
+ <H2><A NAME="20150126">2015/01/26</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.78 対応版)を公開しました。</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.78 対応版)を更新しました。</DT>
   <DD>
     _NEW_PAGE(LDP_man-pages, locale.1)
     _NEW_PAGE(LDP_man-pages, execveat.2)
@@ -32,11 +32,26 @@ m4_dnl ML2CVS ADD HERE
     _NEW_PAGE(LDP_man-pages, iconvconfig.8)
   </DD>
   <DD>
+    _UPD_PAGE(LDP_man-pages, fcntl.2)
+    _UPD_PAGE(LDP_man-pages, prctl.2)
+    _UPD_PAGE(LDP_man-pages, fmemopen.3)
+    _UPD_PAGE(LDP_man-pages, setlocale.3)
+    _UPD_PAGE(LDP_man-pages, locale.5)
+    _UPD_PAGE(LDP_man-pages, proc.5)
+    _UPD_PAGE(LDP_man-pages, repertoiremap.5)
+    _UPD_PAGE(LDP_man-pages, locale.7)
+    _UPD_PAGE(LDP_man-pages, zdump.8)
+  </DD>
+ </DL>
+
+ <H2><A NAME="20150125">2015/01/25</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.78 対応版)を公開しました。</DT>
+  <DD>
     _UPD_PAGE(LDP_man-pages, dup.2)
     _UPD_PAGE(LDP_man-pages, execve.2)
     _UPD_PAGE(LDP_man-pages, exit_group.2)
     _UPD_PAGE(LDP_man-pages, fallocate.2)
-    _UPD_PAGE(LDP_man-pages, fcntl.2)
     _UPD_PAGE(LDP_man-pages, fcntl.2)
     _UPD_PAGE(LDP_man-pages, getrlimit.2)
     _UPD_PAGE(LDP_man-pages, mbind.2)
@@ -60,19 +75,10 @@ m4_dnl ML2CVS ADD HERE
     _UPD_PAGE(LDP_man-pages, exec.3)
     _UPD_PAGE(LDP_man-pages, fclose.3)
     _UPD_PAGE(LDP_man-pages, fexecve.3)
-    _UPD_PAGE(LDP_man-pages, fmemopen.3)
     _UPD_PAGE(LDP_man-pages, gwtpw.3)
     _UPD_PAGE(LDP_man-pages, malloc_info.3)
     _UPD_PAGE(LDP_man-pages, posix_fallocate.3)
-    _UPD_PAGE(LDP_man-pages, setlocale.3)
     _UPD_PAGE(LDP_man-pages, shm_open.3)
-  </DD>
-  <DD>
-    _UPD_PAGE(LDP_man-pages, locale.5)
-    _UPD_PAGE(LDP_man-pages, proc.5)
-    _UPD_PAGE(LDP_man-pages, repertoiremap.5)
-    _UPD_PAGE(LDP_man-pages, locale.7)
-    _UPD_PAGE(LDP_man-pages, zdump.8)
   </DD>
  </DL>
 
