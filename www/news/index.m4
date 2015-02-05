@@ -16,6 +16,29 @@ _HEADER(JM 新着情報)
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
 
+ <H2><A NAME="20150205">2015/02/05</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.79 対応版)を公開しました。</DT>
+  <DD>
+        _NEW_PAGE(LDP_man-pages, sprof.1)
+        _NEW_PAGE(LDP_man-pages, add_key.2)
+        _NEW_PAGE(LDP_man-pages, delete_module.2)
+        _NEW_PAGE(LDP_man-pages, init_module.2)
+        _NEW_PAGE(LDP_man-pages, keyctl.2)
+        _NEW_PAGE(LDP_man-pages, perfmonctl.2)
+        _NEW_PAGE(LDP_man-pages, process_vm_readv.2)
+        _NEW_PAGE(LDP_man-pages, request_key.2)
+        _UPD_PAGE(LDP_man-pages, socket.2)
+        _UPD_PAGE(LDP_man-pages, fflush.3)
+        _NEW_PAGE(LDP_man-pages, getauxval.3)
+        _NEW_PAGE(LDP_man-pages, mallinfo.3)
+        _NEW_PAGE(LDP_man-pages, malloc_get_state.3)
+        _NEW_PAGE(LDP_man-pages, malloc_trim.3)
+        _UPD_PAGE(LDP_man-pages, tzset.3)
+        _NEW_PAGE(LDP_man-pages, cpuid.4)
+  </DD>
+ </DL>
+
  <H2><A NAME="20150126">2015/01/26</A></H2>
  <DL>
   <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.78 対応版)を更新しました。</DT>
