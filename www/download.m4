@@ -19,15 +19,19 @@ m4_dnl _MIRROR_LIST(download.html)
 
 <P>なお、各 roff ページの文字コードは UTF-8 です。</P>
 
-<H2>全体のアーカイブ</H2>
+<H2><A NAME="ALL_IN_ONE">全体のアーカイブ</A></H2>
 <UL>
  <LI>m4_esyscmd(./bin/link-whole-archive.perl _DATE)</LI>
  <LI>アーカイブの _LINK(README.html,README ファイル)</LI>
  <LI>アーカイブの _LINK(INSTALL.html,INSTALL ファイル)</LI>
 </UL>
 
-<H2>パッケージ別アーカイブ</H2>
+<H2><A NAME="EACH_MANUAL">パッケージ別アーカイブ</A></H2>
  m4_esyscmd(./bin/link-partial-archives.perl _DATE)
+
+<H2><A NAME="INFO_MANUAL">info 版マニュアルのアーカイブ</A></H2>
+<P>info 版マニュアルは man pages 全体のアーカイブには収録されていません。</P>
+ m4_esyscmd(./bin/link-info-archives.perl)
 
 _CREDITS
 

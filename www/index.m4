@@ -36,6 +36,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(download.html#INFO_MANUAL, GNU coreutils 8.22 の info 版マニュアルの翻訳をダウンロード)できるようにしました。
+ <SMALL>(2015/07/26)</SMALL>
+
  <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.79 対応版)を更新しました。
   詳細は_LINK(news/index.html#20150205,こちら)。
  <SMALL>(2015/02/05)</SMALL>
@@ -60,7 +63,7 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
   詳細は_LINK(news/index.html#20150109,こちら)。
  <SMALL>(2015/01/09)</SMALL>
 
- <LI>_LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils info)の翻訳を 8.22 に更新しました。
+ <LI>_LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils info) の翻訳を 8.22 に更新しました。
  <SMALL>(2014/11/25)</SMALL>
 
  <LI>_LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.22 の翻訳)を公開しました。

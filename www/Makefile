@@ -42,7 +42,7 @@ INSTALL.html: ../dist/INSTALL
 ../dist/README ../dist/INSTALL:
 	$(MAKE) -C .. -f Makefile.dist
 
-download.html: download.m4 ../stamp/latest-archive-modified
+download.html: download.m4 ../stamp/latest-archive-modified ../stamp/www-info-modified
 	m4 -P -D _WORKDIR=$(WORKDIR) -D _DATE=$(DATE) $< | nkf -w > $@
 
 ../stamp/latest-archive-modified:

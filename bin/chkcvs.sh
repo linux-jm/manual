@@ -6,6 +6,7 @@
 #
 RM=stamp/cvs-release-modified
 SM=stamp/cvs-status-modified
+IM=stamp/info-release-modified
 
 if [ ! -f $RM ]; then
 	touch $RM
@@ -18,5 +19,11 @@ if [ ! -f $SM ]; then
 	touch $SM
 elif (find manual -name translation_list -newer $SM | grep -q "."); then
 	touch $SM
+fi
+
+if [ ! -f $IM ]; then
+        touch $IM
+elif (find info -newer $IM | grep -q "release"); then
+        touch $IM
 fi
 
