@@ -14,7 +14,7 @@ _HEADER(`セクションとは?')
  マニュアルページはそれぞれ特定のセクションに所属しています。
  セクションは通常 1 つの数字 (文字) で表記されます。
  各セクションの意味を JF プロジェクトの
- _LINK(http://linuxjf.sourceforge.jp/JFdocs/Man-Page.html,Man-page HOWTO)
+ _LINK(http://linuxjf.osdn.jp/JFdocs/Man-Page.html,Man-page HOWTO)
  より以下に抜粋します。
 </P>
 

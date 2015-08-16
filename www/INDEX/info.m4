@@ -21,7 +21,7 @@ _HEADER(`JM インデックス (info)')
 
 <H2>目次</H2>
 <UL>
- <LI>_LINK(../info/GNU_coreutils/coreutils-ja.html, GNU coreutils) (Version 8.20)</LI>
+ <LI>_LINK(../info/GNU_coreutils/coreutils-ja.html, GNU coreutils) (Version 8.22)</LI>
 </UL>
 
 _CREDITS

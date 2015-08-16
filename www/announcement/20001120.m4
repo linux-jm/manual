@@ -3,7 +3,7 @@ m4_include(../jm_www.m4)m4_dnl
 _EDIT_WARNING(renewal-1)
 _HEADER(`Announce: translation of LDP man-pages has been completed')
 <PRE>
-m4_esyscmd(`grep -v "\$Id" 20001120.euc')
+m4_esyscmd(`nkf -w 20001120.euc |grep -v "\$Id"')
 </PRE>
 _CREDITS
 _BACK_TO_HOME

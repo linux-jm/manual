@@ -37,7 +37,7 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
  <LI>_LINK(download.html#INFO_MANUAL, GNU coreutils 8.22 の info 版マニュアルの翻訳をダウンロード)できるようにしました。
- <SMALL>(2015/07/26)</SMALL>
+ <SMALL>(2015/08/12)</SMALL>
 
  <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.79 対応版)を更新しました。
   詳細は_LINK(news/index.html#20150205,こちら)。
@@ -208,7 +208,7 @@ _LINK(http://www.namazu.org/,Namazu)
 <H2><A NAME="ABOUTJM">JM Project の活動</A></H2>
 <P>
  翻訳状況、翻訳手順、管理者向け情報などは
- _LINK(http://sourceforge.jp/projects/linuxjm/wiki/FrontPage,JM Project Wiki)
+ _LINK(http://osdn.jp/projects/linuxjm/wiki/FrontPage,JM Project Wiki)
  に掲載しています。
 </P>
 
@@ -217,7 +217,7 @@ _LINK(http://www.namazu.org/,Namazu)
 <P>
  JM Project で配布しているマニュアルに関して、
  誤字・誤訳その他お気づきの点がありましたら、
- linuxjm-discuss@lists.sourceforge.jp までメールでお知らせください。
+ linuxjm-discuss@lists.osdn.me までメールでお知らせください。
  作業メーリングリストに配送されますが、
  メンバーでなくても投稿できます。
  1 バイトの修正でも大歓迎です。
@@ -229,12 +229,12 @@ _LINK(http://www.namazu.org/,Namazu)
  日本語の文書やマニュアルを配布している個人/プロジェクトへのリンクです。
 </P>
 <UL>
- <LI>_LINK(http://linuxjf.sourceforge.jp/,JF Project)</LI>
+ <LI>_LINK(http://linuxjf.osdn.jp/,JF Project)</LI>
  <LI>_LINK(http://openlab.ring.gr.jp/doc-ja/,Doc-ja Archive Project)</LI>
  <LI>_LINK(http://www.jp.freebsd.org/man-jp/,Japanese Manual Project for FreeBSD)</LI>
  <LI>_LINK(http://xjman.dsl.gr.jp/,X Japanese Documentation Project)</LI>
  <LI>_LINK(http://wiki.samba.gr.jp/,日本 SAMBA ユーザ会)</LI>
- <LI>_LINK(http://www.unixuser.org/~euske/doc/openssh/jman/,OpenSSH 日本語マニュアルページ)</LI>
+ <LI>_LINK(http://euske.github.io/openssh-jman/,OpenSSH 日本語マニュアルページ)</LI>
  <LI>_LINK(http://media.laic.u-hyogo.ac.jp/%7Ehayashi/internet/mh-plus.html,MH-plus project)
  <LI>_LINK(http://www.kobitosan.net/postfix/#Manual,Postfix のぺーじ)
  <LI>_LINK(http://www.postgresql.jp/document/,PostgreSQL 日本語ドキュメント)
