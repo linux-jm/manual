@@ -20,6 +20,7 @@ Linux JM プロジェクトガイド
    GNU_coreutils.rst
    translation_pod.rst
    mail_format.rst
+   JM_man_view.rst
 
 管理ガイド
 ==========
