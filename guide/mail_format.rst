@@ -51,19 +51,20 @@ ML に翻訳を post する際にはこのページに記述されたような
 ヘッダ情報は 1 行 1 レコードからなり、 区切りは ": " (コロンとスペース) です。
 必要なレコードは以下の 6 つです。
 
- * ``stat``: ページのステータスです。 ("TR", "DO", "DP", "PR", "RO", "RR") のどれか一つを 指定します。それぞれの意味は以下のようになります。
+* ``stat``: ページのステータスです。 ("TR", "DO", "DP", "PR", "RO", "RR") のどれか一つを 指定します。それぞれの意味は以下のようになります。
 
-   * TR: 翻訳の予約。 (Translation Reservation)
-   * DO: ドラフトの投稿。自分では校正を行わない。 (Draft Only)
-   * DP: ドラフトの投稿。引き続き自分で校正を行う。 (Draft and Proof reservation)
-   * PR: 校正待ち状態のドラフトに対する校正作業の予約。 (Proof Reservation)
-   * RO: リリースの投稿。原文更新時の予約はしない。 (Release Only)
-   * RR: リリースの投稿です。原文更新時の改訂作業を予約する。 (Release and update Reservation)
- * ``ppkg`` : この man ページが含まれるパッケージの名前
- * ``page`` : ページのファイル名
- * ``date`` : translation_list データベースに記録される日付
- * ``mail`` : 投稿者のメールアドレス
- * ``name`` : 投稿者の Real Name (ローマ字表記が望ましい)
+  * TR: 翻訳の予約。 (Translation Reservation)
+  * DO: ドラフトの投稿。自分では校正を行わない。 (Draft Only)
+  * DP: ドラフトの投稿。引き続き自分で校正を行う。 (Draft and Proof reservation)
+  * PR: 校正待ち状態のドラフトに対する校正作業の予約。 (Proof Reservation)
+  * RO: リリースの投稿。原文更新時の予約はしない。 (Release Only)
+  * RR: リリースの投稿です。原文更新時の改訂作業を予約する。 (Release and update Reservation)
+
+* ``ppkg`` : この man ページが含まれるパッケージの名前
+* ``page`` : ページのファイル名
+* ``date`` : translation_list データベースに記録される日付
+* ``mail`` : 投稿者のメールアドレス
+* ``name`` : 投稿者の Real Name (ローマ字表記が望ましい)
 
 例えば翻訳作業の予約の場合は、以下のようになります。::
 
@@ -112,22 +113,22 @@ bash のシェルスクリプト
 オプション
 ----------
 
- * ``-S`` : 文書のステータスを記述します。有効なものは以下のどれかです。
+* ``-S`` : 文書のステータスを記述します。有効なものは以下のどれかです。
 
-   * TR: 翻訳の予約です。 (Translation Reservation)
-   * DO: ドラフトの投稿です。自分では校正を行わない場合です。 (Draft Only)
-   * DP: ドラフトの投稿です。引き続き自分で校正を行う場合です。 (Draft and Proof reservation)
-   * PR: 校正待ち状態のドラフトに対する校正作業の予約です。 (Proof Reservation)
-   * RO: リリースの投稿です。原文更新時の予約はしない場合です。 (Release Only)
-   * RR: リリースの投稿です。原文更新時の改訂作業の予約を含みます。 (Release and update Reservation)
+  * TR: 翻訳の予約です。 (Translation Reservation)
+  * DO: ドラフトの投稿です。自分では校正を行わない場合です。 (Draft Only)
+  * DP: ドラフトの投稿です。引き続き自分で校正を行う場合です。 (Draft and Proof reservation)
+  * PR: 校正待ち状態のドラフトに対する校正作業の予約です。 (Proof Reservation)
+  * RO: リリースの投稿です。原文更新時の予約はしない場合です。 (Release Only)
+  * RR: リリースの投稿です。原文更新時の改訂作業の予約を含みます。 (Release and update Reservation)
 
-   メールに翻訳原稿が添付されるのは DO, DP, RO, RR のいずれかの場合になります。 translation_list の書式 も参考にすると良いでしょう。
+  メールに翻訳原稿が添付されるのは DO, DP, RO, RR のいずれかの場合になります。 translation_list の書式 も参考にすると良いでしょう。
 
- * ``-P`` : パッケージの名前です。(例: util-linux, "GNU bash")
- * ``-F`` : ページの名前です。 (例: mount.8, bash.1)
- * ``-D`` : 日付です。省略すると date コマンドの結果が用いられます。
- * ``-M`` : 作業者のメールアドレスです。
- * ``-R`` : 作業者の Real Name です。
+* ``-P`` : パッケージの名前です。(例: util-linux, "GNU bash")
+* ``-F`` : ページの名前です。 (例: mount.8, bash.1)
+* ``-D`` : 日付です。省略すると date コマンドの結果が用いられます。
+* ``-M`` : 作業者のメールアドレスです。
+* ``-R`` : 作業者の Real Name です。
 
 ノート
 ------

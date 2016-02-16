@@ -80,9 +80,9 @@ perkamon 作業ディレクトリに最新版に対応した展開する
 
 * COLOPHON 以下を削除する。
 
-    translation\_list を更新する際に、変更点のみを抽出するために行う。
-    COLOPHON 部分はリリース毎にバージョン番号が更新されてしまうので、
-    original に登録する際には、この節を削除しておく。
+  translation\_list を更新する際に、変更点のみを抽出するために行う。
+  COLOPHON 部分はリリース毎にバージョン番号が更新されてしまうので、
+  original に登録する際には、この節を削除しておく。
 
 * original 以下を git で stage する。
 * translation\_list の更新
@@ -91,12 +91,12 @@ perkamon 作業ディレクトリに最新版に対応した展開する
 
 * Git commit
 
-   .. code-block:: none
+  .. code-block:: none
 
-      git add translation_list
-      git commit -m "LDP: Update original to LDP v3.XX"
-      git add po4a/ stats/ untrans.html
-      git commit -m "LDP: Update POT and ja.po to LDP v3.XX"
+     git add translation_list
+     git commit -m "LDP: Update original to LDP v3.XX"
+     git add po4a/ stats/ untrans.html
+     git commit -m "LDP: Update POT and ja.po to LDP v3.XX"
 
 3. 単純な fuzzy の更新
 ----------------------

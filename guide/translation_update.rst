@@ -6,8 +6,8 @@ JM Repository の構成は :doc:`git_repository` に書かれている通りで�
 
 JM の翻訳の管理方法は
 
- * roff を直接翻訳
- * po4a を使って翻訳
+* roff を直接翻訳
+* po4a を使って翻訳
 
 の2つの方法が混在しています。
 

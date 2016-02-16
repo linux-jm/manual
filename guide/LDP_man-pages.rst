@@ -157,5 +157,5 @@ ja.po の diff は以下のコマンドで取得できます。 time の ja.po �
 
 更新後は通常のリリース手順と同じです。
 
- * release ファイルを git add -u → git commit
- * (必要に応じて) www/index.m4, www/news/index.m4 を更新
+* release ファイルを git add -u → git commit
+* (必要に応じて) www/index.m4, www/news/index.m4 を更新
