@@ -121,7 +121,7 @@ html_theme = 'bootstrap'
 html_theme_options = {
     'bootswatch_theme': 'cosmo',
     'navbar_links': [
-        (u'JM トップへ', 'http://linuxjm.sourceforge.jp/', 1),
+        (u'JM トップへ', 'http://linuxjm.osdn.jp/', 1),
     ],
     'navbar_sidebarrel': False,
 }

@@ -7,6 +7,11 @@
 Linux JM プロジェクトガイド
 ===========================
 
+`JM ホームページ `<http://linuxjm.osdn.jp/>`__ |
+`Git リポジトリ <https://osdn.jp/projects/linuxjm/scm/git/jm/>`__ |
+`メーリングリスト <https://osdn.jp/projects/linuxjm/lists/archive/discuss/>`__ |
+`Wiki <https://osdn.jp/projects/linuxjm/wiki/FrontPage>`__
+
 翻訳ガイド
 ==========
 

@@ -208,7 +208,7 @@ _LINK(http://www.namazu.org/,Namazu)
 <H2><A NAME="ABOUTJM">JM Project の活動</A></H2>
 <P>
  翻訳状況、翻訳手順、管理者向け情報などは
- _LINK(http://osdn.jp/projects/linuxjm/wiki/FrontPage,JM Project Wiki)
+ _LINK(/guide/,JM Project Guide)
  に掲載しています。
 </P>
 
