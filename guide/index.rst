@@ -35,6 +35,12 @@ Linux JM プロジェクトガイド
    translation_list.rst
    jmpost_import.rst
 
+翻訳作業状況
+============
+
+* `パッケージ全般 </INDEX/progress.html>`__
+* `LDP man-pages </LDP_untrans.html>`__
+
 このドキュメントについて
 ========================
 

@@ -29,7 +29,7 @@ JMRPM_BUILD_ROOT=$(TMPDIR)/man-pages-ja-root
 #
 # global rules
 #
-periodic: chkcvs roff infoman html web cgi guide
+periodic: chkcvs roff infoman html web cgi guide web-extra
 
 all: periodic archive-install 
 
@@ -93,6 +93,10 @@ cgi:
 .PHONY:	guide
 guide:
 	$(MAKE) -C guide/ -f Makefile.venv-wrap install WWWROOT=$(WWWROOT) install
+
+.PHONY:	web-extra
+web-extra:
+	rsync -av manual/LDP_man-pages/untrans.html $(WWWROOT)/LDP_untrans.html
 
 #
 # archive related rules
