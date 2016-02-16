@@ -125,7 +125,7 @@ m4_dnl m4_esyscmd(`./bin/info-whole-archive.perl')
 JM Project で翻訳された_LINK(INDEX/,マニュアルの一覧)です。
 <UL>
  <LI>_LINK(INDEX/ldp.html,LDP man-pages) :
-  _LINK(http://www.tldp.org/manpages/man.html,Linux Documentation Project)
+  _LINK(https://www.kernel.org/doc/man-pages/,Linux man-pages project)
   が配布している man ページ集です。
   システムコール、ライブラリ関数などのマニュアルが収録されています。</LI>
 
