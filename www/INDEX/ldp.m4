@@ -11,7 +11,7 @@ m4_include(../jm_www.m4)
 _EDIT_WARNING(index)
 _HEADER(`JM インデックス (LDP man-pages)')
 <P>
- _LINK(http://www.tldp.org/,Linux Documentation Project)
+ _LINK(https://www.kernel.org/doc/man-pages/,Linux man-pages project)
  によって配布されているマニュアルページです。
 </P>
 <P>
