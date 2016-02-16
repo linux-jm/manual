@@ -29,7 +29,7 @@ JMRPM_BUILD_ROOT=$(TMPDIR)/man-pages-ja-root
 #
 # global rules
 #
-periodic: chkcvs roff infoman html web cgi
+periodic: chkcvs roff infoman html web cgi guide
 
 all: periodic archive-install 
 
@@ -89,6 +89,10 @@ cgi:
 	$(MAKE) -C admin/cgi/\
 		WWWROOT=$(WWWROOT) CGIROOT=$(CGIROOT)\
 		install
+
+.PHONY:	guide
+guide:
+	$(MAKE) -C guide/ -f Makefile.venv-wrap install WWWROOT=$(WWWROOT) install
 
 #
 # archive related rules
