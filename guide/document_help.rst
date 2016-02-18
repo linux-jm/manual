@@ -8,7 +8,7 @@ ReST 記法が利用できるので、お手軽、かつ多様な表現が可能
 格納場所
 ========
 
-ドキュメントのソースは git repository の ``guide/`` ディレクトリに
+ドキュメントのソースは git repository の ``guide`` ディレクトリに
 あります。
 
 ドキュメント build 方法
@@ -25,7 +25,7 @@ build 環境の準備
    $ pip install -r requirements.txt
 
 上記のコマンドを有効にすると、
-sphinx と sphinx-bootstrap-theme がインストールされます。
+``sphinx`` と ``sphinx-bootstrap-theme`` がインストールされます。
 
 build 方法
 ----------
