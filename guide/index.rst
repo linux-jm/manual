@@ -8,7 +8,10 @@ Linux JM プロジェクトガイド
 ===========================
 
 `JM ホームページ <http://linuxjm.osdn.jp/>`__ |
-`Git リポジトリ <https://osdn.jp/projects/linuxjm/scm/git/jm/>`__ |
+Git リポジトリ (`JM <https://osdn.jp/projects/linuxjm/scm/git/jm/>`__,
+`LDP <https://osdn.jp/projects/linuxjm/scm/git/LDP_man-pages/>`__,
+`coreutils <https://osdn.jp/projects/linuxjm/scm/git/coreutils/>`__,
+`iptables <https://osdn.jp/projects/linuxjm/scm/git/iptables/>`__) |
 `メーリングリスト <https://osdn.jp/projects/linuxjm/lists/archive/discuss/>`__ |
 `Wiki <https://osdn.jp/projects/linuxjm/wiki/FrontPage>`__
 

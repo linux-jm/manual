@@ -54,3 +54,21 @@ help2man.orig 側でのファイルの add/update/remove を反映する。
 * help message が更新された場合
 
   * ``SOURCE/po/ja.po`` を修正して Translation Project へ。
+
+独自管理パッチ
+==============
+
+GNU coreutils のマニュアルでは、
+coreutils のソースを利用してコンパイルして、
+``ja.po`` を組み込んで man pages を生成しているため、
+場合によっては独自修正を管理する場合がある。
+
+2 つのパッチが Makefile でサポートされています。
+
+* ``patch-$(VERSION).diff`` : coreutils に対するパッチ
+* ``ja.po/ja.po.$(VERSION)`` : 変更後の ja.po ファイル。
+
+  * パッチではない点に注意。
+  * 翻訳内容をローカル修正した場合にはこのファイルに反映を行う。
+  * このファイルが存在する場合は、展開されたソース内の ``source/po/ja.po`` から
+    このファイルへの symlink が作成される。
