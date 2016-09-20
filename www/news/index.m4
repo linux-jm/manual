@@ -15,6 +15,20 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+
+ <H2><A NAME="20160920">2016/09/20</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/misc.html,sudo 1.8.17 のマニュアル)を公開しました。</DT>
+  <DD>
+   _UPD_PAGE(sudo, sudo.8)
+   _UPD_PAGE(sudo, sudoers.5)
+   _NEW_PAGE(sudo, sudo.conf.5)
+   _UPD_PAGE(sudo, sudoers.ldap.5)
+   _UPD_PAGE(sudo, sudoreplay.8)
+   _UPD_PAGE(sudo, visudo.8)
+  </DD>
+ </DL>
+
  <H2><A NAME="20160219">2016/02/19</A></H2>
  <P>
  _LINK(/info/GNU_coreutils/coreutils-ja.html,GNU coreutils info)の翻訳を 8.25 に更新しました。

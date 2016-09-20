@@ -17,6 +17,8 @@ _HEADER(`JM インデックス (info)')
 <P>
  現在は _LINK(http://www.gnu.org/,GNU) ソフトウェアの info 形式のマニュアルを公開しています。
  _LINK(http://www.gnu.org/,GNU) では詳しいマニュアルは info 形式で配布されています。
+ なお、info 形式の日本語マニュアルをダウンロードしたい場合は、
+ _LINK(../download.html#INFO_MANUAL,こちら)から。
 </P>
 
 <H2>目次</H2>
