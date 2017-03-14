@@ -16,6 +16,14 @@ _HEADER(JM 新着情報)
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
 
+ <H2><A NAME="20170314">2017/03/14</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/gnu.html,GNU_grep 2.27 のマニュアル)を公開しました。</DT>
+  <DD>
+   _UPD_PAGE(GNU_grep, grep.1)
+  </DD>
+ </DL>
+
  <H2><A NAME="20160920">2016/09/20</A></H2>
  <DL>
   <DT>_LINK(../INDEX/misc.html,sudo 1.8.17 のマニュアル)を公開しました。</DT>

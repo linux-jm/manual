@@ -36,6 +36,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/gnu.html#GNU_grep, GNU_grep 2.27 の man pages の翻訳)を公開しました。
+　<SMALL>(2017/03/14)</SMALL>
+
  <LI>_LINK(INDEX/misc.html#sudo, sudo 1.8.17 のマニュアルの翻訳)を公開しました。
  <SMALL>(2016/09/20)</SMALL>
 
