@@ -36,6 +36,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/gnu.html#GNU_findutils, GNU_findutils 4.6.0 の find と xargs の man pages の翻訳)を公開しました。
+ <SMALL>(2018/03/14)</SMALL>
+
  <LI>_LINK(info/GNU_coreutils/coreutils-ja.html, GNU_coreutils 8.26 の info 版マニュアルの翻訳)を公開しました。
  _LINK(download.html#INFO_MANUAL, ダウンロード)はこちらから。
  <SMALL>(2017/03/26)</SMALL>
