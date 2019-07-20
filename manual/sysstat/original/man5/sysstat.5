@@ -1,0 +1,179 @@
+.TH SYSSTAT 5 "JULY 2018" Linux "Linux User's Manual" -*- nroff -*-
+.SH NAME
+sysstat \- sysstat configuration file.
+.SH DESCRIPTION
+This file is read by
+.BR sa1 (8)
+and
+.BR sa2 (8)
+shell scripts from the sysstat's set of tools.
+It consists of a sequence of shell variable assignments used to
+configure sysstat logging.
+The variables and their meanings are:
+.TP
+.B COMPRESSAFTER
+Number of days after which daily data files are to be compressed.
+The compression program is given in the
+.B ZIP
+variable.
+
+.TP
+.B HISTORY
+The number of days during which a daily data file or a report
+should be kept. Data files or reports older than this number of
+days will be removed by the
+.BR sa2 (8)
+shell script.
+Data files and reports are normally saved in the /var/log/sa directory,
+under the name
+.IR saDD
+(for data files) or
+.IR sarDD
+(for reports), where the DD parameter indicates the current day.
+
+The number of files actually kept in the /var/log/sa directory may be
+slightly higher than the
+.B HISTORY
+value due to the way the
+.B sa2
+script figures
+out which files are to be removed (see below "How the
+.BR sa2 (8)
+script applies
+.B HISTORY
+value"). Using a value of 28 keeps a whole month's worth of data. If
+you set
+.B HISTORY
+to a value greater than 28 then you should consider using
+.BR sadc 's
+option -D to prevent older data files from being overwritten (see
+.BR sadc (8)
+manual page). In this latter case data files are named
+.IR saYYYYMMDD
+and reports
+.IR sarYYYYMMDD ,
+where YYYY stands for the current year, MM for the
+current month and DD for the current day.
+
+How the
+.BR sa2 (8)
+script applies
+.B HISTORY
+value
+
+The
+.B sa2
+script uses the "find" command with the "-mtime" option to figure
+out which files are to be removed. The "find" command interprets this value
+as "N 24 hour periods", ignoring any fractional part. This means that the
+last modified time of a given sa[r]DD data or report file, using a
+.B HISTORY
+of 1, has to have been modified at least two days ago before it will be
+removed. And for a
+.B HISTORY
+of 28 that would mean 29 days ago.
+
+To figure out how a
+.B HISTORY
+of 28 is applied in practice, we need to
+consider that the
+.B sa2
+script that issues the "find" command to remove the
+old files typically runs just before mid-night on a given system, and since
+the first record from
+.B sadc
+can also be written to the previous day's data file
+(thereby moving its modification time up a bit), the
+.B sa2
+script will leave
+30 files untouched. So for a setting of 28, and counting the data file of
+the current day, there will always be 31 files (or 30 files, depending on the
+number of days in a month) in the /var/log/sa directory during the majority
+of a given day.  E.g.:
+
+April 30th: 31 files (Apr 30th-1st, Mar 31th)
+.br
+May 1st: 30 files (May 1st, Apr 30th-2nd)
+
+Yet we can note the following exceptions (as inspected at Noon of the given
+day):
+
+February 28th: 31 files (Feb 28th-1st, Jan 31st, 30th & 29th)
+.br
+March 1st: 30 files (Mar 1st, Feb 28th-2nd, Jan 31st & 30th)
+.br
+March 2nd: 29 files (Mar 1st & 2nd, Feb 28th-3rd, Jan. 31st)
+.br
+March 3rd: 28 files (Mar 1st-3rd, Feb 28th-4th)
+.br
+March 4th - March 28th: 28 files
+.br
+March 29th: 29 files
+.br
+March 30th: 30 files
+.br
+March 31st: 31 files
+
+(Determining the number of files in March on a leap year is left as an
+exercise for the reader).
+
+Things are simpler if you use the sa[r]YYYYMMDD name format.
+Apply the same logic as above in this case and you will find that there
+are always
+.B HISTORY
++ 3 files in the
+.IR /var/log/sa
+directory during the majority of a given day.
+
+.TP
+.B REPORTS
+Set this variable to false to prevent the
+.B sa2
+script from generating reports (the
+.IR sarDD
+files).
+
+.TP
+.B SA_DIR
+Directory where the standard system activity daily data and report files
+are saved. Its default value is
+.IR /var/log/sa .
+
+.TP
+.B SADC_OPTIONS
+Options that should be passed to
+.BR sadc (8).
+With these options (see
+.BR sadc (8)
+manual page), you can select some additional data which are going to be saved in
+daily data files.
+These options are used only when a new data file is created. They will be
+ignored with an already existing one.
+
+.TP
+.B YESTERDAY
+By default
+.BR sa2
+script generates yesterday's summary, since the cron job
+usually runs right after midnight. If you want
+.BR sa2
+to generate the summary of the same day (for example when cron
+job runs at 23:53) set this variable to no.
+
+.TP
+.B ZIP
+Program used to compress data and report files.
+
+.SH FILES
+.IR /etc/sysconfig/sysstat
+
+.SH AUTHOR
+Sebastien Godard (sysstat <at> orange.fr)
+.SH SEE ALSO
+.BR sadc (8),
+.BR sa1 (8),
+.BR sa2 (8)
+
+.I https://github.com/sysstat/sysstat
+
+.I http://pagesperso-orange.fr/sebastien.godard/
