@@ -36,6 +36,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.34 の cal.1 と column.1 の man pages の翻訳)を公開しました。
+ <SMALL>(2020/03/14)</SMALL>
+
  <LI>_LINK(INDEX/gnu.html#GNU_tar, GNU_tar 1.32 の man pages の翻訳)を公開しました。
  <SMALL>(2020/02/27)</SMALL>
 

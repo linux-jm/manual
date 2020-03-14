@@ -16,6 +16,15 @@ _HEADER(JM 新着情報)
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
 
+ <H2><A NAME="20200314">2020/03/14</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/linux.html,util-linux 2.34 の cal.1 と column.1 のマニュアル)を公開しました。</DT>
+  <DD>
+   _UPD_PAGE(util-linux, cal.1)
+   _UPD_PAGE(util-linux, column.1)
+  </DD>
+ </DL>
+
  <H2><A NAME="20200226">2020/02/27</A></H2>
  <DL>
   <DT>_LINK(../INDEX/gnu.html,GNU_tar 1.32 のマニュアル)を公開しました。</DT>
