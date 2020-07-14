@@ -36,6 +36,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.35.2 の fdisk.8 cfdisk.8 sfdisk.8 の man pages の翻訳)を公開しました。
+ <SMALL>(2020/07/14)</SMALL>
+
  <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.34 の getopt.1 と hexdump.1 の man pages の翻訳)を公開しました。
  <SMALL>(2020/04/22)</SMALL>
 

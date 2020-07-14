@@ -16,6 +16,16 @@ _HEADER(JM 新着情報)
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
 
+ <H2><A NAME="20200714">2020/07/14</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/linux.html,util-linux 2.35.2 の fdisk.8 cfdisk.8 sfdisk.8 のマニュアル)を公開しました。</DT>
+  <DD>
+   _UPD_PAGE(util-linux, cfdisk.8)
+   _UPD_PAGE(util-linux, fdisk.8)
+   _UPD_PAGE(util-linux, sfdisk.8)
+  </DD>
+ </DL>
+
  <H2><A NAME="20200422">2020/04/22</A></H2>
  <DL>
   <DT>_LINK(../INDEX/linux.html,util-linux 2.34 の getopt.1 と hexdump.1 のマニュアル)を公開しました。</DT>
