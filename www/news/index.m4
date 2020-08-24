@@ -16,6 +16,16 @@ _HEADER(JM 新着情報)
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
 
+ <H2><A NAME="20200824">2020/08/24</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/linux.html,util-linux 2.35.2 の blockdev.8 partx.8 wipefs.8 のマニュアル)を公開しました。</DT>
+  <DD>
+   _UPD_PAGE(util-linux, blockdev.8)
+   _NEW_PAGE(util-linux, partx.8)
+   _NEW_PAGE(util-linux, wipefs.8)
+  </DD>
+ </DL>
+
  <H2><A NAME="20200714">2020/07/14</A></H2>
  <DL>
   <DT>_LINK(../INDEX/linux.html,util-linux 2.35.2 の fdisk.8 cfdisk.8 sfdisk.8 のマニュアル)を公開しました。</DT>
