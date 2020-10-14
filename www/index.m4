@@ -36,7 +36,7 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
- <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.35.2 の blkid.8 と 2.34 の lsblk.8 wipefs.8 の man pages の翻訳)を公開しました。
+ <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.35.2 の blkid.8 と 2.34 の lsblk.8 の man pages の翻訳)を公開しました。
  <SMALL>(2020/10/14)</SMALL>
 
  <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.35.2 の blockdev.8 partx.8 wipefs.8 の man pages の翻訳)を公開しました。
