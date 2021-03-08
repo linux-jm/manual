@@ -2,53 +2,63 @@
 LDP man-pages 翻訳ガイド
 ========================
 
+LDP man-pages では、翻訳に po4a を利用しています。
+そのため、手順が他の翻訳方法と少し異なっています。
+
 .. _ldp_preparation:
 
 準備
 ====
 
-LDP man-pages のマニュアルのレポジトリは git の submodule になっています。
-作業時は以下のように submodule を展開します。
+po4a を利用しているので、インストールしておきます。
+以下は Debian/Ubuntu の場合。
+他のディストリビューションの場合も po4a をインストールすれば大丈夫だと思います。
 
 .. code-block:: console
 
-   git://scm.osdn.jp/gitroot/linuxjm/jm.git
-   cd jm
-   git submodule update --init --recursive
+   $ apt-get install po4a
 
-また、po4a を利用しているので、インストールしておきます。
+翻訳更新の動作確認を行っておきます。
+全ファイルを処理するので多少時間がかかります (2〜3分くらい)。
 
 .. code-block:: console
 
-   apt-get install po4a
+   $ cd manual/LDP_man-pages
+   $ make jm-setup
+   $ make
+   $ git status
+
+全部のコマンドがエラーなく終了すること、
+最後の ``git status`` コマンドで更新されているファイルがないこと、
+を確認してください。
+``git status`` の出力で更新されているファイルがある場合は、
+そのまま翻訳作業を進めると、意図しないファイルも更新してしまうことがあるので、
+メーリングリストで相談するなどして対応を検討しましょう。
+作業漏れ以外の可能性もあり、たとえば、 po4a のバージョンが変わって
+PO ファイルへの抜き出し方法が変わることもあります。
 
 翻訳方法
 ========
 
 LDP man-pages では、翻訳に po4a を利用しています。
 
-roff ファイルと po4a ファイルの変換には、LDP man-pages のフランス語翻訳チームが
-公開している perkamon を利用しています。
-perkamon を git submodule として利用しているため、手順が少し複雑になっています。
+roff ファイルと PO ファイルの変換には、 roff ファイルと PO ファイルが 1:1
+になっているわけではなく、 po4a ファイルはカテゴリー毎に用意され、
+ひとつの po4a ファイルには複数の roff ファイルが含まれています。
 
-前準備
-------
+おおまかな流れは以下のようになります。
 
-git repository の top directory で以下のコマンドを実行します。
+1. 翻訳したい man page に対応する PO ファイルを特定する
+2. PO ファイルで翻訳を行う
+3. draft の man page を生成する
 
-.. code-block:: console
-
-   cd $JM_REPO_TOP
-   git submodule update --init
-
-po4a 環境を用意します。
-
-.. code-block:: console
-
-   cd manual/LDP_man-pages
-   make jm-setup
-
-これで po4a で作業して draft に反映する準備が整いました。
+ファイルの対応付けがこのようになっているのは、
+似た roff ファイルには似た文が含まれていてカテゴリー単位の方が翻訳が
+効率化されること、逆に全 roff ファイルを一つの PO ファイルにまとめて
+しまうと本来違う意味で解釈すべき文が同じエントリーになってしまう可能性
+があり、それを回避するため、という点からです。
+この対応付けは、もともと LDP man-pages のフランス語翻訳チームが
+公開していた perkamon をベースにしています。
 
 翻訳と draft への変換
 ---------------------
@@ -85,20 +95,31 @@ ja.po から draft を生成するには以下のいずれかを実行します 
 
 .. code-block:: console
 
-   make
-   make translate
+   $ make
 
-初めて実行する際には、全ての ja.po が変換対象になるので、時間がかかります。
+または
+
+.. code-block:: console
+
+   $ make translate
+
 どのファイルが更新されたかは git status で確認して下さい。
 
 .. code-block:: console
 
-   git status .
+   $ git status .
 
 デフォルトでは、翻訳率 80% 以上のページが生成されます。
 80% にしている理由は、ある程度日本語混じりの draft page を見ながら翻訳する方が
 全体の文脈をつかみやすいためです。全部翻訳できたかは、下記の「翻訳状況の確認」
 の方法で確認できるので、翻訳率 100% を閾値にする必要はないと考えています。
+
+生成された draft page を man コマンドで整形して、内容を確認します。
+修正を行う際は、 ja.po を更新 -> draft page の生成 -> 内容の確認、を繰り返します。
+
+.. code-block:: console
+
+   $ man -l draft/man3/strptime.3
 
 翻訳状況の確認
 --------------
@@ -143,6 +164,11 @@ ja.po の diff は以下のコマンドで取得できます。 time の ja.po �
 
    git diff po4a/time/po/ja.po
 
+.. note::
+
+   レビュー方法は改善の余地がいろいろあると思います。
+   たとえば、プルリクエストを使うなど。
+
 リリース
 --------
 
@@ -157,5 +183,5 @@ ja.po の diff は以下のコマンドで取得できます。 time の ja.po �
 
 更新後は通常のリリース手順と同じです。
 
-* release ファイルを git add -u → git commit
+* release ファイルを git add → git commit
 * (必要に応じて) www/index.m4, www/news/index.m4 を更新
