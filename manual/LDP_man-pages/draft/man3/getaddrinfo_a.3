@@ -1,0 +1,459 @@
+.\" Copyright (c) 2009 Petr Baudis <pasky@suse.cz>
+.\" and clean-ups and additions (C) 2010 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\" References: http://people.redhat.com/drepper/asynchnl.pdf,
+.\"     http://www.imperialviolet.org/2005/06/01/asynchronous-dns-lookups-with-glibc.html
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH GETADDRINFO_A 3 2014\-05\-28 GNU "Linux Programmer's Manual"
+.SH 名前
+getaddrinfo_a, gai_suspend, gai_error, gai_cancel \- 非同期のネットワークアドレスとサービスの変換
+.SH 書式
+.nf
+\fB#define _GNU_SOURCE\fP         /* feature_test_macros(7) 参照 */
+\fB#include <netdb.h>\fP
+.sp
+\fBint getaddrinfo_a(int \fP\fImode\fP\fB, struct gaicb *\fP\fIlist[]\fP\fB,\fP
+\fB                int \fP\fInitems\fP\fB, struct sigevent *\fP\fIsevp\fP\fB);\fP
+.sp
+\fBint gai_suspend(const struct gaicb * const \fP\fIlist[]\fP\fB, int \fP\fInitems\fP\fB,\fP
+\fB                const struct timespec *\fP\fItimeout\fP\fB);\fP
+.sp
+\fBint gai_error(struct gaicb *\fP\fIreq\fP\fB);\fP
+.sp
+\fBint gai_cancel(struct gaicb *\fP\fIreq\fP\fB);\fP
+.sp
+\fI\-lanl\fP でリンクする。
+.fi
+.SH 説明
+\fBgetaddrinfo_a\fP() 関数は \fBgetaddrinfo\fP(3) と同じ処理を実行するが、 複数の名前検索を非同期で実行でき、
+検索処理の完了の通知ができる点が異なる。
+
+\fImode\fP 引き数は以下の値のいずれかを指定する。
+.TP 
+\fBGAI_WAIT\fP
+検索を同期で実行する。 呼び出しは検索が完了するまで停止 (block) する。
+.TP 
+\fBGAI_NOWAIT\fP
+検索を非同期で実行する。 呼び出しは直ちに返り、 要求はバックグラウンドで処理される。 以下の \fIsevp\fP 引き数の議論を参照。
+.PP
+配列 \fIlist\fP は処理すべき検索要求を指定する。 \fInitems\fP 引き数は \fIlist\fP の要素数を指定する。
+要求された検索命令は並列に開始される。 \fIlist\fP の NULL 要素は無視される。 各要求は以下のように定義された \fIgaicb\fP
+構造体で規定される。
+.sp
+.in +4n
+.nf
+struct gaicb {
+    const char            *ar_name;
+    const char            *ar_service;
+    const struct addrinfo *ar_request;
+    struct addrinfo       *ar_result;
+};
+.fi
+.in
+
+この構造体の要素は \fBgetaddrinfo\fP(3) の引き数に対応している。 したがって、 \fIar_name\fP はインターネットホストを示す
+\fInode\fP 引き数に、 \fIar_service\fP はサービスを示す \fIservice\fP 引き数に対応する。 \fIar_request\fP 要素は、
+返されたソケットアドレス構造体を選択する基準を示す \fIhints\fP 引き数に対応する。 最後の \fIar_request\fP は \fIres\fP
+引き数に対応する。 この要素を初期化する必要はなく、この要素は要求が解決されると自動的にセットされる。 最後の 2 つの要素が参照している
+\fIaddrinfo\fP 構造体については \fBgetaddrinfo\fP(3) に説明がある。
+
+\fImode\fP に \fBGAI_NOWAIT\fP が指定された場合、 解決した要求に関する通知を \fIsevp\fP 引き数が指す \fIsigevent\fP
+構造体を使って受け取ることができる。 この構造体の定義と一般的な説明については \fBsigevent\fP(7) を参照。
+\fIsevp\->sigev_notify\fP フィールドには以下の値を指定できる。
+.TP 
+\fBSIGEV_NONE\fP
+通知は行わない。
+.TP 
+\fBSIGEV_SIGNAL\fP
+.\" si_pid and si_uid are also set, to the values of the calling process,
+.\" which doesn't provide useful information, so we'll skip mentioning it.
+検索が完了した際に、 プロセスに対してシグナル \fIsigev_signo\fP を生成する。 一般的な説明は \fBsigevent\fP(7) を参照。
+\fIsiginfo_t\fP 構造体の \fIsi_code\fP フィールドには \fBSI_ASYNCNL\fP がセットされる。
+.TP 
+\fBSIGEV_THREAD\fP
+検索が完了した際に、 \fIsigev_notify_function\fP を新しいスレッドの開始関数であるかのように起動する。 詳細は
+\fBsigevent\fP(7) を参照。
+.PP
+\fBSIGEV_SIGNAL\fP と \fBSIGEV_THREAD\fP では、 \fIsevp\->sigev_value.sival_ptr\fP が
+\fIlist\fP を指すようにしておくと役立つことがある。
+
+\fBgai_suspend\fP() 関数は呼び出し元のスレッドの実行を中断し、 配列 \fIlist\fP 内の一つ以上の要求が完了するのを待つ。
+\fInitems\fP 引き数は配列 \fIlist\fP の大きさを指定する。 呼び出しは以下のいずれかの状況になるまで停止する。
+.IP * 3
+\fIlist\fP 内の一つ以上の操作が完了した。
+.IP *
+呼び出しが補足されたシグナルに割り込まれた。
+.IP *
+\fItimeout\fP で指定された期間が経過した。 この引き数は、秒とナノ秒でタイムアウトを指定する (\fItimespec\fP 構造体の詳細は
+\fBnanosleep\fP(2) を参照)。 \fItimeout\fP が NULL の場合、 (上記のイベントのいずれかが発生するまで)
+呼び出しは無限に停止する。
+.PP
+どの要求が完了したかは明示的な通知は行われない。 どの要求が完了したかを知るためには、 要求のリストに対して \fBgai_error\fP()
+を繰り返し呼び出す必要がある。
+
+\fBgai_error\fP() 関数は要求 \fIreq\fP のステータスを返す。 要求がまだ完了していない場合は \fBEAI_INPROGRESS\fP が、
+要求が正常に処理された場合は 0 が、 要求を解決できなかった場合はエラーコードが返される。
+
+\fBgai_cancel\fP() 関数は要求 \fIreq\fP をキャンセルする。 要求が正常にキャンセルされた場合、 要求のエラーステータスに
+\fBEAI_CANCELLED\fP が設定され、 通常の非同期通知が実行される。 要求が現在処理中でキャンセルできない場合もある。 この場合
+\fBgai_cancel\fP() が呼ばれなかったかのように処理が行われる。 \fIreq\fP が NULL の場合、
+そのプロセスが行ったすべての処理中の要求をキャンセルしようとする。
+.SH 返り値
+\fBgetaddrinfo_a\fP() 関数はすべての要求が正常にキューに追加されると 0 を返す。 または、以下のいずれかの 0
+でないエラーコードを返す。
+.TP 
+\fBEAI_AGAIN\fP
+検索要求をキューに入れるために必要なリソースがなかった。 アプリケーションは書く要求のエラーステータスを確認し、
+どの要求が失敗したかを判定することができる。
+.TP 
+\fBEAI_MEMORY\fP
+メモリーが足りない。
+.TP 
+\fBEAI_SYSTEM\fP
+\fImode\fP が無効である。
+.PP
+\fBgai_suspend\fP() 関数はリストの要求の少なくともひとつが完了すると 0 を返す。 それ以外の場合、 以下の 0
+でないエラーコードのいずれかを返す。
+.TP 
+\fBEAI_AGAIN\fP
+いずれかの要求が完了する前に指定されたタイムアウト時間が満了した。
+.TP 
+\fBEAI_ALLDONE\fP
+指定された関数には実際には要求がなかった。
+.TP 
+\fBEAI_INTR\fP
+シグナルが関数に割り込んだ。 この割り込みは検索要求が完了したことを示すシグナル通知により起こる場合もある。
+.PP
+\fBgai_error\fP() 関数は、 完了していない検索要求に対して \fBEAI_INPROGRESS\fP を返し、 成功で完了した検索に対して 0
+を返す。 \fBgetaddrinfo\fP(3) が返すエラーコードのいずれかを返す場合もある。
+要求の完了前に明示的に要求がキャンセルされた場合はエラーコード \fBEAI_CANCELLED\fP を返す。
+
+\fBgai_cancel\fP() 関数はこれらの値のいずれかを返すことがある。
+.TP 
+\fBEAI_CANCELLED\fP
+要求は正常にキャンセルされた。
+.TP 
+\fBEAI_NOTCANCELLED\fP
+要求はキャンセルされていない。
+.TP 
+\fBEAI_ALLDONE\fP
+要求はすでに完了している。
+.PP
+\fBgai_strerror\fP(3) 関数を使うと、 これらのエラーコードを、 エラーレポートに適した人間が読みやすい文字列に翻訳してくれる。
+.SH 準拠
+これらの関数は GNU 拡張である。 バージョン 2.2.3 で初めて glibc に登場した。
+.SH 注意
+\fBgetaddrinfo_a\fP() インターフェースは \fBlio_listio\fP(3) インターフェースの後にモデル化された。
+.SH 例
+ここでは二つの例を示す。 一つは複数の要求を同期処理で並行して解決する例で、 もう一つは非同期機能を使った複雑な例である。
+.SS 同期型の例
+以下のプログラムは単に複数のホスト名の解決を並行で行う。 \fBgetaddrinfo\fP(3)
+を使って順番にホスト名の解決を行うのに比べて速度が向上する。 このプログラムは以下のように使う。
+.in +4n
+.nf
+
+$ \fB./a.out ftp.us.kernel.org enoent.linuxfoundation.org gnu.cz\fP
+ftp.us.kernel.org: 128.30.2.36
+enoent.linuxfoundation.org: Name or service not known
+gnu.cz: 87.236.197.13
+.fi
+.in
+.PP
+プログラムのソースコードは以下のとおりである。
+.nf
+
+#define _GNU_SOURCE
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int
+main(int argc, char *argv[])
+{
+    int i, ret;
+    struct gaicb *reqs[argc \- 1];
+    char host[NI_MAXHOST];
+    struct addrinfo *res;
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s HOST...\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    for (i = 0; i < argc \- 1; i++) {
+        reqs[i] = malloc(sizeof(*reqs[0]));
+        if (reqs[i] == NULL) {
+            perror("malloc");
+            exit(EXIT_FAILURE);
+        }
+        memset(reqs[i], 0, sizeof(*reqs[0]));
+        reqs[i]\->ar_name = argv[i + 1];
+    }
+
+    ret = getaddrinfo_a(GAI_WAIT, reqs, argc \- 1, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "getaddrinfo_a() failed: %s\en",
+                gai_strerror(ret));
+        exit(EXIT_FAILURE);
+    }
+
+    for (i = 0; i < argc \- 1; i++) {
+        printf("%s: ", reqs[i]\->ar_name);
+        ret = gai_error(reqs[i]);
+        if (ret == 0) {
+            res = reqs[i]\->ar_result;
+
+            ret = getnameinfo(res\->ai_addr, res\->ai_addrlen,
+                    host, sizeof(host),
+                    NULL, 0, NI_NUMERICHOST);
+            if (ret != 0) {
+                fprintf(stderr, "getnameinfo() failed: %s\en",
+                        gai_strerror(ret));
+                exit(EXIT_FAILURE);
+            }
+            puts(host);
+
+        } else {
+            puts(gai_strerror(ret));
+        }
+    }
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SS 非同期型の例
+この例は \fBgetaddrinfo_a\fP() の簡単な対話式のフロントエンドである。 通知機能は使っていない。
+.PP
+セッションの実行例は以下のようになる。
+.in +4n
+.nf
+
+$ \fB./a.out\fP
+> a ftp.us.kernel.org enoent.linuxfoundation.org gnu.cz
+> c 2
+[2] gnu.cz: Request not canceled
+> w 0 1
+[00] ftp.us.kernel.org: Finished
+> l
+[00] ftp.us.kernel.org: 216.165.129.139
+[01] enoent.linuxfoundation.org: Processing request in progress
+[02] gnu.cz: 87.236.197.13
+> l
+[00] ftp.us.kernel.org: 216.165.129.139
+[01] enoent.linuxfoundation.org: Name or service not known
+[02] gnu.cz: 87.236.197.13
+.fi
+.in
+.PP
+プログラムのソースは以下のとおりである。
+
+.nf
+#define _GNU_SOURCE
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static struct gaicb **reqs = NULL;
+static int nreqs = 0;
+
+static char *
+getcmd(void)
+{
+    static char buf[256];
+
+    fputs("> ", stdout); fflush(stdout);
+    if (fgets(buf, sizeof(buf), stdin) == NULL)
+        return NULL;
+
+    if (buf[strlen(buf) \- 1] == \(aq\en\(aq)
+        buf[strlen(buf) \- 1] = 0;
+
+    return buf;
+}
+
+/* Add requests for specified hostnames */
+static void
+add_requests(void)
+{
+    int nreqs_base = nreqs;
+    char *host;
+    int ret;
+
+    while ((host = strtok(NULL, " "))) {
+        nreqs++;
+        reqs = realloc(reqs, nreqs * sizeof(reqs[0]));
+
+        reqs[nreqs \- 1] = calloc(1, sizeof(*reqs[0]));
+        reqs[nreqs \- 1]\->ar_name = strdup(host);
+    }
+
+    /* Queue nreqs_base..nreqs requests. */
+
+    ret = getaddrinfo_a(GAI_NOWAIT, &reqs[nreqs_base],
+                        nreqs \- nreqs_base, NULL);
+    if (ret) {
+        fprintf(stderr, "getaddrinfo_a() failed: %s\en",
+                gai_strerror(ret));
+        exit(EXIT_FAILURE);
+    }
+}
+
+/* Wait until at least one of specified requests completes */
+static void
+wait_requests(void)
+{
+    char *id;
+    int i, ret, n;
+    struct gaicb const **wait_reqs = calloc(nreqs, sizeof(*wait_reqs));
+                /* NULL elements are ignored by gai_suspend(). */
+
+    while ((id = strtok(NULL, " ")) != NULL) {
+        n = atoi(id);
+
+        if (n >= nreqs) {
+            printf("Bad request number: %s\en", id);
+            return;
+        }
+
+        wait_reqs[n] = reqs[n];
+    }
+
+    ret = gai_suspend(wait_reqs, nreqs, NULL);
+    if (ret) {
+        printf("gai_suspend(): %s\en", gai_strerror(ret));
+        return;
+    }
+
+    for (i = 0; i < nreqs; i++) {
+        if (wait_reqs[i] == NULL)
+            continue;
+
+        ret = gai_error(reqs[i]);
+        if (ret == EAI_INPROGRESS)
+            continue;
+
+        printf("[%02d] %s: %s\en", i, reqs[i]\->ar_name,
+               ret == 0 ? "Finished" : gai_strerror(ret));
+    }
+}
+
+/* Cancel specified requests */
+static void
+cancel_requests(void)
+{
+    char *id;
+    int ret, n;
+
+    while ((id = strtok(NULL, " ")) != NULL) {
+        n = atoi(id);
+
+        if (n >= nreqs) {
+            printf("Bad request number: %s\en", id);
+            return;
+        }
+
+        ret = gai_cancel(reqs[n]);
+        printf("[%s] %s: %s\en", id, reqs[atoi(id)]\->ar_name,
+               gai_strerror(ret));
+    }
+}
+
+/* List all requests */
+static void
+list_requests(void)
+{
+    int i, ret;
+    char host[NI_MAXHOST];
+    struct addrinfo *res;
+
+    for (i = 0; i < nreqs; i++) {
+        printf("[%02d] %s: ", i, reqs[i]\->ar_name);
+        ret = gai_error(reqs[i]);
+
+        if (!ret) {
+            res = reqs[i]\->ar_result;
+
+            ret = getnameinfo(res\->ai_addr, res\->ai_addrlen,
+                              host, sizeof(host),
+                              NULL, 0, NI_NUMERICHOST);
+            if (ret) {
+                fprintf(stderr, "getnameinfo() failed: %s\en",
+                        gai_strerror(ret));
+                exit(EXIT_FAILURE);
+            }
+            puts(host);
+        } else {
+            puts(gai_strerror(ret));
+        }
+    }
+}
+
+int
+main(int argc, char *argv[])
+{
+    char *cmdline;
+    char *cmd;
+
+    while ((cmdline = getcmd()) != NULL) {
+        cmd = strtok(cmdline, " ");
+
+        if (cmd == NULL) {
+            list_requests();
+        } else {
+            switch (cmd[0]) {
+            case \(aqa\(aq:
+                add_requests();
+                break;
+            case \(aqw\(aq:
+                wait_requests();
+                break;
+            case \(aqc\(aq:
+                cancel_requests();
+                break;
+            case \(aql\(aq:
+                list_requests();
+                break;
+            default:
+                fprintf(stderr, "Bad command: %c\en", cmd[0]);
+                break;
+            }
+        }
+    }
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+\fBgetaddrinfo\fP(3), \fBinet\fP(3), \fBlio_listio\fP(3), \fBhostname\fP(7), \fBip\fP(7),
+\fBsigevent\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

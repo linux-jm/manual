@@ -1,0 +1,385 @@
+.\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\"
+.\" %%%LICENSE_START(VERBATIM_ONE_PARA)
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\" %%%LICENSE_END
+.\"
+.\" $Id: packet.7,v 1.13 2000/08/14 08:03:45 ak Exp $
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Translated 1999-12-06, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated 2001-02-13, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-02-21, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH PACKET 7 2014\-08\-19 Linux "Linux Programmer's Manual"
+.SH 名前
+packet \- デバイスレベルのパケットインターフェース
+.SH 書式
+.nf
+\fB#include <sys/socket.h>\fP
+.br
+\fB#include <linux/if_packet.h>\fP
+.br
+\fB#include <net/ethernet.h> /* L2 プロトコル */\fP
+.sp
+\fBpacket_socket = socket(AF_PACKET, int \fP\fIsocket_type\fP\fB, int \fP\fIprotocol\fP\fB);\fP
+.fi
+.SH 説明
+packet ソケットは、デバイスドライバ (OSI レイヤ 2) レベルで 生のパケット (raw packet) を送受信するために用いられる。
+packet ソケットを使うと、ユーザー空間で物理層の上に プロトコルモジュールを実装することができる。
+
+\fIsocket_type\fP には \fBSOCK_RAW\fP と \fBSOCK_DGRAM\fP のいずれかを指定する。 \fBSOCK_RAW\fP
+はリンクレベルヘッダーを含む raw パケットを、 \fBSOCK_DGRAM\fP はリンクレベルヘッダーが削除された加工済みパケットを示す。
+リンクレベルヘッダー情報は \fIsockaddr_ll\fP で共通のフォーマットで入手できる。 \fIprotocol\fP には IEEE 802.3
+プロトコル番号を ネットワークバイトオーダーで指定する。 指定できるプロトコルのリストは、インクルードファイル
+\fI<linux/if_ether.h>\fP を参照。プロトコルを \fBhtons(ETH_P_ALL)\fP
+にすると、全てのプロトコルが受信される。 外部から来たパケットのうち指定したプロトコルのものは、
+カーネルに実装されているプロトコルに渡される前の段階で、 packet ソケットに渡される。
+
+packet ソケットをオープンできるのは、 実効ユーザーID が 0 のプロセスか、 \fBCAP_NET_RAW\fP
+ケーパビリティを持つプロセスだけである。
+
+\fBSOCK_RAW\fP パケットでは、パケットをデバイスドライバと受け渡しする際、 パケットデータに変更が行われることはない。
+パケットの受信時には、アドレスの解析だけは行われ、 標準的な \fIsockaddr_ll\fP
+アドレス構造体に渡される。パケットの送信時には、ユーザーが指定する バッファーに物理層のヘッダーが含まれている必要がある。
+パケットはそのまま修正を受けずに、行き先アドレスから決定される インターフェースのネットワークドライバにキューイングされる。
+デバイスドライバによっては、他のヘッダーを常に追加するものもある。 \fBSOCK_RAW\fP は Linux 2.0 の obosolete な
+\fBAF_INET/SOCK_PACKET\fP と似ているが、互換性があるわけではない。
+
+\fBSOCK_DGRAM\fP はやや高位のレベルで動作する。物理ヘッダーは、パケットがユーザーに 渡される前に削除される。 \fBSOCK_DGRAM\fP の
+packet ソケットを通して送られるパケットは、 \fIsockaddr_ll\fP
+の行き先アドレスの情報に基づき、適切な物理層のヘッダーが付加されてから、 キューに送られる。
+
+デフォルトでは、指定したプロトコル型のパケットはすべて packet ソケットに送られる。特定のインターフェースからのパケットだけを
+取得したい場合には、 \fIstruct sockaddr_ll\fP にアドレスを指定して \fBbind\fP(2)  を呼び、 packet
+ソケットをそのインターフェースに結び付ける (バインドする)。 バインドの際には、アドレスフィールドのうち \fIsll_protocol\fP と
+\fIsll_ifindex\fP だけが用いられる。
+
+\fBconnect\fP(2)  操作は packet ソケットではサポートされていない。
+
+\fBMSG_TRUNC\fP フラグが \fBrecvmsg\fP(2), \fBrecv\fP(2), \fBrecvfrom\fP(2)  に渡されると、
+(バッファーサイズより大きかったとしても) 常に実際に通信された パケットの長さが返される。
+.SS アドレスのタイプ
+\fIsockaddr_ll\fP はデバイスに依存しない物理層のアドレスである。
+
+.in +4n
+.nf
+struct sockaddr_ll {
+    unsigned short sll_family;   /* 常に AF_PACKET */
+    unsigned short sll_protocol; /* 物理層のプロトコル */
+    int            sll_ifindex;  /* インターフェース番号 */
+    unsigned short sll_hatype;   /* ARP ハードウェア種別 */
+    unsigned char  sll_pkttype;  /* パケット種別 */
+    unsigned char  sll_halen;    /* アドレスの長さ */
+    unsigned char  sll_addr[8];  /* 物理層のアドレス */
+};
+.fi
+.in
+
+\fIsll_protocol\fP は標準的なイーサネットプロトコルのタイプで、 ネットワーク
+バイトオーダーで記述する。 インクルードファイル
+\fI<linux/if_ether.h>\fP で定義されている。 これがこのソケットのプロト
+コルのデフォルトとなる。 \fIsll_ifindex\fP はそのインターフェースの interface
+index である (\fBnetdevice\fP(7) を参照)。 0 は (バインドが許可されている) 任
+意のインターフェースにマッチする。 \fIsll_hatype\fP は、インクルードファイル
+\fI<linux/if_arp.h>\fP で定義されている ARP 種別である。
+\fIsll_pkttype\fP はパケット種別である。指定できる種別は以下のいずれかである:
+\fBPACKET_HOST\fP (ローカルホスト向けのパケット)、 \fBPACKET_BORADCAST\fP (物理層
+のブロードキャストパケット)、 \fBPACKET_MULTICAST\fP (物理層のマルチキャストア
+ドレスに送るパケット)、 \fBPACKET_OTHERHOST\fP (他のホストに向けられたパケット
+のうち、 無差別モード (promiscuous mode: 後述) のデバイスドライバにより補足
+されたもの)、 \fBPACKET_OUTGOING\fP (ローカルホストから発信され、 packet ソケッ
+トにループバックしてきたパケット)。 これらの種別が意味を持つのは受信時のみ
+である。 \fIsll_addr\fP と \fIsll_halen\fP は、物理層の (つまり IEEE 802.3 の)
+アドレスとその長さである。 厳密な解釈はデバイスに依存する。
+
+パケットを送る場合は、 \fIsll_family\fP, \fIsll_addr\fP, \fIsll_halen\fP, \fIsll_ifindex\fP
+を指定すれば十分である。 その他のフィールドは 0 にしておくべきである。 \fIsll_hatype\fP と \fIsll_pkttype\fP
+には受信したパケットの情報が設定される。 バインドの際には、 \fIsll_protocol\fP と \fIsll_ifindex\fP だけが使用される。
+.SS ソケットオプション
+パケットソケットのオプションは、レベル \fBSOL_PACKET\fP を指定して \fBsetsockopt\fP(2) を呼び出すことで設定できる。
+.TP 
+\fBPACKET_ADD_MEMBERSHIP\fP
+.PD 0
+.TP 
+\fBPACKET_DROP_MEMBERSHIP\fP
+.PD
+packet ソケットは、物理層のマルチキャストや 無差別モード (promiscuous mode) を設定して使うことができる。
+\fBPACKET_ADD_MEMBERSHIP\fP はバインドを追加し、 \fBPACKET_DROP_MEMBERSHIP\fP
+はバインドを削除する。これらはいずれも \fIpacket_mreq\fP 構造体を引き数に取る。
+
+.in +4n
+.nf
+struct packet_mreq {
+    int            mr_ifindex;    /* インターフェース番号 */
+    unsigned short mr_type;       /* 動作 */
+    unsigned short mr_alen;       /* アドレスの長さ */
+    unsigned char  mr_address[8]; /* 物理層のアドレス */
+};
+.fi
+.in
+
+\fImr_ifindex\fP は、ステータスを変更したいインターフェースの インターフェース番号である。 \fImr_type\fP
+パラメーターは実行する動作を指定する: \fBPACKET_MR_PROMISC\fP は、共有している媒体からの全てのパケットを受信できるようにする
+(しばしば "無差別モード (promiscuous mode)" と呼ばれる)。 \fBPACKET_MR_MULTICAST\fP は、そのソケットを、
+\fImr_address\fP と \fImr_alen\fP で指定される物理層のマルチキャストブループにバインドする。
+\fBPACKET_MR_ALLMULTI\fP は socket を up にして、そのインターフェースに到達したすべての
+マルチキャストパケットを受信できるようにする。
+
+昔からある ioctl だけでなく、 \fBSIOCSIFFLAGS\fP, \fBSIOCADDMULTI\fP, \fBSIOCDELMULTI\fP
+を同じ目的に用いることができる。
+.TP 
+\fBPACKET_AUXDATA\fP (Linux 2.6.21 以降)
+.\" commit 8dc4194474159660d7f37c495e3fc3f10d0db8cc
+ブール値のオプションを有効すると、 パケットソケットは、パケットと一緒にメタデータ構造体を \fBrecvmsg\fP(2) コントロールフィールドで渡す。
+この構造体は \fBcmsg\fP(3) を使って読むことができる。 定義は以下の通りである。
+
+.in +4n
+.nf
+struct tpacket_auxdata {
+    __u32 tp_status;
+    __u32 tp_len;      /* パケット長 */
+    __u32 tp_snaplen;  /* キャプチャした長さ */
+    __u16 tp_mac;
+    __u16 tp_net;
+    __u16 tp_vlan_tci;
+    __u16 tp_padding;
+};
+.fi
+.in
+.TP 
+\fBPACKET_FANOUT\fP (Linux 3.1 以降)
+.\" commit dc99f600698dcac69b8f56dda9a8a00d645c5ffc
+スレッドにまたがって処理をスケールさせるため、 パケットソケットはファンアウトグループを構成することができる。 このモードでは、
+マッチしたそれぞれのパケットはグループ内のいずれか一つのソケットにだけキューイングされる。 ソケットをファンアウトグループに参加させるには、 レベル
+\fBSOL_PACKET\fP でオプション \fBPACKET_FANOUT\fP を指定して \fBsetsockopt\fP(2) を呼び出す。
+ネットワーク名前空間毎に最大 65536 個の独立したグループを持つことができる。 整数のオプション値の先頭 16 ビットに ID
+をエンコードすることで、 ソケットはグループを選択する。 あるグループへの最初のパケットソケットの参加があった時点で、
+グループは暗黙のうちに作成される。 既存のグループへの参加が成功するためには、 それ以降にそのグループに参加しようとするパケットソケットは、
+プロトコロ、 デバイス設定、ファンアウトモード、フラグが同じである必要がある (下記参照)。 パケットソケットがファンアウトグループから抜けるのは、
+そのソケットをクローズした場合だけである。 ファンアウトグループは最後のソケットがクローズした場合に削除される。
+
+.\" commit 2d36097d26b5991d71a2cf4a20c1a158f0f1bfcd
+ファンアウトでは、 複数のソケットにトラフィックを分散させるアルゴリズムを複数サポートしている。 デフォルトのモードである
+\fBPACKET_FANOUT_HASH\fP では、同じフローのパケットは同じソケットに送信され、 フロー単位の順序が維持される。
+パケットごとに、パケットフローのハッシュの、そのグループのソケット数に対する剰余が計算され、ソケットが選択される。
+なお、フローハッシュはネットワーク層のアドレスとトランスポート層のポートフィールドに対するハッシュである (トランスポート層ポートは存在する場合のみ)。
+負荷分散モード \fBPACKET_FANOUT_LB\fP はラウンドロビンアルゴリズムが採用されている。 \fBPACKET_FANOUT_CPU\fP では、
+パケットが到着した CPU に基づいてソケットを選択する。 \fBPACKET_FANOUT_ROLLOVER\fP
+はすべてのデータを一つのソケットで処理し、 そのソケットで処理待ち (backlog) が発生した場合に次のソケットに移る。
+\fBPACKET_FANOUT_RND\fP では擬似乱数発生器を使ってソケットが選択される。 \fBPACKET_FANOUT_QM\fP (Linux
+3.14 以降で利用可能) では受信 skb に記録された queue_mapping を使ってソケットが選択される。
+
+ファンアウトモードでは追加のオプションがある。 IP フラグメンテーションが起こると、
+同じフローのパケットのフローハッシュが異なるハッシュを持つことになる。 フラグ \fBPACKET_FANOUT_FLAG_DEFRAG\fP
+をセットすると、 パケットはファンアウトを行う前にフラグメント再構築が行われるようになり、 フラグメントがあった場合でも順序が維持される。
+ファンアウトモードとオプションは、 整数のオプション値の下位 16 ビットで指定される。 フラグ
+\fBPACKET_FANOUT_FLAG_ROLLOVER\fP を指定すると、 バックアップ戦略としてロールオーバー方式が有効になる。
+元のファンアウトアルゴリズムが backlog ソケットを選択していれば、 パケットは次の利用可能なソケットにロールオーバーされる。
+.TP 
+\fBPACKET_LOSS\fP (\fBPACKET_TX_RING\fP で使用)
+送信リングで不正な形式のパケットに遭遇した場合、 デフォルトではそのリングの \fItp_status\fP を
+\fBTP_STATUS_WRONG_FORMAT\fP に戻し、その送信を直ちに中止する。
+不正な形式のパケットにより、そのパケット自身とその以降にキューに入れられたパケットの送信がブロックされる。形式エラーを修正し、関連する
+\fItp_status\fP を \fBTP_STATUS_SEND_REQUEST\fP に設定し直し、\fBsend\fP(2)
+を使って送信処理を再開しなければならない。 しかしながら、 \fBPACKET_LOSS\fP がセットされている場合、
+不正な形式のパケットはすべてスキップされ、 その送信リングの \fItp_status\fP は \fBTP_STATUS_AVAILABLE\fP
+に設定し直され、送信処理は継続される。
+.TP 
+\fBPACKET_RESERVE\fP (\fBPACKET_RX_RING\fP で使用)
+デフォルトでは、パケット受信リングはメタデータ構造体とアライメント用のパディングの直後にパケットを書き込む。
+この整数オプションを設定すると、パケットの前に追加で領域が予約される。
+.TP 
+\fBPACKET_RX_RING\fP
+非同期でのパケット受信用のメモリーマップされたリングバッファーを作成する。 パケットソケットはアプリケーションのアドレス空間に連続する領域を確保し、
+そこにパケットスロットの配列を構成し、 (最大 \fItp_snaplen\fP 個の) パケットを順にスロットにコピーする。 各パケットの前には
+\fItpacket_auxdata\fP に似たメタデータ構造体が置かれる。
+プロトコルフィールドには、データの、メタデータヘッダーの先頭からのオフセットが入る。 \fItp_net\fP にはネットワーク層へのオフセットが格納される。
+パケットソケットが \fBSOCK_DGRAM\fP 型の場合、 \fItp_mac\fP も同じである。 \fBSOCK_RAW\fP 型の場合、 \fItp_net\fP
+にはリンク層のフレームへのオフセットが入る。 パケットソケットとアプリケーションは \fItp_status\fP フィールドを通してリングの先頭
+(head) と末尾 (tail) の情報を受け渡す。 パケットソケットは \fItp_status\fP が \fBTP_STATUS_KERNEL\fP
+のすべてのスロットを所有しており、 スロットにデータが入ると、
+パケットソケットはそのスロットのステータスをアプリケーションに所有権を渡す状態に変更する。 通常の動作では、 新しい \fItp_status\fP
+で少なくとも \fBTP_STATUS_USER\fP ビットがセットされていれば、 受信されたパケットが格納されたことを示している。
+アプリケーションがパケットの処理を終えると、アプリケーションはそのスロットの \fBtp_status\fP を \fBTP_STATUS_KERNEL\fP
+に設定し、そのスロットの所有権をソケットに返す。 パケットソケットは、複数バージョンのパケットリングを実装している。 実装の詳細は Linux
+カーネルソースツリーの \fIDocumentation/networking/packet_mmap.txt\fP で説明されている。
+.TP 
+\fBPACKET_STATISTICS\fP
+パケットソケットの統計情報を次の構造体形式で取得する。
+
+.in +4n
+.nf
+struct tpacket_stats {
+    unsigned int tp_packets;  /* 総パケット数 */
+    unsigned int tp_drops;    /* ドロップパケット数 */
+};
+.fi
+.in
+
+統計情報を取得すると、内部カウンターはリセットされる。 \fBTPACKET_V3\fP のリングを使う場合には、統計情報構造体は違うものになる。
+.TP 
+\fBPACKET_TIMESTAMP\fP (\fBPACKET_RX_RING\fP で使用; Linux 2.6.36 以降)
+.\" commit 614f60fa9d73a9e8fdff3df83381907fea7c5649
+パケット受信リングでは常にタイムスタンプがメタデータヘッダーに格納される。
+デフォルトでは、タイムスタンプはパケットがリングにコピーされた時点で生成されるソフトウェアによるタイムスタンプである。
+この整数オプションによりタイムスタンプの種類を選択できる。 デフォルト以外では、 Linux カーネルソースツリーの
+\fIDocumentation/networking/timestamping.txt\fP に説明がある 2
+種類のハードウェアフォーマットがサポートされている。
+.TP 
+\fBPACKET_TX_RING\fP (Linux 2.6.31 以降)
+.\" commit 69e3c75f4d541a6eb151b3ef91f34033cb3ad6e1
+パケット送信用のメモリーマップされたリングバッファーを作成する。 このオプションは \fBPACKET_RX_RING\fP と同様で、同じ引き数を取る。
+アプリケーションは \fItp_status\fP が \fBTP_STATUS_AVAILABLE\fP のスロットにパケットを書き込み、
+\fItp_status\fP を \fBTP_STATUS_SEND_REQUEST\fP に変更することでそのパケットの送信を予約する。
+パケットの送信準備ができたら、アプリケーションは続けて \fBsend\fP(2) 系のシステムコールを呼び出す。 システムコールの引き数 \fIbuf\fP と
+\fIlen\fP は無視される。 \fBsendto\fP(2) や \fBsendmsg\fP(2) を使ってアドレスが渡された場合、
+ソケットのデフォルト値ではなくそのアドレスが使用される。 送信に成功すると、ソケットはそのスロットの \fItp_status\fP を
+\fBTP_STATUS_AVAILABLE\fP に戻す。 エラーの場合、 \fBPACKET_LOSS\fP がセットされていなければ、
+直ちに送信を中断しエラーを上げる。
+.TP 
+\fBPACKET_VERSION\fP (\fBPACKET_RX_RING\fP で使用; Linux 2.6.27 以降)
+.\" commit bbd6ef87c544d88c30e4b762b1b61ef267a7d279
+デフォルトでは、 \fBPACKET_RX_RING\fP は \fBTPACKET_V1\fP
+のパケット受信リングを作成する。別のバージョンのリングを作成するには、そのリングを作成する前に希望するバージョンが使われるようにこの整数オプションを設定すること。
+.TP 
+\fBPACKET_QDISC_BYPASS\fP (Linux 3.14 以降)
+.\" commit d346a3fae3ff1d99f5d0c819bf86edf9094a26a1
+デフォルトでは、パケットはカーネルの qdisc (トラフィック制御) レイヤー経由で渡される。 これは大半のユースケースに合っている。
+ネットワークに対して可能な限りパケットを送信する (例えば pkggen と同様の方法で負荷対象のデバイスを試験する)
+のにパケットソケットを使うトラフィック生成アプライアンスでは、この整数オプションを 1 に設定することで qdisc レイヤーを飛ばすことができる。
+qdisc レイヤーでのパケットバッファーが行われなくなるという副作用がある。 これにより、
+ネットワークデバイスの送信キューの使用量が高い場合にパケット廃棄が起きやすくなる。
+.SS ioctl
+.\" FIXME Document SIOCGSTAMPNS
+\fBSIOCGSTAMP\fP を用いると、最後に受信したパケットのタイムスタンプを得ることができる。 引き数は \fIstruct timeval\fP
+型の変数である。
+
+さらに、 \fBnetdevice\fP(7)  および \fBsocket\fP(7)  で定義されている標準の ioctl はいずれも packet
+ソケットに指定可能である。
+.SS エラー処理
+packet ソケットは、パケットをデバイスドライバに渡すときに 起きたエラーしか処理しない。遅延エラー (pending error)
+に関する概念は持っていない。
+.SH エラー
+.TP 
+\fBEADDRNOTAVAIL\fP
+不明なマルチキャストグループアドレスが渡された。
+.TP 
+\fBEFAULT\fP
+ユーザーが渡したメモリーアドレスが不正。
+.TP 
+\fBEINVAL\fP
+引き数が不正。
+.TP 
+\fBEMSGSIZE\fP
+パケットがインターフェースの MTU より大きい。
+.TP 
+\fBENETDOWN\fP
+インターフェースが up でない。
+.TP 
+\fBENOBUFS\fP
+パケットに割り当てるメモリーが足りない。
+.TP 
+\fBENODEV\fP
+デバイス名が不明。あるいはインターフェースアドレスで指定された インターフェースインデックスが不明。
+.TP 
+\fBENOENT\fP
+パケットを一つも受信していない。
+.TP 
+\fBENOTCONN\fP
+インターフェースアドレスが渡されなかった。
+.TP 
+\fBENXIO\fP
+インターフェースアドレスに不正なインターフェースインデックスが含まれている。
+.TP 
+\fBEPERM\fP
+この操作を行うのに必要な権限をユーザーが持っていない。
+
+上記以外のエラーが、低レベルのドライバで生成されることがある。
+.SH バージョン
+\fBAF_PACKET\fP は Linux 2.2 の新機能である。これより古いバージョンの Linux では \fBSOCK_PACKET\fP
+のみをサポートしていた。
+.PP
+.SH 注意
+移植性の必要なプログラムでは、 \fBpcap\fP(3)  経由で \fBAF_PACKET\fP を用いることをお薦めする。ただし、この方法では
+\fBAF_PACKET\fP の機能すべてを利用することはできない。
+
+\fBSOCK_DGRAM\fP packet ソケットは、IEEE 802.3 フレームの IEEE 802.2 LLC ヘッダーの
+生成や解析を行おうとしない。 \fBETH_P_802_3\fP が送信プロトコルに指定されると、カーネルは 802.3 フレームを 生成して length
+フィールドに書き込む。 完全に準拠したパケットを得るためにはユーザーが LLC ヘッダーを 与える必要がある。到着した 802.3 パケットでは、
+DSAP/SSAP protocol の各フィールドは多重化 (multiplex) されていない。 代わりにこれらは LLC ヘッダーが前置された
+\fBETH_P_802_2\fP プロトコルとして与えられる。したがって、 \fBETH_P_802_3\fP にバインドすることはできない。かわりに
+\fBETH_P_802_2\fP にバインドし、自分自身でプロトコルの多重化を行うこと。 送信のデフォルトは、プロトコルフィールドを持つ 標準の
+Ethernet DIX encapsulation である。
+
+packet ソケットは入出力の firewall chain に影響をうけない。
+.SS 移植性
+Linux 2.0 では、 packet ソケットを得る方法は \fBsocket(AF_INET, SOCK_PACKET,
+\fP\fIprotocol\fP\fB)\fP を呼ぶやり方しかなかった。この方法はまだサポートされているが、 用いないことを強く推奨する。現在の方法との主な違いは、
+\fBSOCK_PACKET\fP ではインターフェースの指定に古い \fIstruct sockaddr_pkt\fP
+を用いる点である。これには物理層からの独立性がない。
+
+.in +4n
+.nf
+struct sockaddr_pkt {
+    unsigned short spkt_family;
+    unsigned char  spkt_device[14];
+    unsigned short spkt_protocol;
+};
+.fi
+.in
+
+\fIspkt_family\fP はデバイスのタイプ、 \fIspkt_protocol\fP は \fI<sys/if_ether.h>\fP
+で定義されている IEEE 802.3 プロトコルタイプ、 \fIspkt_device\fP はデバイスの名前をヌル終端された文字列で与えたもの (例:
+eth0) である。
+
+この構造体は obsolete であり、 新しくコードを書く時には用いるべきでない。
+.SH バグ
+glibc 2.1 には \fBSOL_PACKET\fP の定義がない。回避策としては、以下のようにするとよい。
+.in +4n
+.nf
+
+#ifndef SOL_PACKET
+#define SOL_PACKET 263
+#endif
+
+.fi
+.in
+この問題はそれ以降のバージョンの glibc では修正されている。
+
+IEEE 802.2/803.3 の LLC の扱い方は、バグと考えても良いだろう。
+
+ソケットフィルターについて記載されていない。
+
+.\" .SH CREDITS
+.\" This man page was written by Andi Kleen with help from Matthew Wilcox.
+.\" AF_PACKET in Linux 2.2 was implemented
+.\" by Alexey Kuznetsov, based on code by Alan Cox and others.
+\fBMSG_TRUNC\fP \fBrecvmsg\fP(2)  拡張は非常にまずい対処であり、制御メッセージで置き換えるべきである。 今のところ
+\fBSOCK_DGRAM\fP 経由でパケットについていた宛先アドレスを得る方法がない。
+.SH 関連項目
+\fBsocket\fP(2), \fBpcap\fP(3), \fBcapabilities\fP(7), \fBip\fP(7), \fBraw\fP(7),
+\fBsocket\fP(7)
+
+標準 IP Ethernet encapsulation に関しては RFC\ 894 を、 IEEE 802.3 IP encapsulation
+に関しては RFC\ 1700 を参照。
+
+物理層のプロトコルに関する記述は \fI<linux/if_ether.h>\fP インクルードファイルにある。
+
+Linux カーネルのソースツリー。 \fI/Documentation/networking/filter.txt\fP には Berkeley
+Packet Filters をパケットソケットにどのように適用するかの説明がある。
+\fI/tools/testing/selftests/net/psock_tpacket.c\fP には、 \fBPACKET_RX_RING\fP と
+\fBPACKET_TX_RING\fP の利用可能なすべてのバージョンのサンプルソースコードがある。
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

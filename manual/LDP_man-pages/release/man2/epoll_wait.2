@@ -1,0 +1,166 @@
+.\"  Copyright (C) 2003  Davide Libenzi
+.\"  Davide Libenzi <davidel@xmailserver.org>
+.\"
+.\" %%%LICENSE_START(GPLv2+_SW_3_PARA)
+.\"  This program is free software; you can redistribute it and/or modify
+.\"  it under the terms of the GNU General Public License as published by
+.\"  the Free Software Foundation; either version 2 of the License, or
+.\"  (at your option) any later version.
+.\"
+.\"  This program is distributed in the hope that it will be useful,
+.\"  but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"  GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, see
+.\" <http://www.gnu.org/licenses/>.
+.\" %%%LICENSE_END
+.\"
+.\" 2007-04-30: mtk, Added description of epoll_pwait()
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2004-2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Wed Jun 16 03:05:40 JST 2004
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified Tue Apr 19 07:05:42 JST 2005 by Yuichi SATO
+.\" Updated 2007-06-02, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.51
+.\" Updated 2009-02-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.18
+.\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2012-05-29, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH EPOLL_WAIT 2 2014\-08\-19 Linux "Linux Programmer's Manual"
+.SH 名前
+epoll_wait, epoll_pwait \- epoll ファイルディスクリプターの I/O イベントを待つ
+.SH 書式
+.nf
+\fB#include <sys/epoll.h>\fP
+.sp
+\fBint epoll_wait(int \fP\fIepfd\fP\fB, struct epoll_event *\fP\fIevents\fP\fB,\fP
+\fB               int \fP\fImaxevents\fP\fB, int \fP\fItimeout\fP\fB);\fP
+\fBint epoll_pwait(int \fP\fIepfd\fP\fB, struct epoll_event *\fP\fIevents\fP\fB,\fP
+\fB               int \fP\fImaxevents\fP\fB, int \fP\fItimeout\fP\fB,\fP
+\fB               const sigset_t *\fP\fIsigmask\fP\fB);\fP
+.fi
+.SH 説明
+\fBepoll_wait\fP() システムコールは、ファイルディスクリプター \fIepfd\fP で参照される
+\fBepoll\fP(7) インスタンスに対するイベントを待つ。 \fIevents\fP が指すメモリー領域には、
+呼び出し側が利用可能なイベントが格納される。最大 \fImaxevents\fP 個のイベントが
+\fBepoll_wait\fP() によって返される。
+\fImaxevents\fP 引き数は 0 より大きくなければならない。
+
+\fItimeout\fP 引き数は \fBepoll_wait\fP() が停止する時間をミリ秒で指定する。 \fBepoll_wait\fP()
+の呼び出しは以下のいずれかになるまで停止する。
+.IP * 3
+ファイルディスクリプターがイベントを配送した
+.IP *
+呼び出しがシグナルハンドラーにより割り込まれた
+.IP *
+タイムアウトが満了する
+.PP
+\fItimeout\fP 時間はシステムクロックの粒度に切り上げられ、カーネルのスケジューリング遅延により少しだけ長くなる可能性がある点に注意すること。
+\fItimeout\fP を \-1 に指定すると、 \fBepoll_wait\fP() は無限に停止する。 \fItimeout\fP を 0 に指定すると、
+\fBepoll_wait\fP() は利用可能なイベントがなくても、すぐに返る。
+
+\fIstruct epoll_event\fP は以下のように定義される。
+.sp
+.in +4n
+.nf
+typedef union epoll_data {
+    void    *ptr;
+    int      fd;
+    uint32_t u32;
+    uint64_t u64;
+} epoll_data_t;
+
+struct epoll_event {
+    uint32_t     events;    /* epoll イベント */
+    epoll_data_t data;      /* ユーザーデータ変数 */
+};
+.fi
+.in
+
+返される構造体の \fIdata\fP メンバには、ユーザーが \fBepoll_ctl\fP(2)  (\fBEPOLL_CTL_ADD\fP,
+\fBEPOLL_CTL_MOD\fP)  で指定したデータが格納される。 一方、 \fIevents\fP
+メンバには返された利用可能なイベントのビットフィールドが格納される。
+.SS epoll_pwait()
+\fBepoll_wait\fP()  と \fBepoll_pwait\fP()  の関係は、 \fBselect\fP(2)  と \fBpselect\fP(2)
+の関係と同様である。 \fBpselect\fP(2)  同様、 \fBepoll_pwait\fP()
+を使うと、アプリケーションは、ファイルディスクリプターが準備できた状態になるか、 シグナルが捕捉されるまで、安全に待つことができる。
+
+以下の \fBepoll_pwait\fP()  の呼び出しは、
+.nf
+
+    ready = epoll_pwait(epfd, &events, maxevents, timeout, &sigmask);
+
+.fi
+次の呼び出しを \fIatomic\fP に実行するのと等価である。
+.nf
+
+    sigset_t origmask;
+
+    sigprocmask(SIG_SETMASK, &sigmask, &origmask);
+    ready = epoll_wait(epfd, &events, maxevents, timeout);
+    sigprocmask(SIG_SETMASK, &origmask, NULL);
+.fi
+.PP
+\fIsigmask\fP 引き数には NULL を指定してもよい。 その場合には、 \fBepoll_pwait\fP()  は \fBepoll_wait\fP()
+と等価となる。
+.SH 返り値
+成功した場合、 \fBepoll_wait\fP()  は要求された I/O に対して準備ができているファイルディスクリプターの数を返す。 また要求された
+\fItimeout\fP ミリ秒の間にファイルディスクリプターが準備できない場合は、0 を返す。 エラーが起こった場合、 \fBepoll_wait\fP()
+は \-1 を返し、 \fIerrno\fP を適切に設定する。
+.SH エラー
+.TP 
+\fBEBADF\fP
+\fIepfd\fP が有効なファイルディスクリプターでない。
+.TP 
+\fBEFAULT\fP
+\fIevents\fP で指されるメモリー領域に書き込み権限でアクセスできない。
+.TP 
+\fBEINTR\fP
+(1) 要求されたどのイベントも発生せず、かつ (2) \fItimeout\fP
+の期限が切れる前に、システムコールがシグナルハンドラーによって割り込まれた。 \fBsignal\fP(7) 参照。
+.TP 
+\fBEINVAL\fP
+\fIepfd\fP が \fBepoll\fP ファイルディスクリプターでない。 または \fImaxevents\fP が 0 以下である。
+.SH バージョン
+.\" To be precise: kernel 2.5.44.
+.\" The interface should be finalized by Linux kernel 2.5.66.
+\fBepoll_wait\fP() はカーネル 2.6 で追加された。
+ライブラリによるサポートは glibc バージョン 2.3.2 以降で提供されている。
+
+\fBepoll_pwait\fP() はカーネル 2.6.19 で Linux に追加された。
+ライブラリによるサポートは glibc バージョン 2.6 以降で提供されている。
+.SH 準拠
+\fBepoll_wait\fP() は Linux 独自である。
+.SH 注意
+あるスレッドが \fBepoll_pwait\fP() を呼び出して停止されている間に、
+別のスレッドが wait 中の \fBepoll\fP インストールにファイルディスクリプターを
+追加することがある。新しいファイルディスクリプターでイベントが発生すると、
+\fBepoll_wait\fP() の呼び出しによる停止が解除されることになる。
+
+\fBepoll_wait\fP() で監視中の \fBepoll\fP
+インスタンス内のファイルディスクリプターが別のスレッドによってクローズされた場合に何が起こるかの議論については、 \fBselect\fP(2)
+を参照してほしい。
+.SH バグ
+バージョン 2.6.37 より前のカーネルでは、おおよそ \fILONG_MAX / HZ\fP ミリ秒より大きい \fItimeout\fP 値は \-1
+(つまり無限大) として扱われる。したがって、例えば、\fIsizeof(long)\fP が 4 で、カーネルの \fIHZ\fP の値が 1000
+のシステムでは、 35.79 分よりも大きなタイムアウトは無限大として扱われるということである。
+.SS "C ライブラリとカーネル ABI の違い"
+素の \fBepoll_pwait\fP() システムコールは 6 番目の引き数 \fIsize_t sigsetsize\fP を取る。 この引き数は
+\fIsigmask\fP 引き数のバイト単位のサイズを指定する。 glibc の \fBepoll_pwait\fP() ラッパー関数は、この引き数に固定値
+(\fIsizeof(sigset_t)\fP と同じ) を指定する。
+.SH 関連項目
+\fBepoll_create\fP(2), \fBepoll_ctl\fP(2), \fBepoll\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

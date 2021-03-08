@@ -1,0 +1,331 @@
+.\" Copyright (C) 2014 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" and Copyright (C) 2014 David Herrmann <dh.herrmann@gmail.com>
+.\"
+.\" %%%LICENSE_START(GPLv2+)
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, see
+.\" <http://www.gnu.org/licenses/>.
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH MEMFD_CREATE 2 2015\-01\-22 Linux "Linux Programmer's Manual"
+.SH 名前
+memfd_create \- 無名ファイル (anonymous file) を作成する
+.SH 書式
+\fB#include <sys/memfd.h>\fP
+.sp
+\fBint memfd_create(const char *\fP\fIname\fP\fB, unsigned int \fP\fIflags\fP\fB);\fP
+.SH 説明
+.\" David Herrmann:
+.\"     memfd uses VM_NORESERVE so each page is accounted on first access.
+.\"     This means, the overcommit-limits (see __vm_enough_memory()) and the
+.\"     memory-cgroup limits (mem_cgroup_try_charge()) are applied. Note that
+.\"     those are accounted on "current" and "current->mm", that is, the
+.\"     process doing the first page access.
+\fBmemfd_create\fP() は、 無名ファイル (anonymous file) を作成し、
+そのファイルを参照するファイルディスクリプターを返す。 このファイルは通常のファイルと同様に振る舞い、 変更、切り詰め (truncate)、
+メモリーマップなどを行うことができる。 しかし、 通常のファイルとは違い、 このファイルは RAM 上に置かれ、 格納されるストレージは揮発性である。
+このファイルへの参照がすべてなくなると、 ファイルは自動的に解放される。 このファイルが置かれるページには無名メモリー (anonymous
+memory) が使用される。 したがって、 \fBmemfd_create\fP() で作成されたフィアルは、 他の無名メモリーの割り当て
+(\fBMAP_ANONYMOUS\fP フラグ付きの \fBmmap\fP(2) を使って割り当てられた無名メモリーなど) と同じ動作をする。
+
+ファイルの初期サイズは 0 に設定される。 呼び出しの後に、 \fBftruncate\fP(2) を使ってファイルサイズを設定すべきである (代わりに、
+\fBwrite\fP(2) や同様の関数を呼び出してファイルにデータを書き込むこともできる)。
+
+\fIname\fP に指定された名前はファイル名として使用され、 ディレクトリ \fI/proc/self/fd/\fP
+で対応するシンボリックリンクのリンク先として表示される。 表示される名前の前には常に \fImemfd:\fP が付き、
+この名前はデバッグ用途としてのみ機能する。 名前はファイルディスクリプターの動作には影響せず、 複数のファイルが同じ名前を持っても副作用はない。
+
+以下の値をビット論理和で \fIflags\fP に指定して、 \fBmemfd_create\fP() の動作を変更できる。
+.TP 
+\fBMFD_CLOEXEC\fP
+新しいファイルディスクリプターに close\-on\-exec (\fBFD_CLOEXEC\fP) フラグをセットする。 これが有用な理由については
+\fBopen\fP(2) の \fBO_CLOEXEC\fP フラグの説明を参照のこと。
+.TP 
+\fBMFD_ALLOW_SEALING\fP
+.\" FIXME Why is the MFD_ALLOW_SEALING behavior not simply the default?
+.\"       Is it worth adding some text explaining this?
+このファイルに対して sealing 操作を許可する。 \fBfcntl\fP(2) の \fBF_ADD_SEALS\fP と \fBF_GET_SEALS\fP
+操作の議論を参照。 下記の「注意」も参照。 初期の seal 集合は空となる。 このフラグを指定しなかった場合、 初期の seal 集合は
+\fBF_SEAL_SEAL\fP となり、 これはこのファイルには他の seal をセットできないことということである。
+.PP
+\fIflags\fP の未使用のビットは 0 でなければならない。
+
+返り値として \fBmemfd_create\fP() は、 作成したファイルを参照するのに使用できる新しいファイルディスクリプターを返す。
+このファイルディスクリプターは読み書き両用 (\fBO_RDWR\fP) でオープンされ、 \fBO_LARGEFILE\fP
+がこのファイルディスクリプターにセットされる。
+
+\fBfork\fP(2) と \fBexecve\fP(2) に関しては、 \fBmemfd_create\fP()
+で作成したファイルディスクリプターについても通常の動作が適用される。 ファイルディスクリプターのコピーは \fBfork\fP(2)
+で生成される子プロセスに継承され、 同じファイルを参照する。 close\-on\-exec フラグがセットされていない限り、 \fBexecve\fP(2)
+の前後でファイルディスクリプターは保持される。
+.SH 返り値
+成功の場合、 \fBmemfd_create\fP() は新しいファイルディスクリプターを返す。 エラーの場合、\-1 を返し、 \fIerrno\fP
+にエラーを示す値を設定する。
+.SH エラー
+.TP 
+\fBEFAULT\fP
+\fIname\fP のアドレスが無効なメモリーを指している。
+.TP 
+\fBEINVAL\fP
+サポートされていない値がいずれかの引き数で指定された。 \fIflags\fP に未知のビットが含まれていたか、 \fIname\fP が長過ぎた。
+.TP 
+\fBEMFILE\fP
+オープンされているファイルディスクリプターのプロセス単位の上限に達した。
+.TP 
+\fBENFILE\fP
+システム全体でオープンされているファイルの総数が上限に達した。
+.TP 
+\fBENOMEM\fP
+新しい無名ファイルを作成するのに十分なメモリーがなかった。
+.SH バージョン
+.\" FIXME . When glibc support appears, update the following sentence:
+\fBmemfd_create\fP() システムコールは Linux 3.17 で初めて登場した。 GNU C ライブラリでのサポートは検討中である。
+.SH 準拠
+\fBmemfd_create\fP()  システムコールは Linux 固有である。
+.SH 注意
+.\" See also http://lwn.net/Articles/593918/
+.\" and http://lwn.net/Articles/594919/ and http://lwn.net/Articles/591108/
+\fBmemfd_create\fP() システムコールは、 手動で \fItmpfs\fP ファイルシステムをマウントして、
+そのファイルシステムにファイルをオープンするという操作の、 簡単な代替手段を提供している。 \fBmemfd_create\fP() の主な目的は、
+\fBfcntl\fP(2) が提供する file\-sealing API で使用できる、
+ファイルとそれに関連付けられるファイルディスクリプターを作成することである。
+
+\fBmemfd_create\fP() システムコールは、 file sealing なしでも用途がある (これが明示的に
+\fBMFD_ALLOW_SEALING\fP フラグが要求されない限り、 file\-sealing が無効になる理由である)。 特に、
+ファイルシステムに実際にファイルを残す意図がない場合、 \fItmp\fP にファイルを作成したり \fBopen\fP(2) \fBO_TMPFILE\fP
+を使ったりする際の代替手段として使用できる。
+.SS "file sealing"
+file sealing がない場合、 共有メモリー経由で通信するプロセスは、 互いに信頼するか、
+信頼していない相手が共有メモリー領域を問題がある方法で操作する可能性に対処するための対策を講じなければならない。
+例えば、 信頼していない相手は、 いつでも共有メモリーの内容を変更したり、 共有メモリー領域を縮小したりする可能性がある。 前者の場合は、
+ローカルプロセスでは、 データの確認時点と使用時点の競合条件の問題が起こり得る
+(通常はこの問題への対処は共有メモリー領域からデータをこぴーしてからデータを確認、使用することである)。 後者の場合は、 ローカルプロセスでは、
+共有メモリー領域の存在しなくなった場所にアクセスしようとした際にシグナル \fBSIGBUS\fP が発生する可能性がある (この可能性に対処するにはシグナル
+\fBSIGBUS\fP に対してハンドラーを使用する必要がある)。
+
+信頼していない相手への対処により、 共有メモリーを利用するコードに余計な複雑性が増すことになる。 メモリー sealing
+により余計な複雑性をなくすことができる。 相手が望まない方法で共有メモリーを変更できないことを知っていることで、 プロセスは安全に動作できるようになる。
+
+sealing 機構の使い方の例は以下のとおりである。
+
+.IP 1. 3
+最初のプロセスは \fBmemfd_create\fP() を使って \fItmpfs\fP ファイルを作成する。 \fBmemfd_create\fP()
+はこれ以降のステップで使用するファイルディスクリプターを返す。
+.IP 2.
+最初のプロセスは \fBftruncate\fP(2) を使って直前のステップで作成したファイルのサイズを変更し、 \fBmmap\fP(2)
+を使ってそのファイルをマッピングし、 共有メモリーに所望のデータを配置する。
+.IP 3.
+最初のプロセスは、 このファイルに対する今後の変更を制限するために、 \fBfcntl\fP(2) の \fBF_ADD_SEALS\fP 操作を使って、
+そのファイルに seal をいくつか設定する。 (seal \fBF_SEAL_WRITE\fP を設定する場合、
+直前のステップで作成した書き込み可能な共有マッピングをまずアンマップする必要が出てくる。)
+.IP 4.
+二つ目のプロセスは \fItmpfs\fP ファイルのファイルディスクリプターを入手し、 そのファイルをマップする。 以下に示す方法を使用することができる。
+.RS
+.IP * 3
+\fBmemfd_create\fP() を呼び出したプロセスは、 得られたファイルディスクリプターを二つ目のプロセスに UNIX
+ドメインソケット経由で渡すことができる (\fBunix\fP(7) と \fBcmsg\fP(3) を参照)。 それから、二つ目のプロセスは \fBmmap\fP(2)
+を使ってファイルをマップする。
+.IP *
+二つ目のプロセスを \fBfork\fP(2) を使って作成する。 そうすると、 自動的にファイルディスクリプターとマッピングが継承される。
+(この方法と次の方法では、 二つのプロセス間で自然な信頼関係が存在することになる。 なぜなら、 二つのプロセスは同じユーザー ID。
+の元で実行されているからである。 したがって、 file sealing は通常は不要であろう。)
+.IP *
+二つ目のプロセスは \fI/proc/<pd>/fd/<fd>\fP をオープンする。 \fI<pid>\fP
+は最初のプロセス (\fBmemfd_create\fP() を呼び出したプロセス) の PID で、 \fI<fd>\fP は最初のプロセスでの
+\fBmemfd_create\fP() の呼び出しで返されたファイルディスクリプター番号である。 それからこのファイルを \fBmmap\fP(2)
+を使ってマッピングする。
+.RE
+.IP 5.
+二つ目のプロセスは \fBfcntl\fP(2) の \fBF_GET_SEALS\fP 操作を使って、 そのファイルに適用されている seal
+のビットマスクを取得する。 このビットマスクを調べて、 ファイルの変更に関してどのような制限が適用されているかを知ることができる。
+(\fBF_SEAL_SEAL\fP seal がそれまでに適用されていない限りは) 必要であれば、 二つ目のプロセスはさらに seal
+を設定して追加の制限をかけることができる。
+.SH 例
+以下では \fBmemfd_create\fP() と file sealing API の使用例を示すサンプルプログラムを 2 つとりあげる。
+
+最初のプログラム \fIt_memfd_create.c\fP は、 \fBmemfd_create\fP() を使って \fItmpfs\fP ファイルを作成し、
+そのファイルのサイズを設定し、 メモリーにマッピングし、 要求された場合にはそのファイルに seal を設定する。 このプログラムは最大で 3
+つのコマンドライン引き数を取り、 最初の 2 つは必須である。 最初の引き数はファイルに関連付けられる名前で、 2
+番目の引き数はファイルに設定されるサイズである。 省略可能な 3 番目の引き数は、 このファイルに設定する seal を指定する文字列である。
+
+2 つめのプログラム \fIt_get_seals.c\fP を使うと、 \fBmemfd_create\fP() を使って作成された既存のファイルをオープンし、
+そのファイルに適用されている seal の集合を調査できる。
+
+以下のシェルのセッションはこれらのプログラムの使用例を示したものである。 まず \fItmpfs\fP ファイルを作成し、そのファイルに seal
+をいくつか設定している。
+
+.in +4n
+.nf
+$ \fB./t_memfd_create my_memfd_file 4096 sw &\fP
+[1] 11775
+PID: 11775; fd: 3; /proc/11775/fd/3
+.fi
+.in
+
+この時点では、 \fIt_memfd_create\fP プログラムはバックグラウンドで動作し続ける。 もう一つのプログラムから、
+\fBmemfd_create\fP() がオープンしたディスクリプターに対応する \fI/proc/PID/fd\fP ファイルをオープンすることで、
+\fBmemfd_create\fP() で作成されたファイルのファイルディスクリプターを取得できる。
+そのパス名を使って、 \fI/proc/PID/fd\fP シンボリックリンクの内容を調査し、 \fIt_get_seals\fP
+プログラムを使ってそのファイルに設定されている seal を見ることができる。
+
+.in +4n
+.nf
+$ \fBreadlink /proc/11775/fd/3\fP
+/memfd:my_memfd_file (deleted)
+$ \fB./t_get_seals /proc/11775/fd/3\fP
+Existing seals: WRITE SHRINK
+.fi
+.in
+.SS "プログラムのソース: t_memfd_create.c"
+\&
+.nf
+#include <sys/memfd.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdio.h>
+
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
+                        } while (0)
+
+int
+main(int argc, char *argv[])
+{
+    int fd;
+    unsigned int seals;
+    char *addr;
+    char *name, *seals_arg;
+    ssize_t len;
+
+    if (argc < 3) {
+        fprintf(stderr, "%s name size [seals]\en", argv[0]);
+        fprintf(stderr, "\et\(aqseals\(aq can contain any of the "
+                "following characters:\en");
+        fprintf(stderr, "\et\etg \- F_SEAL_GROW\en");
+        fprintf(stderr, "\et\ets \- F_SEAL_SHRINK\en");
+        fprintf(stderr, "\et\etw \- F_SEAL_WRITE\en");
+        fprintf(stderr, "\et\etS \- F_SEAL_SEAL\en");
+        exit(EXIT_FAILURE);
+    }
+
+    name = argv[1];
+    len = atoi(argv[2]);
+    seals_arg = argv[3];
+
+    /* Create an anonymous file in tmpfs; allow seals to be
+       placed on the file */
+
+    fd = memfd_create(name, MFD_ALLOW_SEALING);
+    if (fd == \-1)
+        errExit("memfd_create");
+
+    /* Size the file as specified on the command line */
+
+    if (ftruncate(fd, len) == \-1)
+        errExit("truncate");
+
+    printf("PID: %ld; fd: %d; /proc/%ld/fd/%d\en",
+            (long) getpid(), fd, (long) getpid(), fd);
+
+    /* Code to map the file and populate the mapping with data
+       omitted */
+
+    /* If a \(aqseals\(aq command\-line argument was supplied, set some
+       seals on the file */
+
+    if (seals_arg != NULL) {
+        seals = 0;
+
+        if (strchr(seals_arg, \(aqg\(aq) != NULL)
+            seals |= F_SEAL_GROW;
+        if (strchr(seals_arg, \(aqs\(aq) != NULL)
+            seals |= F_SEAL_SHRINK;
+        if (strchr(seals_arg, \(aqw\(aq) != NULL)
+            seals |= F_SEAL_WRITE;
+        if (strchr(seals_arg, \(aqS\(aq) != NULL)
+            seals |= F_SEAL_SEAL;
+
+        if (fcntl(fd, F_ADD_SEALS, seals) == \-1)
+            errExit("fcntl");
+    }
+
+    /* Keep running, so that the file created by memfd_create()
+       continues to exist */
+
+    pause();
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SS "プログラムのソース: t_get_seals.c"
+\&
+.nf
+#include <sys/memfd.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
+                        } while (0)
+
+int
+main(int argc, char *argv[])
+{
+    int fd;
+    unsigned int seals;
+
+    if (argc != 2) {
+        fprintf(stderr, "%s /proc/PID/fd/FD\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    fd = open(argv[1], O_RDWR);
+    if (fd == \-1)
+        errExit("open");
+
+    seals = fcntl(fd, F_GET_SEALS);
+    if (seals == \-1)
+        errExit("fcntl");
+
+    printf("Existing seals:");
+    if (seals & F_SEAL_SEAL)
+        printf(" SEAL");
+    if (seals & F_SEAL_GROW)
+        printf(" GROW");
+    if (seals & F_SEAL_WRITE)
+        printf(" WRITE");
+    if (seals & F_SEAL_SHRINK)
+        printf(" SHRINK");
+    printf("\en");
+
+    /* Code to map the file and access the contents of the
+       resulting mapping omitted */
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+\fBfcntl\fP(2), \fBftruncate\fP(2), \fBmmap\fP(2), \fBshmget\fP(2), \fBshm_open\fP(3)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

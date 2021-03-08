@@ -1,0 +1,202 @@
+.\" Copyright (c) International Business Machines Corp., 2006
+.\"
+.\" %%%LICENSE_START(GPLv2+_SW_3_PARA)
+.\" This program is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+.\" the GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, see
+.\" <http://www.gnu.org/licenses/>.
+.\" %%%LICENSE_END
+.\"
+.\" HISTORY:
+.\" 2005-09-28, created by Arnd Bergmann <arndb@de.ibm.com>
+.\" 2006-06-16, revised by Eduardo M. Fleury <efleury@br.ibm.com>
+.\" 2007-07-10, some polishing by mtk
+.\" 2007-09-28, updates for newer kernels, added example
+.\"             by Jeremy Kerr <jk@ozlabs.org>
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2007  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2007-10-19, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2008-11-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.04
+.\"
+.TH SPU_RUN 2 2012\-08\-05 Linux "Linux Programmer's Manual"
+.SH 名前
+spu_run \- SPU コンテキストを実行する
+.SH 書式
+.nf
+\fB#include <sys/spu.h>\fP
+
+\fBint spu_run(int \fP\fIfd\fP\fB, unsigned int *\fP\fInpc\fP\fB, unsigned int *\fP\fIevent\fP\fB);\fP
+.fi
+
+\fI注\fP: このシステムコールには glibc のラッパー関数は存在しない。「注意」の節を参照。
+.SH 説明
+\fBspu_run\fP()  システムコールは、Cell Broadband Engine アーキテクチャーを実装した PowerPC マシンで
+Synergistic Processor Units (SPU) にアクセスするために 使用される。 \fIfd\fP 引き数は、
+\fBspu_create\fP(2)  が返すファイルディスクリプターで、 特定の SPU コンテキストを参照する。 そのコンテキストが物理 SPU
+に割り当てられると、 \fInpc\fP で渡された命令ポインター (instruction pointer) から実行が開始される。
+
+SPU コードの実行は同期的 (synchronously) に行われる、つまり SPU が実行中は \fBspu_run\fP()  は停止 (block)
+する。 SPU コードの実行をメイン CPU や他の SPU と並行して行う必要がある場合は、 最初に、その SPU
+コードを実行する新しいスレッドを、(例えば \fBpthread_create\fP(3)  などを使って) 生成しなければならない。
+
+\fBspu_run\fP()  が返るときには、SPU のプログラムカウンターの現在値が \fInpc\fP に書き込まれる。 これにより、連続する
+\fBspu_run\fP()  の呼び出しで同じ \fInpc\fP ポインターを使うことができる。
+
+\fIevent\fP 引き数には、拡張ステータスコード用のバッファーを指定する。 \fBSPU_CREATE_EVENTS_ENABLED\fP フラグ付きで
+SPU コンテキストが作成されると、 \fBspu_run\fP()  が返る前に Linux カーネルによりこのバッファーに
+拡張ステータスコードが格納される。
+
+ステータスコードには以下の定数が一つ以上入る。
+.TP 
+\fBSPE_EVENT_DMA_ALIGNMENT\fP
+DMA (direct memory access) のアライメントエラーが発生した。
+.TP 
+\fBSPE_EVENT_INVALID_DMA\fP
+無効な MFC (Memory Flow Controller) DMA コマンドを行おうとした。
+.TP 
+\fBSPE_EVENT_SPE_DATA_STORAGE\fP
+DMA ストレージエラーが発生した。
+.TP 
+\fBSPE_EVENT_SPE_ERROR\fP
+不正な命令が実行された。
+.PP
+NULL は \fIevent\fP 引き数として有効な値である。 この場合、イベントは呼び出し元のプロセスに報告されない。
+.SH 返り値
+成功すると、 \fBspu_run\fP()  は \fIspu_status\fP レジスターの値を返す。 エラーの場合、\-1 を返し、 \fIerrno\fP
+を下記のエラーコードのいずれかに設定する。
+
+\fIspu_status\fP レジスターの値は、ステータスコードと SPU の \fBstop\-and\-signal\fP 命令が返す 14 ビットのコードの
+ビットマスクで構成される。 後者の 14 ビットのコードはオプションである。 ステータスコードのビットマスクは下記の通りである。
+.TP 
+\fB0x02\fP
+SPU が \fBstop\-and\-signal\fP 命令で停止した。
+.TP 
+\fB0x04\fP
+SPU が \fBhalt (停止)\fP 命令で止まった。
+.TP 
+\fB0x08\fP
+SPU はチャンネルのウェイト中である。
+.TP 
+\fB0x10\fP
+SPU はシングルステップモードであった。
+.TP 
+\fB0x20\fP
+SPU が不正な命令を実行しようとした。
+.TP 
+\fB0x40\fP
+SPU が不正なチャンネルにアクセスしようとした。
+.TP 
+\fB0x3fff0000\fP
+この値のマスクを適用して得られたビット値には、 stop\-and\-signal 命令から返されたコードが入っている。 これらのビットは 0x02
+ビットがセットされている場合にのみ有効である。
+.PP
+\fBspu_run\fP()  がエラーを返さなかった場合、下位 8 ビットのうち 1 つ以上は 常にセットされる。
+.SH エラー
+.TP 
+\fBEBADF\fP
+\fIfd\fP が有効なファイルディスクリプターでない。
+.TP 
+\fBEFAULT\fP
+\fInpc\fP が有効なポインターでない。または \fIevent\fP が NULL 以外で、しかも無効なポインターである。
+.TP 
+\fBEINTR\fP
+\fBspu_run\fP()  の実行中にシグナルが発生した。 \fBsignal\fP(7)  参照。 必要であれば、 \fInpc\fP
+の値は新しいプログラムカウンターの値に更新される。
+.TP 
+\fBEINVAL\fP
+\fIfd\fP が \fBspu_create\fP(2)  が返した有効なファイルディスクリプターでない。
+.TP 
+\fBENOMEM\fP
+Memory Flow Controller (MFC) DMA により発生したページフォールトを 処理するのに必要なメモリーがなかった。
+.TP 
+\fBENOSYS\fP
+機能が動作中のシステムで提供されていない。理由は、 ハードウェアで SPU が提供されていないか、 spufs
+モジュールがロードされていないか、のどちらかである。
+.SH バージョン
+\fBspu_run\fP()  システムコールはカーネル 2.6.16 で Linux に追加された。
+.SH 準拠
+このシステムコールは Linux 固有であり、 PowerPC アーキテクチャーでのみ実装されている。
+このシステムコールを使ったプログラムは移植性がない。
+.SH 注意
+glibc はこのシステムコールに対するラッパー関数を提供していない。 \fBsyscall\fP(2)  を使うこと。ただし、 \fBspu_run\fP()
+は より抽象度の高い SPU へのインターフェースを実装するライブラリから 利用されることを意図したものであり、通常のアプリケーションから
+使用は意図されていない。推奨のライブラリについては
+.UR http://www.bsc.es\:/projects\:/deepcomputing\:/linuxoncell/
+.UE
+を参照のこと。
+.SH 例
+以下は、簡単な 1 命令の SPU プログラムを \fBspu_run\fP()  システムコールを使って実行させる例である。
+
+.nf
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
+#define handle_error(msg) \e
+    do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+int main(void)
+{
+    int context, fd, spu_status;
+    uint32_t instruction, npc;
+
+    context = spu_create("/spu/example\-context", 0, 0755);
+    if (context == \-1)
+        handle_error("spu_create");
+
+    /* write a \(aqstop 0x1234\(aq instruction to the SPU\(aqs
+     * local store memory
+     */
+    instruction = 0x00001234;
+
+    fd = open("/spu/example\-context/mem", O_RDWR);
+    if (fd == \-1)
+        handle_error("open");
+    write(fd, &instruction, sizeof(instruction));
+
+    /* set npc to the starting instruction address of the
+     * SPU program. Since we wrote the instruction at the
+     * start of the mem file, the entry point will be 0x0
+     */
+    npc = 0;
+
+    spu_status = spu_run(context, &npc, NULL);
+    if (spu_status == \-1)
+        handle_error("open");
+
+    /* we should see a status code of 0x1234002:
+     *   0x00000002 (spu was stopped due to stop\-and\-signal)
+     * | 0x12340000 (the stop\-and\-signal code)
+     */
+    printf("SPU Status: 0x%08x\en", spu_status);
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.\" .SH AUTHORS
+.\" Arnd Bergmann <arndb@de.ibm.com>, Jeremy Kerr <jk@ozlabs.org>
+.SH 関連項目
+\fBclose\fP(2), \fBspu_create\fP(2), \fBcapabilities\fP(7), \fBspufs\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

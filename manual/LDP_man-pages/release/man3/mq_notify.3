@@ -1,0 +1,184 @@
+.\" t
+.\" Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI all rights reserved.
+.\" Translated 2006-07-31, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2010-04-18, Akihiro MOTOKI, LDP v3.24
+.\" Updated 2010-10-27, Akihiro Motoki, LDP v3.29
+.\"
+.TH MQ_NOTIFY 3 2014\-04\-06 Linux "Linux Programmer's Manual"
+.SH 名前
+mq_notify \- メッセージ到着時に通知を行うよう登録する
+.SH 書式
+.nf
+\fB#include <mqueue.h>\fP
+.sp
+\fBint mq_notify(mqd_t \fP\fImqdes\fP\fB, const struct sigevent *\fP\fInotification\fP\fB);\fP
+.fi
+.sp
+\fI\-lrt\fP でリンクする。
+.SH 説明
+\fBmq_notify\fP()  を使うと、ディスクリプター \fImqdes\fP で参照される空のメッセージキューに新しくメッセージが到着した時に
+非同期の通知 (notification) の配送が行われるように登録したり、 その解除を行ったりできる。
+
+\fIsevp\fP 引き数は \fIsigevent\fP 構造体へのポインターである。 この構造体の定義と一般的な詳細については \fBsigevent\fP(7)
+を参照。
+.PP
+\fIsevp\fP が NULL でないポインターであれば、 \fBmq_notify\fP()
+はメッセージ通知を受け取るように呼び出し元のプロセスを登録する。 \fIsevp\fP が指す \fIsigevent\fP 構造体の
+\fIsigev_notify\fP フィールドは、どのような通知を行うのかを指定する。 このフィールドは以下の値のいずれかを持つ。
+.TP 
+\fBSIGEV_NONE\fP
+.\" When is SIGEV_NONE useful?
+「空の (null)」の通知: 呼び出し元のプロセスを通知の宛先として登録するが、 実際にはメッセージが到着した時に通知は送られない。
+.TP 
+\fBSIGEV_SIGNAL\fP
+.\" I don't know of other implementations that set
+.\" si_pid and si_uid -- MTK
+\fIsigev_signo\fP で指定されたシグナルを送って、プロセスに通知する。 一般的な詳細については \fBsigevent\fP(7)  を参照。
+\fIsiginfo_t\fP 構造体の \fIsi_code\fP フィールドには \fBSI_MESGQ\fP が設定される。 さらに、 \fIsi_pid\fP
+にはメッセージを送信したプロセスの PID が、 \fIsi_uid\fP には送信プロセスの実ユーザー ID が設定される。
+.TP 
+\fBSIGEV_THREAD\fP
+メッセージの配送時には、 \fIsigev_notify_function\fP があたかも新しいスレッドの開始関数であるかのように起動される。 詳細は
+\fBsigevent\fP(7)  を参照。
+.PP
+一つのメッセージキューから通知を受信するように登録できるプロセスは 一つだけである。
+
+\fIsevp\fP が NULL で、かつ呼び出し元のプロセスがこのメッセージキューからの 通知を受信するに現在登録している場合、登録を削除する。
+これ以降、別のプロセスがこのメッセージキューから通知を受信するように 登録できるようになる。
+
+メッセージ通知は、それまで空のキューに新しいメッセージが到着した 場合にのみ行われる。 \fBmq_notify\fP()
+が呼び出された時にそのキューが空でない場合、 そのキューが空になり、その後新しいメッセージが到着した時に 初めて通知が行われることになる。
+
+別のプロセスやスレッドが \fBmq_receive\fP(3)  を使って、空のキューからメッセージの読み出しを待っている場合、
+メッセージ通知の登録は全て無視される。 メッセージは \fBmq_receive\fP(3)  を呼び出しているプロセスやスレッドに配送され、
+メッセージ通知の登録は効力を持ったままとなる。
+
+通知は一度だけ行われる。通知が送られた後は、通知要求の登録は削除され、 別のプロセスがメッセージ通知を受信するように登録できるようになる。
+通知を受けたプロセスが次の通知も受信したい場合は、 \fBmq_notify\fP()  を使ってその後の通知も受けるように要求することができる。
+\fBmq_notify\fP()  を再度呼び出すのは、読み出していないメッセージを全部読み出して キューが空になる前にすべきである
+(キューからのメッセージ読み出しをキューが空になった時に 停止 (block) せずに行うには、キューを非停止モード (non\-blocking
+mode)  に設定しておくとよい)。
+.SH 返り値
+成功すると、 \fBmq_notify\fP()  は 0 を返す。エラーの場合、\-1 を返し、 \fIerrno\fP をエラーを示す値に設定する。
+.SH エラー
+.TP 
+\fBEBADF\fP
+\fImqdes\fP に指定されたディスクリプターが不正である。
+.TP 
+\fBEBUSY\fP
+別のプロセスがすでに このメッセージキューに対する通知を受信するように登録している。
+.TP 
+\fBEINVAL\fP
+\fIsevp\->sigev_notify\fP が許可された値のいずれでもない。もしくは \fIsevp\->sigev_notify\fP が
+\fBSIGEV_SIGNAL\fP だが \fIsevp\->sigev_signo\fP が有効なシグナル番号ではない。
+.TP 
+\fBENOMEM\fP
+十分なメモリーがない。
+.PP
+.\" Linux does not do this
+POSIX.1\-2008 では、 \fIsevp\fP が NULL で、呼び出し元のプロセスがキュー \fImqdes\fP
+に関する通知を受信するように登録されていない場合、エラー \fBEINVAL\fP を生成するような実装を行っても「よい」ことになっている。
+.SH 準拠
+POSIX.1\-2001.
+.SH 例
+以下のプログラムは、 コマンドライン引き数で指定された名前のメッセージキューへの 通知要求を登録し、通知はスレッドの作成によって行われる。
+そのスレッドは、そのキューからメッセージを一つ読み出してから、 プロセスを終了する関数を実行する。
+.SS プログラムのソース
+.nf
+#include <pthread.h>
+#include <mqueue.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define handle_error(msg) \e
+    do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+static void                     /* スレッド開始関数 */
+tfunc(union sigval sv)
+{
+    struct mq_attr attr;
+    ssize_t nr;
+    void *buf;
+    mqd_t mqdes = *((mqd_t *) sv.sival_ptr);
+
+    /* 最大メッセージサイズを決定し、
+       メッセージ受信用のバッファーを確保する */
+
+    if (mq_getattr(mqdes, &attr) == \-1)
+        handle_error("mq_getattr");
+    buf = malloc(attr.mq_msgsize);
+    if (buf == NULL)
+        handle_error("malloc");
+
+    nr = mq_receive(mqdes, buf, attr.mq_msgsize, NULL);
+    if (nr == \-1)
+        handle_error("mq_receive");
+
+    printf("Read %zd bytes from MQ\en", nr);
+    free(buf);
+    exit(EXIT_SUCCESS);         /* プロセスを終了する */
+}
+
+int
+main(int argc, char *argv[])
+{
+    mqd_t mqdes;
+    struct sigevent sev;
+
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <mq\-name>\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    mqdes = mq_open(argv[1], O_RDONLY);
+    if (mqdes == (mqd_t) \-1)
+        handle_error("mq_open");
+
+    sev.sigev_notify = SIGEV_THREAD;
+    sev.sigev_notify_function = tfunc;
+    sev.sigev_notify_attributes = NULL;
+    sev.sigev_value.sival_ptr = &mqdes;   /* スレッド関数に渡す引き数 */
+    if (mq_notify(mqdes, &sev) == \-1)
+        handle_error("mq_notify");
+
+    pause();    /* プロセスはスレッド関数により終了される */
+}
+.fi
+.SH 関連項目
+\fBmq_close\fP(3), \fBmq_getattr\fP(3), \fBmq_open\fP(3), \fBmq_receive\fP(3),
+\fBmq_send\fP(3), \fBmq_unlink\fP(3), \fBmq_overview\fP(7), \fBsigevent\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

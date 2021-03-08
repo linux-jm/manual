@@ -1,0 +1,122 @@
+.\" Copyright 2003 walter harms (walter.harms@informatik.uni-oldenburg.de)
+.\"
+.\" %%%LICENSE_START(GPL_NOVERSION_ONELINE)
+.\" Distributed under GPL
+.\" %%%LICENSE_END
+.\"
+.\" Modified 2003-04-04 Walter Harms
+.\" <walter.harms@informatik.uni-oldenburg.de>
+.\"
+.\" Slightly polished, aeb, 2003-04-06
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2004 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated Thu Sep  2 07:40:48 JST 2004
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\"
+.TH RTIME 3 2014\-05\-28 GNU "Linux Programmer's Manual"
+.SH 名前
+rtime \- リモートマシンから時刻を取得する
+.SH 書式
+.nf
+\fB#include <rpc/auth_des.h>\fP
+.sp
+\fBint rtime(struct sockaddr_in *\fP\fIaddrp\fP\fB, struct rpc_timeval *\fP\fItimep\fP\fB,\fP
+\fB          struct rpc_timeval *\fP\fItimeout\fP\fB);\fP
+.fi
+.SH 説明
+この関数は RFC\ 868 に記述されているタイムサーバプロトコルを使用し、 リモートマシンから時刻を取得する。
+.LP
+タイムサーバプロトコルは 00:00:00 UTC, 1 Jan 1900 から秒数を提供するので、 この関数は適切な定数値を引くことにより、
+提供された値を Unix における時刻紀元 (1970\-01\-01 00:00:00 +0000 (UTC))  から秒数に変換する。
+.LP
+\fItimeout\fP が NULL でない場合、udp/time ソケット (ポート 37) が使用される。 それ以外の場合、tcp/time ソケット
+(ポート 37) が使用される。
+.SH 返り値
+成功した場合は、0 が返されて、得られた 32 ビットの時刻値は \fItimep\->tv_sec\fP に格納される。 エラーの場合は、\-1
+が返されて、 \fIerrno\fP が適切に設定される。
+.SH エラー
+内部で使用している関数 (\fBsendto\fP(2), \fBpoll\fP(2), \fBrecvfrom\fP(2), \fBconnect\fP(2),
+\fBread\fP(2))  の全てのエラーが起こる可能性がある。 更に次のエラーが起こる可能性がある:
+.TP 
+\fBEIO\fP
+返されたバイト数が 4 バイトでない。
+.TP 
+\fBETIMEDOUT\fP
+timeout で定義された待ち時間の期限が切れた。
+.SH 属性
+.SS "マルチスレッディング (pthreads(7) 参照)"
+\fBrtime\fP() 関数はスレッドセーフである。
+.SH 注意
+IPv4 のみがサポートされている。
+.LP
+\fIin.timed\fP のバージョンによっては TCP しかサポートしていないものもある。 \fIuse_tcp\fP を 1
+に設定して、例にあるプログラムを試すこと。
+.LP
+libc5 はプロトタイプ
+.nf
+
+    int rtime(struct sockaddr_in *, struct timeval *, struct timeval *);
+
+.fi
+を使い、 \fI<rpc/auth_des.h>\fP の代わりに \fI<sys/time.h>\fP を必要とする。
+.SH バグ
+glibc 2.2.5 以前の \fBrtime\fP()  は、64 ビットマシンで正確に動作しない。
+.SH 例
+この例ではポート 37 がアップされてオープンされている必要がある。 \fI/etc/inetd.conf\fP の time
+エントリーがコメントアウトされていないことを確認してほしい。
+
+このプログラムは "linux" というコンピュータに接続する。 "localhost" を使った場合は動作しない。 結果はコンピュータ "linux"
+のローカル時刻である。
+.sp
+.nf
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <time.h>
+#include <rpc/auth_des.h>
+#include <netdb.h>
+
+static int use_tcp = 0;
+static char *servername = "linux";
+
+int
+main(void)
+{
+    struct sockaddr_in name;
+    struct rpc_timeval time1 = {0,0};
+    struct rpc_timeval timeout = {1,0};
+    struct hostent *hent;
+    int ret;
+
+    memset(&name, 0, sizeof(name));
+    sethostent(1);
+    hent = gethostbyname(servername);
+    memcpy(&name.sin_addr, hent\->h_addr, hent\->h_length);
+
+    ret = rtime(&name, &time1, use_tcp ? NULL : &timeout);
+    if (ret < 0)
+        perror("rtime error");
+    else {
+        time_t t = time1.tv_sec;
+        printf("%s\en", ctime(&t));
+    }
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+.\" .BR netdate (1),
+.\" .BR rdate (1),
+\fBntpdate\fP(1), \fBinetd\fP(8)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

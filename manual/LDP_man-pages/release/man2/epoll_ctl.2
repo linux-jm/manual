@@ -1,0 +1,183 @@
+.\"  Copyright (C) 2003  Davide Libenzi
+.\"  Davide Libenzi <davidel@xmailserver.org>
+.\"
+.\" %%%LICENSE_START(GPLv2+_SW_3_PARA)
+.\"  This program is free software; you can redistribute it and/or modify
+.\"  it under the terms of the GNU General Public License as published by
+.\"  the Free Software Foundation; either version 2 of the License, or
+.\"  (at your option) any later version.
+.\"
+.\"  This program is distributed in the hope that it will be useful,
+.\"  but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"  GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, see
+.\" <http://www.gnu.org/licenses/>.
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2004-2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated 2004-06-15, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2004-12-29, Yuichi SATO
+.\" Updated & Modified 2005-04-20, Yuichi SATO
+.\" Updated & Modified 2005-09-06, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2006-07-19, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.36
+.\" Updated 2009-02-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.19
+.\"
+.TH EPOLL_CTL 2 2014\-12\-31 Linux "Linux Programmer's Manual"
+.SH 名前
+epoll_ctl \- epoll ディスクリプターのインターフェースを操作する
+.SH 書式
+\fB#include <sys/epoll.h>\fP
+.sp
+\fBint epoll_ctl(int \fP\fIepfd\fP\fB, int \fP\fIop\fP\fB, int \fP\fIfd\fP\fB, struct
+epoll_event *\fP\fIevent\fP\fB);\fP
+.SH 説明
+このシステムコールは、ファイルディスクリプター \fIepfd\fP が参照する \fBepoll\fP(7)
+インスタンスに対する操作を行う。 対象のファイルディスクリプター \fIfd\fP に対して、
+操作 \fIop\fP の実行が要求される。
+
+\fIop\fP 引き数に指定できる有効な値は以下の通りである。
+.TP 
+\fBEPOLL_CTL_ADD\fP
+対象のファイルディスクリプター \fIfd\fP をファイルディスクリプター \fIepfd\fP が参照する \fBepoll\fP インスタンスに登録し、イベント
+\fIevent\fP を \fIfd\fP に結び付けられた内部ファイルに関連付ける。
+.TP 
+\fBEPOLL_CTL_MOD\fP
+イベント \fIevent\fP を対象のファイルディスクリプター \fIfd\fP に関連付けるように変更する。
+.TP 
+\fBEPOLL_CTL_DEL\fP
+対象のファイルディスクリプター \fIfd\fP を \fIepfd\fP が参照する \fBepoll\fP インスタンスから削除する。 \fIevent\fP
+引き数は無視されるので、NULL にすることもできる (但し、下記の「バグ」を参照)。
+.PP
+\fIevent\fP 引き数は、ファイルディスクリプター \fIfd\fP にリンクされたオブジェクトを表す。 \fIstruct epoll_event\fP
+は以下のように定義される。
+.sp
+.in +4n
+.nf
+typedef union epoll_data {
+    void        *ptr;
+    int          fd;
+    uint32_t     u32;
+    uint64_t     u64;
+} epoll_data_t;
+
+struct epoll_event {
+    uint32_t     events;      /* epoll イベント */
+    epoll_data_t data;        /* ユーザーデータ変数 */
+};
+.fi
+.in
+
+\fIevents\fP メンバは、以下のような使用可能なイベントタイプを使って構成された ビットセットである。
+.TP 
+\fBEPOLLIN\fP
+関連付けられたファイルに対して、 \fBread\fP(2)  操作が可能である。
+.TP 
+\fBEPOLLOUT\fP
+関連付けられたファイルに対して、 \fBwrite\fP(2)  操作が可能である。
+.TP 
+\fBEPOLLRDHUP"\fP(Linux\fB2.6.17\fP以降)"
+ストリームソケットの他端が、コネクションの close 、 またはコネクションの書き込み側の shutdown を行った。
+(このフラグを使うと、エッジトリガーの監視を行う場合に、 通信のもう一端が閉じられたことを検知するコードを 非常に簡潔に書くことができる。)
+.TP 
+\fBEPOLLPRI\fP
+\fBread\fP(2)  操作が可能な緊急 (urgent) データがある。
+.TP 
+\fBEPOLLERR\fP
+関連付けられたファイルディスクリプターにエラー条件が起こった。 \fBepoll_wait\fP(2)  は常にこのイベントを待つので、 \fIevents\fP
+に設定する必要はない。
+.TP 
+\fBEPOLLHUP\fP
+関連付けられたファイルディスクリプターにハングアップが起こった。 \fBepoll_wait\fP(2)  は常にこのイベントを待つので、 \fIevents\fP
+に設定する必要はない。
+.TP 
+\fBEPOLLET\fP
+関連付けられたファイルディスクリプターに エッジトリガー動作 (Edge Triggered behavior) を設定する。 \fBepoll\fP
+のデフォルトの動作は、レベルトリガー (Level Triggered) である。 エッジトリガーとレベルトリガーによるイベント分配機構 (event
+distribution architectures) についての詳細な情報は、 \fBepoll\fP(7)  を参照すること。
+.TP 
+\fBEPOLLONESHOT\fP (Linux 2.6.2 以降)
+関連付けられたファイルディスクリプターに 一撃動作 (One\-Shot behavior) を設定する。 これはイベントが
+\fBepoll_wait\fP(2)  によって引き出された後、 関連付けられたファイルディスクリプターが内部的に破棄され、 \fBepoll\fP
+インターフェースによってイベントが報告されなくなることを意味する。 新しいイベントマスクでファイルディスクリプターを再度有効にするためには、
+\fBepoll_ctl\fP()  に \fBEPOLL_CTL_MOD\fP を指定して呼び出さなければならない。 \fIop\fP
+引き数に指定できる有効な値は、以下の通り:
+.TP 
+\fBEPOLLWAKEUP\fP (Linux 3.5 以降)
+.\" commit 4d7e30d98939a0340022ccd49325a3d70f7e0238
+\fBEPOLLONESHOT\fP と \fBEPOLLET\fP がクリアされており、 プロセスが \fBCAP_BLOCK_SUSPEND\fP
+ケーパビリティを持っている場合、 イベントが処理待ちか処理中かにかかわらず、必ずシステムが "suspend" や "hibernate"
+に入らないようにすること。 \fBepoll_wait\fP(2) の呼び出しが返った時点から、 同じ \fBepoll\fP(7)
+ファイルディスクリプターに対して \fBepoll_wait\fP(2) が次に呼び出されるか、 そのファイルディスクリプターが閉じられるか、
+イベントファイルディスクリプターが \fBEPOLL_CTL_DEL\fP で削除されるか、 \fBEPOLL_CTL_MOD\fP
+でイベントファイルディスクリプターの \fBEPOLLWAKEUP\fP がクリアされるか、 のいずれかになるまで、イベントは「処理中」であるとみなされる。
+「バグ」の節も参照のこと。
+.SH 返り値
+成功した場合、 \fBepoll_ctl\fP()  は 0 を返す。 エラーが起こった場合、 \fBepoll_ctl\fP()  は \-1 を返し、
+\fIerrno\fP を適切に設定する。
+.SH エラー
+.TP 
+\fBEBADF\fP
+\fIepfd\fP か \fIfd\fP が有効なファイルディスクリプターでない。
+.TP 
+\fBEEXIST\fP
+\fIop\fP が \fBEPOLL_CTL_ADD\fP であり、かつ与えられたファイルディスクリプター \fIfd\fP がこの epoll
+インスタンスに既に登録されている。
+.TP 
+\fBEINVAL\fP
+\fIepfd\fP が \fBepoll\fP ファイルディスクリプターでない。 または \fIfd\fP が \fIepfd\fP と同一である。 または要求された操作
+\fIop\fP がこのインターフェースでサポートされていない。
+.TP 
+\fBENOENT\fP
+\fIop\fP が \fBEPOLL_CTL_MOD\fP または \fBEPOLL_CTL_DEL\fP で、かつ \fIfd\fP がこの epoll
+インスタンスに登録されていない。
+.TP 
+\fBENOMEM\fP
+要求された \fIop\fP 制御操作を扱うのに十分なメモリーがない。
+.TP 
+\fBENOSPC\fP
+epoll インスタンスに新しいファイルディスクリプターを登録 (\fBEPOLL_CTL_ADD\fP)  しようとした際に、
+\fI/proc/sys/fs/epoll/max_user_watches\fP で決まる上限に達した。 詳細は \fBepoll\fP(7)  を参照。
+.TP 
+\fBEPERM\fP
+対象ファイル \fIfd\fP が \fBepoll\fP に対応していない。 このエラーは \fIfd\fP
+が例えば通常ファイルやディレクトリを参照している場合にも起こり得る。
+.SH バージョン
+.\" To be precise: kernel 2.5.44.
+.\" The interface should be finalized by Linux kernel 2.5.66.
+\fBepoll_ctl\fP()  はカーネル 2.6 で追加された。
+.SH 準拠
+\fBepoll_ctl\fP()  は Linux 独自である。
+ライブラリによるサポートは glibc バージョン 2.3.2 以降で提供されている。
+.SH 注意
+\fBepoll\fP インターフェースは、 \fBpoll\fP(2)  に対応している全てのファイルディスクリプターに対応している。
+.SH バグ
+Linux 2.6.9 より前では、 \fBEPOLL_CTL_DEL\fP 操作の際、引き数 \fIevent\fP に (たとえ無視される場合であっても)
+NULL でないポインターを渡す必要があった。 カーネル 2.6.9 以降では、 \fBEPOLL_CTL_DEL\fP を使う際に \fIevent\fP に
+NULL を指定できるようになっている。 2.6.9 より前のカーネルへの移植性が必要なアプリケーションでは、 \fIevent\fP に NULL
+でないポインターを指定すべきである。
+
+.\" commit a8159414d7e3af7233e7a5a82d1c5d85379bd75c (behavior change)
+.\" https://lwn.net/Articles/520198/
+\fIflags\fP に \fBEPOLLWAKEUP\fP が指定されたが、呼び出し元が \fBCAP_BLOCK_SUSPEND\fP
+ケーパビリティを持っていない場合、 \fBEPOLLWAKEUP\fP フラグは \fI黙って無視される\fP。 元の実装では \fIflags\fP
+引き数に対する正当性チェックが実行されていないため、 この残念な動作は必要である。 また、 呼び出し元が \fBCAP_BLOCK_SUSPEND\fP
+ケーパビリティを持っていなかった場合に呼び出しを失敗させるようにチェックを \fBEPOLLWAKEUP\fP に追加すると、
+少なくともひとつは動かなくなる既存のユーザー空間アプリケーションがあった。 そのアプリケーションはたまたま (しかも意味もなく)
+このビットを指定していた。 したがって、信頼性が求められるアプリケーションでは、 \fBEPOLLWAKEUP\fP フラグを使おうする場合には
+\fBCAP_BLOCK_SUSPEND\fP ケーパビリティを持っているかも確認するようにすべきである。
+.SH 関連項目
+\fBepoll_create\fP(2), \fBepoll_wait\fP(2), \fBpoll\fP(2), \fBepoll\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

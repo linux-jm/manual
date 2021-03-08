@@ -1,0 +1,687 @@
+.\" Copyright (c) 2013, 2014 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\" and Copyright (c) 2012, 2014 by Eric W. Biederman <ebiederm@xmission.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH USER_NAMESPACES 7 2014\-09\-21 Linux "Linux Programmer's Manual"
+.SH 名前
+user_namespaces \- Linux ユーザー名前空間の概要
+.SH 説明
+名前空間の概要については \fBnamespaces\fP(7) を参照。
+
+.\" FIXME: This page says very little about the interaction
+.\" of user namespaces and keys. Add something on this topic.
+.\"
+.\" ============================================================
+.\"
+ユーザー名前空間は、 セキュリティに関連する識別子や属性、 特にユーザー ID やグループ ID (\fBcredentials\fP(7) 参照)、
+root ディレクトリ、 キー (\fBkeyctl\fP(2) 参照)、 ケーパビリティを分離する。 プロセスのユーザー ID とグループ ID
+はユーザー名前空間の内部と外部で異なる場合がある。 特に、 あるプロセスがユーザー名前空間の外部では通常の非特権ユーザー ID を持つが、
+同時にユーザー名前空間の内部ではユーザー ID 0 を持つという場合がある。 言い換えると、
+そのプロセスはそのユーザー名前空間の内部での操作に対してすべての特権を持つが、 名前空間の外部での操作では特権を持たない。
+.SS ネストされた名前空間、名前空間のメンバー
+ユーザー名前空間は入れ子にすることができる。 つまり、 最初の ("root") 名前空間以外の各名前空間は親のユーザー名前空間を持ち、 0
+個以上のユーザー名前空間を持つということである。 親のユーザー名前空間は、 \fBCLONE_NEWUSER\fP フラグを指定して
+\fBunshare\fP(2) や \fBclone\fP(2) を呼び出してユーザー名前空間を作成したプロセスのユーザー名前空間である。
+
+.\" commit 8742f229b635bf1c1c84a3dfe5e47c814c20b5c8
+.\" FIXME Explain the rationale for this limit. (What is the rationale?)
+カーネルにより (バージョン 3.11 以降では) ユーザー名前空間のネスト数に 32 という上限が課される。 \fBunshare\fP(2) や
+\fBclone\fP(2) の呼び出しでこの上限を超えてしまう場合はエラー \fBEUSERS\fP で失敗する。
+
+各プロセスは必ず 1 個のユーザー名前空間のメンバーとなる。 \fBCLONE_NEWUSER\fP フラグを指定せずに \fBfork\fP(2) や
+\fBclone\fP(2) でプロセスを作成した場合、 そのプロセスは親プロセスと同じユーザー名前空間のメンバーとなる。 シングルスレッドのプログラムは、
+変更先のユーザー名前空間で \fBCAP_SYS_ADMIN\fP を持っていれば、 \fBsetns\fP(2)
+を使って別のユーザー名前空間に参加することができる。 変更時に、 変更後の名前空間ですべてのケーパビリティを獲得する。
+
+.\"
+.\" ============================================================
+.\"
+\fBCLONE_NEWUSER\fP を指定して \fBclone\fP(2) や \fBunshare\fP(2) を呼び出すと、 新しいプロセス
+(\fBclone\fP(2) の場合) や呼び出したプロセス (\fBunshare\fP(2) の場合)
+がその呼び出しで作成された新しいユーザー名前空間のメンバーとなる。
+.SS ケーパビリティ
+\fBCLONE_NEWUSER\fP フラグが指定された \fBclone\fP(2) で作成された子プロセスは、
+新しい名前空間ですべてのケーパビリティを持った状態で開始される。 同様に、 \fBunshare\fP(2) を使って新しいユーザー名前空間を作成したり、
+\fBsetns\fP(2) を使って既存のユーザー名前空間に参加したりしたプロセスは、 その名前空間ですべてのケーパビリティを獲得する。 一方、
+そのプロセスは、親のユーザー名前空間 (\fBclone\fP(2) の場合) や直前のユーザー名前空間 (\fBunshare\fP(2) や
+\fBsetns\fP(2) の場合) では、 root ユーザー (root 名前空間のユーザー ID 0 のプロセス)
+により新しい名前空間の作成や参加が行われた場合であっても、 ケーパビリティを全く持たない。
+
+\fBexecve\fP(2) の呼び出しでは、 プロセスのケーパビリティは通常の方法 (\fBcapabilities\fP(7) 参照) で再計算され、
+通常は、 名前空間内でユーザー ID 0 を持つ場合や実行ファイルが空でない継承可能ケーパビリティマスクを持っている場合を除くと、
+すべてのケーパビリティを失うことになる。 下記の、ユーザー ID やグループ ID のマッピングの議論を参照。
+
+\fBCLONE_NEWUSER\fP フラグを使って \fBclone\fP(2), \fBunshare\fP(2), \fBsetns\fP(2) を呼び出すと、
+子プロセス (\fBclone\fP(2) の場合) や呼び出し元 (\fBunshare\fP(2) や \fBsetns\fP(2) の場合) では
+"securebits" フラグ (\fBcapabilities\fP(7) 参照) がデフォルト値に設定される。 呼び出し元は \fBsetns\fP(2)
+の呼び出し後は元のユーザー名前空間ではケーパビリティを持たないので、 \fBsetns\fP(2) を 2
+回呼び出して一度別のユーザー名前空間に移動して元のユーザー名前空間に戻ることで、 プロセスが元のユーザー名前空間にとどまりつつ自身の
+"securebits" フラグを再設定することはできない。
+
+ユーザー名前空間内部でケーパビリティを持つというのは、 そのプロセスがその名前空間の支配下にあるリソースに対してのみ (特権を必要とする)
+操作を実行できるということである。 プロセスが特定のユーザー名前空間でケーパビリティを持つかどうかを判定するルールは以下の通りである。
+.IP 1. 3
+.\" In the 3.8 sources, see security/commoncap.c::cap_capable():
+プロセスがその名前空間のメンバーで、実効ケーパビリティセットにそのケーパビリティがあれば、 そのプロセスはユーザー名前空間内でケーパビリティを持つ。
+プロセスが実効ケーパビリティセットでケーパビリティを得るにはいくつかの方法がある。 例えば、 set\-user\-ID
+プログラムや関連するファイルケーパビリティを持った実行ファイルを実行する。 また、 すでに説明したとおり、 プロセスは \fBclone\fP(2),
+\fBunshare\fP(2), \fBsetns\fP(2) の結果としてケーパビリティを獲得することもできる。
+.IP 2.
+プロセスがユーザー名前空間でケーパビリティを持っている場合、 そのプロセスはすべての子供の名前空間 (および削除された子孫の名前空間)
+でケーパビリティを持つ。
+.IP 3.
+.\" * The owner of the user namespace in the parent of the
+.\" * user namespace has all caps.
+.\" (and likewise associates the effective group ID of the creating process
+.\" with the namespace).
+.\" See kernel commit 520d9eabce18edfef76a60b7b839d54facafe1f9 for a fix
+.\" on this point
+.\"     This includes the case where the process executes a set-user-ID
+.\"     program that confers the effective UID of the creator of the namespace.
+.\"
+.\" ============================================================
+.\"
+ユーザー名前空間が作成された際、 カーネルはその名前空間の「所有者」として作成したプロセスの実効ユーザー ID を記録する。
+親のユーザー名前空間に属するプロセスで、 そのプロセスの実効ユーザー ID が名前空間の所有者と一致する場合、
+そのプロセスはその名前空間ですべてのケーパビリティを持つ。 一つ前のルールも合わせて考えると、
+このプロセスはすべての削除された子孫のユーザー名前空間ですべてのケーパビリティを持つことを意味する。
+.SS ユーザー名前空間と他の名前空間の関係
+Linux 3.8 以降では、 非特権プロセスがユーザー名前空間を作成することができる。 また、 呼び出し元のユーザー名前空間で
+\fBCAP_SYS_ADMIN\fP ケーパビリティを持っているだけで、 マウント名前空間、 PID 名前空間、 IPC 名前空間、 ネットワーク名前空間、
+UTS 名前空間を作成できる。
+
+ユーザー名前空間以外の名前空間が作成された場合、 その名前空間は呼び出したプロセスが名前空間の作成時にメンバーであったユーザー名前空間により所有される。
+ユーザー名前空間以外の名前空間における操作には、 対応するユーザー名前空間でのケーパビリティが必要である。
+
+一つの \fBclone\fP(2) や \fBunshare\fP(2) の呼び出しで \fBCLONE_NEWUSER\fP が他の \fBCLONE_NEW*\fP
+フラグと一緒に指定された場合、 そのユーザー名前空間が最初に作成されることが保証され、 子プロセス (\fBclone\fP(2) の場合) や呼び出し元
+(\fBunshare\fP(2) の場合) はその呼び出しで作成される残りの名前空間で特権を持つ。 したがって、
+特権を持たない呼び出し元がフラグを組み合わせて指定することができる。
+
+.\"
+.\" ============================================================
+.\"
+新しい IPC 名前空間、 マウント名前空間、 ネットワーク名前空間、 PID 名前空間、 UTS 名前空間が \fBclone\fP(2) や
+\fBunshare\fP(2) で作成される際、 カーネルは新しい名前空間に対して作成したプロセスのユーザー名前空間を記録する
+(この関連付けは変更できない)。 その新しい名前空間のプロセスがその後名前空間で分離されたグローバルリソースに対して特権操作を行う場合、
+カーネルが新しい名前空間に対して関連付けたユーザー名前空間でのプロセスのケーパビリティに基づいてアクセス許可のチェックが行われる。
+.SS マウント名前空間における制限
+
+マウント名前空間に関しては以下の点に注意すること。
+.IP * 3
+マウント名前空間は所有者のユーザー名前空間を持つ。 所有者のユーザー名前空間が親のマウント名前空間の所有者のユーザー名前空間と異なるマウント名前空間は、
+特権が少ないマウント名前空間 (less privileged mount namespace) である。
+.IP *
+特権が少ないマウント名前空間を作成する場合、 共有マウントは slave マウントに縮小される。 これにより、
+特権の少ないマウント名前空間で実行されるマッピングが、 より特権を持つマウント名前空間 (more privileged mount
+namespace) に伝搬しないことが保証される。
+.IP *
+.\" FIXME .
+.\"	What does "come as a single unit from more privileged mount" mean?
+より特権を持つマウントで一つのまとまりとして行われたマウントは一つにまとまったままとなり、 特権が少ないマウント名前空間で分割することはできない。
+(\fBunshare\fP(2) の \fBCLONE_NEWNS\fP 操作では、 元のマウント名前空間のすべてのマウントは一つのまとまりとして扱われ、
+マウント名前空間間で伝わる再帰的なマウントでは一つのまとまりとして伝わる。)
+.IP *
+.\" commit 9566d6742852c527bf5af38af5cbb878dad75705
+.\" Author: Eric W. Biederman <ebiederm@xmission.com>
+.\" Date:   Mon Jul 28 17:26:07 2014 -0700
+.\"
+.\"      mnt: Correct permission checks in do_remount
+.\"
+より特権を持つマウント名前空間から特権の少ないマウント名前空間に伝わる際に、 \fBmount\fP(2) の \fBMS_RDONLY\fP,
+\fBMS_NOSUID\fP, \fBMS_NOEXEC\fP フラグと "atime" フラグ (\fBMS_NOATIME\fP,
+\fBMS_NODIRATIME\fP, \fBMS_REALTIME\fP) 設定はロックされ、 特権の少ないマウント名前空間では変更することはできない。
+.IP *
+.\" (As of 3.18-rc1 (in Al Viro's 2014-08-30 vfs.git#for-next tree))
+ある名前空間でマウントポイントとなっているが別の名前空間でのマウントポイントになっていないファイルやディレクトリは、
+マウントポイントになっていないマウント名前空間では (通常のアクセス許可チェックにもとづいて) rename, unlink, remove
+(\fBrmdir\fP(2)) を行うことができる。
+.IP
+.\"
+.\" ============================================================
+.\"
+以前は、 別のマウント名前空間でマウントポイントとなっていたファイルやディレクトリを rename, unlink, remove しようとすると、
+エラー \fBEBUSY\fP が返されていた。 この動作は、 (NFS などで) 適用にあたっての技術的な問題があるとともに、
+より特権を持つユーザーに対してサービス不能攻撃 (denial\-of\-service attack) を許してしまっていた
+(ファイルをバインドマウントで更新することができなくなっていた)。
+.SS "ユーザー ID とグループ ID のマッピング: uid_map と gid_map"
+.\" commit 22d917d80e842829d0ca0a561967d728eb1d6303
+ユーザー名前空間が作成された際、 その名前空間は親のユーザー名前空間へのユーザー ID (とグループ ID) のマッピングを行わずに開始される。
+ファイル \fI/proc/[pid]/uid_map\fP と \fI/proc/[pid]/gid_map\fP (Linux 3.5 以降で利用可能)
+でプロセス \fIpid\fP のユーザー名前空間内でのユーザー ID とグループ ID のマッピングにアクセスできる。
+これらのファイルを読み出してユーザー名前空間内のマッピングを参照したり、 これらのファイルに書き込んでマッピングを (一度だけ) 定義することができる。
+
+以下の段落で \fIuid_map\fP の詳細を説明する。 \fIgid_map\fP に関しても全く同じである。 "user ID" という部分を "group
+ID" に置き換えればよい。
+
+\fIuid_map\fP ファイルで、 プロセス \fIpid\fP のユーザー名前空間から \fIuid_map\fP
+をオープンしたプロセスのユーザー名前空間にユーザー ID のマッピングが公開される (公開するポリシーの条件については下記を参照)。 言い換えると、
+別のユーザー名前空間のプロセスでは、 特定の \fIuid_map\fP ファイルを読み出した際に潜在的には別の値が見えることがあるということである。
+見える値は読み出したプロセスのユーザー名前空間のユーザー ID マッピングに依存する。
+
+\fIuid_map\fP ファイルの各行は 2 つのユーザー名前空間間の連続するユーザー ID の範囲の 1 対 1 マッピングを指定する
+(ユーザー名前空間が最初に作成された際にはこのファイルは空である)。 各行の指定の形式はホワイトスペース区切りの 3 つの数字である。 最初の 2
+つの数字は 2 つの ユーザー名前空間それぞれの開始ユーザー ID を指定する。 3 つ目の数字はマッピングされる範囲の長さを指定する。
+詳しくは、各フィールドは以下のように解釈される。
+.IP (1) 4
+プロセス \fIpid\fP のユーザー名前空間におけるユーザー ID の範囲の開始値。
+.IP (2)
+1 番目のフィールドで指定されたユーザー ID がマッピングされる先のユーザー ID の範囲の開始値。 2 番目のフィールドがどのように解釈されるかは、
+\fIuid_map\fP をオープンしたプロセスとプロセス \fIpid\fP が同じユーザー名前空間かどうかに依存する。 以下のとおり。
+.RS
+.IP a) 3
+2 つのプロセスが異なるユーザー名前空間に属す場合、 2 番目のフィールドは \fIuid_map\fP
+をオープンしたプロセスのユーザー名前空間におけるユーザー ID の範囲の開始値である。
+.IP b)
+2 つのプロセスが同じユーザー名前空間に属す場合、 2 番目のフィールドはプロセス \fIpid\fP の親のユーザー名前空間におけるユーザー ID
+の範囲の開始値である。 この場合、 \fIuid_map\fP をオープンしたプロセス (よくあるのは \fI/proc/self/uid_map\fP
+をオープンした場合である) は、 このユーザー名前空間を作成したプロセスのユーザー名前空間に対するユーザー ID マッピングを参照することができる。
+.RE
+.IP (3)
+2 つのユーザー名前空間間でマッピングされるユーザー ID の範囲の長さ。
+.PP
+ユーザー ID (グループ ID) を返すシステムコール、例えば \fBgetuid\fP(2), \fBgetgid\fP(2) や \fBstat\fP(2)
+が返す構造体の credential フィールド、は呼び出し元のユーザー名前空間にマッピングされたユーザー ID (グループ ID) を返す。
+
+プロセスがファイルにアクセスする場合、 アクセス許可のチェックやファイル作成時の ID 割り当てのために、 そのユーザー ID とグループ ID
+は初期ユーザー名前空間にマッピングされる。 プロセスが \fBstat\fP(2) を使ってファイルのユーザー ID やグループ ID を取得する際には、
+上記の反対方向に ID のマッピングが行われ、 プロセスにおける相対的なユーザー ID とグループ ID の値が生成される。
+
+初期ユーザー名前空間は親の名前空間を持たないが、 一貫性を持たせるため、 カーネルは初期の名前空間に対してダミーのユーザー ID とグループ ID
+のマッピングを提供する。 初期の名前空間のシェルから \fIuid_map\fP ファイル (\fIgid_map\fP も同じ) を参照するには以下のようにする。
+
+.in +4n
+.nf
+$ \fBcat /proc/$$/uid_map\fP
+         0          0 4294967295
+.fi
+.in
+
+.\"
+.\" ============================================================
+.\"
+このマッピングは、 この名前空間のユーザー ID 0 から始まる範囲が (実際には存在しない) 親の名前空間の 0 から始まる範囲にマッピングされ、
+範囲の流さは 32 ビットの unsigned integer の最大値である、 と言っている。 (ここで 4294967295 (32
+ビットの符号付き \-1 の値) は意図的にマッピングされていない。 \fI(uid_t)\ \-\1\fP は (\fBsetreuid\fP(2) など)
+いくつかのインターフェースで "no user ID" (ユーザー ID なし) を示す手段として使用されているので、 意図的にこのようになっている。
+\fI(uid_t)\ \-\1\fP をマッピングせず、 利用できないようにすることで、
+これらのインターフェースを使った際に混乱が起こらないように保証している。)
+.SS "ユーザー ID とグループ ID のマッピングの定義: uid_map と gid_map への書き込み"
+.PP
+新しいユーザー名前空間を作成した後、 新しいユーザー名前空間におけるユーザー ID のマッピングを定義するため、 その名前空間のプロセスの「一つ」の
+\fIuid_map\fP ファイルに「一度だけ」書き込みを行うことができる。 ユーザー名前空間の \fIuid_map\fP
+ファイルに二度目以降の書き込みを行おうとすると、 エラー \fBEPERM\fP で失敗する。 \fIgid_map\fP
+ファイルについては同じルールが適用される。
+
+\fIuid_map\fP (\fIgid_map\fP) に書き込む行は以下のルールに従っていなければならない。
+.IP * 3
+3 のフィールドは有効な数字でなければならず、最後のフィールドは 0 より大きくなければならない。
+.IP *
+行は改行文字で終了しなければならない。
+.IP *
+.\" FIXME(Eric): the restriction "less than" rather than "less than or equal"
+.\" seems strangely arbitrary. Furthermore, the comment does not agree
+.\" with the code in kernel/user_namespace.c. Which is correct?
+ファイルの行数には上限がある。 Linux 3.8 時点では、上限は 5 行である。 さらに、
+ファイルに書き込むバイト数はシステムページサイズより小さくなければならず、 書き込みはファイルの先頭に対して行わなければならない (つまり、
+\fBlseek\fP(2) や \fBpwrite\fP(2) を使って 0 以外のファイルオフセットに書き込むことはできない)。
+.IP *
+.\" commit 0bd14b4fd72afd5df41e9fd59f356740f22fceba
+各行で指定されるユーザー ID (グループ ID) の範囲は他の行が指定する範囲と重なってはならない。 最初の実装 (Linux 3.8) では、
+この要件は、 後続行のフィールド 1 とフィールド 2 の両方の値が昇順になっていなければならないという追加の要件を設け、
+これが満たされなかった場合は有効なマッピングは作成されない、 という単純な実装により満たされていた。 Linux 3.9 以降ではこの制限は修正され、
+重複がない有効なマッピングであればどんな組み合わせでも指定できるようになった。
+.IP *
+少なくとも 1 行はファイルに書き込まなければならない。
+.PP
+上記のルールを満たさない書き込みはエラー \fBEINVAL\fP で失敗する。
+
+プロセスが \fI/proc/[pid]/uid_map\fP (\fI/proc/[pid]/gid_map\fP) ファイルに書き込むためには、
+以下の要件がすべて満たされる必要がある。
+.IP 1. 3
+書き込みプロセスは、 プロセス \fIpid\fP のユーザー名前空間で \fBCAP_SETUID\fP (\fBCAP_SETGID\fP)
+ケーパビリティを持っていなければならない。
+.IP 2.
+書き込みプロセスは、 プロセス \fIpid\fP のユーザー名前空間もしくはプロセス \fIpid\fP の親のユーザー名前空間に属していなければならない。
+.IP 3.
+マッピングされたユーザー ID (グループ ID) は親のユーザー名前空間にマッピングを持っていなければならない。
+.IP 4.
+以下のいずれか一つが真である。
+.RS
+.IP * 3
+\fIuid_map\fP (\fIgid_map\fP) に書き込まれるデータは、 書き込みを行うプロセスの親のユーザー名前空間でのファイルシステムユーザー ID
+(グループ ID) をそのユーザー名前空間でのユーザー ID (グループ ID) にマッピングする 1 行で構成されている。
+.IP * 3
+オープンしたプロセスが親のユーザー名前空間で \fBCAP_SETUID\fP (\fBCAP_SETGID\fP) ケーパビリティを持っている。 したがって、
+特権プロセスは親のユーザー名前空間の任意のユーザー ID (グループ ID) に対するマッピングを作成できる。
+.RE
+.PP
+.\"
+.\" ============================================================
+.\"
+上記のルールを満たさない書き込みはエラー \fBEPERM\fP で失敗する。
+.SS "マッピングされていないユーザー ID とグループ ID"
+.PP
+.\" from_kuid_munged(), from_kgid_munged()
+マッピングされていないユーザー ID (グループ ID) がユーザー空間に公開される場合はいろいろある。
+例えば、 新しいユーザー名前空間の最初のプロセスが、 その名前空間に対するユーザー ID マッピングが定義される前に \fBgetuid\fP()
+を呼び出すなどである。 このようなほとんどの場合で、 マッピングされていないユーザー ID はオーバーフローユーザー ID (グループ
+ID)に変換される。 デフォルトのオーバーフローユーザー ID (グループ ID) は 65534 である。 \fBproc\fP(5) の
+\fI/proc/sys/kernel/overflowuid\fP と \fI/proc/sys/kernel/overflowgid\fP の説明を参照。
+
+.\" also SO_PEERCRED
+マッピングされていない ID がこのようにマッピングされる場合としては、 ユーザー ID を返すシステムコール (\fBgetuid\fP(2),
+\fBgetgid\fP(2) やその同類)、 UNIX ドメインソケットで渡される ID 情報 (credential)、 \fBstat\fP(2) が返す
+ID 情報、 \fBwaitid\fP(2)、 System V IPC "ctl" \fBIPC_STAT\fP 操作、 \fI/proc/PID/status\fP
+や \fI/proc/sysvipc/*\fP 内のファイルで公開される ID 情報、 シグナル受信時の \fIsiginfo_t\fP の \fIsi_uid\fP
+フィールドで返される ID 情報 (\fBsigaction\fP(2) 参照)、 プロセスアカウンティングファイルに書き込まれる ID 情報
+(\fBacct\fP(5) 参照)、 POSIX メッセージキュー通知で返される ID 情報 (\fBmq_notify\fP(3) 参照) がある。
+
+.\" from_kuid(), from_kgid()
+.\" Also F_GETOWNER_UIDS is an exception
+.\"
+.\" ============================================================
+.\"
+マッピングされていないユーザー ID やグループ ID が対応するオーバーフロー ID 値に変換され「ない」重要な場合が一つある。 2
+番目のフィールドにマッピングがない \fIuid_map\fP や \fIgid_map\fP ファイルを参照した際、 そのフィールドは 4294967295
+(unsigned integer では \-1) が表示される。
+.SS "set\-user\-ID や set\-group\-ID されたプログラム"
+.PP
+.\"
+.\" ============================================================
+.\"
+ユーザー名前空間内のプロセスが set\-user\-ID (set\-group\-ID) されたプログラムを実行した場合、
+そのプロセスの名前空間内の実効ユーザー ID (実効グループ ID) は、 そのファイルのユーザー ID (グループ ID) にマッピングされる。
+しかし、 そのファイルのユーザー ID 「か」グループ ID が名前空間内のマッピングにない場合、 set\-user\-ID (set\-group\-ID)
+ビットは黙って無視される。 新しいプログラムは実行されるが、 そのプロセスの実効ユーザー ID (実効グループ ID) は変更されないままとなる。
+(これは \fBMS_NOSUID\fP フラグ付きでマウントされたファイルシステム上にある set\-user\-ID/set\-group\-ID
+プログラムを実行した場合の動作を反映したものである。 \fBmount\fP(2) を参照。)
+.SS その他
+.PP
+.\"
+プロセスのユーザー ID とグループ ID が UNIX ドメインソケットを通して別のユーザー名前空間のプロセスに渡された場合 (\fBunix\fP(7)
+の \fBSCM_CREDENTIALS\fP の説明を参照)、 ユーザー ID とグループ ID は受信プロセスのユーザー ID とグループ ID
+のマッピングに基づき対応する値に翻訳される。
+.SH 準拠
+.\"
+名前空間は Linux 独自の機能である。
+.SH 注意
+.\"
+.\" ============================================================
+.\"
+長年にわたり、Linux カーネルには特権ユーザーに対してだけ利用できる機能が多く追加されて来た。 これは set\-user\-ID\-root
+アプリケーションを混乱させる潜在的な可能性を考慮してである。 一般的には、 ユーザー名前空間の root
+ユーザーにだけこれらの機能の使用を許可するのが安全である。 なぜなら、ユーザー名前空間の中にいる間は、 ユーザー名前空間の root
+ユーザーが持っている以上の特権を得ることはできないからである。
+.SS 可用性
+ユーザー名前空間を使用するには、 \fBCONFIG_USER_NS\fP オプションが有効になったカーネルが必要である。
+ユーザー名前空間をカーネルの様々なサブシステムのサポートを必要とする。 サポートされていないサブシステムがカーネルに組み込まれている場合、
+ユーザー名前空間のサポートを有効にすることはできない。
+
+.\" commit d6970d4b726cea6d7a9bc4120814f95c09571fc3
+.\"
+Linux 3.8 時点では、 ほとんどの関連するサブシステムはユーザー名前空間に対応しているが、 多くのファイルシステムにユーザー名前空間間でユーザー
+ID やグループ ID のマッピングを行うのに必要な基盤がなかった。 Linux 3.9 では、
+残りの未サポートのファイルシステムの多くで必要な基盤のサポートが追加された (Plan 9 (9P), Andrew File System
+(AFS), Ceph, CIFS, CODA, NFS, OCFS2)。 Linux 3.11 では、最後の主要な未サポートのファイルシステムであった
+XFS のサポートが追加された。
+.SH 例
+以下のプログラムは、ユーザー名前空間で実験を行えるように設計されている。 他の種類の名前空間も扱える。
+このプログラムはコマンドライン引き数で指定された名前空間を作成し、作成した名前空間内でコマンドを実行する。 コメントとプログラム内の
+\fIusage()\fP 関数に、プログラムの詳しい説明が書かれている。 以下のシェルセッションに実行例を示す。
+
+まず最初に、実行環境を確認しておく。
+
+.in +4n
+.nf
+$ \fBuname \-rs\fP     # Linux 3.8 以降が必要
+Linux 3.8.0
+$ \fBid \-u\fP         # 非特権ユーザーで実行する
+1000
+$ \fBid \-g\fP
+1000
+.fi
+.in
+
+新しいユーザー名前空間 (\fI\-U\fP), マウント名前空間 (\fI\-m\fP), PID 名前空間 (\fI\-p\fP) で新しいシェルを開始する。ユーザー ID
+(\fI\-M\fP) 1000 とグループ ID (\fI\-G\fP) 1000 をユーザー名前空間内で 0 にマッピングしている。
+
+.in +4n
+.nf
+$ \fB./userns_child_exec \-p \-m \-U \-M '0 1000 1' \-G '0 1000 1' bash\fP
+.fi
+.in
+
+シェルは PID 1 を持つ。このシェルは新しい PID 名前空間の最初のプロセスだからである。
+
+.in +4n
+.nf
+bash$ \fBecho $$\fP
+1
+.fi
+.in
+
+ユーザー名前空間内では、シェルのユーザー ID とグループ ID ともに 0 で、すべての許可ケーパビリティと実効ケーパビリティが有効になっている。
+
+.in +4n
+.nf
+bash$ \fBcat /proc/$$/status | egrep '^[UG]id'\fP
+Uid:	0	0	0	0
+Gid:	0	0	0	0
+bash$ \fBcat /proc/$$/status | egrep '^Cap(Prm|Inh|Eff)'\fP
+CapInh:	0000000000000000
+CapPrm:	0000001fffffffff
+CapEff:	0000001fffffffff
+.fi
+.in
+
+\fI/proc\fP ファイルシステムをマウントし、新しい PID 名前空間で見えるプロセス一覧を表示すると、 シェルからは PID
+名前空間外のプロセスが見えないことが分かる。
+
+.in +4n
+.nf
+bash$ \fBmount \-t proc proc /proc\fP
+bash$ \fBps ax\fP
+  PID TTY      STAT   TIME COMMAND
+    1 pts/3    S      0:00 bash
+   22 pts/3    R+     0:00 ps ax
+.fi
+.in
+.SS プログラムのソース
+\&
+.nf
+/* userns_child_exec.c
+
+   GNU General Public License v2 以降の元でライセンスされる
+
+   新しい名前空間でシェルコマンドを実行する子プロセスを作成する。
+   ユーザー名前空間を作成する際に UID と GID のマッピングを
+   指定することができる。
+*/
+#define _GNU_SOURCE
+#include <sched.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <limits.h>
+#include <errno.h>
+
+/* 簡単なエラー処理関数: \\(aqerrno\\(aq の値に基づいて
+   エラーメッセージを出力し、呼び出し元プロセスを終了する。 */
+
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
+                        } while (0)
+
+struct child_args {
+    char **argv;        /* 子プロセスが実行するコマンドと引き数 */
+    int    pipe_fd[2];  /* 親プロセスと子プロセスを同期するためのパイプ */
+};
+
+static int verbose;
+
+static void
+usage(char *pname)
+{
+    fprintf(stderr, "Usage: %s [options] cmd [arg...]\en\en", pname);
+    fprintf(stderr, "Create a child process that executes a shell "
+            "command in a new user namespace,\en"
+            "and possibly also other new namespace(s).\en\en");
+    fprintf(stderr, "Options can be:\en\en");
+#define fpe(str) fprintf(stderr, "    %s", str);
+    fpe("\-i          New IPC namespace\en");
+    fpe("\-m          New mount namespace\en");
+    fpe("\-n          New network namespace\en");
+    fpe("\-p          New PID namespace\en");
+    fpe("\-u          New UTS namespace\en");
+    fpe("\-U          New user namespace\en");
+    fpe("\-M uid_map  Specify UID map for user namespace\en");
+    fpe("\-G gid_map  Specify GID map for user namespace\en");
+    fpe("\-z          Map user\(aqs UID and GID to 0 in user namespace\en");
+    fpe("            (equivalent to: \-M \(aq0 <uid> 1\(aq \-G \(aq0 <gid> 1\(aq)\en");
+    fpe("\-v          Display verbose messages\en");
+    fpe("\en");
+    fpe("If \-z, \-M, or \-G is specified, \-U is required.\en");
+    fpe("It is not permitted to specify both \-z and either \-M or \-G.\en");
+    fpe("\en");
+    fpe("Map strings for \-M and \-G consist of records of the form:\en");
+    fpe("\en");
+    fpe("    ID\-inside\-ns   ID\-outside\-ns   len\en");
+    fpe("\en");
+    fpe("A map string can contain multiple records, separated"
+        " by commas;\en");
+    fpe("the commas are replaced by newlines before writing"
+        " to map files.\en");
+
+    exit(EXIT_FAILURE);
+}
+
+/* マッピングファイル \(aqmap_file\(aq を \(aqmapping\(aq で指定
+   された値で更新する。 \(aqmapping\(aq は UID や GID マッピングを
+   定義する文字列である。 UID や GID マッピングは以下の形式の改行
+   で区切られた 1 つ以上のレコードである。
+
+       NS 内 ID        NS 外 ID        長さ
+
+   ユーザーに改行を含む文字列を指定するのを求めるのは、
+   コマンドラインを使う場合にはもちろん不便なことである。
+   そのため、 この文字列でレコードを区切るのにカンマを
+   使えるようにして、ファイルにこの文字列を書き込む前に
+   カンマを改行に置換する。 */
+
+static void
+update_map(char *mapping, char *map_file)
+{
+    int fd, j;
+    size_t map_len;     /* \(aqmapping\(aq の長さ */
+
+    /* マッピング文字列内のカンマを改行で置換する */
+
+    map_len = strlen(mapping);
+    for (j = 0; j < map_len; j++)
+        if (mapping[j] == \(aq,\(aq)
+            mapping[j] = \(aq\en\(aq;
+
+    fd = open(map_file, O_RDWR);
+    if (fd == \-1) {
+        fprintf(stderr, "ERROR: open %s: %s\en", map_file,
+                strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    if (write(fd, mapping, map_len) != map_len) {
+        fprintf(stderr, "ERROR: write %s: %s\en", map_file,
+                strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    close(fd);
+}
+
+static int              /* クローンされた子プロセスの開始関数 */
+childFunc(void *arg)
+{
+    struct child_args *args = (struct child_args *) arg;
+    char ch;
+
+    /* 親プロセスが UID と GID マッピングを更新するまで待つ。
+       main() のコメントを参照。 パイプの end of file を待つ。
+       親プロセスが一旦マッピングを更新すると、
+       パイプはクローズされる。 */
+
+    close(args\->pipe_fd[1]);    /* パイプのこちら側の書き込み端のディスク
+                                       リプターをクローズする。これにより
+                                       親プロセスがディスクリプターをクローズ
+                                       すると EOF が見えるようになる。 */
+    if (read(args\->pipe_fd[0], &ch, 1) != 0) {
+        fprintf(stderr,
+                "Failure in child: read from pipe returned != 0\en");
+        exit(EXIT_FAILURE);
+    }
+
+    /* シェルコマンドを実行する */
+
+    printf("About to exec %s\en", args\->argv[0]);
+    execvp(args\->argv[0], args\->argv);
+    errExit("execvp");
+}
+
+#define STACK_SIZE (1024 * 1024)
+
+static char child_stack[STACK_SIZE];    /* 子プロセスのスタック空間 */
+
+int
+main(int argc, char *argv[])
+{
+    int flags, opt, map_zero;
+    pid_t child_pid;
+    struct child_args args;
+    char *uid_map, *gid_map;
+    const int MAP_BUF_SIZE = 100;
+    char map_buf[MAP_BUF_SIZE];
+    char map_path[PATH_MAX];
+
+    /* コマンドラインオプションを解析する。
+       最後の getopt() 引き数の最初の \(aq+\(aq 文字は
+       GNU 風のコマンドラインオプションの並び換えを防止する。
+       このプログラム自身が実行する「コマンド」にコマンドライン
+       オプションが含まれる場合があるからである。
+       getopt() にこれらをこのプログラムのオプションとして
+       扱ってほしくはないのだ。 */
+
+    flags = 0;
+    verbose = 0;
+    gid_map = NULL;
+    uid_map = NULL;
+    map_zero = 0;
+    while ((opt = getopt(argc, argv, "+imnpuUM:G:zv")) != \-1) {
+        switch (opt) {
+        case \(aqi\(aq: flags |= CLONE_NEWIPC;        break;
+        case \(aqm\(aq: flags |= CLONE_NEWNS;         break;
+        case \(aqn\(aq: flags |= CLONE_NEWNET;        break;
+        case \(aqp\(aq: flags |= CLONE_NEWPID;        break;
+        case \(aqu\(aq: flags |= CLONE_NEWUTS;        break;
+        case \(aqv\(aq: verbose = 1;                  break;
+        case \(aqz\(aq: map_zero = 1;                 break;
+        case \(aqM\(aq: uid_map = optarg;             break;
+        case \(aqG\(aq: gid_map = optarg;             break;
+        case \(aqU\(aq: flags |= CLONE_NEWUSER;       break;
+        default:  usage(argv[0]);
+        }
+    }
+
+    /* \-U なしの \-M や \-G の指定は意味がない */
+
+    if (((uid_map != NULL || gid_map != NULL || map_zero) &&
+                !(flags & CLONE_NEWUSER)) ||
+            (map_zero && (uid_map != NULL || gid_map != NULL)))
+        usage(argv[0]);
+
+    args.argv = &argv[optind];
+
+    /* 親プログラムと子プロセスを同期するためにパイプを使っている。
+       これは、子プロセスが execve() を呼び出す前に、親プロセスにより
+       UID と GID マップが設定されることを保証するためである。
+       これにより、新しいユーザー名前空間において子プロセスの実効
+       ユーザー ID を 0 にマッピングしたいという通常の状況で、
+       子プロセスが execve() 実行中にそのケーパビリティを維持する
+       ことができる。 この同期を行わないと、 0 以外のユーザー ID で
+       execve() を実行した際に、子プロセスがそのケーパビリティを失う
+       ことになる (execve() 実行中のプロセスのケーパビリティの変化の
+       詳細については capabilities(7) マニュアルページを参照)。 */
+
+    if (pipe(args.pipe_fd) == \-1)
+        errExit("pipe");
+
+    /* 新しい名前空間で子プロセスを作成する */
+
+    child_pid = clone(childFunc, child_stack + STACK_SIZE,
+                      flags | SIGCHLD, &args);
+    if (child_pid == \-1)
+        errExit("clone");
+
+    /* 親プロセスはここを実行する */
+
+    if (verbose)
+        printf("%s: PID of child created by clone() is %ld\en",
+                argv[0], (long) child_pid);
+
+    /* 子プロセスの UID と GID のマッピングを更新する */
+
+    if (uid_map != NULL || map_zero) {
+        snprintf(map_path, PATH_MAX, "/proc/%ld/uid_map",
+                (long) child_pid);
+        if (map_zero) {
+            snprintf(map_buf, MAP_BUF_SIZE, "0 %ld 1", (long) getuid());
+            uid_map = map_buf;
+        }
+        update_map(uid_map, map_path);
+    }
+    if (gid_map != NULL || map_zero) {
+        snprintf(map_path, PATH_MAX, "/proc/%ld/gid_map",
+                (long) child_pid);
+        if (map_zero) {
+            snprintf(map_buf, MAP_BUF_SIZE, "0 %ld 1", (long) getgid());
+            gid_map = map_buf;
+        }
+        update_map(gid_map, map_path);
+    }
+
+    /* パイプの書き込み端をクローズし、子プロセスに UID と GID の
+       マッピングが更新されたことを知らせる */
+
+    close(args.pipe_fd[1]);
+
+    if (waitpid(child_pid, NULL, 0) == \-1)      /* 子プロセスを待つ */
+        errExit("waitpid");
+
+    if (verbose)
+        printf("%s: terminating\en", argv[0]);
+
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+.\" From the shadow package
+.\" From the shadow package
+.\" From the shadow package
+.\" From the shadow package
+\fBnewgidmap\fP(1), \fBnewuidmap\fP(1), \fBclone\fP(2), \fBsetns\fP(2), \fBunshare\fP(2),
+\fBproc\fP(5), \fBsubgid\fP(5), \fBsubuid\fP(5), \fBcredentials\fP(7),
+\fBcapabilities\fP(7), \fBnamespaces\fP(7), \fBpid_namespaces\fP(7)
+.sp
+カーネルのソースファイル \fIDocumentation/namespaces/resource\-control.txt\fP
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

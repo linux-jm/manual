@@ -1,0 +1,154 @@
+.\" Copyright (C) 2003 Andries Brouwer (aeb@cwi.nl)
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2005 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated 2005-01-26, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated and Modified 2005-10-27, Akihiro MOTOKI
+.\" Updated and Modified 2005-11-04, Akihiro MOTOKI
+.\"
+.TH PATH_RESOLUTION 7 2009\-12\-05 Linux "Linux Programmer's Manual"
+.SH 名前
+path_resolution \- ファイルのパス名の解決方法
+.SH 説明
+いくつかの UNIX/Linux システムコールは、 1 つ以上のファイル名を引き数として持つ。 ファイル名 (またはパス名)
+は以下のようにして解決される。
+.SS "ステップ 1: 解決過程を開始する"
+パス名が \(aq/\(aq 文字で始まっている場合、 ディレクトリ検索の開始点は呼び出し元のプロセスのルートディレクトリになる。
+(プロセスはルートディレクトリを親プロセスから継承する。 通常は、これがファイル階層のルートディレクトリになる。 プロセスは \fBchroot\fP(2)
+システムコールを使って別のルートディレクトリを取得することもできる。 この場合、そのプロセスと \fBCLONE_NEWNS\fP フラグを設定して
+\fBclone\fP(2)  を呼び出すことによって開始されたそのプロセスの子孫は、 完全にプライベートなマウント名前空間を取得できる。)  パス名の
+\(aq/\(aq の部分は、このようにして扱われる。
+
+パス名が \(aq/\(aq 文字で始まっていない場合、 解決過程におけるディレクトリ検索の開始点は、 プロセスの現在の作業 (working)
+ディレクトリとなる。 (これも親プロセスから継承される。 これは \fBchdir\fP(2)  システムコールを使うことで変更できる。)
+
+\(aq/\(aq 文字で始まるパス名は絶対パス名と呼ばれ、 \(aq/\(aq 文字で始まらないパス名は相対パス名と呼ばれる。
+.SS "ステップ 2: パスを辿る"
+現在の検索ディレクトリをディレクトリ検索の開始点とする。 そして、パス名の最後の構成要素 (component) でない各構成要素について、
+現在の検索ディレクトリで検索を行う。 ここで構成要素は \(aq/\(aq で区切られた部分文字列である。
+
+プロセスが現在の検索ディレクトリの検索許可を持たない場合、 \fBEACCES\fP エラーが返される ("Permission denied")。
+
+構成要素が見つからない場合、 \fBENOENT\fP エラーが返される ("No such file or directory")。
+
+構成要素は見つかったが、ディレクトリでもシンボリックリンクでもない場合、 \fBENOTDIR\fP エラーが返される ("Not a
+directory")。
+
+構成要素が見つかって、かつディレクトリである場合、 現在の検索ディレクトリをそのディレクトリに設定し、 次の構成要素に移動する。
+
+.\"
+.\" presently: max recursion depth during symlink resolution: 5
+.\" max total number of symbolic links followed: 40
+.\" _POSIX_SYMLOOP_MAX is 8
+構成要素が見つかって、かつシンボリックリンク (symlink) である場合、 (現在の検索ディレクトリをディレクトリ検索の開始点として)
+最初にそのシンボリックリンクを解決する。 結果がディレクトリでない場合、 \fBENOTDIR\fP エラーが返される。
+シンボリックリンクの解決が成功してディレクトリが返された場合、 そのディレクトリを現在の検索ディレクトリとして設定し、 次の構成要素に移動する。
+解決過程に再帰が含まれる点に注意すること。 カーネルをスタックオーバーフローや サービス拒否 (denial of service) から守るため、
+再帰の最大の深さとシンボリックリンクを辿る最大回数に制限がある。 最大値を超えた場合 \fBELOOP\fP エラーが返される ("Too many
+levels of symbolic links")。
+.SS "ステップ 3: 最後のエントリーを見つける"
+パス名の最後の構成要素の検索は、前のステップで説明した 他の全ての構成要素と同じように実行されるが、2 つの違いがある。 (i)
+最後の構成要素はディレクトリである必要がない (パス解決過程に関する限りはどちらでも構わない \(em 特定のシステムコールが要求するものによって、
+ディレクトリでなければならない場合もあるし、 ディレクトリ以外でなければならない場合もある)。 (ii)
+構成要素が見つからない場合にエラーにする必要はない \(em その構成要素を作成するだけでよい場合もある。 最後のエントリーの詳細な扱いは、
+特定のシステムコールの man ページで説明されている。
+.SS ". と .."
+慣習として、全てのディレクトリはエントリー "." と ".." を持つ。 これらはそれぞれ、そのディレクトリ自身とその親ディレクトリを参照する。
+
+パス解決過程では、これらのエントリーが物理的なファイルシステムに 実際に存在するか否かに関わらず、慣習的な意味を持つと仮定する。
+
+ルートより上に辿ることはできない: "/.." は "/" と同じである。
+.SS マウント位置
+"mount dev path" コマンドを実行した後、 パス名 "path" はデバイス "dev" 上のファイルシステム階層の
+ルートディレクトリを参照するようになり、以前の位置を参照しない。
+
+マウントされたファイルシステムの外に出ることができる: "path/.." は "dev" 上のファイルシステム階層の外である "path"
+の親ディレクトリを参照する。
+.SS 末尾のスラッシュ
+パス名が \(aq/\(aq で終わっている場合、 ステップ 2 において、その前にある構成要素の解決法を次のように強制する:
+その構成要素が存在しなければならず、ディレクトリとして解決される。 存在しない場合は、末尾の \(aq/\(aq が無視される。 (また同様に、末尾に
+\(aq/\(aq があるパス名は、 \(aq.\(aq を末尾に加えて得られるパス名と等しい。)
+.SS 最後がシンボリックリンクのとき
+パス名の最後の構成要素がシンボリックリンクである場合、 参照されるファイルをシンボリックリンクとするか、 その内容についてパスを解決した結果とするかは、
+システムコールに依存する。 たとえば、システムコール \fBlstat\fP(2)  はシンボリックリンクに作用する。 一方、 \fBstat\fP(2)
+はシンボリックリンクで指されたファイルに作用する。
+.SS 長さの制限
+パス名には最大長がある。 パス名 (またはシンボリックリンクを解決するときに得られる中間パス名) が 長すぎる場合、 \fBENAMETOOLONG\fP
+エラーが返される ("Filename too long")。
+.SS 空のパス名
+元々の UNIX では、空のパス名は現在のディレクトリを参照していた。 最近、POSIX では空のパス名を解決するべきではないという決定がなされた。
+この場合、Linux は \fBENOENT\fP を返す。
+.SS 許可
+ファイルの許可ビットは、3 組の 3 ビットから構成される。 \fBchmod\fP(1)  と \fBstat\fP(2)  を参照すること。
+呼び出し元のプロセスの実効ユーザー ID がファイルの所有者 ID と等しい場合、 3 つのうち最初のグループが使われる。 ファイルのグループ ID
+が呼び出し元のプロセスの実効グループ ID または (\fBsetgroups\fP(2)  で設定される) 呼び出し元のプロセスの補助
+(supplementary) グループ ID と 等しい場合、3 つのうち 2 番目のグループが使われる。 どちらにも当てはまらない場合、3
+番目のグループが使われる。
+
+3 ビットが使われる場合、最初のビットは読み込み許可を決定し、 2 番目のビットは書き込み許可を決定する。 また 3
+番目のビットは、通常のファイルの場合は実行許可を表し、 ディレクトリの場合は検索許可を表す。
+
+Linux は、許可のチェックにおいて、実効ユーザー ID ではなく fsuid を使う。 通常は fsuid は実効ユーザー ID
+と等しいが、fsuid はシステムコール \fBsetfsuid\fP(2)  で変更することができる。
+
+(ここで "fsuid" は "file system user ID" を表している。 この概念は「プロセスが同じ実効ユーザー ID を持つプロセスに
+同時にシグナルを送ることができる」というユーザー空間 NFS サーバを 実装する際に必要であった。 これは今では廃れてしまった。
+\fBsetfsuid\fP(2)  を使うべきではない。
+
+.\" FIXME . say something about filesystem mounted read-only ?
+同様に、Linux では実効グループ ID の代わりに fsgid ("ファイルシステムグループID") を使う。 \fBsetfsgid\fP(2)
+を参照すること。
+.SS "許可の確認をスキップする: スーパーユーザーとケーパビリティ"
+.\" (but for exec at least one x bit must be set) -- AEB
+.\" but there is variation across systems on this point: for
+.\" example, HP-UX and Tru64 are as described by AEB.  However,
+.\" on some implementations (e.g., Solaris, FreeBSD),
+.\" access(X_OK) by superuser will report success, regardless
+.\" of the file's execute permission bits. -- MTK (Oct 05)
+伝統的な UNIX システムでは、スーパーユーザー (\fIroot\fP, ユーザー ID 0) は非常に強力であり、ファイルアクセス時の
+許可による制限を全てスキップする。
+
+Linux では、スーパーユーザー権限が複数のケーパビリティに分割されている (\fBcapabilities\fP(7)
+参照)。ファイルの許可の確認には、 \fBCAP_DAC_OVERRIDE\fP と \fBCAP_DAC_READ_SEARCH\fP の
+2つのケーパビリティが関係する (プロセスの fsuid が 0 の場合、そのプロセスはこれらのケーパビリティを持つ)。
+
+\fBCAP_DAC_OVERRIDE\fP ケーパビリティは全ての許可チェックを上書きする。 実際には、対象となるファイルの 3 つの実行許可ビットのうちの
+少なくとも 1 つが設定されている場合のみ、実行を許可する。
+
+.\" FIXME . say something about immutable files
+.\" FIXME . say something about ACLs
+\fBCAP_DAC_READ_SEARCH\fP ケーパビリティは、ディレクトリに対して読み込みと検索を許可し、 通常のファイルに対して読み込みを許可する。
+.SH 関連項目
+\fBreadlink\fP(2), \fBcapabilities\fP(7), \fBcredentials\fP(7), \fBsymlink\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。
