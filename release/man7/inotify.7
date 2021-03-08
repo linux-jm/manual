@@ -1,0 +1,655 @@
+.\" t
+.\" Copyright (C) 2006, 2014 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright (C) 2014 Heinrich Schuchardt <xypron.glpk@gmx.de>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2006 Yuichi SATO
+.\"     and Copyright (c) 2007-2008 Akihiro MOTOKI
+.\" Translated 2006-07-05 by Yuichi SATO <ysato444@yahoo.co.jp>, LDP v2.29
+.\" Updated 2006-07-20 by Yuichi SATO, LDP v2.36
+.\" Updated 2007-06-13, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.55
+.\" Updated 2008-08-10, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2008-09-19, Akihiro MOTOKI, LDP v3.08
+.\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2012-05-01, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-07-22, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-08-21, Akihiro MOTOKI <amotoki@gmail.com>, LDP v3.53
+.\"
+.TH INOTIFY 7 2014\-12\-31 Linux "Linux Programmer's Manual"
+.SH 名前
+inotify \- ファイルシステムイベントを監視する
+.SH 説明
+\fIinotify\fP API はファイルシステムイベントを監視するための機構を提供する。 inotify
+は個々のファイルやディレクトリを監視するのに使える。 ディレクトリを監視する場合、inotify はディレクトリ自身と
+ディレクトリ内のファイルのイベントを返す。
+
+この API では以下のシステムコールが使用される。
+.IP * 3
+\fBinotify_init\fP(2)  は inotify インスタンスを作成し、inotify インスタンスを参照する
+ファイルディスクリプターを返す。 より新しい \fBinotify_init1\fP(2)  も \fBinotify_init\fP(2)  と同様だが、
+こちらにはいくつかの追加の機能を利用するための \fIflags\fP 引き数がある。
+.IP *
+\fBinotify_add_watch\fP(2)  は inotify インスタンスに関連づけられた「監視対象 (watch) リスト」を操作する。
+監視対象リストの各アイテム ("watch") は、 ファイルまたはディレクトリのパス名と、 そのパス名で参照されるファイルに対して
+カーネルが監視する複数のイベントの集合を指定する。 \fBinotify_add_watch\fP(2)
+は新しい監視アイテムの作成や既存の監視対象の変更ができる。 各監視対象は一意の「監視対象ディスクリプター」を持つ。 これは監視対象を作成したときに
+\fBinotify_add_watch\fP(2)  から返される整数である。
+.IP *
+監視しているファイルやディレクトリでイベントが起こると、 それらのイベントはアプリケーションから inotify ファイルディスクリプターから
+\fBread\fP(2) を使って構造化データとして読み出すことができる (下記参照)。
+.IP *
+\fBinotify_rm_watch\fP(2)  は inotify の監視対象リストからアイテムを削除する。
+.IP *
+inotify インスタンスを指している 全てのファイルディスクリプターが (\fBclose\fP(2) を使って) クローズされた場合、
+その下層にあるオブジェクトとそのリソースは、 カーネルで再利用するために解放される。 関連が切られた監視対象は自動的に解放される。
+.PP
+注意深くプログラミングすることで、 アプリケーションは inotify
+を使ってファイルシステムオブジェクトの集合の状態を効率的に監視しキャッシュしておくことができる。
+しかしながら、ロバストなアプリケーションでは、監視ロジックのバグや以下に説明があるような種類の競合条件によりファイルシステムの状態とキャッシュが一致しない状態になることがあるという事実も考慮に入れておくべきである。
+おそらく何らかの一貫性のチェックを行い、不一致が検出された場合にはキャッシュを再構築するのが懸命だろう。
+.SS "inotify ファイルディスクリプターからのイベントの読み出し"
+どのようなイベントが起こっていたかを知るには、 アプリケーションで inotify ファイルディスクリプターを \fBread\fP(2)  すればよい。
+これまでに何もイベントが起こっていない場合、 停止 (blocking) モードのファイルディスクリプターであれば、 少なくとも 1
+つのイベントが起こるまで \fBread\fP(2)  は停止する (シグナルにより割り込まれなかった場合。
+シグナルによる割り込みがあった場合、呼び出しはエラー \fBEINTR\fP で失敗する。 \fBsignal\fP(7)  参照)。
+
+\fBread\fP(2)  が成功すると、以下の構造体を 1 つ以上含むバッファーが返される:
+.in +4n
+.nf
+
+.\" FIXME . The type of the 'wd' field should probably be "int32_t".
+.\" I submitted a patch to fix this.  See the LKML thread
+.\" "[patch] Fix type errors in inotify interfaces", 18 Nov 2008
+.\" Glibc bug filed: http://sources.redhat.com/bugzilla/show_bug.cgi?id=7040
+struct inotify_event {
+    int      wd;       /* 監視対象ディスクリプター */
+    uint32_t mask;     /* イベントを示すマスク */
+    uint32_t cookie;   /* 関連するイベント群を関連づける
+                          一意なクッキー (rename(2) 用) */
+    uint32_t len;      /* \(aqname\(aq フィールドのサイズ */
+    char     name[];   /* ヌルで終端された任意の名前 */
+};
+.fi
+.in
+
+\fIwd\fP はイベント発生の監視対象を指定する。 これは、前もって行われた \fBinotify_add_watch\fP(2)
+呼び出しで返された監視対象ディスクリプターのうちの 1 つである。
+
+\fImask\fP には発生したイベント (下記参照) を記述するためのビットが含まれる。
+
+\fIcookie\fP は関連するイベントを関連づけるための一意な整数である。
+現在のところ、この値は rename イベントに対してのみ使われており、
+結果のペアである \fBIN_MOVED_FROM\fP と \fBIN_MOVED_TO\fP イベントを
+アプリケーションで関連づけることができる。
+他のイベント種別の場合には、 \fIcookie\fP は 0 に設定する。
+
+\fIname\fP フィールドは監視しているディレクトリ内のファイルに対して イベントが返される場合のためにだけ存在する。
+監視するディレクトリからのファイルの相対パス名を表す。 このパス名はヌルで終端され、 その後の読み込みで適切なアドレス境界に調整するために、
+さらにヌルバイト (\(aq\e0\(aq) が含まれる場合もある。
+
+\fIlen\fP フィールドはヌルバイトを含む \fIname\fP の全てのバイト数を表す。
+よって、 \fIinotify_event\fP 構造体のサイズは
+\fIsizeof(struct inotify_event)+len\fP である。
+
+\fBread\fP(2) に渡されたバッファーが小さすぎて次のイベントに関する情報を返せ
+ない場合の動作はカーネルのバージョンにより異なる。 2.6.21 より前のカー
+ネルでは、 \fBread\fP(2) は 0 を返す。 2.6.21 以降のカーネルでは、
+\fBread\fP(2) はエラー \fBEINVAL\fP で失敗する。
+バッファーサイズとして
+
+    sizeof(struct inotify_event) + NAME_MAX + 1
+
+を指定すれば、少なくとも 1 イベントで読み出しを行うには十分である。
+.SS "inotify イベント"
+\fBinotify_add_watch\fP(2)  の \fImask\fP 引き数と、inotify ファイル構造体を \fBread\fP(2)
+したときに返される \fIinotify_event\fP 構造体の \fImask\fP フィールドは、ともに inotify イベントを識別するための
+ビットマスクである。 以下のビットが \fBinotify_add_watch\fP(2)  を呼ぶときの \fImask\fP に指定可能であり、
+\fBread\fP(2)  で返される \fImask\fP フィールドで返される:
+.RS 4
+.TP 
+\fBIN_ACCESS\fP (+)
+(\fBread\fP(2), \fBexecve\fP(2) などで) ファイルがアクセスされた。
+.TP 
+\fBIN_ATTRIB\fP (*)
+メタデータが変更された。 メタデータとは、例えば、アクセス許可 (\fBchmod\fP(2))、タイムスタンプ (\fButimensat\fP(2)
+など)、拡張属性 (\fBsetxattr\fP(2))、 リンクカウント (Linux 2.6.25 以降; \fBlink\fP(2) のリンク先や
+\fBunlink\fP(2) など)、ユーザー/グループ ID (\fBchown\fP(2) など) などである。
+.TP 
+\fBIN_CLOSE_WRITE\fP (+)
+書き込みのためにオープンされたファイルがクローズされた。
+.TP 
+\fBIN_CLOSE_NOWRITE\fP (*)
+書き込み用としてはオープンされていないファイルやディレクトリがクローズされた。
+.TP 
+\fBIN_CREATE\fP (+)
+監視対象ディレクトリ内でファイルやディレクトリが作成された (\fBopen\fP(2)  \fBO_CREAT\fP, \fBmkdir\fP(2),
+\fBlink\fP(2), \fBsymlink\fP(2), UNIX ドメインソケットに対する \fBbind\fP(2) など)。
+.TP 
+\fBIN_DELETE\fP (+)
+監視対象ディレクトリ内でファイルやディレクトリが削除された。
+.TP 
+\fBIN_DELETE_SELF\fP
+監視対象のファイルやディレクトリ自身が削除あれた。 (このイベントはオブジェクトが別のファイルシステムに移動された場合にも発生する。 \fBmv\fP(1)
+は実際には別のファイルシステムにファイルをコピーした後、元のファイルシステムからそのファイルを削除するからである。) また、
+結果的に監視ディスクリプターに対して \fBIN_IGNORED\fP イベントも生成される。
+.TP 
+\fBIN_MODIFY\fP (+)
+ファイルが変更された (\fBwrite\fP(2), \fBtruncate\fP(2) など)。
+.TP 
+\fBIN_MOVE_SELF\fP
+監視対象のディレクトリまたはファイル自身が移動された。
+.TP 
+\fBIN_MOVED_FROM\fP (+)
+ファイル名の変更を行った際に変更前のファイル名が含まれるディレクトリに対して生成される。
+.TP 
+\fBIN_MOVED_TO\fP (+)
+ファイル名の変更を行った際に新しいファイル名が含まれるディレクトリに対して生成される。
+.TP 
+\fBIN_OPEN\fP (*)
+ファイルやディレクトリがオープンされた。
+.RE
+.PP
+ディレクトリを監視する場合:
+.IP * 3
+上記でアスタリスク (*) が付いたイベントは、 ディレクトリ自身とディレクトリ内のオブジェクトのどちらに対しても発生する。
+.IP *
+上記でプラス記号 (+) が付いたイベントは、 ディレクトリ内のオブジェクトに対してのみ発生する (ディレクトリ自身に対しては発生しない)。
+.PP
+監視対象のディレクトリ内のオブジェクトに対してイベントが発生した場合、 \fIinotify_event\fP 構造体で返される \fIname\fP
+フィールドは、ディレクトリ内のファイル名を表す。
+.PP
+\fBIN_ALL_EVENTS\fP マクロは上記のイベント全てのマスクとして定義される。 このマクロは \fBinotify_add_watch\fP(2)
+を呼び出すときの \fImask\fP 引き数として使える。
+
+以下の 2 つの便利なマクロが定義されている。
+.RS 4
+.TP 
+\fBIN_MOVE\fP
+\fBIN_MOVED_FROM | IN_MOVED_TO\fP と等価。
+.TP 
+\fBIN_CLOSE\fP
+\fBIN_CLOSE_WRITE | IN_CLOSE_NOWRITE\fP と等価。
+.RE
+.PP
+その他にも以下のビットを \fBinotify_add_watch\fP(2)  を呼ぶときの \fImask\fP に指定できる:
+.RS 4
+.TP 
+\fBIN_DONT_FOLLOW\fP (Linux 2.6.15 以降)
+\fIpathname\fP がシンボリックリンクである場合に辿らない。 (Linux 2.6.15 以降)
+.TP 
+\fBIN_EXCL_UNLINK\fP (Linux 2.6.36 以降)
+.\" commit 8c1934c8d70b22ca8333b216aec6c7d09fdbd6a6
+デフォルトでは、あるディレクトリの子ファイルに関するイベントを監視 (watch) した際、ディレクトリからその子ファイルが削除 (unlink)
+された場合であってもその子ファイルに対してイベントが生成される。このことは、アプリケーションによってはあまり興味のないイベントが大量に発生することにつながる
+(例えば、\fI/tmp\fP を監視している場合、たくさんのアプリケーションが、すぐにその名前が削除される一時ファイルをそのディレクトリに作成する)。
+\fBIN_EXCL_UNLINK\fP
+を指定するとこのデフォルトの動作を変更でき、監視対象のディレクトリから子ファイルが削除された後に子ファイルに関するイベントが生成されなくなる。
+.TP 
+\fBIN_MASK_ADD\fP
+監視インスタンスが \fIpathname\fP に対応するファイルシステムオブジェクトに対してすでに存在する場合に、 (マスクを置き換えるのではなく)
+監視マスクに \fImask\fP で指定されたイベントを追加 (OR) する。
+.TP 
+\fBIN_ONESHOT\fP
+\fIpathname\fP に対応するファイルシステムオブジェクトを 1 イベントについてだけ監視し、 イベントが発生したら監視対象リストから削除する。
+.TP 
+\fBIN_ONLYDIR\fP (Linux 2.6.15 以降)
+\fIpathname\fP がディレクトリの場合のみ監視する。
+このフラグを使うことで、アプリケーションは、競合状態を考慮せずに、監視するオブジェクトがディレクトリであることを保証することができるようになる。
+.RE
+.PP
+以下のビットが \fBread\fP(2)  で返される \fImask\fP フィールドに設定される:
+.RS 4
+.TP 
+\fBIN_IGNORED\fP
+監視対象が (\fBinotify_rm_watch\fP(2) により) 明示的に 削除された。もしくは (ファイルの削除、またはファイル
+システムのアンマウントにより) 自動的に削除された。「バグ」も参照のこと。
+.TP 
+\fBIN_ISDIR\fP
+このイベントの対象がディレクトリである。
+.TP 
+\fBIN_Q_OVERFLOW\fP
+イベントキューが溢れた (このイベントの場合、\fIwd\fP は \-1 である)。
+.TP 
+\fBIN_UNMOUNT\fP
+監視対象オブジェクトを含むファイルシステムがアンマウントされた。さらに、この監視対象ディスクリプターに対して \fBIN_IGNORED\fP
+イベントが生成される。
+.RE
+.SS 例
+アプリケーションがディレクトリ \fIdir\fP とファイル \fIdir/myfile\fP のすべてのイベントを監視しているとする。 以下に、これらの 2
+つのオブジェクトに対して生成されるイベントの例を示す。
+.RS 4
+.TP 
+fd = open("dir/myfile", O_RDWR);
+\fIdir\fP と \fIdir/myfile\fP の両方に対して \fBIN_OPEN\fP イベントが生成される。
+.TP 
+read(fd, buf, count);
+\fIdir\fP と \fIdir/myfile\fP の両方に対して \fBIN_ACCESS\fP イベントが生成される
+.TP 
+write(fd, buf, count);
+\fIdir\fP と \fIdir/myfile\fP の両方に対して \fBIN_MODIFY\fP イベントが生成される
+.TP 
+fchmod(fd, mode);
+\fIdir\fP と \fIdir/myfile\fP の両方に対して \fBIN_ATTRIB\fP イベントが生成される
+.TP 
+close(fd);
+\fIdir\fP と \fIdir/myfile\fP の両方に対して \fBIN_CLOSE_WRITE\fP イベントが生成される
+.RE
+.PP
+アプリケーションがディレクトリ \fIdir1\fP と \fIdir2\fP、およびファイル \fIdir1/myfile\fP を監視しているとする。
+以下に生成されるイベントの例を示す。
+.RS 4
+.TP 
+link("dir1/myfile", "dir2/new");
+\fImyfile\fP に対して \fBIN_ATTRIB\fP イベントが生成され、 \fIdir2\fP に対して \fBIN_CREATE\fP イベントが生成される。
+.TP 
+rename("dir1/myfile", "dir2/myfile");
+\fIdir1\fP に対してイベント \fBIN_MOVED_FROM\fP が、 \fIdir2\fP に対してイベント \fBIN_MOVED_TO\fP が、
+\fImyfile\fP に対してイベント \fBIN_MOVE_SELF\fP が生成される。この際 イベント \fBIN_MOVED_FROM\fP と
+\fBIN_MOVED_TO\fP は同じ \fIcookie\fP 値を持つ。
+.RE
+.PP
+\fIdir1/xx\fP と \fIdir2/yy\fP は同じファイルを参照するリンクで (他のリンクはないものとする)、 アプリケーションは \fIdir1\fP,
+\fIdir2\fP, \fIdir1/xx\fP, \fIdir2/yy\fP を監視しているものとする。
+以下に示す順序で下記の呼び出しを実行すると、以下のイベントが生成される。
+.RS 4
+.TP 
+unlink("dir2/yy");
+\fIxx\fP に対して \fBIN_ATTRIB\fP イベントが生成され (リンク数が変化したため)、 \fIdir2\fP に対して \fBIN_DELETE\fP
+イベントが生成される。
+.TP 
+unlink("dir1/xx");
+\fIxx\fP に対してイベント \fBIN_ATTRIB\fP, \fBIN_DELETE_SELF\fP, \fBIN_IGNORED\fP が生成され、 \fIdir1\fP
+に対して \fBIN_DELETE\fP イベントが生成される。
+.RE
+.PP
+アプリケーションがディレクトリ \fIdir\fP と (空の) ディレクトリ \fIdir/subdir\fP を監視しているものとする。
+以下に生成されるイベントの例を示す。
+.RS 4
+.TP 
+mkdir("dir/new", mode);
+\fIdir\fP に対して \fBIN_CREATE | IN_ISDIR\fP イベントが生成される。
+.TP 
+rmdir("dir/subdir");
+\fIsubdir\fP に対してイベント \fBIN_DELETE_SELF\fP と \fBIN_IGNORED\fP が生成され、 \fIdir\fP に対して
+\fBIN_DELETE | IN_ISDIR\fP イベントが生成される。
+.RE
+.SS "/proc インターフェース"
+以下のインターフェースは、inotify で消費される カーネルメモリーの総量を制限するのに使用できる:
+.TP 
+\fI/proc/sys/fs/inotify/max_queued_events\fP
+このファイルの値は、アプリケーションが \fBinotify_init\fP(2)  を呼び出すときに使用され、対応する inotify インスタンスについて
+キューに入れられるイベントの数の上限を設定する。 この制限を超えたイベントは破棄されるが、 \fBIN_Q_OVERFLOW\fP イベントが常に生成される。
+.TP 
+\fI/proc/sys/fs/inotify/max_user_instances\fP
+1 つの実ユーザー ID に対して生成できる inotify インスタンスの数の上限を指定する。
+.TP 
+\fI/proc/sys/fs/inotify/max_user_watches\fP
+作成可能な監視対象の数の実 UID 単位の上限を指定する。
+.SH バージョン
+inotify は 2.6.13 の Linux カーネルに組込まれた。 これに必要なライブラリのインターフェースは、 glibc のバージョン 2.4
+に追加された (\fBIN_DONT_FOLLOW\fP, \fBIN_MASK_ADD\fP, \fBIN_ONLYDIR\fP は glibc バージョン 2.5
+で追加された)。
+.SH 準拠
+inotify API は Linux 独自のものである。
+.SH 注意
+inotify ファイルディスクリプターは \fBselect\fP(2), \fBpoll\fP(2), \fBepoll\fP(7)  を使って監視できる。
+イベントがある場合、ファイルディスクリプターは読み込み可能と通知する。
+
+Linux 2.6.25 以降では、シグナル駆動 (signal\-driven) I/O の通知が inotify
+ファイルディスクリプターについて利用可能である。 \fBfcntl\fP(2)  に書かれている (\fBO_ASYNC\fP フラグを設定するための)
+\fBF_SETFL\fP, \fBF_SETOWN\fP, \fBF_SETSIG\fP の議論を参照のこと。 シグナルハンドラーに渡される \fIsiginfo_t\fP
+構造体は、以下のフィールドが設定される (\fIsiginfo_t\fP は \fBsigaction\fP(2)  で説明されている)。 \fIsi_fd\fP には
+inotify ファイルディスクリプター番号が、 \fIsi_signo\fP にはシグナル番号が、 \fIsi_code\fP には \fBPOLL_IN\fP が、
+\fIsi_band\fP には \fBPOLLIN\fP が設定される。
+
+inotify ファイルディスクリプターに対して 連続して生成される出力 inotify イベントが同一の場合 (\fIwd\fP, \fImask\fP,
+\fIcookie\fP, \fIname\fP が等しい場合)、 前のイベントがまだ読み込まれていなければ、 連続するイベントが 1 つのイベントにまとめられる
+(ただし「バグ」の節も参照のこと)。 これによりイベントキューに必要なカーネルメモリー量が減るが、
+これはまたアプリケーションがファイルイベント数を信頼性を持って数えるのに inotify を使用できないということでもある。
+
+inotify ファイルディスクリプターの読み込みで返されるイベントは、 順序付けられたキューになる。
+従って、たとえば、あるディレクトリの名前を別の名前に変更した場合、 inotify ファイルディスクリプターについての正しい順番で
+イベントが生成されることが保証される。
+
+\fBFIONREAD\fP \fBioctl\fP(2)  は inotify ファイルディスクリプターから何バイト読み込めるかを返す。
+.SS 制限と警告
+inotify API では、inotify イベントが発生するきっかけとなったユーザーやプロセスに関する情報は提供されない。とりわけ、inotify
+経由でイベントを監視しているプロセスが、自分自身がきっかけとなったイベントと他のプロセスがきっかけとなったイベントを区別する簡単な手段はない。
+
+inotify は、ファイルシステム API 経由でユーザー空間プログラムがきっかけとなったイベントだけを報告する。 結果として、 inotify
+はネットワークファイルシステムで発生したリモートのイベントを捉えることはできない
+(このようなイベントを捉えるにはアプリケーションはファイルシステムをポーリングする必要がある)。 さらに、 \fI/proc\fP, \fI/sys\fP,
+\fI/dev/pts\fP といったいくつかの疑似ファイルシステムは inotify で監視することができない。
+
+inotify API は \fBmmap\fP(2), \fBmsync\fP(2), \fBmunmap\fP(2)
+により起こったファイルのアクセスと変更を報告しない。
+
+inotify API では影響が受けるファイルをファイル名で特定する。
+しかしながら、アプリケーションが inotify イベントを処理する時点では、
+そのファイル名がすでに削除されたり変更されたりしている可能性がある。
+
+inotify API では監視対象ディスクリプターを通してイベントが区別される。 (必要であれば)
+監視対象ディスクリプターとパス名のマッピングをキャッシュしておくのはアプリケーションの役目である。
+ディレクトリの名前変更の場合、キャッシュしている複数のパス名に影響がある点に注意すること。
+
+inotify によるディレクトリの監視は再帰的に行われない: あるディレクトリ以下の
+サブディレクトリを監視する場合、 監視対象を追加で作成しなければならない。
+大きなディレクトリツリーの場合には、この作業にかなり時間がかかることがある。
+
+ディレクトリツリー全体を監視していて、 そのツリー内に新しいサブディレクトリが作成されるか、
+既存のディレクトリが名前が変更されそのツリー内に移動した場合、 新しいサブディレクトリに対する watch を作成するまでに、 新しいファイル
+(やサブディレクトリ) がそのサブディレクトリ内にすでに作成されている場合がある点に注意すること。 したがって、watch
+を追加した直後にサブディレクトリの内容をスキャンしたいと思う場合もあるだろう (必要ならそのサブディレクトリ内のサブディレクトリに対する watch
+も再帰的に追加することもあるだろう)。
+
+イベントキューはオーバーフローする場合があることに注意すること。 この場合、イベントは失なわれる。 ロバスト性が求められるアプリケーションでは、
+イベントが失なわれる可能性も含めて適切に処理を行うべきである。
+例えば、アプリケーション内のキャッシュの一部分または全てを再構築する必要があるかもしれない。 (単純だが、おそらくコストがかかる方法は、 inotify
+ファイルディスクリプターをクローズし、 キャッシュを空にし、 新しい inotify ファイルディスクリプターを作成し、
+監視しているオブジェクトの監視対象ディスクリプターとキャッシュエントリーの再作成を行う方法である。)
+.SS "rename() イベントの取り扱い"
+上述の通り、 \fBrename\fP(2) により生成される \fBIN_MOVED_FROM\fP と \fBIN_MOVED_TO\fP イベントの組は、共有される
+cookie 値によって対応を取ることができる。 しかし、対応を取る場合にはいくつか難しい点がある。
+
+これらの 2 つのイベントは、 inotify ファイルディスクリプターから読み出しを行った場合に、通常はイベントストリーム内で連続している。
+しかしながら、連続していることは保証されていない。 複数のプロセスが監視対象オブジェクトでイベントを発生させた場合、 (めったに起こらないことだが)
+イベント \fBIN_MOVED_FROM\fP と \fBIN_MOVED_TO\fP の間に任意の数の他のイベントがはさまる可能性がある。
+さらに、対となるイベントがアトミックにキューに挿入されることも保証されていない。 \fBIN_MOVED_FROM\fP が現れたが
+\fBIN_MOVED_TO\fP は現れていないという短い期間がありえるということだ。
+
+したがって、 \fBrename\fP(2) により生成された \fBIN_MOVED_FROM\fP と \fBIN_MOVED_TO\fP
+のイベントの組の対応を取るのは本質的に難しいことである (監視対象のディレクトリの外へオブジェクトの rename が行われた場合には
+\fBIN_MOVED_TO\fP イベントは存在しさえしないことを忘れてはならない)。 (イベントは常に連続しているとの仮定を置くといった)
+発見的な方法を使うと、ほとんどの場合でイベントの組をうまく見つけることができるが、 いくつかの場合に見逃すことが避けられず、 アプリケーションが
+\fBIN_MOVED_FROM\fP と \fBIN_MOVED_TO\fP イベントが無関係だとみなしてしまう可能性がある。
+結果的に、監視対象ディスクリプターが破棄され再作成された場合、これらの監視対象ディスクリプターは、処理待ちイベントの監視対象ディスクリプターと一貫性のないものになってしまう
+(inotify ファイルディスクリプターの再作成とキャッシュの再構成はこの状況に対処するのに有用な方法なのだが)。
+
+また、アプリケーションは、 \fBIN_MOVED_FROM\fP イベントが今行った \fBread\fP(2)
+の呼び出しで返されたバッファーのちょうど一番最後のイベントで、 \fBIN_MOVED_TO\fP イベントは次の \fBread\fP(2)
+を行わないと取得できない可能性も考慮に入れる必要がある。 2 つ目の \fBread\fP(2) は (短い) タイムアウトで行うべきである。 これは、
+\fBIN_MOVED_FROM\fP\-\fBIN_MOVED_TO\fP のイベントペアのキューへの挿入はアトミックではなく、 また \fBIN_MOVED_TO\fP
+イベントが全く発生しない可能性もあるという事実を考慮に入れておく必要があるからである。
+.SH バグ
+カーネル 3.17 時点では、 \fBfallocate\fP(2) の呼び出しでは inotify イベントが生成されない。
+
+.\" FIXME . kernel commit 611da04f7a31b2208e838be55a42c7a1310ae321
+.\" implies that unmount events were buggy 2.6.11 to 2.6.36
+.\"
+2.6.16 以前のカーネルでは \fBIN_ONESHOT\fP \fImask\fP フラグが働かない。
+
+元々は設計/実装時の意図通り、 イベントが一つ発生し watch が削除された際に \fBIN_ONESHOT\fP フラグでは \fBIN_IGNORED\fP
+イベントが発生しなかった。 しかし、 別の変更での意図していなかった影響により、 Linux 2.6.36 以降では、 この場合に
+\fBIN_IGNORED\fP イベントが生成される。
+
+.\" commit 1c17d18e3775485bf1e0ce79575eb637a94494a2
+カーネル 2.6.25 より前では、 連続する同一のイベントを一つにまとめることを意図したコード (古い方のイベントがまだ読み込まれていない場合に、
+最新の 2 つのイベントを一つにまとめられる可能性がある) が、 最新のイベントが「最も古い」読み込まれていないイベントとまとめられるか
+をチェックするようになっていた。
+
+.\" FIXME . https://bugzilla.kernel.org/show_bug.cgi?id=77111
+\fBinotify_rm_watch\fP(2) の呼び出しにより監視対象ディスクリプターが削除された場合
+(なお、監視対象ファイルの削除や監視対象ファイルが含まれるファイルシステムのアンマウントによっても監視対象ディスクリプターは削除される)、
+この監視対象ディスクリプター関連の処理待ちの未読み出しイベントは、 読み出し可能なままとなる。 監視対象ディスクリプターは
+\fBinotify_add_watch\fP(2) によって後で割り当てられるため、 カーネルは利用可能な監視対象ディスクリプターの範囲 (0 から
+\fBINT_MAX\fP) から昇順にサイクリックに割り当てを行う。未使用の監視対象ディスクリプターを割り当てる際、 その監視対象ディスクリプター番号に
+inotify キューで処理待ちの未読み出しイベントがあるかの確認は行われない。 したがって、監視対象ディスクリプターが再割り当てされた際に、
+その監視対象ディスクリプターの一つ前の使用時に発生した処理待ちの未読み出しイベントが存在するということが起こりうる。
+その結果、アプリケーションはこれらのイベントを読み出す可能性があり、
+これらのイベントが新しく再利用された監視対象ディスクリプターに関連付けられたファイルに属するものかを解釈する必要が出て来る。
+実際のところ、このバグを踏む可能性は極めて低い。 それは、このバグを踏むためには、アプリケーションが \fBINT_MAX\fP
+個の監視対象ディスクリプターが一周させて、 キューに未読み出しイベントが残っている監視対象ディスクリプターを解放し、
+その監視対象ディスクリプターを再利用する必要があるからである。 この理由と、実世界のアプリケーションで発生したというバグ報告がないことから、 Linux
+3.15 時点では、この計算上は起こりうるバグを取り除くためのカーネルの変更は行われていない。
+.SH 例
+以下のプログラムは inotify API の使用例を示したものである。 コマンドライン引き数で渡されたディレクトリに印を付け、 タイプが
+\fBIN_OPEN\fP, \fBIN_CLOSE_NOWRITE\fP \fBIN_CLOSE_WRITE\fP のイベントを待つ。
+.PP
+以下は、 ファイル \fI/home/user/temp/foo\fP を編集し、 ディレクトリ \fI/tmp\fP の一覧表示を行った場合の出力である。
+対象のファイルとディレクトリがオープンされる前に、イベント \fBIN_OPEN\fP が発生している。 対象ファイルがクローズされた後にイベント
+\fBIN_CLOSE_WRITE\fP が発生している。 対象ディレクトリがクローズされた後にイベント \fBIN_CLOSE_NOWRITE\fP
+が発生している。 ユーザーが ENTER キーを押すると、プログラムの実行は終了する。
+.SS 出力例
+.in +4n
+.nf
+$ \fB./a.out /tmp /home/user/temp\fP
+Press enter key to terminate.
+Listening for events.
+IN_OPEN: /home/user/temp/foo [file]
+IN_CLOSE_WRITE: /home/user/temp/foo [file]
+IN_OPEN: /tmp/ [directory]
+IN_CLOSE_NOWRITE: /tmp/ [directory]
+
+Listening for events stopped.
+.fi
+.in
+.SS プログラムソース
+.nf
+#include <errno.h>
+#include <poll.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/inotify.h>
+#include <unistd.h>
+
+/* Read all available inotify events from the file descriptor 'fd'.
+   wd is the table of watch descriptors for the directories in argv.
+   argc is the length of wd and argv.
+   argv is the list of watched directories.
+   Entry 0 of wd and argv is unused. */
+
+static void
+handle_events(int fd, int *wd, int argc, char* argv[])
+{
+    /* Some systems cannot read integer variables if they are not
+       properly aligned. On other systems, incorrect alignment may
+       decrease performance. Hence, the buffer used for reading from
+       the inotify file descriptor should have the same alignment as
+       struct inotify_event. */
+
+    char buf[4096]
+        __attribute__ ((aligned(__alignof__(struct inotify_event))));
+    const struct inotify_event *event;
+    int i;
+    ssize_t len;
+    char *ptr;
+
+    /* Loop while events can be read from inotify file descriptor. */
+
+    for (;;) {
+
+        /* Read some events. */
+
+        len = read(fd, buf, sizeof buf);
+        if (len == \-1 && errno != EAGAIN) {
+            perror("read");
+            exit(EXIT_FAILURE);
+        }
+
+        /* If the nonblocking read() found no events to read, then
+           it returns \-1 with errno set to EAGAIN. In that case,
+           we exit the loop. */
+
+        if (len <= 0)
+            break;
+
+        /* バッファー内の全イベントを処理する */
+
+        for (ptr = buf; ptr < buf + len;
+                ptr += sizeof(struct inotify_event) + event\->len) {
+
+            event = (const struct inotify_event *) ptr;
+
+            /* Print event type */
+
+            if (event\->mask & IN_OPEN)
+                printf("IN_OPEN: ");
+            if (event\->mask & IN_CLOSE_NOWRITE)
+                printf("IN_CLOSE_NOWRITE: ");
+            if (event\->mask & IN_CLOSE_WRITE)
+                printf("IN_CLOSE_WRITE: ");
+
+            /* Print the name of the watched directory */
+
+            for (i = 1; i < argc; ++i) {
+                if (wd[i] == event\->wd) {
+                    printf("%s/", argv[i]);
+                    break;
+                }
+            }
+
+            /* Print the name of the file */
+
+            if (event\->len)
+                printf("%s", event\->name);
+
+            /* Print type of filesystem object */
+
+            if (event\->mask & IN_ISDIR)
+                printf(" [directory]\en");
+            else
+                printf(" [file]\en");
+        }
+    }
+}
+
+int
+main(int argc, char* argv[])
+{
+    char buf;
+    int fd, i, poll_num;
+    int *wd;
+    nfds_t nfds;
+    struct pollfd fds[2];
+
+    if (argc < 2) {
+        printf("Usage: %s PATH [PATH ...]\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Press ENTER key to terminate.\en");
+
+    /* Create the file descriptor for accessing the inotify API */
+
+    fd = inotify_init1(IN_NONBLOCK);
+    if (fd == \-1) {
+        perror("inotify_init1");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Allocate memory for watch descriptors */
+
+    wd = calloc(argc, sizeof(int));
+    if (wd == NULL) {
+        perror("calloc");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Mark directories for events
+       \- file was opened
+       \- file was closed */
+
+    for (i = 1; i < argc; i++) {
+        wd[i] = inotify_add_watch(fd, argv[i],
+                                  IN_OPEN | IN_CLOSE);
+        if (wd[i] == \-1) {
+            fprintf(stderr, "Cannot watch '%s'\en", argv[i]);
+            perror("inotify_add_watch");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    /* ポーリングの準備 */
+
+    nfds = 2;
+
+    /* コンソールの入力 */
+
+    fds[0].fd = STDIN_FILENO;
+    fds[0].events = POLLIN;
+
+    /* Inotify input */
+
+    fds[1].fd = fd;
+    fds[1].events = POLLIN;
+
+    /* Wait for events and/or terminal input */
+
+    printf("Listening for events.\en");
+    while (1) {
+        poll_num = poll(fds, nfds, \-1);
+        if (poll_num == \-1) {
+            if (errno == EINTR)
+                continue;
+            perror("poll");
+            exit(EXIT_FAILURE);
+        }
+
+        if (poll_num > 0) {
+
+            if (fds[0].revents & POLLIN) {
+
+                /* Console input is available. Empty stdin and quit */
+
+                while (read(STDIN_FILENO, &buf, 1) > 0 && buf != '\en')
+                    continue;
+                break;
+            }
+
+            if (fds[1].revents & POLLIN) {
+
+                /* Inotify events are available */
+
+                handle_events(fd, wd, argc, argv);
+            }
+        }
+    }
+
+    printf("Listening for events stopped.\en");
+
+    /* Close inotify file descriptor */
+
+    close(fd);
+
+    free(wd);
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+\fBinotifywait\fP(1), \fBinotifywatch\fP(1), \fBinotify_add_watch\fP(2),
+\fBinotify_init\fP(2), \fBinotify_init1\fP(2), \fBinotify_rm_watch\fP(2), \fBread\fP(2),
+\fBstat\fP(2), \fBfanotify\fP(7)
+
+Linux カーネルソース内の \fIDocumentation/filesystems/inotify.txt\fP
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -1,0 +1,230 @@
+.\" t
+.\" Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI all rights reserved.
+.\" Translated 2006-03-13, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2006-07-20, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.36
+.\" Updated 2009-02-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.19
+.\" Updated 2010-04-11, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.24
+.\"
+.TH MQ_OVERVIEW 7 2014\-09\-21 Linux "Linux Programmer's Manual"
+.SH 名前
+mq_overview \- POSIX メッセージキューの概要
+.SH 説明
+POSIX メッセージキューを使用すると、プロセス間で メッセージの形でのデータのやり取りを行うことができる。 この API は System V
+メッセージキューの API (\fBmsgget\fP(2), \fBmsgsnd\fP(2), \fBmsgrcv\fP(2)  など)
+とは異なるものだが、同様の機能を提供する。
+
+メッセージキューの作成とオープンは \fBmq_open\fP(3)  を使って行う。この関数は \fIメッセージキュー記述子 (message queue
+descriptor)\fP (\fImqd_t\fP)  を返す。これ以降のコールでは、オープンされたメッセージキューは \fIメッセージキュー記述子\fP
+を使って参照される。 各メッセージキューは \fI/somename\fP の形の名前で区別することができる。 その名前は、最大で \fBNAME_MAX\fP
+(すなわち 255) 文字のヌル終端された文字列で、 スラッシュで始まり、スラッシュ以外の文字が 1 文字以上続く形式である。
+\fBmq_open\fP(3)  に同じ名前を渡すことで、2つのプロセスで同一のキューを 操作することができる。
+
+メッセージのキューへの送受信は \fBmq_send\fP(3)  と \fBmq_receive\fP(3)
+を使って行う。プロセスがキューの使用を終えるときには、 \fBmq_close\fP(3)
+を使ってキューをクローズする。キューがもはや不要となった場合には、 \fBmq_unlink\fP(3)  を使ってキューを削除できる。キューの属性は
+\fBmq_getattr\fP(3)  で取得でき、 (制限はあるが)  \fBmq_setattr\fP(3)  で変更できる。 \fBmq_notify\fP(3)
+を使うことで、空のキューへのメッセージ到着を非同期で 通知するように要求することもできる。
+
+メッセージキュー記述子は \fIオープンメッセージキュー記述 (open message queue description)\fP への参照である
+(\fBopen\fP(2)  も参照)。 \fBfork\fP(2)  実行後は、子プロセスは親プロセスのメッセージキュー記述子のコピーを継承する。
+これらの記述子は、親プロセスの対応する記述子と同じオープンメッセージキュー 記述を参照している。親プロセスと子プロセスの対応する記述子は、フラグ
+(\fImq_flags\fP)  を共有する。なぜなら、フラグはオープンメッセージキュー記述に 関連付けられているからである。
+
+各メッセージにはそれぞれ \fI優先度 (priority)\fP があり、メッセージの受信プロセスへの配送は常に 優先度の高いメッセージから順に行われる。
+メッセージの優先度は 0 (低優先) から \fIsysconf(_SC_MQ_PRIO_MAX)\ \-\ 1\fP (高優先) の値を持つ。 Linux
+では、 \fIsysconf(_SC_MQ_PRIO_MAX)\fP は 32768 を返すが、 POSIX.1\-2001 で要求されているのは最低限 0
+から 31 までの優先度を実装することだけであり、実装によってはこの範囲の優先度しかサポートされていない。
+.PP
+この節の残りでは、POSIX メッセージキューの Linux の実装の詳細 について説明する。
+.SS ライブラリインターフェースとシステムコール
+ほとんどの場合、上記の \fBmq_*\fP() ライブラリインターフェースは、同じ名前の下位層のシステムコールを
+使って実装されている。この枠組みにあてはまらないものを 以下の表に示す。
+.RS
+.TS
+lB lB
+l l.
+Library interface	System call
+mq_close(3)	close(2)
+mq_getattr(3)	mq_getsetattr(2)
+mq_notify(3)	mq_notify(2)
+mq_open(3)	mq_open(2)
+mq_receive(3)	mq_timedreceive(2)
+mq_send(3)	mq_timedsend(2)
+mq_setattr(3)	mq_getsetattr(2)
+mq_timedreceive(3)	mq_timedreceive(2)
+mq_timedsend(3)	mq_timedsend(2)
+mq_unlink(3)	mq_unlink(2)
+.TE
+.RE
+.SS バージョン
+Linux では POSIX メッセージキューはカーネル 2.6.6 以降でサポートされている。 glibc ではバージョン 2.3.4
+以降でサポートされている。
+.SS カーネルの設定
+POSIX メッセージキューのサポートは、カーネルの設定 (configuration)  オプション \fBCONFIG_POSIX_MQUEUE\fP
+で設定可能である。このオプションはデフォルトでは有効である。
+.SS 持続性
+POSIX メッセージキューはカーネル内で保持される。 \fBmq_unlink\fP(3)  で削除されなければ、メッセージキューは
+システムがシャットダウンされるまで存在し続ける。
+.SS リンク
+POSIX メッセージキュー API を使用したプログラムは \fIcc \-lrt\fP でコンパイルし、リアルタイムライブラリ \fIlibrt\fP
+とリンクしなければならない。
+.SS "/proc インターフェース"
+以下のインターフェースを使って、 POSIX メッセージキューが消費するカーネル メモリーの量を制限したり、
+新規のメッセージキューのデフォルト属性を設定したりすることができる。
+.TP 
+\fI/proc/sys/fs/mqueue/msg_default\fP (Linux 3.5 以降)
+このファイルは、\fIattr\fP に NULL を指定して \fBmq_open\fP(3) を呼び出してキューが作成された際に、 その新規キューの
+\fImq_maxmsg\fP 設定に使用される値を定めている。 このファイルのデフォルト値は 10 である。 最小値と最大値は
+\fI/proc/sys/fs/mqueue/msg_max\fP と同様である。 新規キューのデフォルトの \fImq_maxmsg\fP 値は
+\fImsg_default\fP と \fImsg_max\fP の小さい方となる。 Linux 2.6.28 より前は、デフォルトの \fImq_maxmsg\fP
+は 10 であった。 Linux 2.6.28 から Linux 3.4 までは、 デフォルト値は \fImsg_max\fP 上限で規定される値であった。
+.TP 
+\fI/proc/sys/fs/mqueue/msg_max\fP
+このファイルを使って、一つのキューに入れられるメッセージの最大数の 上限値を参照したり変更したりできる。この値は、 \fBmq_open\fP(3)  に渡す
+\fIattr\->mq_maxmsg\fP 引き数に対する上限値として機能する。 \fImsg_max\fP のデフォルト値は 10 で、 最小値は 1
+(2.6.28 より前のカーネルでは 10) である。 \fImsg_max\fP に指定できる上限値は \fBHARD_MSGMAX\fP である。
+\fImsg_max\fP 上限は特権プロセス (\fBCAP_SYS_RESOURCE\fP)  では無視されるが、上限値 \fBHARD_MSGMAX\fP
+はどんな場合にでも適用される。
+
+\fBHARD_MSGMAX\fP の定義はカーネルのバージョンにより異なる。
+.RS
+.IP * 3
+Linux 2.6.32 以前: \fI131072\ /\ sizeof(void\ *)\fP
+.IP *
+Linux 2.6.33 以上 3.4 以下: \fI(32768\ *\ sizeof(void\ *) / 4)\fP
+.IP *
+.\" commit 5b5c4d1a1440e94994c73dddbad7be0676cd8b9a
+Linux 3.5 以降: 65,536
+.RE
+.TP 
+\fI/proc/sys/fs/mqueue/msgsize_default\fP (Linux 3.5 以降)
+このファイルは、\fIattr\fP に NULL を指定して \fBmq_open\fP(3) を呼び出してキューが作成された際に、 その新規キューの
+\fImq_msgsize\fP 設定に使用される値を定めている。 このファイルのデフォルト値は 8192 バイトである。 最小値と最大値は
+\fI/proc/sys/fs/mqueue/msgsize_max\fP と同様である。
+\fImsgsize_default\fP が \fImsgsize_max\fP より大きい場合は、 新規キューのデフォルトの \fImq_msgsize\fP 値は
+\fImsgsize_max\fP 上限となる。 Linux 2.6.28 より前は、デフォルトの \fImq_msgsize\fP は 8192 であった。
+Linux 2.6.28 から Linux 3.4 までは、 デフォルト値は \fImsgsize_max\fP 上限で規定される値であった。
+.TP 
+\fI/proc/sys/fs/mqueue/msgsize_max\fP
+このファイルを使って、メッセージの最大サイズの上限値を参照したり変更したりできる。 この値は、 \fBmq_open\fP(3) に渡す
+\fIattr\->mq_msgsize\fP 引き数に対する上限値として機能する。 \fImsgsize_max\fP のデフォルト値は 8192
+バイトで、 最小値は 128 (2.6.28 より前のカーネルでは 8192) である。 \fImsgsize_max\fP
+の上限はカーネルのバージョンにより異なる。
+.RS
+.IP * 3
+Linux 2.6.28 より前のバージョンでは、上限は \fBINT_MAX\fP である。
+.IP *
+Linux 2.6.28 から 3.4 では、上限は 1,048,576 である。
+.IP *
+Linux 3.5 以降では、上限は 16,777,216 (\fBHARD_MSGSIZEMAX\fP) である。
+.RE
+.IP
+\fImsgsize_max\fP 上限は特権プロセス (\fBCAP_SYS_RESOURCE\fP) では無視されるが、 Linux 3.5
+以降では特権プロセスにも \fBHARD_MSGSIZEMAX\fP という上限が適用される。
+.TP 
+\fI/proc/sys/fs/mqueue/queues_max\fP
+このファイルを使って、作成可能なメッセージキュー数のシステム全体での制限を参照したり変更したりできる。 \fIqueues_max\fP のデフォルト値は
+256 である。 \fIqueues_max\fP に課される上限値はない。 特権プロセス (\fBCAP_SYS_RESOURCE\fP)
+はこの上限値を超えてメッセージキューを作成できる。
+.SS リソース制限
+リソース上限 \fBRLIMIT_MSGQUEUE\fP は、プロセスの実 UID に対応する全メッセージキューが消費する
+メモリー空間の量に対して上限を設定する。 \fBgetrlimit\fP(2)  を参照。
+.SS メッセージキューファイルシステムのマウント
+Linux では、メッセージキューは仮想ファイルシステム内に作成される (他の実装でも同様の機能が提供されているものもあるが、
+詳細は違っているだろう)。 以下のコマンドを使うことで (スーパーユーザーは)  このファイルシステムをマウントできる:
+.in +4n
+.nf
+
+#\fB mkdir /dev/mqueue\fP
+#\fB mount \-t mqueue none /dev/mqueue\fP
+
+.fi
+.in
+マウントしたディレクトリのスティッキービット (sticky bit) は 自動的にオンとなる。
+
+メッセージキューファイルシステムのマウント後は、ファイルに対して 通常使うコマンド (例えば \fBls\fP(1)  や \fBrm\fP(1))
+を使って、システム上のメッセージキューを表示したり 操作したりできる。
+
+ディレクトリ内の各ファイルの内容は 1行であり、 キューに関する情報が表示される。
+.in +4n
+.nf
+
+$\fB cat /dev/mqueue/mymq\fP
+QSIZE:129     NOTIFY:2    SIGNO:0    NOTIFY_PID:8260
+
+.fi
+.in
+各フィールドの詳細は以下の通りである:
+.TP 
+\fBQSIZE\fP
+キューに入っている全メッセージの合計バイト数。
+.TP 
+\fBNOTIFY_PID\fP
+この値が 0 以外の場合、この値の PID を持つプロセスが \fBmq_notify\fP(3)
+を使って、非同期のメッセージ通知を行うように設定したことを示す。 どのように通知が行われるかは、以下のフィールドにより決定される。
+.TP 
+\fBNOTIFY\fP
+通知方法: 0 は \fBSIGEV_SIGNAL\fP; 1 は \fBSIGEV_NONE\fP; 2 は \fBSIGEV_THREAD\fP
+.TP 
+\fBSIGNO\fP
+\fBSIGEV_SIGNAL\fP に使用されるシグナル番号。
+.SS メッセージキュー記述子のポーリング
+Linux では、メッセージキュー記述子は実際はファイルディスクリプター (file descriptor)  であり、 \fBselect\fP(2),
+\fBpoll\fP(2), \fBepoll\fP(7)  を使って監視することができる。 この機能の移植性はない。
+.SS "IPC 名前空間"
+System V IPC オブジェクトと IPC 名前空間の相互の影響に関する議論は \fBnamespaces\fP(7) を参照。
+.SH 準拠
+POSIX.1\-2001.
+.SH 注意
+System V メッセージキュー (\fBmsgget\fP(2), \fBmsgsnd\fP(2), \fBmsgrcv\fP(2)  など)
+はプロセス間でメッセージをやり取りするための古い API である。 POSIX メッセージキューは System V メッセージキューよりもうまく
+設計されたインターフェースを提供している。 一方で、POSIX メッセージキューは System V メッセージキューと比べると
+利用できるシステムが少ない (特に、古いシステムでは少ない)。
+
+現在のことろ (バージョン 2.6.26 時点)、 Linux は POSIX メッセージキューに対するアクセス制御リスト (ACL) に
+対応していない。
+.SH 例
+各種のメッセージキュー関数を使用した例が \fBmq_notify\fP(3)  に記載されている。
+.SH バグ
+バージョン 3.5 以降 3.14 未満の Linux では、 \fIqueues_max\fP 上限を増やすことができる最大値として 1024
+(\fBHARD_QUEUESMAX\fP) という最大上限値がカーネルにより適用されていた。 この最大上限値は特権プロセスにも適用されていた。
+この最大上限値は Linux 3.14 で削除され、 パッチで安定版カーネル 3.5.x から 3.13.x からもこの最大上限値は削除された。
+.SH 関連項目
+\fBgetrlimit\fP(2), \fBmq_getsetattr\fP(2), \fBpoll\fP(2), \fBselect\fP(2),
+\fBmq_close\fP(3), \fBmq_getattr\fP(3), \fBmq_notify\fP(3), \fBmq_open\fP(3),
+\fBmq_receive\fP(3), \fBmq_send\fP(3), \fBmq_unlink\fP(3), \fBepoll\fP(7),
+\fBnamespaces\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

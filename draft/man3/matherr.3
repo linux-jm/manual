@@ -1,0 +1,370 @@
+.\" t
+.\" Copyright (c) 2008, Linux Foundation, written by Michael Kerrisk
+.\"     <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2012  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2012-05-08, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH MATHERR 3 2014\-06\-13 Linux "Linux Programmer's Manual"
+.SH 名前
+matherr \- SVID 数学ライブラリの例外処理
+.SH 書式
+.nf
+\fB#define _SVID_SOURCE\fP             /* feature_test_macros(7) 参照 */
+\fB#include <math.h>\fP
+
+\fBint matherr(struct exception *\fP\fIexc\fP\fB);\fP
+
+\fBextern _LIB_VERSION_TYPE _LIB_VERSION;\fP
+.fi
+.sp
+\fI\-lm\fP でリンクする。
+.SH 説明
+System V Interface Definition (SVID) では、各種の数学関数は数学的な
+例外を検出した場合に \fBmatherr\fP() を呼ばれる関数を起動すべきである、
+と規定されている。この関数は数学関数が返る前に呼び出される。
+\fBmatherr\fP() が返った後に、システムは数学関数に戻り、
+それから呼び出し元に返る。
+
+\fBmatherr\fP() の仕組みは glibc によりサポートされているが、
+現在は廃止予定の扱いである。
+新しくアプリケーションを作成する際には、
+\fBmath_error\fP(7) と \fBfenv\fP(3) で説明されている手法を使用すべきである。
+このマニュアルページでは、古いアプリケーションを保守したり移植する際の
+助けとなるよう、 glibc の \fBmatherr\fP() の仕組みについて説明する。
+
+\fBmatherr\fP() を使用するためには、
+プログラマは (\fIどの\fPヘッダーファイルをインクルードするよりも前に)
+\fB_SVID_SOURCE\fP 機能検査マクロを定義し、値 \fB_SVID_\fP をグローバル変数
+\fB_LIB_VERSION\fP に代入しなければならない。
+
+デフォルト版の \fBmatherr\fP() がシステムによって提供されている。
+デフォルト版は何も行わず、0 を返す (このことの重要性については
+下記を参照)。プログラマが \fBmatherr\fP() を定義することで、
+デフォルト版を上書きすることができる。
+プログラマが定義した関数は例外が発生した際に起動される。
+この関数は引き数 1 個で起動され、その引き数は以下に示す
+\fIexception\fP 構造体へのポインターである。
+
+.in +4n
+.nf
+struct exception {
+    int    type;      /* Exception type */
+    char  *name;      /* Name of function causing exception */
+    double arg1;      /* 1st argument to function */
+    double arg2;      /* 2nd argument to function */
+    double retval;    /* Function return value */
+}
+.fi
+.in
+.PP
+\fItype\fP フィールドは以下の値のいずれかである。
+.TP  12
+\fBDOMAIN\fP
+領域エラー (domain error) が発生した
+(関数の引き数が関数が定義された範囲外であった)。
+返り値は関数によって異なり、 \fIerrno\fP には \fBEDOM\fP が設定される。
+.TP 
+\fBSING\fP
+極エラー (pole error) が発生した (関数の結果が無限大である)。
+返り値はほとんどの場合 \fBHUGE\fP (最大の単精度浮動小数点数) となり、
+たいていは符号付きである。
+ほとんどの場合、\fIerrno\fP には \fBEDOM\fP が設定される。
+.TP 
+\fBOVERFLOW\fP
+オーバーフローが発生した。
+ほとんどの場合、値 \fBHUGE\fP が返され、
+\fIerrno\fP には \fBERANGE\fP が設定される。
+.TP 
+\fBUNDERFLOW\fP
+アンダーフローが発生した。
+0.0 が返され、 \fIerrno\fP に \fBERANGE\fP が設定される。
+.TP 
+\fBTLOSS\fP
+Total loss of significance が発生した。
+0.0 が返され、 \fIerrno\fP に \fBERANGE\fP が設定される。
+.TP 
+\fBPLOSS\fP
+Partial loss of significance が発生した。
+この値は glibc (や他の多くのシステム) で使用されていない。
+.PP
+フィールド \fIarg1\fP と \fIarg2\fP は関数に渡された引き数である
+(引き数を一つしか取らない関数の場合は \fIarg2\fP は不定となる)。
+
+\fIretval\fP フィールドはその数学関数が呼び出し元に返そうとしている返り値
+を示す。プログラマが定義した \fBmatherr\fP() でこのフィールドを変更する
+ことで、その数学関数の返り値を変更することができる。
+
+\fBmatherr\fP() 関数が 0 を返した場合、
+システムは \fIerrno\fP を上記の通り設定し、標準エラー出力に
+エラーメッセージを表示することがある (下記参照)。
+
+\fBmatherr\fP() 関数が 0 以外の値を返した場合、
+システムは \fIerrno\fP を設定せず、エラーメッセージの表示も行わない。
+.SS "matherr() を利用している数学関数"
+下記の表は、関数と \fBmatherr\fP() が呼び出される状況の一覧である。
+"Type" 列 は \fBmatherr\fP() が呼び出される際に \fIexc\->type\fP に
+設定される値を示す。 "Result" 列は \fIexc\->retval\fP に
+設定されるデフォルトの返り値を示す。
+
+"Msg?" 列と "errno" 列は \fBmatherr\fP() が 0 を返した場合のデフォルトの
+動作を示す。 "Msg?" 列に "y" が入っている場合、システムは標準エラー
+出力にエラーメッセージを表示する。
+
+以下の表では、下記の記法と省略形を使用している。
+.RS
+.nf
+
+x        関数の最初の引き数
+y        関数の二番目の引き数
+fin      引き数の値が無限大
+neg      引き数が負の値
+int      引き数が整数値
+o/f      結果のオーバーフロー
+u/f      結果のアンダーフロー
+|x|      x の絶対値
+X_TLOSS  \fI<math.h>\fP で定義される定数
+.fi
+.RE
+.\" Details below from glibc 2.8's sysdeps/ieee754/k_standard.c
+.\" A subset of cases were test by experimental programs.
+.TS
+lB lB lB cB lB
+l l l c l.
+Function	Type	Result	Msg?	errno
+acos(|x|>1)	DOMAIN	HUGE	y	EDOM
+asin(|x|>1)	DOMAIN	HUGE	y	EDOM
+atan2(0,0)	DOMAIN	HUGE	y	EDOM
+.\" retval is 0.0/0.0
+acosh(x<1)	DOMAIN	NAN	y	EDOM	
+.\" retval is 0.0/0.0
+atanh(|x|>1)	DOMAIN	NAN	y	EDOM	
+.\" retval is x/0.0
+atanh(|x|==1)	SING	(x>0.0)?	y	EDOM	
+\ 	\ 	HUGE_VAL :
+\ 	\ 	\-HUGE_VAL
+cosh(fin) o/f	OVERFLOW	HUGE	n	ERANGE
+sinh(fin) o/f	OVERFLOW	(x>0.0) ?	n	ERANGE
+\ 	\ 	HUGE : \-HUGE
+sqrt(x<0)	DOMAIN	0.0	y	EDOM
+hypot(fin,fin) o/f	OVERFLOW	HUGE	n	ERANGE
+exp(fin) o/f	OVERFLOW	HUGE	n	ERANGE
+exp(fin) u/f	UNDERFLOW	0.0	n	ERANGE
+exp2(fin) o/f	OVERFLOW	HUGE	n	ERANGE
+exp2(fin) u/f	UNDERFLOW	0.0	n	ERANGE
+exp10(fin) o/f	OVERFLOW	HUGE	n	ERANGE
+exp10(fin) u/f	UNDERFLOW	0.0	n	ERANGE
+j0(|x|>X_TLOSS)	TLOSS	0.0	y	ERANGE
+j1(|x|>X_TLOSS)	TLOSS	0.0	y	ERANGE
+jn(|x|>X_TLOSS)	TLOSS	0.0	y	ERANGE
+y0(x>X_TLOSS)	TLOSS	0.0	y	ERANGE
+y1(x>X_TLOSS)	TLOSS	0.0	y	ERANGE
+yn(x>X_TLOSS)	TLOSS	0.0	y	ERANGE
+y0(0)	DOMAIN	\-HUGE	y	EDOM
+y0(x<0)	DOMAIN	\-HUGE	y	EDOM
+y1(0)	DOMAIN	\-HUGE	y	EDOM
+y1(x<0)	DOMAIN	\-HUGE	y	EDOM
+yn(n,0)	DOMAIN	\-HUGE	y	EDOM
+yn(x<0)	DOMAIN	\-HUGE	y	EDOM
+lgamma(fin) o/f	OVERFLOW	HUGE	n	ERANGE
+lgamma(\-int) or	SING	HUGE	y	EDOM
+\ \ lgamma(0)
+tgamma(fin) o/f	OVERFLOW	HUGE_VAL	n	ERANGE
+tgamma(\-int)	SING	NAN	y	EDOM
+tgamma(0)	SING	copysign(	y	ERANGE
+\ 	\ 	HUGE_VAL,x)
+log(0)	SING	\-HUGE	y	EDOM
+log(x<0)	DOMAIN	\-HUGE	y	EDOM
+.\" different from log()
+log2(0)	SING	\-HUGE	n	EDOM	
+.\" different from log()
+log2(x<0)	DOMAIN	\-HUGE	n	EDOM	
+log10(0)	SING	\-HUGE	y	EDOM
+log10(x<0)	DOMAIN	\-HUGE	y	EDOM
+pow(0.0,0.0)	DOMAIN	0.0	y	EDOM
+pow(x,y) o/f	OVERFLOW	HUGE	n	ERANGE
+pow(x,y) u/f	UNDERFLOW	0.0	n	ERANGE
+pow(NaN,0.0)	DOMAIN	x	n	EDOM
+.\" +0 and -0
+0**neg	DOMAIN	0.0	y	EDOM	
+neg**non\-int	DOMAIN	0.0	y	EDOM
+scalb() o/f	OVERFLOW	(x>0.0) ?	n	ERANGE
+\ 	\ 	HUGE_VAL :
+\ 	\ 	\-HUGE_VAL
+scalb() u/f	UNDERFLOW	copysign(	n	ERANGE
+\ 	\ 	\ \ 0.0,x)
+fmod(x,0)	DOMAIN	x	y	EDOM
+.\" retval is 0.0/0.0
+remainder(x,0)	DOMAIN	NAN	y	EDOM	
+.TE
+.SH 属性
+.SS "マルチスレッディング (pthreads(7) 参照)"
+\fBmatherr\fP() 関数はスレッドセーフである。
+.SH 例
+以下のサンプルプログラムは \fBlog\fP(3) を呼び出した際の
+\fBmatherr\fP() の使用法を示したものである。
+最初の引き数は \fBlog\fP(3) に渡す浮動小数点数である。
+省略可能な第二引き数を指定した場合、
+\fB_LIB_VERSION\fP に \fB_SVID_\fP が設定され、
+\fBmatherr\fP() が呼ばれるようになる。
+このコマンドライン引き数で指定した整数は、
+\fBmatherr\fP() からの返り値として使用される。
+省略可能な第三引き数を指定した場合、 \fBmatherr\fP() は
+数学関数の返り値として代わりに引き数で指定した値を割り当てる。
+
+以下の実行例では、
+\fBlog\fP(3) に引き数 0.0 が渡しているが、
+\fBmatherr\fP() は使用しない。
+
+.in +4n
+.nf
+$\fB ./a.out 0.0\fP
+errno: Numerical result out of range
+x=\-inf
+.fi
+.in
+
+以下の実行例では、
+\fBmatherr\fP() が呼び出され、返り値 0 が返される。
+
+.in +4n
+.nf
+$\fB ./a.out 0.0 0\fP
+matherr SING exception in log() function
+        args:   0.000000, 0.000000
+        retval: \-340282346638528859811704183484516925440.000000
+log: SING error
+errno: Numerical argument out of domain
+x=\-340282346638528859811704183484516925440.000000
+.fi
+.in
+
+メッセージ "log: SING error" は C ライブラリによって出力されている。
+
+次の実行例では、 \fBmatherr\fP() が呼び出され、0 以外の返り値が返される。
+
+.in +4n
+.nf
+$\fB ./a.out 0.0 1\fP
+matherr SING exception in log() function
+        args:   0.000000, 0.000000
+        retval: \-340282346638528859811704183484516925440.000000
+x=\-340282346638528859811704183484516925440.000000
+.fi
+.in
+
+この場合は、C ライブラリはメッセージを出力しておらず、
+\fIerrno\fP は設定されていない。
+
+次の実行例では、 \fBmatherr\fP() が呼び出され、
+数学関数の返り値が変更され、0 以外の返り値が返されている。
+
+.in +4n
+.nf
+$\fB ./a.out 0.0 1 12345.0\fP
+matherr SING exception in log() function
+        args:   0.000000, 0.000000
+        retval: \-340282346638528859811704183484516925440.000000
+x=12345.000000
+.fi
+.in
+.SS プログラムのソース
+\&
+.nf
+#define _SVID_SOURCE
+#include <errno.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static int matherr_ret = 0;     /* Value that matherr()
+                                   should return */
+static int change_retval = 0;   /* Should matherr() change
+                                   function\(aqs return value? */
+static double new_retval;       /* New function return value */
+
+int
+matherr(struct exception *exc)
+{
+    fprintf(stderr, "matherr %s exception in %s() function\en",
+           (exc\->type == DOMAIN) ?    "DOMAIN" :
+           (exc\->type == OVERFLOW) ?  "OVERFLOW" :
+           (exc\->type == UNDERFLOW) ? "UNDERFLOW" :
+           (exc\->type == SING) ?      "SING" :
+           (exc\->type == TLOSS) ?     "TLOSS" :
+           (exc\->type == PLOSS) ?     "PLOSS" : "???",
+            exc\->name);
+    fprintf(stderr, "        args:   %f, %f\en",
+            exc\->arg1, exc\->arg2);
+    fprintf(stderr, "        retval: %f\en", exc\->retval);
+
+    if (change_retval)
+        exc\->retval = new_retval;
+
+    return matherr_ret;
+}
+
+int
+main(int argc, char *argv[])
+{
+    double x;
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <argval>"
+                " [<matherr\-ret> [<new\-func\-retval>]]\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    if (argc > 2) {
+        _LIB_VERSION = _SVID_;
+        matherr_ret = atoi(argv[2]);
+    }
+
+    if (argc > 3) {
+        change_retval = 1;
+        new_retval = atof(argv[3]);
+    }
+
+    x = log(atof(argv[1]));
+    if (errno != 0)
+        perror("errno");
+
+    printf("x=%f\en", x);
+    exit(EXIT_SUCCESS);
+}
+.fi
+.SH 関連項目
+\fBfenv\fP(3), \fBmath_error\fP(7), \fBstandards\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

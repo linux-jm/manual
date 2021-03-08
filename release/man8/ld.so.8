@@ -1,0 +1,330 @@
+.\" %%%LICENSE_START(PUBLIC_DOMAIN)
+.\" This is in the public domain
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1998 NAKANO Takeo all rights reserved.
+.\" Translated 1998-05-23, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified 1999-09-14, NAKANO Takeo
+.\" Updated & Modified 2002-01-17, Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated & Modified 2002-07-15, Yuichi SATO
+.\" Updated 2007-06-13, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.55
+.\" Updated 2010-04-23, Akihiro MOTOKI, LDP v3.24
+.\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-08-16, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH LD.SO 8 2014\-12\-31 GNU "Linux Programmer's Manual"
+.SH 名前
+ld.so, ld\-linux.so* \- 動的なリンカー/ローダー
+.SH 書式
+動的リンカーは、動的にリンクされたプログラムやライブラリの実行によって 間接的に実行することができる (ELF
+の場合、動的リンカーにコマンドラインオプションを渡すことはできず、 プログラムの \fB.interp\fP
+セクションに入っている動的リンカーが実行される)。 また以下のように直接実行することもできる
+.P
+\fI/lib/ld\-linux.so.*\fP [OPTIONS] [PROGRAM [ARGUMENTS]]
+.SH 説明
+プログラム \fBld.so\fP と \fBld\-linux.so*\fP はプログラムに必要な共有ライブラリを見つけてロードし、
+プログラムの実行を準備してから起動させる。
+.LP
+Linux のバイナリは、コンパイルの時に \fBld\fP(1)  に対して \fB\-static\fP オプションが指定されていない限り、動的リンク
+(実行時リンク) が必要となる。
+.LP
+プログラム \fBld.so\fP は a.out バイナリを扱う。 これはずっと昔に使われていたフォーマットである。 \fBld\-linux.so*\fP
+(libc5 では \fI/lib/ld\-linux.so.1\fP, glibc2 では \fI/lib/ld\-linux.so.2\fP)  は ELF
+バイナリを扱う。 このフォーマットは多くの人が最近何年も使っている。 それ以外の点では両方とも同じように動作し、 同じサポートファイルとプログラム
+\fBldd\fP(1), \fBldconfig\fP(8), \fI/etc/ld.so.conf\fP を使用する。
+.LP
+ライブラリの依存関係を解決する際、動的リンカーは、最初に、依存関係の各文字列がスラッシュを含んでいるかをチェックする
+(この状況になるのは、リンク時にスラッシュを含むライブラリのパス名が指定された場合である)。スラッシュが見つかった場合、その依存関係の文字列はパス名
+(相対パス、絶対パスのどちらも可) として解釈され、そのパス名を使ってそのライブラリはロードされる。
+.LP
+ライブラリの依存関係にスラッシュが含まれない場合、以下の順序で検索される。
+.IP o 3
+(ELF のみ)  バイナリの動的セクション属性 DT_RPATH が存在し、 DT_RUNPATH 属性が存在しない場合は、 DT_RPATH
+で指定されたディレクトリを使用する。 DT_RPATH の使用は推奨されない。
+.IP o
+環境変数 \fBLD_LIBRARY_PATH\fP を用いる。 ただし実行ファイルが set\-user\-ID/set\-group\-ID バイナリの場合、
+これは無視される。
+.IP o
+(ELF のみ)  バイナリの動的セクション属性 DT_RUNPATH が存在すれば、 DT_RUNPATH で指定されたディレクトリを使用する。
+.IP o
+キャッシュファイル \fI/etc/ld.so.cache\fP を探す。このファイルは、 (ld.so.conf で追加指定されたものも含めた)
+ライブラリ検索パスから見つかったライブラリファイルの情報を集めたものである。ただし、バイナリがリンカーオプション \fB\-z nodeflib\fP
+でリンクされている場合は、デフォルトのライブラリパスにある ライブラリはスキップされる。ハードウェア機能ディレクトリ (下記参照)
+にインストールされたライブラリは、他のライブラリよりも優先される。
+.IP o
+デフォルトパスである \fI/lib\fP、 次いで \fI/usr/lib\fP を用いる。 バイナリがリンカーオプション \fB\-z nodeflib\fP
+でリンクされている場合、このステップはスキップされる。
+.SS "rpath トークンの展開"
+.PP
+\fBld.so\fP では rpath 指定 (DT_RPATH や DT_RUNPATH) 中にいくつかの特定の文字列を使うことができる。
+それらの文字列は以下のように置き換えられる。
+.TP 
+\fI$ORIGIN\fP (\fI${ORIGIN}\fP も同じ)
+プログラムや共有ライブラリが入っているディレクトリに展開される。 したがって、 \fIsomedir/app\fP に置かれたアプリケーションを
+
+    gcc \-Wl,\-rpath,\(aq$ORIGIN/../lib\(aq
+
+でコンパイルすることで、 \fIsomedir\fP がディレクトリ階層のどこにあっても、 \fBld.so\fP は \fIsomedir/lib\fP
+にある対応する共有ライブラリを見つけることができる。 この機能を使うと、
+特別なディレクトリではなく任意のディレクトリにインストールしても「ややこしい設定なしで」独自の共有ライブラリを使えるアプリケーションを作成することができる。
+.TP 
+\fI$LIB\fP (\fI${LIB}\fP も同じ)
+アーキテクチャーに応じて \fIlib\fP か \fIlib64\fP に展開される (例えば、 x86\-64 では \fIlib64\fP に、 x86\-32 では
+\fIlib\fP に展開される)。
+.TP 
+\fI$PLATFORM\fP (\fI${PLATFORM}\fP も同じ)
+.\" To get an idea of the places that $PLATFORM would match,
+.\" look at the output of the following:
+.\"
+.\"     mkdir /tmp/d
+.\"     LD_LIBRARY_PATH=/tmp/d strace -e open /bin/date 2>&1 | grep /tmp/d
+.\"
+.\" ld.so lets names be abbreviated, so $O will work for $ORIGIN;
+.\" Don't do this!!
+ホストシステムのプロセッサ種別に対応する文字列に展開される (例えば "x86_64")。
+いくつかのアーキテクチャーでは、 Linux カーネルから動的リンカーにプラットフォームを表す文字列が提供されない。 この文字列の値は補助ベクトルの
+\fBAT_PLATFORM\fP 値から取得される (\fBgetauxval\fP(3) 参照)。
+.SH オプション
+.TP 
+\fB\-\-list\fP
+全ての依存関係とその解決法をリストする。
+.TP 
+\fB\-\-verify\fP
+プログラムが動的にリンクされているかと、 動的リンカーがそのプログラムを扱えるかを検証する。
+.TP 
+\fB\-\-inhibit\-cache\fP
+/etc/ld.so.cache を使用しない。
+.TP 
+\fB\-\-library\-path PATH\fP
+\fBLD_LIBRARY_PATH\fP 環境変数の設定ではなく、
+指定した PATH を使用する (下記参照)。
+.TP 
+\fB\-\-inhibit\-rpath LIST\fP
+LIST にあるオブジェクト名の RPATH と RUNPATH の情報を無視する。 \fBld.so\fP が set\-user\-ID か
+set\-group\-ID されている場合、 このオプションは無視される。
+.TP 
+\fB\-\-audit LIST\fP
+LIST で指定された名前のオブジェクトを監査者として使用する。
+.SH ハードウェア機能
+いくつかのライブラリは、(すべての CPU に存在するわけではない)ハードウェア固有
+の命令を使ってコンパイルされている。そのようなライブラリは、
+\fI/usr/lib/sse2/\fP のような、必要なハードウェア機能 (hardware capability) を規
+定する名前のディレクトリにインストールすべきである。
+動的リンカーは、マシンのハードウェアに基づいてこれらのディレクトリを確認し、
+指定されたライブラリに最も適したバージョンを選択する。
+ハードウェア機能ディレクトリはつなげることができ、
+複数の CPU 機能を組み合わることができる。
+対応しているハードウェア機能名のリストは CPU に依存する。
+現在のところ、以下の名前が認識される。
+.TP 
+\fBAlpha\fP
+ev4, ev5, ev56, ev6, ev67
+.TP 
+\fBMIPS\fP
+loongson2e, loongson2f, octeon, octeon2
+.TP 
+\fBPowerPC\fP
+4xxmac, altivec, arch_2_05, arch_2_06, booke, cellbe, dfp, efpdouble,
+efpsingle, fpu, ic_snoop, mmu, notb, pa6t, power4, power5, power5+, power6x,
+ppc32, ppc601, ppc64, smt, spe, ucache, vsx
+.TP 
+\fBSPARC\fP
+flush, muldiv, stbar, swap, ultra3, v9, v9v, v9v2
+.TP 
+\fBs390\fP
+dfp, eimm, esan3, etf3enh, g5, highgprs, hpage, ldisp, msa, stfle, z900,
+z990, z9\-109, z10, zarch
+.TP 
+\fBx86 (32\-bit のみ)\fP
+acpi, apic, clflush, cmov, cx8, dts, fxsr, ht, i386, i486, i586, i686, mca,
+mmx, mtrr, pat, pbe, pge, pn, pse36, sep, ss, sse, sse2, tm
+.SH 環境変数
+重要な環境変数には以下のものがある。
+.TP 
+\fBLD_ASSUME_KERNEL\fP
+(glibc 2.2.3 以降)  各共有ライブラリは動的リンカーに必要なカーネル ABI の最小バージョンを通知することができる (必要なバージョンは
+ELF の note section に格納され、 \fIreadelf\ \-n\fP で \fBNT_GNU_ABI_TAG\fP
+のラベルが付いたセクションとして見ることができる)。 実行時に、 動的リンカーは実行中のカーネルの ABI バージョンを判定し、 カーネルの ABI
+バージョンよりも大きな ABI の最小バージョンが指定された共有ライブラリのロードを行わない。
+
+\fBLD_ASSUME_KERNEL\fP を使うことで、 動的リンカーに、 異なるカーネル ABI
+バージョンのシステムで実行されているかのように見せることができる。 例えば、 以下のコマンドラインを実行すると、 動的リンカーは \fImyprog\fP
+が必要とする共有ライブラリをロードする際に Linux 2.2.5 上で動作していると仮定する。
+
+.in +4n
+.nf
+$ \fBLD_ASSUME_KERNEL=2.2.5 ./myprog\fP
+.fi
+.in
+
+必要なカーネル ABI の最低バージョンが異なる複数の共有ライブラリが (検索パス中の異なるディレクトリに) あるシステムでは、
+\fBLD_ASSUME_KERNEL\fP を使って (ディレクトリ検索順序に基づき) 使用するライブラリのバージョンを選択することができる。
+歴史的に見ると、 \fBLD_ASSUME_KERNEL\fP の最も一般的な使い道は、 LinuxThreads と NPTL
+の両方を提供しているシステムで、 古い LinuxThreads の POSIX スレッド実装を手動で選択するためであった
+(そのようなシステムでは、通常は NPTL がデフォルトであった)。 \fBpthreads\fP(7) を参照。
+.TP 
+\fBLD_BIND_NOT\fP
+(glibc 2.2 以降) シンボルを解決した際、Global Offset Table (GOT) と Procedure Linkage
+Table (PLT) を更新しない。
+.TP 
+\fBLD_BIND_NOW\fP
+(libc5; glibc 2.1.1 以降)  空文字列でない場合、 動的リンカーはプログラムの開始時に全てのシンボルを解決する。
+空文字列の場合、解決しなければならない関数呼び出しが 最初に参照された時点で解決する。 デバッガを使っているときに役立つ。
+.TP 
+\fBLD_LIBRARY_PATH\fP
+コロン区切りのディレクトリのリスト。実行時に ELF ライブラリを検索するディレクトリを指定する。 \fBPATH\fP 環境変数と同じように指定する。
+set\-user\-ID/set\-group\-ID されたプログラムでは無視される。
+.TP 
+\fBLD_PRELOAD\fP
+追加でユーザーが指定する ELF
+共有ライブラリのリスト。指定されたライブラリは、すべてのライブラリより前にロードされる。リストの区切りはスペースとコロンである。他の共有ライブラリにある関数を選択的に置き換えるために用いることができる。指定されたライブラリは「説明」の節で述べたルールを基いて検索される。
+set\-user\-ID/set\-group\-ID された ELF
+バイナリでは、スラッシュを含んだパス名のライブラリは無視され、標準の検索ディレクトリのライブラリはそのライブラリファイルの set\-user\-ID
+許可ビットが有効になっている場合のみロードされる。
+.TP 
+\fBLD_TRACE_LOADED_OBJECTS\fP
+(ELF のみ)  空文字列でない場合、 プログラムを普通に実行するのではなく、 \fBldd\fP(1)
+を実行したときのように動的ライブラリの依存関係をリスト表示させる。
+.LP
+そして、それほど知られていない環境変数もある。 多くは廃れてしまったものか内部でのみ使用される環境変数である。
+.TP 
+\fBLD_AOUT_LIBRARY_PATH\fP
+(libc5)  a.out バイナリにのみ使われる環境変数で、 \fBLD_LIBRARY_PATH\fP と同じ役割をする。 ld\-linux.so.1
+の古いバージョンでは \fBLD_ELF_LIBRARY_PATH\fP もサポートしていた。
+.TP 
+\fBLD_AOUT_PRELOAD\fP
+(libc5)  a.out バイナリにのみ使われる環境変数で、 \fBLD_PRELOAD\fP と同じ役割をする。 ld\-linux.so.1
+の古いバージョンでは \fBLD_ELF_PRELOAD\fP もサポートしていた。
+.TP 
+\fBLD_AUDIT\fP
+(glibc 2.4 以降)  他のオブジェクトよりも前に、別のリンカー名前空間 (そのプロセスで行われる 通常のシンボル結合 (symbol
+bindigns) には関与しない名前空間) で ロードされる、ユーザー指定の ELF 共有オブジェクトのコロン区切りのリスト。
+これらのライブラリを使って、動的リンカーの動作を監査することができる。 set\-user\-ID/set\-group\-ID されたバイナリでは、
+\fBLD_AUDIT\fP は無視される。
+
+動的リンカーは、いわゆる監査チェックポイント (auditing checkpoints)  において、監査 (audit)
+ライブラリの適切な関数を呼び出すことで、 監査ライブラリへの通知を行う。監査チェックポイントの例としては、
+新たなライブラリのロード、シンボルの解決、別の共有オブジェクト からのシンボルの呼び出し、などがある。 詳細は \fBrtld\-audit\fP(7)
+を参照してほしい。 audit インターフェースは、Solaris で提供されているものと 大部分は互換性がある。Solaris の audit
+インターフェースについては、 \fILinker and Libraries Guide\fP の \fIRuntime Linker Auditing
+Interface\fP の章に説明がある。
+.TP 
+\fBLD_BIND_NOT\fP
+(glibc 2.1.95 以降)  シンボルを解決した後、GOT (global offset table) と PLT (procedure
+linkage table) を更新しない。
+.TP 
+\fBLD_DEBUG\fP
+(glibc 2.1 以降)  動的リンカーの詳細なデバッグ情報を出力する。 \fBall\fP
+に設定した場合、全ての動的リンカーが持つデバッグ情報を表示する。 \fBhelp\fP
+に設定した場合、この環境変数で指定されるカテゴリーのヘルプ情報を表示する。 glibc 2.3.4 以降、
+set\-user\-ID/set\-group\-ID されたバイナリでは \fBLD_DEBUG\fP は無視される。
+.TP 
+\fBLD_DEBUG_OUTPUT\fP
+(glibc 2.1 以降)  \fBLD_DEBUG\fP の出力を書き込むファイル。 デフォルトは標準エラーである。
+set\-user\-ID/set\-group\-ID されたバイナリでは、 \fBLD_DEBUG_OUTPUT\fP は無視される。
+.TP 
+\fBLD_DYNAMIC_WEAK\fP
+(glibc 2.1.19 以降)  上書きされる弱いシンボル (昔の glibc の挙動を逆にする)。 セキュリティ上の理由から、glibc
+2.3.4 以降、 set\-user\-ID/set\-group\-ID されたバイナリでは \fBLD_DYNAMIC_WEAK\fP は無視される。
+.TP 
+\fBLD_HWCAP_MASK\fP
+(glibc 2.1 以降)  ハードウェア機能のマスク。
+.TP 
+\fBLD_KEEPDIR\fP
+(a.out のみ)(libc5)  ロードする a.out ライブラリの名前において、ディレクトリを無視しない。 このオプションは用いるべきではない。
+.TP 
+\fBLD_NOWARN\fP
+(a.out のみ)(libc5)  a.out ライブラリにおけるマイナーバージョン番号の非互換に 対する警告メッセージを抑制する。
+.TP 
+\fBLD_ORIGIN_PATH\fP
+.\" Only used if $ORIGIN can't be determined by normal means
+.\" (from the origin path saved at load time, or from /proc/self/exe)?
+(glibc 2.1 以降)  バイナリへのパス (set\-user\-ID されていないプログラムについて)。 セキュリティ上の理由から、glibc
+2.3.4 以降、 set\-user\-ID/set\-group\-ID されたバイナリでは \fBLD_ORIGIN_PATH\fP は無視される。
+.TP 
+\fBLD_POINTER_GUARD\fP
+(glibc 2.4 以降)  0 に設定すると、ポインター保護 (pointer guarding) が無効になる。
+それ以外の値の場合はポインター保護が有効になる。 デフォルトはポインター保護有効である。
+ポインター保護はセキュリティ機構の一つで、書き込み可能なプログラムメモリー に格納されたコードへのポインターをほぼランダム化することで、
+攻撃者がバッファーオーバーランやスタック破壊 (stack\-smashing) 攻撃の際に ポインターを乗っ取ることを困難にするものである。
+.TP 
+\fBLD_PROFILE\fP
+(glibc 2.1 以降)  プロファイルを行う共有オブジェクトの名前。 パス名か共有オブジェクト名 (soname) で指定される。
+プロフィールの出力は "\fI$LD_PROFILE_OUTPUT\fP/\fI$LD_PROFILE\fP.profile" という名前の ファイルに追記される。
+.TP 
+\fBLD_PROFILE_OUTPUT\fP
+(glibc 2.1 以降)  \fBLD_PROFILE\fP の出力が書き込まれるディレクトリ。
+この変数が定義されていないか、空の文字列が定義されている場合、 デフォルト値は \fI/var/tmp\fP となる。
+set\-user\-ID/set\-group\-ID されたプログラムでは、 LD_PROFILE_OUTPUT は無視される。 出力ファイルは常に
+\fI/var/profile\fP が使用される。
+.TP 
+\fBLD_SHOW_AUXV\fP
+.\" FIXME
+.\" Document LD_TRACE_PRELINKING (e.g.: LD_TRACE_PRELINKING=libx1.so ./prog)
+.\"	Available since glibc 2.3
+.\"	Also enables DL_DEBUG_PRELINK
+(glibc 2.1 以降)  カーネルから渡される補助的な (パラメーターの) 配列を表示する。 セキュリティ上の理由から、glibc 2.3.4
+以降、 set\-user\-ID/set\-group\-ID されたバイナリでは \fBLD_SHOW_AUXV\fP は無視される。
+.TP 
+\fBLD_USE_LOAD_BIAS\fP
+.\" http://sources.redhat.com/ml/libc-hacker/2003-11/msg00127.html
+.\" Subject: [PATCH] Support LD_USE_LOAD_BIAS
+.\" Jakub Jelinek
+デフォルトでは (つまり、この変数が定義されていない場合)、 実行ファイルと prelink された共有オブジェクトでは、それらが依存する
+ライブラリのベースアドレスが尊重される一方、 (prelink されていない) position\-independent executables
+(PIEs) と 他の共有オブジェクトでは依存するライブラリのベースアドレスは 尊重されない。 \fBLD_USE_LOAD_BIAS\fP が値 1
+で定義された場合、実行ファイルと PIE のどちらでも ベースアドレスが尊重される。 \fBLD_USE_LOAD_BIAS\fP が値 0
+で定義された場合、実行ファイルと PIE のどちらでも ベースアドレスは尊重されない。 set\-user\-ID や set\-group\-ID
+されたプログラムでは、 この変数は無視される。
+.TP 
+\fBLD_VERBOSE\fP
+(glibc 2.1 以降) 空文字列でない場合に、\fBLD_TRACE_LOADED_OBJECTS\fP
+環境変数が設定されていれば、プログラムのシンボルバージョン情報を出力する。
+.TP 
+\fBLD_WARN\fP
+(ELF のみ)(glibc 2.1.3 以降)  空文字列でない場合、解決されていないシンボルがあれば警告を出す。
+.TP 
+\fBLDD_ARGV0\fP
+(libc5)  \fBldd\fP(1)  の引き数がない場合に、 \fIargv\fP[0] として使われる値。
+.SH ファイル
+.PD 0
+.TP 
+\fI/lib/ld.so\fP
+a.out の動的リンカー/ローダー
+.TP 
+\fI/lib/ld\-linux.so.\fP{\fI1\fP,\fI2\fP}
+ELF の動的リンカー/ローダー
+.TP 
+\fI/etc/ld.so.cache\fP
+ライブラリを検索するディレクトリを集めたリストと、 共有ライブラリの候補の整列リストを含むファイル。
+.TP 
+\fI/etc/ld.so.preload\fP
+プログラムの前にロードすべき ELF 共有ライブラリを スペースで区切ったリストが書かれているファイル。
+.TP 
+\fBlib*.so*\fP
+共有ライブラリ
+.PD
+.SH 注意
+\fBld.so\fP の機能は libc のバージョン 4.4.3 以上を用いてコンパイルされた 実行ファイルで使用可能である。 ELF の機能は
+Linux 1.1.52 以降と libc5 以降で使用可能である。
+.SH 関連項目
+.\" .SH AUTHORS
+.\" ld.so: David Engel, Eric Youngdale, Peter MacDonald, Hongjiu Lu, Linus
+.\"  Torvalds, Lars Wirzenius and Mitch D'Souza
+.\" ld-linux.so: Roland McGrath, Ulrich Drepper and others.
+.\"
+.\" In the above, (libc5) stands for David Engel's ld.so/ld-linux.so.
+\fBld\fP(1), \fBldd\fP(1), \fBpldd\fP(1), \fBsprof\fP(1), \fBdlopen\fP(3), \fBgetauxval\fP(3),
+\fBrtld\-audit\fP(7), \fBldconfig\fP(8), \fBsln\fP(8)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

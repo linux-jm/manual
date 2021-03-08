@@ -1,0 +1,241 @@
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\" and Copyright (C) 2008, 2014 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(BSD_3_CLAUSE_UCB)
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" %%%LICENSE_END
+.\"
+.\"	@(#)symlink.7	8.3 (Berkeley) 3/31/94
+.\" $FreeBSD: src/bin/ln/symlink.7,v 1.30 2005/02/13 22:25:09 ru Exp $
+.\"
+.\" 2008-06-11, mtk, Taken from FreeBSD 6.2 and heavily edited for
+.\"     specific Linux details, improved readability, and man-pages style.
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH SYMLINK 7 2014\-04\-06 Linux "Linux Programmer's Manual"
+.SH 名前
+symlink \- シンボリックリンクの取り扱い
+.SH 説明
+シンボリックリンクは他のファイルへのポインターとして振る舞うファイルである。
+その挙動を理解するには、まずハードリンクがどのように機能するかを理解しておかなければならない。
+
+あるファイルへのハードリンクは、 元々のファイルと区別することができない。 なぜなら、
+ハードリンクは元々のファイル名の裏にあるオブジェクトへの参照だからである。 (より正確には、 あるファイルへのハードリンクはそれぞれ同じ \fIinode
+番号\fP への参照である。 inode 番号は inode テーブルへのインデックスで、 inode
+テーブルはファイルシステム上のすべてのファイルについてのメタデータを保持している。 \fBstat\fP(2) 参照。)
+ファイルへの変更は、ファイルの参照に使用された名前とは独立に行われる。 ハードリンクはディレクトリを参照することはできない
+(これはファイルシステムツリー内でループが発生する可能性を防止するためであり、 ループが発生すると、 多くのプログラムが混乱してしまうことだろう)。
+また、 ハードリンクは異なるファイルシステム上のファイルを参照することもできない (inode
+番号はファイルシステムをまたがると一意ではないからである)。
+
+シンボリックリンクは特別な種類のファイルで、 ファイルの内容はそのリンクの参照先の別のファイルのパス名を示す文字列である (シンボリックリンクの内容は
+\fBreadlink\fP(2) を使って読むことができる)。 言い換えると、 シンボリックリンクは別の名前へのポインターであり、
+ファイルの裏にあるオブジェクトへのポインターではない。 この理由から、
+シンボリックリンクではディレクトリへの参照やファイルシステム境界を越える参照を行うことができる。
+
+シンボリックリンクが参照する先のパス名が存在しないといけないという要件はない。 存在しないパス名を参照するシンボリックリンクは「壊れた
+(dangling) リンク」と呼ばれる。
+
+シンボリックリンクとその参照先のオブジェクトは一つのファイルシステムの名前空間内に共存するので、
+リンクそのものと参照先のオブジェクトの間で混乱が生じる可能性がある。 かなり昔からあるシステムでは、
+コマンドやシステムコールはいくらかアドホックな方法の独自のリンクの辿り方の決まり事を採用している。 ここでは、 Linux
+や他のシステムで実装されている、 もっと広く使われている方法のルールについて概要を説明する。 サイト固有のアプリケーションもこれらのルールに準拠し、
+可能な限りユーザーインターフェースが一貫したものになるようにすることが重要である。
+.SS シンボリックリンクの所有権、アクセス許可、タイムスタンプ
+既存のシンボリックリンクの所有者とグループは \fBlchown\fP(2) を使って変更することができる。 シンボリックリンクの所有権が問題となる場面は、
+スティッキービット (\fBstat\fP(2) 参照) がセットされたディレクトリで、 そのリンクの削除や名前の変更を行おうとしている場合だけである。
+
+シンボリックリンクの最終アクセス時刻と最終修正時刻は \fButimensat\fP(2) や \fBlutimes\fP(3) で変更できる。
+
+.\" Linux does not currently implement an lchmod(2).
+.\"
+.\" The
+.\" 4.4BSD
+.\" system differs from historical
+.\" 4BSD
+.\" systems in that the system call
+.\" .BR chown (2)
+.\" has been changed to follow symbolic links.
+.\" The
+.\" .BR lchown (2)
+.\" system call was added later when the limitations of the new
+.\" .BR chown (2)
+.\" became apparent.
+Linux では、シンボリックリンクのアクセス許可 (permission) はどの操作でも使用されない。 アクセス許可は常に 0777
+(すべてのユーザーカテゴリーにおいて読み出し、書き込み、実行が可能) で、変更できない。
+.SS シンボリックリンクを参照するファイルディスクリプターを取得する
+\fBopen\fP(2) に \fBO_PATH\fP と \fBO_NOFOLLOW\fP
+の両方のフラグを指定すると、ファイルディスクリプターが得られる。このファイルディスクリプターは \fBfstatat\fP(2),
+\fBfchownat\fP(2), \fBfchmodat\fP(2), \fBlinkat\fP (2), \fBreadlinkat\fP(2) などのシステムコールの
+\fIdirfd\fP 引き数として渡して、 (シンボリックリンクが参照するファイルではなく) シンボリックリンク自身に対する操作を行うことができる。
+
+デフォルトでは (すなわち \fBAT_SYMLINK_FOLLOW\fP フラグが指定されなかった場合)、 \fBname_to_handle_at\fP(2)
+がシンボリックリンクに適用された場合、 (シンボリックリンクが参照するファイルではなく) シンボリックリンクへのハンドルが返される。 それ以降の
+\fBopen_by_handle_at\fP(2) で \fBO_PATH\fP フラグを指定することで、 (シンボリックリンクが参照するファイルではなく)
+シンボリックリンクに対するファイルディスクリプターを得ることができる。 繰り返しになるが、 このファイルディスクリプターを上述のシステムコールで使用し、
+シンボリックリンク自身に操作を行うことができる。
+.SS システムコールやコマンドによるシンボリックリンクの取り扱い
+シンボリックリンクは、 リンク自身に対する操作か、 リンクが参照するオブジェクトに対する操作のいずれかとして扱われる。 後者の場合、
+アプリケーションやシステムコールはリンクを\fI辿る (follow)\fPと呼ばれる。 シンボリックリンクは他のシンボリックリンクを参照することもできる。
+この場合、 シンボリックリンクでないオブジェクトが見つかるか、 存在しないファイルを参照するシンボリックリンクが見つかるか、 ループが検出されるまで、
+リンクの展開が行われる。 (ループの検出は辿ることができるリンクの数に上限を設けることで行われる。 この上限を超過した場合はエラーとなる。)
+
+3 つの領域に分けて議論する必要がある。以下の 3 つである。
+.IP 1. 3
+システムコールのファイル名引き数としてシンボリックリンクが使用される場合。
+.IP 2.
+ファイルツリーを辿っていないユーティリティーのコマンドライン引き数としてシンボリックリンクが指定される場合。
+.IP 3.
+ファイルツリーを辿っているユーティリティーがシンボリックリンクを見つけた場合 (コマンドラインで指定される場合もあれば、
+ファイル階層を辿っている途中で遭遇する場合もある)。
+.SS システムコール
+最初の領域は、システムコールのファイル名引き数としてシンボリックリンクが使用される場合である。
+
+以下に述べる場合を除くと、 すべてのシステムコールはシンボリックリンクを辿る。 例えば、 \fIafile\fP
+という名前のファイルを指しているシンボリックリンク \fIslink\fP があったとすると、 システムコール \fIopen("slink" ...\&)\fP
+はファイル \fIafile\fP を参照するファイルディスクリプターを返す。
+
+リンクを辿らず、シンボリックリンク自身に対して操作を行うシステムコールもある。 このようなシステムコールとしては、 \fBlchown\fP(2),
+\fBlgetxattr\fP(2), \fBllistxattr\fP(2), \fBlremovexattr\fP(2), \fBlsetxattr\fP(2),
+\fBlstat\fP(2), \fBreadlink\fP(2), \fBrename\fP(2), \fBrmdir\fP(2), \fBunlink\fP(2) がある。
+
+.\" Maybe one day: .BR fchownat (2)
+他のいくつかのシステムコールは、指定された場合にのみシンボリックリンクを辿る。 これらのシステムコールとしては、 \fBfaccessat\fP(2),
+\fBfchownat\fP(2), \fBfstatat\fP(2), \fBlinkat\fP(2), \fBname_to_handle_at\fP(2),
+\fBopen\fP(2), \fBopenat\fP(2), \fBopen_by_handle_at\fP(2), \fButimensat\fP(2) がある。
+詳細はそれぞれのマニュアルページを参照してほしい。 \fBremove\fP(3) は \fBunlink\fP(2) の別名なので、
+このライブラリ関数もシンボリックリンクを辿らない。 \fBrmdir\fP(2) がシンボリックリンクに対して行われた場合、その呼び出しはエラー
+\fBENOTDIR\fP で失敗する。
+
+\fBlink\fP(2) については特別に議論が必要である。 POSIX.1\-2001 では \fBlink\fP(2) は \fIoldpath\fP
+がシンボリックリンクであればこれを展開するように規定している。 しかしながら、 Linux はシンボリックリンクを展開しない。 (デフォルトでは
+Solaris も同じだが、 適切なコンパイラーオプションを指定することで POSIX.1\-2001 で規定された動作をさせることができる。)
+今後のバージョンの POSIX.1 では、どちらの動作の実装も認められるように規定が変更される。
+.SS ファイルツリーを辿らないコマンド
+二つ目の領域は、 ファイルツリーを辿らないコマンドの、 コマンドライン引き数のファイル名としてシンボリックリンクが指定される場合である。
+
+以下に述べる場合を除くと、 コマンドはコマンドライン引き数で指定された名前のシンボリックリンクを辿る。 例えば、 \fIafile\fP
+という名前のファイルを指しているシンボリックリンク \fIslink\fP があったとすると、 コマンド \fIcat slink\fP は \fIafile\fP
+の内容を表示することになる。
+
+大事な点として意識しておくべきなのは、 このルールが適用されるコマンドの中には、
+オプション次第ではファイルツリーを辿る場合があるコマンドもあるということである。  例えば、 コマンド \fIchown file\fP
+はこのルールに含まれるが、 コマンド \fIchown\ \-R file\fP はツリーを辿る動作をするのであてはまらない (後者の場合は、3
+つ目の領域に該当する)。
+
+シンボリックリンクを辿るのではなく、 コマンドがシンボリックリンク自身に対して操作を行うことを明示的に指示したい場合、 例えば、 \fIchown
+slink\fP で \fIslink\fP がシンボリックリンクかどうかに関わらず、 \fIslink\fP のファイル自身の所有権を変更したい場合は、 \fI\-h\fP
+オプションを使用すべきである。 上記の例では、 \fIchown root slink\fP は \fIslink\fP が参照するファイルの所有権を変更するが、
+\fIchown\ \-h root slink\fP は \fIslink\fP 自身の所有権を変更する。
+
+このルールにはいくつかの例外がある。
+.IP * 2
+コマンド \fBmv\fP(1) と \fBrm\fP(1) は引き数で指定された名前のシンボリックリンクを辿らないが、
+それぞれシンボリックリンク自身の名前変更と削除を行おうとする。 (シンボリックリンクが相対パスでファイルを参照している場合、
+そのシンボリックリンクを別のディレクトリに移動すると、動かなくなることが非常によくある。 移動の結果、 パスが正しくないものになってしまうからである。)
+.IP *
+\fBls\fP(1) コマンドもこのルールの例外である。 昔からあるシステムとの互換性のため (\fBls\fP(1) がツリーを辿らない場合、つまり \fI\-R\fP
+オプションが指定されなかった場合)、 \fBls\fP(1) コマンドはオプション \fI\-H\fP か \fI\-L\fP が指定された場合、もしくはオプション
+\fI\-F\fP, \fI\-d\fP, \fI\-l\fP が指定されなかった場合、 引き数として指定されたシンボリックリンクを辿る。 (\fBls\fP(1) コマンドは、
+ファイルツリーを辿らない場合であっても、 オプション \fI\-H\fP と \fI\-L\fP がその動作に影響を与える唯一のコマンドである。)
+.IP *
+.\"
+.\"The 4.4BSD system differs from historical 4BSD systems in that the
+.\".BR chown (1)
+.\"and
+.\".BR chgrp (1)
+.\"commands follow symbolic links specified on the command line.
+\fBfile\fP(1) コマンドもこのルールの例外である。 \fBfile\fP(1) コマンドは、
+デフォルトでは引き数で指定されたシンボリックリンクを辿らない。 \fBfile\fP(1) コマンドは、 \fI\-L\fP オプションが指定された場合、
+引き数で指定されたシンボリックリンクを辿る。
+.SS ファイルツリーを辿るコマンド
+次のコマンドは指定された場合もしくは常にファイルツリーを辿る: \fBchgrp\fP(1), \fBchmod\fP(1), \fBchown\fP(1),
+\fBcp\fP(1), \fBdu\fP(1), \fBfind\fP(1), \fBls\fP(1), \fBpax\fP(1), \fBrm\fP(1), \fBtar\fP(1)。
+
+重要なのは、 ファイルツリーを辿っている際に見つかったシンボリックリンクにも、 コマンドライン引き数として渡されたシンボリックリンクにも、
+以下のルールが等しく適用される点である。
+
+「1 つ目のルール」は、 ディレクトリ以外のファイルを参照するシンボリックリンクに適用される。
+シンボリックリンクに適用される操作はシンボリックリンク自身に行われるが、 そうでない場合はリンクは無視される。
+
+コマンド \fIrm\ \-r slink directory\fP は \fIslink\fP を削除するとともに、
+ファイルツリーを辿る途中で見つけたシンボリックリンクも削除する。 シンボリックリンクは削除できるからである。 \fBrm\fP(1) が \fIslink\fP
+が参照するファイルに影響をおよぼすことはない。
+
+「2 つ目のルール」は、 ディレクトリを参照するシンボリックリンクに適用される。 デフォルトでは、 ディレクトリを参照するシンボリックリンクを辿らない。
+この動作はしばしば「物理的な」ツリー探索 ("physical" walk) と呼ばれる。 これに対して
+(ディレクトリを参照するシンボリックリンクを辿る場合は) 「論理的な」ツリー探索 ("logical" walk) と呼ばれる。
+
+一貫性を持たせるため、ファイルツリーを辿るコマンドが可能な限り従っている慣習がいくつかある。
+.IP * 2
+\fI\-H\fP ("half\-logical") フラグを指定すると、 参照先のファイル種別に関わらず、
+コマンドにコマンドラインで指定されたシンボリックリンクを辿らせることができる。 このフラグは、
+コマンドラインの名前空間を論理的な名前空間のように見せるためのものである。 (常にファイルツリーを辿るわけではないコマンドでは、 \fI\-R\fP
+フラグを一緒に指定しない限り、 \fI\-H\fP フラグは無視される点に注意。)
+
+例えば、 コマンド \fIchown\ \-HR user slink\fP は \fIslink\fP が指すファイルを頂点とするファイル階層を辿る。 \fI\-H\fP
+は上記で説明した \fI\-h\fP フラグとは同じではないことに注意。 \fI\-H\fP フラグを指定すると、 アクションを実行する場合でも、
+ツリーを辿る場合でも、 コマンドラインで指定されたシンボリックリンクの解決 (dereference) を行う。
+ユーザーがシンボリックリンクが指すファイル名を指定したのと同じように見える。
+.IP *
+\fI\-L\fP ("logical") フラグを指定すると、 参照先のファイル種別に関わらず、 コマンドが、
+コマンドラインで指定された名前のシンボリックリンクも、 ファイルツリーを辿る際に見つけたシンボリックリンクも辿るようになる。 このフラグは、
+名前空間全体を論理的な名前空間のように見せるためのものである。 (常にファイルツリーを辿るわけではないコマンドでは、 \fI\-R\fP
+フラグを一緒に指定しない限り、 \fI\-L\fP フラグは無視される点に注意。)
+
+例えば、 コマンド \fIchown\ \-LR user slink\fP は \fIslink\fP が参照するファイルの所有者を変更する。
+\fIslink\fP がディレクトリを参照する場合、 \fBchown\fP はそのシンボリックリンクが参照するディレクトリを頂点とするファイル階層を辿る。
+また、 \fBchown\fP が辿るファイルツリー内でシンボリックリンクが見つかった場合、 \fIslink\fP と同じように処理される。
+.IP *
+\fI\-P\fP ("physical") フラグを指定すると、 コマンドはデフォルトの動作をするようになる。
+このフラグは名前空間全体を物理的な名前空間のように見せるためのものである。
+.PP
+デフォルトでファイルツリーを辿らないコマンドでは、 \fI\-R\fP フラグが同時に指定されなかった場合、 フラグ \fI\-H\fP, \fI\-L\fP, \fI\-P\fP
+は無視される。 また、 \fI\-H\fP, \fI\-L\fP, \fI\-P\fP は複数回同時に指定できるが、 最後に指定されたオプションでコマンドの動作が決定される。
+この動作は、 コマンドのエイリアスにある動作を指定しておいて、 コマンドラインでその動作を上書きできるようにするためである。
+
+コマンド \fBls\fP(1) と \fBrm\fP(1) には、 これらのルールに対する例外がある。
+.IP * 2
+\fBrm\fP(1) コマンドは、 参照先のファイルではなく、シンボリックリンクに対して操作を行う。 したがって、 シンボリックリンクを辿ることはない。
+\fBrm\fP(1) コマンドはオプション \fI\-H\fP, \fI\-L\fP, \fI\-P\fP をサポートしていない。
+.IP *
+古いシステムとの互換性を持たせるため、 \fBls\fP(1) コマンドは少し違った動作をする。 オプション \fI\-F\fP, \fI\-d\fP, \fI\-l\fP
+を指定した場合、 \fBls\fP(1) はコマンドラインで指定されたシンボリックリンクを辿る。 \fI\-L\fP フラグが指定された場合、
+コマンドラインで指定された場合でも、 ファイルツリーを辿る際に見つかった場合でも、 ファイル種別に関わらず、 \fBls\fP(1)
+はすべてのシンボリックリンクを辿る。
+.SH 関連項目
+\fBchgrp\fP(1), \fBchmod\fP(1), \fBfind\fP(1), \fBln\fP(1), \fBls\fP(1), \fBmv\fP(1),
+\fBrm\fP(1), \fBlchown\fP(2), \fBlink\fP(2), \fBlstat\fP(2), \fBreadlink\fP(2),
+\fBrename\fP(2), \fBsymlink\fP(2), \fBunlink\fP(2), \fButimensat\fP(2),
+\fBlutimes\fP(3), \fBpath_resolution\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

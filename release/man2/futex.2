@@ -1,0 +1,223 @@
+.\" Page by b.hubert
+.\"
+.\" %%%LICENSE_START(FREELY_REDISTRIBUTABLE)
+.\" may be freely modified and distributed
+.\" %%%LICENSE_END
+.\"
+.\" Niki A. Rahimi (LTC Security Development, narahimi@us.ibm.com)
+.\" added ERRORS section.
+.\"
+.\" Modified 2004-06-17 mtk
+.\" Modified 2004-10-07 aeb, added FUTEX_REQUEUE, FUTEX_CMP_REQUEUE
+.\"
+.\" FIXME .
+.\" See also https://bugzilla.kernel.org/show_bug.cgi?id=14303
+.\" 2.6.14 adds FUTEX_WAKE_OP
+.\"	commit 4732efbeb997189d9f9b04708dc26bf8613ed721
+.\"	Author: Jakub Jelinek <jakub@redhat.com>
+.\"	Date:   Tue Sep 6 15:16:25 2005 -0700
+.\"
+.\" FIXME .
+.\" 2.6.18 adds (Ingo Molnar) priority inheritance support:
+.\" FUTEX_LOCK_PI, FUTEX_UNLOCK_PI, and FUTEX_TRYLOCK_PI.  These need
+.\" to be documented in the manual page.  Probably there is sufficient
+.\" material in the kernel source file Documentation/pi-futex.txt.
+.\"	commit c87e2837be82df479a6bae9f155c43516d2feebc
+.\"	Author: Ingo Molnar <mingo@elte.hu>
+.\"	Date:   Tue Jun 27 02:54:58 2006 -0700
+.\"
+.\"	commit e2970f2fb6950183a34e8545faa093eb49d186e1
+.\"	Author: Ingo Molnar <mingo@elte.hu>
+.\"	Date:   Tue Jun 27 02:54:47 2006 -0700
+.\"
+.\"	See Documentation/pi-futex.txt
+.\"
+.\" FIXME .
+.\" 2.6.25 adds FUTEX_WAKE_BITSET, FUTEX_WAIT_BITSET
+.\"	commit cd689985cf49f6ff5c8eddc48d98b9d581d9475d
+.\"	Author: Thomas Gleixner <tglx@linutronix.de>
+.\"	Date:   Fri Feb 1 17:45:14 2008 +0100
+.\"
+.\" FIXME .
+.\" 2.6.31 adds FUTEX_WAIT_REQUEUE_PI, FUTEX_CMP_REQUEUE_PI
+.\"	commit 52400ba946759af28442dee6265c5c0180ac7122
+.\"	Author: Darren Hart <dvhltc@us.ibm.com>
+.\"	Date:   Fri Apr 3 13:40:49 2009 -0700
+.\"
+.\"	commit ba9c22f2c01cf5c88beed5a6b9e07d42e10bd358
+.\"	Author: Darren Hart <dvhltc@us.ibm.com>
+.\"	Date:   Mon Apr 20 22:22:22 2009 -0700
+.\"
+.\"	See Documentation/futex-requeue-pi.txt
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright(C) 2003 Suzuki Takashi
+.\"         all rights reserved.
+.\" Translated Fri Oct 24 10:37:10 JST 2003
+.\"         by Suzuki Takashi.
+.\" Updated & Modified Sat Feb  5 14:28:53 JST 2005
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>, LDP v2.01
+.\" Updated & Modified Wed Jan  3 04:51:22 JST 2007 by Yuichi SATO, LDP v2.43
+.\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>, LDP v3.51
+.\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH FUTEX 2 2014\-05\-21 Linux "Linux Programmer's Manual"
+.SH 名前
+futex \- 高速ユーザー空間ロック
+.SH 書式
+.nf
+.sp
+\fB#include <linux/futex.h>\fP
+\fB#include <sys/time.h>\fP
+.sp
+\fBint futex(int *\fP\fIuaddr\fP\fB, int \fP\fIop\fP\fB, int \fP\fIval\fP\fB, const struct timespec *\fP\fItimeout\fP\fB,\fP
+.br
+.\" int *? void *? u32 *?
+\fB          int *\fP\fIuaddr2\fP\fB, int \fP\fIval3\fP\fB);\fP
+.fi
+\fI注\fP: このシステムコールには glibc のラッパー関数は存在しない。「注意」の節を参照。
+.SH 説明
+.PP
+\fBfutex\fP()  システムコールは、 指定したアドレスの値が変更されるのをプログラムが待つ手段や 特定のアドレスに対して待機中のプロセスを
+wake (起床) させる手段を提供する (プロセスが異なれば同じメモリーに対するアドレスも同じではないかもしれないが、
+カーネルは異なる位置にマップされた同じメモリーを \fBfutex\fP()  で使えるよう内部でマップする)。 通常は、このシステムコールは
+\fBfutex\fP(7)  に書かれているように、 共有メモリー中のロックが競合する場合の処理を実装するのに用いられる。
+.PP
+\fBfutex\fP(7)  の操作がユーザー空間で競合なく完了しなかった場合、 カーネルに仲裁させるためにシステムコールを呼ぶ必要がある。
+仲裁というのは、呼び出しプロセスを sleep (起床待ち) させたり、反対に 待ちプロセスを wake させたりすることを意味する。
+.PP
+この関数を呼び出すプロセスは \fBfutex\fP(7)  に記述されているセマンティクスに忠実であることが要求される。
+このセマンティクスには移植不可能なアセンブリ命令を書くことが含まれる。 このことは言い換えると futex
+のユーザーのほとんどは実際はライブラリの作者であり、 一般アプリケーションの開発者ではないということである。
+.PP
+\fIuaddr\fP 引き数は、カウンターを格納する、 アラインメントの揃った int 型変数を指している必要がある。 実行する操作は \fIop\fP
+引き数を介して、値 \fIval\fP とともに渡される。
+.PP
+現在のところ 5 つの操作が定義されている:
+.TP 
+\fBFUTEX_WAIT\fP
+この操作は futex アドレス \fIuaddr\fP に指定された値 \fIval\fP がまだ格納されているかどうかを不可分操作で検証し、 sleep 状態で
+この futex アドレスに対して \fBFUTEX_WAKE\fP が実行されるのを待つ。 \fItimeout\fP 引き数が NULL
+でない場合、その内容は待ち時間の最大値を表す (この停止時間はシステムクロックの粒度に切り上げられ、
+カーネルのスケジューリング遅延により少しだけ長くなる可能性がある)。 NULL の場合、 呼び出しは無限に停止する。 引き数 \fIuaddr2\fP と
+\fIval3\fP は無視される。
+
+\fBfutex\fP(7)  に照らし合わせると、この呼び出しは カウントのデクリメントで負の値 (競合を表す) になった場合に実行され、
+別のプロセスがその futex を解放し \fBFUTEX_WAKE\fP の操作を実行するまで sleep する。
+.TP 
+\fBFUTEX_WAKE\fP
+この操作では指定した futex アドレスに対して待ち状態の (すなわち \fBFUTEX_WAIT\fP 中の) 最大 \fIval\fP 個のプロセスを
+wake させる。 引き数 \fItimeout\fP, \fIuaddr2\fP, \fIval3\fP は無視される。
+
+\fBfutex\fP(4) に照らし合わせると、 この操作は カウントのインクリメントで待ちプロセスがあると判明し、 futex 値が 1 に設定された
+(利用可能であることを表す) 場合に実行される。
+.TP 
+\fBFUTEX_FD\fP (Linux 2.6.25 以前)
+.\" , suitable for .BR poll (2).
+非同期の wake に対応するため、この操作はファイルディスクリプターを futex に 関連づける。 別のプロセスが \fBFUTEX_WAKE\fP
+を実行すると、プロセスは \fIval\fP で渡されたシグナル番号のシグナルを受信する。 呼び出しプロセスは使用後、返されたファイルディスクリプターを
+クローズしなければならない。 引き数 \fItimeout\fP, \fIuaddr2\fP, \fIval3\fP は無視される。
+
+競合状態を防止するため、呼び出しプロセスは \fBFUTEX_FD\fP が返ったあと futex が up されたかどうかを確認しなければならない。
+
+\fBFUTEX_FD\fP はもともと競合が起きやすかったため、 Linux 2.6.26 以降で削除されている。
+.TP 
+\fBFUTEX_REQUEUE\fP (Linux 2.5.70 以降)
+この操作は、 \fBFUTEX_WAKE\fP が使われていて、かつ wake されている全てのプロセスが 他の futex を取得する必要がある場合に、
+「獣の群れの暴走 (thundering herd)」効果を避けるために導入された。 この呼び出しは \fIval\fP 個のプロセスを wake
+し、アドレス \fIuaddr2\fP で futex を待っている他の全てのプロセスを再度キューにいれる。 引き数 \fItimeout\fP と \fIval3\fP
+は無視される。
+.TP 
+\fBFUTEX_CMP_REQUEUE\fP (Linux 2.6.7 以降)
+故意に \fBFUTEX_REQUEUE\fP を使う場合に競合が起こるため、 \fBFUTEX_CMP_REQUEUE\fP が導入された。これは
+\fBFUTEX_REQUEUE\fP と似ているが、場所 \fIuaddr\fP に値 \fIval3\fP がまだ保持されているかを最初にチェックする。
+保持されていない場合、操作はエラー \fBEAGAIN\fP で失敗する。引き数 \fItimeout\fP は無視される。
+.SH 返り値
+.PP
+エラーの場合、全ての操作で \-1 が返り、 \fIerrno\fP
+がエラーの内容を示す値に設定される。成功時の返り値は操作によって異なり、以下のリストに書かれている通りである。
+.TP 
+\fBFUTEX_WAIT\fP
+そのプロセスが \fBFUTEX_WAKE\fP により wake された場合 0 を返す。発生する可能性があるエラーについては「エラー」の節を参照。
+.TP 
+\fBFUTEX_WAKE\fP
+wake したプロセスの数を返す。
+.TP 
+\fBFUTEX_FD\fP
+futex に関連づけられた新たなファイルディスクリプターを返す。
+.TP 
+\fBFUTEX_REQUEUE\fP
+wake したプロセスの数を返す。
+.TP 
+\fBFUTEX_CMP_REQUEUE\fP
+wake したプロセスの数を返す。
+.SH エラー
+.TP 
+\fBEACCES\fP
+futex メモリーに読み込みアクセス権がなかった。
+.TP 
+\fBEAGAIN\fP
+\fBFUTEX_CMP_REQUEUE\fP で、\fIuaddr\fP が指す値が期待値 \fIval3\fP と異なる状況が検出された。
+(これは競合を示しているかもしれない。この場合は安全な \fBFUTEX_WAKE\fP を使うこと。)
+.TP 
+\fBEFAULT\fP
+ユーザー空間から \fItimeout\fP の情報を取得する際にエラーが発生した。
+.TP 
+\fBEINTR\fP
+\fBFUTEX_WAIT\fP 操作がシグナル (\fBsignal\fP(7) 参照) もしくは偽の wakeup により中断された。
+.TP 
+\fBEINVAL\fP
+無効な引き数。
+.TP 
+\fBENFILE\fP
+オープンされているファイルの総数がシステムの制限に達した。
+.TP 
+\fBENOSYS\fP
+\fIop\fP に無効な操作が指定された。
+.TP 
+\fBETIMEDOUT\fP
+\fBFUTEX_WAIT\fP 操作でタイムアウトが発生した。
+.TP 
+\fBEWOULDBLOCK\fP
+\fIop\fP が \fBFUTEX_WAIT\fP で、その呼び出しにおいて \fIuaddr\fP が指す値が期待値 \fIval\fP と異なっていた。
+.SH バージョン
+.PP
+最初の futex 対応は Linux 2.5.7 で組み込まれたが、 上記のセマンティクスとは異なる。 4
+つの引き数のここに書かれているセマンティクスを持つ システムコールは、Linux 2.5.40 で導入された。 Linux 2.5.70 では 1
+つの引き数が追加された。 Linux 2.6.7 では 6 番目の引き数が追加された。 これは汚く、s390 アーキテクチャー上の特別のものである。
+.SH 準拠
+このシステムコールは Linux 固有である。
+.SH 注意
+.PP
+.\" .SH "AUTHORS"
+.\" .PP
+.\" Futexes were designed and worked on by
+.\" Hubertus Franke (IBM Thomas J. Watson Research Center),
+.\" Matthew Kirkwood, Ingo Molnar (Red Hat)
+.\" and Rusty Russell (IBM Linux Technology Center).
+.\" This page written by bert hubert.
+繰り返すが、裸の futex はエンドユーザーが容易に使うことのできる概念として 意図されたものではない (glibc
+にはこのシステムコールに対するラッパー関数はない)。 実装者は、アセンブリ言語に慣れており、以下に挙げる futex ユーザー空間ライブラリの
+ソースを読み終えていることが要求される。
+.SH 関連項目
+\fBrestart_syscall\fP(2), \fBfutex\fP(7)
+.PP
+\fIFuss, Futexes and Furwocks: Fast Userlevel Locking in Linux\fP (proceedings
+of the Ottawa Linux Symposium 2002), online at
+.br
+.UR http://kernel.org\:/doc\:/ols\:/2002\:/ols2002\-pages\-479\-495.pdf
+.UE
+.PP
+futex の使用例ライブラリ, futex\-*.tar.bz2
+.br
+.UR ftp://ftp.kernel.org\:/pub\:/linux\:/kernel\:/people\:/rusty/
+.UE
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -1,0 +1,135 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" (c) 1995 by Jim Van Zandt <jrv@vanzandt.mv.com>
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.\" Added _GNU_SOURCE, aeb, Sat Jul  5 23:10:04 MET 1997
+.\"
+.\" Japanese Version Copyright (c) 1998 Akihiro Motoki all rights reserved.
+.\" Translated Mon May 25 1998 by Akihiro Motoki <motoki@hal.t.u-tokyo.ac.jp>
+.\" Modified Thu Nov 11 1999 by Akihiro Motoki <motoki@ptl.abk.nec.co.jp>
+.\"
+.TH SNPRINTF 3  "16 September 1995" "GNU" "Linux Programmer's Manual"
+.\"O .SH NAME
+.\"O .snprintf, vsnprintf \- formatted output conversion
+.SH 名前
+snprintf, vsnprintf \- 指定した書式で出力を行う
+.\"O .SH SYNOPSIS
+.SH 書式
+.B #define _GNU_SOURCE
+.br
+.B #include <stdio.h>
+.sp
+.BI "int snprintf ( char *" str ", size_t " n ", "
+.br
+.BI "                         const char *" format ", ... );"
+.sp
+.B #include <stdarg.h>
+.sp
+.BI "int vsnprintf ( char *" str ", size_t " n ", "
+.br
+.BI "                         const char *" format ", va_list " ap " );"
+.\"O .SH DESCRIPTION
+.\"O \fBsnprintf\fP writes output to the string \fIstr\fP, under control of
+.\"O the \fIformat\fP string that specifies how subsequent arguments are
+.\"O converted for output.  It is similar to \fBsprintf\fP(3), except that
+.\"O \fIn\fP specifies the maximum number of characters to produce.  The
+.\"O trailing null character is counted towards this limit, so you should
+.\"O allocate at least \fIn\fP characters for the string \fIstr\fP.
+.SH 説明
+\fBsnprintf\fP 関数は、\fIformat\fP で指定された書式に従い、それ以降に
+与えられた引数を整形して出力し、出力は文字列 \fIstr\fP に書き込まれる。
+この関数は \fBsprintf\fP(3) に似ているが、 出力される
+最大文字数 \fIn\fP を指定できる点が異なる。
+文字列の終端を示すヌル文字も最大文字数に含まれるため、
+出力文字列 \fIstr\fP には少なくとも \fIn\fP 文字割り当てる必要がある。
+.PP
+.\"O \fBvsnprintf\fP is the equivalent of \fBsnprintf\fP with the variable
+.\"O argument list specified directly as for \fBvprintf\fP.
+\fBvsnprintf\fP 関数は可変の引数リストをもった \fBsnprintf\fP と等価である。
+引数リストについては \fBvprintf\fP の項で説明されている。
+.\"O .SH "RETURN VALUE"
+.\"O If the output was truncated, the return value is -1, otherwise it is
+.\"O the number of characters stored, not including the terminating null.
+.\"O (Thus until glibc 2.0.6.  Since glibc 2.1 these functions
+.\"O return the  number of characters (excluding the trailing null)
+.\"O which would have been written to the final string if enough space
+.\"O had been available.)
+.SH 返り値
+出力が長く途中でカットされた場合には -1 を返し、それ以外は \fIstr\fP に保存
+された文字数(文字列の終端を示す'\e0'を除く)を返す。
+(但し glibc 2.0.6 までの仕様である。
+glibc 2.1 以降では、これらの関数は、もし利用可能な十分なスペースがあれば
+書き込まれたであろう文字数(文字列の終端を示す'\e0'を除く)を返す。)
+.\"O .SH EXAMPLE
+.SH 例
+.br
+.\"O Here is an example program which dynamically enlarges its output buffer,
+.\"O and works correctly under both glibc 2.0 and glibc 2.1.
+出力バッファを動的に拡張するプログラム例を以下に示す。
+このプログラムは、glibc 2.0 と glibc 2.1 のどちらでも正しく動作する。
+.br
+.sp
+.nf
+.\"O      /* Construct a message describing the value of a 
+.\"O         variable whose name is NAME and whose value is 
+.\"O         VALUE. */
+    /* 変数名とその値を記述する "value of 変数名 is 値"
+       というメッセージを作成する関数 */
+    char *
+    make_message (char *name, char *value)
+    {
+.\"O       /* Guess we need no more than 100 chars of space. */
+      /* 出力バッファは100文字分で十分であると仮定 */
+      int size = 100;
+      char *buffer = (char *) xmalloc (size);
+      while (1)
+        {
+.\"O           /* Try to print in the allocated space. */
+          /* 確保済みのバッファに出力しようとする */
+          int nchars = snprintf (buffer, size,
+                        "value of %s is %s", name, value);
+.\"O           /* If that worked, return the string. */
+          /* 成功すれば、バッファ内の文字列を返す */
+          if (nchars > -1 && nchars < size)
+            return buffer;
+.\"O           /* Else try again with more space. */
+.\"O           if (nchars > -1)
+.\"O             size = nchars+1;  /* precisely what is needed */
+.\"O           else
+.\"O             size *= 2;        /* twice the old size */
+          /* 失敗すれば、さらにバッファを確保して再試行 */
+          if (nchars > -1)
+            size = nchars+1;  /* 必要なバッファ長を正確に確保 */
+          else
+            size *= 2;        /* バッファ長を２倍にする */
+          buffer = (char *) xrealloc (buffer, size);
+        }
+    }
+.fi
+.RE
+.\"O .SH "CONFORMING TO"
+.\"O These are GNU extensions, expected to become part of ISO C9x.
+.SH 準拠
+これらの関数は GNU による拡張である。ISO C9x の一部となる予定である。
+.\"O .SH "SEE ALSO"
+.SH 関連項目
+.BR printf "(3), " sprintf "(3), " vsprintf "(3), " stdarg (3)

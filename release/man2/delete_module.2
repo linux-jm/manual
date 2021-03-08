@@ -1,0 +1,133 @@
+.\" Copyright (C) 2012 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI all rights reserved.
+.\" Translated 2006-07-29, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH DELETE_MODULE 2 2014\-05\-10 Linux "Linux Programmer's Manual"
+.SH 名前
+delete_module \- カーネルモジュールをアンロードする
+.SH 書式
+.nf
+\fBint delete_module(const char *\fP\fIname\fP\fB, int \fP\fIflags\fP\fB);\fP
+.fi
+
+\fI注意\fP: この関数の宣言は glibc のヘッダーでは提供されていない。「注意」を参照。
+.SH 説明
+\fBdelete_module\fP() システムコールは、 \fIname\fP で特定される未使用のロード可能なモジュールのエントリーを削除しようとする。
+モジュールに \fIexit\fP 関数がある場合、 モジュールをアンロードする前にこの関数が実行される。 \fIflags\fP
+引き数は、以下で説明するようにシステムコールの動作を変更するのに使用される。 このシステムコールには特権が必要である。
+
+モジュールの削除は以下のルールにしたがって行われる。
+.IP 1. 4
+このモジュールに依存している (このモジュールで定義されているシンボルを参照している) モジュールがロードされている場合、 この呼び出しは失敗する。
+.IP 2.
+それ以外の場合で、 モジュールの参照カウント (このモジュールを現在使用しているプロセス数) が 0 であれば、 モジュールは直ちにアンロードされる。
+.IP 3.
+.\"  	O_TRUNC == KMOD_REMOVE_FORCE in kmod library
+.\"  	O_NONBLOCK == KMOD_REMOVE_NOWAIT in kmod library
+モジュールの参照カウントが 0 でない場合、 その動作は \fIflags\fP にセットされたビットによって決まる。 通常の使用時は (「注意」参照)、
+\fBO_NONBLOCK\fP は常に指定され、 \fBO_TRUNC\fP フラグが追加で指定されることがある。
+
+\fIflags\fP の組み合わせが持つ効果は以下のとおりである。
+.RS 4
+.TP 
+\fBflags == O_NONBLOCK\fP
+エラーの場合、 呼び出しは直ちに返る。
+.TP 
+\fBflags == (O_NONBLOCK | O_TRUNC)\fP
+参照カウントが 0 以外かどうかに関わらず、 直ちにモジュールをアンロードする。
+.TP 
+\fB(flags & O_NONBLOCK) == 0\fP
+\fIflags\fP に \fBO_NONBLOCK\fP が指定されなかった場合、 以下のステップで処理が行われる。
+.RS
+.IP * 3
+新しい参照を許可しないように、 指定されたモジュールにマークを付ける。
+.IP *
+モジュールの参照カウントが 0 でない場合、 参照カウントが 0 になるまで、 呼び出し元は割り込み不可のスリープ状態
+(\fBTASK_UNINTERRUPTIBLE\fP) に置かれる。 参照カウントが 0 になった時点で、 呼び出し元の停止が解除される。
+.IP *
+モジュールは通常通りの方法でアンロードされる。
+.RE
+.RE
+.PP
+\fBO_TRUNC\fP フラグには上記のルールに加えてもう一つの効果がある。 デフォルトでは、 モジュールに \fIinit\fP 関数があるが \fIexit\fP
+関数がない場合、 そのモジュールを削除しようとすると失敗する。 しかし、 \fBO_TRUNC\fP が指定された場合、 この要件はスキップされる。
+.PP
+\fBO_TRUNC\fP フラグの使用は危険である! カーネルが \fBCONFIG_MODULE_FORCE_UNLOAD\fP で作成されていない場合、
+このフラグは黙って無視される (通常は \fBCONFIG_MODULE_FORCE_UNLOAD\fP は有効になっている)。
+このフラグを使うとカーネルにゴミが残ることになる (TAINT_FORCED_RMMOD)。
+.SH 返り値
+成功の場合 0 が返される。エラーの場合 \-1 が返され、 \fIerrno\fP に適切な値が設定される。
+.SH エラー
+.TP 
+\fBEBUSY\fP
+モジュールは"live" ではない (モジュールがまだ初期化中か、 すでに削除のマークが付けられている)。 モジュールに \fIinit\fP 関数があるが
+\fIexit\fP 関数がなく、 \fIflags\fP に \fBO_TRUNC\fP が指定されていなかった。
+.TP 
+\fBEFAULT\fP
+\fIname\fP がプロセスがアクセスできるアドレス空間外の場所を参照している。
+.TP 
+\fBENOENT\fP
+その名前のモジュールが存在しない。
+.TP 
+\fBEPERM\fP
+呼び出し元が特権 (\fBCAP_SYS_MODULE\fP ケーパビリティ) を持っていなかった。 または、 モジュールのアンロードが無効になっている
+(\fBproc\fP(5) の \fI/proc/sys/kernel/modules_disabled\fP を参照)。
+.TP 
+\fBEWOULDBLOCK\fP
+他のモジュールがこのモジュールに依存している。または、 \fIflags\fP に \fBO_NONBLOCK\fP が指定されたが、
+このモジュールの参照カウントが 0 以外で \fIflags\fP に \fBO_TRUNC\fP が指定されていなかった。
+.SH 準拠
+\fBdelete_module\fP()  は Linux 固有である。
+.SH 注意
+\fBdelete_module\fP() システムコールは glibc ではサポートされていない。 glibc ヘッダーでは宣言は提供されていないが、
+歴史の紆余曲折を経て glibc はこのシステムコールに対する ABI を公開していない。
+したがって、このシステムコールを利用するには、自分のコードの中で手動でインターフェースを宣言すればよい。 \fBsyscall\fP(2)
+を使ってシステムコールを起動できる。
+
+\fIflags\fP に \fBO_NONBLOCK\fP が指定されていない場合に起こる可能性がある割り込み不可のスリープは望ましくないと考えられている。
+なぜなら、 スリープしているプロセスは kill できない状態 (unkillable state) のままになるからである。 Linux 3.7
+時点では、 \fBO_NONBLOCK\fP の指定は省略可能だが、 将来のカーネルでは必須になるだろう。
+.SS "Linux 2.4 以前"
+Linux 2.4 以前では、 このシステムコールの引き数は 1 つだけであった。
+
+\fB int delete_module(const char *\fP\fIname\fP\fB);\fP
+
+\fIname\fP が NULL の場合、 auto\-clean のマークがついたすべての未使用のモジュールが削除される。
+
+Linux 2.4 以前の \fBdelete_module\fP() の動作のより詳細な違いは、 現在のところこのマニュアルページでは説明\fIしない\fP。
+.SH 関連項目
+\fBcreate_module\fP(2), \fBinit_module\fP(2), \fBquery_module\fP(2), \fBlsmod\fP(8),
+\fBmodprobe\fP(8), \fBrmmod\fP(8)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

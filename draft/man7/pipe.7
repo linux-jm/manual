@@ -1,0 +1,122 @@
+.\" Copyright (C) 2005 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2005 Akihiro MOTOKI all rights reserved.
+.\" Translated 2005-12-26, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH PIPE 7 2014\-07\-08 Linux "Linux Programmer's Manual"
+.SH 名前
+pipe \- パイプと FIFO の概要
+.SH 説明
+パイプと FIFO (名前付きパイプともいう) は、 単方向のプロセス間通信チャネルを提供する。 パイプには「読み出し側」と「書き込み側」がある。
+パイプの書き込み側で書き込まれたデータは、 パイプの読み出し側から読み出すことができる。
+
+パイプを作成するには \fBpipe\fP(2)  を使用する。 \fBpipe\fP(2)  は新しいパイプを作成し、ファイルディスクリプターを二つ返す。
+ディスクリプターのうち、一方はパイプの読み出し側を、もう一方は 書き込み側を参照している。 パイプは関連するプロセス間の通信を作成するのに使用できる。
+例は \fBpipe\fP(2)  を参照。
+
+FIFO (First In First Out の省略) はファイルシステムでの名前を持ち、 \fBopen\fP(2)  を使ってオープンできる
+(\fBmkfifo\fP(3)  を使って作成される)。 どんなプロセスでも、ファイルのアクセス許可があれば FIFO をオープンする ことができる。
+読み出し側をオープンするには \fBO_RDONLY\fP フラグを使用し、書き込み側をオープンするには \fBO_WRONLY\fP フラグを使用する。詳細は
+\fBfifo\fP(7)  を参照。 【注意】 FIFO はファイルシステム内のパス名を持つが、 FIFO
+に対して入出力を行っても、(ファイルシステムが存在するデバイスが あったとしても) そのデバイスに対する操作は発生しない。
+.SS "パイプや FIFO に対する入出力"
+パイプと FIFO の違いは作成やオープンの方法だけである。 これらの操作が完了した後は、パイプと FIFO に対する入出力は
+全く同じ仕組みで行われる。
+
+プロセスが空のパイプから読み出しを行おうとした場合、 \fBread\fP(2)  はデータが読み出し可能になるまで停止する。
+プロセスがフル状態のパイプに書き込みを行おうとした場合、 \fBwrite\fP(2)  は書き込みを完了するのに十分な量のパイプからの読み出しが
+行われるまで停止する。 非停止 (nonblocking) I/O を使うこともできる。 非停止 I/O を使うには、 \fBfcntl\fP(2)
+\fBF_SETFL\fP 操作を使って、 \fBO_NONBLOCK\fP オープンファイル状態フラグを有効にする。
+
+パイプにより提供される通信チャネルは「バイトストリーム」であり、 メッセージ境界の概念はない。
+
+パイプの書き込み側を参照しているファイルディスクリプターが すべてクローズされた後で、そのパイプから \fBread\fP(2)  を行おうとした場合、
+end\-of\-file (ファイル末尾) が見える (\fBread\fP(2)  は 0 を返す)。
+パイプの読み出し側を参照しているファイルディスクリプターが すべてクローズされた後で、 \fBwrite\fP(2)  を行うと、呼び出し元プロセスに
+\fBSIGPIPE\fP シグナルが送られる。 呼び出し元プロセスがこのシグナルを無視しているときには、 \fBwrite\fP(2)  はエラー
+\fBEPIPE\fP で失敗する。 \fBpipe\fP(2)  と \fBfork\fP(2)  を使用するアプリケーションでは、 \fBclose\fP(2)
+を適切に使って不必要なファイルディスクリプターの複製を クローズすべきである。こうすることで、必要な時に確実に end\-of\-file や
+\fBSIGPIPE\fP/\fBEPIPE\fP が配送されるようになる。
+
+パイプには \fBlseek\fP(2)  を行うことはできない。
+.SS パイプの容量
+パイプの容量には上限がある。 パイプがフルの場合、 \fBwrite\fP(2)  は停止したり失敗したりする。どちらになるかは \fBO_NONBLOCK\fP
+フラグがセットされているかどうかに依存する (下記参照)。 実装により、パイプの容量の上限は異なる。
+アプリケーションは特定の容量を前提にすべきではない。 書き込み側のプロセスが停止したままにならないよう、
+読み出し側のプロセスはデータが利用可能になったらできるだけすぐに 読み出しを行うように、アプリケーションを設計すべきである。
+
+バージョン 2.6.11 より前の Linux ではパイプの容量はシステムのページサイズ と同じであった (例えば i386 では 4096 バイト)。
+Linux 2.6.11 以降では、パイプの容量は 65536 バイトである。 Linux 2.6.35 以降では、パイプの容量のデフォルト値は
+65536 バイトだが、 パイプの容量を参照、設定を \fBfcntl\fP(2) の \fBF_GETPIPE_SZ\fP と \fBF_SETPIPE_SZ\fP
+操作を使って行うことができる。 詳細は \fBfcntl\fP(2) 参照。
+
+.SS PIPE_BUF
+POSIX.1\-2001 では、 \fBPIPE_BUF\fP バイト以下の \fBwrite\fP(2)  は atomic
+に行われること、つまりパイプへの出力データの書き込みは 連続したシーケンスとして行われることを必須としている (MUST)。 \fBPIPE_BUF\fP
+バイトより多くのデータを書き込み場合は atomic とはならない、 つまりパイプへの他のプロセスによるデータの書き込みが間に入る 可能性がある。
+POSIX.1\-2001 の仕様では、 \fBPIPE_BUF\fP は最小でも 512 バイトであることが要求されている (Linux では
+\fBPIPE_BUF\fP は 4096 バイトである)。 正確な動作は、ファイルディスクリプターが nonblocking (\fBO_NONBLOCK\fP)
+かどうか、パイプへの書き込みが複数から行われるかどうか、および 書き込みを行うバイト数 \fIn\fP により決定される。
+.TP 
+\fBO_NONBLOCK\fP 無効, \fIn\fP <= \fBPIPE_BUF\fP
+\fIn\fP バイト全部の書き込みが atomic に行われる。 \fIn\fP バイト分をすぐに書き込む余地がない場合は \fBwrite\fP(2)  は停止
+(block) することがある。
+.TP 
+\fBO_NONBLOCK\fP 有効, \fIn\fP <= \fBPIPE_BUF\fP
+パイプに \fIn\fP バイトを書き込む余地がある場合は、 \fIn\fP バイト全部がすぐに書き込まれる。 余地がない場合は、 \fBwrite\fP(2)
+は失敗し、 \fIerrno\fP に \fBEAGAIN\fP がセットされる。
+.TP 
+\fBO_NONBLOCK\fP 無効, \fIn\fP > \fBPIPE_BUF\fP
+書き込みは atomic とはならない。 \fBwrite\fP(2)  に渡されたデータの間に、他のプロセスにより \fBwrite\fP(2)
+されたデータが入ることがある。 \fBwrite\fP(2)  は \fIn\fP バイトの書き込みが完了するまで停止する。
+.TP 
+\fBO_NONBLOCK\fP 有効, \fIn\fP > \fBPIPE_BUF\fP
+パイプがフルの場合、 \fBwrite\fP(2)  は失敗し、 \fIerrno\fP に \fBEAGAIN\fP がセットされる。 それ以外の場合、1 バイト以上
+\fIn\fP バイト以下のデータが書き込まれる (つまり「一部分だけ書き込まれる」場合もあり得る)。 呼び出し元は \fBwrite\fP(2)
+の返り値を参照し、実際に何バイト書き込まれたのかを確認すべきである。 また、書き込みに成功したデータも、他のプロセスが書き込んだデータが
+間に入ることがある。
+.SS オープンファイル状態フラグ
+オープンファイル状態フラグのうち、パイプや FIFO に対して意味を持つのは \fBO_NONBLOCK\fP と \fBO_ASYNC\fP だけである。
+
+パイプの読み出し側に \fBO_ASYNC\fP フラグをセットすると、パイプに新たな入力があるとシグナル (デフォルトでは \fBSIGIO\fP)
+が生成される (詳細は \fBfcntl\fP(2)  を参照)。 Linux では、 パイプと FIFO に対する \fBO_ASYNC\fP はカーネル 2.6
+以降でのみサポートされている。
+.SS 移植に関する注意
+いくつかのシステム (Linux ではない) では、パイプは双方向である、 つまりパイプの両端間でデータを両方向に送信することができる。
+POSIX.1\-2001 では、パイプは一方向の通信だけに対応していればよい。 移植を考慮したアプリケーションでは、双方向パイプの仕組みを
+前提にすべきではない。
+.SH 関連項目
+\fBdup\fP(2), \fBfcntl\fP(2), \fBopen\fP(2), \fBpipe\fP(2), \fBpoll\fP(2), \fBselect\fP(2),
+\fBsocketpair\fP(2), \fBstat\fP(2), \fBmkfifo\fP(3), \fBepoll\fP(7), \fBfifo\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。

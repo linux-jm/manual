@@ -1,0 +1,279 @@
+.\" Copyright 1993 Giorgio Ciucci (giorgio@crcc.it)
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\" Modified 1996-10-22, Eric S. Raymond <esr@thyrsus.com>
+.\" Modified 2002-01-08, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Modified 2003-04-28, Ernie Petrides <petrides@redhat.com>
+.\" Modified 2004-05-27, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Modified, 11 Nov 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Language and formatting clean-ups
+.\"	Added notes on /proc files
+.\" 2005-04-08, mtk, Noted kernel version numbers for semtimedop()
+.\" 2007-07-09, mtk, Added an EXAMPLE code segment.
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-02-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2003-02-09, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2003-09-12, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-03-01, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-04-17, Akihiro MOTOKI
+.\" Updated 2005-09-06, Akihiro MOTOKI
+.\" Updated 2007-05-01, Akihiro MOTOKI, LDP v2.46
+.\" Updated 2012-05-29, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH SEMOP 2 2014\-12\-31 Linux "Linux Programmer's Manual"
+.SH 名前
+semop, semtimedop \- System V セマフォの操作
+.SH 書式
+.nf
+\fB#include <sys/types.h>\fP
+\fB#include <sys/ipc.h>\fP
+\fB#include <sys/sem.h>\fP
+.sp
+\fBint semop(int \fP\fIsemid\fP\fB, struct sembuf *\fP\fIsops\fP\fB, size_t \fP\fInsops\fP\fB);\fP
+.sp
+\fBint semtimedop(int \fP\fIsemid\fP\fB, struct sembuf *\fP\fIsops\fP\fB, size_t \fP\fInsops\fP\fB,\fP
+\fB               const struct timespec *\fP\fItimeout\fP\fB);\fP
+.fi
+.sp
+.in -4n
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.in
+.sp
+\fBsemtimedop\fP(): _GNU_SOURCE
+.SH 説明
+System\ V セマフォ集合 (semaphore set) のメンバーの各セマフォは 以下の関連情報を持っている:
+.sp
+.in +4n
+.nf
+unsigned short  semval;   /* セマフォ値 */
+unsigned short  semzcnt;  /* ゼロを待つプロセス数 */
+unsigned short  semncnt;  /* 増加を待つプロセス数 */
+pid_t           sempid;   /* 最後に操作を行なったプロセスの ID */
+.sp
+.in -4n
+.fi
+\fBsemop\fP()  は \fIsemid\fP で指定されたセマフォ集合の選択されたセマフォに対して操作を行う。 \fIsops\fP は \fInsops\fP
+個の要素の配列を指し、配列の各要素は個々のセマフォに対する操作を示す構造体である。その型は \fIstruct sembuf\fP で、次のメンバを持つ:
+.sp
+.in +4n
+.nf
+unsigned short sem_num;  /* セマフォ番号 */
+short          sem_op;   /* セマフォ操作 */
+short          sem_flg;  /* 操作フラグ */
+.sp
+.in -4n
+.fi
+\fIsem_flg\fP には \fBIPC_NOWAIT\fP と \fBSEM_UNDO\fP が設定できる。 \fBSEM_UNDO\fP
+が指定された操作は、そのプロセスが終了した時に自動的に取り消される。
+.PP
+\fIsops\fP に含まれる操作の集合は、 \fI配列の順序\fP で、 \fIアトミックに\fP 実行される。
+すなわち、全ての操作が完全に実行されるか、全く実行されないかの どちらかとなる。 全ての操作が直ちに実行できない場合のこのシステムコールの振る舞いは
+個々の操作の \fIsem_flg\fP フィールドに \fBIPC_NOWAIT\fP が存在するかによって決まり、後述のようになる。
+
+それぞれの操作はセマフォ集合の \fIsem_num\fP番目 のセマフォに対して実行される。セマフォ集合の最初のセマフォには 番号 0 が振られる。
+そして操作は三種類あり、 \fIsem_op\fP の値で区別される。
+.PP
+\fIsem_op\fP が正の整数の場合、その値をセマフォの値 (\fIsemval\fP) に加算する。 さらに、この操作で \fBSEM_UNDO\fP
+が指定されていた場合は、 システムはこのセマフォのの調整値 (\fIsemadj\fP) から値 \fIsem_op\fP を減算する。 この操作は必ず実行でき、
+スレッドの停止は起こらない。 呼び出し元プロセスは対象のセマフォ集合を変更する許可がなければならない。
+.PP
+\fIsem_op\fP が 0 の場合、「ゼロまで待つ」操作である。この場合、プロセスは そのセマフォ集合に対する読み込み許可がなければならない。
+\fIsemval\fP が 0 ならば、操作は直ちに行われる。 \fIsemval\fP が 0 でない場合、 \fIsem_flg\fP に
+\fBIPC_NOWAIT\fP が指定されていれば、 \fBsemop\fP()  は失敗し、 \fBerrno\fP に \fBEAGAIN\fP が設定される (このとき
+\fIsops\fP に対する操作は全く実行されない)。 \fIsem_flg\fP に \fBIPC_NOWAIT\fP が指定されていない場合、 \fIsemzcnt\fP
+(セマフォ値が 0 になるのを待っているスレッドの数) を 1 増加させて、 以下のいずれかが起こるまでスレッドを停止 (sleep) する。
+.IP \(bu 3
+\fIsemval\fP が 0 になった: このとき \fIsemzcnt\fP の値は 1 減算される。
+.IP \(bu
+セマフォ集合が削除された: このとき \fBsemop\fP()  は失敗し、 \fIerrno\fP に \fBEIDRM\fP が設定される。
+.IP \(bu
+呼び出し元スレッドがシグナルを捕獲した: このとき \fIsemzcnt\fP の値は 1 減算され、 \fBsemop\fP()  は失敗し \fIerrno\fP に
+\fBEINTR\fP が設定される。
+.PP
+\fIsem_op\fP が 0 未満の場合、プロセスにはそのセマフォ集合を変更する許可がなければ ならない。 \fIsemval\fP が \fIsem_op\fP
+の絶対値以上の場合は、操作は直ちに実行される: \fIsemval\fP から \fIsem_op\fP の絶対値を減算し、さらに、この操作に
+\fBSEM_UNDO\fP が指定されている場合は、このセマフォの調整値 (\fIsemadj\fP) に \fIsem_op\fP の絶対値を加算する。
+\fIsemval\fP が \fIsem_op\fP の絶対値より小さく、 \fIsem_flg\fP に \fBIPC_NOWAIT\fP が指定された場合は、
+\fBsemop\fP()  は失敗し、 \fIerrno\fP に \fBEAGAIN\fP が設定される (このとき \fIsops\fP の操作は全く実行されない)。
+\fIsemval\fP が \fIsem_op\fP の絶対値より小さく、 \fBIPC_WAIT\fP が指定されていない場合は、 \fIsemncnt\fP
+(このセマフォの値が増加するのを待っているスレッド数のカウンター)  を 1 増加させて、以下のいずれかが起こるまでスレッドを停止 (sleep)
+する。
+.IP \(bu 3
+\fIsemval\fP が \fIsem_op\fP の絶対値以上になった。この時点で、操作は上述の通り実行される。
+.IP \(bu
+セマフォ集合がシステムから削除された: このとき \fBsemop\fP()  は失敗し \fIerrno\fP に \fBEIDRM\fP が設定される。
+.IP \(bu
+呼び出したスレッドがシグナルを捕獲した: このとき \fIsemncnt\fP が 1 減算され、 \fBsemop\fP()  は失敗し \fIerrno\fP に
+\fBEINTR\fP が設定される。
+.PP
+.\" and
+.\" .I sem_ctime
+操作が成功した場合、 \fIsops\fP が指す配列によって操作対象となった各セマフォの \fIsempid\fP メンバーには呼び出し元のプロセス ID
+が設定される。さらに \fIsem_otime\fP に現在時刻が設定される。
+.SS semtimedop()
+\fBsemtimedop\fP() 関数の振る舞いは \fBsemop\fP() と全く同じだが、呼び出し元
+スレッドが停止する場合、停止期間の上限が \fItimeout\fP 引き数の指す
+\fItimespec\fP 構造体で指定された時間となる点だけが異なる (この停止期間は
+システムクロックの粒度に切り上げられ、カーネルのスケジューリング遅延に
+より、この停止期間は少しだけ長くなる可能性がある)。
+指定した制限時間に達した場合は、 \fBsemtimedop\fP() は失敗し、 \fIerrno\fP に
+\fBEAGAIN\fP が設定される (このとき \fIsops\fP の操作は実行されない)。
+\fItimeout\fP 引き数が NULL の場合、 \fBsemtimedop\fP() 関数の振る舞いは
+\fBsemop\fP() 関数と全く同じになる。
+
+\fBsemtimeop\fP() がシグナルにより割り込まれた場合、呼び出しはエラー \fBEINTR\fP で失敗し、 \fItimeout\fP
+の内容は変更されないままとなる点に注意すること。
+.SH 返り値
+成功した場合、 \fBsemop\fP()  と \fBsemtimedop\fP()  は 0 を返す。そうでなければ \-1 を返し、 エラーを示す
+\fIerrno\fP を設定する。
+.SH エラー
+失敗した場合、 \fIerrno\fP に以下のどれかが設定される:
+.TP 
+\fBE2BIG\fP
+\fInsops\fP 引き数が \fBSEMOPM\fP より大きい。 \fBSEMOPM\fP は一回のシステムコールで許される操作の最大個数である。
+.TP 
+\fBEACCES\fP
+呼び出し元プロセスには指定されたセマフォ操作を行うのに 必要なアクセス許可がなく、 \fBCAP_IPC_OWNER\fP ケーパビリティもない。
+.TP 
+\fBEAGAIN\fP
+操作を直ちに処理することができず、かつ \fIsem_flg\fP に \fBIPC_NOWAIT\fP が指定されているか \fItimeout\fP
+で指定された制限時間が経過した。
+.TP 
+\fBEFAULT\fP
+引き数 \fIsops\fP か \fItimeout\fP が指しているアドレスにアクセスできない。
+.TP 
+\fBEFBIG\fP
+ある操作で、 \fIsem_num\fP の値が 0 未満か、集合内のセマフォの数以上である。
+.TP 
+\fBEIDRM\fP
+セマフォ集合が削除された。
+.TP 
+\fBEINTR\fP
+このシステムコールで停止している時にスレッドがシグナルを捕獲した。 \fBsingle\fP(7) 参照。
+.TP 
+\fBEINVAL\fP
+セマフォ集合が存在しないか、 \fIsemid\fP が 0 未満であるか、 \fInsops\fP が正の数でない。
+.TP 
+\fBENOMEM\fP
+ある操作で \fIsem_flg\fP に \fBSEM_UNDO\fP が指定されたが、システムにアンドゥ構造体に割り当てる十分なメモリーがない。
+.TP 
+\fBERANGE\fP
+ある操作で \fIsem_op+semval\fP が \fBSEMVMX\fP より大きい。 \fBSEMVMX\fP は \fIsemval\fP
+の最大値で、その値は実装依存である。
+.SH バージョン
+\fBsemtimedop\fP()  は Linux 2.5.52 で初めて登場し、 それからカーネル 2.4.22 にも移植された。
+\fBsemtimedop\fP()  の glibc でのサポートはバージョン 2.3.3 で初めて登場した。
+.SH 準拠
+.\" SVr4 documents additional error conditions EINVAL, EFBIG, ENOSPC.
+SVr4, POSIX.1\-2001.
+.SH 注意
+.\" Like Linux, the FreeBSD man pages still document
+.\" the inclusion of these header files.
+Linux や POSIX の全てのバージョンでは、 \fI<sys/types.h>\fP と \fI<sys/ipc.h>\fP
+のインクルードは必要ない。しかしながら、いくつかの古い実装ではこれらのヘッダーファイルのインクルードが必要であり、 SVID
+でもこれらのインクルードをするように記載されている。このような古いシステムへの移植性を意図したアプリケーションではこれらのファイルをインクルードする必要があるかもしれない。
+
+あるプロセスの \fIsem_undo\fP 構造体は \fBfork\fP(2)  で生成された子プロセスには継承されないが、 \fBexecve\fP(2)
+システムコールの場合は継承される。
+.PP
+\fBsemop\fP()  はシグナルハンドラーによって中断された後に、 決して自動的に再開することはない。 たとえシグナルハンドラーの設定時に
+\fBSA_RESTART\fP フラグがセットされていても再開することはない
+
+セマフォの調整値 (\fIsemadj\fP) は、プロセス毎のセマフォ毎の整数で、 \fBSEM_UNDO\fP
+フラグを指定して行われた、セマフォに対するすべての操作の合計値を反転したものである。 各プロセスは \fIsemadj\fP の値のリストを保持する \(em
+リストのそれぞれの値は \fBSEM_UNDO\fP を使って操作が行われた個々のセマフォに対応する。 プロセスが終了する際、 セマフォ毎の
+\fIsemadj\fP の各々の値が対応するセマフォに加算される。 これにより、そのプロセスがそのセマフォに対して行った操作の影響が取り消される
+(ただし、下記の「バグ」を参照)。 \fBsemctl\fP(2) の \fBSETVAL\fP や \fBSETALL\fP を使ってセマフォの値が直接設定された場合、
+すべてのプロセスの対応する \fIsemadj\fP の値がクリアされる。 \fBclone\fP(2) の \fBCLONE_SYSVSEM\fP フラグを使うと、
+複数のプロセスがひとつの \fIsemadj\fP リストを共有できる。 詳細は \fBclone\fP(2) を参照。
+
+あるセマフォの \fIsemval\fP, \fIsempid\fP, \fIsemzcnt\fP, \fIsemnct\fP の値はいずれも、適切な操作を指定して
+\fBsemctl\fP(2)  を呼び出すことで取得できる。
+.SS セマフォの上限
+セマフォ集合のリソースに関する制限のうち、 \fBsemop\fP()  に影響を及ぼすものを以下に挙げる:
+.TP 
+\fBSEMOPM\fP
+.\" This /proc file is not available in Linux 2.2 and earlier -- MTK
+一回の \fBsemop\fP()  で許される操作の最大数 (32)。 (Linux では、この制限値は \fI/proc/sys/kernel/sem\fP
+の第3フィールドに対応し、読み出しも変更もできる)。
+.TP 
+\fBSEMVMX\fP
+\fIsemval\fP が取り得る最大値: 実装依存 (32767)。
+.PP
+以下の値に関しては実装依存の制限はない。 終了時の調整 (adjust on exit) の最大値 (\fBSEMAEM\fP)、
+システム全体のアンドゥ構造体の最大数 (\fBSEMMNU\fP)、 プロセスあたりのアンドゥ構造体の最大数。
+.SH バグ
+プロセスが終了する際、プロセスに対応する \fIsemadj\fP の集合を使って、 \fBSEM_UNDO\fP
+フラグ付きで実行された全てのセマフォ操作の影響を取り消す。 これによりある問題が発生する: これらのセマフォの調整を行っていると、 中にはセマフォの値が
+0 未満の値にしようとする場合が出てくる。 このような場合、どのように実装するべきか? ひとつの考えられる手法は、全てのセマフォ調整が実行されるまで
+停止することである。しかし、この方法ではプロセスの終了が 長時間にわたって停止されることがあるので望ましくない。
+しかもどれくらい長時間になるかは分からない。 別の選択肢として、このようなセマフォ調整を完全に無視してしまう方法がある (これはセマフォ操作として
+\fBIPC_NOWAIT\fP が指定するのと少し似ている)。 Linux は第三の手法を採用している: セマフォの値を出来るだけ (つまり 0 まで)
+減少させて、プロセスの終了を直ちに続行できるようにしている。
+
+.\" The bug report:
+.\" http://marc.theaimsgroup.com/?l=linux-kernel&m=110260821123863&w=2
+.\" the fix:
+.\" http://marc.theaimsgroup.com/?l=linux-kernel&m=110261701025794&w=2
+カーネル 2.6.x (x <= 10) には、ある状況においてセマフォ値が 0 になるのを 待っているスレッドが、セマフォ値が実際に 0
+になったときに起床 (wake up)  されない、というバグがある。このバグはカーネル 2.6.11 で修正されている。
+.SH 例
+以下の部分的なコードは、 セマフォ 0 の値が 0 になるのを待ってから、 セマフォの値を 1 加算する処理を、 \fBsemop\fP()
+を使ってアトミック (atomically) に行う。
+.nf
+
+    struct sembuf sops[2];
+    int semid;
+
+    /* Code to set \fIsemid\fP omitted */
+
+    sops[0].sem_num = 0;        /* Operate on semaphore 0 */
+    sops[0].sem_op = 0;         /* Wait for value to equal 0 */
+    sops[0].sem_flg = 0;
+
+    sops[1].sem_num = 0;        /* Operate on semaphore 0 */
+    sops[1].sem_op = 1;         /* Increment value by one */
+    sops[1].sem_flg = 0;
+
+    if (semop(semid, sops, 2) == \-1) {
+        perror("semop");
+        exit(EXIT_FAILURE);
+    }
+.fi
+.SH 関連項目
+\fBclone\fP(2), \fBsemctl\fP(2), \fBsemget\fP(2), \fBsigaction\fP(2),
+\fBcapabilities\fP(7), \fBsem_overview\fP(7), \fBsvipc\fP(7), \fBtime\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
+である。プロジェクトの説明とバグ報告に関する情報は
+http://www.kernel.org/doc/man\-pages/ に書かれている。
