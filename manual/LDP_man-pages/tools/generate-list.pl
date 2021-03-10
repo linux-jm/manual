@@ -87,13 +87,16 @@ sub read_exclude_list {
     }
 }
 
-getopts("e:", \%opts);
+getopts("de:", \%opts);
+if (defined $opts{"d"}) {
+    $debug = 1;
+}
 if (defined $opts{"e"}) {
     read_exclude_list($opts{"e"});
 }
 
 print_header();
-foreach my $name (@ARGV) {
+foreach my $name (sort @ARGV) {
     print STDERR "$name...\n" if $debug;
     process_postat($name);
 }
