@@ -1,5 +1,5 @@
 # Upstream version
-V = 3.79
+V = 5.10
 
 # Patch level, may be empty
 P =
@@ -9,60 +9,14 @@ PO4AFLAGS ?= -k 100
 LANGS ?=
 WORK_DIR ?= .
 UTF8_LOCALE ?= en_US.UTF-8
-PO4A_SUBDIRS ?= $(EXTRA_PO4A_SUBDIRS) \
-	aio \
-	boot \
-	charset \
-	complex \
-	db \
-	dirent \
-	epoll \
-	error \
-	filesystem \
-	iconv \
-	notify \
-	intro \
-	keyutils \
-	ld \
-	linux_module \
-	locale \
-	man2 \
-	man3 \
-	man5 \
-	man7 \
-	math \
-	memory \
-	mqueue \
-	net \
-	netlink \
-	numa \
-	process \
-	pthread \
-	pwdgrp \
-	regexp \
-	rpc \
-	sched \
-	search \
-	semaphore \
-	signal \
-	socket \
-	special \
-	stdio \
-	stdlib \
-	string \
-	time \
-	tty \
-	unistd \
-	utmp \
-	wchar \
-	wctype
+PO4A_SUBDIRS ?= $(EXTRA_PO4A_SUBDIRS) $(sort $(notdir $(wildcard po4a/*)))
 
 all: translate
 
 #  Download tarball
 get-orig-source: man-pages-$(V).tar.xz
 man-pages-$(V).tar.xz:
-	wget https://mirrors.edge.kernel.org/pub/linux/docs/man-pages/Archive/$@
+	wget https://mirrors.edge.kernel.org/pub/linux/docs/man-pages/$@
 
 #  Unpack sources
 unpack: stamp-unpack
@@ -120,9 +74,9 @@ stamp-setup: stamp-unpack
 	#  Remove empty directories, if any
 	-rmdir build/C/man* 2>/dev/null
 	#  Apply patches to fix groff syntax errors which  prevent po4a processing
-	if test -f po4a-fixes.patch; \
+	if test -f workaround.patch; \
 	then \
-	  cd build/C && patch -p1 < $(CURDIR)/po4a-fixes.patch; \
+	  cd build/C && patch -p2 < $(CURDIR)/workaround.patch; \
 	fi
 	touch $@
 
