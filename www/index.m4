@@ -69,58 +69,6 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
  <LI>_LINK(INDEX/gnu.html#GNU_tar, GNU_tar 1.32 の man page の翻訳)を公開しました。
  <SMALL>(2020/02/27)</SMALL>
 
- <LI>_LINK(INDEX/gnu.html#GNU_findutils, GNU_findutils 4.6.0 の find と xargs の man pages の翻訳)を公開しました。
- <SMALL>(2018/03/14)</SMALL>
-
- <LI>_LINK(info/GNU_coreutils/coreutils-ja.html, GNU_coreutils 8.26 の info 版マニュアルの翻訳)を公開しました。
- _LINK(download.html#INFO_MANUAL, ダウンロード)はこちらから。
- <SMALL>(2017/03/26)</SMALL>
-
- <LI>_LINK(INDEX/gnu.html#GNU_grep, GNU_grep 2.27 の man page の翻訳)を公開しました。
-　<SMALL>(2017/03/14)</SMALL>
-
- <LI>_LINK(INDEX/misc.html#sudo, sudo 1.8.17 の man pages の翻訳)を公開しました。
- <SMALL>(2016/09/20)</SMALL>
-
- <LI>_LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.25 の翻訳)を公開しました。
- <SMALL>2016/02/19</SMALL>
-
- <LI>_LINK(download.html#INFO_MANUAL, GNU coreutils 8.22 の info 版マニュアルの翻訳をダウンロード)できるようにしました。
- <SMALL>(2015/08/12)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.79 対応版)を更新しました。
-  詳細は_LINK(news/index.html#20150205,こちら)。
- <SMALL>(2015/02/05)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.78 対応版)を更新しました。
-  詳細は_LINK(news/index.html#20150126,こちら)。
- <SMALL>(2015/01/26)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.78 対応版)を公開しました。
-  詳細は_LINK(news/index.html#20150125,こちら)。
- <SMALL>(2015/01/25)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.77 対応版)を更新しました。
-  詳細は_LINK(news/index.html#20150118,こちら)。
- <SMALL>(2015/01/18)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.77 対応版)を公開しました。
-  詳細は_LINK(news/index.html#20150112,こちら)。
- <SMALL>(2015/01/12)</SMALL>
-
- <LI>_LINK(INDEX/ldp.html,LDP man-pages 3.76 対応版)を公開しました。
-  詳細は_LINK(news/index.html#20150109,こちら)。
- <SMALL>(2015/01/09)</SMALL>
-
- <LI>_LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils info) の翻訳を 8.22 に更新しました。
- <SMALL>(2014/11/25)</SMALL>
-
- <LI>_LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.22 の翻訳)を公開しました。
- <SMALL>2014/05/05</SMALL>
-
- <LI>_LINK(INDEX/linux.html#ebtables,ebtables 2.0.10-4 の翻訳)を公開しました。
- <SMALL>(2014/04/13)</SMALL>
-
 </UL>
 
 <UL>

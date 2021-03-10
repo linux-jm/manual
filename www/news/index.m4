@@ -162,6 +162,11 @@ m4_dnl ML2CVS ADD HERE
  _LINK(../INDEX/gnu.html,GNU coreutils の翻訳)を 8.25 に更新しました。
  </P>
 
+ <H2><A NAME="20150812">2015/08/12</A></H2>
+ <P>
+ _LINK(download.html#INFO_MANUAL, GNU coreutils 8.22 の info 版マニュアルの翻訳をダウンロード)できるようにしました。
+ </P>
+
  <H2><A NAME="20150205">2015/02/05</A></H2>
  <DL>
   <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.79 対応版)を公開しました。</DT>
