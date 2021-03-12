@@ -5,7 +5,7 @@ THRESH_REL = 80
 FLAGS ?=
 PO4AFLAGS ?= -k $(THRESH) $(FLAGS)
 
-PO4A_SUBDIRS = $(notdir $(wildcard po4a/*))
+PO4A_SUBDIRS = $(sort $(notdir $(wildcard po4a/*)))
 
 .PHONY:	all release translate
 
@@ -104,6 +104,7 @@ stamp-jm-setup:
 	set -e; for d in `comm -23 _po4a_list_perkamon _po4a_list_jm`; do \
 	  echo $$d; \
 	  mkdir -vp po4a/$$d/po; \
+	  touch po4a/$$d/po/ja.po; \
 	done
 	rm _po4a_list_jm _po4a_list_perkamon
 	cd $(PERKAMON_DIR) && make setup
@@ -122,9 +123,7 @@ stamp-jm-setup:
 
 clean-setup:
 	$(RM) stamp-jm-setup
-	$(RM) $(PERKAMON_DIR)/man-pages || true
-	$(RM) $(PERKAMON_DIR)/stamp-*
-	$(RM) -rf $(PERKAMON_DIR)/build
+	@LC_ALL=C $(MAKE) clean -C $(PERKAMON_DIR)
 	find $(PERKAMON_DIR) -type l | xargs $(RM)
 
 upgrade:
