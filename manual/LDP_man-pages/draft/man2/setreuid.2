@@ -1,4 +1,5 @@
 .\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" and Copyright (C) 2009, 2010, 2014, 2015, Michael Kerrisk <mtk.manpages@gmail.com>
 .\" All rights reserved.
 .\"
 .\" %%%LICENSE_START(BSD_4_CLAUSE_UCB)
@@ -59,45 +60,48 @@
 .\" Updated 2010-04-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.24
 .\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SETREUID 2 2014\-09\-21 Linux "Linux Programmer's Manual"
+.TH SETREUID 2 2017\-09\-15 Linux "Linux Programmer's Manual"
 .SH 名前
 setreuid, setregid \- 実 (real) と実効 (effective) ユーザー (グループ) ID を設定する
 .SH 書式
 \fB#include <sys/types.h>\fP
 .br
 \fB#include <unistd.h>\fP
-.sp
+.PP
 \fBint setreuid(uid_t \fP\fIruid\fP\fB, uid_t \fP\fIeuid\fP\fB);\fP
 .br
 \fBint setregid(gid_t \fP\fIrgid\fP\fB, gid_t \fP\fIegid\fP\fB);\fP
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 \fBsetreuid\fP(), \fBsetregid\fP():
 .RS 4
 .ad l
-_BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+.\"    || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+_XOPEN_SOURCE\ >=\ 500
+    || /* Since glibc 2.19: */ _DEFAULT_SOURCE
+    || /* Glibc versions <= 2.19: */ _BSD_SOURCE
 .ad
 .RE
 .SH 説明
 \fBsetreuid\fP()  は呼び出し元のプロセスの実 (real) ユーザー ID と 実効 (effective) ユーザー ID を設定する。
-
+.PP
 実ユーザー ID や実効ユーザー ID に \-1 を与えた場合、 システムはその ID を変更しない。
-
+.PP
 非特権プロセスは実効ユーザー ID を実ユーザー ID または実効ユーザー ID または 保存 set\-user\-ID にしか設定できない。
-
+.PP
 非特権ユーザーは、実ユーザー ID を実ユーザー ID または 実効ユーザー ID にしか設定できない。
-
+.PP
 実ユーザーID が設定されたり (\fIruid\fP が \-1 ではない)、実効ユーザーID が前の実ユーザーID と 異った値に設定された場合、保存
 set\-user\-ID には新しい実効ユーザーID の値が設定される。
-
+.PP
 これと全く同様に、 \fBsetregid\fP()  は呼び出し元のプロセスの実グループ ID と実効グループ ID を設定し、
 上記の説明で「ユーザー」を「グループ」に読み替えたことが成り立つ。
 .SH 返り値
 成功した場合は 0 が返される。エラーの場合は \-1 が返され、 \fIerrno\fP が適切に設定される。
-
+.PP
 \fI注意\fP: 呼び出し元が UID 0 であっても \fBsetreuid\fP() が失敗する場合がある。 \fBsetreuid\fP()
 からのリターンが失敗かどうかの確認を省略することは重大なセキュリティ上のエラーとなる。
 .SH エラー
@@ -115,34 +119,50 @@ set\-user\-ID には新しい実効ユーザーID の値が設定される。
 対象のユーザー ID やグループ ID のうち 1 つ以上がこのユーザー名前空間で有効ではない。
 .TP 
 \fBEPERM\fP
-呼び出し元のプロセスに特権がなく (Linux では \fBsetreuid\fP()  の場合に \fBCAP_SETUID\fP ケーパビリティ
-(capability) がなく、 \fBsetregid\fP()  の場合に \fBCAP_SETGID\fP ケーパビリティがない)、
-以下のいずれでもない変更が指定された: (i) 実効ユーザー (グループ) ID と実ユーザー (グループ) ID を入れ換える。 (ii)
-片方の値を他方に設定する。 (iii) 実効ユーザー (グループ) ID に保存 set\-user\-ID (保存 set\-group\-ID)
-の値を設定する。
+The calling process is not privileged (on Linux, does not have the necessary
+capability in its user namespace: \fBCAP_SETUID\fP in the case of
+\fBsetreuid\fP(), or \fBCAP_SETGID\fP in the case of \fBsetregid\fP())  and a change
+other than (i)  swapping the effective user (group) ID with the real user
+(group) ID, or (ii) setting one to the value of the other or (iii) setting
+the effective user (group) ID to the value of the saved set\-user\-ID (saved
+set\-group\-ID) was specified.
 .SH 準拠
-POSIX.1\-2001, 4.3BSD (\fBsetreuid\fP()  と \fBsetregid\fP()  関数コールは 4.2BSD で登場した)。
+POSIX.1\-2001, POSIX.1\-2008, 4.3BSD (\fBsetreuid\fP()  and \fBsetregid\fP()  first
+appeared in 4.2BSD).
 .SH 注意
 実効ユーザー (グループ) ID を保存ユーザー (グループ) ID に 設定することが、Linux 1.1.37 (1.1.38) から可能になった。
-
-POSIX.1 では、非特権プロセスに対して Linux 上で認められている ID の変更の 全パターンを規定しているわけではない。
-\fBsetreuid\fP()  では、実効ユーザー ID を実ユーザー ID もしくは保存 set\-user\-ID と 同じ値にすることができるが、
-非特権プロセスが実ユーザー ID を実ユーザー ID、実効ユーザー ID、 保存 set\-user\-ID のどの値にも設定できるかは規定されていない。
-\fBsetregid\fP()  では、実グループ ID を保存 set\-group\-ID と同じ値に変更でき、 実効グループ ID を実グループ ID
-や保存 set\-group\-ID と同じ値に変更できる。 どのような ID の変更が認められているかの正確な詳細は 実装ごとに異なる。
-
+.PP
+POSIX.1 does not specify all of the UID changes that Linux permits for an
+unprivileged process.  For \fBsetreuid\fP(), the effective user ID can be made
+the same as the real user ID or the saved set\-user\-ID, and it is unspecified
+whether unprivileged processes may set the real user ID to the real user ID,
+the effective user ID, or the saved set\-user\-ID.  For \fBsetregid\fP(), the
+real group ID can be changed to the value of the saved set\-group\-ID, and the
+effective group ID can be changed to the value of the real group ID or the
+saved set\-group\-ID.  The precise details of what ID changes are permitted
+vary across implementations.
+.PP
 POSIX.1 では、これらのシステムコールが保存 set\-user\-ID や 保存 set\-group\-ID に与える影響については規定していない。
-
+.PP
+.\"
 元々の Linux の \fBsetreuid\fP() と \fBsetregid\fP() システムコールは
 16 ビットのグループ ID だけに対応していた。
 その後、Linux 2.4 で、32 ビットの ID に対応した
 \fBsetreuid32\fP() と \fBsetregid32\fP() が追加された。
 glibc の \fBsetreuid\fP() と \fBsetregid\fP() のラッパー関数は
 カーネルバージョンによるこの違いを吸収している。
+.SS "C library/kernel differences"
+At the kernel level, user IDs and group IDs are a per\-thread attribute.
+However, POSIX requires that all threads in a process share the same
+credentials.  The NPTL threading implementation handles the POSIX
+requirements by providing wrapper functions for the various system calls
+that change process UIDs and GIDs.  These wrapper functions (including those
+for \fBsetreuid\fP()  and \fBsetregid\fP())  employ a signal\-based technique to
+ensure that when one thread changes credentials, all of the other threads in
+the process also change their credentials.  For details, see \fBnptl\fP(7).
 .SH 関連項目
 \fBgetgid\fP(2), \fBgetuid\fP(2), \fBseteuid\fP(2), \fBsetgid\fP(2), \fBsetresuid\fP(2),
-\fBsetuid\fP(2), \fBcapabilities\fP(7), \fBuser_namespaces\fP(7)
+\fBsetuid\fP(2), \fBcapabilities\fP(7), \fBcredentials\fP(7), \fBuser_namespaces\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

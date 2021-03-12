@@ -41,7 +41,7 @@
 .\" Updated 2005-10-06, Akihiro MOTOKI
 .\" Updated 2008-08-11, Akihiro MOTOKI, LDP v3.05
 .\"
-.TH UTMP 5 2014\-08\-19 Linux "Linux Programmer's Manual"
+.TH UTMP 5 2020\-12\-21 Linux "Linux Programmer's Manual"
 .SH 名前
 utmp, wtmp \- ログイン記録
 .SH 書式
@@ -56,21 +56,21 @@ utmp, wtmp \- ログイン記録
 .PP
 このファイルは \fIutmp\fP 構造体の繰り返しで構成される。 この構造体は \fI<utmp.h>\fP で以下のように定義されている
 (ここに記述してあるのは幾つかの大まかな定義のみで、 詳細は libc のバージョンにより変わることに注意が必要である)。
+.PP
 .in +4n
-.nf
-.sp
+.EX
 /* Values for ut_type field, below */
 
 #define EMPTY         0 /* Record does not contain valid info
                            (formerly known as UT_UNKNOWN on Linux) */
 #define RUN_LVL       1 /* Change in system run\-level (see
-                           \fBinit\fP(8)) */
+                           \fBinit\fP(1)) */
 #define BOOT_TIME     2 /* Time of system boot (in \fIut_tv\fP) */
 #define NEW_TIME      3 /* Time after system clock change
                            (in \fIut_tv\fP) */
 #define OLD_TIME      4 /* Time before system clock change
                            (in \fIut_tv\fP) */
-#define INIT_PROCESS  5 /* Process spawned by \fBinit\fP(8) */
+#define INIT_PROCESS  5 /* Process spawned by \fBinit\fP(1) */
 #define LOGIN_PROCESS 6 /* Session leader process for user login */
 #define USER_PROCESS  7 /* Normal process */
 #define DEAD_PROCESS  8 /* Terminated process */
@@ -81,8 +81,8 @@ utmp, wtmp \- ログイン記録
 #define UT_HOSTSIZE     256
 
 struct exit_status {              /* Type for ut_exit, below */
-    short int e_termination;      /* Process termination status */
-    short int e_exit;             /* Process exit status */
+    short e_termination;          /* Process termination status */
+    short e_exit;                 /* Process exit status */
 };
 
 struct utmp {
@@ -98,10 +98,9 @@ struct utmp {
     struct  exit_status ut_exit;  /* Exit status of a process
                                      marked as DEAD_PROCESS; not
                                      used by Linux init(1) */
-    /* ut_session と ut_tv フィールドは、32ビットでコンパイルされた場合と
-       64ビットでコンパイルされた場合で同じサイズでなければならない。
-       こうすることで、32ビットと64ビットのアプリケーションで、
-       データファイルと共有メモリーを共有することができるようになる。 */
+    /* The ut_session and ut_tv fields must be the same size when
+       compiled 32\- and 64\-bit.  This allows data files and shared
+       memory to be shared between 32\- and 64\-bit applications. */
 #if __WORDSIZE == 64 && defined __WORDSIZE_COMPAT32
     int32_t ut_session;           /* Session ID (\fBgetsid\fP(2)),
                                      used for windowing */
@@ -127,9 +126,9 @@ struct utmp {
 #endif
 #define ut_xtime ut_tv.tv_sec
 #define ut_addr ut_addr_v6[0]
-.sp
-.fi
+.EE
 .in
+.PP
 この構造体からユーザーの使っている端末のスペシャルファイル名、 ユーザーのログイン名、 (\fBtime\fP(2)
 形式での)ログイン時刻がわかる。文字列フィールドは、 フィールドの長さより文字列が短い場合には、ヌルバイト (\(aq\e0\(aq)
 によって終端される。
@@ -148,8 +147,9 @@ struct utmp {
 \fBlogin\fP(1)  により異なるが、 \fIut_pid\fP の代わりに \fIut_line\fP を使ってレコードの特定が行われることもある
 (\fIut_pid\fP を使う方が望ましい) 。
 .PP
-\fBinit\fP(1)  はプロセスの終了を検出した場合、 \fIut_pid\fP をキーとして utmp のエントリーを特定し、 \fIut_type\fP を
-\fBDEAD_PROCESS\fP に設定し、 \fIut_user\fP, \fIut_host\fP, \fIut_time\fP をヌルバイトでクリアする。
+When \fBinit\fP(1)  finds that a process has exited, it locates its utmp entry
+by \fIut_pid\fP, sets \fIut_type\fP to \fBDEAD_PROCESS\fP, and clears \fIut_user\fP,
+\fIut_host\fP, and \fIut_time\fP with null bytes.
 .PP
 \fBxterm\fP(1)  コマンドや他の端末エミュレータは 直接 \fBUSER_PROCESS\fP のレコードを作り、 端末名のサフィックス文字列
 (\fI/dev/[pt]ty\fP に続く文字列)  を使って \fIut_id\fP の値を生成する。 この id を持つエントリーが
@@ -160,30 +160,33 @@ struct utmp {
 \fBtelnetd\fP(8)  は \fBLOGIN_PROCESS\fP を設定するだけでよく、 残りの処理は通常通り \fBlogin\fP(1)
 に任せればよい。 telnet のセッションが終了した後、前述のように \fBtelnetd\fP(8)  が utmp のエントリーを初期化する。
 .PP
-\fIwtmp\fP ファイルには、すべてのログインとログアウトが記録される。 そのフォーマットは、ログアウト済の端末でユーザー名がヌルとなること以外は
-\fIutmp\fP とまったく同じである。 ユーザー名が \fBshutdown\fP もしくは \fBreboot\fP である 端末名 \fB~\fP はシステムの停止
-(shutdown) または再起動 (reboot)  を意味する。またその端末名が \fB|\fP と \fB}\fP の対は \fBdate\fP(1)
-コマンドで変更した新／旧のシステム時刻を記録している。 \fIwtmp\fP ファイルは \fBlogin\fP(1), \fBinit\fP(1)
-やいくつかのバージョンの \fBgetty\fP(8)  (\fBmingetty\fP(8)  または \fBagetty\fP(8))  により管理されている。
-これらのプログラムはどれもファイルを新たに作成しないので、 ファイルを削除することで情報の記録 (record\-keeping) を止めることができる。
+The \fIwtmp\fP file records all logins and logouts.  Its format is exactly like
+\fIutmp\fP except that a null username indicates a logout on the associated
+terminal.  Furthermore, the terminal name \fB\(ti\fP with username \fBshutdown\fP
+or \fBreboot\fP indicates a system shutdown or reboot and the pair of terminal
+names \fB|\fP/\fB}\fP logs the old/new system time when \fBdate\fP(1)  changes it.
+\fIwtmp\fP is maintained by \fBlogin\fP(1), \fBinit\fP(1), and some versions of
+\fBgetty\fP(8)  (e.g., \fBmingetty\fP(8)  or \fBagetty\fP(8)).  None of these
+programs creates the file, so if it is removed, record\-keeping is turned
+off.
 .SH ファイル
-/var/run/utmp
+\fI/var/run/utmp\fP
 .br
-/var/log/wtmp
+\fI/var/log/wtmp\fP
 .SH 準拠
 .PP
 POSIX.1 では、 \fIutmp\fP 構造体ではなく、 \fIutmpx\fP 構造体を規定している。 \fIutmpx\fP
 構造体で規定されているのは、フィールド \fIut_type\fP, \fIut_pid\fP, \fIut_line\fP, \fIut_id\fP, \fIut_user\fP,
 \fIut_tv\fP である。 POSIX.1 では、フィールド \fIut_line\fP と \fIut_user\fP の長さは規定されていない。
-
+.PP
 Linux では、 \fIutmpx\fP 構造体の定義は \fIutmp\fP 構造体と同じである。
 .SS 過去のシステムとの比較
 Linux での utmp のエントリーは v7/BSD や System V のいずれにも準拠しておらず、 その両方が混在したものである。
-
+.PP
 v7/BSD ではより少しの項目しかない; もっとも重要なことは、\fIut_type\fP が無いことである。 そのため v7/BSD 系のプログラムでは
 (たとえば) 死んだ状態のエントリーや ログイン状態のエントリーまで表示されてしまうことになった。
 さらにセッション用のスロットを割り当てるための設定ファイルがない。 BSD に設定ファイルがあるのは \fIut_id\fP がないからである。
-
+.PP
 Linux (System V 系)では、設定ファイルを必要とせず セッション用のスロットを割り当てるので、一旦設定 されてしまうとレコードの
 \fIut_id\fP は決して変更されない。 \fIut_id\fP をクリアすると競合状態におちいり、 utmp
 のエントリーを壊したり、潜在的なセキュリティホールになる可能性がある。 上述のフィールドをヌルバイトで埋めてクリアしておくのは、 System V
@@ -208,24 +211,24 @@ Linux (System V 系)では、設定ファイルを必要とせず セッショ�
 64ビットアプリケーション の間でデータファイルと共有メモリーを共有することが可能になる。 そのためには、 \fIut_session\fP を
 \fIint32_t\fP 型に、 \fIut_tv\fP を 2つの \fIint32_t\fP 型のフィールド \fItv_sec\fP, \fItv_usec\fP
 を持つ構造体に変更すればよい \fIut_tv\fP は \fIstruct timeval\fP と同じサイズとは限らないので、
+.PP
 .in +4n
-.nf
-.sp
+.EX
 gettimeofday((struct timeval *) &ut.ut_tv, NULL);
-.fi
+.EE
 .in
-
+.PP
 のような呼び出しをするのではなく、 以下のように各フィールドを設定する方法が推奨される:
+.PP
 .in +4n
-.nf
-.sp
+.EX
 struct utmp ut;
 struct timeval tv;
 
 gettimeofday(&tv, NULL);
 ut.ut_tv.tv_sec = tv.tv_sec;
 ut.ut_tv.tv_usec = tv.tv_usec;
-.fi
+.EE
 .in
 .\" .PP
 .\" Note that the \fIutmp\fP struct from libc5 has changed in libc6.
@@ -235,10 +238,9 @@ ut.ut_tv.tv_usec = tv.tv_usec;
 .\" .SH BUGS
 .\" This man page is based on the libc5 one, things may work differently now.
 .SH 関連項目
-\fBac\fP(1), \fBdate\fP(1), \fBlast\fP(1), \fBlogin\fP(1), \fButmpdump\fP(1), \fBwho\fP(1),
-\fBgetutent\fP(3), \fBgetutmp\fP(3), \fBlogin\fP(3), \fBlogout\fP(3), \fBlogwtmp\fP(3),
-\fBupdwtmp\fP(3), \fBinit\fP(1)
+\fBac\fP(1), \fBdate\fP(1), \fBinit\fP(1), \fBlast\fP(1), \fBlogin\fP(1), \fBlogname\fP(1),
+\fBlslogins\fP(1), \fBusers\fP(1), \fButmpdump\fP(1), \fBwho\fP(1), \fBgetutent\fP(3),
+\fBgetutmp\fP(3), \fBlogin\fP(3), \fBlogout\fP(3), \fBlogwtmp\fP(3), \fBupdwtmp\fP(3)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -36,29 +36,30 @@
 .\" Updated 2012-05-29, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SIGWAITINFO 2 2014\-08\-19 Linux "Linux Programmer's Manual"
+.TH SIGWAITINFO 2 2017\-09\-15 Linux "Linux Programmer's Manual"
 .SH 名前
-sigwaitinfo, sigtimedwait \- キューに入れられたシグナルを同期して待つ
+sigwaitinfo, sigtimedwait, rt_sigtimedwait \- synchronously wait for queued
+signals
 .SH 書式
 .nf
 \fB#include <signal.h>\fP
-.sp
+.PP
 \fBint sigwaitinfo(const sigset_t *\fP\fIset\fP\fB, siginfo_t *\fP\fIinfo\fP\fB);\fP
-.sp
-\fBint sigtimedwait(const sigset_t *\fP\fIset\fP\fB, siginfo_t *\fP\fIinfo\fP\fB, \fP
+.PP
+\fBint sigtimedwait(const sigset_t *\fP\fIset\fP\fB, siginfo_t *\fP\fIinfo\fP\fB,\fP
 \fB                 const struct timespec *\fP\fItimeout\fP\fB);\fP
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 \fBsigwaitinfo\fP(), \fBsigtimedwait\fP(): _POSIX_C_SOURCE\ >=\ 199309L
 .SH 説明
 \fBsigwaitinfo\fP()  は \fIset\fP のうちのどれかのシグナルが処理待ちになるまで、 呼び出しスレッドの実行を一時停止する
 (呼び出しスレッドに対して \fIset\fP のうちのどれかのシグナルが既に待機中 (pending) である場合、 \fBsigwaitinfo\fP()
 はすぐに戻る)。
-
+.PP
 \fBsigwaitinfo\fP()  はそのシグナルを待機中のシグナルの集合から削除し、関数の結果としてシグナル番号を返す。 \fIinfo\fP 引き数が
 NULL でない場合、配送されたシグナルの情報が入った \fIsiginfo_t\fP 型 (\fBsigaction\fP(2)  を参照) の構造体を
 \fIinfo\fP が指すバッファーに入れて返す。
@@ -69,16 +70,16 @@ NULL でない場合、配送されたシグナルの情報が入った \fIsigin
 \fBsigtimedwait\fP() は、 \fBsigwaitinfo\fP() と次の点を除いて全く同じように動作する。この関数にはもう 1 つの引き数
 \fItimeout\fP
 があり、シグナル待ちでスレッドが一時停止する時間を指定することができる(この時間はシステムクロックの粒度に切り上げられ、カーネルのスケジューリング遅延により少しだけ長くなる可能性がある)。この引き数の型は以下のとおりである:
-.sp
+.PP
 .in +4n
-.nf
+.EX
 struct timespec {
     long    tv_sec;         /* 秒 */
     long    tv_nsec;        /* ナノ秒 */
 }
-.fi
+.EE
 .in
-.sp
+.PP
 この構造体の 2 つのフィールドがともに 0 の場合、ポーリングが行われる: \fBsigtimedwait\fP()  は、呼び出し側プロセスに対して
 待機しているシグナルの情報を返して戻るか、 \fIset\fP のうちのどのシグナルも待機していない場合はエラーを返して戻る。
 .SH 返り値
@@ -96,36 +97,55 @@ struct timespec {
 \fBEINVAL\fP
 \fItimeout\fP が不正である。
 .SH 準拠
-POSIX.1\-2001.
+POSIX.1\-2001, POSIX.1\-2008.
 .SH 注意
 通常の使用法では、呼び出し側プロセスはこれらの関数より先に \fBsigprocmask\fP(2)  の呼び出すことにより \fIset\fP
 に含まれるシグナルをブロックし (そのためにこれらのシグナルがこの後に続く \fBsigwaitinfo\fP()  や \fBsigtimedwait\fP()
 の呼び出しの間に処理待ちになった場合には、デフォルトの動作は行われず)、 これらのシグナルに対するハンドラーは設定しない。
 マルチスレッドプログラムでは、 \fBsigwaitinfo\fP()  や \fBsigtimedwait\fP()
 を呼び出したスレッド以外のスレッドで、そのシグナルがデフォルトの動作に基いて処理されないように、全てのスレッドで該当シグナルをブロックすべきである。
-
+.PP
 指定されたスレッドに対する処理待ちのシグナルの集合は、 そのスレッド自体宛ての処理待ちのシグナル集合と、プロセス全体宛ての
 処理待ちのシグナル集合をあわせたものである (\fBsignal\fP(7)  参照)。
-
+.PP
 \fBSIGKILL\fP と \fBSIGSTOP\fP を待とうとした場合、黙って無視される。
-
+.PP
 一つのプロセス内の複数のスレッドが \fBsigwaitinfo\fP()  や \fBsigtimedwait\fP()  で同じシグナルを待って停止した場合、
 プロセス全体宛てのシグナルが処理待ちになると、複数のスレッドのうち一つだけが 実際にそのシグナルを受信することになる。
 どのスレッドがシグナルを受信するかは決まっていない。
-
+.PP
+\fBsigwaitinfo\fP()  or \fBsigtimedwait\fP(), can't be used to receive signals
+that are synchronously generated, such as the \fBSIGSEGV\fP signal that results
+from accessing an invalid memory address or the \fBSIGFPE\fP signal that
+results from an arithmetic error.  Such signals can be caught only via
+signal handler.
+.PP
 .\"
 POSIX では \fBsigtimedwait\fP()  の引き数 \fItimeout\fP の値を NULL にした場合の意味を未定義としている。
 \fBsigwaitinfo\fP()  を呼び出したのと同じ意味としてもよいことになっており、 実際 Linux ではこのように動作する。
-.SS "C ライブラリとカーネル ABI の違い"
+.SS "C library/kernel differences"
 Linux では、 \fBsigwaitinfo\fP()  は \fBsigtimedwait\fP()  を用いて実装されたライブラリ関数である。
-
-素の \fBsigtimedwait\fP() システムコールは 5 番目の引き数 \fIsize_t sigsetsize\fP を取る。 この引き数は
-\fIset\fP 引き数のバイト単位のサイズを指定する。 glibc の \fBsigtimedwait\fP() のラッパー関数はこの引き数に固定値
-(\fIsizeof(sigset_t)\fP と同じ) を指定する。
+.PP
+The glibc wrapper functions for \fBsigwaitinfo\fP()  and \fBsigtimedwait\fP()
+silently ignore attempts to wait for the two real\-time signals that are used
+internally by the NPTL threading implementation.  See \fBnptl\fP(7)  for
+details.
+.PP
+.\"
+The original Linux system call was named \fBsigtimedwait\fP().  However, with
+the addition of real\-time signals in Linux 2.2, the fixed\-size, 32\-bit
+\fIsigset_t\fP type supported by that system call was no longer fit for
+purpose.  Consequently, a new system call, \fBrt_sigtimedwait\fP(), was added
+to support an enlarged \fIsigset_t\fP type.  The new system call takes a fourth
+argument, \fIsize_t sigsetsize\fP, which specifies the size in bytes of the
+signal set in \fIset\fP.  This argument is currently required to have the value
+\fIsizeof(sigset_t)\fP (or the error \fBEINVAL\fP results).  The glibc
+\fBsigtimedwait\fP()  wrapper function hides these details from us,
+transparently calling \fBrt_sigtimedwait\fP()  when the kernel provides it.
 .SH 関連項目
 \fBkill\fP(2), \fBsigaction\fP(2), \fBsignal\fP(2), \fBsignalfd\fP(2), \fBsigpending\fP(2),
 \fBsigprocmask\fP(2), \fBsigqueue\fP(3), \fBsigsetops\fP(3), \fBsigwait\fP(3),
 \fBsignal\fP(7), \fBtime\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部である。
-プロジェクトの説明とバグ報告に関する情報は \%http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

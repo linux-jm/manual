@@ -1,4 +1,5 @@
 .\" Copyright 2003 Abhijit Menon-Sen <ams@wiw.org>
+.\" and Copyright (C) 2010, 2015, 2017 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -40,35 +41,35 @@
 .\" Updated 2012-05-31, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH POSIX_FADVISE 2 2014\-12\-31 Linux "Linux Programmer's Manual"
+.TH POSIX_FADVISE 2 2019\-03\-06 Linux "Linux Programmer's Manual"
 .SH 名前
 posix_fadvise \- ファイルデータのアクセスパターンをあらかじめ宣言する
 .SH 書式
 .nf
 \fB#include <fcntl.h>\fP
-.sp
+.PP
 \fBint posix_fadvise(int \fP\fIfd\fP\fB, off_t \fP\fIoffset\fP\fB, off_t \fP\fIlen\fP\fB, int \fP\fIadvice\fP\fB);\fP
 .fi
-.sp
+.PP
 .ad l
-.in -4n
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 \fBposix_fadvise\fP():
 .RS 4
-_XOPEN_SOURCE\ >=\ 600 || _POSIX_C_SOURCE\ >=\ 200112L
+_POSIX_C_SOURCE\ >=\ 200112L
 .RE
 .ad
 .SH 説明
 プログラムは、将来特定のパターンでファイルデータに アクセスする意思を伝えるために \fBposix_fadvise\fP()  を使うことができる。
 これにより、カーネルが適切な最適化を実行することが可能になる。
-
+.PP
 \fIadvice\fP は \fIfd\fP が参照しているファイルの \fIoffset\fP から始まる \fIlen\fP バイ
 トの範囲内 (\fIlen\fP が 0 の場合はファイルの終りまで) の (必ずしも存在しない)
 領域に適用される。 \fIadvice\fP は義務づけではない。 \fIadvice\fP は単にアプリケー
 ションのために可能性を構成するだけである。
-
+.PP
 \fIadvice\fP に許される値には、以下のものが含まれる:
 .TP 
 \fBPOSIX_FADV_NORMAL\fP
@@ -83,12 +84,32 @@ _XOPEN_SOURCE\ >=\ 600 || _POSIX_C_SOURCE\ >=\ 200112L
 .TP 
 \fBPOSIX_FADV_NOREUSE\fP
 指定されたデータは 1 度しかアクセスされない。
+.IP
+2.6.18 より前のカーネルでは、\fBPOSIX_FADV_NOREUSE\fP は \fBPOSIX_FADV_WILLNEED\fP と同じ意味であった。
+これは多分バグであった。 カーネル 2.6.18 以降では、このフラグは何も行わない。
 .TP 
 \fBPOSIX_FADV_WILLNEED\fP
 指定されたデータは近い将来アクセスされる。
+.IP
+\fBPOSIX_FADV_WILLNEED\fP は、 ページキャッシュに指定領域のブロックされない読み込みを開始する。 読み込まれるデータの総量は、
+仮想メモリーの負荷に依ってカーネルが減らすかもしれない (数メガバイトであれば通常は全く十分であり、 それより多くてもめったに役に立たない)。
 .TP 
 \fBPOSIX_FADV_DONTNEED\fP
 指定されたデータは近い将来アクセスされない。
+.IP
+\fBPOSIX_FADV_DONTNEED\fP は指定された領域に関連付けられた キャッシュページを解放しようとする。
+例えば、これは大きなファイルをストリーミングするときに役立つ。 プログラムは、使用済みのキャッシュされたデータを解放するように、
+定期的にカーネルに要求するかもしれない。 そうすることにより、さらに有効なキャッシュされたページが、 代わりに破棄されることはない。
+.IP
+Requests to discard partial pages are ignored.  It is preferable to preserve
+needed data than discard unneeded data.  If the application requires that
+data be considered for discarding, then \fIoffset\fP and \fIlen\fP must be
+page\-aligned.
+.IP
+The implementation \fImay\fP attempt to write back dirty pages in the specified
+region, but this is not guaranteed.  Any unwritten dirty pages will not be
+freed.  If the application wishes to ensure that dirty pages will be
+released, it should call \fBfsync\fP(2)  or \fBfdatasync\fP(2)  first.
 .SH 返り値
 成功した場合は 0 が返される。 失敗した場合はエラー番号が返される。
 .SH エラー
@@ -101,56 +122,56 @@ _XOPEN_SOURCE\ >=\ 600 || _POSIX_C_SOURCE\ >=\ 200112L
 .TP 
 \fBESPIPE\fP
 .\" commit 87ba81dba431232548ce29d5d224115d0c2355ac
-指定されたファイルディスクリプターがパイプまたは FIFO を参照している (\fBESPIPE\fP は POSIX で規定されているエラーだが、
-バージョン 2.16 より前のカーネルでは、 この場合に \fBEINVAL\fP を返していた。)
+The specified file descriptor refers to a pipe or FIFO.  (\fBESPIPE\fP is the
+error specified by POSIX, but before kernel version 2.6.16, Linux returned
+\fBEINVAL\fP in this case.)
 .SH バージョン
 .\" of fadvise64_64()
 カーネルによるサポートは Linux 2.5.60 で最初に登場し、
 対応するシステムコールは \fBfadvise64\fP() という名前である。
 ライブラリによるサポートは glibc バージョン 2.2 以降で提供されており、
 ラッパー関数は \fBposix_fadvise\fP() という名前である。
-
+.PP
 .\" commit d3ac21cacc24790eb45d735769f35753f5b56ceb
 Linux 3.18 以降では、対応するシステムコールのサポートは任意となり、利用できるかはカーネルが
 \fBCONFIG_ADVISE_SYSCALLS\fP オプションを有効にしてコンパイルされているかに依存する。
 .SH 準拠
-POSIX.1\-2001.  \fIlen\fP 引き数の型が POSIX.1\-2003 TC1 において \fIsize_t\fP から \fIoff_t\fP
-に変更された点に注意すること。
+POSIX.1\-2001, POSIX.1\-2008.  Note that the type of the \fIlen\fP argument was
+changed from \fIsize_t\fP to \fIoff_t\fP in POSIX.1\-2001 TC1.
 .SH 注意
 Linux では、\fBPOSIX_FADV_NORMAL\fP はバッキングデバイスの デフォルトサイズに先読み (readahead)
 ウインドウを設定する。 \fBPOSIX_FADV_SEQUENTIAL\fP はこのサイズを 2 倍し、 \fBPOSIX_FADV_RANDOM\fP
 は先読みを全く無効にする。 これらの変更はファイル全体に影響し、指定された領域のみに影響するわけではない
 (しかし同じファイルに対する他のオープンファイルハンドルは影響を受けない)。
-
-\fBPOSIX_FADV_WILLNEED\fP は、 ページキャッシュに指定領域のブロックされない読み込みを開始する。 読み込まれるデータの総量は、
-仮想メモリーの負荷に依ってカーネルが減らすかもしれない (数メガバイトであれば通常は全く十分であり、 それより多くてもめったに役に立たない)。
-
-2.6.18 より前のカーネルでは、\fBPOSIX_FADV_NOREUSE\fP は \fBPOSIX_FADV_WILLNEED\fP と同じ意味であった。
-これは多分バグであった。 カーネル 2.6.18 以降では、このフラグは何も行わない。
-
-\fBPOSIX_FADV_DONTNEED\fP は指定された領域に関連付けられた キャッシュページを解放しようとする。
-例えば、これは大きなファイルをストリーミングするときに役立つ。 プログラムは、使用済みのキャッシュされたデータを解放するように、
-定期的にカーネルに要求するかもしれない。 そうすることにより、さらに有効なキャッシュされたページが、 代わりに破棄されることはない。
-
-ページの一部分の破棄要求は無視される。 不要なデータを破棄するよりも必要なデータを保持する方がよい。
-アプリケーションがデータを破棄した方がよいと思う場合は、 \fIoffset\fP と \fIlen\fP がページ境界に合っていなければならない。
-
-まだ書き出されていないページは影響を受けないので、 そのページの解放が保証されることをアプリケーションが望んでいるなら、 最初に \fBfsync\fP(2)
-または \fBfdatasync\fP(2)  を呼ぶべきである。
+.PP
+The contents of the kernel buffer cache can be cleared via the
+\fI/proc/sys/vm/drop_caches\fP interface described in \fBproc\fP(5).
+.PP
+One can obtain a snapshot of which pages of a file are resident in the
+buffer cache by opening a file, mapping it with \fBmmap\fP(2), and then
+applying \fBmincore\fP(2)  to the mapping.
+.SS "C library/kernel differences"
+The name of the wrapper function in the C library is \fBposix_fadvise\fP().
+The underlying system call is called \fBfadvise64\fP()  (or, on some
+architectures, \fBfadvise64_64\fP()); the difference between the two is that
+the former system call assumes that the type of the \fIlen\fP argument is
+\fIsize_t\fP, while the latter expects \fIloff_t\fP there.
 .SS アーキテクチャー固有の派生バージョン
-いくつかのアーキテクチャーでは、 64 ビットの引き数は適切なレジスターの組に割り当てる必要がある (\fBsyscall\fP(2) 参照)。
-このようなアーキテクチャーでは、 「書式」に書かれている  \fBposix_fadvise\fP() の呼び出しシグネチャーで、 引き数 \fIfd\fP と
-\fIoffset\fP の間のパディング (詰めもの) でレジスターが一つ消費されてしまう。 そのため、
-これらのアーキテクチャーでは引き数が適切な順序になった別のシステムコールが定義されているが、 それ以外は \fBposix_fadvise\fP()
-と全く同じである。
-
+Some architectures require 64\-bit arguments to be aligned in a suitable pair
+of registers (see \fBsyscall\fP(2)  for further detail).  On such
+architectures, the call signature of \fBposix_fadvise\fP()  shown in the
+SYNOPSIS would force a register to be wasted as padding between the \fIfd\fP
+and \fIoffset\fP arguments.  Therefore, these architectures define a version of
+the system call that orders the arguments suitably, but is otherwise exactly
+the same as \fBposix_fadvise\fP().
+.PP
 例えば、 Linux 2.6.14 以降では、 ARM には以下のシステムコールが存在する。
 .PP
 .in +4n
-.nf
+.EX
 \fBlong arm_fadvise64_64(int \fP\fIfd\fP\fB, int \fP\fIadvice\fP\fB,\fP
 \fB                      loff_t \fP\fIoffset\fP\fB, loff_t \fP\fIlen\fP\fB);\fP
-.fi
+.EE
 .in
 .PP
 通常、 glibc の \fBposix_fadvise\fP() ラッパー関数により、 これらのアーキテクチャー固有の詳細はアプリケーションには見えない。
@@ -159,10 +180,8 @@ glibc のラッパー関数では、適切なアーキテクチャー固有の�
 2.6.6 より前のカーネルでは、 \fIlen\fP に 0 が指定された場合、 「ファイルの終りまでの全てのバイト」という意味ではなく、 文字通り「0
 バイト」として解釈されていた。
 .SH 関連項目
-.\" FIXME . Write a posix_fadvise(3) page.
-\fBreadahead\fP(2), \fBsync_file_range\fP(2), \fBposix_fallocate\fP(3),
-\fBposix_madvise\fP(3)
+\fBfincore\fP(1), \fBmincore\fP(2), \fBreadahead\fP(2), \fBsync_file_range\fP(2),
+\fBposix_fallocate\fP(3), \fBposix_madvise\fP(3)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

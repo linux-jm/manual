@@ -39,14 +39,14 @@
 .\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH TIME 7 2012\-10\-28 Linux "Linux Programmer's Manual"
+.TH TIME 7 2020\-04\-11 Linux "Linux Programmer's Manual"
 .SH 名前
 time \- 時間とタイマーの概要
 .SH 説明
 .SS "実時間 (real time) とプロセス時間"
 \fI実時間\fPは、特定の時点から計った時間と定義される。 特定の時点とは、過去の標準的な時点 (下記の紀元 (Epoch) とカレンダ時刻の説明を参照)
 や、 プロセスの一生における何らかの時点 (例えば、開始時) である (\fI経過時間\fP)。
-
+.PP
 \fIプロセス時間\fPは、プロセスによって使われた総 CPU 時間と定義される。 多くの場合、\fIユーザー\fP時間と\fIシステム\fP時間に分けられる。 ユーザー
 CPU 時間は、コードをユーザーモードで実行するのに使った時間である。 システム CPU 時間は、そのプロセスのために
 カーネルがシステムモードで実行するのに使った時間である (例えば、システムコールを実行するのに使った時間)。 \fBtime\fP(1)
@@ -62,37 +62,47 @@ CPU 時間は、コードをユーザーモードで実行するのに使った�
 \fBgetrusage\fP(2))\fBする様々なシステムコールの精度は\fP \fIソフトウェアクロック\fP の分解能 (resolution) に制限される。
 ソフトウェアクロックとは、カーネルが管理する \fIjiffy\fP 単位で時間を計測するクロックのことである。 jiffy の大きさはカーネル定数
 \fIHZ\fP の値で決定される。
-
+.PP
 \fIHZ\fP の値はカーネルのバージョンとハードウェアプラットフォームで異なる。 i386 の場合は以下の通りである: 2.4.x
 とそれより前のカーネルでは、HZ は 100 であったので、 jiffy の値は 0.01 秒になっていた。 2.6.0 以降では、HZ は 1000
 に増やされたので、jiffy の値は 0.001 秒である。 カーネル 2.6.13 以降では、HZ の値はカーネル設定パラメーターになり、 100,
 250 (デフォルト), 1000 という値にできる。 それぞれ jiffy の値は 0.01, 0.004, 0.001 秒になる。 カーネル
 2.6.20 以降では、300 も利用できるようになっている。 300 は一般的な映像フレームレートの公倍数である (PAL, 25HZ; NTSC,
 30HZ)。
-
+.PP
 .\" glibc gets this info with a little help from the ELF loader;
 .\" see glibc elf/dl-support.c and kernel fs/binfmt_elf.c.
 .\"
 \fBtimes\fP(2)  システムコールは特殊なケースであり、 このシステムコールはカーネル定数 \fIUSER_HZ\fP
 で定義された粒度で時間を報告する。 ユーザー空間のアプリケーションは \fIsysconf(_SC_CLK_TCK)\fP
 を使ってこの定数の値を知ることができる。
+.SS "System and process clocks; time namespaces"
+.\"
+The kernel supports a range of clocks that measure various kinds of elapsed
+and virtual (i.e., consumed CPU) time.  These clocks are described in
+\fBclock_gettime\fP(2).  A few of the clocks are settable using
+\fBclock_settime\fP(2).  The values of certain clocks are virtualized by time
+namespaces; see \fBtime_namespaces\fP(7).
 .SS 高精度タイマー
 Linux 2.6.21 より前では、タイマーやスリープ関連のシステムコールの精度も jiffy のサイズにより制限されていた。
-
+.PP
 Linux 2.6.21 以降では、Linux は高精度タイマー (high\-resolution timers; HRTs)  をサポートしており、
 \fBCONFIG_HIGH_RES_TIMERS\fP で制御できる。 高精度タイマーをサポートしているシステムでは、タイマーとスリープ関連のシステムコール
 の精度はもはや jiffy に制約されることはなく、 ハードウェアが許す限りの精度となる (最近のハードウェアではマイクロ秒単位の精度が一般的である)。
 高精度タイマーがサポートされているかは、 \fBclock_getres\fP(2)  を呼び出して分解能を確認するか、
 \fI/proc/timer_list\fP 内の "resolution" エントリーを参照するかで判断できる。
-
+.PP
 高精度タイマーはすべてのハードウェアアーキテクチャーでサポートされている 訳ではない (対応しているアーキテクチャーは x86, arm,
 powerpc である)。
 .SS 紀元
 UNIX システムは時刻を 紀元 (1970\-01\-01 00:00:00 +0000 (UTC)) からの秒数で表現する。
-
-プログラムは \fIカレンダ時刻\fP を \fBgettimeofday\fP(2)  を使って計ることができる。 この関数は紀元からの経過時間を
-(秒とマイクロ秒で) 返す。 \fBtime\fP(2)  は同様の情報を提供するが、最も近い秒の精度しかない。 システム時刻は
-\fBsettimeofday\fP(2)  で変更できる。
+.PP
+.\"
+A program can determine the \fIcalendar time\fP via the \fBclock_gettime\fP(2)
+\fBCLOCK_REALTIME\fP clock, which returns time (in seconds and nanoseconds)
+that have elapsed since the Epoch; \fBtime\fP(2)  provides similar information,
+but only with accuracy to the nearest second.  The system time can be
+changed using \fBclock_settime\fP(2).
 .SS 要素別の時刻
 ライブラリ関数の中には \fItm\fP 型の構造体を使うものがある。 この構造体は\fI要素別の時刻\fPを表し、 時刻の値を別々の要素
 (年・月・日・時・分・秒など) に分けて格納する。 この構造体は \fBctime\fP(3)  に記述されており、カレンダ時刻を要素別の時刻に変換する
@@ -101,7 +111,7 @@ UNIX システムは時刻を 紀元 (1970\-01\-01 00:00:00 +0000 (UTC)) から�
 .SS タイマーのスリープと設定
 様々なシステムコールと関数により、指定された一定の時間、 プログラムはスリープ (実行を停止) することが可能である。 \fBnanosleep\fP(2),
 \fBclock_nanosleep\fP(2), \fBsleep\fP(3)  を参照すること。
-
+.PP
 様々なシステムコールにより、プロセスは将来のある時点で 有効期間が終了するタイマーを設定できる。
 またオプションとして繰り返し間隔が指定できるものもある。 \fBalarm\fP(2), \fBgetitimer\fP(2),
 \fBtimerfd_create\fP(2), \fBtimer_create\fP(2)  を参照すること。
@@ -113,14 +123,15 @@ Linux 2.6.28 以降では、スレッドの "timer slack" 値を制御するこ�
 .SH 関連項目
 .ad l
 .nh
-\fBdate\fP(1), \fBtime\fP(1), \fBadjtimex\fP(2), \fBalarm\fP(2), \fBclock_gettime\fP(2),
-\fBclock_nanosleep\fP(2), \fBgetitimer\fP(2), \fBgetrlimit\fP(2), \fBgetrusage\fP(2),
-\fBgettimeofday\fP(2), \fBnanosleep\fP(2), \fBstat\fP(2), \fBtime\fP(2),
-\fBtimer_create\fP(2), \fBtimerfd_create\fP(2), \fBtimes\fP(2), \fButime\fP(2),
-\fBadjtime\fP(3), \fBclock\fP(3), \fBclock_getcpuclockid\fP(3), \fBctime\fP(3),
-\fBpthread_getcpuclockid\fP(3), \fBsleep\fP(3), \fBstrftime\fP(3), \fBstrptime\fP(3),
-\fBtimeradd\fP(3), \fBusleep\fP(3), \fBrtc\fP(4), \fBhwclock\fP(8)
+\fBdate\fP(1), \fBtime\fP(1), \fBtimeout\fP(1), \fBadjtimex\fP(2), \fBalarm\fP(2),
+\fBclock_gettime\fP(2), \fBclock_nanosleep\fP(2), \fBgetitimer\fP(2),
+\fBgetrlimit\fP(2), \fBgetrusage\fP(2), \fBgettimeofday\fP(2), \fBnanosleep\fP(2),
+\fBstat\fP(2), \fBtime\fP(2), \fBtimer_create\fP(2), \fBtimerfd_create\fP(2),
+\fBtimes\fP(2), \fButime\fP(2), \fBadjtime\fP(3), \fBclock\fP(3),
+\fBclock_getcpuclockid\fP(3), \fBctime\fP(3), \fBntp_adjtime\fP(3),
+\fBntp_gettime\fP(3), \fBpthread_getcpuclockid\fP(3), \fBsleep\fP(3), \fBstrftime\fP(3),
+\fBstrptime\fP(3), \fBtimeradd\fP(3), \fBusleep\fP(3), \fBrtc\fP(4),
+\fBtime_namespaces\fP(7), \fBhwclock\fP(8)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

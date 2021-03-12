@@ -47,42 +47,42 @@
 .\" Updated 2006-08-13, Akihiro MOTOKI, LDP v2.39
 .\" Updated 2008-08-08, Akihiro MOTOKI, LDP v3.05
 .\"
-.TH NANOSLEEP 2 2013\-07\-30 Linux "Linux Programmer's Manual"
+.TH NANOSLEEP 2 2017\-09\-15 Linux "Linux Programmer's Manual"
 .SH 名前
 nanosleep \- 高精度なスリープ
 .SH 書式
 \fB#include <time.h>\fP
-.sp
+.PP
 \fBint nanosleep(const struct timespec *\fP\fIreq\fP\fB, struct timespec
 *\fP\fIrem\fP\fB);\fP
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 \fBnanosleep\fP(): _POSIX_C_SOURCE\ >=\ 199309L
 .SH 説明
 \fBnanosleep\fP()  は、少なくとも \fI*req\fP で指定された時間の間、プログラムの実行を遅延させる。 \fBnanosleep\fP()
 は、呼び出したスレッドの実行を、 少なくとも \fI*req\fP で指定された時間の間、もしくは呼び出したスレッドでハンドラーの起動の
 きっかけとなるシグナル、またはプロセスを終了させるシグナルの配送が 行われるまで一時停止する。
-
+.PP
 呼び出しがシグナルハンドラーにより割り込まれた場合、 \fBnanosleep\fP は \-1 を返し、 \fIerrno\fP に \fBEINTR\fP を設定し、
 \fIrem\fP が NULL でなければ 残りの時間を \fIrem\fP が指す構造体に格納する。 \fI*rem\fP の値を使うと、
 \fBnanosleep\fP()  をもう一度呼び出して、指定した時間の停止を 完了させることができる (但し、「注意」の節を参照のこと)。
-
+.PP
 ナノ秒刻みの時間間隔を指定するのに \fItimespec\fP 構造体が使用される。この構造体は次のように定義されている。
-.sp
+.PP
 .in +4n
-.nf
+.EX
 struct timespec {
     time_t tv_sec;        /* 秒 */
     long   tv_nsec;       /* ナノ秒 */
 };
-.fi
+.EE
 .in
 .PP
 ナノ秒のフィールドの値は 0 から 999999999 の範囲になければならない。
-
+.PP
 \fBsleep\fP(3)  や \fBusleep\fP(3)  に比べると \fBnanosleep\fP()  には以下のような利点がある:
 停止期間の指定に関して高い時間分解能が提供されている。 シグナルと互いに影響を及ぼすことがないと POSIX.1 で明示的に規定されている。
 シグナルハンドラーによって割り込まれた際に、停止を再開するのが より簡単にできる。
@@ -95,21 +95,23 @@ struct timespec {
 ユーザー空間からの情報のコピーで問題があった。
 .TP 
 \fBEINTR\fP
-そのスレッドに配送されたシグナルにより停止が中断された。 スレッドが簡単に \fBnanosleep\fP()
-を再び呼び出して停止を続けることができるように、 残りの停止時間が \fI*rem\fP に格納される。
+The pause has been interrupted by a signal that was delivered to the thread
+(see \fBsignal\fP(7)).  The remaining sleep time has been written into \fI*rem\fP
+so that the thread can easily call \fBnanosleep\fP()  again and continue with
+the pause.
 .TP 
 \fBEINVAL\fP
 \fItv_nsec\fP フィールドの値が 0 から 999999999 の範囲でないか、 \fItv_sec\fP の値が負であった。
 .SH 準拠
-POSIX.1\-2001.
+POSIX.1\-2001, POSIX.1\-2008.
 .SH 注意
 \fIreq\fP で指定された期間が、内部で使用されるクロックの粒度の倍数になっていない 場合、期間は一番近い倍数に切り上げられる。
 また、停止が完了した後、CPU が呼び出し元のスレッドを再び実行できるように なるまでには遅延が入る。
-
+.PP
 シグナルによる割り込み後に繰り返し再開された場合、 \fBnanosleep\fP()  の停止が相対的な期間であることは問題となることがある。
 これは、呼び出しの割り込みから再開までの間の時間が原因で 停止が最終的に完了した際に時間にずれが発生するからである。 この問題は、絶対時刻が指定できる
 \fBclock_nanosleep\fP(2)  を使うことで回避できる。
-
+.PP
 .\" See also http://thread.gmane.org/gmane.linux.kernel/696854/
 .\" Subject: nanosleep() uses CLOCK_MONOTONIC, should be CLOCK_REALTIME?
 .\" Date: 2008-06-22 07:35:41 GMT
@@ -124,19 +126,29 @@ POSIX.1 は、 \fBnanosleep\fP()  は \fBCLOCK_REALTIME\fP に対して時刻を
 結果として、クロック値が更新前か後かに関わらず、要求された相対的な時間が 経過すると満了することになる。
 .RE
 .SS 以前の動作
-(例えば、時間が重要な意味を持つハードウェアを制御する場合など)  より正確な停止を必要とするアプリケーションに対応するために、
-\fBnanosleep\fP()  は、マイクロ秒精度のビジーウェイトを利用することで、 2\ ms 以下の停止を行うことができた。
-但し、この機能を利用するには、呼び出し元のスレッドが \fBSCHED_FIFO\fP や \fBSCHED_RR\fP
-といったリアルタイムポリシーの元でスケジューリングされている 必要があった。 この特別な拡張はカーネル 2.5.39 で削除された。したがって、 現在の
-2.4 系列のカーネルにはこの機能が存在するが、 2.6系列のカーネルにはない。
+In order to support applications requiring much more precise pauses (e.g.,
+in order to control some time\-critical hardware), \fBnanosleep\fP()  would
+handle pauses of up to 2 milliseconds by busy waiting with microsecond
+precision when called from a thread scheduled under a real\-time policy like
+\fBSCHED_FIFO\fP or \fBSCHED_RR\fP.  This special extension was removed in kernel
+2.5.39, and is thus not available in Linux 2.6.0 and later kernels.
 .SH バグ
-Linux 2.4 では、 \fBnanosleep\fP()  が (\fBSIGTSTP\fP などの) シグナルにより停止された場合、
-\fBnanosleep\fP()  の呼び出しは \fBSIGCONT\fP シグナルによるスレッドの再開後に \fBEINTR\fP エラーで失敗する。
-システムコールがこの後で再スタートされた場合、 スレッドが停止状態にある間に経過した時間は 停止期間としてカウント「されない」。
+If a program that catches signals and uses \fBnanosleep\fP()  receives signals
+at a very high rate, then scheduling delays and rounding errors in the
+kernel's calculation of the sleep interval and the returned \fIremain\fP value
+mean that the \fIremain\fP value may steadily \fIincrease\fP on successive
+restarts of the \fBnanosleep\fP()  call.  To avoid such problems, use
+\fBclock_nanosleep\fP(2)  with the \fBTIMER_ABSTIME\fP flag to sleep to an
+absolute deadline.
+.PP
+In Linux 2.4, if \fBnanosleep\fP()  is stopped by a signal (e.g., \fBSIGTSTP\fP),
+then the call fails with the error \fBEINTR\fP after the thread is resumed by a
+\fBSIGCONT\fP signal.  If the system call is subsequently restarted, then the
+time that the thread spent in the stopped state is \fInot\fP counted against
+the sleep interval.  This problem is fixed in Linux 2.6.0 and later kernels.
 .SH 関連項目
 \fBclock_nanosleep\fP(2), \fBrestart_syscall\fP(2), \fBsched_setscheduler\fP(2),
 \fBtimer_create\fP(2), \fBsleep\fP(3), \fBusleep\fP(3), \fBtime\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

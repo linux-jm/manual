@@ -58,51 +58,53 @@
 .\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH TRUNCATE 2 2015\-01\-22 Linux "Linux Programmer's Manual"
+.TH TRUNCATE 2 2019\-03\-06 Linux "Linux Programmer's Manual"
 .SH 名前
 truncate, ftruncate \- 指定した長さにファイルを切り詰める
 .SH 書式
 \fB#include <unistd.h>\fP
 .br
 \fB#include <sys/types.h>\fP
-.sp
+.PP
 \fBint truncate(const char *\fP\fIpath\fP\fB, off_t \fP\fIlength\fP\fB);\fP
 .br
 \fBint ftruncate(int \fP\fIfd\fP\fB, off_t \fP\fIlength\fP\fB);\fP
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
+.RE
 .ad l
-.PD 0
-.sp
+.PP
 \fBtruncate\fP():
 .RS 4
-_BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
-.br
-|| /* glibc 2.12 以降: */ _POSIX_C_SOURCE\ >=\ 200809L
+.\"    || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+_XOPEN_SOURCE\ >=\ 500
+    || /* Since glibc 2.12: */ _POSIX_C_SOURCE\ >=\ 200809L
+    || /* Glibc versions <= 2.19: */ _BSD_SOURCE
 .RE
-.sp
+.PP
 \fBftruncate\fP():
 .RS 4
-_BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
-.br
-|| /* glibc 2.3.5 以降: */ _POSIX_C_SOURCE\ >=\ 200112L
+.\"    || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+_XOPEN_SOURCE\ >=\ 500
+    || /* Since glibc 2.3.5: */ _POSIX_C_SOURCE\ >=\ 200112L
+    || /* Glibc versions <= 2.19: */ _BSD_SOURCE
 .RE
-.PD
 .ad b
 .SH 説明
 \fBtruncate\fP()  は \fIpath\fP で指定されるファイルを、 \fBftruncate\fP()  は \fIfd\fP で参照されるファイルを
 \fIlength\fP バイトの長さになるように延長する、もしくは切り詰める。
-.LP
+.PP
 もし切り詰める前のファイルが \fIlength\fP より長ければ、length バイトを越える部分のデータは失われる。 もし切り詰める前のファイルが
 \fIlength\fP より短かければ、伸張される。 伸張された部分を読んだ場合はヌルバイト (\(aq\e0\(aq) の列が返される。
-.LP
+.PP
 ファイルオフセットは変更されない。
-.LP
-大きさが変更されると、ファイルの st_ctime と st_mtime フィールド (それぞれ最終状態変更時刻、最終修正時刻; \fBstat\fP(2)
-参照) が更新される。 また、set\-user\-ID と set\-group\-ID の許可ビットがクリアされるかもしれない。
-.LP
+.PP
+If the size changed, then the st_ctime and st_mtime fields (respectively,
+time of last status change and time of last modification; see \fBinode\fP(7))
+for the file are updated, and the set\-user\-ID and set\-group\-ID mode bits may
+be cleared.
+.PP
 \fBftruncate\fP()  の場合、ファイルは書き込み用に開いていなければならない。 \fBtruncate\fP()
 の場合、ファイルは書き込み可能でなければならない。
 .SH 返り値
@@ -157,19 +159,24 @@ inode の更新時に I/O エラーが発生した。
 ファイルが読み込み専用 (read only) のファイルシステム上にある。
 .TP 
 \fBETXTBSY\fP
-指定されたファイルは実行されているファイルである。
+The file is an executable file that is being executed.
 .PP
 \fBftruncate\fP()  にも同様のエラーが適用される。 但し、 \fIpath\fP に関するエラーの場合は、ファイルディスクリプター \fIfd\fP
 に関するエラーとなる。
 .TP 
 \fBEBADF\fP
-\fIfd\fP が無効なディスクリプターである。
+\fIfd\fP が適切なファイルディスクリプターでない。
 .TP 
 \fBEBADF\fP または \fBEINVAL\fP
 \fIfd\fP で指定されているものが書き込みモードで開かれていない。
 .TP 
 \fBEINVAL\fP
-\fIfd\fP が通常のファイルを参照していない。
+\fIfd\fP does not reference a regular file or a POSIX shared memory object.
+.TP 
+\fBEINVAL\fP or \fBEBADF\fP
+The file descriptor \fIfd\fP is not open for writing.  POSIX permits, and
+portable applications should handle, either error for this case.  (Linux
+produces \fBEINVAL\fP.)
 .SH 準拠
 .\" POSIX.1-1996 has
 .\" .BR ftruncate ().
@@ -182,8 +189,12 @@ inode の更新時に I/O エラーが発生した。
 .\" error conditions EMFILE, EMULTIHP, ENFILE, ENOLINK.  SVr4 documents for
 .\" .BR ftruncate ()
 .\" an additional EAGAIN error condition.
-4.4BSD, SVr4, POSIX.1\-2001 (これらのコールは 4.2BSD で初めて登場した)。
+POSIX.1\-2001, POSIX.1\-2008, 4.4BSD, SVr4 (these calls first appeared in
+4.2BSD).
 .SH 注意
+\fBftruncate\fP()  can also be used to set the size of a POSIX shared memory
+object; see \fBshm_open\fP(3).
+.PP
 .\" At the very least: OSF/1, Solaris 7, and FreeBSD conform, mtk, Jan 2002
 「説明」の節で述べた詳細は XSI 準拠のシステムについてのものである。
 XSI 非準拠のシステムの場合、POSIX 標準は \fBftruncate\fP() に対して \fIlength\fP が
@@ -194,7 +205,7 @@ XSI 非準拠のシステムの場合、POSIX 標準は \fBftruncate\fP() に対
 のファイルシステムでは、 \fBtruncate\fP() や \fBftruncate\fP() を使って現在のファイル
 長を越えてファイルを伸長することができない。 Linux での有名な例としては
 VFAT がある。
-
+.PP
 元々の Linux の \fBtruncate\fP() と \fBftruncate\fP() システムコールは
 大きなファイルオフセットを扱えるように設計されていなかった。
 その結果、大きなファイルファイルを扱うことができる \fBtruncate64\fP() と \fBftruncate64\fP()
@@ -202,7 +213,7 @@ VFAT がある。
 ただし、glibc を使ったアプリケーションではこれらの詳細は気にする必要はない。
 glibc のラッパー関数は新しいシステムコールが利用できる場合にはそれらを利用する
 ようになっているからである。
-
+.PP
 いくつかの 32 ビットアーキテクチャーでは、これらのシステムコールの呼び出し時のシグネチャーが違っています。理由は \fBsyscall\fP(2)
 で説明されている通りです。
 .SH バグ
@@ -211,8 +222,7 @@ glibc 2.12 のヘッダーファイルにはバグがあり、 \fBftruncate\fP()
 \fB_POSIX_C_SOURCE\fP の最小値が 200112L ではなく 200809L となっていた。 このバグは、これ以降のバージョンの
 glibc では修正されている。
 .SH 関連項目
-\fBopen\fP(2), \fBstat\fP(2), \fBpath_resolution\fP(7)
+\fBtruncate\fP(1), \fBopen\fP(2), \fBstat\fP(2), \fBpath_resolution\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -33,15 +33,15 @@
 .\"         all rights reserved.
 .\" Translated 2007-02-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\"
-.TH VMSPLICE 2 2014\-10\-02 Linux "Linux Programmer's Manual"
+.TH VMSPLICE 2 2019\-03\-06 Linux "Linux Programmer's Manual"
 .SH 名前
-vmsplice \- ユーザーページをパイプに継ぎ合わせる
+vmsplice \- splice user pages to/from a pipe
 .SH 書式
 .nf
 \fB#define _GNU_SOURCE\fP         /* feature_test_macros(7) 参照 */
 \fB#include <fcntl.h>\fP
 \fB#include <sys/uio.h>\fP
-
+.PP
 \fBssize_t vmsplice(int \fP\fIfd\fP\fB, const struct iovec *\fP\fIiov\fP\fB,\fP
 \fB                 unsigned long \fP\fInr_segs\fP\fB, unsigned int \fP\fIflags\fP\fB);\fP
 .fi
@@ -54,23 +54,28 @@ vmsplice \- ユーザーページをパイプに継ぎ合わせる
 .\" the kernel-space one (contrast this to "write()", which copies
 .\" the actual data, and you can thus reuse the buffer immediately
 .\" after a successful write), but that is often easy to do.
-\fBvmsplice\fP()  システムコールは、 \fIiov\fP で指定されたユーザーメモリーの \fInr_segs\fP の範囲をパイプにマッピングする。
-\fIfd\fP はパイプを参照していなければならない。
-
+.\" Since Linux 2.6.23
+.\" commit 6a14b90bb6bc7cd83e2a444bf457a2ea645cbfe7
+If \fIfd\fP is opened for writing, the \fBvmsplice\fP()  system call maps
+\fInr_segs\fP ranges of user memory described by \fIiov\fP into a pipe.  If \fIfd\fP
+is opened for reading, the \fBvmsplice\fP()  system call fills \fInr_segs\fP
+ranges of user memory described by \fIiov\fP from a pipe.  The file descriptor
+\fIfd\fP must refer to a pipe.
+.PP
 ポインター \fIiov\fP は \fIiovec\fP 構造体の配列を指す。 \fIiovec\fP 構造体は \fI<sys/uio.h>\fP
 で以下のように定義されている:
-
+.PP
 .in +4n
-.nf
+.EX
 struct iovec {
-    void  *iov_base;            /* 開始アドレス */
-    size_t iov_len;             /* バイト数 */
+    void  *iov_base;        /* Starting address */
+    size_t iov_len;         /* Number of bytes */
 };
+.EE
 .in
-.fi
-
+.PP
 \fIflags\fP 引き数には、以下の値の 0 個以上をビット毎の論理和の形で指定する。
-.TP  1.9i
+.TP 
 \fBSPLICE_F_MOVE\fP
 \fBvmsplice\fP()  では未使用。 \fBsplice\fP(2)  参照。
 .TP 
@@ -85,15 +90,16 @@ struct iovec {
 \fBSPLICE_F_GIFT\fP
 .\" FIXME . Explain the following line in a little more detail:
 .\" FIXME
-.\"	It looks like the page-alignment requirement went away with
-.\"	commit bd1a68b59c8e3bce45fb76632c64e1e063c3962d
+.\" It looks like the page-alignment requirement went away with
+.\" commit bd1a68b59c8e3bce45fb76632c64e1e063c3962d
 .\"
 .\" .... if we expect to later SPLICE_F_MOVE to the cache.
-ユーザーページがカーネルへ渡すもの (gift) であることを示す。 アプリケーションはこのメモリーを絶対に変更してはならない。
-さもなければ、ページキャッシュとディスク上のデータは 一致しなくなるだろう。 ページをカーネルに渡すと、この次の \fBsplice\fP(2)
-\fBSPLICE_F_MOVE\fP でそのページの移動を行うことができる。 このフラグが指定されなかった場合、この次の \fBsplice\fP(2)
-\fBSPLICE_F_MOVE\fP でそのページのコピーを行わなければならない。 データはメモリー上でページ境界にあっていなければならず、
-長さもページ境界の倍数でなければならない。
+The user pages are a gift to the kernel.  The application may not modify
+this memory ever, otherwise the page cache and on\-disk data may differ.
+Gifting pages to the kernel means that a subsequent \fBsplice\fP(2)
+\fBSPLICE_F_MOVE\fP can successfully move the pages; if this flag is not
+specified, then a subsequent \fBsplice\fP(2)  \fBSPLICE_F_MOVE\fP must copy the
+pages.  Data must also be properly page aligned, both in memory and length.
 .SH 返り値
 成功して完了すると、 \fBvmsplice\fP()  はパイプに転送したバイト数を返す。 エラーの場合、 \fBvmplice\fP()  は \-1 を返し、
 \fIerrno\fP をエラーを示す値に設定する。
@@ -117,12 +123,20 @@ struct iovec {
 .SH 準拠
 このシステムコールは Linux 固有である。
 .SH 注意
-指定されたセグメント数が上限に達した場合、 \fBvmsplice\fP()  は他のベクトル形式の read/write を行う関数と同じ動作をする。
-上限は \fBIOV_MAX\fP であり、 \fI<limits.h>\fP で定義されている。 このドキュメントを書いた時点での値は 1024
-である。
+.\" UIO_MAXIOV in kernel source
+\fBvmsplice\fP()  follows the other vectorized read/write type functions when
+it comes to limitations on the number of segments being passed in.  This
+limit is \fBIOV_MAX\fP as defined in \fI<limits.h>\fP.  Currently, this
+limit is 1024.
+.PP
+.\" commit 6a14b90bb6bc7cd83e2a444bf457a2ea645cbfe7
+\fBvmsplice\fP()  really supports true splicing only from user memory to a
+pipe.  In the opposite direction, it actually just copies the data to
+userspace.  But this makes the interface nice and symmetric and enables
+people to build on \fBvmsplice\fP()  with room for future improvement in
+performance.
 .SH 関連項目
-\fBsplice\fP(2), \fBtee\fP(2)
+\fBsplice\fP(2), \fBtee\fP(2), \fBpipe\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

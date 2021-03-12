@@ -1,4 +1,3 @@
-'\" t
 .\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
 .\"
 .\" %%%LICENSE_START(VERBATIM_ONE_PARA)
@@ -21,7 +20,7 @@
 .\" Updated 2007-01-05, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.43
 .\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH RAW 7 2012\-05\-10 Linux "Linux Programmer's Manual"
+.TH RAW 7 2020\-08\-13 Linux "Linux Programmer's Manual"
 .SH 名前
 raw \- Linux の IPv4 raw ソケット
 .SH 書式
@@ -33,16 +32,23 @@ raw \- Linux の IPv4 raw ソケット
 .SH 説明
 raw ソケットを使うと、新しい IPv4 プロトコルをユーザー空間で 実装できるようになる。 raw ソケットは、リンクレベルヘッダーを 含まない
 raw データグラムの送受信ができる。
-
-IPv4 レイヤは、扱っているソケットで \fBIP_HDRINCL\fP ソケットオプションが有効になっていなければ、 パケットを送信するときに IP
-ヘッダーを生成する。 \fBIP_HDRINCL\fP オプションが有効になっているときは、パケットには IP ヘッダーが含まれていなければならない。
-受信時には、 IP ヘッダーは常にパケットに含まれている。
-
-実効ユーザー ID が 0 のプロセスか、 \fBCAP_NET_RAW\fP 権限を持つプロセスだけが raw ソケットをオープンすることができる。
-
-この raw ソケットに指定された \fIprotocol\fP 番号にマッチする全てのパケットとエラーとが、このソケットに渡される。
-許可されているプロトコルのリストは RFC\ 1700 の割り当て番号と \fBgetprotobyname\fP(3)  を見よ。
-
+.PP
+The IPv4 layer generates an IP header when sending a packet unless the
+\fBIP_HDRINCL\fP socket option is enabled on the socket.  When it is enabled,
+the packet must contain an IP header.  For receiving, the IP header is
+always included in the packet.
+.PP
+In order to create a raw socket, a process must have the \fBCAP_NET_RAW\fP
+capability in the user namespace that governs its network namespace.
+.PP
+All packets or errors matching the \fIprotocol\fP number specified for the raw
+socket are passed to this socket.  For a list of the allowed protocols, see
+the IANA list of assigned protocol numbers at
+.UR http://www.iana.org/assignments/protocol\-numbers/
+.UE
+and
+\fBgetprotobyname\fP(3).
+.PP
 \fBIPPROTO_RAW\fP のプロトコルは暗黙のうちに \fBIP_HDRINCL\fP を有効にするので、 渡されたヘッダーで指定された、あらゆる IP
 プロトコルを送信できる。 \fBIPPROTO_RAW\fP 経由でのあらゆる IP プロトコルの受信は、 raw ソケットを用いては行えない。
 .RS
@@ -51,32 +57,36 @@ tab(:) allbox;
 c s
 l l.
 IP ヘッダーフィールド。 \fBIP_HDRINCL\fP によって送信時に変更される。
-IP チェックサム:常に変更される。
-ソースアドレス:元の値が 0 の時に変更される。
-パケット ID:元の値が 0 の時に変更される。
-全体の長さ:常に変更される。
+IP チェックサム:Always filled in
+ソースアドレス:Filled in when zero
+Packet ID:Filled in when zero
+全体の長さ:Always filled in
 .TE
 .RE
-.sp
+.PP
 .PP
 \fBIP_HERINCL\fP が指定されていて、 IP ヘッダーに 0 でない送信先アドレスが記入されていた場合は、
 その送信先アドレスがパケットの経路を決めるのに用いられる。 \fBMSG_DONTROUTE\fP が指定されている時には、
 送信先アドレスはローカルなインターフェースを参照するものでなければならない。 さもないと、ルーティングテーブルの参照はいずれにせよ行われるが、
 ゲートウェイが必要な経路は無視される。
-
+.PP
 \fBIP_HDRINCL\fP がセットされていなければ、 raw ソケットの IP ヘッダーオプションを \fBsetsockopt\fP(2)
 を用いて設定することができる。詳細な情報は \fBip\fP(7)  を見よ。
-
-Linux 2.2 では、 IP ヘッダーの全てのフィールドとオプションとを IP ソケットオプションによって設定できる。したがって raw
-ソケットが必要になるのは、新しいプロトコルを設計する場合か、 ユーザーインターフェースを持たないプロトコル (ICMP など) を扱う場合に 限られる。
-
+.PP
+Starting with Linux 2.2, all IP header fields and options can be set using
+IP socket options.  This means raw sockets are usually needed only for new
+protocols or protocols with no user interface (like ICMP).
+.PP
 パケットは、受信されるとまずプロトコルにバインドしている raw ソケットに渡され、 その後で他のプロトコルハンドラー
 (カーネルのプロトコルモジュールなど)  に渡される。
 .SS アドレスのフォーマット
-raw ソケットは標準の \fIsockaddr_in\fP アドレス構造体を用いる。定義は \fBip\fP(7)  でなされている。 \fIsin_port\fP
-フィールドを IP プロトコル番号の指定に用いることができるが、 Linux 2.2 ではこれは送信時には無視され、常に 0 にされる (バグ
-の項を参照)。 受信パケットに対しては、 \fIsin_port\fP はそのパケットのプロトコルにセットされる。 用いることのできる IP
-プロトコルは、インクルードファイル \fI<netinet/in.h>\fP を見よ。
+.\" commit f59fc7f30b710d45aadf715460b3e60dbe9d3418
+For sending and receiving datagrams (\fBsendto\fP(2), \fBrecvfrom\fP(2), and
+similar), raw sockets use the standard \fIsockaddr_in\fP address structure
+defined in \fBip\fP(7).  The \fIsin_port\fP field could be used to specify the IP
+protocol number, but it is ignored for sending in Linux 2.2 and later, and
+should be always set to 0 (see BUGS).  For incoming packets, \fIsin_port\fP is
+set to zero.
 .SS ソケットオプション
 .\" Or SOL_RAW on Linux
 raw ソケットのオプションは、 \fBIPPROTO_RAW\fP ファミリーフラグを与えて \fBsetsockopt\fP(2)  を呼べば設定でき、
@@ -104,8 +114,9 @@ raw ソケットのオプションは、 \fBIPPROTO_RAW\fP ファミリーフラ
 引き数が不正。
 .TP 
 \fBEMSGSIZE\fP
-パケットが大きすぎる。 Path MTU Discoverry が有効になっている (\fBIP_MTU_DISCOVER\fP ソケットフラグ)
-か、パケットのサイズが IPv4 で許されている パケットサイズの最大値 64KB を越えている。
+Packet too big.  Either Path MTU Discovery is enabled (the
+\fBIP_MTU_DISCOVER\fP socket flag) or the packet size exceeds the maximum
+allowed IPv4 packet size of 64\ kB.
 .TP 
 \fBEOPNOTSUPP\fP
 ソケット呼び出しに不正なフラグ (\fBMSG_OOB\fP など) が渡された。
@@ -119,9 +130,10 @@ raw ソケットのオプションは、 \fBIPPROTO_RAW\fP ファミリーフラ
 .SH バージョン
 \fBIP_RECVERR\fP と \fBICMP_FILTER\fP は Linux 2.2 で登場した。これらは Linux での拡張であり、
 移植性の必要なプログラムでは用いるべきでない。
-
-Linux 2.0 では \fBSO_BSDCOMPAT\fP ソケットオプションをセットすると、 BSD の raw
-ソケットにあるバグに互換性を取ることができた \(em Linux 2.2 以降では、このオプションはもはや効力を持たない。
+.PP
+Linux 2.0 enabled some bug\-to\-bug compatibility with BSD in the raw socket
+code when the \fBSO_BSDCOMPAT\fP socket option was set; since Linux 2.2, this
+option no longer has that effect.
 .SH 注意
 デフォルトでは、raw ソケットは Path MTU Discovery を行う。 つまり、カーネルは特定の宛先 IP アドレスの MTU
 (Maximum Transmission Unit; 最大転送単位) を記録し、raw パケットの書き込みが MTU を超えた場合
@@ -130,45 +142,46 @@ Linux 2.0 では \fBSO_BSDCOMPAT\fP ソケットオプションをセットす�
 MTU Discovery を無効にすることもできる (詳細は \fBip\fP(7)  を参照)。 Path MTU Discovery
 を無効にした場合は、パケットサイズが インターフェースの MTU よりも大きいと raw ソケットはそのパケットを フラグメント化して送出する。
 しかしながら、性能と信頼性の理由から Path MTU Discovery を 無効にするのは推奨できない。
-
-\fBbind\fP(2)  システムコールを用いると、 raw ソケットを 特定のローカルアドレスにバインドさせることができる。
-このバインドがされていない場合は、指定した IP プロトコルの すべてのパケットが受信される。 さらに、 \fBSO_BINDTODEVICE\fP
-を用いれば raw ソケットを特定のネットワークデバイスに バインドさせることもできる。 \fBsocket\fP(7)  を見よ。
-
+.PP
+A raw socket can be bound to a specific local address using the \fBbind\fP(2)
+call.  If it isn't bound, all packets with the specified IP protocol are
+received.  In addition, a raw socket can be bound to a specific network
+device using \fBSO_BINDTODEVICE\fP; see \fBsocket\fP(7).
+.PP
 \fBIPPROTO_RAW\fP ソケットは送信専用である。もしどうしてもすべての IP パケットを 受信したい場合は、 \fBpacket\fP(7)
 ソケットを \fBETH_P_IP\fP プロトコルで用いること。 packet ソケットは raw ソケットのように IP
 フラグメントを再構成しないことに注意。
-
+.PP
 datagram ソケットに対するすべての ICMP パケットを受信したい場合は、 特定のソケットに対して \fBIP_RECVERR\fP
 を用いるほうが良い場合が多い。 \fBip\fP(7)  を見よ。
-
+.PP
 raw ソケットは、 Linux のすべての IP プロトコルを受信することができる。 ICMP や TCP
 のように、カーネル内部にプロトコルモジュールを持つような ものも可能である。この場合には、パケットはカーネルモジュールと raw
 ソケットの両方に渡される (raw ソケットが複数あればそれぞれに渡される)。 移植性の必要なプログラムではこの機能に依存するべきではない。 他の多くの
 BSD におけるソケットの実装ではこの点において制限がある。
-
+.PP
 Linux はユーザーから渡されたヘッダーを決して変更しない (ただし \fBIP_HDRINCL\fP の説明にあるように、 0
 をいくつか埋める場合を除く)。 これは他の多くの raw ソケットの実装では異なる。
-
-一般に raw ソケットは移植性がないことが多いので、 移植性が必要なプログラムでは避けるべきである。
-
+.PP
+Raw sockets are generally rather unportable and should be avoided in
+programs intended to be portable.
+.PP
 raw ソケットへの送信では、 IP プロトコルを \fIsin_port\fP から取得できなければならない。この機能は Linux 2.2
 では使えなくなった。 \fBIP_HDRINCL\fP を用いれば同様のことが実現できる。
 .SH バグ
 透過プロクシ (transparent proxy) 拡張については記述していない。
-
+.PP
 \fBIP_HDRINCL\fP オプションがセットされているとデータグラムはフラグメント化されず、 インターフェースの MTU の大きさに制限される。
-
+.PP
 .\" .SH AUTHORS
 .\" This man page was written by Andi Kleen.
 送信用の IP プロトコルの設定を \fIsin_port\fP にしておく機能は Linux 2.2 から使えなくなった。
 ソケットにバインドされているプロトコルか、最初の \fBsocket\fP(2)  コールによって指定されたプロトコルが常に用いられる。
 .SH 関連項目
 \fBrecvmsg\fP(2), \fBsendmsg\fP(2), \fBcapabilities\fP(7), \fBip\fP(7), \fBsocket\fP(7)
-
+.PP
 Path MTU discovery に関しては \fBRFC\ 1191\fP を参照。 IP プロトコルに関しては \fBRFC\ 791\fP
 とインクルードファイル \fI<linux/ip.h>\fP を参照。
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

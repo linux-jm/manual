@@ -33,19 +33,18 @@
 .\" Translated 2007-10-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SPU_CREATE 2 2012\-08\-05 Linux "Linux Programmer's Manual"
+.TH SPU_CREATE 2 2020\-12\-21 Linux "Linux Programmer's Manual"
 .SH 名前
 spu_create \- 新しい SPU コンテキストを生成する
 .SH 書式
 .nf
 \fB#include <sys/types.h>\fP
 \fB#include <sys/spu.h>\fP
-
-\fBint spu_create(const char *\fP\fIpathname\fP\fB, int \fP\fIflags\fP\fB, mode_t \fP\fImode\fP\fB);\fP
+.PP
 \fBint spu_create(const char *\fP\fIpathname\fP\fB, int \fP\fIflags\fP\fB, mode_t \fP\fImode\fP\fB,\fP
 \fB               int \fP\fIneighbor_fd\fP\fB);\fP
 .fi
-
+.PP
 \fI注\fP: このシステムコールには glibc のラッパー関数は存在しない。「注意」の節を参照。
 .SH 説明
 \fBspu_create\fP() システムコールは、Cell Broadband Engine アーキテクチャーを実装した PowerPC
@@ -54,13 +53,19 @@ spu_create \- 新しい SPU コンテキストを生成する
 \fIpathname\fP は SPU ファイルシステム (\fBspufs\fP) のマウントポイント内の存在しないディレクトリを指していなければならない。
 \fBspu_create\fP() が成功すると、 \fIpathname\fP にディレクトリが生成され、 そのディレクトリに \fBspufs\fP(7)
 で説明されているファイル群が配置される。
-
+.PP
 コンテキストを作成した際、返されたファイルディスクリプターは、 \fBspu_run\fP(2) に渡すか、 \fB*at\fP 系のシステムコール
 (\fBopenat\fP(2) など) の \fIdirfd\fP 引き数として使用するか、 クローズするか、しかできない。 他の操作は定義されていない。
 そのコンテキストへの最後の参照がなくなった際に、 論理 SPU コンテキストは破棄される (そのコンテキストの \fIpathname\fP
 ディレクトリに作成されたファイルもすべて破棄される)。 通常は \fBspu_create\fP()
 が返したファイルディスクリプターがクローズされた際に発生する。
-
+.PP
+\fImode\fP 引き数 (からプロセスの \fBumask\fP(2) でセットされたビットを除いたもの) により、 \fBspufs\fP
+に作られる新しいディレクトリで使用されるアクセス許可が決まる。 利用できる \fImode\fP 値の完全なリストについては \fBstat\fP(2) を参照。
+.PP
+The \fIneighbor_fd\fP is used only when the \fBSPU_CREATE_AFFINITY_SPU\fP flag is
+specified; see below.
+.PP
 \fIflags\fP 引き数には 0 か以下の定数の組み合わせ (ビット単位の論理和) を指定できる。
 .TP 
 \fBSPU_CREATE_EVENTS_ENABLED\fP
@@ -70,37 +75,36 @@ DMA エラーを通知するのにシグナルを使うのではなく、 \fBspu
 コンテキストの代わりに SPU gang を作成する。 (gang は、機能的に互いに関係していて、スケジューリングパラメーター (優先度とポリシー)
 を共有する SPU コンテキストのグループである。 将来、 グループ全体が一つの単位としてスイッチイン/スイッチアウトされる gang
 スケジューリングが実装されるかもしれない。)
-
+.IP
 \fIpathname\fP 引き数で指定された場所に新しいディレクトリが作成される。 この gang を使って他の SPU
 コンテキストを保持することができる。 それには、それ以降の \fBspu_create\fP() に gang ディレクトリ内のパス名を渡す。
 .TP 
 \fBSPU_CREATE_NOSCHED\fP
 SPU スケジューラーの影響を受けないコンテキストを作成する。 一度実行されると、
 呼び出したプロセスが破棄されるまでこのコンテキストがスケジューリングで追い出されることはない。
-
+.IP
 このコンテキストは SPU から削除されることはないので、 \fBSPU_CREATE_NOSCHED\fP コンテキストではいくつかの機能は無効にされる。
 \fBspufs\fP のこのコンテキストのディレクトリでは一部のファイルだけができる。 また、 \fBSPU_CREATE_NOSCHED\fP
 コンテキストはクラッシュした際にコアファイルをダンプできない。
-
+.IP
 \fBSPU_CREATE_NOSCHED\fP コンテキストを作成するには \fBCAP_SYS_NICE\fP ケーパビリティが必要である。
 .TP 
 \fBSPU_CREATE_ISOLATE\fP
 隔離された SPU コンテキストを作成する。 隔離されたコンテキストはいくつかの PPE (PowerPC Processing Element)
 命令から保護される。 SPU ローカルストアや NPC レジスターへのアクセスなどである。
-
+.IP
 \fBSPU_CREATE_ISOLATE\fP コンテキストを作成するには \fBSPU_CREATE_NOSCHED\fP フラグも指定する必要がある。
 .TP 
-\fBSPU_CREATE_AFFINITY_SPU\fP
+\fBSPU_CREATE_AFFINITY_SPU\fP (since Linux 2.6.23)
+.\" commit 8e68e2f248332a9c3fd4f08258f488c209bd3e0c
 別の SPU コンテキストと affinity (親和性) を持ったコンテキストを作成する。 この affinity 情報は SPU
 スケジューリングアルゴリズムで使用される。 このフラグを使う際には、 他の SPU コンテキストを指すファイルディスクリプターを
 \fIneighbor_fd\fP 引き数を渡す必要がある。
 .TP 
-\fBSPU_CREATE_AFFINITY_MEM\fP
+\fBSPU_CREATE_AFFINITY_MEM\fP (since Linux 2.6.23)
+.\" commit 8e68e2f248332a9c3fd4f08258f488c209bd3e0c
 システムメモリーと affinity (親和性) を持ったコンテキストを作成する。 この affinity 情報は SPU
 スケジューリングアルゴリズムで使用される。
-.PP
-\fImode\fP 引き数 (からプロセスの \fBumask\fP(2) でセットされたビットを除いたもの) により、 \fBspufs\fP
-に作られる新しいディレクトリで使用されるアクセス許可が決まる。 利用できる \fImode\fP 値の完全なリストについては \fBstat\fP(2) を参照。
 .SH 返り値
 成功すると、 \fBspu_create\fP() は新しいファイルディスクリプターを返す。 エラーの場合、\-1 を返し、 \fIerrno\fP
 に以下のリストに記載のエラーコードのいずれかを設定する。
@@ -123,13 +127,14 @@ SPU スケジューラーの影響を受けないコンテキストを作成す�
 \fIpathname\fP を解決するまでに辿ったシンボリックリンクが多過ぎた。
 .TP 
 \fBEMFILE\fP
-そのプロセスがオープンできるファイル数の上限に達していた。
+The per\-process limit on the number of open file descriptors has been
+reached.
 .TP 
 \fBENAMETOOLONG\fP
 \fIpathname\fP が長過ぎる。
 .TP 
 \fBENFILE\fP
-システム全体でオープンできるファイル数の上限に達していた。
+The system\-wide limit on the total number of open files has been reached.
 .TP 
 \fBENODEV\fP
 隔離されたコンテキストが要求されたが、 ハードウェアが SPU アイソレーションをサポートしていない。
@@ -151,7 +156,8 @@ SPU スケジューラーの影響を受けないコンテキストを作成す�
 \fIpathname\fP の一部がディレクトリではない。
 .TP 
 \fBEPERM\fP
-\fISPU_CREATE_NOSCHED\fP フラグが指定されたが、ユーザーが \fBCAP_SYS_NICE\fP ケーパビリティを持っていない。
+The \fBSPU_CREATE_NOSCHED\fP flag has been given, but the user does not have
+the \fBCAP_SYS_NICE\fP capability.
 .SH ファイル
 \fIpathname\fP は \fBspufs\fP のマウントポイントの配下の場所を指して
 いなければならない。 慣例では \fI/spu\fP にマウントされる。
@@ -167,11 +173,14 @@ glibc はこのシステムコールに対するラッパー関数を提供し�
 .UR http://www.bsc.es\:/projects\:/deepcomputing\:/linuxoncell/
 .UE
 を参照のこと。
-.SH 例
+.PP
+Prior to the addition of the \fBSPU_CREATE_AFFINITY_SPU\fP flag in Linux
+2.6.23, the \fBspu_create\fP()  system call took only three arguments (i.e.,
+there was no \fIneighbor_fd\fP argument).
+.SH EXAMPLES
 \fBspu_create\fP() の利用例については \fBspu_run\fP(2) を参照。
 .SH 関連項目
 \fBclose\fP(2), \fBspu_run\fP(2), \fBcapabilities\fP(7), \fBspufs\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

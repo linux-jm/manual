@@ -47,12 +47,12 @@
 .\" Modified 2005-02-26, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\" Updated 2005-09-06, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\"
-.TH FLOCK 2 2014\-09\-21 Linux "Linux Programmer's Manual"
+.TH FLOCK 2 2017\-09\-15 Linux "Linux Programmer's Manual"
 .SH 名前
 flock \- オープンされたファイルに対するアドバイザリロックの適用、解除を行う
 .SH 書式
 \fB#include <sys/file.h>\fP
-.sp
+.PP
 \fBint flock(int \fP\fIfd\fP\fB, int \fP\fIoperation\fP\fB);\fP
 .SH 説明
 オープンされたファイルにアドバイザリロック (advisory lock) の適用 や解除を行う。 ファイルは \fIfd\fP で指定する。引き数
@@ -72,25 +72,28 @@ flock \- オープンされたファイルに対するアドバイザリロッ�
 \fBflock\fP()  を呼び出したときに、指定したロック種別と異なるロックが別プロセスによって 保持されていると、 \fBflock\fP()  は停止
 (block) されることがある。 非停止 (nonblocking) タイプの要求を行うためには、 上記の操作 (operation) に
 \fBLOCK_NB\fP を論理和の形で指定する。
-
+.PP
 一つのファイルに共有ロックと排他ロックを同時に設定することはできない。
-
-\fBflock\fP() によって作られるロックは、 オープンファイル記述 (open file description) (\fBopen\fP(2) 参照)
-と関連付けられる。 したがって、ファイルディスクリプターの複製 (\fBfork\fP(2)  や \fBdup\fP(2)  などにより作成される)
-は同じロックを参照し、 これらのファイルディスクリプターのどれを使っても このロックを変更したり解放したりできる。 また、ロックの解放は、
-上記の複数のファイルディスクリプターのいずれかに対して 明示的に \fBLOCK_UN\fP 操作を指示した場合か、これらのファイルディスクリプターがすべて
-閉じられた場合に行われる。
-
-あるプロセスが \fBopen\fP(2)  (もしくは同様の方法) を使って同じファイルに対して 複数のディスクリプターを取得した場合、
-\fBflock\fP()  はこれら複数のディスクリプターを各々独立のものとして扱う。
-これらのファイルディスクリプターの一つを使ってファイルをロックしようと した際、そのロック要求は、呼び出し元のプロセスがそのファイルの別の
-ディスクリプター経由ですでに設定しているロックによって拒否される場合がある。
-
+.PP
+Locks created by \fBflock\fP()  are associated with an open file description
+(see \fBopen\fP(2)).  This means that duplicate file descriptors (created by,
+for example, \fBfork\fP(2)  or \fBdup\fP(2))  refer to the same lock, and this
+lock may be modified or released using any of these file descriptors.
+Furthermore, the lock is released either by an explicit \fBLOCK_UN\fP operation
+on any of these duplicate file descriptors, or when all such file
+descriptors have been closed.
+.PP
+If a process uses \fBopen\fP(2)  (or similar) to obtain more than one file
+descriptor for the same file, these file descriptors are treated
+independently by \fBflock\fP().  An attempt to lock the file using one of these
+file descriptors may be denied by a lock that the calling process has
+already placed via another file descriptor.
+.PP
 一つのプロセスは、一つのファイルに対して (共有ロックと排他ロックのうち)  いずれか一種類のロックしか設定できない。 既にロックされたファイルに対して
 \fBflock\fP()  を呼び出すと、既存のロックを新しいロックモードに変更することになる。
-
+.PP
 \fBflock\fP()  により作成されたロックは \fBexecve\fP(2)  の前後で保存される。
-
+.PP
 共有ロックも排他ロックも、ファイルがどのモードでオープンされたかに 関係なく適用することができる。
 .SH 返り値
 成功した場合は 0 が返される。エラーの場合は \-1 が返され、 \fIerrno\fP が適切に設定される。
@@ -120,16 +123,6 @@ kernel 2.0 以降では、 \fBflock\fP()  は、GNU C ライブラリでの \fBf
 \fBfcntl\fP(2)  で適用されるロックの種別には相互作用がなくなり、 \fBflock\fP()  がデッドロックを検出しなくなる。 (ただし、最近の
 BSD などいくつかのシステムでは、 \fBflock\fP() と \fBfcntl\fP(2) ロックが互いに影響することが「ある」という点に注意すること。)
 .PP
-.\" commit 5eebde23223aeb0ad2d9e3be6590ff8bbfab0fc2
-バージョン 2.6.11 以前の Linux カーネルでは、 \fBflock\fP() は NFS 上のファイルのロックを行わない
-(つまり、ロックの対象はローカルシステムに限定されていた)。 その代わり、十分に最近のバージョンの Linux とロックをサポートするサーバーであれば、
-\fBfcntl\fP(2) のバイト範囲ロックを使うことができた。 \fBfcntl\fP(2) のバイト範囲ロックは NFS 上で動作する。 Linux
-2.6.12 以降では、NFS クライアントは、 ファイル全体に対するバイト範囲ロックでエミュレートすることで、 \fBflock\fP()
-ロックをサポートしている。 これは、\fBfcntl\fP(2) と \fBflock\fP() ロックが NFS 上では互いに影響しあうことを意味する。
-Linux 2.6.37 以降では、 \fBflock\fP() ロック (と \fBfcntl\fP(2) のバイト範囲ロック)
-をローカルシステムに対するものとして扱う互換性モードが、 カーネルでサポートされている。 \fBnfs\fP(5) の \fIlocal_lock\fP
-オプションの議論を参照。
-.PP
 \fBflock\fP()  アドバイザリロックだけを適用する。したがって、ファイルに適切なアクセス権を 付与していれば、プロセスは \fBflock\fP()
 の使用に無視して、ファイルへの入出力を行うことができる。
 .PP
@@ -143,13 +136,28 @@ Linux 2.6.37 以降では、 \fBflock\fP() ロック (と \fBfcntl\fP(2) のバ�
 既存のロックがまず削除され、それから新しい ロックが設定される。この 2つのステップの間に、他のプロセスからの処理待ちの
 ロック要求が認められるかもしれず、結果として変換は停止 (block) したり、 (\fBLOCK_NB\fP が指定された場合には) 失敗したりする。
 (これは元々の BSD の動作であり、多くの他の実装でも起こる。)
+.SS "NFS details"
+In Linux kernels up to 2.6.11, \fBflock\fP()  does not lock files over NFS
+(i.e., the scope of locks was limited to the local system).  Instead, one
+could use \fBfcntl\fP(2)  byte\-range locking, which does work over NFS, given a
+sufficiently recent version of Linux and a server which supports locking.
+.PP
+Since Linux 2.6.12, NFS clients support \fBflock\fP()  locks by emulating them
+as \fBfcntl\fP(2)  byte\-range locks on the entire file.  This means that
+\fBfcntl\fP(2)  and \fBflock\fP()  locks \fIdo\fP interact with one another over
+NFS.  It also means that in order to place an exclusive lock, the file must
+be opened for writing.
+.PP
+.\" commit 5eebde23223aeb0ad2d9e3be6590ff8bbfab0fc2
+Since Linux 2.6.37, the kernel supports a compatibility mode that allows
+\fBflock\fP()  locks (and also \fBfcntl\fP(2)  byte region locks) to be treated as
+local; see the discussion of the \fIlocal_lock\fP option in \fBnfs\fP(5).
 .SH 関連項目
 \fBflock\fP(1), \fBclose\fP(2), \fBdup\fP(2), \fBexecve\fP(2), \fBfcntl\fP(2), \fBfork\fP(2),
-\fBopen\fP(2), \fBlockf\fP(3)
-
+\fBopen\fP(2), \fBlockf\fP(3), \fBlslocks\fP(8)
+.PP
 Linux カーネルソース内の \fIDocumentation/filesystems/locks.txt\fP (以前のカーネルでは
 \fIDocumentation/locks.txt\fP)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。
