@@ -1,4 +1,3 @@
-'\" t
 .\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
 .\"
 .\" %%%LICENSE_START(VERBATIM_ONE_PARA)
@@ -10,7 +9,7 @@
 .\"
 .\" $Id: raw.7,v 1.6 1999/06/05 10:32:08 freitag Exp $
 .\"
-.TH RAW  7 2012-05-10 "Linux" "Linux Programmer's Manual"
+.TH RAW  7 2020-08-13 "Linux" "Linux Programmer's Manual"
 .SH NAME
 raw \- Linux IPv4 raw sockets
 .SH SYNOPSIS
@@ -23,24 +22,28 @@ raw \- Linux IPv4 raw sockets
 Raw sockets allow new IPv4 protocols to be implemented in user space.
 A raw socket receives or sends the raw datagram not
 including link level headers.
-
+.PP
 The IPv4 layer generates an IP header when sending a packet unless the
 .B IP_HDRINCL
 socket option is enabled on the socket.
 When it is enabled, the packet must contain an IP header.
-For receiving the IP header is always included in the packet.
-
-Only processes with an effective user ID of 0 or the
+For receiving, the IP header is always included in the packet.
+.PP
+In order to create a raw socket, a process must have the
 .B CAP_NET_RAW
-capability are allowed to open raw sockets.
-
+capability in the user namespace that governs its network namespace.
+.PP
 All packets or errors matching the
 .I protocol
 number specified
 for the raw socket are passed to this socket.
-For a list of the allowed protocols see RFC\ 1700 assigned numbers and
+For a list of the allowed protocols,
+see the IANA list of assigned protocol numbers at
+.UR http://www.iana.org/assignments/protocol\-numbers/
+.UE
+and
 .BR getprotobyname (3).
-
+.PP
 A protocol of
 .B IPPROTO_RAW
 implies enabled
@@ -56,13 +59,13 @@ tab(:) allbox;
 c s
 l l.
 IP Header fields modified on sending by \fBIP_HDRINCL\fP
-IP Checksum:Always filled in.
-Source Address:Filled in when zero.
-Packet Id:Filled in when zero.
-Total Length:Always filled in.
+IP Checksum:Always filled in
+Source Address:Filled in when zero
+Packet ID:Filled in when zero
+Total Length:Always filled in
 .TE
 .RE
-.sp
+.PP
 .PP
 If
 .B IP_HDRINCL
@@ -73,7 +76,7 @@ When
 is specified, the destination address should refer to a local interface,
 otherwise a routing table lookup is done anyway but gatewayed routes
 are ignored.
-
+.PP
 If
 .B IP_HDRINCL
 isn't set, then IP header options can be set on raw sockets with
@@ -81,31 +84,33 @@ isn't set, then IP header options can be set on raw sockets with
 see
 .BR ip (7)
 for more information.
-
-In Linux 2.2, all IP header fields and options can be set using
+.PP
+Starting with Linux 2.2, all IP header fields and options can be set using
 IP socket options.
 This means raw sockets are usually needed only for new
 protocols or protocols with no user interface (like ICMP).
-
+.PP
 When a packet is received, it is passed to any raw sockets which have
 been bound to its protocol before it is passed to other protocol handlers
 (e.g., kernel protocol modules).
 .SS Address format
-Raw sockets use the standard
+For sending and receiving datagrams
+.RB ( sendto (2),
+.BR recvfrom (2),
+and similar),
+raw sockets use the standard
 .I sockaddr_in
 address structure defined in
 .BR ip (7).
 The
 .I sin_port
 field could be used to specify the IP protocol number,
-but it is ignored for sending in Linux 2.2 and should be always
+but it is ignored for sending in Linux 2.2 and later, and should be always
 set to 0 (see BUGS).
 For incoming packets,
 .I sin_port
-is set to the protocol of the packet.
-See the
-.I <netinet/in.h>
-include file for valid IP protocols.
+.\" commit f59fc7f30b710d45aadf715460b3e60dbe9d3418
+is set to zero.
 .SS Socket options
 Raw socket options can be set with
 .BR setsockopt (2)
@@ -158,7 +163,7 @@ Packet too big.
 Either Path MTU Discovery is enabled (the
 .B IP_MTU_DISCOVER
 socket flag) or the packet size exceeds the maximum allowed IPv4
-packet size of 64KB.
+packet size of 64\ kB.
 .TP
 .B EOPNOTSUPP
 Invalid flag has been passed to a socket call (like
@@ -178,11 +183,11 @@ and
 .B ICMP_FILTER
 are new in Linux 2.2.
 They are Linux extensions and should not be used in portable programs.
-
+.PP
 Linux 2.0 enabled some bug-to-bug compatibility with BSD in the
 raw socket code when the
 .B SO_BSDCOMPAT
-socket option was set \(em since Linux 2.2,
+socket option was set; since Linux 2.2,
 this option no longer has that effect.
 .SH NOTES
 By default, raw sockets do path MTU (Maximum Transmission Unit) discovery.
@@ -202,16 +207,16 @@ When turned off, raw sockets will fragment outgoing packets
 that exceed the interface MTU.
 However, disabling it is not recommended
 for performance and reliability reasons.
-
+.PP
 A raw socket can be bound to a specific local address using the
 .BR bind (2)
 call.
 If it isn't bound, all packets with the specified IP protocol are received.
-In addition, a RAW socket can be bound to a specific network device using
+In addition, a raw socket can be bound to a specific network device using
 .BR SO_BINDTODEVICE ;
 see
 .BR socket (7).
-
+.PP
 An
 .B IPPROTO_RAW
 socket is send only.
@@ -222,28 +227,28 @@ socket with the
 protocol.
 Note that packet sockets don't reassemble IP fragments,
 unlike raw sockets.
-
+.PP
 If you want to receive all ICMP packets for a datagram socket,
 it is often better to use
 .B IP_RECVERR
 on that particular socket; see
 .BR ip (7).
-
+.PP
 Raw sockets may tap all IP protocols in Linux, even
 protocols like ICMP or TCP which have a protocol module in the kernel.
 In this case, the packets are passed to both the kernel module and the raw
 socket(s).
 This should not be relied upon in portable programs, many other BSD
 socket implementation have limitations here.
-
+.PP
 Linux never changes headers passed from the user (except for filling
 in some zeroed fields as described for
 .BR IP_HDRINCL ).
 This differs from many other implementations of raw sockets.
-
-RAW sockets are generally rather unportable and should be avoided in
+.PP
+Raw sockets are generally rather unportable and should be avoided in
 programs intended to be portable.
-
+.PP
 Sending on raw sockets should take the IP protocol from
 .IR sin_port ;
 this ability was lost in Linux 2.2.
@@ -251,12 +256,12 @@ The workaround is to use
 .BR IP_HDRINCL .
 .SH BUGS
 Transparent proxy extensions are not described.
-
+.PP
 When the
 .B IP_HDRINCL
 option is set, datagrams will not be fragmented and are limited to
 the interface MTU.
-
+.PP
 Setting the IP protocol for sending in
 .I sin_port
 got lost in Linux 2.2.
@@ -272,7 +277,7 @@ call is always used.
 .BR capabilities (7),
 .BR ip (7),
 .BR socket (7)
-
+.PP
 .B RFC\ 1191
 for path MTU discovery.
 .B RFC\ 791
@@ -280,11 +285,11 @@ and the
 .I <linux/ip.h>
 header file for the IP protocol.
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

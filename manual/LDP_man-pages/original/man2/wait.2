@@ -46,37 +46,41 @@
 .\" 2005-05-10, mtk, __W* flags can't be used with waitid()
 .\" 2008-07-04, mtk, removed erroneous text about SA_NOCLDSTOP
 .\"
-.TH WAIT 2 2014-08-19 "Linux" "Linux Programmer's Manual"
+.TH WAIT 2 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 wait, waitpid, waitid \- wait for process to change state
 .SH SYNOPSIS
 .B #include <sys/types.h>
 .br
 .B #include <sys/wait.h>
-.sp
-.BI "pid_t wait(int *" "status" );
-
-.BI "pid_t waitpid(pid_t " pid ", int *" status ", int " options );
-
+.PP
+.BI "pid_t wait(int *" "wstatus" );
+.PP
+.BI "pid_t waitpid(pid_t " pid ", int *" wstatus ", int " options );
+.PP
 .BI "int waitid(idtype_t " idtype ", id_t " id \
 ", siginfo_t *" infop ", int " options );
                 /* This is the glibc and POSIX interface; see
                    NOTES for information on the raw system call. */
-.sp
-.in -4n
+.PP
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .ad l
 .PD 0
 .BR waitid ():
 .RS 4
-_SVID_SOURCE ||
-_XOPEN_SOURCE\ >=\ 500 ||
-_XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+Since glibc 2.26:
+_XOPEN_SOURCE >= 500 ||
+.\"    (_XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED)
+    _POSIX_C_SOURCE\ >=\ 200809L
 .br
-|| /* Since glibc 2.12: */ _POSIX_C_SOURCE\ >=\ 200809L
+Glibc 2.25 and earlier:
+    _XOPEN_SOURCE
+        || /* Since glibc 2.12: */ _POSIX_C_SOURCE\ >=\ 200809L
+        || /* Glibc versions <= 2.19: */ _BSD_SOURCE
 .RE
 .PD
 .ad
@@ -90,7 +94,7 @@ In the case of a terminated child, performing a wait allows
 the system to release the resources associated with the child;
 if a wait is not performed, then the terminated child remains in
 a "zombie" state (see NOTES below).
-
+.PP
 If a child has already changed state, then these calls return immediately.
 Otherwise, they block until either a child changes state or
 a signal handler interrupts the call (assuming that system calls
@@ -105,19 +109,21 @@ calls is termed
 .SS wait() and waitpid()
 The
 .BR wait ()
-system call suspends execution of the calling process until one of its
+system call suspends execution of the calling thread until one of its
 children terminates.
 The call
-.I wait(&status)
+.I wait(&wstatus)
 is equivalent to:
-.nf
-
-    waitpid(\-1, &status, 0);
-.fi
-
+.PP
+.in +4n
+.EX
+waitpid(\-1, &wstatus, 0);
+.EE
+.in
+.PP
 The
 .BR waitpid ()
-system call suspends execution of the calling process until a
+system call suspends execution of the calling thread until a
 child specified by
 .I pid
 argument has changed state.
@@ -127,7 +133,7 @@ waits only for terminated children, but this behavior is modifiable
 via the
 .I options
 argument, as described below.
-
+.PP
 The value of
 .I pid
 can be:
@@ -139,7 +145,8 @@ equal to the absolute value of
 meaning wait for any child process.
 .IP 0
 meaning wait for any child process whose process group ID is
-equal to that of the calling process.
+equal to that of the calling process at the time of the call to
+.BR waitpid ().
 .IP "> 0"
 meaning wait for the child whose process ID is equal to the
 value of
@@ -148,7 +155,7 @@ value of
 The value of
 .I options
 is an OR of zero or more of the following constants:
-.TP 12
+.TP
 .B WNOHANG
 return immediately if no child has exited.
 .TP
@@ -168,7 +175,7 @@ also return if a stopped child has been resumed by delivery of
 (For Linux-only options, see below.)
 .PP
 If
-.I status
+.I wstatus
 is not NULL,
 .BR wait ()
 and
@@ -181,7 +188,7 @@ as is done in
 and
 .BR waitpid ()!):
 .TP
-.BI WIFEXITED( status )
+.BI WIFEXITED( wstatus )
 returns true if the child terminated normally, that is,
 by calling
 .BR exit (3)
@@ -189,7 +196,7 @@ or
 .BR _exit (2),
 or by returning from main().
 .TP
-.BI WEXITSTATUS( status )
+.BI WEXITSTATUS( wstatus )
 returns the exit status of the child.
 This consists of the least significant 8 bits of the
 .I status
@@ -202,39 +209,42 @@ This macro should be employed only if
 .B WIFEXITED
 returned true.
 .TP
-.BI WIFSIGNALED( status )
+.BI WIFSIGNALED( wstatus )
 returns true if the child process was terminated by a signal.
 .TP
-.BI WTERMSIG( status )
+.BI WTERMSIG( wstatus )
 returns the number of the signal that caused the child process to
 terminate.
 This macro should be employed only if
 .B WIFSIGNALED
 returned true.
 .TP
-.BI WCOREDUMP( status )
-returns true if the child produced a core dump.
+.BI WCOREDUMP( wstatus )
+returns true if the child produced a core dump (see
+.BR core (5)).
 This macro should be employed only if
 .B WIFSIGNALED
 returned true.
+.IP
 This macro is not specified in POSIX.1-2001 and is not available on
 some UNIX implementations (e.g., AIX, SunOS).
-Only use this enclosed in #ifdef WCOREDUMP ... #endif.
+Therefore, enclose its use inside
+.IR "#ifdef WCOREDUMP ... #endif" .
 .TP
-.BI WIFSTOPPED( status )
+.BI WIFSTOPPED( wstatus )
 returns true if the child process was stopped by delivery of a signal;
 this is possible only if the call was done using
 .B WUNTRACED
 or when the child is being traced (see
 .BR ptrace (2)).
 .TP
-.BI WSTOPSIG( status )
+.BI WSTOPSIG( wstatus )
 returns the number of the signal which caused the child to stop.
 This macro should be employed only if
 .B WIFSTOPPED
 returned true.
 .TP
-.BI WIFCONTINUED( status )
+.BI WIFCONTINUED( wstatus )
 (since Linux 2.6.10)
 returns true if the child process was resumed by delivery of
 .BR SIGCONT .
@@ -243,7 +253,7 @@ The
 .BR waitid ()
 system call (available since Linux 2.6.9) provides more precise
 control over which child state changes to wait for.
-
+.PP
 The
 .I idtype
 and
@@ -252,9 +262,22 @@ arguments select the child(ren) to wait for, as follows:
 .IP "\fIidtype\fP == \fBP_PID\fP"
 Wait for the child whose process ID matches
 .IR id .
+.IP "\fIidtype\fP == \fBP_PIDFD\fP (since Linux 5.4)"
+.\" commit 3695eae5fee0605f316fbaad0b9e3de791d7dfaf
+Wait for the child referred to by the PID file descriptor specified in
+.IR id .
+(See
+.BR pidfd_open (2)
+for further information on PID file descriptors.)
 .IP "\fIidtype\fP == \fBP_PGID\fP"
 Wait for any child whose process group ID matches
 .IR id .
+Since Linux 5.4,
+.\" commit 821cc7b0b205c0df64cce59aacc330af251fa8f7
+if
+.I id
+is zero, then wait for any child that is in the same process group
+as the caller's process group at the time of the call.
 .IP "\fIidtype\fP == \fBP_ALL\fP"
 Wait for any child;
 .I id
@@ -263,7 +286,7 @@ is ignored.
 The child state changes to wait for are specified by ORing
 one or more of the following flags in
 .IR options :
-.TP 12
+.TP
 .B WEXITED
 Wait for children that have terminated.
 .TP
@@ -277,7 +300,7 @@ resumed by delivery of
 .PP
 The following flags may additionally be ORed in
 .IR options :
-.TP 12
+.TP
 .B WNOHANG
 As for
 .BR waitpid ().
@@ -292,7 +315,7 @@ fills in the following fields of the
 .I siginfo_t
 structure pointed to by
 .IR infop :
-.TP 12
+.TP
 \fIsi_pid\fP
 The process ID of the child.
 .TP
@@ -342,21 +365,40 @@ the state of the
 .I siginfo_t
 structure pointed to by
 .I infop
-is unspecified.
-.\" POSIX.1-2001 leaves this possibility unspecified; most
-.\" implementations (including Linux) zero out the structure
-.\" in this case, but at least one implementation (AIX 5.1)
-.\" does not -- MTK Nov 04
-To distinguish this case from that where a child was in a
+depends on the implementation.
+To (portably) distinguish this case from that where a child was in a
 waitable state, zero out the
 .I si_pid
 field before the call and check for a nonzero value in this field
 after the call returns.
+.PP
+POSIX.1-2008 Technical Corrigendum 1 (2013) adds the requirement that when
+.B WNOHANG
+is specified in
+.I options
+and there were no children in a waitable state, then
+.BR waitid ()
+should zero out the
+.I si_pid
+and
+.I si_signo
+fields of the structure.
+On Linux and other implementations that adhere to this requirement,
+it is not necessary to zero out the
+.I si_pid
+field before calling
+.BR waitid ().
+However,
+not all implementations follow the POSIX.1 specification on this point.
+.\" POSIX.1-2001 leaves this possibility unspecified; most
+.\" implementations (including Linux) zero out the structure
+.\" in this case, but at least one implementation (AIX 5.1)
+.\" does not -- MTK Nov 04
 .SH RETURN VALUE
 .BR wait ():
 on success, returns the process ID of the terminated child;
 on error, \-1 is returned.
-
+.PP
 .BR waitpid ():
 on success, returns the process ID of the child whose state has changed;
 if
@@ -365,7 +407,7 @@ was specified and one or more child(ren) specified by
 .I pid
 exist, but have not yet changed state, then 0 is returned.
 On error, \-1 is returned.
-
+.PP
 .BR waitid ():
 returns 0 on success or
 if
@@ -434,8 +476,13 @@ this table fills, it will not be possible to create further processes.
 If a parent process terminates, then its "zombie" children (if any)
 are adopted by
 .BR init (1),
-which automatically performs a wait to remove the zombies.
-
+(or by the nearest "subreaper" process as defined through the use of the
+.BR prctl (2)
+.B PR_SET_CHILD_SUBREAPER
+operation);
+.BR init (1)
+automatically performs a wait to remove the zombies.
+.PP
 POSIX.1-2001 specifies that if the disposition of
 .B SIGCHLD
 is set to
@@ -464,7 +511,7 @@ Note that even though the default disposition of
 is "ignore", explicitly setting the disposition to
 .B SIG_IGN
 results in different treatment of zombie process children.)
-
+.PP
 Linux 2.6 conforms to the POSIX requirements.
 However, Linux 2.4 (and earlier) does not:
 if a
@@ -493,12 +540,14 @@ of another thread, even when the latter belongs to the same thread group.
 However, POSIX prescribes such functionality, and since Linux 2.4
 a thread can, and by default will, wait on children of other threads
 in the same thread group.
-.LP
+.PP
 The following Linux-specific
 .I options
 are for use with children created using
 .BR clone (2);
-they cannot be used with
+they can also, since Linux 4.7,
+.\" commit 91c4e8ea8f05916df0c8a6f383508ac7c9e10dba
+be used with
 .BR waitid ():
 .TP
 .B __WCLONE
@@ -522,7 +571,27 @@ type ("clone" or "non-clone").
 Do not wait for children of other threads in
 the same thread group.
 This was the default before Linux 2.4.
-.SS C library/kernel ABI differences
+.PP
+Since Linux 4.7,
+.\" commit bf959931ddb88c4e4366e96dd22e68fa0db9527c
+.\" prevents cases where an unreapable zombie is created if
+.\" /sbin/init doesn't use __WALL.
+the
+.B __WALL
+flag is automatically implied if the child is being ptraced.
+.SS C library/kernel differences
+.BR wait ()
+is actually a library function that (in glibc) is implemented as a call to
+.BR wait4 (2).
+.PP
+On some architectures, there is no
+.BR waitpid ()
+system call;
+.\" e.g., i386 has the system call, but not x86-64
+instead, this interface is implemented via a C library
+wrapper function that calls
+.BR wait4 (2).
+.PP
 The raw
 .BR waitid ()
 system call takes a fifth argument, of type
@@ -549,7 +618,7 @@ is NULL,
 succeeds, and returns the process ID of the waited-for child.
 Applications should avoid relying on this inconsistent,
 nonstandard, and unnecessary feature.
-.SH EXAMPLE
+.SH EXAMPLES
 .\" fork.2 refers to this example program.
 The following program demonstrates the use of
 .BR fork (2)
@@ -566,11 +635,11 @@ using the integer supplied on the command line as the exit status.
 The parent process executes a loop that monitors the child using
 .BR waitpid (),
 and uses the W*() macros described above to analyze the wait status value.
-
+.PP
 The following shell session demonstrates the use of the program:
+.PP
 .in +4n
-.nf
-
+.EX
 .RB "$" " ./a.out &"
 Child PID is 32360
 [1] 32359
@@ -582,12 +651,13 @@ continued
 killed by signal 15
 [1]+  Done                    ./a.out
 $
-.fi
+.EE
 .in
 .SS Program source
 \&
-.nf
+.EX
 #include <sys/wait.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -596,7 +666,7 @@ int
 main(int argc, char *argv[])
 {
     pid_t cpid, w;
-    int status;
+    int wstatus;
 
     cpid = fork();
     if (cpid == \-1) {
@@ -605,33 +675,33 @@ main(int argc, char *argv[])
     }
 
     if (cpid == 0) {            /* Code executed by child */
-        printf("Child PID is %ld\\n", (long) getpid());
+        printf("Child PID is %jd\en", (intmax_t) getpid());
         if (argc == 1)
             pause();                    /* Wait for signals */
         _exit(atoi(argv[1]));
 
     } else {                    /* Code executed by parent */
         do {
-            w = waitpid(cpid, &status, WUNTRACED | WCONTINUED);
+            w = waitpid(cpid, &wstatus, WUNTRACED | WCONTINUED);
             if (w == \-1) {
                 perror("waitpid");
                 exit(EXIT_FAILURE);
             }
 
-            if (WIFEXITED(status)) {
-                printf("exited, status=%d\\n", WEXITSTATUS(status));
-            } else if (WIFSIGNALED(status)) {
-                printf("killed by signal %d\\n", WTERMSIG(status));
-            } else if (WIFSTOPPED(status)) {
-                printf("stopped by signal %d\\n", WSTOPSIG(status));
-            } else if (WIFCONTINUED(status)) {
-                printf("continued\\n");
+            if (WIFEXITED(wstatus)) {
+                printf("exited, status=%d\en", WEXITSTATUS(wstatus));
+            } else if (WIFSIGNALED(wstatus)) {
+                printf("killed by signal %d\en", WTERMSIG(wstatus));
+            } else if (WIFSTOPPED(wstatus)) {
+                printf("stopped by signal %d\en", WSTOPSIG(wstatus));
+            } else if (WIFCONTINUED(wstatus)) {
+                printf("continued\en");
             }
-        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        } while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
         exit(EXIT_SUCCESS);
     }
 }
-.fi
+.EE
 .SH SEE ALSO
 .BR _exit (2),
 .BR clone (2),
@@ -642,14 +712,15 @@ main(int argc, char *argv[])
 .BR signal (2),
 .BR wait4 (2),
 .BR pthread_create (3),
+.BR core (5),
 .BR credentials (7),
 .BR signal (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

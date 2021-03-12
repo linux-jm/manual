@@ -1,4 +1,3 @@
-'\" t
 .\" Copyright (c) 1980, 1991 Regents of the University of California.
 .\" and Copyright (c) 2011, Michael Kerrisk <mtk.manpages@gmail.com>
 .\" All rights reserved.
@@ -44,20 +43,19 @@
 .\" Modified 2003-08-21 by Andries Brouwer <aeb@cwi.nl>
 .\" 2011-09-18, mtk, Added SEEK_DATA + SEEK_HOLE
 .\"
-.TH LSEEK 2 2014-06-13 "Linux" "Linux Programmer's Manual"
+.TH LSEEK 2 2020-08-13 "Linux" "Linux Programmer's Manual"
 .SH NAME
 lseek \- reposition read/write file offset
 .SH SYNOPSIS
 .B #include <sys/types.h>
 .br
 .B #include <unistd.h>
-.sp
+.PP
 .BI "off_t lseek(int " fd ", off_t " offset ", int " whence );
 .SH DESCRIPTION
-The
 .BR lseek ()
-function repositions the offset of the open file associated with the
-file descriptor
+repositions the file offset of the open file description
+associated with the file descriptor
 .I fd
 to the argument
 .I offset
@@ -66,26 +64,25 @@ according to the directive
 as follows:
 .TP
 .B SEEK_SET
-The offset is set to
+The file offset is set to
 .I offset
 bytes.
 .TP
 .B SEEK_CUR
-The offset is set to its current location plus
+The file offset is set to its current location plus
 .I offset
 bytes.
 .TP
 .B SEEK_END
-The offset is set to the size of the file plus
+The file offset is set to the size of the file plus
 .I offset
 bytes.
 .PP
-The
 .BR lseek ()
-function allows the file offset to be set beyond the end
+allows the file offset to be set beyond the end
 of the file (but this does not change the size of the file).
 If data is later written at this point, subsequent reads of the data
-in the gap (a "hole") return null bytes (\(aq\\0\(aq) until
+in the gap (a "hole") return null bytes (\(aq\e0\(aq) until
 data is actually written into the gap.
 .SS Seeking file data and holes
 Since version 3.1, Linux supports the following additional values for
@@ -121,13 +118,13 @@ In both of the above cases,
 fails if
 .I offset
 points past the end of the file.
-
+.PP
 These operations allow applications to map holes in a sparsely
 allocated file.
 This can be useful for applications such as file backup tools,
 which can save space when creating backups and preserve holes,
 if they have a mechanism for discovering holes.
-
+.PP
 For the purposes of these operations, a hole is a sequence of zeros that
 (normally) has not been allocated in the underlying file storage.
 However, a filesystem is not obliged to report holes,
@@ -150,7 +147,7 @@ it can be considered to consist of data that is a sequence of zeros).
 .\" https://lkml.org/lkml/2011/4/22/79
 .\" http://lwn.net/Articles/440255/
 .\" http://blogs.oracle.com/bonwick/entry/seek_hole_and_seek_data
-
+.PP
 The
 .BR _GNU_SOURCE
 feature test macro must be defined in order to obtain the definitions of
@@ -159,7 +156,7 @@ and
 .BR SEEK_HOLE
 from
 .IR <unistd.h> .
-
+.PP
 The
 .BR SEEK_HOLE
 and
@@ -175,7 +172,18 @@ XFS (since Linux 3.5)
 .IP *
 ext4 (since Linux 3.8)
 .IP *
-tmpfs (since Linux 3.8)
+.BR tmpfs (5)
+(since Linux 3.8)
+.IP *
+NFS (since Linux 3.18)
+.\" commit 1c6dcbe5ceff81c2cf8d929646af675cd59fe7c0
+.\" commit 24bab491220faa446d945624086d838af41d616c
+.IP *
+FUSE (since Linux 4.5)
+.\" commit 0b5da8db145bfd44266ac964a2636a0cf8d7c286
+.IP *
+GFS2 (since Linux 4.15)
+.\" commit 3a27411cb4bc3ce31db228e3569ad01b462a4310
 .SH RETURN VALUE
 Upon successful completion,
 .BR lseek ()
@@ -198,6 +206,22 @@ or beyond the end of a seekable device.
 .\" Some systems may allow negative offsets for character devices
 .\" and/or for remote filesystems.
 .TP
+.B ENXIO
+.I whence
+is
+.B SEEK_DATA
+or
+.BR SEEK_HOLE ,
+and
+.I offset
+is beyond the end of the file, or
+.I whence
+is
+.B SEEK_DATA
+and
+.I offset
+is within a hole at the end of the file.
+.TP
 .B EOVERFLOW
 .\" HP-UX 11 says EINVAL for this case (but POSIX.1 says EOVERFLOW)
 The resulting file offset cannot be represented in an
@@ -206,17 +230,9 @@ The resulting file offset cannot be represented in an
 .B ESPIPE
 .I fd
 is associated with a pipe, socket, or FIFO.
-.TP
-.B ENXIO
-.I whence
-is
-.B SEEK_DATA
-or
-.BR SEEK_HOLE ,
-and the current file offset is beyond the end of the file.
 .SH CONFORMING TO
-SVr4, 4.3BSD, POSIX.1-2001.
-
+POSIX.1-2001, POSIX.1-2008, SVr4, 4.3BSD.
+.PP
 .BR SEEK_DATA
 and
 .BR SEEK_HOLE
@@ -229,54 +245,44 @@ See
 .BR open (2)
 for a discussion of the relationship between file descriptors,
 open file descriptions, and files.
-
+.PP
+If the
+.B O_APPEND
+file status flag is set on the open file description,
+then a
+.BR write (2)
+.I always
+moves the file offset to the end of the file, regardless of the use of
+.BR lseek ().
+.PP
+The
+.I off_t
+data type is a signed integer data type specified by POSIX.1.
+.PP
 Some devices are incapable of seeking and POSIX does not specify which
 devices must support
 .BR lseek ().
-
+.PP
 On Linux, using
 .BR lseek ()
-on a terminal device returns
+on a terminal device fails with the error
 \fBESPIPE\fP.
 .\" Other systems return the number of written characters,
 .\" using SEEK_SET to set the counter. (Of written characters.)
-
-When converting old code, substitute values for \fIwhence\fP with the
-following macros:
-.TS
-c c
-l l.
-old	new
-0	SEEK_SET
-1	SEEK_CUR
-2	SEEK_END
-L_SET	SEEK_SET
-L_INCR	SEEK_CUR
-L_XTND	SEEK_END
-.TE
-.\" .PP
-.\" SVr1-3 returns \fIlong\fP instead of \fIoff_t\fP,
-.\" (ancient) BSD returns \fIint\fP.
-.PP
-Note that file descriptors created by
-.BR dup (2)
-or
-.BR fork (2)
-share the current file position pointer, so seeking on such files may be
-subject to race conditions.
 .SH SEE ALSO
 .BR dup (2),
+.BR fallocate (2),
 .BR fork (2),
 .BR open (2),
 .BR fseek (3),
 .BR lseek64 (3),
 .BR posix_fallocate (3)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

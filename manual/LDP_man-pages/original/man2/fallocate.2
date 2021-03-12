@@ -8,23 +8,23 @@
 .\" 2011-09-19: Added FALLOC_FL_PUNCH_HOLE
 .\" 2011-09-19: Substantial restructuring of the page
 .\"
-.TH FALLOCATE 2 2015-01-22 "Linux" "Linux Programmer's Manual"
+.TH FALLOCATE 2 2019-11-19 "Linux" "Linux Programmer's Manual"
 .SH NAME
 fallocate \- manipulate file space
 .SH SYNOPSIS
 .nf
 .BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
 .B #include <fcntl.h>
-
+.PP
 .BI "int fallocate(int " fd ", int " mode ", off_t " offset \
-", off_t " len ");
+", off_t " len ");"
 .fi
 .SH DESCRIPTION
 This is a nonportable, Linux-specific system call.
 For the portable, POSIX.1-specified method of ensuring that space
 is allocated for a file, see
 .BR posix_fallocate (3).
-
+.PP
 .BR fallocate ()
 allows the caller to directly manipulate the allocated disk space
 for the file referred to by
@@ -34,7 +34,7 @@ for the byte range starting at
 and continuing for
 .I len
 bytes.
-
+.PP
 The
 .I mode
 argument determines the operation to be performed on the given range.
@@ -62,13 +62,13 @@ This default behavior closely resembles the behavior of the
 .BR posix_fallocate (3)
 library function,
 and is intended as a method of optimally implementing that function.
-
+.PP
 After a successful call, subsequent writes into the range specified by
 .IR offset
 and
 .IR len
 are guaranteed not to fail because of lack of disk space.
-
+.PP
 If the
 .B FALLOC_FL_KEEP_SIZE
 flag is specified in
@@ -79,6 +79,16 @@ but the file size will not be changed even if
 is greater than the file size.
 Preallocating zeroed blocks beyond the end of the file in this manner
 is useful for optimizing append workloads.
+.PP
+If the
+.B FALLOC_FL_UNSHARE
+flag is specified in
+.IR mode ,
+shared file data extents will be made private to the file to guarantee
+that a subsequent write will not fail due to lack of space.
+Typically, this will be done by performing a copy-on-write operation on
+all shared data in the file.
+This flag may not be supported by all filesystems.
 .PP
 Because allocation is done in block size chunks,
 .BR fallocate ()
@@ -97,8 +107,8 @@ bytes.
 Within the specified range, partial filesystem blocks are zeroed,
 and whole filesystem blocks are removed from the file.
 After a successful call,
-subsequent reads from this range will return zeroes.
-
+subsequent reads from this range will return zeros.
+.PP
 The
 .BR FALLOC_FL_PUNCH_HOLE
 flag must be ORed with
@@ -109,7 +119,7 @@ in other words, even when punching off the end of the file, the file size
 (as reported by
 .BR stat (2))
 does not change.
-
+.PP
 Not all filesystems support
 .BR FALLOC_FL_PUNCH_HOLE ;
 if a filesystem doesn't support the operation, an error is returned.
@@ -122,8 +132,13 @@ ext4 (since Linux 3.0)
 .IP *
 Btrfs (since Linux 3.7)
 .IP *
-tmpfs (since Linux 3.5)
+.BR tmpfs (5)
+(since Linux 3.5)
 .\" commit 83e4fa9c16e4af7122e31be3eca5d57881d236fe
+.IP *
+.BR gfs2 (5)
+(since Linux 4.16)
+.\" commit 4e56a6411fbce6f859566e17298114c2434391a4
 .SS Collapsing file space
 .\" commit 00f5e61998dd17f5375d9dfc01331f104b83f841
 Specifying the
@@ -144,7 +159,7 @@ will be appended at the location
 and the file will be
 .I len
 bytes smaller.
-
+.PP
 A filesystem may place limitations on the granularity of the operation,
 in order to ensure efficient implementation.
 Typically,
@@ -155,10 +170,10 @@ must be a multiple of the filesystem logical block size,
 which varies according to the filesystem type and configuration.
 If a filesystem has such a requirement,
 .BR fallocate ()
-will fail with the error
+fails with the error
 .BR EINVAL
 if this requirement is violated.
-
+.PP
 If the region specified by
 .I offset
 plus
@@ -167,12 +182,12 @@ reaches or passes the end of file, an error is returned;
 instead, use
 .BR ftruncate (2)
 to truncate a file.
-
+.PP
 No other flags may be specified in
 .IR mode
 in conjunction with
 .BR FALLOC_FL_COLLAPSE_RANGE .
-
+.PP
 As at Linux 3.15,
 .B FALLOC_FL_COLLAPSE_RANGE
 is supported by
@@ -183,11 +198,11 @@ and XFS.
 .SS Zeroing file space
 Specifying the
 .BR FALLOC_FL_ZERO_RANGE
-flag (available since Linux 3.14)
+flag (available since Linux 3.15)
 .\" commit 409332b65d3ed8cfa7a8030f1e9d52f372219642
 in
 .I mode
-zeroes space in the byte range starting at
+zeros space in the byte range starting at
 .I offset
 and continuing for
 .I len
@@ -195,14 +210,14 @@ bytes.
 Within the specified range, blocks are preallocated for the regions
 that span the holes in the file.
 After a successful call, subsequent
-reads from this range will return zeroes.
-
+reads from this range will return zeros.
+.PP
 Zeroing is done within the filesystem preferably by converting the range into
 unwritten extents.
 This approach means that the specified range will not be physically zeroed
 out on the device (except for partial blocks at the either end of the range),
 and I/O is (otherwise) required only to update metadata.
-
+.PP
 If the
 .B FALLOC_FL_KEEP_SIZE
 flag is additionally specified in
@@ -214,17 +229,75 @@ is greater than the file size.
 This behavior is the same as when preallocating space with
 .B FALLOC_FL_KEEP_SIZE
 specified.
-
+.PP
 Not all filesystems support
 .BR FALLOC_FL_ZERO_RANGE ;
 if a filesystem doesn't support the operation, an error is returned.
 The operation is supported on at least the following filesystems:
 .IP * 3
-XFS (since Linux 3.14)
+XFS (since Linux 3.15)
 .\" commit 376ba313147b4172f3e8cf620b9fb591f3e8cdfa
 .IP *
-ext4, for extent-based files (since Linux 3.14)
+ext4, for extent-based files (since Linux 3.15)
 .\" commit b8a8684502a0fc852afa0056c6bb2a9273f6fcc0
+.IP *
+SMB3 (since Linux 3.17)
+.\" commit 30175628bf7f521e9ee31ac98fa6d6fe7441a556
+.IP *
+Btrfs (since Linux 4.16)
+.\" commit f27451f229966874a8793995b8e6b74326d125df
+.SS Increasing file space
+Specifying the
+.BR FALLOC_FL_INSERT_RANGE
+flag
+(available since Linux 4.1)
+.\" commit dd46c787788d5bf5b974729d43e4c405814a4c7d
+in
+.I mode
+increases the file space by inserting a hole within the file size without
+overwriting any existing data.
+The hole will start at
+.I offset
+and continue for
+.I len
+bytes.
+When inserting the hole inside file, the contents of the file starting at
+.I offset
+will be shifted upward (i.e., to a higher file offset) by
+.I len
+bytes.
+Inserting a hole inside a file increases the file size by
+.I len
+bytes.
+.PP
+This mode has the same limitations as
+.BR FALLOC_FL_COLLAPSE_RANGE
+regarding the granularity of the operation.
+If the granularity requirements are not met,
+.BR fallocate ()
+fails with the error
+.BR EINVAL .
+If the
+.I offset
+is equal to or greater than the end of file, an error is returned.
+For such operations (i.e., inserting a hole at the end of file),
+.BR ftruncate (2)
+should be used.
+.PP
+No other flags may be specified in
+.IR mode
+in conjunction with
+.BR FALLOC_FL_INSERT_RANGE .
+.PP
+.B FALLOC_FL_INSERT_RANGE
+requires filesystem support.
+Filesystems that support this operation include
+XFS (since Linux 4.1)
+.\" commit a904b1ca5751faf5ece8600e18cd3b674afcca1b
+and ext4 (since Linux 4.2).
+.\" commit 331573febb6a224bc50322e3670da326cb7f4cfc
+.\" f2fs also has support since Linux 4.2
+.\"     commit f62185d0e283e9d311e3ac1020f159d95f0aab39
 .SH RETURN VALUE
 On success,
 .BR fallocate ()
@@ -242,8 +315,15 @@ is not a valid file descriptor, or is not opened for writing.
 .IR offset + len
 exceeds the maximum file size.
 .TP
+.B EFBIG
+.I mode
+is
+.BR FALLOC_FL_INSERT_RANGE ,
+and the current file size+\fIlen\fP exceeds the maximum file size.
+.TP
 .B EINTR
-A signal was caught during execution.
+A signal was caught during execution; see
+.BR signal (7).
 .TP
 .B EINVAL
 .I offset
@@ -270,7 +350,17 @@ reaches or passes the end of the file.
 .B EINVAL
 .I mode
 is
-.BR FALLOC_FL_COLLAPSE_RANGE ,
+.BR FALLOC_FL_INSERT_RANGE
+and the range specified by
+.I offset
+reaches or passes the end of the file.
+.TP
+.B EINVAL
+.I mode
+is
+.BR FALLOC_FL_COLLAPSE_RANGE
+or
+.BR FALLOC_FL_INSERT_RANGE ,
 but either
 .I offset
 or
@@ -279,22 +369,28 @@ is not a multiple of the filesystem block size.
 .TP
 .B EINVAL
 .I mode
-contains both
+contains one of
 .B FALLOC_FL_COLLAPSE_RANGE
-and other flags;
+or
+.B FALLOC_FL_INSERT_RANGE
+and also other flags;
 no other flags are permitted with
-.BR FALLOC_FL_COLLAPSE_RANGE .
+.BR FALLOC_FL_COLLAPSE_RANGE
+or
+.BR FALLOC_FL_INSERT_RANGE .
 .TP
 .B EINVAL
 .I mode
 is
 .BR FALLOC_FL_COLLAPSE_RANGE
 or
-.BR FALLOC_FL_ZERO_RANGE ,
+.BR FALLOC_FL_ZERO_RANGE
+or
+.BR FALLOC_FL_INSERT_RANGE ,
 but the file referred to by
 .I fd
 is not a regular file.
-.\" There was a inconsistency in 3.15-rc1, that should be resolved so that all
+.\" There was an inconsistency in 3.15-rc1, that should be resolved so that all
 .\" filesystems use this error for this case. (Tytso says ex4 will change.)
 .\" http://thread.gmane.org/gmane.comp.file-systems.xfs.general/60485/focus=5521
 .\" From: Michael Kerrisk (man-pages <mtk.manpages@...>
@@ -342,6 +438,8 @@ specifies
 .BR FALLOC_FL_PUNCH_HOLE
 or
 .BR FALLOC_FL_COLLAPSE_RANGE
+or
+.BR FALLOC_FL_INSERT_RANGE
 and
 the file referred to by
 .I fd
@@ -360,7 +458,9 @@ refers to a pipe or FIFO.
 .B ETXTBSY
 .I mode
 specifies
-.BR FALLOC_FL_COLLAPSE_RANGE ,
+.BR FALLOC_FL_COLLAPSE_RANGE
+or
+.BR FALLOC_FL_INSERT_RANGE ,
 but the file referred to by
 .IR fd
 is currently being executed.
@@ -381,11 +481,11 @@ is Linux-specific.
 .BR posix_fadvise (3),
 .BR posix_fallocate (3)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

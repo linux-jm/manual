@@ -37,19 +37,19 @@
 .\" 2007-07-10, mtk, Added an example program.
 .\" 2008-11-18, mtk, document MAP_STACK
 .\"
-.TH MMAP 2 2015-01-22 "Linux" "Linux Programmer's Manual"
+.TH MMAP 2 2020-12-21 "Linux" "Linux Programmer's Manual"
 .SH NAME
 mmap, munmap \- map or unmap files or devices into memory
 .SH SYNOPSIS
 .nf
 .B #include <sys/mman.h>
-.sp
+.PP
 .BI "void *mmap(void *" addr ", size_t " length \
 ", int " prot ", int " flags ,
 .BI "           int " fd ", off_t " offset );
 .BI "int munmap(void *" addr ", size_t " length );
 .fi
-
+.PP
 See NOTES for information on feature test macro requirements.
 .SH DESCRIPTION
 .BR mmap ()
@@ -59,22 +59,28 @@ The starting address for the new mapping is specified in
 .IR addr .
 The
 .I length
-argument specifies the length of the mapping.
-
+argument specifies the length of the mapping (which must be greater than 0).
+.PP
 If
 .I addr
 is NULL,
-then the kernel chooses the address at which to create the mapping;
+then the kernel chooses the (page-aligned) address
+at which to create the mapping;
 this is the most portable method of creating a new mapping.
 If
 .I addr
 is not NULL,
 then the kernel takes it as a hint about where to place the mapping;
-on Linux, the mapping will be created at a nearby page boundary.
+on Linux, the kernel will pick a nearby page boundary (but always above
+or equal to the value specified by
+.IR /proc/sys/vm/mmap_min_addr )
+and attempt to create the mapping there.
+If another mapping already exists there, the kernel picks a new address that
+may or may not depend on the hint.
 .\" Before Linux 2.6.24, the address was rounded up to the next page
 .\" boundary; since 2.6.24, it is rounded down!
 The address of the new mapping is returned as the result of the call.
-
+.PP
 The contents of a file mapping (as opposed to an anonymous mapping; see
 .B MAP_ANONYMOUS
 below), are initialized using
@@ -86,7 +92,13 @@ in the file (or other object) referred to by the file descriptor
 .I offset
 must be a multiple of the page size as returned by
 .IR sysconf(_SC_PAGE_SIZE) .
-.LP
+.PP
+After the
+.BR mmap ()
+call has returned, the file descriptor,
+.IR fd ,
+can be closed immediately without invalidating the mapping.
+.PP
 The
 .I prot
 argument describes the desired memory protection of the mapping
@@ -106,7 +118,8 @@ Pages may be written.
 .TP
 .B PROT_NONE
 Pages may not be accessed.
-.LP
+.\"
+.SS The flags argument
 The
 .I flags
 argument determines whether updates to the mapping
@@ -115,16 +128,32 @@ and whether updates are carried through to the underlying file.
 This behavior is determined by including exactly one
 of the following values in
 .IR flags :
-.TP 1.1i
+.TP
 .B MAP_SHARED
 Share this mapping.
-Updates to the mapping are visible to other processes that map this file,
-and are carried through to the underlying file.
-The file may not actually be updated until
-.BR msync (2)
-or
-.BR munmap ()
-is called.
+Updates to the mapping are visible to other processes mapping the same region,
+and (in the case of file-backed mappings)
+are carried through to the underlying file.
+(To precisely control when updates are carried through
+to the underlying file requires the use of
+.BR msync (2).)
+.TP
+.BR MAP_SHARED_VALIDATE " (since Linux 4.15)"
+This flag provides the same behavior as
+.B MAP_SHARED
+except that
+.B MAP_SHARED
+mappings ignore unknown flags in
+.IR flags .
+By contrast, when creating a mapping using
+.BR MAP_SHARED_VALIDATE ,
+the kernel verifies all passed flags are known and fails the
+mapping with the error
+.BR EOPNOTSUPP
+for unknown flags.
+This mapping type is also required to be able to use some mapping flags
+(e.g.,
+.BR MAP_SYNC ).
 .TP
 .B MAP_PRIVATE
 Create a private copy-on-write mapping.
@@ -134,9 +163,15 @@ the underlying file.
 It is unspecified whether changes made to the file after the
 .BR mmap ()
 call are visible in the mapped region.
-.LP
-Both of these flags are described in POSIX.1-2001.
-
+.PP
+Both
+.B MAP_SHARED
+and
+.B MAP_PRIVATE
+are described in POSIX.1-2001 and POSIX.1-2008.
+.B MAP_SHARED_VALIDATE
+is a Linux extension.
+.PP
 In addition, zero or more of the following values can be ORed in
 .IR flags :
 .TP
@@ -144,7 +179,7 @@ In addition, zero or more of the following values can be ORed in
 Put the mapping into the first 2 Gigabytes of the process address space.
 This flag is supported only on x86-64, for 64-bit programs.
 It was added to allow thread stacks to be allocated somewhere
-in the first 2GB of memory,
+in the first 2\ GB of memory,
 so as to improve context-switch performance on some early
 64-bit processors.
 .\" See http://lwn.net/Articles/294642 "Tangled up in threads", 19 Aug 08
@@ -158,17 +193,15 @@ is set.
 .TP
 .B MAP_ANON
 Synonym for
-.BR MAP_ANONYMOUS .
-Deprecated.
+.BR MAP_ANONYMOUS ;
+provided for compatibility with other implementations.
 .TP
 .B MAP_ANONYMOUS
 The mapping is not backed by any file;
 its contents are initialized to zero.
 The
 .I fd
-and
-.I offset
-arguments are ignored;
+argument is ignored;
 however, some implementations require
 .I fd
 to be \-1 if
@@ -177,6 +210,11 @@ to be \-1 if
 .BR MAP_ANON )
 is specified,
 and portable applications should ensure this.
+The
+.I offset
+argument should be zero.
+.\" See the pgoff overflow check in do_mmap().
+.\" See the offset check in sys_mmap in arch/x86/kernel/sys_x86_64.c.
 The use of
 .B MAP_ANONYMOUS
 in conjunction with
@@ -186,9 +224,9 @@ is supported on Linux only since kernel 2.4.
 .B MAP_DENYWRITE
 This flag is ignored.
 .\" Introduced in 1.1.36, removed in 1.3.24.
-(Long ago, it signaled that attempts to write to the underlying file
-should fail with
-.BR ETXTBUSY .
+(Long ago\(emLinux 2.0 and earlier\(emit signaled
+that attempts to write to the underlying file should fail with
+.BR ETXTBSY .
 But this was a source of denial-of-service attacks.)
 .TP
 .B MAP_EXECUTABLE
@@ -210,7 +248,9 @@ Don't interpret
 .I addr
 as a hint: place the mapping at exactly that address.
 .I addr
-must be a multiple of the page size.
+must be suitably aligned: for most architectures a multiple of the page
+size is sufficient; however, some architectures may impose additional
+restrictions.
 If the memory region specified by
 .I addr
 and
@@ -220,36 +260,122 @@ part of the existing mapping(s) will be discarded.
 If the specified address cannot be used,
 .BR mmap ()
 will fail.
-Because requiring a fixed address for a mapping is less portable,
-the use of this option is discouraged.
+.IP
+Software that aspires to be portable should use the
+.BR MAP_FIXED
+flag with care,
+keeping in mind that the exact layout of a process's memory mappings
+is allowed to change significantly between kernel versions,
+C library versions, and operating system releases.
+.IR "Carefully read the discussion of this flag in NOTES!"
+.TP
+.BR MAP_FIXED_NOREPLACE " (since Linux 4.17)"
+.\" commit a4ff8e8620d3f4f50ac4b41e8067b7d395056843
+This flag provides behavior that is similar to
+.B MAP_FIXED
+with respect to the
+.I addr
+enforcement, but differs in that
+.B MAP_FIXED_NOREPLACE
+never clobbers a preexisting mapped range.
+If the requested range would collide with an existing mapping,
+then this call fails with the error
+.B EEXIST.
+This flag can therefore be used as a way to atomically
+(with respect to other threads) attempt to map an address range:
+one thread will succeed; all others will report failure.
+.IP
+Note that older kernels which do not recognize the
+.BR MAP_FIXED_NOREPLACE
+flag will typically (upon detecting a collision with a preexisting mapping)
+fall back to a "non-\c
+.B MAP_FIXED\c
+" type of behavior:
+they will return an address that is different from the requested address.
+Therefore, backward-compatible software
+should check the returned address against the requested address.
 .TP
 .B MAP_GROWSDOWN
-Used for stacks.
-Indicates to the kernel virtual memory system that the mapping
+This flag is used for stacks.
+It indicates to the kernel virtual memory system that the mapping
 should extend downward in memory.
+The return address is one page lower than the memory area that is
+actually created in the process's virtual address space.
+Touching an address in the "guard" page below the mapping will cause
+the mapping to grow by a page.
+This growth can be repeated until the mapping grows to within a
+page of the high end of the next lower mapping,
+at which point touching the "guard" page will result in a
+.B SIGSEGV
+signal.
 .TP
 .BR MAP_HUGETLB " (since Linux 2.6.32)"
 Allocate the mapping using "huge pages."
 See the Linux kernel source file
-.I Documentation/vm/hugetlbpage.txt
-for further information.
+.I Documentation/admin-guide/mm/hugetlbpage.rst
+for further information, as well as NOTES, below.
+.TP
+.BR MAP_HUGE_2MB ", " MAP_HUGE_1GB " (since Linux 3.8)"
+.\" See https://lwn.net/Articles/533499/
+Used in conjunction with
+.B MAP_HUGETLB
+to select alternative hugetlb page sizes (respectively, 2\ MB and 1\ GB)
+on systems that support multiple hugetlb page sizes.
+.IP
+More generally, the desired huge page size can be configured by encoding
+the base-2 logarithm of the desired page size in the six bits at the offset
+.BR MAP_HUGE_SHIFT .
+(A value of zero in this bit field provides the default huge page size;
+the default huge page size can be discovered via the
+.I Hugepagesize
+field exposed by
+.IR /proc/meminfo .)
+Thus, the above two constants are defined as:
+.IP
+.in +4n
+.EX
+#define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
+#define MAP_HUGE_1GB    (30 << MAP_HUGE_SHIFT)
+.EE
+.in
+.IP
+The range of huge page sizes that are supported by the system
+can be discovered by listing the subdirectories in
+.IR /sys/kernel/mm/hugepages .
 .TP
 .BR MAP_LOCKED " (since Linux 2.5.37)"
-Lock the pages of the mapped region into memory in the manner of
+Mark the mapped region to be locked in the same way as
 .BR mlock (2).
-This flag is ignored in older kernels.
+This implementation will try to populate (prefault) the whole range but the
+.BR mmap ()
+call doesn't fail with
+.B ENOMEM
+if this fails.
+Therefore major faults might happen later on.
+So the semantic is not as strong as
+.BR mlock (2).
+One should use
+.BR mmap ()
+plus
+.BR mlock (2)
+when major faults are not acceptable after the initialization of the mapping.
+The
+.BR MAP_LOCKED
+flag is ignored in older kernels.
 .\" If set, the mapped pages will not be swapped out.
 .TP
 .BR MAP_NONBLOCK " (since Linux 2.5.46)"
-Only meaningful in conjunction with
+This flag is meaningful only in conjunction with
 .BR MAP_POPULATE .
 Don't perform read-ahead:
 create page tables entries only for pages
 that are already present in RAM.
-Since Linux 2.6.23, this flag causes
+Since Linux 2.6.23,
+.\" commit 54cb8821de07f2ffcd28c380ce9b93d5784b40d7
+this flag causes
 .BR MAP_POPULATE
 to do nothing.
-One day the combination of
+One day, the combination of
 .BR MAP_POPULATE
 and
 .BR MAP_NONBLOCK
@@ -273,22 +399,50 @@ private writable mappings.
 .BR MAP_POPULATE " (since Linux 2.5.46)"
 Populate (prefault) page tables for a mapping.
 For a file mapping, this causes read-ahead on the file.
-Later accesses to the mapping will not be blocked by page faults.
+This will help to reduce blocking on page faults later.
 .BR MAP_POPULATE
 is supported for private mappings only since Linux 2.6.23.
 .TP
 .BR MAP_STACK " (since Linux 2.6.27)"
 Allocate the mapping at an address suitable for a process
 or thread stack.
-This flag is currently a no-op,
-but is used in the glibc threading implementation so that
-if some architectures require special treatment for stack allocations,
-support can later be transparently implemented for glibc.
+.IP
+This flag is currently a no-op on Linux.
+However, by employing this flag, applications can ensure that
+they transparently obtain support if the flag
+is implemented in the future.
+Thus, it is used in the glibc threading implementation to allow for
+the fact that some architectures may (later) require special treatment
+for stack allocations.
 .\" See http://lwn.net/Articles/294642 "Tangled up in threads", 19 Aug 08
 .\" commit cd98a04a59e2f94fa64d5bf1e26498d27427d5e7
 .\" http://thread.gmane.org/gmane.linux.kernel/720412
 .\" "pthread_create() slow for many threads; also time to revisit 64b
 .\"  context switch optimization?"
+A further reason to employ this flag is portability:
+.BR MAP_STACK
+exists (and has an effect) on some other systems (e.g., some of the BSDs).
+.TP
+.BR MAP_SYNC " (since Linux 4.15)"
+This flag is available only with the
+.B MAP_SHARED_VALIDATE
+mapping type;
+mappings of type
+.B MAP_SHARED
+will silently ignore this flag.
+This flag is supported only for files supporting DAX
+(direct mapping of persistent memory).
+For other files, creating a mapping with this flag results in an
+.B EOPNOTSUPP
+error.
+.IP
+Shared file mappings with this flag provide the guarantee that while
+some memory is mapped writable in the address space of the process,
+it will be visible in the same file at the same offset even after
+the system crashes or is rebooted.
+In conjunction with the use of appropriate CPU instructions,
+this provides users of such mappings with a more efficient way
+of making data modifications persistent.
 .TP
 .BR MAP_UNINITIALIZED " (since Linux 2.6.33)"
 Don't clear anonymous pages.
@@ -299,35 +453,18 @@ option.
 Because of the security implications,
 that option is normally enabled only on embedded devices
 (i.e., devices where one has complete control of the contents of user memory).
-.LP
+.PP
 Of the above flags, only
 .B MAP_FIXED
-is specified in POSIX.1-2001.
+is specified in POSIX.1-2001 and POSIX.1-2008.
 However, most systems also support
 .B MAP_ANONYMOUS
 (or its synonym
 .BR MAP_ANON ).
-.LP
-Some systems document the additional flags
-.BR MAP_AUTOGROW ,
-.BR MAP_AUTORESRV ,
-.BR MAP_COPY ,
-and
-.BR MAP_LOCAL .
-.LP
-Memory mapped by
-.BR mmap ()
-is preserved across
-.BR fork (2),
-with the same attributes.
-.LP
-A file is mapped in multiples of the page size.
-For a file that is not
-a multiple of the page size, the remaining memory is zeroed when mapped,
-and writes to that region are not written out to the file.
-The effect of
-changing the size of the underlying file of a mapping on the pages that
-correspond to added or removed regions of the file is unspecified.
+.\" FIXME . for later review when Issue 8 is one day released...
+.\" POSIX may add MAP_ANON in the future
+.\" http://austingroupbugs.net/tag_view_page.php?tag_id=8
+.\" http://austingroupbugs.net/view.php?id=850
 .SS munmap()
 The
 .BR munmap ()
@@ -338,40 +475,18 @@ The region is also automatically unmapped
 when the process is terminated.
 On the other hand, closing the file
 descriptor does not unmap the region.
-.LP
+.PP
 The address
 .I addr
-must be a multiple of the page size.
+must be a multiple of the page size (but
+.I length
+need not be).
 All pages containing a part
 of the indicated range are unmapped, and subsequent references
 to these pages will generate
 .BR SIGSEGV .
 It is not an error if the
 indicated range does not contain any mapped pages.
-.SS Timestamps changes for file-backed mappings
-For file-backed mappings, the
-.I st_atime
-field for the mapped file may be updated at any time between the
-.BR mmap ()
-and the corresponding unmapping; the first reference to a mapped
-page will update the field if it has not been already.
-.LP
-The
-.I st_ctime
-and
-.I st_mtime
-field for a file mapped with
-.B PROT_WRITE
-and
-.B MAP_SHARED
-will be updated after
-a write to the mapped region, and before a subsequent
-.BR msync (2)
-with the
-.B MS_SYNC
-or
-.B MS_ASYNC
-flag, if one occurs.
 .SH RETURN VALUE
 On success,
 .BR mmap ()
@@ -382,12 +497,14 @@ On error, the value
 .IR "(void\ *)\ \-1" )
 is returned, and
 .I errno
-is set appropriately.
+is set to indicate the cause of the error.
+.PP
 On success,
 .BR munmap ()
-returns 0, on failure \-1, and
+returns 0.
+On failure, it returns \-1, and
 .I errno
-is set (probably to
+is set to indicate the cause of the error (probably to
 .BR EINVAL ).
 .SH ERRORS
 .TP
@@ -419,6 +536,16 @@ is not a valid file descriptor (and
 .B MAP_ANONYMOUS
 was not set).
 .TP
+.B EEXIST
+.BR MAP_FIXED_NOREPLACE
+was specified in
+.IR flags ,
+and the range covered by
+.IR addr
+and
+.IR length
+clashes with an existing mapping.
+.TP
 .B EINVAL
 We don't like
 .IR addr ,
@@ -434,16 +561,16 @@ was 0.
 .TP
 .B EINVAL
 .I flags
-contained neither
-.B MAP_PRIVATE
+contained none of
+.BR MAP_PRIVATE ,
+.B MAP_SHARED
 or
-.BR MAP_SHARED ,
-or contained both of these values.
+.BR MAP_SHARED_VALIDATE .
 .TP
 .B ENFILE
 .\" This is for shared anonymous segments
 .\" [2.6.7] shmem_zero_setup()-->shmem_file_setup()-->get_empty_filp()
-The system limit on the total number of open files has been reached.
+The system-wide limit on the total number of open files has been reached.
 .\" .TP
 .\" .B ENOEXEC
 .\" A file could not be mapped for reading.
@@ -453,8 +580,35 @@ The underlying filesystem of the specified file does not support
 memory mapping.
 .TP
 .B ENOMEM
-No memory is available, or the process's maximum number of mappings would
-have been exceeded.
+No memory is available.
+.TP
+.B ENOMEM
+The process's maximum number of mappings would have been exceeded.
+This error can also occur for
+.BR munmap (),
+when unmapping a region in the middle of an existing mapping,
+since this results in two smaller mappings on either side of
+the region being unmapped.
+.TP
+.B ENOMEM
+(since Linux 4.7)
+The process's
+.B RLIMIT_DATA
+limit, described in
+.BR getrlimit (2),
+would have been exceeded.
+.TP
+.B EOVERFLOW
+On 32-bit architecture together with the large file extension
+(i.e., using 64-bit
+.IR off_t ):
+the number of pages used for
+.I length
+plus number of pages used for
+.I offset
+would overflow
+.I "unsigned long"
+(32 bits).
 .TP
 .B EPERM
 The
@@ -474,33 +628,36 @@ The operation was prevented by a file seal; see
 was set but the object specified by
 .I fd
 is open for writing.
-.TP
-.B EOVERFLOW
-On 32-bit architecture together with the large file extension
-(i.e., using 64-bit
-.IR off_t ):
-the number of pages used for
-.I length
-plus number of pages used for
-.I offset
-would overflow
-.I "unsigned long"
-(32 bits).
-.LP
+.PP
 Use of a mapped region can result in these signals:
 .TP
 .B SIGSEGV
 Attempted write into a region mapped as read-only.
 .TP
 .B SIGBUS
-Attempted access to a portion of the buffer that does not correspond
-to the file (for example, beyond the end of the file, including the
-case where another process has truncated the file).
+Attempted access to a page of the buffer that lies beyond the
+end of the mapped file.
+For an explanation of the treatment of the bytes in the page that
+corresponds to the end of a mapped file that is not a multiple
+of the page size, see NOTES.
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw18 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR mmap (),
+.BR munmap ()
+T}	Thread safety	MT-Safe
+.TE
 .SH CONFORMING TO
-SVr4, 4.4BSD, POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008, SVr4, 4.4BSD.
 .\" SVr4 documents additional error codes ENXIO and ENODEV.
 .\" SUSv2 documents additional error codes EMFILE and EOVERFLOW.
-.SH AVAILABILITY
+.PP
 On POSIX systems on which
 .BR mmap (),
 .BR msync (2),
@@ -515,6 +672,22 @@ is defined in \fI<unistd.h>\fP to a value greater than 0.
 .\" -1: unavailable, 0: ask using sysconf().
 .\" glibc defines it to 1.
 .SH NOTES
+Memory mapped by
+.BR mmap ()
+is preserved across
+.BR fork (2),
+with the same attributes.
+.PP
+A file is mapped in multiples of the page size.
+For a file that is not
+a multiple of the page size,
+the remaining bytes in the partial page at the end of the mapping
+are zeroed when mapped,
+and modifications to that region are not written out to the file.
+The effect of
+changing the size of the underlying file of a mapping on the pages that
+correspond to added or removed regions of the file is unspecified.
+.PP
 On some hardware architectures (e.g., i386),
 .B PROT_WRITE
 implies
@@ -527,7 +700,7 @@ or not.
 Portable programs should always set
 .B PROT_EXEC
 if they intend to execute code in the new mapping.
-
+.PP
 The portable way to create a mapping is to specify
 .I addr
 as 0 (NULL), and omit
@@ -542,15 +715,19 @@ If the
 flag is specified, and
 .I addr
 is 0 (NULL), then the mapped address will be 0 (NULL).
-
+.PP
 Certain
 .I flags
-constants are defined only if either
+constants are defined only if suitable feature test macros are defined
+(possibly by default):
+.BR _DEFAULT_SOURCE
+with glibc 2.19 or later;
+or
 .BR _BSD_SOURCE
 or
 .BR _SVID_SOURCE
-is defined.
-(Requiring
+in glibc 2.19 and earlier.
+(Employing
 .BR _GNU_SOURCE
 also suffices,
 and requiring that macro specifically would have been more logical,
@@ -571,8 +748,107 @@ The relevant flags are:
 .BR MAP_POPULATE ,
 and
 .BR MAP_STACK .
+.PP
+An application can determine which pages of a mapping are
+currently resident in the buffer/page cache using
+.BR mincore (2).
 .\"
-.SS C library/kernel ABI differences
+.SS Using MAP_FIXED safely
+The only safe use for
+.BR MAP_FIXED
+is where the address range specified by
+.IR addr
+and
+.I length
+was previously reserved using another mapping;
+otherwise, the use of
+.BR MAP_FIXED
+is hazardous because it forcibly removes preexisting mappings,
+making it easy for a multithreaded process to corrupt its own address space.
+.PP
+For example, suppose that thread A looks through
+.I /proc/<pid>/maps
+in order to locate an unused address range that it can map using
+.BR MAP_FIXED ,
+while thread B simultaneously acquires part or all of that same
+address range.
+When thread A subsequently employs
+.BR mmap(MAP_FIXED) ,
+it will effectively clobber the mapping that thread B created.
+In this scenario,
+thread B need not create a mapping directly; simply making a library call
+that, internally, uses
+.BR dlopen (3)
+to load some other shared library, will suffice.
+The
+.BR dlopen (3)
+call will map the library into the process's address space.
+Furthermore, almost any library call may be implemented in a way that
+adds memory mappings to the address space, either with this technique,
+or by simply allocating memory.
+Examples include
+.BR brk (2),
+.BR malloc (3),
+.BR pthread_create (3),
+and the PAM libraries
+.UR http://www.linux-pam.org
+.UE .
+.PP
+Since Linux 4.17, a multithreaded program can use the
+.BR MAP_FIXED_NOREPLACE
+flag to avoid the hazard described above
+when attempting to create a mapping at a fixed address
+that has not been reserved by a preexisting mapping.
+.\"
+.SS Timestamps changes for file-backed mappings
+For file-backed mappings, the
+.I st_atime
+field for the mapped file may be updated at any time between the
+.BR mmap ()
+and the corresponding unmapping; the first reference to a mapped
+page will update the field if it has not been already.
+.PP
+The
+.I st_ctime
+and
+.I st_mtime
+field for a file mapped with
+.B PROT_WRITE
+and
+.B MAP_SHARED
+will be updated after
+a write to the mapped region, and before a subsequent
+.BR msync (2)
+with the
+.B MS_SYNC
+or
+.B MS_ASYNC
+flag, if one occurs.
+.\"
+.SS Huge page (Huge TLB) mappings
+For mappings that employ huge pages, the requirements for the arguments of
+.BR mmap ()
+and
+.BR munmap ()
+differ somewhat from the requirements for mappings
+that use the native system page size.
+.PP
+For
+.BR mmap (),
+.I offset
+must be a multiple of the underlying huge page size.
+The system automatically aligns
+.I length
+to be a multiple of the underlying huge page size.
+.PP
+For
+.BR munmap (),
+.IR addr ,
+and
+.I length
+must both be a multiple of the underlying huge page size.
+.\"
+.SS C library/kernel differences
 This page describes the interface provided by the glibc
 .BR mmap ()
 wrapper function.
@@ -588,18 +864,18 @@ wrapper function invokes
 with a suitably adjusted value for
 .IR offset .
 .SH BUGS
-On Linux there are no guarantees like those suggested above under
+On Linux, there are no guarantees like those suggested above under
 .BR MAP_NORESERVE .
 By default, any process can be killed
 at any moment when the system runs out of memory.
-
+.PP
 In kernels before 2.6.7, the
 .B MAP_POPULATE
 flag has effect only if
 .I prot
 is specified as
 .BR PROT_NONE .
-
+.PP
 SUSv3 specifies that
 .BR mmap ()
 should fail if
@@ -614,7 +890,7 @@ Since kernel 2.6.12,
 fails with the error
 .B EINVAL
 for this case.
-
+.PP
 POSIX specifies that the system shall always
 zero fill any partial page at the end
 of the object and that system will never write any modification of the
@@ -627,13 +903,13 @@ subsequent mappings may see the modified content.
 In some cases, this could be fixed by calling
 .BR msync (2)
 before the unmap takes place;
-however, this doesn't work on tmpfs
-(for example, when using POSIX shared memory interface documented in
+however, this doesn't work on
+.BR tmpfs (5)
+(for example, when using the POSIX shared memory interface documented in
 .BR shm_overview (7)).
-.SH EXAMPLE
+.SH EXAMPLES
 .\" FIXME . Add an example here that uses an anonymous shared region for
 .\" IPC between parent and child.
-.PP
 The following program prints part of the file specified in
 its first command-line argument to standard output.
 The range of bytes to be printed is specified via offset and length
@@ -643,7 +919,7 @@ pages of the file and then uses
 .BR write (2)
 to output the desired bytes.
 .SS Program source
-.nf
+.EX
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -651,7 +927,7 @@ to output the desired bytes.
 #include <stdlib.h>
 #include <unistd.h>
 
-#define handle_error(msg) \\
+#define handle_error(msg) \e
     do { perror(msg); exit(EXIT_FAILURE); } while (0)
 
 int
@@ -665,7 +941,7 @@ main(int argc, char *argv[])
     ssize_t s;
 
     if (argc < 3 || argc > 4) {
-        fprintf(stderr, "%s file offset [length]\\n", argv[0]);
+        fprintf(stderr, "%s file offset [length]\en", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -677,11 +953,11 @@ main(int argc, char *argv[])
         handle_error("fstat");
 
     offset = atoi(argv[2]);
-    pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) \- 1);
+    pa_offset = offset & \(ti(sysconf(_SC_PAGE_SIZE) \- 1);
         /* offset for mmap() must be page aligned */
 
     if (offset >= sb.st_size) {
-        fprintf(stderr, "offset is past end of file\\n");
+        fprintf(stderr, "offset is past end of file\en");
         exit(EXIT_FAILURE);
     }
 
@@ -709,10 +985,14 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    munmap(addr, length + offset \- pa_offset);
+    close(fd);
+
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SH SEE ALSO
+.BR ftruncate (2),
 .BR getpagesize (2),
 .BR memfd_create (2),
 .BR mincore (2),
@@ -724,26 +1004,27 @@ main(int argc, char *argv[])
 .BR remap_file_pages (2),
 .BR setrlimit (2),
 .BR shmat (2),
+.BR userfaultfd (2),
 .BR shm_open (3),
 .BR shm_overview (7)
-
+.PP
 The descriptions of the following files in
 .BR proc (5):
 .IR /proc/[pid]/maps ,
 .IR /proc/[pid]/map_files ,
 and
 .IR /proc/[pid]/smaps .
-
-B.O. Gallmeister, POSIX.4, O'Reilly, pp. 128-129 and 389-391.
+.PP
+B.O. Gallmeister, POSIX.4, O'Reilly, pp. 128\(en129 and 389\(en391.
 .\"
 .\" Repeat after me: private read-only mappings are 100% equivalent to
 .\" shared read-only mappings. No ifs, buts, or maybes. -- Linus
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

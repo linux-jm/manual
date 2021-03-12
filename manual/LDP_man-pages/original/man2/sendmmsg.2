@@ -25,17 +25,17 @@
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
 .\"
-.TH SENDMMSG 2 2014-07-08 "Linux" "Linux Programmer's Manual"
+.TH SENDMMSG 2 2020-06-09 "Linux" "Linux Programmer's Manual"
 .SH NAME
 sendmmsg \- send multiple messages on a socket
 .SH SYNOPSIS
 .nf
 .BR "#define _GNU_SOURCE" "         /* See feature_test_macros(7) */"
 .BI "#include <sys/socket.h>"
-
+.PP
 .BI "int sendmmsg(int " sockfd ", struct mmsghdr *" msgvec \
 ", unsigned int " vlen ","
-.BI "             unsigned int " flags ");"
+.BI "             int " flags ");"
 .fi
 .SH DESCRIPTION
 The
@@ -46,12 +46,12 @@ that allows the caller to transmit multiple messages on a socket
 using a single system call.
 (This has performance benefits for some applications.)
 .\" See commit 228e548e602061b08ee8e8966f567c12aa079682
-
+.PP
 The
 .I sockfd
 argument is the file descriptor of the socket
 on which data is to be transmitted.
-
+.PP
 The
 .I msgvec
 argument is a pointer to an array of
@@ -59,20 +59,20 @@ argument is a pointer to an array of
 structures.
 The size of this array is specified in
 .IR vlen .
-
+.PP
 The
 .I mmsghdr
 structure is defined in
 .I <sys/socket.h>
 as:
-
+.PP
 .in +4n
-.nf
+.EX
 struct mmsghdr {
     struct msghdr msg_hdr;  /* Message header */
     unsigned int  msg_len;  /* Number of bytes transmitted */
 };
-.fi
+.EE
 .in
 .PP
 The
@@ -88,13 +88,13 @@ field is used to return the number of bytes sent from the message in
 (i.e., the same as the return value from a single
 .BR sendmsg (2)
 call).
-
+.PP
 The
 .I flags
 argument contains flags ORed together.
 The flags are the same as for
 .BR sendmsg (2).
-
+.PP
 A blocking
 .BR sendmmsg ()
 call blocks until
@@ -104,7 +104,7 @@ A nonblocking call sends as many messages as possible
 (up to the limit specified by
 .IR vlen )
 and returns immediately.
-
+.PP
 On return from
 .BR sendmmsg (),
 the
@@ -126,7 +126,7 @@ if this is less than
 the caller can retry with a further
 .BR sendmmsg ()
 call to send the remaining messages.
-
+.PP
 On error, \-1 is returned, and
 .I errno
 is set to indicate the error.
@@ -134,6 +134,7 @@ is set to indicate the error.
 Errors are as for
 .BR sendmsg (2).
 An error is returned only if no datagrams could be sent.
+See also BUGS.
 .\" commit 728ffb86f10873aaf4abd26dde691ee40ae731fe
 .\"     ... only return an error if no datagrams could be sent.
 .\"     If less than the requested number of messages were sent, the application
@@ -165,7 +166,15 @@ is capped to
 .\"     For error handling an application using sendmmsg needs to retry at
 .\"     the first unsent message, so capping is simpler and requires less
 .\"     application logic than returning EINVAL.
-.SH EXAMPLE
+.SH BUGS
+If an error occurs after at least one message has been sent,
+the call succeeds, and returns the number of messages sent.
+The error code is lost.
+The caller can retry the transmission,
+starting at the first failed message, but there is no guarantee that,
+if an error is returned, it will be the same as the one that was lost
+on the previous call.
+.SH EXAMPLES
 The example below uses
 .BR sendmmsg ()
 to send
@@ -174,8 +183,8 @@ and
 .I three
 in two distinct UDP datagrams using one system call.
 The contents of the first datagram originates from a pair of buffers.
-
-.nf
+.PP
+.EX
 #define _GNU_SOURCE
 #include <netinet/ip.h>
 #include <stdio.h>
@@ -188,7 +197,7 @@ int
 main(void)
 {
     int sockfd;
-    struct sockaddr_in sa;
+    struct sockaddr_in addr;
     struct mmsghdr msg[2];
     struct iovec msg1[2], msg2;
     int retval;
@@ -199,10 +208,10 @@ main(void)
         exit(EXIT_FAILURE);
     }
 
-    sa.sin_family = AF_INET;
-    sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    sa.sin_port = htons(1234);
-    if (connect(sockfd, (struct sockaddr *) &sa, sizeof(sa)) == \-1) {
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = htons(1234);
+    if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == \-1) {
         perror("connect()");
         exit(EXIT_FAILURE);
     }
@@ -228,22 +237,22 @@ main(void)
     if (retval == \-1)
         perror("sendmmsg()");
     else
-        printf("%d messages sent\\n", retval);
+        printf("%d messages sent\en", retval);
 
     exit(0);
 }
-.fi
+.EE
 .SH SEE ALSO
 .BR recvmmsg (2),
 .BR sendmsg (2),
 .BR socket (2),
 .BR socket (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

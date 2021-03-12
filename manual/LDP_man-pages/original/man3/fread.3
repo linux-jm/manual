@@ -1,4 +1,5 @@
 .\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" and Copyright (c) 2020 Arkadiusz Drabczyk <arkadiusz@drabczyk.org>
 .\" All rights reserved.
 .\"
 .\" This code is derived from software contributed to Berkeley by
@@ -42,16 +43,16 @@
 .\" Modified Thu Apr 20 20:43:53 1995 by Jim Van Zandt <jrv@vanzandt.mv.com>
 .\" Modified Fri May 17 10:21:51 1996 by Martin Schulze <joey@infodrom.north.de>
 .\"
-.TH FREAD 3  2012-03-30 "GNU" "Linux Programmer's Manual"
+.TH FREAD 3  2020-08-13 "GNU" "Linux Programmer's Manual"
 .SH NAME
 fread, fwrite \- binary stream input/output
 .SH SYNOPSIS
 .nf
 .B #include <stdio.h>
-.sp
+.PP
 .BI "size_t fread(void *" ptr ", size_t " size ", size_t " nmemb \
 ", FILE *" stream );
-.sp
+.PP
 .BI "size_t fwrite(const void *" ptr ", size_t " size ", size_t " nmemb ,
 .BI "              FILE *" stream );
 .fi
@@ -60,7 +61,7 @@ The function
 .BR fread ()
 reads
 .I nmemb
-elements of data, each
+items of data, each
 .I size
 bytes long, from the stream pointed to by
 .IR stream ,
@@ -71,7 +72,7 @@ The function
 .BR fwrite ()
 writes
 .I nmemb
-elements of data, each
+items of data, each
 .I size
 bytes long, to the stream pointed to by
 .IR stream ,
@@ -85,14 +86,15 @@ On success,
 .BR fread ()
 and
 .BR fwrite ()
-return the number of
-.I items
-read or written.
+return the number of items read or written.
 This number equals the number of bytes transferred only when
 .I size
 is 1.
 If an error occurs, or the end of the file is reached,
 the return value is a short item count (or zero).
+.PP
+The file position indicator for the stream is advanced by the number
+of bytes successfully read or written.
 .PP
 .BR fread ()
 does not distinguish between end-of-file and error, and callers must use
@@ -100,8 +102,75 @@ does not distinguish between end-of-file and error, and callers must use
 and
 .BR ferror (3)
 to determine which occurred.
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw17 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR fread (),
+.BR fwrite ()
+T}	Thread safety	MT-Safe
+.TE
 .SH CONFORMING TO
-C89, POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008, C89.
+.SH EXAMPLES
+The program below demonstrates the use of
+.BR fread ()
+by parsing /bin/sh ELF executable in binary mode and printing its
+magic and class:
+.PP
+.in +4n
+.EX
+$ \fB./a.out\fP
+ELF magic: 0x7f454c46
+Class: 0x02
+.EE
+.in
+.SS Program source
+\&
+.EX
+#include <stdio.h>
+#include <stdlib.h>
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+int
+main(void)
+{
+    FILE *fp = fopen("/bin/sh", "rb");
+    if (!fp) {
+        perror("fopen");
+        return EXIT_FAILURE;
+    }
+
+    unsigned char buffer[4];
+
+    size_t ret = fread(buffer, ARRAY_SIZE(buffer), sizeof(*buffer), fp);
+    if (ret != sizeof(*buffer)) {
+        fprintf(stderr, "fread() failed: %zu\en", ret);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("ELF magic: %#04x%02x%02x%02x\en", buffer[0], buffer[1],
+           buffer[2], buffer[3]);
+
+    ret = fread(buffer, 1, 1, fp);
+    if (ret != 1) {
+        fprintf(stderr, "fread() failed: %zu\en", ret);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Class: %#04x\en", buffer[0]);
+
+    fclose(fp);
+
+    exit(EXIT_SUCCESS);
+}
+.EE
 .SH SEE ALSO
 .BR read (2),
 .BR write (2),
@@ -109,11 +178,11 @@ C89, POSIX.1-2001.
 .BR ferror (3),
 .BR unlocked_stdio (3)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

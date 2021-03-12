@@ -1,7 +1,7 @@
 .\" Copyright 1995 Yggdrasil Computing, Incorporated.
 .\" written by Adam J. Richter (adam@yggdrasil.com),
 .\" with typesetting help from Daniel Quinlan (quinlan@yggdrasil.com).
-.\" and Copyright 2003 Michael Kerrisk (mtk.manpages@gmail.com).
+.\" and Copyright 2003, 2015 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(GPLv2+_DOC_FULL)
 .\" This is free documentation; you can redistribute it and/or
@@ -32,62 +32,63 @@
 .\" Modified by Walter Harms: dladdr, dlvsym
 .\" Modified by Petr Baudis <pasky@suse.cz>, 2008-12-04: dladdr caveat
 .\"
-.TH DLOPEN 3 2014-10-02 "Linux" "Linux Programmer's Manual"
+.TH DLOPEN 3 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
-dladdr, dlclose, dlerror, dlopen, dlsym, dlvsym \- programming interface to
-dynamic linking loader
+dlclose, dlopen, dlmopen \-
+open and close a shared object
 .SH SYNOPSIS
 .B #include <dlfcn.h>
-.sp
-.BI "void *dlopen(const char *" filename ", int " flag );
-.sp
-.B "char *dlerror(void);"
-.sp
-.BI "void *dlsym(void *" handle ", const char *" symbol );
-.sp
+.PP
+.BI "void *dlopen(const char *" filename ", int " flags );
+.PP
 .BI "int dlclose(void *" handle );
-.sp
+.PP
+.B #define _GNU_SOURCE
+.br
+.B #include <dlfcn.h>
+.PP
+.BI "void *dlmopen(Lmid_t " lmid ", const char *" filename ", int " flags );
+.PP
 Link with \fI\-ldl\fP.
 .SH DESCRIPTION
-The four functions
-.BR dlopen (),
-.BR dlsym (),
-.BR dlclose (),
-.BR dlerror ()
-implement the interface to the dynamic linking loader.
-.SS dlerror()
-The function
-.BR dlerror ()
-returns a human-readable string describing the most recent error
-that occurred from
-.BR dlopen (),
-.BR dlsym ()
-or
-.BR dlclose ()
-since the last call to
-.BR dlerror ().
-It returns NULL if no errors have occurred since initialization or since
-it was last called.
 .SS dlopen()
 The function
 .BR dlopen ()
-loads the dynamic library file named by the null-terminated
+loads the dynamic shared object (shared library)
+file named by the null-terminated
 string
 .I filename
-and returns an opaque "handle" for the dynamic library.
+and returns an opaque "handle" for the loaded object.
+This handle is employed with other functions in the dlopen API, such as
+.BR dlsym (3),
+.BR dladdr (3),
+.BR dlinfo (3),
+and
+.BR dlclose ().
+.PP
 If
 .I filename
+.\" FIXME On Solaris, when handle is NULL, we seem to get back
+.\" a handle for (something like) the root of the namespace.
+.\" The point here is that if we do a dlmopen(LM_ID_NEWLM), then
+.\" the filename==NULL case returns a different handle than
+.\" in the initial namespace. But, on glibc, the same handle is
+.\" returned. This is probably a bug in glibc.
+.\"
 is NULL, then the returned handle is for the main program.
 If
 .I filename
 contains a slash ("/"), then it is interpreted as a (relative
 or absolute) pathname.
-Otherwise, the dynamic linker searches for the library as follows
+Otherwise, the dynamic linker searches for the object as follows
 (see
 .BR ld.so (8)
 for further details):
 .IP o 4
-(ELF only) If the executable file for the calling program
+(ELF only) If the calling object
+(i.e., the shared library or executable from which
+.BR dlopen ()
+is called)
 contains a DT_RPATH tag, and does not contain a DT_RUNPATH tag,
 then the directories listed in the DT_RPATH tag are searched.
 .IP o
@@ -95,10 +96,10 @@ If, at the time that the program was started, the environment variable
 .B LD_LIBRARY_PATH
 was defined to contain a colon-separated list of directories,
 then these are searched.
-(As a security measure this variable is ignored for set-user-ID and
+(As a security measure, this variable is ignored for set-user-ID and
 set-group-ID programs.)
 .IP o
-(ELF only) If the executable file for the calling program
+(ELF only) If the calling object
 contains a DT_RUNPATH tag, then the directories listed in that tag
 are searched.
 .IP o
@@ -115,350 +116,467 @@ and
 .I /usr/lib
 are searched (in that order).
 .PP
-If the library has dependencies on other shared libraries,
+If the object specified by
+.I filename
+has dependencies on other shared objects,
 then these are also automatically loaded by the dynamic linker
 using the same rules.
 (This process may occur recursively,
-if those libraries in turn have dependencies, and so on.)
+if those objects in turn have dependencies, and so on.)
 .PP
 One of the following two values must be included in
-.IR flag :
+.IR flags :
 .TP
 .B RTLD_LAZY
 Perform lazy binding.
-Only resolve symbols as the code that references them is executed.
+Resolve symbols only as the code that references them is executed.
 If the symbol is never referenced, then it is never resolved.
 (Lazy binding is performed only for function references;
 references to variables are always immediately bound when
-the library is loaded.)
+the shared object is loaded.)
+Since glibc 2.1.1,
+.\" commit 12b5b6b7f78ea111e89bbf638294a5413c791072
+this flag is overridden by the effect of the
+.B LD_BIND_NOW
+environment variable.
 .TP
 .B RTLD_NOW
 If this value is specified, or the environment variable
 .B LD_BIND_NOW
 is set to a nonempty string,
-all undefined symbols in the library are resolved before
+all undefined symbols in the shared object are resolved before
 .BR dlopen ()
 returns.
 If this cannot be done, an error is returned.
 .PP
 Zero or more of the following values may also be ORed in
-.IR flag :
+.IR flags :
 .TP
 .B RTLD_GLOBAL
-The symbols defined by this library will be
-made available for symbol resolution of subsequently loaded libraries.
+The symbols defined by this shared object will be
+made available for symbol resolution of subsequently loaded shared objects.
 .TP
 .B RTLD_LOCAL
 This is the converse of
 .BR RTLD_GLOBAL ,
 and the default if neither flag is specified.
-Symbols defined in this library are not made available to resolve
-references in subsequently loaded libraries.
+Symbols defined in this shared object are not made available to resolve
+references in subsequently loaded shared objects.
 .TP
 .BR RTLD_NODELETE " (since glibc 2.2)"
-Do not unload the library during
+Do not unload the shared object during
 .BR dlclose ().
-Consequently, the library's static variables are not reinitialized
-if the library is reloaded with
+Consequently, the object's static and global variables are not reinitialized
+if the object is reloaded with
 .BR dlopen ()
 at a later time.
-This flag is not specified in POSIX.1-2001.
-.\" (But it is present on Solaris.)
 .TP
 .BR RTLD_NOLOAD " (since glibc 2.2)"
-Don't load the library.
-This can be used to test if the library is already resident
+Don't load the shared object.
+This can be used to test if the object is already resident
 .RB ( dlopen ()
-returns NULL if it is not, or the library's handle if it is resident).
-This flag can also be used to promote the flags on a library
+returns NULL if it is not, or the object's handle if it is resident).
+This flag can also be used to promote the flags on a shared object
 that is already loaded.
-For example, a library that was previously loaded with
+For example, a shared object that was previously loaded with
 .B RTLD_LOCAL
 can be reopened with
 .BR RTLD_NOLOAD\ |\ RTLD_GLOBAL .
-This flag is not specified in POSIX.1-2001.
-.\" (But it is present on Solaris.)
 .\"
 .TP
 .BR RTLD_DEEPBIND " (since glibc 2.3.4)"
 .\" Inimitably described by UD in
 .\" http://sources.redhat.com/ml/libc-hacker/2004-09/msg00083.html.
 Place the lookup scope of the symbols in this
-library ahead of the global scope.
-This means that a self-contained library will use
+shared object ahead of the global scope.
+This means that a self-contained object will use
 its own symbols in preference to global symbols with the same name
-contained in libraries that have already been loaded.
-This flag is not specified in POSIX.1-2001.
+contained in objects that have already been loaded.
 .PP
 If
 .I filename
 is NULL, then the returned handle is for the main program.
 When given to
-.BR dlsym (),
+.BR dlsym (3),
 this handle causes a search for a symbol in the main program,
-followed by all shared libraries loaded at program startup,
-and then all shared libraries loaded by
+followed by all shared objects loaded at program startup,
+and then all shared objects loaded by
 .BR dlopen ()
 with the flag
 .BR RTLD_GLOBAL .
 .PP
-External references in the library are resolved using the libraries
-in that library's dependency list and any other libraries previously
-opened with the
-.B RTLD_GLOBAL
-flag.
-If the executable was linked with the flag "\-rdynamic"
-(or, synonymously, "\-\-export\-dynamic"),
-then the global symbols in the executable will also be used
-to resolve references in a dynamically loaded library.
+Symbol references in the shared object are resolved using (in order):
+symbols in the link map of objects loaded for the main program and its
+dependencies;
+symbols in shared objects (and their dependencies)
+that were previously opened with
+.BR dlopen ()
+using the
+.BR RTLD_GLOBAL
+flag;
+and definitions in the shared object itself
+(and any dependencies that were loaded for that object).
 .PP
-If the same library is loaded again with
+Any global symbols in the executable that were placed into
+its dynamic symbol table by
+.BR ld (1)
+can also be used to resolve references in a dynamically loaded shared object.
+Symbols may be placed in the dynamic symbol table
+either because the executable was linked with the flag "\-rdynamic"
+(or, synonymously, "\-\-export\-dynamic"), which causes all of
+the executable's global symbols to be placed in the dynamic symbol table,
+or because
+.BR ld (1)
+noted a dependency on a symbol in another object during static linking.
+.PP
+If the same shared object is opened again with
 .BR dlopen (),
-the same library handle is returned.
-The dl library maintains reference
-counts for library handles, so a dynamic library is not
+the same object handle is returned.
+The dynamic linker maintains reference
+counts for object handles, so a dynamically loaded shared object is not
 deallocated until
 .BR dlclose ()
 has been called on it as many times as
 .BR dlopen ()
 has succeeded on it.
-The
-.BR _init ()
-routine, if present, is called only once.
-But a subsequent call with
+Constructors (see below) are called only when the object is actually loaded
+into memory (i.e., when the reference count increases to 1).
+.PP
+A subsequent
+.BR dlopen ()
+call that loads the same shared object with
 .B RTLD_NOW
-may force symbol resolution for a library earlier loaded with
+may force symbol resolution for a shared object earlier loaded with
 .BR RTLD_LAZY .
+Similarly, an object that was previously opened with
+.BR RTLD_LOCAL
+can be promoted to
+.BR RTLD_GLOBAL
+in a subsequent
+.BR dlopen ().
 .PP
 If
 .BR dlopen ()
 fails for any reason, it returns NULL.
-.SS dlsym()
-The function
-.BR dlsym ()
-takes a "handle" of a dynamic library returned by
-.BR dlopen ()
-and the
-null-terminated symbol name, returning the address where that symbol is
-loaded into memory.
-If the symbol is not found, in the specified
-library or any of the libraries that were automatically loaded by
-.BR dlopen ()
-when that library was loaded,
-.BR dlsym ()
-returns NULL.
-(The search performed by
-.BR dlsym ()
-is breadth first through the dependency tree of these libraries.)
-Since the value of the symbol could actually be NULL (so that a
-NULL return from
-.BR dlsym ()
-need not indicate an error), the correct way to test for an error
-is to call
-.BR dlerror ()
-to clear any old error conditions, then call
-.BR dlsym (),
-and then call
-.BR dlerror ()
-again, saving its return value into a variable, and check whether
-this saved value is not NULL.
-.PP
-There are two special pseudo-handles,
-.B RTLD_DEFAULT
+.\"
+.SS dlmopen()
+This function performs the same task as
+.BR dlopen ()\(emthe
+.I filename
 and
-.BR RTLD_NEXT .
-The former will find the first occurrence of the desired symbol
-using the default library search order.
-The latter
-will find the next occurrence of a function in the search order
-after the current library.
-This allows one to provide a wrapper
-around a function in another shared library.
+.I flags
+arguments, as well as the return value, are the same,
+except for the differences noted below.
+.PP
+The
+.BR dlmopen ()
+function differs from
+.BR dlopen ()
+primarily in that it accepts an additional argument,
+.IR lmid ,
+that specifies the link-map list (also referred to as a
+.IR namespace )
+in which the shared object should be loaded.
+(By comparison,
+.BR dlopen ()
+adds the dynamically loaded shared object to the same namespace as
+the shared object from which the
+.BR dlopen ()
+call is made.)
+The
+.I Lmid_t
+type is an opaque handle that refers to a namespace.
+.PP
+The
+.I lmid
+argument is either the ID of an existing namespace
+.\" FIXME: Is using dlinfo() RTLD_DI_LMID the right technique?
+(which can be obtained using the
+.BR dlinfo (3)
+.B RTLD_DI_LMID
+request) or one of the following special values:
+.TP
+.B LM_ID_BASE
+Load the shared object in the initial namespace
+(i.e., the application's namespace).
+.TP
+.B LM_ID_NEWLM
+Create a new namespace and load the shared object in that namespace.
+The object must have been correctly linked
+to reference all of the other shared objects that it requires,
+since the new namespace is initially empty.
+.PP
+If
+.I filename
+is NULL, then the only permitted value for
+.I lmid
+is
+.BR LM_ID_BASE .
 .SS dlclose()
 The function
 .BR dlclose ()
-decrements the reference count on the dynamic library handle
+decrements the reference count on the
+dynamically loaded shared object referred to by
 .IR handle .
-If the reference count drops to zero and no other loaded libraries use
-symbols in it, then the dynamic library is unloaded.
-.LP
-The function
-.BR dlclose ()
-returns 0 on success, and nonzero on error.
-.SS The obsolete symbols _init() and _fini()
-The linker recognizes special symbols
-.B _init
-and
-.BR _fini .
-If a dynamic library exports a routine named
-.BR _init (),
-then that code is executed after the loading, before
+.PP
+If the object's reference count drops to zero
+and no symbols in this object are required by other objects,
+then the object is unloaded
+after first calling any destructors defined for the object.
+(Symbols in this object might be required in another object
+because this object was opened with the
+.BR RTLD_GLOBAL
+flag and one of its symbols satisfied a relocation in another object.)
+.PP
+All shared objects that were automatically loaded when
 .BR dlopen ()
-returns.
-If the dynamic library exports a routine named
-.BR _fini (),
-then that routine is called just before the library is unloaded.
-In case you need to avoid linking against the system startup files,
-this can be done by using the
-.BR gcc (1)
-.I \-nostartfiles
-command-line option.
-.LP
-Using these routines, or the gcc
-.B \-nostartfiles
-or
-.B \-nostdlib
-options, is not recommended.
-Their use may result in undesired behavior,
-since the constructor/destructor routines will not be executed
-(unless special measures are taken).
-.\" void _init(void) __attribute__((constructor));
-.\" void _fini(void) __attribute__((destructor));
-.LP
-Instead, libraries should export routines using the
+was invoked on the object referred to by
+.I handle
+are recursively closed in the same manner.
+.PP
+A successful return from
+.BR dlclose ()
+does not guarantee that the symbols associated with
+.I handle
+are removed from the caller's address space.
+In addition to references resulting from explicit
+.BR dlopen ()
+calls, a shared object may have been implicitly loaded
+(and reference counted) because of dependencies in other shared objects.
+Only when all references have been released can the shared object
+be removed from the address space.
+.SH RETURN VALUE
+On success,
+.BR dlopen ()
+and
+.BR dlmopen ()
+return a non-NULL handle for the loaded object.
+On error
+(file could not be found, was not readable, had the wrong format,
+or caused errors during loading),
+these functions return NULL.
+.PP
+On success,
+.BR dlclose ()
+returns 0; on error, it returns a nonzero value.
+.PP
+Errors from these functions can be diagnosed using
+.BR dlerror (3).
+.SH VERSIONS
+.BR dlopen ()
+and
+.BR dlclose ()
+are present in glibc 2.0 and later.
+.BR dlmopen ()
+first appeared in glibc 2.3.4.
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw30 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR dlopen (),
+.BR dlmopen (),
+.BR dlclose ()
+T}	Thread safety	MT-Safe
+.TE
+.SH CONFORMING TO
+POSIX.1-2001 describes
+.BR dlclose ()
+and
+.BR dlopen ().
+The
+.BR dlmopen ()
+function is a GNU extension.
+.PP
+The
+.BR RTLD_NOLOAD ,
+.BR RTLD_NODELETE ,
+and
+.BR RTLD_DEEPBIND
+flags are GNU extensions;
+the first two of these flags are also present on Solaris.
+.SH NOTES
+.SS dlmopen() and namespaces
+A link-map list defines an isolated namespace for the
+resolution of symbols by the dynamic linker.
+Within a namespace,
+dependent shared objects are implicitly loaded according to the usual rules,
+and symbol references are likewise resolved according to the usual rules,
+but such resolution is confined to the definitions provided by the
+objects that have been (explicitly and implicitly) loaded into the namespace.
+.PP
+The
+.BR dlmopen ()
+function permits object-load isolation\(emthe ability
+to load a shared object in a new namespace without
+exposing the rest of the application to the symbols
+made available by the new object.
+Note that the use of the
+.B RTLD_LOCAL
+flag is not sufficient for this purpose,
+since it prevents a shared object's symbols from being available to
+.I any
+other shared object.
+In some cases,
+we may want to make the symbols provided by a dynamically
+loaded shared object available to (a subset of) other shared objects
+without exposing those symbols to the entire application.
+This can be achieved by using a separate namespace and the
+.B RTLD_GLOBAL
+flag.
+.PP
+The
+.BR dlmopen ()
+function also can be used to provide better isolation than the
+.BR RTLD_LOCAL
+flag.
+In particular, shared objects loaded with
+.BR RTLD_LOCAL
+may be promoted to
+.BR RTLD_GLOBAL
+if they are dependencies of another shared object loaded with
+.BR RTLD_GLOBAL .
+Thus,
+.BR RTLD_LOCAL
+is insufficient to isolate a loaded shared object except in the (uncommon)
+case where one has explicit control over all shared object dependencies.
+.PP
+Possible uses of
+.BR dlmopen ()
+are plugins where the author of the plugin-loading framework
+can't trust the plugin authors and does not wish
+any undefined symbols from the plugin framework to be resolved to plugin
+symbols.
+Another use is to load the same object more than once.
+Without the use of
+.BR dlmopen (),
+this would require the creation of distinct copies of the shared object file.
+Using
+.BR dlmopen (),
+this can be achieved by loading the same shared object file into
+different namespaces.
+.PP
+The glibc implementation supports a maximum of
+.\" DL_NNS
+16 namespaces.
+.\"
+.SS Initialization and finalization functions
+Shared objects may export functions using the
 .B __attribute__((constructor))
 and
 .B __attribute__((destructor))
 function attributes.
-See the gcc info pages for information on these.
-Constructor routines are executed before
+Constructor functions are executed before
 .BR dlopen ()
-returns, and destructor routines are executed before
+returns, and destructor functions are executed before
 .BR dlclose ()
 returns.
-.SS Glibc extensions: dladdr() and dlvsym()
-Glibc adds two functions not described by POSIX, with prototypes
-.sp
-.nf
-.BR "#define _GNU_SOURCE" "         /* See feature_test_macros(7) */"
-.B #include <dlfcn.h>
-.sp
-.BI "int dladdr(void *" addr ", Dl_info *" info );
-.sp
-.BI "void *dlvsym(void *" handle ", char *" symbol ", char *" version );
-.fi
+A shared object may export multiple constructors and destructors,
+and priorities can be associated with each function
+to determine the order in which they are executed.
+See the
+.BR gcc
+info pages (under "Function attributes")
+.\" info gcc "C Extensions" "Function attributes"
+for further information.
 .PP
-The function
-.BR dladdr ()
-takes a function pointer and tries to resolve name
-and file where it is located.
-Information is stored in the
-.I Dl_info
-structure:
-.sp
-.in +4n
-.nf
-typedef struct {
-    const char *dli_fname;  /* Pathname of shared object that
-                               contains address */
-    void       *dli_fbase;  /* Address at which shared object
-                               is loaded */
-    const char *dli_sname;  /* Name of symbol whose definition
-                               overlaps \fIaddr\fP */
-    void       *dli_saddr;  /* Exact address of symbol named
-                               in \fIdli_sname\fP */
-} Dl_info;
-.fi
-.in
-.PP
-If no symbol matching
-.I addr
-could be found, then
-.I dli_sname
+An older method of (partially) achieving the same result is via the use of
+two special symbols recognized by the linker:
+.B _init
 and
-.I dli_saddr
-are set to NULL.
+.BR _fini .
+If a dynamically loaded shared object exports a routine named
+.BR _init (),
+then that code is executed after loading a shared object, before
+.BR dlopen ()
+returns.
+If the shared object exports a routine named
+.BR _fini (),
+then that routine is called just before the object is unloaded.
+In this case, one must avoid linking against the system startup files,
+which contain default versions of these files;
+this can be done by using the
+.BR gcc (1)
+.I \-nostartfiles
+command-line option.
 .PP
-.BR dladdr ()
-returns 0 on error, and nonzero on success.
+Use of
+.B _init
+and
+.BR _fini
+is now deprecated in favor of the aforementioned
+constructors and destructors,
+which among other advantages,
+permit multiple initialization and finalization functions to be defined.
+.\"
+.\" Using these routines, or the gcc
+.\" .B \-nostartfiles
+.\" or
+.\" .B \-nostdlib
+.\" options, is not recommended.
+.\" Their use may result in undesired behavior,
+.\" since the constructor/destructor routines will not be executed
+.\" (unless special measures are taken).
+.\" .\" void _init(void) __attribute__((constructor));
+.\" .\" void _fini(void) __attribute__((destructor));
+.\"
 .PP
-The function
-.BR dlvsym (),
-provided by glibc since version 2.1,
-does the same as
-.BR dlsym ()
-but takes a version string as an additional argument.
-.SH CONFORMING TO
-POSIX.1-2001 describes
-.BR dlclose (),
-.BR dlerror (),
-.BR dlopen (),
-and
-.BR dlsym ().
-.SH NOTES
-The symbols
-.B RTLD_DEFAULT
-and
-.B RTLD_NEXT
-are defined by
-.I <dlfcn.h>
-only when
-.B _GNU_SOURCE
-was defined before including it.
-.\" .LP
-.\" The string returned by
-.\" .BR dlerror ()
-.\" should not be modified.
-.\" Some systems give the prototype as
-.\" .sp
-.\" .in +5
-.\" .B "const char *dlerror(void);"
-.\" .in
-
 Since glibc 2.2.3,
 .BR atexit (3)
 can be used to register an exit handler that is automatically
-called when a library is unloaded.
+called when a shared object is unloaded.
 .SS History
-The dlopen interface standard comes from SunOS.
-That system also has
-.BR dladdr (),
-but not
-.BR dlvsym ().
+These functions are part of the dlopen API, derived from SunOS.
 .SH BUGS
-Sometimes, the function pointers you pass to
-.BR dladdr ()
-may surprise you.
-On some architectures (notably i386 and x86_64),
-.I dli_fname
-and
-.I dli_fbase
-may end up pointing back at the object from which you called
-.BR dladdr (),
-even if the function used as an argument should come from
-a dynamically linked library.
+As at glibc 2.24, specifying the
+.BR RTLD_GLOBAL
+flag when calling
+.BR dlmopen ()
+.\" dlerror(): "invalid mode"
+generates an error.
+Furthermore, specifying
+.BR RTLD_GLOBAL
+when calling
+.BR dlopen ()
+results in a program crash
+.RB ( SIGSEGV )
+.\" https://sourceware.org/bugzilla/show_bug.cgi?id=18684
+if the call is made from any object loaded in a
+namespace other than the initial namespace.
+.SH EXAMPLES
+The program below loads the (glibc) math library,
+looks up the address of the
+.BR cos (3)
+function, and prints the cosine of 2.0.
+The following is an example of building and running the program:
 .PP
-The problem is that the function pointer will still be resolved
-at compile time, but merely point to the
-.I plt
-(Procedure Linkage Table)
-section of the original object (which dispatches the call after
-asking the dynamic linker to resolve the symbol).
-To work around this,
-you can try to compile the code to be position-independent:
-then, the compiler cannot prepare the pointer
-at compile time anymore and today's
-.BR gcc (1)
-will generate code that just loads the final symbol address from the
-.I got
-(Global Offset Table) at run time before passing it to
-.BR dladdr ().
-.SH EXAMPLE
-Load the math library, and print the cosine of 2.0:
-.nf
-
+.in +4n
+.EX
+$ \fBcc dlopen_demo.c \-ldl\fP
+$ \fB./a.out\fP
+\-0.416147
+.EE
+.in
+.SS Program source
+\&
+.EX
 #include <stdio.h>
 #include <stdlib.h>
 #include <dlfcn.h>
-
+#include <gnu/lib\-names.h>  /* Defines LIBM_SO (which will be a
+                               string such as "libm.so.6") */
 int
-main(int argc, char **argv)
+main(void)
 {
     void *handle;
     double (*cosine)(double);
     char *error;
 
-    handle = dlopen("libm.so", RTLD_LAZY);
+    handle = dlopen(LIBM_SO, RTLD_LAZY);
     if (!handle) {
         fprintf(stderr, "%s\en", dlerror());
         exit(EXIT_FAILURE);
@@ -469,8 +587,8 @@ main(int argc, char **argv)
     cosine = (double (*)(double)) dlsym(handle, "cos");
 
     /* According to the ISO C standard, casting between function
-       pointers and 'void *', as done above, produces undefined results.
-       POSIX.1-2003 and POSIX.1-2008 accepted this state of affairs and
+       pointers and \(aqvoid *\(aq, as done above, produces undefined results.
+       POSIX.1-2001 and POSIX.1-2008 accepted this state of affairs and
        proposed the following workaround:
 
            *(void **) (&cosine) = dlsym(handle, "cos");
@@ -478,11 +596,11 @@ main(int argc, char **argv)
        This (clumsy) cast conforms with the ISO C standard and will
        avoid any compiler warnings.
 
-       The 2013 Technical Corrigendum to POSIX.1-2008 (a.k.a.
-       POSIX.1-2013) improved matters by requiring that conforming
-       implementations support casting 'void *' to a function pointer.
-       Nevertheless, some compilers (e.g., gcc with the '-pedantic'
-       option) may complain about the cast used in this program. */
+       The 2013 Technical Corrigendum 1 to POSIX.1-2008 improved matters
+       by requiring that conforming implementations support casting
+       \(aqvoid *\(aq to a function pointer.  Nevertheless, some compilers
+       (e.g., gcc with the \(aq\-pedantic\(aq option) may complain about the
+       cast used in this program. */
 .\" http://pubs.opengroup.org/onlinepubs/009695399/functions/dlsym.html#tag_03_112_08
 .\" http://pubs.opengroup.org/onlinepubs/9699919799/functions/dlsym.html#tag_16_96_07
 .\" http://austingroupbugs.net/view.php?id=74
@@ -497,43 +615,27 @@ main(int argc, char **argv)
     dlclose(handle);
     exit(EXIT_SUCCESS);
 }
-.fi
-.PP
-If this program were in a file named "foo.c", you would build the program
-with the following command:
-.in +4n
-.LP
-    gcc \-rdynamic \-o foo foo.c \-ldl
-.in
-.PP
-Libraries exporting
-.BR _init ()
-and
-.BR _fini ()
-will want to be compiled as
-follows, using
-.I bar.c
-as the example name:
-.in +4n
-.LP
-    gcc \-shared \-nostartfiles \-o bar bar.c
-.in
+.EE
 .SH SEE ALSO
 .BR ld (1),
 .BR ldd (1),
 .BR pldd (1),
 .BR dl_iterate_phdr (3),
-.BR rtld-audit (7),
+.BR dladdr (3),
+.BR dlerror (3),
+.BR dlinfo (3),
+.BR dlsym (3),
+.BR rtld\-audit (7),
 .BR ld.so (8),
 .BR ldconfig (8)
-
-ld.so info pages, gcc info pages, ld info pages
+.PP
+gcc info pages, ld info pages
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

@@ -27,27 +27,27 @@
 .\"
 .\" Modified 1993-07-21, Rik Faith <faith@cs.unc.edu>
 .\" Modified 1994-08-21, Michael Chastain <mec@shell.portal.com>:
-.\"   Fixed typoes.
+.\"   Fixed typos.
 .\" Modified 1997-01-31, Eric S. Raymond <esr@thyrsus.com>
 .\" Modified 2002-09-28, aeb
 .\" 2009-01-12, mtk, reordered text in DESCRIPTION and added some
 .\"     details for dup2().
 .\" 2008-10-09, mtk: add description of dup3()
 .\"
-.TH DUP 2 2015-01-22 "Linux" "Linux Programmer's Manual"
+.TH DUP 2 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 dup, dup2, dup3 \- duplicate a file descriptor
 .SH SYNOPSIS
 .nf
 .B #include <unistd.h>
-.sp
+.PP
 .BI "int dup(int " oldfd );
 .BI "int dup2(int " oldfd ", int " newfd );
-.sp
+
 .BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
-.BR "#include <fcntl.h>" "              /* Obtain O_* constant definitions */
+.BR "#include <fcntl.h>" "              /* Obtain O_* constant definitions */"
 .B #include <unistd.h>
-.sp
+.PP
 .BI "int dup3(int " oldfd ", int " newfd ", int " flags );
 .fi
 .SH DESCRIPTION
@@ -55,8 +55,8 @@ The
 .BR dup ()
 system call creates a copy of the file descriptor
 .IR oldfd ,
-using the lowest-numbered unused descriptor for the new descriptor.
-
+using the lowest-numbered unused file descriptor for the new descriptor.
+.PP
 After a successful return,
 the old and new file descriptors may be used interchangeably.
 They refer to the same open file description (see
@@ -64,9 +64,9 @@ They refer to the same open file description (see
 and thus share file offset and file status flags;
 for example, if the file offset is modified by using
 .BR lseek (2)
-on one of the descriptors, the offset is also changed for the other.
-
-The two descriptors do not share file descriptor flags
+on one of the file descriptors, the offset is also changed for the other.
+.PP
+The two file descriptors do not share file descriptor flags
 (the close-on-exec flag).
 The close-on-exec flag
 .RB ( FD_CLOEXEC ;
@@ -80,12 +80,12 @@ The
 system call performs the same task as
 .BR dup (),
 but instead of using the lowest-numbered unused file descriptor,
-it uses the descriptor number specified in
+it uses the file descriptor number specified in
 .IR newfd .
-If the descriptor
+If the file descriptor
 .IR newfd
 was previously open, it is silently closed before being reused.
-
+.PP
 The steps of closing and reusing the file descriptor
 .IR newfd
 are performed
@@ -101,7 +101,7 @@ might be reused between the two steps.
 Such reuse could happen because the main program is interrupted
 by a signal handler that allocates a file descriptor,
 or because a parallel thread allocates a file descriptor.
-
+.PP
 Note the following points:
 .IP * 3
 If
@@ -136,7 +136,9 @@ See the description of the same flag in
 .BR open (2)
 for reasons why this may be useful.
 .IP *
-.\" FIXME . To confirm with Al Viro that this was intended, and its rationale
+.\" Ulrich Drepper, LKML, 2008-10-09:
+.\"	We deliberately decided on this change.  Otherwise, what is the
+.\"	result of dup3(fd, fd, O_CLOEXEC)?
 If
 .IR oldfd
 equals
@@ -147,7 +149,7 @@ fails with the error
 .BR EINVAL .
 .SH RETURN VALUE
 On success, these system calls
-return the new descriptor.
+return the new file descriptor.
 On error, \-1 is returned, and
 .I errno
 is set appropriately.
@@ -189,14 +191,13 @@ contain an invalid value.
 .TP
 .B EINVAL
 .RB ( dup3 ())
-.\" FIXME . To confirm with Al Viro that this was intended, and its rationale
 .I oldfd
 was equal to
 .IR newfd .
 .TP
 .B EMFILE
-The process already has the maximum number of file
-descriptors open and tried to open a new one (see the discussion of
+The per-process limit on the number of open file descriptors has been reached
+(see the discussion of
 .BR RLIMIT_NOFILE
 in
 .BR getrlimit (2)).
@@ -208,8 +209,8 @@ version 2.9.
 .SH CONFORMING TO
 .BR dup (),
 .BR dup2 ():
-SVr4, 4.3BSD, POSIX.1-2001.
-
+POSIX.1-2001, POSIX.1-2008, SVr4, 4.3BSD.
+.PP
 .BR dup3 ()
 is Linux-specific.
 .\" SVr4 documents additional
@@ -229,7 +230,7 @@ also sometimes returns
 .B EINVAL
 like
 .BR F_DUPFD .
-
+.PP
 If
 .I newfd
 was open, any errors that would have been reported at
@@ -245,42 +246,45 @@ before calling
 .BR dup2 (),
 because of the race condition described above.
 Instead, code something like the following could be used:
+.PP
+.in +4n
+.EX
+/* Obtain a duplicate of \(aqnewfd\(aq that can subsequently
+   be used to check for close() errors; an EBADF error
+   means that \(aqnewfd\(aq was not open. */
 
-.nf
-    /* Obtain a duplicate of 'newfd' that can subsequently
-       be used to check for close() errors; an EBADF error
-       means that 'newfd' was not open. */
+tmpfd = dup(newfd);
+if (tmpfd == \-1 && errno != EBADF) {
+    /* Handle unexpected dup() error */
+}
 
-    tmpfd = dup(newfd);
-    if (tmpfd == \-1 && errno != EBADF) {
-        /* Handle unexpected dup() error */
+/* Atomically duplicate \(aqoldfd\(aq on \(aqnewfd\(aq */
+
+if (dup2(oldfd, newfd) == \-1) {
+    /* Handle dup2() error */
+}
+
+/* Now check for close() errors on the file originally
+   referred to by \(aqnewfd\(aq */
+
+if (tmpfd != \-1) {
+    if (close(tmpfd) == \-1) {
+        /* Handle errors from close */
     }
-
-    /* Atomically duplicate 'oldfd' on 'newfd' */
-
-    if (dup2(oldfd, newfd) == \-1) {
-        /* Handle dup2() error */
-    }
-
-    /* Now check for close() errors on the file originally
-       referred to by 'newfd' */
-
-    if (tmpfd != \-1) {
-        if (close(tmpfd) == \-1) {
-            /* Handle errors from close */
-        }
-    }
-.fi
+}
+.EE
+.in
 .SH SEE ALSO
 .BR close (2),
 .BR fcntl (2),
-.BR open (2)
+.BR open (2),
+.BR pidfd_getfd (2)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

@@ -23,29 +23,29 @@
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
 .\"
-.TH CLOCK_NANOSLEEP 2 2014-12-31 "Linux" "Linux Programmer's Manual"
+.TH CLOCK_NANOSLEEP 2 2020-04-11 "Linux" "Linux Programmer's Manual"
 .SH NAME
 clock_nanosleep \- high-resolution sleep with specifiable clock
 .SH SYNOPSIS
 .B #include <time.h>
 .nf
-.sp
-.BI "int clock_nanosleep(clockid_t " clock_id ", int " flags ,
+.PP
+.BI "int clock_nanosleep(clockid_t " clockid ", int " flags ,
 .BI "                    const struct timespec *" request ,
 .BI "                    struct timespec *" remain );
 .fi
-.sp
+.PP
 Link with \fI\-lrt\fP (only for glibc versions before 2.17).
-.sp
+.PP
 .ad l
-.in -4n
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .BR clock_nanosleep ():
 .RS 4
-_XOPEN_SOURCE\ >=\ 600 || _POSIX_C_SOURCE\ >=\ 200112L
+_POSIX_C_SOURCE\ >=\ 200112L
 .RE
 .ad
 .SH DESCRIPTION
@@ -58,34 +58,44 @@ It differs in allowing the caller to select the clock against
 which the sleep interval is to be measured,
 and in allowing the sleep interval to be specified as
 either an absolute or a relative value.
-
+.PP
 The time values passed to and returned by this call are specified using
 .I timespec
 structures, defined as follows:
-.sp
+.PP
 .in +4n
-.nf
+.EX
 struct timespec {
     time_t tv_sec;        /* seconds */
     long   tv_nsec;       /* nanoseconds [0 .. 999999999] */
 };
-.fi
+.EE
 .in
-
+.PP
 The
-.I clock_id
+.I clockid
 argument specifies the clock against which the sleep interval
 is to be measured.
 This argument can have one of the following values:
-.TP 17
+.\" Look in time/posix-timers.c (kernel 5.6 sources) for the
+.\" 'struct k_clock' structures that have an 'nsleep' method
+.TP
 .BR CLOCK_REALTIME
 A settable system-wide real-time clock.
+.TP
+.BR CLOCK_TAI " (since Linux 3.10)"
+A system-wide clock derived from wall-clock time but ignoring leap seconds.
 .TP
 .BR CLOCK_MONOTONIC
 A nonsettable, monotonically increasing clock that measures time
 since some unspecified point in the past that does not change after
 system startup.
 .\" On Linux this clock measures time since boot.
+.TP
+.BR CLOCK_BOOTIME " (since Linux 2.6.39)"
+Identical to
+.BR CLOCK_MONOTONIC ,
+except that it also includes any time that the system is suspended.
 .TP
 .BR CLOCK_PROCESS_CPUTIME_ID
 A settable per-process clock that measures CPU time consumed
@@ -101,16 +111,19 @@ In addition, the CPU clock IDs returned by
 and
 .BR pthread_getcpuclockid (3)
 can also be passed in
-.IR clock_id .
-
+.IR clockid .
+.\" Sleeping against CLOCK_REALTIME_ALARM and CLOCK_BOOTTIME_ALARM
+.\" is also possible (tested), with CAP_WAKE_ALARM, but I'm not
+.\" sure if this is useful or needs to be documented.
+.PP
 If
 .I flags
 is 0, then the value specified in
 .I request
 is interpreted as an interval relative to the current
 value of the clock specified by
-.IR clock_id .
-
+.IR clockid .
+.PP
 If
 .I flags
 is
@@ -118,14 +131,14 @@ is
 then
 .I request
 is interpreted as an absolute time as measured by the clock,
-.IR clock_id .
+.IR clockid .
 If
 .I request
 is less than or equal to the current value of the clock,
 then
 .BR clock_nanosleep ()
 returns immediately without suspending the calling thread.
-
+.PP
 .BR clock_nanosleep ()
 suspends the execution of the calling thread
 until either at least the time specified by
@@ -133,7 +146,7 @@ until either at least the time specified by
 has elapsed,
 or a signal is delivered that causes a signal handler to be called or
 that terminates the process.
-
+.PP
 If the call is interrupted by a signal handler,
 .BR clock_nanosleep ()
 fails with the error
@@ -164,7 +177,8 @@ or
 specified an invalid address.
 .TP
 .B EINTR
-The sleep was interrupted by a signal handler.
+The sleep was interrupted by a signal handler; see
+.BR signal (7).
 .TP
 .B EINVAL
 The value in the
@@ -174,18 +188,22 @@ field was not in the range 0 to 999999999 or
 was negative.
 .TP
 .B EINVAL
-.I clock_id
+.I clockid
 was invalid.
 .RB ( CLOCK_THREAD_CPUTIME_ID
 is not a permitted value for
-.IR clock_id .)
+.IR clockid .)
+.TP
+.B ENOTSUP
+The kernel does not support sleeping against this
+.IR clockid .
 .SH VERSIONS
 The
 .BR clock_nanosleep ()
 system call first appeared in Linux 2.6.
 Support is available in glibc since version 2.1.
 .SH CONFORMING TO
-POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008.
 .SH NOTES
 If the interval specified in
 .I request
@@ -194,7 +212,7 @@ is not an exact multiple of the granularity underlying clock (see
 then the interval will be rounded up to the next multiple.
 Furthermore, after the sleep completes, there may still be a delay before
 the CPU becomes free to once again execute the calling thread.
-
+.PP
 Using an absolute timer is useful for preventing
 timer drift problems of the type described in
 .BR nanosleep (2).
@@ -209,14 +227,14 @@ and then call
 with the
 .B TIMER_ABSTIME
 flag.
-
+.PP
 .BR clock_nanosleep ()
 is never restarted after being interrupted by a signal handler,
 regardless of the use of the
 .BR sigaction (2)
 .B SA_RESTART
 flag.
-
+.PP
 The
 .I remain
 argument is unused, and unnecessary, when
@@ -226,11 +244,11 @@ is
 (An absolute sleep can be restarted using the same
 .I request
 argument.)
-
+.PP
 POSIX.1 specifies that
 .BR clock_nanosleep ()
 has no effect on signals dispositions or the signal mask.
-
+.PP
 POSIX.1 specifies that after changing the value of the
 .B CLOCK_REALTIME
 clock via
@@ -242,7 +260,7 @@ will wake up;
 if the new clock value falls past the end of the sleep interval, then the
 .BR clock_nanosleep ()
 call will return immediately.
-
+.PP
 POSIX.1 specifies that
 changing the value of the
 .B CLOCK_REALTIME
@@ -259,11 +277,11 @@ shall have no effect on a thread that is blocked on a relative
 .BR usleep (3),
 .BR time (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

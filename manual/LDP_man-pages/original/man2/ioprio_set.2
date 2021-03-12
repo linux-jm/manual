@@ -21,7 +21,7 @@
 .\" with various additions by Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\"
-.TH IOPRIO_SET 2 2013-02-12 "Linux" "Linux Programmer's Manual"
+.TH IOPRIO_SET 2 2019-03-06 "Linux" "Linux Programmer's Manual"
 .SH NAME
 ioprio_get, ioprio_set \- get/set I/O scheduling class and priority
 .SH SYNOPSIS
@@ -29,7 +29,7 @@ ioprio_get, ioprio_set \- get/set I/O scheduling class and priority
 .BI "int ioprio_get(int " which ", int " who );
 .BI "int ioprio_set(int " which ", int " who ", int " ioprio );
 .fi
-
+.PP
 .IR Note :
 There are no glibc wrappers for these system calls; see NOTES.
 .SH DESCRIPTION
@@ -37,9 +37,9 @@ The
 .BR ioprio_get ()
 and
 .BR ioprio_set ()
-system calls respectively get and set the I/O scheduling class and
+system calls get and set the I/O scheduling class and
 priority of one or more threads.
-
+.PP
 The
 .I which
 and
@@ -95,7 +95,7 @@ is the lowest)
 or if it belongs to the same priority class as the other process but
 has a higher priority level (a lower priority number means a
 higher priority level).
-
+.PP
 The
 .I ioprio
 argument given to
@@ -137,8 +137,11 @@ value), this macro returns its priority
 component.
 .PP
 See the NOTES section for more
-information on scheduling classes and priorities.
-
+information on scheduling classes and priorities,
+as well as the meaning of specifying
+.I ioprio
+as 0.
+.PP
 I/O priorities are supported for reads and for synchronous
 .RB ( O_DIRECT ,
 .BR O_SYNC )
@@ -198,7 +201,7 @@ These system calls are Linux-specific.
 .SH NOTES
 Glibc does not provide a wrapper for these system calls; call them using
 .BR syscall (2).
-
+.PP
 Two or more processes or threads can share an I/O context.
 This will be the case when
 .BR clone (2)
@@ -217,53 +220,67 @@ is the one that is returned by
 .BR gettid (2)
 or
 .BR clone (2).
-
+.PP
 These system calls have an effect only when used
 in conjunction with an I/O scheduler that supports I/O priorities.
 As at kernel 2.6.17 the only such scheduler is the Completely Fair Queuing
 (CFQ) I/O scheduler.
+.PP
+If no I/O scheduler has been set for a thread,
+then by default the I/O priority will follow the CPU nice value
+.RB ( setpriority (2)).
+In Linux kernels before version 2.6.24,
+once an I/O priority had been set using
+.BR ioprio_set (),
+there was no way to reset the I/O scheduling behavior to the default.
+Since Linux 2.6.24,
+.\" commit 8ec680e4c3ec818efd1652f15199ed1c216ab550
+specifying
+.I ioprio
+as 0 can be used to reset to the default I/O scheduling behavior.
 .SS Selecting an I/O scheduler
-I/O Schedulers are selected on a per-device basis via the special
+I/O schedulers are selected on a per-device basis via the special
 file
 .IR /sys/block/<device>/queue/scheduler .
-
+.PP
 One can view the current I/O scheduler via the
 .I /sys
 filesystem.
 For example, the following command
 displays a list of all schedulers currently loaded in the kernel:
-.sp
-.RS
-.nf
-.RB "$" " cat /sys/block/hda/queue/scheduler"
+.PP
+.in +4n
+.EX
+.RB "$" " cat /sys/block/sda/queue/scheduler"
 noop anticipatory deadline [cfq]
-.fi
-.RE
-.sp
+.EE
+.in
+.PP
 The scheduler surrounded by brackets is the one actually
 in use for the device
-.RI ( hda
+.RI ( sda
 in the example).
 Setting another scheduler is done by writing the name of the
 new scheduler to this file.
 For example, the following command will set the
 scheduler for the
-.I hda
+.I sda
 device to
 .IR cfq :
-.sp
-.RS
-.nf
+.PP
+.in +4n
+.EX
 .RB "$" " su"
 Password:
-.RB "#" " echo cfq > /sys/block/hda/queue/scheduler"
-.fi
-.RE
+.RB "#" " echo cfq > /sys/block/sda/queue/scheduler"
+.EE
+.in
+.\"
 .SS The Completely Fair Queuing (CFQ) I/O scheduler
-Since v3 (aka CFQ Time Sliced) CFQ implements
+Since version 3 (also known as CFQ Time Sliced), CFQ implements
 I/O nice levels similar to those
 of CPU scheduling.
-These nice levels are grouped in three scheduling classes
+These nice levels are grouped into three scheduling classes,
 each one containing one or more priority levels:
 .TP
 .BR IOPRIO_CLASS_RT " (1)"
@@ -272,13 +289,13 @@ This scheduling class is given
 higher priority than any other class:
 processes from this class are
 given first access to the disk every time.
-Thus this I/O class needs to be used with some
+Thus, this I/O class needs to be used with some
 care: one I/O real-time process can starve the entire system.
 Within the real-time class,
 there are 8 levels of class data (priority) that determine exactly
 how much time this process needs the disk for on each service.
 The highest real-time priority level is 0; the lowest is 7.
-In the future this might change to be more directly mappable to
+In the future, this might change to be more directly mappable to
 performance, by passing in a desired data rate instead.
 .TP
 .BR IOPRIO_CLASS_BE " (2)"
@@ -297,21 +314,21 @@ Priority levels range from 0 (highest) to 7 (lowest).
 .BR IOPRIO_CLASS_IDLE " (3)"
 This is the idle scheduling class.
 Processes running at this level get I/O
-time only when no-one else needs the disk.
+time only when no one else needs the disk.
 The idle class has no class data.
 Attention is required when assigning this priority class to a process,
 since it may become starved if higher priority processes are
 constantly accessing the disk.
 .PP
-Refer to
+Refer to the kernel source file
 .I Documentation/block/ioprio.txt
 for more information on the CFQ I/O Scheduler and an example program.
 .SS Required permissions to set I/O priorities
 Permission to change a process's priority is granted or denied based
-on two assertions:
+on two criteria:
 .TP
 .B "Process ownership"
-An unprivileged process may set only the I/O priority of a process
+An unprivileged process may set the I/O priority only for a process
 whose real UID
 matches the real or effective UID of the calling process.
 A process which has the
@@ -347,16 +364,17 @@ Suitable definitions can be found in
 .BR ionice (1),
 .BR getpriority (2),
 .BR open (2),
-.BR capabilities (7)
-
+.BR capabilities (7),
+.BR cgroups (7)
+.PP
 .I Documentation/block/ioprio.txt
 in the Linux kernel source tree
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

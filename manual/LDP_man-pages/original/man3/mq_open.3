@@ -1,4 +1,3 @@
-'\" t
 .\" Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
@@ -23,7 +22,7 @@
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
 .\"
-.TH MQ_OPEN 3 2014-12-31 "Linux" "Linux Programmer's Manual"
+.TH MQ_OPEN 3 2020-08-13 "Linux" "Linux Programmer's Manual"
 .SH NAME
 mq_open \- open a message queue
 .SH SYNOPSIS
@@ -31,12 +30,12 @@ mq_open \- open a message queue
 .BR "#include <fcntl.h>" "           /* For O_* constants */"
 .BR "#include <sys/stat.h>" "        /* For mode constants */"
 .B #include <mqueue.h>
-.sp
+.PP
 .BI "mqd_t mq_open(const char *" name ", int " oflag );
 .BI "mqd_t mq_open(const char *" name ", int " oflag ", mode_t " mode ,
 .BI "              struct mq_attr *" attr );
 .fi
-.sp
+.PP
 Link with \fI\-lrt\fP.
 .SH DESCRIPTION
 .BR mq_open ()
@@ -47,7 +46,7 @@ For details of the construction of
 .IR name ,
 see
 .BR mq_overview (7).
-
+.PP
 The
 .I oflag
 argument specifies flags that control the operation of the call.
@@ -117,13 +116,35 @@ as for
 (Symbolic definitions for the permissions bits can be obtained by including
 .IR <sys/stat.h> .)
 The permissions settings are masked against the process umask.
-
-The
+.PP
+The fields of the
+.IR "struct mq_attr"
+pointed to
 .I attr
-argument specifies attributes for the queue.
-See
-.BR mq_getattr (3)
-for details.
+specify the maximum number of messages and
+the maximum size of messages that the queue will allow.
+This structure is defined as follows:
+.PP
+.in +4n
+.EX
+struct mq_attr {
+    long mq_flags;       /* Flags (ignored for mq_open()) */
+    long mq_maxmsg;      /* Max. # of messages on queue */
+    long mq_msgsize;     /* Max. message size (bytes) */
+    long mq_curmsgs;     /* # of messages currently in queue
+                            (ignored for mq_open()) */
+};
+.EE
+.in
+.PP
+Only the
+.I mq_maxmsg
+and
+.I mq_msgsize
+fields are employed when calling
+.BR mq_open ();
+the values in the remaining fields are ignored.
+.PP
 If
 .I attr
 is NULL, then the queue is created with implementation-defined
@@ -168,6 +189,13 @@ but a queue with this
 already exists.
 .TP
 .B EINVAL
+.\" glibc checks whether the name starts with a "/" and if not,
+.\" gives this error
+.I name
+doesn't follow the format in
+.BR mq_overview (7).
+.TP
+.B EINVAL
 .B O_CREAT
 was specified in
 .IR oflag ,
@@ -200,16 +228,20 @@ limit.
 for details of these limits.)
 .TP
 .B EMFILE
-The process already has the maximum number of files and
-message queues open.
+The per-process limit on the number of open file
+and message queue descriptors has been reached
+(see the description of
+.BR RLIMIT_NOFILE
+in
+.BR getrlimit (2)).
 .TP
 .B ENAMETOOLONG
 .I name
 was too long.
 .TP
 .B ENFILE
-The system limit on the total number of open files and message queues
-has been reached.
+The system-wide limit on the total number of open files
+and message queues has been reached.
 .TP
 .B ENOENT
 The
@@ -235,12 +267,37 @@ This probably occurred because the
 limit was encountered; see
 .BR mq_overview (7).
 .SH ATTRIBUTES
-.SS Multithreading (see pthreads(7))
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lb lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR mq_open ()
+T}	Thread safety	MT-Safe
+.TE
+.SH CONFORMING TO
+POSIX.1-2001, POSIX.1-2008.
+.SH NOTES
+.SS C library/kernel differences
 The
 .BR mq_open ()
-function is thread-safe.
-.SH CONFORMING TO
-POSIX.1-2001.
+library function is implemented on top of a system call of the same name.
+The library function performs the check that the
+.I name
+starts with a slash (/), giving the
+.B EINVAL
+error if it does not.
+The kernel system call expects
+.I name
+to contain no preceding slash,
+so the C library function passes
+.I name
+without the preceding slash (i.e.,
+.IR name+1 )
+to the system call.
 .SH BUGS
 In kernels before 2.6.14,
 the process umask was not applied to the permissions specified in
@@ -254,11 +311,11 @@ the process umask was not applied to the permissions specified in
 .BR mq_unlink (3),
 .BR mq_overview (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

@@ -41,8 +41,9 @@
 .\" 2005-04-25, mtk -- noted aberrant Linux behavior w.r.t. new
 .\"	attaches to a segment that has already been marked for deletion.
 .\" 2005-08-02, mtk: Added IPC_INFO, SHM_INFO, SHM_STAT descriptions.
+.\" 2018-03-20, dbueso: Added SHM_STAT_ANY description.
 .\"
-.TH SHMCTL 2 2014-02-07 "Linux" "Linux Programmer's Manual"
+.TH SHMCTL 2 2020-12-21 "Linux" "Linux Programmer's Manual"
 .SH NAME
 shmctl \- System V shared memory control
 .SH SYNOPSIS
@@ -50,7 +51,7 @@ shmctl \- System V shared memory control
 .B #include <sys/ipc.h>
 .br
 .B #include <sys/shm.h>
-.sp
+.PP
 .BI "int shmctl(int " shmid ", int " cmd ", struct shmid_ds *" buf );
 .ad b
 .SH DESCRIPTION
@@ -66,20 +67,63 @@ argument is a pointer to a \fIshmid_ds\fP structure,
 defined in \fI<sys/shm.h>\fP as follows:
 .PP
 .in +4n
-.nf
+.EX
 struct shmid_ds {
     struct ipc_perm shm_perm;    /* Ownership and permissions */
     size_t          shm_segsz;   /* Size of segment (bytes) */
     time_t          shm_atime;   /* Last attach time */
     time_t          shm_dtime;   /* Last detach time */
-    time_t          shm_ctime;   /* Last change time */
+    time_t          shm_ctime;   /* Creation time/time of last
+                                    modification via shmctl() */
     pid_t           shm_cpid;    /* PID of creator */
     pid_t           shm_lpid;    /* PID of last shmat(2)/shmdt(2) */
     shmatt_t        shm_nattch;  /* No. of current attaches */
     ...
 };
-.fi
+.EE
 .in
+.PP
+The fields of the
+.I shmid_ds
+structure are as follows:
+.TP 12
+.I shm_perm
+This is an
+.I ipc_perm
+structure (see below) that specifies the access permissions
+on the shared memory segment.
+.TP
+.I shm_segsz
+Size in bytes of the shared memory segment.
+.TP
+.I shm_atime
+Time of the last
+.BR shmat (2)
+system call that attached this segment.
+.TP
+.I shm_dtime
+Time of the last
+.BR shmdt (2)
+system call that detached tgis segment.
+.TP
+.I shm_ctime
+Time of creation of segment or time of the last
+.BR shmctl ()
+.BR IPC_SET
+operation.
+.TP
+.I shm_cpid
+ID of the process that created the shared memory segment.
+.TP
+.I shm_lpid
+ID of the last process that executed a
+.BR shmat (2)
+or
+.BR shmdt (2)
+system call on this segment.
+.TP
+.I shm_nattch
+Number of processes that have this segment attached.
 .PP
 The
 .I ipc_perm
@@ -88,7 +132,7 @@ structure is defined as follows
 .BR IPC_SET ):
 .PP
 .in +4n
-.nf
+.EX
 struct ipc_perm {
     key_t          __key;    /* Key supplied to shmget(2) */
     uid_t          \fBuid\fP;      /* Effective UID of owner */
@@ -99,14 +143,37 @@ struct ipc_perm {
                                 SHM_LOCKED flags */
     unsigned short __seq;    /* Sequence number */
 };
-.fi
+.EE
 .in
+.PP
+The least significant 9 bits of the
+.I mode
+field of the
+.I ipc_perm
+structure define the access permissions for the shared memory segment.
+The permission bits are as follows:
+.TS
+l l.
+0400	Read by user
+0200	Write by user
+0040	Read by group
+0020	Write by group
+0004	Read by others
+0002	Write by others
+.TE
+.PP
+Bits 0100, 0010, and 0001 (the execute bits) are unused by the system.
+(It is not necessary to have execute permission on a segment
+in order to perform a
+.BR shmat (2)
+call with the
+.B SHM_EXEC
+flag.)
 .PP
 Valid values for
 .I cmd
 are:
-.br
-.TP 10
+.TP
 .B IPC_STAT
 Copy information from the kernel data structure associated with
 .I shmid
@@ -125,9 +192,11 @@ to the kernel data structure associated with this shared memory segment,
 updating also its
 .I shm_ctime
 member.
-The following fields can be changed:
+.IP
+The following fields are updated:
 \fIshm_perm.uid\fP, \fIshm_perm.gid\fP,
 and (the least significant 9 bits of) \fIshm_perm.mode\fP.
+.IP
 The effective UID of the calling process must match the owner
 .RI ( shm_perm.uid )
 or creator
@@ -162,7 +231,7 @@ See also the description of
 .I  /proc/sys/kernel/shm_rmid_forced
 in
 .BR proc (5).
-.TP 10
+.TP
 .BR IPC_INFO " (Linux-specific)"
 Return information about system-wide shared memory limits and
 parameters in the structure pointed to by
@@ -175,9 +244,9 @@ defined in
 if the
 .B _GNU_SOURCE
 feature test macro is defined:
-.nf
+.IP
 .in +4n
-
+.EX
 struct shminfo {
     unsigned long shmmax; /* Maximum segment size */
     unsigned long shmmin; /* Minimum segment size;
@@ -189,9 +258,9 @@ struct shminfo {
     unsigned long shmall; /* Maximum number of pages of
                              shared memory, system-wide */
 };
-
+.EE
 .in
-.fi
+.IP
 The
 .IR shmmni ,
 .IR shmmax ,
@@ -213,9 +282,9 @@ This structure is defined in
 if the
 .B _GNU_SOURCE
 feature test macro is defined:
-.nf
+.IP
 .in +4n
-
+.EX
 struct shm_info {
     int           used_ids; /* # of currently existing
                                segments */
@@ -230,8 +299,8 @@ struct shm_info {
     unsigned long swap_successes;
                             /* Unused since Linux 2.4 */
 };
+.EE
 .in
-.fi
 .TP
 .BR SHM_STAT " (Linux-specific)"
 Return a
@@ -243,11 +312,23 @@ However, the
 argument is not a segment identifier, but instead an index into
 the kernel's internal array that maintains information about
 all shared memory segments on the system.
+.TP
+.BR SHM_STAT_ANY " (Linux-specific, since Linux 4.17)"
+Return a
+.I shmid_ds
+structure as for
+.BR SHM_STAT .
+However,
+.I shm_perm.mode
+is not checked for read access for
+.IR shmid ,
+meaning that any user can employ this operation (just as any user may read
+.IR /proc/sysvipc/shm
+to obtain the same information).
 .PP
 The caller can prevent or allow swapping of a shared
 memory segment with the following \fIcmd\fP values:
-.br
-.TP 10
+.TP
 .BR SHM_LOCK " (Linux-specific)"
 Prevent swapping of the shared memory segment.
 The caller must fault in
@@ -290,6 +371,8 @@ kernel's internal array recording information about all
 shared memory segments.
 (This information can be used with repeated
 .B SHM_STAT
+or
+.B SHM_STAT_ANY
 operations to obtain information about all shared memory segments
 on the system.)
 A successful
@@ -298,7 +381,7 @@ operation returns the identifier of the shared memory segment
 whose index was given in
 .IR shmid .
 Other operations return 0 on success.
-
+.PP
 On error, \-1 is returned, and
 .I errno
 is set appropriately.
@@ -310,7 +393,7 @@ is set appropriately.
 .IR shmid ,
 and the calling process does not have the
 .B CAP_IPC_OWNER
-capability.
+capability in the user namespace that governs its IPC namespace.
 .TP
 .B EFAULT
 The argument
@@ -331,6 +414,8 @@ isn't accessible.
 is not a valid command.
 Or: for a
 .B SHM_STAT
+or
+.B SHM_STAT_ANY
 operation, the index value specified in
 .I shmid
 referred to an array slot that is currently unused.
@@ -362,7 +447,7 @@ or the owner
 and the process was not privileged (Linux: did not have the
 .B CAP_SYS_ADMIN
 capability).
-
+.IP
 Or (in kernels before 2.6.9),
 .B SHM_LOCK
 or
@@ -375,7 +460,7 @@ capability).
 .B RLIMIT_MEMLOCK
 is 0 and the caller is not privileged.)
 .SH CONFORMING TO
-SVr4, POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008, SVr4.
 .\" SVr4 documents additional error conditions EINVAL,
 .\" ENOENT, ENOSPC, ENOMEM, EEXIST.  Neither SVr4 nor SVID documents
 .\" an EIDRM error condition.
@@ -392,10 +477,10 @@ Applications intended to be portable to such old systems may need
 to include these header files.
 .\" Like Linux, the FreeBSD man pages still document
 .\" the inclusion of these header files.
-
+.PP
 The
 .BR IPC_INFO ,
-.B SHM_STAT
+.BR SHM_STAT ,
 and
 .B SHM_INFO
 operations are used by the
@@ -404,7 +489,7 @@ program to provide information on allocated resources.
 In the future, these may modified or moved to a
 .I /proc
 filesystem interface.
-
+.PP
 Linux permits a process to attach
 .RB ( shmat (2))
 a shared memory segment that has already been marked for deletion
@@ -412,7 +497,7 @@ using
 .IR shmctl(IPC_RMID) .
 This feature is not available on other UNIX implementations;
 portable applications should avoid relying on it.
-
+.PP
 Various fields in a \fIstruct shmid_ds\fP were typed as
 .I short
 under Linux 2.2
@@ -431,13 +516,13 @@ flag in
 .BR shmget (2),
 .BR shmop (2),
 .BR capabilities (7),
-.BR svipc (7)
+.BR sysvipc (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

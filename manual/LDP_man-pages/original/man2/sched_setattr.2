@@ -23,18 +23,18 @@
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
 .\"
-.TH SCHED_SETATTR 2 2014-10-02 "Linux" "Linux Programmer's Manual"
+.TH SCHED_SETATTR 2 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 sched_setattr, sched_getattr \-
 set and get scheduling policy and attributes
 .SH SYNOPSIS
 .nf
 .B #include <sched.h>
-
-.BI "int sched_setattr(pid_t " pid ", const struct sched_attr *" attr ,
+.PP
+.BI "int sched_setattr(pid_t " pid ", struct sched_attr *" attr ,
 .BI "                  unsigned int " flags );
-
-.BI "int sched_getattr(pid_t " pid ", const struct sched_attr *" attr ,
+.PP
+.BI "int sched_getattr(pid_t " pid ", struct sched_attr *" attr ,
 .BI "                  unsigned int " size ", unsigned int " flags );
 .fi
 .\" FIXME . Add feature test macro requirements
@@ -49,7 +49,7 @@ If
 .I pid
 equals zero,
 the scheduling policy and attributes of the calling thread will be set.
-
+.PP
 Currently, Linux supports the following "normal"
 (i.e., non-real-time) scheduling policies as values that may be specified in
 .IR policy :
@@ -94,9 +94,9 @@ The
 argument is a pointer to a structure that defines
 the new scheduling policy and attributes for the specified thread.
 This structure has the following form:
-
+.PP
 .in +4n
-.nf
+.EX
 struct sched_attr {
     u32 size;              /* Size of this structure */
     u32 sched_policy;      /* Policy (SCHED_*) */
@@ -110,10 +110,12 @@ struct sched_attr {
     u64 sched_deadline;
     u64 sched_period;
 };
-.fi
+.EE
 .in
-
-The fields of this structure are as follows:
+.PP
+The fields of the
+.IR sched_attr
+structure are as follows:
 .TP
 .B size
 This field should be set to the size of the structure in bytes, as in
@@ -150,15 +152,52 @@ This field specifies the scheduling policy, as one of the
 values listed above.
 .TP
 .I sched_flags
-This field contains flags controlling scheduling behavior.
-Only one such flag is currently defined:
-.BR SCHED_FLAG_RESET_ON_FORK .
-As a result of including this flag, children created by
+This field contains zero or more of the following flags
+that are ORed together to control scheduling behavior:
+.RS
+.TP
+.BR SCHED_FLAG_RESET_ON_FORK
+Children created by
 .BR fork (2)
 do not inherit privileged scheduling policies.
 See
 .BR sched (7)
 for details.
+.TP
+.BR SCHED_FLAG_RECLAIM " (since Linux 4.13)"
+.\" 2d4283e9d583a3ee8cfb1cbb9c1270614df4c29d
+This flag allows a
+.BR SCHED_DEADLINE
+thread to reclaim bandwidth unused by other real-time threads.
+.\" Bandwidth reclaim is done via the GRUB algorithm; see
+.\" Documentation/scheduler/sched-deadline.txt
+.TP
+.BR SCHED_FLAG_DL_OVERRUN " (since Linux 4.16)"
+.\" commit 34be39305a77b8b1ec9f279163c7cdb6cc719b91
+This flag allows an application to get informed about run-time overruns in
+.BR SCHED_DEADLINE
+threads.
+Such overruns may be caused by (for example) coarse execution time accounting
+or incorrect parameter assignment.
+Notification takes the form of a
+.B SIGXCPU
+signal which is generated on each overrun.
+.IP
+This
+.BR SIGXCPU
+signal is
+.I process-directed
+(see
+.BR signal (7))
+rather than thread-directed.
+This is probably a bug.
+On the one hand,
+.BR sched_setattr ()
+is being used to set a per-thread attribute.
+On the other hand, if the process-directed signal is delivered to
+a thread inside the process other than the one that had a run-time overrun,
+the application has no way of knowing which thread overran.
+.RE
 .TP
 .I sched_nice
 This field specifies the nice value to be set when specifying
@@ -169,7 +208,7 @@ or
 .BR SCHED_BATCH .
 The nice value is a number in the range \-20 (high priority)
 to +19 (low priority); see
-.BR setpriority (2).
+.BR sched (7).
 .TP
 .I sched_priority
 This field specifies the static priority to be set when specifying
@@ -218,7 +257,7 @@ If
 equals zero,
 the scheduling policy and attributes of the calling thread
 will be retrieved.
-
+.PP
 The
 .I size
 argument should be set to the size of the
@@ -228,7 +267,7 @@ The value must be at least as large as the size of the initially published
 .I sched_attr
 structure, or the call fails with the error
 .BR EINVAL .
-
+.PP
 The retrieved scheduling attributes are placed in the fields of the
 .I sched_attr
 structure pointed to by
@@ -238,7 +277,7 @@ The kernel sets
 to the size of its
 .I sched_attr
 structure.
-
+.PP
 If the caller-provided
 .I attr
 buffer is larger than the kernel's
@@ -247,14 +286,12 @@ structure,
 the additional bytes in the user-space structure are not touched.
 If the caller-provided structure is smaller than the kernel
 .I sched_attr
-structure and the kernel needs to return values outside the provided space,
-.BR sched_getattr ()
-fails with the error
-.BR E2BIG .
+structure, the kernel will silently not return any values which would be stored
+outside the provided space.
 As with
 .BR sched_setattr (),
 these semantics allow for future extensibility of the interface.
-
+.PP
 The
 .I flags
 argument is provided to allow for future extensions to the interface;
@@ -341,7 +378,8 @@ are invalid.
 The caller does not have appropriate privileges.
 .TP
 .B EPERM
-The caller's CPU affinity mask
+The CPU affinity mask of the thread specified by
+.I pid
 does not include all CPUs in the system
 (see
 .BR sched_setaffinity (2)).
@@ -370,12 +408,22 @@ and (partially)
 In Linux versions up to
 .\" FIXME . patch sent to Peter Zijlstra
 3.15,
-.BR sched_settattr ()
+.BR sched_setattr ()
 failed with the error
 .BR EFAULT
 instead of
 .BR E2BIG
 for the case described in ERRORS.
+.PP
+In Linux versions up to 5.3,
+.BR sched_getattr ()
+failed with the error
+.BR EFBIG
+if the in-kernel
+.IR sched_attr
+structure was larger than the
+.IR size
+passed by user space.
 .\" In Linux versions up to up 3.15,
 .\" FIXME . patch from Peter Zijlstra pending
 .\" .BR sched_setattr ()
@@ -390,12 +438,12 @@ for the case described in ERRORS.
 .BR sched_get_priority_max (2),
 .BR sched_get_priority_min (2),
 .BR sched_getaffinity (2),
-.BR sched_getscheduler (2),
 .BR sched_getparam (2),
+.BR sched_getscheduler (2),
 .BR sched_rr_get_interval (2),
 .BR sched_setaffinity (2),
-.BR sched_setscheduler (2),
 .BR sched_setparam (2),
+.BR sched_setscheduler (2),
 .BR sched_yield (2),
 .BR setpriority (2),
 .BR pthread_getschedparam (3),
@@ -406,11 +454,11 @@ for the case described in ERRORS.
 .BR sched (7)
 .ad
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

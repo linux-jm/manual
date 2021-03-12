@@ -37,7 +37,7 @@
 .\"
 .\" 2007-12-08, mtk, Converted from mdoc to man macros
 .\"
-.TH FTS 3 2014-03-18 "Linux" "Linux Programmer's Manual"
+.TH FTS 3 2020-04-11 "Linux" "Linux Programmer's Manual"
 .SH NAME
 fts, fts_open, fts_read, fts_children, fts_set, fts_close \- \
 traverse a file hierarchy
@@ -46,16 +46,16 @@ traverse a file hierarchy
 .B #include <sys/types.h>
 .B #include <sys/stat.h>
 .B #include <fts.h>
-.sp
-.BI "FTS *fts_open(char * const *" path_argv ", int " options ", "
+.PP
+.BI "FTS *fts_open(char * const *" path_argv ", int " options ,
 .BI "              int (*" compar ")(const FTSENT **, const FTSENT **));"
-.sp
+.PP
 .BI "FTSENT *fts_read(FTS *" ftsp );
-.sp
-.BI "FTSENT *fts_children(FTS *" ftsp ", int " options );
-.sp
-.BI "int fts_set(FTS *" ftsp ", FTSENT *" f ", int " options );
-.sp
+.PP
+.BI "FTSENT *fts_children(FTS *" ftsp ", int " instr );
+.PP
+.BI "int fts_set(FTS *" ftsp ", FTSENT *" f ", int " instr );
+.PP
 .BI "int fts_close(FTS *" ftsp );
 .fi
 .SH DESCRIPTION
@@ -64,8 +64,10 @@ fts functions are provided for traversing
 file hierarchies.
 A simple overview is that the
 .BR fts_open ()
-function returns a "handle" on a file hierarchy, which is then supplied to
-the other
+function returns a "handle" (of type
+.IR "FTS\ *" )
+that refers to a file hierarchy "stream".
+This handle is then supplied to the other
 fts functions.
 The function
 .BR fts_read ()
@@ -75,6 +77,7 @@ The function
 .BR fts_children ()
 returns a pointer to a linked list of structures, each of which describes
 one of the files contained in a directory in the hierarchy.
+.PP
 In general, directories are visited two distinguishable times; in preorder
 (before any of their descendants are visited) and in postorder (after all
 of their descendants have been visited).
@@ -85,12 +88,12 @@ or physically (visiting the symbolic links themselves),
 order the walk of the hierarchy or
 prune and/or revisit portions of the hierarchy.
 .PP
-Two structures are defined (and typedef'd) in the include file
+Two structures (and associated types) are defined in the include file
 .IR <fts.h> .
-The first is
+The first type is
 .IR FTS ,
 the structure that represents the file hierarchy itself.
-The second is
+The second type is
 .IR FTSENT ,
 the structure that represents a file in the file
 hierarchy.
@@ -101,37 +104,47 @@ hierarchy.
 In this manual page, "file" and
 "FTSENT structure"
 are generally interchangeable.
+.PP
 The
 .I FTSENT
-structure contains at least the following fields, which are
-described in greater detail below:
+structure contains fields describing a file.
+The structure contains at least the following fields
+(there are additional fields that
+should be considered private to the implementation):
+.PP
 .in +4n
-.nf
-
+.EX
 typedef struct _ftsent {
-    unsigned short fts_info;     /* flags for FTSENT structure */
-    char          *fts_accpath;  /* access path */
-    char          *fts_path;     /* root path */
-    short          fts_pathlen;  /* strlen(fts_path) */
-    char          *fts_name;     /* filename */
-    short          fts_namelen;  /* strlen(fts_name) */
-    short          fts_level;    /* depth (\-1 to N) */
-    int            fts_errno;    /* file errno */
-    long           fts_number;   /* local numeric value */
-    void          *fts_pointer;  /* local address value */
-    struct ftsent *fts_parent;   /* parent directory */
-    struct ftsent *fts_link;     /* next file structure */
-    struct ftsent *fts_cycle;    /* cycle structure */
-    struct stat   *fts_statp;    /* stat(2) information */
+    unsigned short  fts_info;     /* flags for FTSENT structure */
+    char           *fts_accpath;  /* access path */
+    char           *fts_path;     /* root path */
+    short           fts_pathlen;  /* strlen(fts_path) +
+                                     strlen(fts_name) */
+    char           *fts_name;     /* filename */
+    short           fts_namelen;  /* strlen(fts_name) */
+    short           fts_level;    /* depth (\-1 to N) */
+    int             fts_errno;    /* file errno */
+    long            fts_number;   /* local numeric value */
+    void           *fts_pointer;  /* local address value */
+    struct _ftsent *fts_parent;   /* parent directory */
+    struct _ftsent *fts_link;     /* next file structure */
+    struct _ftsent *fts_cycle;    /* cycle structure */
+    struct stat    *fts_statp;    /* stat(2) information */
+.\" Also:
+.\"     ino_t fts_ino;                  /* inode (only for directories)*/
+.\"     dev_t fts_dev;                  /* device (only for directories)*/
+.\"     nlink_t fts_nlink;              /* link count (only for directories)*/
+.\"     u_short fts_flags;              /* private flags for FTSENT structure */
+.\"     u_short fts_instr;              /* fts_set() instructions */
 } FTSENT;
-.fi
+.EE
 .in
 .PP
 These fields are defined as follows:
 .\" .Bl -tag -width "fts_namelen"
-.TP 12
+.TP
 .IR fts_info
-One of the following flags describing the returned
+One of the following values describing the returned
 .I FTSENT
 structure and
 the file it represents.
@@ -141,8 +154,8 @@ all of these
 entries are terminal, that is, they will not be revisited, nor will any
 of their descendants be visited.
 .\" .Bl  -tag -width FTS_DEFAULT
-.RS 12
-.TP 12
+.RS
+.TP
 .BR FTS_D
 A directory being visited in preorder.
 .TP
@@ -237,8 +250,10 @@ This path contains the path specified to
 as a prefix.
 .TP
 .IR fts_pathlen
-The length of the string referenced by
-.IR fts_path .
+The sum of the lengths of the strings referenced by
+.IR fts_path
+and
+.IR fts_name .
 .TP
 .IR fts_name
 The name of the file.
@@ -259,23 +274,24 @@ structure for the root
 itself is numbered 0.
 .TP
 .IR fts_errno
-Upon return of a
-.I FTSENT
-structure from the
+If
 .BR fts_children ()
 or
 .BR fts_read ()
-functions, with its
+returns an
+.I FTSENT
+structure whose
 .I fts_info
-field set to
+field is set to
 .BR FTS_DNR ,
-.BR FTS_ERR
+.BR FTS_ERR ,
 or
 .BR FTS_NS ,
 the
 .I fts_errno
-field contains the value of the external variable
-.I errno
+field contains the error number (i.e., the
+.IR errno
+value)
 specifying the cause of the error.
 Otherwise, the contents of the
 .I fts_errno
@@ -303,7 +319,7 @@ file is a member.
 A parent structure for the initial entry point is provided as well,
 however, only the
 .IR fts_level ,
-.I fts_number
+.IR fts_number ,
 and
 .I fts_pointer
 fields are guaranteed to be initialized.
@@ -384,7 +400,7 @@ must be specified.
 The options are selected by ORing
 the following values:
 .\" .Bl -tag -width "FTS_PHYSICAL"
-.TP 13
+.TP
 .BR FTS_COMFOLLOW
 This option causes any symbolic link specified as a root path to be
 followed immediately whether or not
@@ -493,7 +509,7 @@ if the file referenced by its first argument comes before, in any order
 with respect to, or after, the file referenced by its second argument.
 The
 .IR fts_accpath ,
-.I fts_path
+.IR fts_path ,
 and
 .I fts_pathlen
 fields of the
@@ -622,15 +638,16 @@ structures returned by
 .BR fts_children ()
 may be overwritten after a call to
 .BR fts_children (),
-.BR fts_close ()
+.BR fts_close (),
 or
 .BR fts_read ()
 on the same file hierarchy stream.
 .PP
-.I Option
-may be set to the following value:
+The
+.I instr
+argument is either zero or the following value:
 .\" .Bl -tag -width FTS_NAMEONLY
-.TP 13
+.TP
 .BR FTS_NAMEONLY
 Only the names of the files are needed.
 The contents of all the fields in the returned linked list of structures
@@ -652,10 +669,12 @@ The
 .BR fts_set ()
 function
 returns 0 on success, and \-1 if an error occurs.
-.I Option
-must be set to one of the following values:
+.PP
+The
+.I instr
+argument is either 0 (meaning "do nothing") or one of the following values:
 .\" .Bl -tag -width FTS_PHYSICAL
-.TP 13
+.TP
 .BR FTS_AGAIN
 Revisit the file; any file type may be revisited.
 The next call to
@@ -716,7 +735,7 @@ or
 .SS fts_close()
 The
 .BR fts_close ()
-function closes a file hierarchy stream
+function closes the file hierarchy stream referred to by
 .I ftsp
 and restores the current directory to the directory from which
 .BR fts_open ()
@@ -769,17 +788,42 @@ may fail and set
 as follows:
 .TP
 .B EINVAL
-The options were invalid.
+.I options
+or
+.I instr
+was invalid.
 .SH VERSIONS
 These functions are available in Linux since glibc2.
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw34 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR fts_open (),
+.BR fts_set (),
+.BR fts_close ()
+T}	Thread safety	MT-Safe
+T{
+.BR fts_read (),
+.BR fts_children ()
+T}	Thread safety	MT-Unsafe
+.TE
+.sp 1
 .SH CONFORMING TO
 4.4BSD.
 .SH BUGS
-All of the APIs described in this man page are not safe when compiling
-a program using the LFS APIs (e.g., when compiling with
-.IR -D_FILE_OFFSET_BITS=64 ).
+In versions of glibc before 2.23,
+.\" Fixed by commit 8b7b7f75d91f7bac323dd6a370aeb3e9c5c4a7d5
 .\" https://sourceware.org/bugzilla/show_bug.cgi?id=15838
 .\" https://sourceware.org/bugzilla/show_bug.cgi?id=11460
+all of the APIs described in this man page are not safe when compiling
+a program using the LFS APIs (e.g., when compiling with
+.IR \-D_FILE_OFFSET_BITS=64 ).
+.\"
 .\" The following statement is years old, and seems no closer to
 .\" being true -- mtk
 .\" The
@@ -794,11 +838,11 @@ a program using the LFS APIs (e.g., when compiling with
 .BR ftw (3),
 .BR qsort (3)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

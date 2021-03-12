@@ -17,54 +17,34 @@
 .\" by clone, which would require porting and maintaining all commands
 .\" such as login, and su, that establish a user session.
 .\"
-.TH UNSHARE 2 2014-09-21 "Linux" "Linux Programmer's Manual"
+.TH UNSHARE 2 2020-04-11 "Linux" "Linux Programmer's Manual"
 .SH NAME
 unshare \- disassociate parts of the process execution context
 .SH SYNOPSIS
 .nf
+.B #define _GNU_SOURCE
 .B #include <sched.h>
-.sp
+.PP
 .BI "int unshare(int " flags );
 .fi
-.sp
-.in -4n
-Feature Test Macro Requirements for glibc (see
-.BR feature_test_macros (7)):
-.in
-.sp
-.BR unshare ():
-.ad l
-.RS 4
-.PD 0
-.TP 4
-Since glibc 2.14:
-_GNU_SOURCE
-.TP 4
-.\" See http://sources.redhat.com/bugzilla/show_bug.cgi?id=4749
-Before glibc 2.14:
-_BSD_SOURCE || _SVID_SOURCE
-    /* _GNU_SOURCE also suffices */
-.PD
-.RE
-.ad b
 .SH DESCRIPTION
 .BR unshare ()
-allows a process to disassociate parts of its execution
-context that are currently being shared with other processes.
+allows a process (or thread) to disassociate parts of its execution
+context that are currently being shared with other processes (or threads).
 Part of the execution context, such as the mount namespace, is shared
 implicitly when a new process is created using
 .BR fork (2)
 or
 .BR vfork (2),
 while other parts, such as virtual memory, may be
-shared by explicit request when creating a process using
+shared by explicit request when creating a process or thread using
 .BR clone (2).
-
+.PP
 The main use of
 .BR unshare ()
 is to allow a process to control its
 shared execution context without creating a new process.
-
+.PP
 The
 .I flags
 argument is a bit mask that specifies which parts of
@@ -94,14 +74,26 @@ or umask
 .RB ( umask (2))
 attributes with any other process.
 .TP
-.BR CLONE_NEWIPC " (since Linux 2.6.19)
+.BR CLONE_NEWCGROUP " (since Linux 4.6)"
+This flag has the same effect as the
+.BR clone (2)
+.B CLONE_NEWCGROUP
+flag.
+Unshare the cgroup namespace.
+Use of
+.BR CLONE_NEWCGROUP
+requires the
+.BR CAP_SYS_ADMIN
+capability.
+.TP
+.BR CLONE_NEWIPC " (since Linux 2.6.19)"
 This flag has the same effect as the
 .BR clone (2)
 .B CLONE_NEWIPC
 flag.
-Unshare the System\ V IPC namespace,
+Unshare the IPC namespace,
 so that the calling process has a private copy of the
-System\ V IPC namespace which is not shared with any other process.
+IPC namespace which is not shared with any other process.
 Specifying this flag automatically implies
 .BR CLONE_SYSVSEM
 as well.
@@ -111,7 +103,7 @@ requires the
 .BR CAP_SYS_ADMIN
 capability.
 .TP
-.BR CLONE_NEWNET " (since Linux 2.6.24)
+.BR CLONE_NEWNET " (since Linux 2.6.24)"
 This flag has the same effect as the
 .BR clone (2)
 .B CLONE_NEWNET
@@ -146,6 +138,8 @@ Use of
 requires the
 .BR CAP_SYS_ADMIN
 capability.
+For further information, see
+.BR mount_namespaces (7).
 .TP
 .BR CLONE_NEWPID " (since Linux 3.8)"
 This flag has the same effect as the
@@ -173,6 +167,21 @@ requires the
 capability.
 For further information, see
 .BR pid_namespaces (7).
+.TP
+.BR CLONE_NEWTIME " (since Linux 5.6)"
+Unshare the time namespace,
+so that the calling process has a new time namespace for its children
+which is not shared with any previously existing process.
+The calling process is
+.I not
+moved into the new namespace.
+Use of
+.BR CLONE_NEWTIME
+requires the
+.BR CAP_SYS_ADMIN
+capability.
+For further information, see
+.BR time_namespaces (7).
 .TP
 .BR CLONE_NEWUSER " (since Linux 3.8)"
 This flag has the same effect as the
@@ -203,7 +212,7 @@ also automatically implies
 requires that the user ID and group ID
 of the calling process are mapped to user IDs and group IDs in the
 user namespace of the calling process at the time of the call.
-
+.IP
 For further information on user namespaces, see
 .BR user_namespaces (7).
 .TP
@@ -221,7 +230,7 @@ requires the
 .BR CAP_SYS_ADMIN
 capability.
 .TP
-.BR CLONE_SYSVSEM " (since Linux 2.6.26)
+.BR CLONE_SYSVSEM " (since Linux 2.6.26)"
 .\" commit 9edff4ab1f8d82675277a04e359d0ed8bf14a7b7
 This flag reverses the effect of the
 .BR clone (2)
@@ -294,9 +303,91 @@ was specified in
 .IR flags ,
 and the caller is multithreaded.
 .TP
+.B EINVAL
+.BR CLONE_NEWIPC
+was specified in
+.IR flags ,
+but the kernel was not configured with the
+.B CONFIG_SYSVIPC
+and
+.BR CONFIG_IPC_NS
+options.
+.TP
+.B EINVAL
+.BR CLONE_NEWNET
+was specified in
+.IR flags ,
+but the kernel was not configured with the
+.B CONFIG_NET_NS
+option.
+.TP
+.B EINVAL
+.BR CLONE_NEWPID
+was specified in
+.IR flags ,
+but the kernel was not configured with the
+.B CONFIG_PID_NS
+option.
+.TP
+.B EINVAL
+.BR CLONE_NEWUSER
+was specified in
+.IR flags ,
+but the kernel was not configured with the
+.B CONFIG_USER_NS
+option.
+.TP
+.B EINVAL
+.BR CLONE_NEWUTS
+was specified in
+.IR flags ,
+but the kernel was not configured with the
+.B CONFIG_UTS_NS
+option.
+.TP
+.B EINVAL
+.BR CLONE_NEWPID
+was specified in
+.IR flags ,
+but the process has previously called
+.BR unshare ()
+with the
+.BR CLONE_NEWPID
+flag.
+.TP
 .B ENOMEM
 Cannot allocate sufficient memory to copy parts of caller's
 context that need to be unshared.
+.TP
+.BR ENOSPC " (since Linux 3.7)"
+.\" commit f2302505775fd13ba93f034206f1e2a587017929
+.B CLONE_NEWPID
+was specified in flags,
+but the limit on the nesting depth of PID namespaces
+would have been exceeded; see
+.BR pid_namespaces (7).
+.TP
+.BR ENOSPC " (since Linux 4.9; beforehand " EUSERS )
+.B CLONE_NEWUSER
+was specified in
+.IR flags ,
+and the call would cause the limit on the number of
+nested user namespaces to be exceeded.
+See
+.BR user_namespaces (7).
+.IP
+From Linux 3.11 to Linux 4.8, the error diagnosed in this case was
+.BR EUSERS .
+.TP
+.BR ENOSPC " (since Linux 4.9)"
+One of the values in
+.I flags
+specified the creation of a new user namespace,
+but doing so would have caused the limit defined by the corresponding file in
+.IR /proc/sys/user
+to be exceeded.
+For further details, see
+.BR namespaces (7).
 .TP
 .B EPERM
 The calling process did not have the required privileges for this operation.
@@ -319,14 +410,14 @@ and the caller is in a chroot environment
 (i.e., the caller's root directory does not match the root directory
 of the mount namespace in which it resides).
 .TP
-.BR EUSERS " (since Linux 3.11)"
+.BR EUSERS " (from Linux 3.11 to Linux 4.8)"
 .B CLONE_NEWUSER
 was specified in
 .IR flags ,
-and the call would cause the limit on the number of
-nested user namespaces to be exceeded.
-See
-.BR user_namespaces (7).
+and the limit on the number of nested user namespaces would be exceeded.
+See the discussion of the
+.BR ENOSPC
+error above.
 .SH VERSIONS
 The
 .BR unshare ()
@@ -369,7 +460,7 @@ Such functionality may be added in the future, if required.
 .\"be incrementally added to unshare without affecting legacy
 .\"applications using unshare.
 .\"
-.SH EXAMPLE
+.SH EXAMPLES
 The program below provides a simple implementation of the
 .BR unshare (1)
 command, which unshares one or more namespaces and executes the
@@ -378,24 +469,23 @@ Here's an example of the use of this program,
 running a shell in a new mount namespace,
 and verifying that the original shell and the
 new shell are in separate mount namespaces:
+.PP
 .in +4n
-.nf
-
+.EX
 $ \fBreadlink /proc/$$/ns/mnt\fP
 mnt:[4026531840]
-$ \fBsudo ./unshare -m /bin/bash\fP
-[sudo] password for cecilia:
+$ \fBsudo ./unshare \-m /bin/bash\fP
 # \fBreadlink /proc/$$/ns/mnt\fP
 mnt:[4026532325]
-.fi
+.EE
 .in
-
+.PP
 The differing output of the two
 .BR readlink (1)
 commands shows that the two shells are in different mount namespaces.
 .SS Program source
 \&
-.nf
+.EX
 /* unshare.c
 
    A simple implementation of the unshare(1) command: unshare
@@ -410,20 +500,22 @@ commands shows that the two shells are in different mount namespaces.
 /* A simple error\-handling function: print an error message based
    on the value in \(aqerrno\(aq and terminate the calling process */
 
-#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \\
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
                         } while (0)
 
 static void
 usage(char *pname)
 {
-    fprintf(stderr, "Usage: %s [options] program [arg...]\\n", pname);
-    fprintf(stderr, "Options can be:\\n");
-    fprintf(stderr, "    \-i   unshare IPC namespace\\n");
-    fprintf(stderr, "    \-m   unshare mount namespace\\n");
-    fprintf(stderr, "    \-n   unshare network namespace\\n");
-    fprintf(stderr, "    \-p   unshare PID namespace\\n");
-    fprintf(stderr, "    \-u   unshare UTS namespace\\n");
-    fprintf(stderr, "    \-U   unshare user namespace\\n");
+    fprintf(stderr, "Usage: %s [options] program [arg...]\en", pname);
+    fprintf(stderr, "Options can be:\en");
+    fprintf(stderr, "    \-C   unshare cgroup namespace\en");
+    fprintf(stderr, "    \-i   unshare IPC namespace\en");
+    fprintf(stderr, "    \-m   unshare mount namespace\en");
+    fprintf(stderr, "    \-n   unshare network namespace\en");
+    fprintf(stderr, "    \-p   unshare PID namespace\en");
+    fprintf(stderr, "    \-t   unshare time namespace\en");
+    fprintf(stderr, "    \-u   unshare UTS namespace\en");
+    fprintf(stderr, "    \-U   unshare user namespace\en");
     exit(EXIT_FAILURE);
 }
 
@@ -434,12 +526,14 @@ main(int argc, char *argv[])
 
     flags = 0;
 
-    while ((opt = getopt(argc, argv, "imnpuU")) != \-1) {
+    while ((opt = getopt(argc, argv, "CimnptuU")) != \-1) {
         switch (opt) {
+        case \(aqC\(aq: flags |= CLONE_NEWCGROUP;      break;
         case \(aqi\(aq: flags |= CLONE_NEWIPC;        break;
         case \(aqm\(aq: flags |= CLONE_NEWNS;         break;
         case \(aqn\(aq: flags |= CLONE_NEWNET;        break;
         case \(aqp\(aq: flags |= CLONE_NEWPID;        break;
+        case \(aqt\(aq: flags |= CLONE_NEWTIME;        break;
         case \(aqu\(aq: flags |= CLONE_NEWUTS;        break;
         case \(aqU\(aq: flags |= CLONE_NEWUSER;       break;
         default:  usage(argv[0]);
@@ -455,7 +549,7 @@ main(int argc, char *argv[])
     execvp(argv[optind], &argv[optind]);
     errExit("execvp");
 }
-.fi
+.EE
 .SH SEE ALSO
 .BR unshare (1),
 .BR clone (2),
@@ -464,15 +558,19 @@ main(int argc, char *argv[])
 .BR setns (2),
 .BR vfork (2),
 .BR namespaces (7)
-
-.I Documentation/unshare.txt
+.PP
+.I Documentation/userspace-api/unshare.rst
 in the Linux kernel source tree
+.\" commit f504d47be5e8fa7ecf2bf660b18b42e6960c0eb2
+(or
+.I Documentation/unshare.txt
+before Linux 4.12)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

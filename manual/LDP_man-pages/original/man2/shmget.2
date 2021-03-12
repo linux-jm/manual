@@ -35,7 +35,7 @@
 .\"	Language and formatting clean-ups
 .\"	Added notes on /proc files
 .\"
-.TH SHMGET 2 2015-01-10 "Linux" "Linux Programmer's Manual"
+.TH SHMGET 2 2020-04-11 "Linux" "Linux Programmer's Manual"
 .SH NAME
 shmget \- allocates a System V shared memory segment
 .SH SYNOPSIS
@@ -43,7 +43,7 @@ shmget \- allocates a System V shared memory segment
 .B #include <sys/ipc.h>
 .br
 .B #include <sys/shm.h>
-.sp
+.PP
 .BI "int shmget(key_t " key ", size_t " size ", int " shmflg );
 .ad b
 .SH DESCRIPTION
@@ -51,6 +51,15 @@ shmget \- allocates a System V shared memory segment
 returns the identifier of the System\ V shared memory segment
 associated with the value of the argument
 .IR key .
+It may be used either to obtain the identifier of a previously created
+shared memory segment (when
+.I shmflg
+is zero and
+.I key
+does not have the value
+.BR IPC_PRIVATE ),
+or to create a new set.
+.PP
 A new shared memory segment, with size equal to the value of
 .I size
 rounded up to a multiple of
@@ -92,7 +101,7 @@ for
 The value
 .I shmflg
 is composed of:
-.TP 12
+.TP
 .B IPC_CREAT
 Create a new segment.
 If this flag is not used, then
@@ -109,8 +118,31 @@ If the segment already exists, the call fails.
 .BR SHM_HUGETLB " (since Linux 2.6)"
 Allocate the segment using "huge pages."
 See the Linux kernel source file
-.I Documentation/vm/hugetlbpage.txt
+.I Documentation/admin-guide/mm/hugetlbpage.rst
 for further information.
+.TP
+.BR SHM_HUGE_2MB ", " SHM_HUGE_1GB " (since Linux 3.8)"
+.\" See https://lwn.net/Articles/533499/
+Used in conjunction with
+.B SHM_HUGETLB
+to select alternative hugetlb page sizes (respectively, 2\ MB and 1\ GB)
+on systems that support multiple hugetlb page sizes.
+.IP
+More generally, the desired huge page size can be configured by encoding
+the base-2 logarithm of the desired page size in the six bits at the offset
+.BR SHM_HUGE_SHIFT .
+Thus, the above two constants are defined as:
+.IP
+.in +4n
+.EX
+#define SHM_HUGE_2MB    (21 << SHM_HUGE_SHIFT)
+#define SHM_HUGE_1GB    (30 << SHM_HUGE_SHIFT)
+.EE
+.in
+.IP
+For some additional details,
+see the discussion of the similarly named constants in
+.BR mmap (2).
 .TP
 .BR SHM_NORESERVE " (since Linux 2.6.15)"
 This flag serves the same purpose as the
@@ -148,33 +180,33 @@ its associated data structure,
 (see
 .BR shmctl (2)),
 is initialized as follows:
-.IP
+.IP \(bu 2
 .I shm_perm.cuid
 and
 .I shm_perm.uid
 are set to the effective user ID of the calling process.
-.IP
+.IP \(bu
 .I shm_perm.cgid
 and
 .I shm_perm.gid
 are set to the effective group ID of the calling process.
-.IP
+.IP \(bu
 The least significant 9 bits of
 .I shm_perm.mode
 are set to the least significant 9 bit of
 .IR shmflg .
-.IP
+.IP \(bu
 .I shm_segsz
 is set to the value of
 .IR size .
-.IP
+.IP \(bu
 .IR shm_lpid ,
 .IR shm_nattch ,
 .IR shm_atime ,
 and
 .I shm_dtime
 are set to 0.
-.IP
+.IP \(bu
 .I shm_ctime
 is set to the current time.
 .PP
@@ -194,7 +226,7 @@ is set to one of the following:
 The user does not have permission to access the
 shared memory segment, and does not have the
 .B CAP_IPC_OWNER
-capability.
+capability in the user namespace that governs its IPC namespace.
 .TP
 .B EEXIST
 .BR IPC_CREAT
@@ -221,7 +253,7 @@ of that segment.
 .TP
 .B ENFILE
 .\" [2.6.7] shmem_zero_setup()-->shmem_file_setup()-->get_empty_filp()
-The system limit on the total number of open files has been reached.
+The system-wide limit on the total number of open files has been reached.
 .TP
 .B ENOENT
 No segment exists for the given \fIkey\fP, and
@@ -246,9 +278,9 @@ flag was specified, but the caller was not privileged (did not have the
 .B CAP_IPC_LOCK
 capability).
 .SH CONFORMING TO
-SVr4, POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008, SVr4.
 .\" SVr4 documents an additional error condition EEXIST.
-
+.PP
 .B SHM_HUGETLB
 and
 .B SHM_NORESERVE
@@ -266,7 +298,7 @@ Applications intended to be portable to such old systems may need
 to include these header files.
 .\" Like Linux, the FreeBSD man pages still document
 .\" the inclusion of these header files.
-
+.PP
 .B IPC_PRIVATE
 isn't a flag field but a
 .I key_t
@@ -285,15 +317,15 @@ call:
 .B SHMALL
 System-wide limit on the total amount of shared memory,
 measured in units of the system page size.
-
+.IP
 On Linux, this limit can be read and modified via
 .IR /proc/sys/kernel/shmall .
 Since Linux 3.16,
 .\" commit 060028bac94bf60a65415d1d55a359c3a17d5c31
 the default value for this limit is:
-
+.IP
     ULONG_MAX - 2^24
-
+.IP
 The effect of this value
 (which is suitable for both 32-bit and 64-bit systems)
 is to impose no limitation on allocations.
@@ -304,31 +336,31 @@ applications simply raised the existing limit without first checking
 its current value.
 Such applications would cause the value to overflow if the limit was set at
 .BR ULONG_MAX .
-
+.IP
 From Linux 2.4 up to Linux 3.15,
 the default value for this limit was:
-
+.IP
     SHMMAX / PAGE_SIZE * (SHMMNI / 16)
-
+.IP
 If
 .B SHMMAX
 and
 .B SHMMNI
 were not modified, then multiplying the result of this formula
-by the page size (to get a value in bytes) yielded a value of 8 GB
+by the page size (to get a value in bytes) yielded a value of 8\ GB
 as the limit on the total memory used by all shared memory segments.
 .TP
 .B SHMMAX
 Maximum size in bytes for a shared memory segment.
-
+.IP
 On Linux, this limit can be read and modified via
 .IR /proc/sys/kernel/shmmax .
 Since Linux 3.16,
 .\" commit 060028bac94bf60a65415d1d55a359c3a17d5c31
 the default value for this limit is:
-
+.IP
     ULONG_MAX - 2^24
-
+.IP
 The effect of this value
 (which is suitable for both 32-bit and 64-bit systems)
 is to impose no limitation on allocations.
@@ -337,15 +369,15 @@ See the description of
 for a discussion of why this default value (rather than
 .BR ULONG_MAX )
 is used.
-
+.IP
 From Linux 2.2 up to Linux 3.15, the default value of
-this limit was 0x2000000 (32MB).
-
+this limit was 0x2000000 (32\ MB).
+.IP
 Because it is not possible to map just part of a shared memory segment,
 the amount of virtual memory places another limit on the maximum size of a
 usable segment:
 for example, on i386 the largest segments that can be mapped have a
-size of around 2.8 GB, and on x86_64 the limit is around 127 TB.
+size of around 2.8\ GB, and on x86-64 the limit is around 127 TB.
 .TP
 .B SHMMIN
 Minimum size in bytes for a shared memory segment: implementation
@@ -357,7 +389,7 @@ is the effective minimum size).
 System-wide limit on the number of shared memory segments.
 In Linux 2.2, the default value for this limit was 128;
 since Linux 2.4, the default value is 4096.
-
+.IP
 On Linux, this limit can be read and modified via
 .IR /proc/sys/kernel/shmmni .
 .\" Kernels between 2.4.x and 2.6.8 had an off-by-one error that meant
@@ -379,6 +411,9 @@ The name choice
 was perhaps unfortunate,
 .B IPC_NEW
 would more clearly show its function.
+.SH EXAMPLES
+See
+.BR shmop (2).
 .SH SEE ALSO
 .BR memfd_create (2),
 .BR shmat (2),
@@ -387,13 +422,13 @@ would more clearly show its function.
 .BR ftok (3),
 .BR capabilities (7),
 .BR shm_overview (7),
-.BR svipc (7)
+.BR sysvipc (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

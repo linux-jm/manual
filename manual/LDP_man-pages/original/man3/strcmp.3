@@ -1,4 +1,5 @@
 .\" Copyright 1993 David Metcalfe (david@prism.demon.co.uk)
+.\" and Copyright 2020 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -29,15 +30,15 @@
 .\" Modified Sat Jul 24 18:08:52 1993 by Rik Faith (faith@cs.unc.edu)
 .\" Modified 2001-08-31, aeb
 .\"
-.TH STRCMP 3  2014-01-20 "" "Linux Programmer's Manual"
+.TH STRCMP 3  2020-04-11 "" "Linux Programmer's Manual"
 .SH NAME
 strcmp, strncmp \- compare two strings
 .SH SYNOPSIS
 .nf
 .B #include <string.h>
-.sp
+.PP
 .BI "int strcmp(const char *" s1 ", const char *" s2 );
-.sp
+.PP
 .BI "int strncmp(const char *" s1 ", const char *" s2 ", size_t " n );
 .fi
 .SH DESCRIPTION
@@ -47,11 +48,27 @@ function compares the two strings
 .I s1
 and
 .IR s2 .
-It returns an integer less than, equal to, or greater
-than zero if
+The locale is not taken into account (for a locale-aware comparison, see
+.BR strcoll (3)).
+The comparison is done using unsigned characters.
+.PP
+.BR strcmp ()
+returns an integer indicating the result of the comparison, as follows:
+.IP \(bu 2
+0, if the
 .I s1
-is found, respectively, to be less than,
-to match, or be greater than
+and
+.I s2
+are equal;
+.IP \(bu
+a negative value if
+.I s1
+is less than
+.IR s2 ;
+.IP \(bu
+a positive value if
+.I s1
+is greater than
 .IR s2 .
 .PP
 The
@@ -77,14 +94,119 @@ bytes thereof) is found, respectively, to be less than, to
 match, or be greater than
 .IR s2 .
 .SH ATTRIBUTES
-.SS Multithreading (see pthreads(7))
-The
-.BR strcmp ()
-and
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw19 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR strcmp (),
 .BR strncmp ()
-functions are thread-safe.
+T}	Thread safety	MT-Safe
+.TE
 .SH CONFORMING TO
-SVr4, 4.3BSD, C89, C99.
+POSIX.1-2001, POSIX.1-2008, C89, C99, SVr4, 4.3BSD.
+.SH NOTES
+POSIX.1 specifies only that:
+.RS
+.PP
+The sign of a nonzero return value shall be determined by the sign
+of the difference between the values of the first pair of bytes
+(both interpreted as type
+.IR "unsigned char" )
+that differ in the strings being compared.
+.RE
+.PP
+In glibc, as in most other implementations,
+the return value is the arithmetic result of subtracting
+the last compared byte in
+.I s2
+from the last compared byte in
+.IR s1 .
+(If the two characters are equal, this difference is 0.)
+.SH EXAMPLES
+The program below can be used to demonstrate the operation of
+.BR strcmp ()
+(when given two arguments) and
+.BR strncmp ()
+(when given three arguments).
+First, some examples using
+.BR strcmp ():
+.PP
+.in +4n
+.EX
+$ \fB./string_comp ABC ABC\fP
+<str1> and <str2> are equal
+$ \fB./string_comp ABC AB\fP      # \(aqC\(aq is ASCII 67; \(aqC\(aq \- \(aq\0\(aq = 67
+<str1> is greater than <str2> (67)
+$ \fB./string_comp ABA ABZ\fP     # \(aqA\(aq is ASCII 65; \(aqZ\(aq is ASCII 90
+<str1> is less than <str2> (\-25)
+$ \fB./string_comp ABJ ABC\fP
+<str1> is greater than <str2> (7)
+$ .\fB/string_comp $\(aq\e201\(aq A\fP   # 0201 \- 0101 = 0100 (or 64 decimal)
+<str1> is greater than <str2> (64)
+.EE
+.in
+.PP
+The last example uses
+.BR bash (1)-specific
+syntax to produce a string containing an 8-bit ASCII code;
+the result demonstrates that the string comparison uses unsigned
+characters.
+.PP
+And then some examples using
+.BR strncmp ():
+.PP
+.in +4n
+.EX
+$ \fB./string_comp ABC AB 3\fP
+<str1> is greater than <str2> (67)
+$ \fB./string_comp ABC AB 2\fP
+<str1> and <str2> are equal in the first 2 bytes
+.EE
+.in
+.SS Program source
+\&
+.EX
+/* string_comp.c
+
+   Licensed under GNU General Public License v2 or later.
+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int
+main(int argc, char *argv[])
+{
+    int res;
+
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <str1> <str2> [<len>]\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    if (argc == 3)
+        res = strcmp(argv[1], argv[2]);
+    else
+        res = strncmp(argv[1], argv[2], atoi(argv[3]));
+
+    if (res == 0) {
+        printf("<str1> and <str2> are equal");
+        if (argc > 3)
+            printf(" in the first %d bytes\en", atoi(argv[3]));
+        printf("\en");
+    } else if (res < 0) {
+        printf("<str1> is less than <str2> (%d)\en", res);
+    } else {
+        printf("<str1> is greater than <str2> (%d)\en", res);
+    }
+
+    exit(EXIT_SUCCESS);
+}
+.EE
 .SH SEE ALSO
 .BR bcmp (3),
 .BR memcmp (3),
@@ -94,13 +216,14 @@ SVr4, 4.3BSD, C89, C99.
 .BR strncasecmp (3),
 .BR strverscmp (3),
 .BR wcscmp (3),
-.BR wcsncmp (3)
+.BR wcsncmp (3),
+.BR ascii (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

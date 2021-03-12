@@ -25,29 +25,28 @@
 .\" Modified, 27 May 2004, Michael Kerrisk <mtk.manpages@gmail.com>
 .\"     Added notes on capability requirements
 .\"
-.TH REBOOT 2 2015-02-01 "Linux" "Linux Programmer's Manual"
+.TH REBOOT 2 2019-03-06 "Linux" "Linux Programmer's Manual"
 .SH NAME
 reboot \- reboot or enable/disable Ctrl-Alt-Del
 .SH SYNOPSIS
-/* For libc4 and libc5 the library call and the system call
-   are identical, and since kernel version 2.1.30 there are
-   symbolic names LINUX_REBOOT_* for the constants and a
-   fourth argument to the call: */
-.sp
+/* Since kernel version 2.1.30 there are symbolic names LINUX_REBOOT_*
+   for the constants and a fourth argument to the call: */
+.PP
 .B #include <unistd.h>
 .br
 .B #include <linux/reboot.h>
-.sp
+.PP
 .BI "int reboot(int " magic ", int " magic2 ", int " cmd ", void *" arg );
-.sp
-/* Under glibc some of the constants involved have gotten
+
+/* Under glibc and most alternative libc's (including uclibc, dietlibc,
+   musl and a few others), some of the constants involved have gotten
    symbolic names RB_*, and the library call is a 1-argument
-   wrapper around the 3-argument system call: */
-.sp
+   wrapper around the system call: */
+.PP
 .B #include <unistd.h>
 .br
 .B #include <sys/reboot.h>
-.sp
+.PP
 .BI "int reboot(int " cmd );
 .SH DESCRIPTION
 The
@@ -57,7 +56,7 @@ call reboots the system, or enables/disables the reboot keystroke
 it can be changed using
 .BR loadkeys (1)).
 .PP
-This system call will fail (with
+This system call fails (with the error
 .BR EINVAL )
 unless
 .I magic
@@ -80,7 +79,7 @@ and since 2.5.71 also
 are permitted as values for
 .IR magic2 .
 (The hexadecimal values of these constants are meaningful.)
-
+.PP
 The
 .I cmd
 argument can have the following values:
@@ -154,36 +153,62 @@ data will be lost.
 The system is suspended (hibernated) to disk.
 This option is available only if the kernel was configured with
 .BR CONFIG_HIBERNATION .
-.LP
+.PP
 Only the superuser may call
 .BR reboot ().
-.LP
+.PP
 The precise effect of the above actions depends on the architecture.
 For the i386 architecture, the additional argument does not do
 anything at present (2.1.122), but the type of reboot can be
 determined by kernel command-line arguments ("reboot=...") to be
 either warm or cold, and either hard or through the BIOS.
+.\"
 .SS Behavior inside PID namespaces
 .\" commit cf3f89214ef6a33fad60856bc5ffd7bb2fc4709b
 .\" see also commit 923c7538236564c46ee80c253a416705321f13e3
-Since Linux 3.4, when
+Since Linux 3.4,
+if
 .BR reboot ()
-is called from a PID namespace (see
-.BR pid_namespaces (7))
-other than the initial PID namespace,
-the effect of the call is to send a signal to the namespace "init" process.
-.BR LINUX_REBOOT_CMD_RESTART
+is called
+from a PID namespace other than the initial PID namespace
+with one of the
+.I cmd
+values listed below,
+it performs a "reboot" of that namespace:
+the "init" process of the PID namespace is immediately terminated,
+with the effects described in
+.BR pid_namespaces (7).
+.PP
+The values that can be supplied in
+.I cmd
+when calling
+.BR reboot ()
+in this case are as follows:
+.TP
+.BR LINUX_REBOOT_CMD_RESTART ", " LINUX_REBOOT_CMD_RESTART2
+The "init" process is terminated,
 and
-.BR LINUX_REBOOT_CMD_RESTART2
-cause a
-.BR SIGHUP
-signal to be sent.
-.BR LINUX_REBOOT_CMD_POWER_OFF
+.BR wait (2)
+in the parent process reports that the child was killed with a
+.B SIGHUP
+signal.
+.TP
+.BR LINUX_REBOOT_CMD_POWER_OFF ", " LINUX_REBOOT_CMD_HALT
+The "init" process is terminated,
 and
-.BR LINUX_REBOOT_CMD_HALT
-cause a
+.BR wait (2)
+in the parent process reports that the child was killed with a
 .B SIGINT
-signal to be sent.
+signal.
+.PP
+For the other
+.I cmd
+values,
+.BR reboot ()
+returns \-1 and
+.I errno
+is set to
+.BR EINVAL .
 .SH RETURN VALUE
 For the values of
 .I cmd
@@ -209,27 +234,29 @@ Bad magic numbers or \fIcmd\fP.
 .B EPERM
 The calling process has insufficient privilege to call
 .BR reboot ();
-the
+the caller must have the
 .B CAP_SYS_BOOT
-capability is required.
+inside its user namespace.
 .SH CONFORMING TO
 .BR reboot ()
 is Linux-specific,
 and should not be used in programs intended to be portable.
 .SH SEE ALSO
+.BR systemctl (1),
+.BR systemd (1),
 .BR kexec_load (2),
 .BR sync (2),
 .BR bootparam (7),
 .BR capabilities (7),
 .BR ctrlaltdel (8),
 .BR halt (8),
-.BR reboot (8)
+.BR shutdown (8)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

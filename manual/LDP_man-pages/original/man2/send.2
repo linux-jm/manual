@@ -37,21 +37,21 @@
 .\" Modified Oct 2003 by aeb
 .\" Modified 2004-07-01 by mtk
 .\"
-.TH SEND 2 2014-08-19 "Linux" "Linux Programmer's Manual"
+.TH SEND 2 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 send, sendto, sendmsg \- send a message on a socket
 .SH SYNOPSIS
 .nf
 .B #include <sys/types.h>
 .B #include <sys/socket.h>
-.sp
+.PP
 .BI "ssize_t send(int " sockfd ", const void *" buf ", size_t " len \
 ", int " flags );
-
+.PP
 .BI "ssize_t sendto(int " sockfd ", const void *" buf ", size_t " len \
 ", int " flags ,
 .BI "               const struct sockaddr *" dest_addr ", socklen_t " addrlen );
-
+.PP
 .BI "ssize_t sendmsg(int " sockfd ", const struct msghdr *" msg \
 ", int " flags );
 .fi
@@ -81,11 +81,11 @@ argument,
 is equivalent to
 .BR write (2).
 Also, the following call
-
+.PP
     send(sockfd, buf, len, flags);
-
+.PP
 is equivalent to
-
+.PP
     sendto(sockfd, buf, len, flags, NULL, 0);
 .PP
 The argument
@@ -169,7 +169,7 @@ Tell the link layer that forward progress happened: you got a successful
 reply from the other side.
 If the link layer doesn't get this
 it will regularly reprobe the neighbor (e.g., via a unicast ARP).
-Only valid on
+Valid only on
 .B SOCK_DGRAM
 and
 .B SOCK_RAW
@@ -191,11 +191,21 @@ Enables nonblocking operation; if the operation would block,
 .B EAGAIN
 or
 .B EWOULDBLOCK
-is returned (this can also be enabled using the
+is returned.
+This provides similar behavior to setting the
 .B O_NONBLOCK
-flag with the
+flag (via the
+.BR fcntl (2)
 .B F_SETFL
-.BR fcntl (2)).
+operation), but differs in that
+.B MSG_DONTWAIT
+is a per-call option, whereas
+.B O_NONBLOCK
+is a setting on the open file description (see
+.BR open (2)),
+which will affect all threads in the calling process
+and as well as other processes that hold file descriptors
+referring to the same open file description.
 .TP
 .BR MSG_EOR " (since Linux 2.2)"
 Terminates a record (when this notion is supported, as for sockets of type
@@ -209,7 +219,7 @@ as the
 socket option (see
 .BR tcp (7)),
 with the difference that this flag can be set on a per-call basis.
-
+.IP
 Since Linux 2.6, this flag is also supported for UDP sockets, and informs
 the kernel to package all of the data sent in calls with this flag set
 into a single datagram which is transmitted only when a call is performed
@@ -220,13 +230,22 @@ socket option described in
 .BR udp (7).)
 .TP
 .BR MSG_NOSIGNAL " (since Linux 2.2)"
-Requests not to send
+Don't generate a
 .B SIGPIPE
-on errors on stream oriented sockets when the other end breaks the
-connection.
+signal if the peer on a stream-oriented socket has closed the connection.
 The
 .B EPIPE
 error is still returned.
+This provides similar behavior to using
+.BR sigaction (2)
+to ignore
+.BR SIGPIPE ,
+but, whereas
+.B MSG_NOSIGNAL
+is a per-call feature,
+ignoring
+.B SIGPIPE
+sets a process attribute that affects all threads in the process.
 .TP
 .B MSG_OOB
 Sends
@@ -242,19 +261,19 @@ The definition of the
 structure employed by
 .BR sendmsg ()
 is as follows:
+.PP
 .in +4n
-.nf
-
+.EX
 struct msghdr {
-    void         *msg_name;       /* optional address */
-    socklen_t     msg_namelen;    /* size of address */
-    struct iovec *msg_iov;        /* scatter/gather array */
+    void         *msg_name;       /* Optional address */
+    socklen_t     msg_namelen;    /* Size of address */
+    struct iovec *msg_iov;        /* Scatter/gather array */
     size_t        msg_iovlen;     /* # elements in msg_iov */
-    void         *msg_control;    /* ancillary data, see below */
-    size_t        msg_controllen; /* ancillary data buffer len */
-    int           msg_flags;      /* flags (unused) */
+    void         *msg_control;    /* Ancillary data, see below */
+    size_t        msg_controllen; /* Ancillary data buffer len */
+    int           msg_flags;      /* Flags (unused) */
 };
-.fi
+.EE
 .in
 .PP
 The
@@ -266,15 +285,15 @@ It points to a buffer containing the address; the
 field should be set to the size of the address.
 For a connected socket, these fields should be specified as NULL and 0,
 respectively.
-
+.PP
 The
 .I msg_iov
 and
 .I msg_iovlen
 fields specify scatter-gather locations, as for
 .BR writev (2).
-
-You may send control information using the
+.PP
+You may send control information (ancillary data) using the
 .I msg_control
 and
 .I msg_controllen
@@ -284,7 +303,12 @@ per socket by the value in
 .IR /proc/sys/net/core/optmem_max ;
 see
 .BR socket (7).
-
+For further information on the use of ancillary data in various
+socket domains, see
+.BR unix (7)
+and
+.BR ip (7).
+.PP
 The
 .I msg_flags
 field is ignored.
@@ -309,7 +333,7 @@ or search permission is denied for one of the directories
 the path prefix.
 (See
 .BR path_resolution (7).)
-.sp
+.IP
 (For UDP sockets) An attempt was made to send to a
 network/broadcast address as though it was a unicast address.
 .TP
@@ -334,8 +358,12 @@ See the discussion of
 in
 .BR ip (7).
 .TP
+.B EALREADY
+Another Fast Open is in progress.
+.TP
 .B EBADF
-An invalid descriptor was specified.
+.I sockfd
+is not a valid open file descriptor.
 .TP
 .B ECONNRESET
 Connection reset by peer.
@@ -380,9 +408,9 @@ No memory available.
 The socket is not connected, and no target has been given.
 .TP
 .B ENOTSOCK
-The argument
+The file descriptor
 .I sockfd
-is not a socket.
+does not refer to a socket.
 .TP
 .B EOPNOTSUPP
 Some bit in the
@@ -399,8 +427,8 @@ unless
 is set.
 .SH CONFORMING TO
 4.4BSD, SVr4, POSIX.1-2001.
-These function calls appeared in 4.2BSD.
-.LP
+These interfaces first appeared in 4.2BSD.
+.PP
 POSIX.1-2001 describes only the
 .B MSG_OOB
 and
@@ -418,14 +446,19 @@ field of the
 .I msghdr
 structure should be typed as
 .IR socklen_t ,
-but glibc currently types it as
+and the
+.I msg_iovlen
+field should be typed as
+.IR int ,
+but glibc currently types both as
 .IR size_t .
-.\" glibc bug raised 12 Mar 2006
+.\" glibc bug for msg_controllen raised 12 Mar 2006
 .\" http://sourceware.org/bugzilla/show_bug.cgi?id=2448
 .\" The problem is an underlying kernel issue: the size of the
-.\" __kernel_size_t type used to type this field varies
-.\" across architectures, but socklen_t is always 32 bits.
-
+.\" __kernel_size_t type used to type these fields varies
+.\" across architectures, but socklen_t is always 32 bits,
+.\" as (at least with GCC) is int.
+.PP
 See
 .BR sendmmsg (2)
 for information about a Linux-specific system call
@@ -435,7 +468,7 @@ Linux may return
 .B EPIPE
 instead of
 .BR ENOTCONN .
-.SH EXAMPLE
+.SH EXAMPLES
 An example of the use of
 .BR sendto ()
 is shown in
@@ -452,15 +485,17 @@ is shown in
 .BR write (2),
 .BR cmsg (3),
 .BR ip (7),
+.BR ipv6 (7),
 .BR socket (7),
 .BR tcp (7),
-.BR udp (7)
+.BR udp (7),
+.BR unix (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

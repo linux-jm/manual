@@ -27,9 +27,9 @@
 .\" 2008-06-26, mtk, added some more detail on the work done by sigreturn()
 .\" 2014-12-05, mtk, rewrote all of the rest of the original page
 .\"
-.TH SIGRETURN 2 2014-12-31 "Linux" "Linux Programmer's Manual"
+.TH SIGRETURN 2 2017-09-15 "Linux" "Linux Programmer's Manual"
 .SH NAME
-sigreturn \- return from signal handler and cleanup stack frame
+sigreturn, rt_sigreturn \- return from signal handler and cleanup stack frame
 .SH SYNOPSIS
 .BI "int sigreturn(...);"
 .SH DESCRIPTION
@@ -38,25 +38,27 @@ signal is pending for a process, then,
 at the next transition back to user mode in that process
 (e.g., upon return from a system call or
 when the process is rescheduled onto the CPU),
-it saves various pieces of process context
-(processor status word, registers, signal mask, and signal stack settings)
-into the user-space stack.
+it creates a new frame on the user-space stack where it
+saves various pieces of process context
+(processor status word, registers, signal mask, and signal stack settings).
 .\" See arch/x86/kernel/signal.c::__setup_frame() [in 3.17 source code]
-
+.PP
 The kernel also arranges that, during the transition back to user mode,
 the signal handler is called, and that, upon return from the handler,
 control passes to a piece of user-space code commonly called
 the "signal trampoline".
 The signal trampoline code in turn calls
 .BR sigreturn ().
-
+.PP
 This
 .BR sigreturn ()
 call undoes everything that was
 done\(emchanging the process's signal mask, switching signal stacks (see
-.BR sigaltstack "(2))\(emin "
+.BR sigaltstack "(2))\(emin"
 order to invoke the signal handler.
-It restores the process's signal mask, switches stacks,
+Using the information that was earlier saved on the user-space stack
+.BR sigreturn ()
+restores the process's signal mask, switches stacks,
 and restores the process's context
 (processor flags and registers,
 including the stack pointer and instruction pointer),
@@ -77,10 +79,23 @@ exists only to allow the implementation of signal handlers.
 It should
 .B never
 be called directly.
+(Indeed, a simple
+.BR sigreturn ()
+.\" See sysdeps/unix/sysv/linux/sigreturn.c and
+.\" signal/sigreturn.c in the glibc source
+wrapper in the GNU C library simply returns -1, with
+.I errno
+set to
+.BR ENOSYS .)
 Details of the arguments (if any) passed to
 .BR sigreturn ()
 vary depending on the architecture.
-
+(On some architectures, such as x86-64,
+.BR sigreturn ()
+takes no arguments, since all of the information that it requires
+is available in the stack frame that was previously created by the
+kernel on the user-space stack.)
+.PP
 Once upon a time, UNIX systems placed the signal trampoline code
 onto the user stack.
 Nowadays, pages of the user stack are protected so as to
@@ -92,27 +107,31 @@ or in the C library.
 In the latter case,
 .\" See, for example, sysdeps/unix/sysv/linux/i386/sigaction.c and
 .\" sysdeps/unix/sysv/linux/x86_64/sigaction.c in the glibc (2.20) source.
-the C library supplies the location of the trampoline code using the
+the C library's
+.BR sigaction (2)
+wrapper function informs the kernel of the location of the trampoline code
+by placing its address in the
 .I sa_restorer
 field of the
 .I sigaction
-structure that is passed to
-.BR sigaction (2),
+structure,
 and sets the
 .BR SA_RESTORER
 flag in the
 .IR sa_flags
 field.
-
+.PP
 The saved process context information is placed in a
 .I ucontext_t
 structure (see
 .IR <sys/ucontext.h> ).
 That structure is visible within the signal handler
-as the third argument of a handler established with the
+as the third argument of a handler established via
+.BR sigaction (2)
+with the
 .BR SA_SIGINFO
 flag.
-
+.PP
 On some other UNIX systems,
 the operation of the signal trampoline differs a little.
 In particular, on some systems, upon transitioning back to user mode,
@@ -120,19 +139,35 @@ the kernel passes control to the trampoline (rather than the signal handler),
 and the trampoline code calls the signal handler (and then calls
 .BR sigreturn ()
 once the handler returns).
+.\"
+.SS C library/kernel differences
+The original Linux system call was named
+.BR sigreturn ().
+However, with the addition of real-time signals in Linux 2.2,
+a new system call,
+.BR rt_sigreturn ()
+was added to support an enlarged
+.IR sigset_t
+type.
+The GNU C library
+hides these details from us, transparently employing
+.BR rt_sigreturn ()
+when the kernel provides it.
+.\"
 .SH SEE ALSO
 .BR kill (2),
 .BR restart_syscall (2),
 .BR sigaltstack (2),
 .BR signal (2),
 .BR getcontext (3),
-.BR signal (7)
+.BR signal (7),
+.BR vdso (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

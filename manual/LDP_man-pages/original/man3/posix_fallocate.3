@@ -22,32 +22,32 @@
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
 .\"
-.TH POSIX_FALLOCATE 3  2015-01-22 "GNU" "Linux Programmer's Manual"
+.TH POSIX_FALLOCATE 3  2020-11-01 "GNU" "Linux Programmer's Manual"
 .SH NAME
 posix_fallocate \- allocate file space
 .SH SYNOPSIS
 .nf
 .B #include <fcntl.h>
-.sp
+.PP
 .BI "int posix_fallocate(int " fd ", off_t " offset ", off_t " len );
 .fi
-.sp
+.PP
 .ad l
-.in -4n
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .BR posix_fallocate ():
 .RS 4
-_XOPEN_SOURCE\ >=\ 600 || _POSIX_C_SOURCE\ >=\ 200112L
+_POSIX_C_SOURCE\ >=\ 200112L
 .RE
 .ad
 .SH DESCRIPTION
 The function
 .BR posix_fallocate ()
 ensures that disk space is allocated for the file referred to by the
-descriptor
+file descriptor
 .I fd
 for the bytes in the range starting at
 .I offset
@@ -58,7 +58,7 @@ After a successful call to
 .BR posix_fallocate (),
 subsequent writes to bytes in the specified range are
 guaranteed not to fail because of lack of disk space.
-
+.PP
 If the size of the file is less than
 .IR offset + len ,
 then the file is increased to this size;
@@ -79,11 +79,15 @@ is not a valid file descriptor, or is not opened for writing.
 .I offset+len
 exceeds the maximum file size.
 .TP
+.B EINTR
+A signal was caught during execution.
+.TP
 .B EINVAL
 .I offset
 was less than 0, or
 .I len
-was less than or equal to 0.
+was less than or equal to 0, or the underlying filesystem does not
+support the operation.
 .TP
 .B ENODEV
 .I fd
@@ -94,6 +98,13 @@ There is not enough space left on the device containing the file
 referred to by
 .IR fd .
 .TP
+.B EOPNOTSUPP
+The filesystem containing the file referred to by
+.I fd
+does not support this operation.
+This error code can be returned by C libraries that don't perform the
+emulation shown in NOTES, such as musl libc.
+.TP
 .B ESPIPE
 .I fd
 refers to a pipe.
@@ -101,13 +112,20 @@ refers to a pipe.
 .BR posix_fallocate ()
 is available since glibc 2.1.94.
 .SH ATTRIBUTES
-.SS Multithreading (see pthreads(7))
-The
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lb lb lb
+l l l.
+Interface	Attribute	Value
+T{
 .BR posix_fallocate ()
-function is thread-safe.
+T}	Thread safety	MT-Safe (but see NOTES)
+.TE
 .SH CONFORMING TO
 POSIX.1-2001.
-
+.PP
 POSIX.1-2008 says that an implementation
 .I shall
 give the
@@ -133,19 +151,51 @@ equals zero.
 .SH NOTES
 In the glibc implementation,
 .BR posix_fallocate ()
-is implemented using
-.BR fallocate (2).
+is implemented using the
+.BR fallocate (2)
+system call, which is MT-safe.
+If the underlying filesystem does not support
+.BR fallocate (2),
+then the operation is emulated with the following caveats:
+.IP * 2
+The emulation is inefficient.
+.IP *
+There is a race condition where concurrent writes from another thread or
+process could be overwritten with null bytes.
+.IP *
+There is a race condition where concurrent file size increases by
+another thread or process could result in a file whose size is smaller
+than expected.
+.IP *
+If
+.I fd
+has been opened with the
+.B O_APPEND
+or
+.B O_WRONLY
+flags, the function fails with the error
+.BR EBADF .
+.PP
+In general, the emulation is not MT-safe.
+On Linux, applications may use
+.BR fallocate (2)
+if they cannot tolerate the emulation caveats.
+In general, this is
+only recommended if the application plans to terminate the operation if
+.B EOPNOTSUPP
+is returned, otherwise the application itself will need to implement a
+fallback with all the same problems as the emulation provided by glibc.
 .SH SEE ALSO
 .BR fallocate (1),
 .BR fallocate (2),
 .BR lseek (2),
 .BR posix_fadvise (2)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

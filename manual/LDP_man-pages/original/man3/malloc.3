@@ -1,4 +1,5 @@
 .\" Copyright (c) 1993 by Thomas Koenig (ig25@rz.uni-karlsruhe.de)
+.\" and Copyright i2007, 2012, 2018, Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -30,20 +31,33 @@
 .\" FIXME . Review http://austingroupbugs.net/view.php?id=374
 .\" to see what changes are required on this page.
 .\"
-.TH MALLOC 3  2014-05-21 "GNU" "Linux Programmer's Manual"
+.TH MALLOC 3  2020-06-09 "GNU" "Linux Programmer's Manual"
 .SH NAME
-malloc, free, calloc, realloc \- allocate and free dynamic memory
+malloc, free, calloc, realloc, reallocarray \- allocate and free dynamic memory
 .SH SYNOPSIS
 .nf
 .B #include <stdlib.h>
-.sp
+.PP
 .BI "void *malloc(size_t " "size" );
 .BI "void free(void " "*ptr" );
 .BI "void *calloc(size_t " "nmemb" ", size_t " "size" );
 .BI "void *realloc(void " "*ptr" ", size_t "  "size" );
+.BI "void *reallocarray(void " "*ptr" ", size_t " nmemb ", size_t "  "size" );
 .fi
-.SH DESCRIPTION
 .PP
+.RS -4
+Feature Test Macro Requirements for glibc (see
+.BR feature_test_macros (7)):
+.RE
+.PP
+.BR reallocarray ():
+.ad l
+    Since glibc 2.29:
+        _DEFAULT_SOURCE
+    Glibc 2.28 and earlier:
+        _GNU_SOURCE
+.ad
+.SH DESCRIPTION
 The
 .BR malloc ()
 function allocates
@@ -93,6 +107,23 @@ returns either NULL,
 .\" glibc does this:
 or a unique pointer value that can later be successfully passed to
 .BR free ().
+If the multiplication of
+.I nmemb
+and
+.I size
+would result in integer overflow, then
+.BR calloc ()
+returns an error.
+By contrast,
+an integer overflow would not be detected in the following call to
+.BR malloc (),
+with the result that an incorrectly sized block of memory would be allocated:
+.PP
+.in +4n
+.EX
+malloc(nmemb * size);
+.EE
+.in
 .PP
 The
 .BR realloc ()
@@ -123,12 +154,40 @@ Unless
 .I ptr
 is NULL, it must have been returned by an earlier call to
 .BR malloc (),
-.BR calloc ()
+.BR calloc (),
 or
 .BR realloc ().
 If the area pointed to was moved, a
 .I free(ptr)
 is done.
+.PP
+The
+.BR reallocarray ()
+function changes the size of the memory block pointed to by
+.I ptr
+to be large enough for an array of
+.I nmemb
+elements, each of which is
+.I size
+bytes.
+It is equivalent to the call
+.PP
+.in +4n
+    realloc(ptr, nmemb * size);
+.in
+.PP
+However, unlike that
+.BR realloc ()
+call,
+.BR reallocarray ()
+fails safely in the case where the multiplication would overflow.
+If such an overflow occurs,
+.BR reallocarray ()
+returns NULL, sets
+.I errno
+to
+.BR ENOMEM ,
+and leaves the original block of memory unchanged.
 .SH RETURN VALUE
 The
 .BR malloc ()
@@ -157,9 +216,13 @@ function returns no value.
 The
 .BR realloc ()
 function returns a pointer to the newly allocated memory, which is suitably
-aligned for any built-in type and may be different from
-.IR ptr ,
-or NULL if the request fails.
+aligned for any built-in type, or NULL if the request failed.
+The returned pointer may be the same as
+.IR ptr
+if the allocation was not moved
+(e.g., there was room to expand the allocation in-place), or different from
+.IR ptr
+if the allocation was moved to a new address.
 If
 .I size
 was equal to 0, either NULL or a pointer suitable to be passed to
@@ -168,8 +231,56 @@ is returned.
 If
 .BR realloc ()
 fails, the original block is left untouched; it is not freed or moved.
+.PP
+On success, the
+.BR reallocarray ()
+function returns a pointer to the newly allocated memory.
+On failure,
+it returns NULL and the original block of memory is left untouched.
+.SH ERRORS
+.BR calloc (),
+.BR malloc (),
+.BR realloc (),
+and
+.BR reallocarray ()
+can fail with the following error:
+.TP
+.B ENOMEM
+Out of memory.
+Possibly, the application hit the
+.BR RLIMIT_AS
+or
+.BR RLIMIT_DATA
+limit described in
+.BR getrlimit (2).
+.SH VERSIONS
+.BR reallocarray ()
+first appeared in glibc in version 2.26.
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw20 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR malloc (),
+.BR free (),
+.br
+.BR calloc (),
+.BR realloc ()
+T}	Thread safety	MT-Safe
+.TE
 .SH CONFORMING TO
-C89, C99.
+.BR malloc (),
+.BR free (),
+.BR calloc (),
+.BR realloc ():
+POSIX.1-2001, POSIX.1-2008, C89, C99.
+.PP
+.BR reallocarray ()
+is a nonstandard extension that first appeared in OpenBSD 5.6 and FreeBSD 11.0.
 .SH NOTES
 By default, Linux follows an optimistic memory allocation strategy.
 This means that when
@@ -185,8 +296,8 @@ and
 in
 .BR proc (5),
 and the Linux kernel source file
-.IR Documentation/vm/overcommit-accounting .
-
+.IR Documentation/vm/overcommit-accounting.rst .
+.PP
 Normally,
 .BR malloc ()
 allocates memory from the heap, and adjusts the size of the heap
@@ -199,15 +310,17 @@ bytes, the glibc
 implementation allocates the memory as a private anonymous mapping using
 .BR mmap (2).
 .B MMAP_THRESHOLD
-is 128 kB by default, but is adjustable using
+is 128\ kB by default, but is adjustable using
 .BR mallopt (3).
-Allocations performed using
+Prior to Linux 4.7
+allocations performed using
 .BR mmap (2)
-are unaffected by the
+were unaffected by the
 .B RLIMIT_DATA
-resource limit (see
-.BR getrlimit (2)).
-
+resource limit;
+since Linux 4.7, this limit is also enforced for allocations performed using
+.BR mmap (2).
+.PP
 To avoid corruption in multithreaded applications,
 mutexes are used internally to protect the memory-management
 data structures employed by these functions.
@@ -225,8 +338,8 @@ by the system
 or
 .BR mmap (2)),
 and managed with its own mutexes.
-
-The UNIX 98 standard requires
+.PP
+SUSv2 requires
 .BR malloc (),
 .BR calloc (),
 and
@@ -243,7 +356,7 @@ use a private malloc implementation that does not set
 then certain library routines may fail without having
 a reason in
 .IR errno .
-.LP
+.PP
 Crashes in
 .BR malloc (),
 .BR calloc (),
@@ -271,6 +384,7 @@ for details.
 .\"
 .ad l
 .nh
+.BR valgrind (1),
 .BR brk (2),
 .BR mmap (2),
 .BR alloca (3),
@@ -282,12 +396,16 @@ for details.
 .BR mcheck (3),
 .BR mtrace (3),
 .BR posix_memalign (3)
+.PP
+For details of the GNU C library implementation, see
+.UR https://sourceware.org/glibc/wiki/MallocInternals
+.UE .
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

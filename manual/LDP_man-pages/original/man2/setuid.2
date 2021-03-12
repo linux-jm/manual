@@ -1,4 +1,5 @@
 .\" Copyright (C), 1994, Graeme W. Wilford (Wilf).
+.\" and Copyright (C) 2010, 2014, 2015, Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -27,19 +28,22 @@
 .\"   <richard@greenend.org.uk>, aeb 970616.
 .\" Modified, 27 May 2004, Michael Kerrisk <mtk.manpages@gmail.com>
 .\"     Added notes on capability requirements
-.TH SETUID 2 2014-09-21 "Linux" "Linux Programmer's Manual"
+.TH SETUID 2 2019-03-06 "Linux" "Linux Programmer's Manual"
 .SH NAME
 setuid \- set user identity
 .SH SYNOPSIS
 .B #include <sys/types.h>
 .br
 .B #include <unistd.h>
-.sp
+.PP
 .BI "int setuid(uid_t " uid );
 .SH DESCRIPTION
 .BR setuid ()
 sets the effective user ID of the calling process.
-If the effective UID of the caller is root,
+If the calling process is privileged
+(more precisely: if the process has the
+.BR CAP_SETUID
+capability in its user namespace),
 the real UID and saved set-user-ID are also set.
 .PP
 Under Linux,
@@ -52,10 +56,9 @@ privileges, do some un-privileged work, and then reengage the original
 effective user ID in a secure manner.
 .PP
 If the user is root or the program is set-user-ID-root, special care must be
-taken.
-The
+taken:
 .BR setuid ()
-function checks the effective user ID of the caller and if it is
+checks the effective user ID of the caller and if it is
 the superuser, all process-related user ID's are set to
 .IR uid .
 After this has occurred, it is impossible for the program to regain root
@@ -72,7 +75,7 @@ On success, zero is returned.
 On error, \-1 is returned, and
 .I errno
 is set appropriately.
-
+.PP
 .IR Note :
 there are cases where
 .BR setuid ()
@@ -111,11 +114,11 @@ is not valid in this user namespace.
 .B EPERM
 The user is not privileged (Linux: does not have the
 .B CAP_SETUID
-capability) and
+capability in its user namespace) and
 .I uid
 does not match the real UID or saved set-user-ID of the calling process.
 .SH CONFORMING TO
-SVr4, POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008, SVr4.
 Not quite compatible with the 4.4BSD call, which
 sets all of the real, saved, and effective user IDs.
 .\" SVr4 documents an additional EINVAL error condition.
@@ -132,7 +135,7 @@ If
 .I uid
 is different from the old effective UID, the process will
 be forbidden from leaving core dumps.
-
+.PP
 The original Linux
 .BR setuid ()
 system call supported only 16-bit user IDs.
@@ -142,6 +145,21 @@ supporting 32-bit IDs.
 The glibc
 .BR setuid ()
 wrapper function transparently deals with the variation across kernel versions.
+.\"
+.SS C library/kernel differences
+At the kernel level, user IDs and group IDs are a per-thread attribute.
+However, POSIX requires that all threads in a process
+share the same credentials.
+The NPTL threading implementation handles the POSIX requirements by
+providing wrapper functions for
+the various system calls that change process UIDs and GIDs.
+These wrapper functions (including the one for
+.BR setuid ())
+employ a signal-based technique to ensure
+that when one thread changes credentials,
+all of the other threads in the process also change their credentials.
+For details, see
+.BR nptl (7).
 .SH SEE ALSO
 .BR getuid (2),
 .BR seteuid (2),
@@ -151,11 +169,11 @@ wrapper function transparently deals with the variation across kernel versions.
 .BR credentials (7),
 .BR user_namespaces (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

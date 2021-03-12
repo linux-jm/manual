@@ -24,23 +24,23 @@
 .\"
 .\" References:
 .\"   glibc manual and source
-.TH BACKTRACE 3 2008-06-14 GNU "Linux Programmer's Manual"
+.TH BACKTRACE 3 2020-11-01 GNU "Linux Programmer's Manual"
 .SH NAME
 backtrace, backtrace_symbols, backtrace_symbols_fd \- support
 for application self-debugging
 .SH SYNOPSIS
 .B #include <execinfo.h>
-
+.PP
 .B int backtrace(void
 .BI ** buffer ,
 .B int
 .IB size );
-
+.PP
 .B char **backtrace_symbols(void *const
 .BI * buffer ,
 .B int
 .IB size );
-
+.PP
 .B void backtrace_symbols_fd(void *const
 .BI * buffer ,
 .B int
@@ -75,7 +75,7 @@ to obtain the complete backtrace, make sure that
 and
 .I size
 are large enough.
-
+.PP
 Given the set of addresses returned by
 .BR backtrace ()
 in
@@ -100,7 +100,7 @@ by
 and must be freed by the caller.
 (The strings pointed to by the array of pointers
 need not and should not be freed.)
-
+.PP
 .BR backtrace_symbols_fd ()
 takes the same
 .I buffer
@@ -114,7 +114,8 @@ it writes the strings, one per line, to the file descriptor
 .BR backtrace_symbols_fd ()
 does not call
 .BR malloc (3),
-and so can be employed in situations where the latter function might fail.
+and so can be employed in situations where the latter function might
+fail, but see NOTES.
 .SH RETURN VALUE
 .BR backtrace ()
 returns the number of addresses returned in
@@ -127,7 +128,7 @@ then the full backtrace was stored; if it is equal to
 .IR size ,
 then it may have been truncated, in which case the addresses of the
 oldest stack frames are not returned.
-
+.PP
 On success,
 .BR backtrace_symbols ()
 returns a pointer to the array
@@ -140,6 +141,22 @@ on error, NULL is returned.
 and
 .BR backtrace_symbols_fd ()
 are provided in glibc since version 2.1.
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw22 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR backtrace (),
+.br
+.BR backtrace_symbols (),
+.br
+.BR backtrace_symbols_fd ()
+T}	Thread safety	MT-Safe
+.TE
 .SH CONFORMING TO
 These functions are GNU extensions.
 .SH NOTES
@@ -156,6 +173,21 @@ violated.
 Inlined functions do not have stack frames.
 .IP *
 Tail-call optimization causes one stack frame to replace another.
+.IP *
+.BR backtrace ()
+and
+.BR backtrace_symbols_fd ()
+don't call
+.BR malloc ()
+explicitly, but they are part of
+.IR libgcc ,
+which gets loaded dynamically when first used.
+Dynamic loading usually triggers a call to
+.BR malloc (3).
+If you need certain calls to these two functions to not allocate memory
+(in signal handlers, for example), you need to make sure
+.I libgcc
+is loaded beforehand.
 .PP
 The symbol names may be unavailable without the use of special linker
 options.
@@ -164,16 +196,16 @@ For systems using the GNU linker, it is necessary to use the
 linker option.
 Note that names of "static" functions are not exposed,
 and won't be available in the backtrace.
-.SH EXAMPLE
+.SH EXAMPLES
 The program below demonstrates the use of
 .BR backtrace ()
 and
 .BR backtrace_symbols ().
 The following shell session shows what we might see when running the
 program:
-.nf
+.PP
 .in +4n
-
+.EX
 .RB "$" " cc \-rdynamic prog.c \-o prog"
 .RB "$" " ./prog 3"
 backtrace() returned 8 addresses
@@ -185,26 +217,27 @@ backtrace() returned 8 addresses
 \&./prog(main+0x65) [0x80488fb]
 \&/lib/libc.so.6(__libc_start_main+0xdc) [0xb7e38f9c]
 \&./prog [0x8048711]
+.EE
 .in
-.fi
 .SS Program source
 \&
-.nf
+.EX
 #include <execinfo.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+#define BT_BUF_SIZE 100
+
 void
 myfunc3(void)
 {
-    int j, nptrs;
-#define SIZE 100
-    void *buffer[100];
+    int nptrs;
+    void *buffer[BT_BUF_SIZE];
     char **strings;
 
-    nptrs = backtrace(buffer, SIZE);
-    printf("backtrace() returned %d addresses\\n", nptrs);
+    nptrs = backtrace(buffer, BT_BUF_SIZE);
+    printf("backtrace() returned %d addresses\en", nptrs);
 
     /* The call backtrace_symbols_fd(buffer, nptrs, STDOUT_FILENO)
        would produce similar output to the following: */
@@ -215,8 +248,8 @@ myfunc3(void)
         exit(EXIT_FAILURE);
     }
 
-    for (j = 0; j < nptrs; j++)
-        printf("%s\\n", strings[j]);
+    for (int j = 0; j < nptrs; j++)
+        printf("%s\en", strings[j]);
 
     free(strings);
 }
@@ -240,25 +273,27 @@ int
 main(int argc, char *argv[])
 {
     if (argc != 2) {
-        fprintf(stderr, "%s num\-calls\\n", argv[0]);
+        fprintf(stderr, "%s num\-calls\en", argv[0]);
         exit(EXIT_FAILURE);
     }
 
     myfunc(atoi(argv[1]));
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SH SEE ALSO
+.BR addr2line (1),
 .BR gcc (1),
+.BR gdb (1),
 .BR ld (1),
 .BR dlopen (3),
 .BR malloc (3)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

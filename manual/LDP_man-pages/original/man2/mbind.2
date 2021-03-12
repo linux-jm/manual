@@ -25,34 +25,24 @@
 .\"	more precise specification of behavior.
 .\"
 .\" FIXME
-.\" Linux 3.8 added the following, which need to be documented.
-.\" And do they also apply for move_pages()?
+.\" Linux 3.8 added MPOL_MF_LAZY, which needs to be documented.
+.\" Does it also apply for move_pages()?
 .\"
-.\"       MPOL_LOCAL
-.\"                commit 479e2802d09f1e18a97262c4c6f8f17ae5884bd8
-.\"                Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
-.\"                Date:   Thu Oct 25 14:16:28 2012 +0200
-.\"
-.\"                commit f2a07f40dbc603c15f8b06e6ec7f768af67b424f
-.\"                Author: Hugh Dickins <hughd@google.com>
-.\"                Date:   Wed Jan 2 02:01:33 2013 -0800
-.\"
-.\"        MPOL_MF_LAZY
 .\"                commit b24f53a0bea38b266d219ee651b22dba727c44ae
 .\"                Author: Lee Schermerhorn <lee.schermerhorn@hp.com>
 .\"                Date:   Thu Oct 25 14:16:32 2012 +0200
 .\"
-.TH MBIND 2 2015-01-22 Linux "Linux Programmer's Manual"
+.TH MBIND 2 2020-06-09 Linux "Linux Programmer's Manual"
 .SH NAME
 mbind \- set memory policy for a memory range
 .SH SYNOPSIS
 .nf
 .B "#include <numaif.h>"
-.sp
+.PP
 .BI "long mbind(void *" addr ", unsigned long " len  ", int " mode ,
 .BI "           const unsigned long *" nodemask  ", unsigned long " maxnode ,
 .BI "           unsigned " flags );
-.sp
+.PP
 Link with \fI\-lnuma\fP.
 .fi
 .SH DESCRIPTION
@@ -65,7 +55,7 @@ and continuing for
 .I len
 bytes.
 The memory policy defines from which node memory is allocated.
-
+.PP
 If the memory range specified by the
 .IR addr " and " len
 arguments includes an "anonymous" region of memory\(emthat is
@@ -78,24 +68,24 @@ a memory-mapped file, mapped using the
 system call with the
 .B MAP_PRIVATE
 flag, pages will be allocated only according to the specified
-policy when the application writes [stores] to the page.
+policy when the application writes (stores) to the page.
 For anonymous regions, an initial read access will use a shared
 page in the kernel containing all zeros.
 For a file mapped with
 .BR MAP_PRIVATE ,
 an initial read access will allocate pages according to the
-process policy of the process that causes the page to be allocated.
-This may not be the process that called
+memory policy of the thread that causes the page to be allocated.
+This may not be the thread that called
 .BR mbind ().
-
+.PP
 The specified policy will be ignored for any
 .B MAP_SHARED
 mappings in the specified memory range.
-Rather the pages will be allocated according to the process policy
-of the process that caused the page to be allocated.
-Again, this may not be the process that called
+Rather the pages will be allocated according to the memory policy
+of the thread that caused the page to be allocated.
+Again, this may not be the thread that called
 .BR mbind ().
-
+.PP
 If the specified memory range includes a shared memory region
 created using the
 .BR shmget (2)
@@ -103,7 +93,7 @@ system call and attached using the
 .BR shmat (2)
 system call,
 pages allocated for the anonymous or shared memory region will
-be allocated according to the policy specified, regardless which
+be allocated according to the policy specified, regardless of which
 process attached to the shared memory segment causes the allocation.
 If, however, the shared memory region was created with the
 .B SHM_HUGETLB
@@ -112,7 +102,7 @@ the huge pages will be allocated according to the policy specified
 only if the page allocation is caused by the process that calls
 .BR mbind ()
 for that region.
-
+.PP
 By default,
 .BR mbind ()
 has an effect only for new allocations; if the pages inside
@@ -123,26 +113,28 @@ This default behavior may be overridden by the
 and
 .B MPOL_MF_MOVE_ALL
 flags described below.
-
+.PP
 The
 .I mode
 argument must specify one of
 .BR MPOL_DEFAULT ,
 .BR MPOL_BIND ,
 .BR MPOL_INTERLEAVE ,
+.BR MPOL_PREFERRED ,
 or
-.BR MPOL_PREFERRED .
+.BR MPOL_LOCAL
+(which are described in detail below).
 All policy modes except
 .B MPOL_DEFAULT
-require the caller to specify via the
+require the caller to specify the node or nodes to which the mode applies,
+via the
 .I nodemask
-argument,
-the node or nodes to which the mode applies.
-
+argument.
+.PP
 The
 .I mode
 argument may also include an optional
-.IR "mode flag ".
+.IR "mode flag" .
 The supported
 .I "mode flags"
 are:
@@ -150,18 +142,18 @@ are:
 .BR MPOL_F_STATIC_NODES " (since Linux-2.6.26)"
 A nonempty
 .I nodemask
-specifies physical node ids.
+specifies physical node IDs.
 Linux does not remap the
 .I nodemask
-when the process moves to a different cpuset context,
-nor when the set of nodes allowed by the process's
+when the thread moves to a different cpuset context,
+nor when the set of nodes allowed by the thread's
 current cpuset context changes.
 .TP
 .BR MPOL_F_RELATIVE_NODES " (since Linux-2.6.26)"
 A nonempty
 .I nodemask
-specifies node ids that are relative to the set of
-node ids allowed by the process's current cpuset.
+specifies node IDs that are relative to the set of
+node IDs allowed by the thread's current cpuset.
 .PP
 .I nodemask
 points to a bit mask of nodes containing up to
@@ -185,22 +177,25 @@ argument is ignored.
 Where a
 .I nodemask
 is required, it must contain at least one node that is on-line,
-allowed by the process's current cpuset context
-[unless the
+allowed by the thread's current cpuset context
+(unless the
 .B MPOL_F_STATIC_NODES
-mode flag is specified],
+mode flag is specified),
 and contains memory.
-
+.PP
 The
+.I mode
+argument must include one of the following values:
+.TP
 .B MPOL_DEFAULT
-mode requests that any nondefault policy be removed,
+This mode requests that any nondefault policy be removed,
 restoring default behavior.
 When applied to a range of memory via
 .BR mbind (),
-this means to use the process policy,
+this means to use the thread memory policy,
 which may have been set with
 .BR set_mempolicy (2).
-If the mode of the process policy is also
+If the mode of the thread memory policy is also
 .BR MPOL_DEFAULT ,
 the system-wide default policy will be used.
 The system-wide default policy allocates
@@ -212,39 +207,42 @@ the
 and
 .I maxnode
 arguments must be specify the empty set of nodes.
-
-The
+.TP
 .B MPOL_BIND
-mode specifies a strict policy that restricts memory allocation to
+This mode specifies a strict policy that restricts memory allocation to
 the nodes specified in
 .IR nodemask .
 If
 .I nodemask
 specifies more than one node, page allocations will come from
+the node with sufficient free memory that is closest to
+the node where the allocation takes place.
+Pages will not be allocated from any node not specified in the
+IR nodemask .
+(Before Linux 2.6.26,
+.\" commit 19770b32609b6bf97a3dece2529089494cbfc549
+page allocations came from
 the node with the lowest numeric node ID first, until that node
-contains no free memory.
-Allocations will then come from the node with the next highest
+contained no free memory.
+Allocations then came from the node with the next highest
 node ID specified in
 .I nodemask
-and so forth, until none of the specified nodes contain free memory.
-Pages will not be allocated from any node not specified in the
-.IR nodemask .
-
-The
+and so forth, until none of the specified nodes contained free memory.)
+.TP
 .B MPOL_INTERLEAVE
-mode specifies that page allocations be interleaved across the
+This mode specifies that page allocations be interleaved across the
 set of nodes specified in
 .IR nodemask .
 This optimizes for bandwidth instead of latency
 by spreading out pages and memory accesses to those pages across
 multiple nodes.
 To be effective the memory area should be fairly large,
-at least 1MB or bigger with a fairly uniform access pattern.
+at least 1\ MB or bigger with a fairly uniform access pattern.
 Accesses to a single page of the area will still be limited to
 the memory bandwidth of a single node.
-
+.TP
 .B MPOL_PREFERRED
-sets the preferred node for allocation.
+This mode sets the preferred node for allocation.
 The kernel will try to allocate pages from this
 node first and fall back to other nodes if the
 preferred nodes is low on free memory.
@@ -258,10 +256,31 @@ and
 .I maxnode
 arguments specify the empty set, then the memory is allocated on
 the node of the CPU that triggered the allocation.
-This is the only way to specify "local allocation" for a
-range of memory via
-.BR mbind ().
-
+.TP
+.BR MPOL_LOCAL " (since Linux 3.8)"
+.\" commit 479e2802d09f1e18a97262c4c6f8f17ae5884bd8
+.\" commit f2a07f40dbc603c15f8b06e6ec7f768af67b424f
+This mode specifies "local allocation"; the memory is allocated on
+the node of the CPU that triggered the allocation (the "local node").
+The
+.I nodemask
+and
+.I maxnode
+arguments must specify the empty set.
+If the "local node" is low on free memory,
+the kernel will try to allocate memory from other nodes.
+The kernel will allocate memory from the "local node"
+whenever memory for this node is available.
+If the "local node" is not allowed by the thread's current cpuset context,
+the kernel will try to allocate memory from other nodes.
+The kernel will allocate memory from the "local node" whenever
+it becomes allowed by the thread's current cpuset context.
+By contrast,
+.B MPOL_DEFAULT
+reverts to the memory policy of the thread (which may be set via
+.BR set_mempolicy (2));
+that policy may be something other than "local allocation".
+.PP
 If
 .B MPOL_MF_STRICT
 is passed in
@@ -270,14 +289,14 @@ and
 .I mode
 is not
 .BR MPOL_DEFAULT ,
-then the call will fail with the error
+then the call fails with the error
 .B EIO
 if the existing pages in the memory range don't follow the policy.
 .\" According to the kernel code, the following is not true
 .\" --Lee Schermerhorn
 .\" In 2.6.16 or later the kernel will also try to move pages
 .\" to the requested node with this flag.
-
+.PP
 If
 .B MPOL_MF_MOVE
 is specified in
@@ -287,22 +306,22 @@ in the memory range so that they follow the policy.
 Pages that are shared with other processes will not be moved.
 If
 .B MPOL_MF_STRICT
-is also specified, then the call will fail with the error
+is also specified, then the call fails with the error
 .B EIO
 if some pages could not be moved.
-
+.PP
 If
 .B MPOL_MF_MOVE_ALL
 is passed in
 .IR flags ,
 then the kernel will attempt to move all existing pages in the memory range
 regardless of whether other processes use the pages.
-The calling process must be privileged
+The calling thread must be privileged
 .RB ( CAP_SYS_NICE )
 to use this flag.
 If
 .B MPOL_MF_STRICT
-is also specified, then the call will fail with the error
+is also specified, then the call fails with the error
 .B EIO
 if some pages could not be moved.
 .\" ---------------------------------------------------------------
@@ -367,7 +386,7 @@ specifies one or more node IDs that are
 greater than the maximum supported node ID.
 Or, none of the node IDs specified by
 .I nodemask
-are on-line and allowed by the process's current cpuset context,
+are on-line and allowed by the thread's current cpuset context,
 or none of the specified nodes contain memory.
 Or, the
 .I mode
@@ -408,12 +427,12 @@ This system call is Linux-specific.
 .SH NOTES
 For information on library support, see
 .BR numa (7).
-
+.PP
 NUMA policy is not supported on a memory-mapped file range
 that was mapped with the
 .B MAP_SHARED
 flag.
-
+.PP
 The
 .B MPOL_DEFAULT
 mode can have different effects for
@@ -424,14 +443,14 @@ When
 .B MPOL_DEFAULT
 is specified for
 .BR set_mempolicy (2),
-the process's policy reverts to system default policy
+the thread's memory policy reverts to the system default policy
 or local allocation.
 When
 .B MPOL_DEFAULT
 is specified for a range of memory using
 .BR mbind (),
 any pages subsequently allocated for that range will use
-the process's policy, as set by
+the thread's memory policy, as set by
 .BR set_mempolicy (2).
 This effectively removes the explicit policy from the
 specified range, "falling back" to a possibly nondefault
@@ -440,19 +459,23 @@ To select explicit "local allocation" for a memory range,
 specify a
 .I mode
 of
+.B MPOL_LOCAL
+or
 .B MPOL_PREFERRED
 with an empty set of nodes.
 This method will work for
 .BR set_mempolicy (2),
 as well.
-
+.PP
 Support for huge page policy was added with 2.6.16.
 For interleave policy to be effective on huge page mappings the
 policied memory needs to be tens of megabytes or larger.
-
+.PP
+Before Linux 5.7.
+.\" commit dcf1763546d76c372f3136c8d6b2b6e77f140cf0
 .B MPOL_MF_STRICT
-is ignored on huge page mappings.
-
+was ignored on huge page mappings.
+.PP
 .B MPOL_MF_MOVE
 and
 .B MPOL_MF_MOVE_ALL
@@ -469,11 +492,11 @@ are available only on Linux 2.6.16 and later.
 .BR numa (7),
 .BR numactl (8)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

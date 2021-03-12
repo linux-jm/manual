@@ -27,12 +27,12 @@
 .\"
 .\" Modified 2004-06-23 by Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
-.TH STATVFS 3 2013-09-26 "Linux" "Linux Programmer's Manual"
+.TH STATVFS 3 2017-09-15 "Linux" "Linux Programmer's Manual"
 .SH NAME
 statvfs, fstatvfs \- get filesystem statistics
 .SH SYNOPSIS
 .B #include <sys/statvfs.h>
-.sp
+.PP
 .BI "int statvfs(const char *" path ", struct statvfs *" buf );
 .br
 .BI "int fstatvfs(int " fd ", struct statvfs *" buf );
@@ -46,25 +46,27 @@ is the pathname of any file within the mounted filesystem.
 is a pointer to a
 .I statvfs
 structure defined approximately as follows:
-
+.PP
 .in +4n
-.nf
+.EX
 struct statvfs {
-    unsigned long  f_bsize;    /* filesystem block size */
-    unsigned long  f_frsize;   /* fragment size */
-    fsblkcnt_t     f_blocks;   /* size of fs in f_frsize units */
-    fsblkcnt_t     f_bfree;    /* # free blocks */
-    fsblkcnt_t     f_bavail;   /* # free blocks for unprivileged users */
-    fsfilcnt_t     f_files;    /* # inodes */
-    fsfilcnt_t     f_ffree;    /* # free inodes */
-    fsfilcnt_t     f_favail;   /* # free inodes for unprivileged users */
-    unsigned long  f_fsid;     /* filesystem ID */
-    unsigned long  f_flag;     /* mount flags */
-    unsigned long  f_namemax;  /* maximum filename length */
+    unsigned long  f_bsize;    /* Filesystem block size */
+    unsigned long  f_frsize;   /* Fragment size */
+    fsblkcnt_t     f_blocks;   /* Size of fs in f_frsize units */
+    fsblkcnt_t     f_bfree;    /* Number of free blocks */
+    fsblkcnt_t     f_bavail;   /* Number of free blocks for
+                                  unprivileged users */
+    fsfilcnt_t     f_files;    /* Number of inodes */
+    fsfilcnt_t     f_ffree;    /* Number of free inodes */
+    fsfilcnt_t     f_favail;   /* Number of free inodes for
+                                  unprivileged users */
+    unsigned long  f_fsid;     /* Filesystem ID */
+    unsigned long  f_flag;     /* Mount flags */
+    unsigned long  f_namemax;  /* Maximum filename length */
 };
-.fi
+.EE
 .in
-
+.PP
 Here the types
 .I fsblkcnt_t
 and
@@ -73,23 +75,53 @@ are defined in
 .IR <sys/types.h> .
 Both used to be
 .IR "unsigned long" .
-
+.PP
 The field
 .I f_flag
-is a bit mask (of mount flags, see
-.BR mount (8)).
-Bits defined by POSIX are
+is a bit mask indicating various options that were employed
+when mounting this filesystem.
+It contains zero or more of the following flags:
+.\" XXX Keep this list in sync with statfs(2)
 .TP
-.B ST_RDONLY
-Read-only filesystem.
+.B ST_MANDLOCK
+Mandatory locking is permitted on the filesystem (see
+.BR fcntl (2)).
+.TP
+.B ST_NOATIME
+Do not update access times; see
+.BR mount (2).
+.TP
+.B ST_NODEV
+Disallow access to device special files on this filesystem.
+.TP
+.B ST_NODIRATIME
+Do not update directory access times; see
+.BR mount (2).
+.TP
+.B ST_NOEXEC
+Execution of programs is disallowed on this filesystem.
 .TP
 .B ST_NOSUID
-Set-user-ID/set-group-ID bits are ignored by
-.BR exec (3).
-.LP
+The set-user-ID and set-group-ID bits are ignored by
+.BR exec (3)
+for executable files on this filesystem
+.TP
+.B ST_RDONLY
+This filesystem is mounted read-only.
+.TP
+.B ST_RELATIME
+Update atime relative to mtime/ctime; see
+.BR mount (2).
+.TP
+.B ST_SYNCHRONOUS
+Writes are synched to the filesystem immediately (see the description of
+.B O_SYNC
+in
+.BR open (2)).
+.PP
 It is unspecified whether all members of the returned struct
 have meaningful values on all filesystems.
-
+.PP
 .BR fstatvfs ()
 returns the same information about an open file referenced by descriptor
 .IR fd .
@@ -119,7 +151,8 @@ or
 points to an invalid address.
 .TP
 .B EINTR
-This call was interrupted by a signal.
+This call was interrupted by a signal; see
+.BR signal (7).
 .TP
 .B EIO
 An I/O error occurred while reading from the filesystem.
@@ -155,44 +188,80 @@ is not a directory.
 .B EOVERFLOW
 Some values were too large to be represented in the returned struct.
 .SH ATTRIBUTES
-.SS Multithreading (see pthreads(7))
-The
-.BR statvfs ()
-and
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw21 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR statvfs (),
 .BR fstatvfs ()
-functions are thread-safe.
+T}	Thread safety	MT-Safe
+.TE
 .SH CONFORMING TO
-POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008.
+.PP
+Only the
+.B ST_NOSUID
+and
+.B ST_RDONLY
+flags of the
+.I f_flag
+field are specified in POSIX.1.
+To obtain definitions of the remaining flags, one must define
+.BR _GNU_SOURCE .
 .SH NOTES
 The Linux kernel has system calls
 .BR statfs (2)
 and
 .BR fstatfs (2)
 to support this library call.
-
-The current glibc implementations of
-.sp
-.nf
-   pathconf(path, _PC_REC_XFER_ALIGN);
-   pathconf(path, _PC_ALLOC_SIZE_MIN);
-   pathconf(path, _PC_REC_MIN_XFER_SIZE);
-.fi
-.sp
+.PP
+In glibc versions before 2.13,
+.\" glibc commit 3cdaa6adb113a088fdfb87aa6d7747557eccc58d
+.BR statvfs ()
+populated the bits of the
+.IR f_flag
+field by scanning the mount options shown in
+.IR /proc/mounts .
+However, starting with Linux 2.6.36, the underlying
+.BR statfs (2)
+system call provides the necessary information via the
+.IR f_flags
+field, and since glibc version 2.13, the
+.BR statvfs ()
+function will use information from that field rather than scanning
+.IR /proc/mounts .
+.PP
+The glibc implementations of
+.PP
+.in +4n
+.EX
+pathconf(path, _PC_REC_XFER_ALIGN);
+pathconf(path, _PC_ALLOC_SIZE_MIN);
+pathconf(path, _PC_REC_MIN_XFER_SIZE);
+.EE
+.in
+.PP
 respectively use the
 .IR f_frsize ,
 .IR f_frsize ,
 and
 .I f_bsize
-fields of the return value of
-.IR "statvfs(path,buf)" .
+fields returned by a call to
+.BR statvfs ()
+with the argument
+.IR path .
 .SH SEE ALSO
 .BR statfs (2)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

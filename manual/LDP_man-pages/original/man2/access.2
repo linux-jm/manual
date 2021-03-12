@@ -40,41 +40,44 @@
 .\" Modified 2004-06-23 by Michael Kerrisk
 .\" 2007-06-10, mtk, various parts rewritten, and added BUGS section.
 .\"
-.TH ACCESS 2 2014-08-19 "Linux" "Linux Programmer's Manual"
+.TH ACCESS 2 2020-12-21 "Linux" "Linux Programmer's Manual"
 .SH NAME
-access, faccessat \- check user's permissions for a file
+access, faccessat, faccessat2 \- check user's permissions for a file
 .SH SYNOPSIS
 .nf
 .B #include <unistd.h>
-.sp
+.PP
 .BI "int access(const char *" pathname ", int " mode );
 
 .BR "#include <fcntl.h>           " "/* Definition of AT_* constants */"
 .B #include <unistd.h>
-.sp
+.PP
 .BI "int faccessat(int " dirfd ", const char *" pathname ", int " \
 mode ", int " flags );
+                /* But see C library/kernel differences, below */
+
+.BI "int faccessat2(int " dirfd ", const char *" pathname ", int " \
+mode ", int " flags );
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .BR faccessat ():
 .PD 0
 .ad l
 .RS 4
 .TP 4
 Since glibc 2.10:
-_XOPEN_SOURCE\ >=\ 700 || _POSIX_C_SOURCE\ >=\ 200809L
+_POSIX_C_SOURCE\ >=\ 200809L
 .TP
 Before glibc 2.10:
 _ATFILE_SOURCE
 .RE
 .ad
 .PD
-.fi
 .SH DESCRIPTION
 .BR access ()
 checks whether the calling process can access the file
@@ -82,7 +85,7 @@ checks whether the calling process can access the file
 If
 .I pathname
 is a symbolic link, it is dereferenced.
-
+.PP
 The
 .I mode
 specifies the accessibility check(s) to be performed,
@@ -96,28 +99,42 @@ tests for the existence of the file.
 .BR R_OK ", " W_OK ", and " X_OK
 test whether the file exists and grants read, write, and
 execute permissions, respectively.
-
+.PP
 The check is done using the calling process's
 .I real
 UID and GID, rather than the effective IDs as is done when
 actually attempting an operation (e.g.,
 .BR open (2))
 on the file.
-This allows set-user-ID programs to
-easily determine the invoking user's authority.
-
+Similarly, for the root user, the check uses the set of
+permitted capabilities rather than the set of effective
+capabilities; and for non-root users, the check uses an empty set
+of capabilities.
+.PP
+This allows set-user-ID programs and capability-endowed programs
+to easily determine the invoking user's authority.
+In other words,
+.BR access ()
+does not answer the "can I read/write/execute this file?" question.
+It answers a slightly different question:
+"(assuming I'm a setuid binary) can
+.I the user who invoked me
+read/write/execute this file?",
+which gives set-user-ID programs the possibility to
+prevent malicious users from causing them to read files
+which users shouldn't be able to read.
+.PP
 If the calling process is privileged (i.e., its real UID is zero),
 then an
 .B X_OK
 check is successful for a regular file if execute permission
 is enabled for any of the file owner, group, or other.
 .SS faccessat()
-The
 .BR faccessat ()
-system call operates in exactly the same way as
+operates in exactly the same way as
 .BR access (),
 except for the differences described here.
-
+.PP
 If the pathname given in
 .I pathname
 is relative, then it is interpreted relative to the directory
@@ -127,7 +144,7 @@ referred to by the file descriptor
 the calling process, as is done by
 .BR access ()
 for a relative pathname).
-
+.PP
 If
 .I pathname
 is relative and
@@ -139,13 +156,13 @@ then
 is interpreted relative to the current working
 directory of the calling process (like
 .BR access ()).
-
+.PP
 If
 .I pathname
 is absolute, then
 .I dirfd
 is ignored.
-
+.PP
 .I flags
 is constructed by ORing together zero or more of the following values:
 .TP
@@ -166,7 +183,26 @@ See
 .BR openat (2)
 for an explanation of the need for
 .BR faccessat ().
-.SH "RETURN VALUE"
+.\"
+.SS faccessat2()
+The description of
+.BR faccessat ()
+given above corresponds to POSIX.1 and
+to the implementation provided by glibc.
+However, the glibc implementation was an imperfect emulation (see BUGS)
+that papered over the fact that the raw Linux
+.BR faccessat ()
+system call does not have a
+.I flags
+argument.
+To allow for a proper implementation, Linux 5.8 added the
+.BR faccessat2 ()
+system call, which supports the
+.I flags
+argument and allows a correct implementation of the
+.BR faccessat ()
+wrapper function.
+.SH RETURN VALUE
 On success (all requested permissions granted, or
 .I mode
 is
@@ -259,14 +295,19 @@ is a file descriptor referring to a file other than a directory.
 .BR faccessat ()
 was added to Linux in kernel 2.6.16;
 library support was added to glibc in version 2.4.
-.SH "CONFORMING TO"
+.PP
+.BR faccessat2 ()
+was added to Linux in version 5.8.
+.SH CONFORMING TO
 .BR access ():
 SVr4, 4.3BSD, POSIX.1-2001, POSIX.1-2008.
-
+.PP
 .BR faccessat ():
 POSIX.1-2008.
-.SH NOTES
 .PP
+.BR faccessat2 ():
+Linux-specific.
+.SH NOTES
 .BR Warning :
 Using these calls to check if a user is authorized to, for example,
 open a file before actually doing so using
@@ -282,7 +323,7 @@ effective user ID to the real ID and then call
 .BR access ()
 always dereferences symbolic links.
 If you need to check the permissions on a symbolic link, use
-.BR faccessat (2)
+.BR faccessat ()
 with the flag
 .BR AT_SYMLINK_NOFOLLOW .
 .PP
@@ -305,7 +346,7 @@ directories in the path prefix of
 grant search (i.e., execute) access.
 If any directory is inaccessible, then the
 .BR access ()
-call will fail, regardless of the permissions on the file itself.
+call fails, regardless of the permissions on the file itself.
 .PP
 Only access bits are checked, not the file type or contents.
 Therefore, if a directory is found to be writable,
@@ -323,7 +364,7 @@ the server.)
 Similar problems can occur to FUSE mounts.
 .\"
 .\"
-.SS C library/kernel ABI differences
+.SS C library/kernel differences
 The raw
 .BR faccessat ()
 system call takes only the first three arguments.
@@ -335,7 +376,8 @@ flags are actually implemented within the glibc wrapper function for
 .BR faccessat ().
 If either of these flags is specified, then the wrapper function employs
 .BR fstatat (2)
-to determine access permissions.
+to determine access permissions, but see BUGS.
+.\"
 .SS Glibc notes
 On older kernels where
 .BR faccessat ()
@@ -355,6 +397,24 @@ that corresponds to the
 .IR dirfd
 argument.
 .SH BUGS
+Because the Linux kernel's
+.BR faccessat ()
+system call does not support a
+.I flags
+argument, the glibc
+.BR faccessat ()
+wrapper function provided in glibc 2.32 and earlier
+emulates the required functionality using
+a combination of the
+.BR faccessat ()
+system call and
+.BR fstatat (2).
+However, this emulation does not take ACLs into account.
+Starting with glibc 2.33, the wrapper function avoids this bug
+by making use of the
+.BR faccessat2 ()
+system call where it is provided by the underlying kernel.
+.PP
 In kernel 2.4 (and earlier) there is some strangeness in the handling of
 .B X_OK
 tests for superuser.
@@ -377,7 +437,7 @@ returns 0 for such files.
 .\" This behavior appears to have been an implementation accident.
 Early 2.6 kernels (up to and including 2.6.3)
 also behaved in the same way as kernel 2.4.
-
+.PP
 In kernels before 2.6.20,
 these calls ignored the effect of the
 .B MS_NOEXEC
@@ -386,8 +446,8 @@ flag if it was used to
 the underlying filesystem.
 Since kernel 2.6.20, the
 .B MS_NOEXEC
-is honored
-.SH "SEE ALSO"
+flag is honored.
+.SH SEE ALSO
 .BR chmod (2),
 .BR chown (2),
 .BR open (2),
@@ -399,11 +459,11 @@ is honored
 .BR path_resolution (7),
 .BR symlink (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

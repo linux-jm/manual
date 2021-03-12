@@ -23,32 +23,25 @@
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
 .\"
-.\" FIXME Linux 2.6.39 adds CLOCK_BOOTTIME, which needs be documented
-.\" Does this also affect timerfd_create()?
-.\"
-.\" FIXME Linux 3.0 adds CLOCK_BOOTTIME_ALARM and CLOCK_REALTIME_ALARM,
-.\" which need be documented
-.\" Does this also affect timerfd_create()?
-.\"
-.TH TIMER_CREATE 2 2014-08-19 Linux "Linux Programmer's Manual"
+.TH TIMER_CREATE 2 2020-11-01 Linux "Linux Programmer's Manual"
 .SH NAME
 timer_create \- create a POSIX per-process timer
 .SH SYNOPSIS
 .nf
 .B  #include <signal.h>
 .B  #include <time.h>
-
+.PP
 .BI "int timer_create(clockid_t " clockid ", struct sigevent *" sevp ,
 .BI "                 timer_t *" timerid );
 .fi
-
+.PP
 Link with \fI\-lrt\fP.
-.sp
-.in -4n
+.PP
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .BR timer_create ():
 _POSIX_C_SOURCE\ >=\ 199309L
 .SH DESCRIPTION
@@ -59,7 +52,7 @@ The ID of the new timer is returned in the buffer pointed to by
 which must be a non-null pointer.
 This ID is unique within the process, until the timer is deleted.
 The new timer is initially disarmed.
-
+.PP
 The
 .I clockid
 argument specifies the clock that the new timer uses to measure time.
@@ -84,6 +77,46 @@ A clock that measures (user and system) CPU time consumed by
 the calling thread.
 .\" The CLOCK_MONOTONIC_RAW that was added in 2.6.28 can't be used
 .\" to create a timer -- mtk, Feb 2009
+.TP
+.BR CLOCK_BOOTTIME " (Since Linux 2.6.39)"
+.\" commit 70a08cca1227dc31c784ec930099a4417a06e7d0
+Like
+.BR CLOCK_MONOTONIC ,
+this is a monotonically increasing clock.
+However, whereas the
+.BR CLOCK_MONOTONIC
+clock does not measure the time while a system is suspended, the
+.BR CLOCK_BOOTTIME
+clock does include the time during which the system is suspended.
+This is useful for applications that need to be suspend-aware.
+.BR CLOCK_REALTIME
+is not suitable for such applications, since that clock is affected
+by discontinuous changes to the system clock.
+.TP
+.BR CLOCK_REALTIME_ALARM " (since Linux 3.0)"
+.\" commit 9a7adcf5c6dea63d2e47e6f6d2f7a6c9f48b9337
+This clock is like
+.BR CLOCK_REALTIME ,
+but will wake the system if it is suspended.
+The caller must have the
+.B CAP_WAKE_ALARM
+capability in order to set a timer against this clock.
+.TP
+.BR CLOCK_BOOTTIME_ALARM " (since Linux 3.0)"
+.\" commit 9a7adcf5c6dea63d2e47e6f6d2f7a6c9f48b9337
+This clock is like
+.BR CLOCK_BOOTTIME ,
+but will wake the system if it is suspended.
+The caller must have the
+.B CAP_WAKE_ALARM
+capability in order to set a timer against this clock.
+.TP
+.BR CLOCK_TAI " (since Linux 3.10)"
+A system-wide clock derived from wall-clock time but ignoring leap seconds.
+.PP
+See
+.BR clock_getres (2)
+for some further details on the above clocks.
 .PP
 As well as the above values,
 .I clockid
@@ -93,7 +126,7 @@ returned by a call to
 .BR clock_getcpuclockid (3)
 or
 .BR pthread_getcpuclockid (3).
-
+.PP
 The
 .I sevp
 argument points to a
@@ -102,7 +135,7 @@ structure that specifies how the caller
 should be notified when the timer expires.
 For the definition and general details of this structure, see
 .BR sigevent (7).
-
+.PP
 The
 .I sevp.sigev_notify
 field can have the following values:
@@ -190,19 +223,33 @@ is invalid.
 .B ENOMEM
 .\" glibc layer: malloc()
 Could not allocate memory.
+.TP
+.B ENOTSUP
+The kernel does not support creating a timer against this
+.IR clockid .
+.TP
+.B EPERM
+.I clockid
+was
+.BR CLOCK_REALTIME_ALARM
+or
+.BR CLOCK_BOOTTIME_ALARM
+but the caller did not have the
+.BR CAP_WAKE_ALARM
+capability.
 .SH VERSIONS
 This system call is available since Linux 2.6.
 .SH CONFORMING TO
-POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008.
 .SH NOTES
 A program may create multiple interval timers using
 .BR timer_create ().
-
+.PP
 Timers are not inherited by the child of a
 .BR fork (2),
 and are disarmed and deleted during an
 .BR execve (2).
-
+.PP
 The kernel preallocates a "queued real-time signal"
 for each timer created using
 .BR timer_create ().
@@ -210,7 +257,7 @@ Consequently, the number of timers is limited by the
 .BR RLIMIT_SIGPENDING
 resource limit (see
 .BR setrlimit (2)).
-
+.PP
 The timers created by
 .BR timer_create ()
 are commonly known as "POSIX (interval) timers".
@@ -231,7 +278,7 @@ Return the overrun count for the last timer expiration.
 .IP *
 .BR timer_delete (2):
 Disarm and delete a timer.
-
+.PP
 Since Linux 3.10, the
 .IR /proc/[pid]/timers
 file can be used to list the POSIX timers for the process with PID
@@ -239,14 +286,39 @@ file can be used to list the POSIX timers for the process with PID
 See
 .BR proc (5)
 for further information.
+.PP
+Since Linux 4.10,
+.\" baa73d9e478ff32d62f3f9422822b59dd9a95a21
+support for POSIX timers is a configurable option that is enabled by default.
+Kernel support can be disabled via the
+.BR CONFIG_POSIX_TIMERS
+option.
 .\"
-.SS C library/kernel ABI differences
+.SS C library/kernel differences
 Part of the implementation of the POSIX timers API is provided by glibc.
+.\" See nptl/sysdeps/unix/sysv/linux/timer_create.c
 In particular:
 .IP * 3
-The functionality for
+Much of the functionality for
 .BR SIGEV_THREAD
 is implemented within glibc, rather than the kernel.
+(This is necessarily so,
+since the thread involved in handling the notification is one
+that must be managed by the C library POSIX threads implementation.)
+Although the notification delivered to the process is via a thread,
+internally the NPTL implementation uses a
+.I sigev_notify
+value of
+.BR SIGEV_THREAD_ID
+along with a real-time signal that is reserved by the implementation (see
+.BR nptl (7)).
+.IP *
+The implementation of the default case where
+.I evp
+is NULL is handled inside glibc,
+which invokes the underlying system call with a suitably populated
+.I sigevent
+structure.
 .IP *
 The timer IDs presented at user level are maintained by glibc,
 which maps these IDs to the timer IDs employed by the kernel.
@@ -259,9 +331,11 @@ Prior to this,
 glibc provided an incomplete user-space implementation
 .RB ( CLOCK_REALTIME
 timers only) using POSIX threads,
-and current glibc falls back to this implementation on systems
+and in glibc versions before 2.17,
+.\" glibc commit 93a78ac437ba44f493333d7e2a4b0249839ce460
+the implementation falls back to this technique on systems
 running pre-2.6 Linux kernels.
-.SH EXAMPLE
+.SH EXAMPLES
 The program below takes two arguments: a sleep period in seconds,
 and a timer frequency in nanoseconds.
 The program establishes a handler for the signal it uses for the timer,
@@ -273,14 +347,14 @@ Assuming that the timer expired at least once while the program slept,
 the signal handler will be invoked,
 and the handler displays some information about the timer notification.
 The program terminates after one invocation of the signal handler.
-
+.PP
 In the following example run, the program sleeps for 1 second,
 after creating a timer that has a frequency of 100 nanoseconds.
 By the time the signal is unblocked and delivered,
 there have been around ten million overruns.
+.PP
 .in +4n
-.nf
-
+.EX
 $ \fB./a.out 1 100\fP
 Establishing handler for signal 34
 Blocking signal 34
@@ -290,11 +364,12 @@ Unblocking signal 34
 Caught signal 34
     sival_ptr = 0xbfb174f4;     *sival_ptr = 0x804c008
     overrun count = 10004886
-.fi
+.EE
 .in
 .SS Program source
 \&
-.nf
+.EX
+#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -304,7 +379,7 @@ Caught signal 34
 #define CLOCKID CLOCK_REALTIME
 #define SIG SIGRTMIN
 
-#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \\
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
                         } while (0)
 
 static void
@@ -316,23 +391,25 @@ print_siginfo(siginfo_t *si)
     tidp = si\->si_value.sival_ptr;
 
     printf("    sival_ptr = %p; ", si\->si_value.sival_ptr);
-    printf("    *sival_ptr = 0x%lx\\n", (long) *tidp);
+    printf("    *sival_ptr = %#jx\en", (uintmax_t) *tidp);
 
     or = timer_getoverrun(*tidp);
     if (or == \-1)
         errExit("timer_getoverrun");
     else
-        printf("    overrun count = %d\\n", or);
+        printf("    overrun count = %d\en", or);
 }
 
 static void
 handler(int sig, siginfo_t *si, void *uc)
 {
-    /* Note: calling printf() from a signal handler is not
-       strictly correct, since printf() is not async\-signal\-safe;
-       see signal(7) */
+    /* Note: calling printf() from a signal handler is not safe
+       (and should not be done in production programs), since
+       printf() is not async\-signal\-safe; see signal-safety(7).
+       Nevertheless, we use printf() here as a simple way of
+       showing that the handler was called. */
 
-    printf("Caught signal %d\\n", sig);
+    printf("Caught signal %d\en", sig);
     print_siginfo(si);
     signal(sig, SIG_IGN);
 }
@@ -348,14 +425,14 @@ main(int argc, char *argv[])
     struct sigaction sa;
 
     if (argc != 3) {
-        fprintf(stderr, "Usage: %s <sleep\-secs> <freq\-nanosecs>\\n",
+        fprintf(stderr, "Usage: %s <sleep\-secs> <freq\-nanosecs>\en",
                 argv[0]);
         exit(EXIT_FAILURE);
     }
 
     /* Establish handler for timer signal */
 
-    printf("Establishing handler for signal %d\\n", SIG);
+    printf("Establishing handler for signal %d\en", SIG);
     sa.sa_flags = SA_SIGINFO;
     sa.sa_sigaction = handler;
     sigemptyset(&sa.sa_mask);
@@ -364,7 +441,7 @@ main(int argc, char *argv[])
 
     /* Block timer signal temporarily */
 
-    printf("Blocking signal %d\\n", SIG);
+    printf("Blocking signal %d\en", SIG);
     sigemptyset(&mask);
     sigaddset(&mask, SIG);
     if (sigprocmask(SIG_SETMASK, &mask, NULL) == \-1)
@@ -378,7 +455,7 @@ main(int argc, char *argv[])
     if (timer_create(CLOCKID, &sev, &timerid) == \-1)
         errExit("timer_create");
 
-    printf("timer ID is 0x%lx\\n", (long) timerid);
+    printf("timer ID is %#jx\en", (uintmax_t) timerid);
 
     /* Start the timer */
 
@@ -394,19 +471,19 @@ main(int argc, char *argv[])
     /* Sleep for a while; meanwhile, the timer may expire
        multiple times */
 
-    printf("Sleeping for %d seconds\\n", atoi(argv[1]));
+    printf("Sleeping for %d seconds\en", atoi(argv[1]));
     sleep(atoi(argv[1]));
 
     /* Unlock the timer signal, so that timer notification
        can be delivered */
 
-    printf("Unblocking signal %d\\n", SIG);
+    printf("Unblocking signal %d\en", SIG);
     if (sigprocmask(SIG_UNBLOCK, &mask, NULL) == \-1)
         errExit("sigprocmask");
 
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SH SEE ALSO
 .ad l
 .nh
@@ -423,11 +500,11 @@ main(int argc, char *argv[])
 .BR signal (7),
 .BR time (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

@@ -41,42 +41,43 @@
 .\" 2011-09-20, Guillem Jover <guillem@hadrons.org>:
 .\"     Added text on dynamically allocating buffer + example program
 .\"
-.TH READLINK 2 2014-10-15 "Linux" "Linux Programmer's Manual"
+.TH READLINK 2 2020-06-09 "Linux" "Linux Programmer's Manual"
 .SH NAME
 readlink, readlinkat \- read value of a symbolic link
 .SH SYNOPSIS
 .nf
 .B #include <unistd.h>
-.sp
+.PP
 .BI "ssize_t readlink(const char *" pathname ", char *" buf \
 ", size_t " bufsiz );
-.sp
+
 .BR "#include <fcntl.h>           " "/* Definition of AT_* constants */"
 .B #include <unistd.h>
-.sp
+.PP
 .BI "ssize_t readlinkat(int " dirfd ", const char *" pathname ,
 .BI "                   char *" buf ", size_t " bufsiz );
-.sp
+.PP
 .fi
-.in -4n
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .ad l
 .BR readlink ():
 .RS 4
-_BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 ||
-_XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED || _POSIX_C_SOURCE\ >=\ 200112L
+_XOPEN_SOURCE\ >=\ 500 || _POSIX_C_SOURCE\ >=\ 200112L
+.\"    || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+    || /* Glibc versions <= 2.19: */ _BSD_SOURCE
 .RE
-.sp
+.PP
 .BR readlinkat ():
 .PD 0
 .ad l
 .RS 4
 .TP 4
 Since glibc 2.10:
-_XOPEN_SOURCE\ >=\ 700 || _POSIX_C_SOURCE\ >=\ 200809L
+_POSIX_C_SOURCE\ >=\ 200809L
 .TP
 Before glibc 2.10:
 _ATFILE_SOURCE
@@ -94,7 +95,7 @@ which has size
 .BR readlink ()
 does not append a null byte to
 .IR buf .
-It will truncate the contents (to a length of
+It will (silently) truncate the contents (to a length of
 .I bufsiz
 characters), in case the buffer is too small to hold all of the contents.
 .SS readlinkat()
@@ -103,7 +104,7 @@ The
 system call operates in exactly the same way as
 .BR readlink (),
 except for the differences described here.
-
+.PP
 If the pathname given in
 .I pathname
 is relative, then it is interpreted relative to the directory
@@ -113,7 +114,7 @@ referred to by the file descriptor
 the calling process, as is done by
 .BR readlink ()
 for a relative pathname).
-
+.PP
 If
 .I pathname
 is relative and
@@ -125,13 +126,13 @@ then
 is interpreted relative to the current working
 directory of the calling process (like
 .BR readlink ()).
-
+.PP
 If
 .I pathname
 is absolute, then
 .I dirfd
 is ignored.
-
+.PP
 Since Linux 2.6.39,
 .\" commit 65cfc6722361570bfe255698d9cd4dccaf47570d
 .I pathname
@@ -153,6 +154,9 @@ for an explanation of the need for
 .SH RETURN VALUE
 On success, these calls return the number of bytes placed in
 .IR buf .
+(If the returned value equals
+.IR bufsiz ,
+then truncation may have occurred.)
 On error, \-1 is returned and
 .I errno
 is set to indicate the error.
@@ -177,7 +181,9 @@ is not positive.
 .\" Subject: [patch 0/3] [RFC] kernel/glibc mismatch of "readlink" syscall?
 .TP
 .B EINVAL
-The named file is not a symbolic link.
+The named file (i.e., the final filename component of
+.IR pathname )
+is not a symbolic link.
 .TP
 .B EIO
 An I/O error occurred while reading from the filesystem.
@@ -219,7 +225,7 @@ library support was added to glibc in version 2.4.
 .RB ( readlink ()
 first appeared in 4.2BSD),
 POSIX.1-2001, POSIX.1-2008.
-
+.PP
 .BR readlinkat ():
 POSIX.1-2008.
 .SH NOTES
@@ -230,7 +236,7 @@ was declared as
 Nowadays, the return type is declared as
 .IR ssize_t ,
 as (newly) required in POSIX.1-2001.
-
+.PP
 Using a statically sized buffer might not provide enough room for the
 symbolic link contents.
 The required size for the buffer can be obtained from the
@@ -249,7 +255,7 @@ Dynamically allocating the buffer for
 and
 .BR readlinkat ()
 also addresses a common portability problem when using
-.I PATH_MAX
+.B PATH_MAX
 for the buffer size,
 as this constant is not guaranteed to be defined per POSIX
 if the system does not have such limit.
@@ -266,16 +272,21 @@ glibc constructs a pathname based on the symbolic link in
 that corresponds to the
 .IR dirfd
 argument.
-.SH EXAMPLE
+.SH EXAMPLES
 The following program allocates the buffer needed by
 .BR readlink ()
 dynamically from the information provided by
-.BR lstat (),
-making sure there's no race condition between the calls.
-.nf
-
+.BR lstat (2),
+falling back to a buffer of size
+.BR PATH_MAX
+in cases where
+.BR lstat (2)
+reports a size of zero.
+.PP
+.EX
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -284,11 +295,11 @@ int
 main(int argc, char *argv[])
 {
     struct stat sb;
-    char *linkname;
-    ssize_t r;
+    char *buf;
+    ssize_t nbytes, bufsiz;
 
     if (argc != 2) {
-        fprintf(stderr, "Usage: %s <pathname>\\n", argv[0]);
+        fprintf(stderr, "Usage: %s <pathname>\en", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -297,34 +308,45 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    linkname = malloc(sb.st_size + 1);
-    if (linkname == NULL) {
-        fprintf(stderr, "insufficient memory\\n");
+    /* Add one to the link size, so that we can determine whether
+       the buffer returned by readlink() was truncated. */
+
+    bufsiz = sb.st_size + 1;
+
+    /* Some magic symlinks under (for example) /proc and /sys
+       report \(aqst_size\(aq as zero. In that case, take PATH_MAX as
+       a "good enough" estimate. */
+
+    if (sb.st_size == 0)
+        bufsiz = PATH_MAX;
+
+    buf = malloc(bufsiz);
+    if (buf == NULL) {
+        perror("malloc");
         exit(EXIT_FAILURE);
     }
 
-    r = readlink(argv[1], linkname, sb.st_size + 1);
-
-    if (r == \-1) {
+    nbytes = readlink(argv[1], buf, bufsiz);
+    if (nbytes == \-1) {
         perror("readlink");
         exit(EXIT_FAILURE);
     }
 
-    if (r > sb.st_size) {
-        fprintf(stderr, "symlink increased in size "
-                        "between lstat() and readlink()\\n");
-        exit(EXIT_FAILURE);
-    }
+    printf("\(aq%s\(aq points to \(aq%.*s\(aq\en", argv[1], (int) nbytes, buf);
 
-    linkname[r] = \(aq\\0\(aq;
+    /* If the return value was equal to the buffer size, then the
+       the link target was larger than expected (perhaps because the
+       target was changed between the call to lstat() and the call to
+       readlink()). Warn the user that the returned target may have
+       been truncated. */
 
-    printf("\(aq%s\(aq points to \(aq%s\(aq\\n", argv[1], linkname);
+    if (nbytes == bufsiz)
+        printf("(Returned buffer may have been truncated)\en");
 
-    free(linkname);
-
+    free(buf);
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SH SEE ALSO
 .BR readlink (1),
 .BR lstat (2),
@@ -334,11 +356,11 @@ main(int argc, char *argv[])
 .BR path_resolution (7),
 .BR symlink (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

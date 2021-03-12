@@ -22,7 +22,7 @@
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
 .\"
-.TH OPEN_BY_HANDLE_AT 2 2014-06-13 "Linux" "Linux Programmer's Manual"
+.TH OPEN_BY_HANDLE_AT 2 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 name_to_handle_at, open_by_handle_at \- obtain handle
 for a pathname and open file via a handle
@@ -32,11 +32,11 @@ for a pathname and open file via a handle
 .B #include <sys/types.h>
 .B #include <sys/stat.h>
 .B #include <fcntl.h>
-
+.PP
 .BI "int name_to_handle_at(int " dirfd ", const char *" pathname ,
 .BI "                      struct file_handle *" handle ,
 .BI "                      int *" mount_id ", int " flags );
-
+.PP
 .BI "int open_by_handle_at(int " mount_fd ", struct file_handle *" handle ,
 .BI "                      int " flags );
 .fi
@@ -68,16 +68,16 @@ arguments.
 The file handle is returned via the argument
 .IR handle ,
 which is a pointer to a structure of the following form:
-
+.PP
 .in +4n
-.nf
+.EX
 struct file_handle {
     unsigned int  handle_bytes;   /* Size of f_handle [in, out] */
     int           handle_type;    /* Handle type [out] */
     unsigned char f_handle[0];    /* File identifier (sized by
                                      caller) [out] */
 };
-.fi
+.EE
 .in
 .PP
 It is the caller's responsibility to allocate the structure
@@ -91,12 +91,14 @@ field should be initialized to contain the allocated size for
 .BR MAX_HANDLE_SZ ,
 defined in
 .IR <fcntl.h> ,
-specifies the maximum possible size for a file handle.)
+specifies the maximum expected size for a file handle.
+It is not a
+guaranteed upper limit as future filesystems may require more space.)
 Upon successful return, the
 .IR handle_bytes
 field is updated to contain the number of bytes actually written to
 .IR f_handle .
-
+.PP
 The caller can discover the required size for the
 .I file_handle
 structure by making a call in which
@@ -108,8 +110,17 @@ and
 .IR handle->handle_bytes
 is set to indicate the required size;
 the caller can then use this information to allocate a structure
-of the correct size (see EXAMPLE below).
-
+of the correct size (see EXAMPLES below).
+Some care is needed here as
+.BR EOVERFLOW
+can also indicate that no file handle is available for this particular
+name in a filesystem which does normally support file-handle lookup.
+This case can be detected when the
+.B EOVERFLOW
+error is returned without
+.I handle_bytes
+being increased.
+.PP
 Other than the use of the
 .IR handle_bytes
 field, the caller should treat the
@@ -120,7 +131,7 @@ and
 .IR f_handle
 fields are needed only by a subsequent call to
 .BR open_by_handle_at ().
-
+.PP
 The
 .I flags
 argument is a bit mask constructed by ORing together zero or more of
@@ -128,7 +139,7 @@ argument is a bit mask constructed by ORing together zero or more of
 and
 .BR AT_SYMLINK_FOLLOW ,
 described below.
-
+.PP
 Together, the
 .I pathname
 and
@@ -193,7 +204,11 @@ Opening the pathname in the fifth field of that record yields a file
 descriptor for the mount point;
 that file descriptor can be used in a subsequent call to
 .BR open_by_handle_at ().
-
+.I mount_id
+is returned both for a successful call and for a call that results
+in the error
+.BR EOVERFLOW .
+.PP
 By default,
 .BR name_to_handle_at ()
 does not dereference
@@ -206,6 +221,23 @@ is specified in
 .I pathname
 is dereferenced if it is a symbolic link
 (so that the call returns a handle for the file referred to by the link).
+.PP
+.BR name_to_handle_at ()
+does not trigger a mount when the final component of the pathname is an
+automount point.
+When a filesystem supports both file handles and
+automount points, a
+.BR name_to_handle_at ()
+call on an automount point will return with error
+.BR EOVERFLOW
+without having increased
+.IR handle_bytes .
+This can happen since Linux 4.13
+.\" commit 20fa19027286983ab2734b5910c4a687436e0c31
+with NFS when accessing a directory
+which is on a separate filesystem on the server.
+In this case, the automount can be triggered by adding a "/" to the end
+of the pathname.
 .SS open_by_handle_at()
 The
 .BR open_by_handle_at ()
@@ -213,7 +245,7 @@ system call opens the file referred to by
 .IR handle ,
 a file handle returned by a previous call to
 .BR name_to_handle_at ().
-
+.PP
 The
 .IR mount_fd
 argument is a file descriptor for any object (file, directory, etc.)
@@ -223,7 +255,7 @@ should be interpreted.
 The special value
 .B AT_FDCWD
 can be specified, meaning the current working directory of the caller.
-
+.PP
 The
 .I flags
 argument
@@ -236,8 +268,7 @@ refers to a symbolic link, the caller must specify the
 flag, and the symbolic link is not dereferenced; the
 .B O_NOFOLLOW
 flag, if specified, is ignored.
-
-
+.PP
 The caller must have the
 .B CAP_DAC_READ_SEARCH
 capability to invoke
@@ -248,8 +279,8 @@ On success,
 returns 0,
 and
 .BR open_by_handle_at ()
-returns a nonnegative file descriptor.
-
+returns a file descriptor (a nonnegative integer).
+.PP
 In the event of an error, both system calls return \-1 and set
 .I errno
 to indicate the cause of the error.
@@ -260,7 +291,7 @@ and
 can fail for the same errors as
 .BR openat (2).
 In addition, they can fail with the errors noted below.
-
+.PP
 .BR name_to_handle_at ()
 can fail with the following errors:
 .TP
@@ -351,7 +382,7 @@ These system calls first appeared in Linux 2.6.39.
 Library support is provided in glibc since version 2.14.
 .SH CONFORMING TO
 These system calls are nonstandard Linux extensions.
-
+.PP
 FreeBSD has a broadly similar pair of system calls in the form of
 .BR getfh ()
 and
@@ -361,20 +392,20 @@ A file handle can be generated in one process using
 .BR name_to_handle_at ()
 and later used in a different process that calls
 .BR open_by_handle_at ().
-
+.PP
 Some filesystem don't support the translation of pathnames to
 file handles, for example,
 .IR /proc ,
 .IR /sys ,
 and various network filesystems.
-
+.PP
 A file handle may become invalid ("stale") if a file is deleted,
 or for other filesystem-specific reasons.
 Invalid handles are notified by an
 .B ESTALE
 error from
 .BR open_by_handle_at ().
-
+.PP
 These system calls are designed for use by user-space file servers.
 For example, a user-space NFS server might generate a file handle
 and pass it to an NFS client.
@@ -384,7 +415,7 @@ it could pass the handle back to the server.
 .\"	"Open by handle" - Jonathan Corbet, 2010-02-23
 This sort of functionality allows a user-space file server to operate in
 a stateless fashion with respect to the files it serves.
-
+.PP
 If
 .I pathname
 refers to a symbolic link and
@@ -420,7 +451,7 @@ However, an application can use the information in the
 .I mountinfo
 record that corresponds to the mount ID
 to derive a persistent identifier.
-
+.PP
 For example, one can use the device name in the fifth field of the
 .I mountinfo
 record to search for the corresponding device UUID via the symbolic links in
@@ -436,7 +467,7 @@ in order to produce the
 .IR mount_fd
 argument used by
 .BR open_by_handle_at ().
-.SH EXAMPLE
+.SH EXAMPLES
 The two programs below demonstrate the use of
 .BR name_to_handle_at ()
 and
@@ -448,7 +479,7 @@ uses
 to obtain the file handle and mount ID
 for the file specified in its command-line argument;
 the handle and mount ID are written to standard output.
-
+.PP
 The second program
 .RI ( t_open_by_handle_at.c )
 reads a mount ID and file handle from standard input.
@@ -468,21 +499,21 @@ to find a record whose mount ID matches the mount ID
 read from standard input,
 and the mount directory specified in that record is opened.
 (These programs do not deal with the fact that mount IDs are not persistent.)
-
+.PP
 The following shell session demonstrates the use of these two programs:
-
+.PP
 .in +4n
-.nf
-$ \fBecho 'Can you please think about it?' > cecilia.txt\fP
+.EX
+$ \fBecho \(aqCan you please think about it?\(aq > cecilia.txt\fP
 $ \fB./t_name_to_handle_at cecilia.txt > fh\fP
 $ \fB./t_open_by_handle_at < fh\fP
 open_by_handle_at: Operation not permitted
 $ \fBsudo ./t_open_by_handle_at < fh\fP      # Need CAP_SYS_ADMIN
 Read 31 bytes
 $ \fBrm cecilia.txt\fP
-.fi
+.EE
 .in
-
+.PP
 Now we delete and (quickly) re-create the file so that
 it has the same content and (by chance) the same inode.
 Nevertheless,
@@ -491,22 +522,22 @@ Nevertheless,
 .\" counter that gets incremented in this case.
 recognizes that the original file referred to by the file handle
 no longer exists.
-
+.PP
 .in +4n
-.nf
-$ \fBstat \-\-printf="%i\\n" cecilia.txt\fP     # Display inode number
+.EX
+$ \fBstat \-\-printf="%i\en" cecilia.txt\fP     # Display inode number
 4072121
 $ \fBrm cecilia.txt\fP
-$ \fBecho 'Can you please think about it?' > cecilia.txt\fP
-$ \fBstat \-\-printf="%i\\n" cecilia.txt\fP     # Check inode number
+$ \fBecho \(aqCan you please think about it?\(aq > cecilia.txt\fP
+$ \fBstat \-\-printf="%i\en" cecilia.txt\fP     # Check inode number
 4072121
 $ \fBsudo ./t_open_by_handle_at < fh\fP
 open_by_handle_at: Stale NFS file handle
-.fi
+.EE
 .in
 .SS Program source: t_name_to_handle_at.c
 \&
-.nf
+.EX
 #define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -517,18 +548,18 @@ open_by_handle_at: Stale NFS file handle
 #include <errno.h>
 #include <string.h>
 
-#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \\
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
                         } while (0)
 
 int
 main(int argc, char *argv[])
 {
     struct file_handle *fhp;
-    int mount_id, fhsize, flags, dirfd, j;
+    int mount_id, fhsize, flags, dirfd;
     char *pathname;
 
     if (argc != 2) {
-        fprintf(stderr, "Usage: %s pathname\\n", argv[0]);
+        fprintf(stderr, "Usage: %s pathname\en", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -549,13 +580,13 @@ main(int argc, char *argv[])
     fhp\->handle_bytes = 0;
     if (name_to_handle_at(dirfd, pathname, fhp,
                 &mount_id, flags) != \-1 || errno != EOVERFLOW) {
-        fprintf(stderr, "Unexpected result from name_to_handle_at()\\n");
+        fprintf(stderr, "Unexpected result from name_to_handle_at()\en");
         exit(EXIT_FAILURE);
     }
 
     /* Reallocate file_handle structure with correct size */
 
-    fhsize = sizeof(struct file_handle) + fhp\->handle_bytes;
+    fhsize = sizeof(*fhp) + fhp\->handle_bytes;
     fhp = realloc(fhp, fhsize);         /* Copies fhp\->handle_bytes */
     if (fhp == NULL)
         errExit("realloc");
@@ -568,18 +599,18 @@ main(int argc, char *argv[])
     /* Write mount ID, file handle size, and file handle to stdout,
        for later reuse by t_open_by_handle_at.c */
 
-    printf("%d\\n", mount_id);
-    printf("%d %d   ", fhp\->handle_bytes, fhp\->handle_type);
-    for (j = 0; j < fhp\->handle_bytes; j++)
+    printf("%d\en", mount_id);
+    printf("%u %d   ", fhp\->handle_bytes, fhp\->handle_type);
+    for (int j = 0; j < fhp\->handle_bytes; j++)
         printf(" %02x", fhp\->f_handle[j]);
-    printf("\\n");
+    printf("\en");
 
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SS Program source: t_open_by_handle_at.c
 \&
-.nf
+.EX
 #define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -590,7 +621,7 @@ main(int argc, char *argv[])
 #include <unistd.h>
 #include <string.h>
 
-#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \\
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
                         } while (0)
 
 /* Scan /proc/self/mountinfo to find the line whose mount ID matches
@@ -623,7 +654,7 @@ open_mount_path_by_id(int mount_id)
         nread = sscanf(linep, "%d %*d %*s %*s %s",
                        &mi_mount_id, mount_path);
         if (nread != 2) {
-            fprintf(stderr, "Bad sscanf()\\n");
+            fprintf(stderr, "Bad sscanf()\en");
             exit(EXIT_FAILURE);
         }
 
@@ -635,7 +666,7 @@ open_mount_path_by_id(int mount_id)
     fclose(fp);
 
     if (!found) {
-        fprintf(stderr, "Could not find mount point\\n");
+        fprintf(stderr, "Could not find mount point\en");
         exit(EXIT_FAILURE);
     }
 
@@ -646,7 +677,7 @@ int
 main(int argc, char *argv[])
 {
     struct file_handle *fhp;
-    int mount_id, fd, mount_fd, handle_bytes, j;
+    int mount_id, fd, mount_fd, handle_bytes;
     ssize_t nread;
     char buf[1000];
 #define LINE_SIZE 100
@@ -654,7 +685,7 @@ main(int argc, char *argv[])
     char *nextp;
 
     if ((argc > 1 && strcmp(argv[1], "\-\-help") == 0) || argc > 2) {
-        fprintf(stderr, "Usage: %s [mount\-path]\\n", argv[0]);
+        fprintf(stderr, "Usage: %s [mount\-path]\en", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -666,7 +697,7 @@ main(int argc, char *argv[])
 
     if ((fgets(line1, sizeof(line1), stdin) == NULL) ||
            (fgets(line2, sizeof(line2), stdin) == NULL)) {
-        fprintf(stderr, "Missing mount_id / file handle\\n");
+        fprintf(stderr, "Missing mount_id / file handle\en");
         exit(EXIT_FAILURE);
     }
 
@@ -676,7 +707,7 @@ main(int argc, char *argv[])
 
     /* Given handle_bytes, we can now allocate file_handle structure */
 
-    fhp = malloc(sizeof(struct file_handle) + handle_bytes);
+    fhp = malloc(sizeof(*fhp) + handle_bytes);
     if (fhp == NULL)
         errExit("malloc");
 
@@ -684,7 +715,7 @@ main(int argc, char *argv[])
 
     fhp\->handle_type = strtoul(nextp, &nextp, 0);
 
-    for (j = 0; j < fhp\->handle_bytes; j++)
+    for (int j = 0; j < fhp\->handle_bytes; j++)
         fhp\->f_handle[j] = strtoul(nextp, &nextp, 16);
 
     /* Obtain file descriptor for mount point, either by opening
@@ -712,18 +743,18 @@ main(int argc, char *argv[])
     if (nread == \-1)
         errExit("read");
 
-    printf("Read %zd bytes\\n", nread);
+    printf("Read %zd bytes\en", nread);
 
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SH SEE ALSO
 .BR open (2),
 .BR libblkid (3),
 .BR blkid (8),
 .BR findfs (8),
 .BR mount (8)
-
+.PP
 The
 .I libblkid
 and
@@ -731,14 +762,14 @@ and
 documentation in the latest
 .I util-linux
 release at
-.UR https://www.kernel.org/pub/linux/utils/util-linux/
+.UR https://www.kernel.org/pub/linux/utils/util\-linux/
 .UE
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

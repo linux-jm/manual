@@ -30,19 +30,19 @@
 .\" Modified 1997-08-21 by Joseph S. Myers <jsm28@cam.ac.uk>
 .\" Modified 2004-06-23 by Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
-.TH CHROOT 2 2010-09-20 "Linux" "Linux Programmer's Manual"
+.TH CHROOT 2 2020-12-21 "Linux" "Linux Programmer's Manual"
 .SH NAME
 chroot \- change root directory
 .SH SYNOPSIS
 .B #include <unistd.h>
-.sp
+.PP
 .BI "int chroot(const char *" path );
-.sp
-.in -4n
+.PP
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .BR chroot ():
 .ad l
 .RS 4
@@ -50,12 +50,11 @@ Feature Test Macro Requirements for glibc (see
 .TP 4
 Since glibc 2.2.2:
 .nf
-_BSD_SOURCE ||
-    (_XOPEN_SOURCE\ >=\ 500 ||
-        _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED) &&
-    !(_POSIX_C_SOURCE\ >=\ 200112L || _XOPEN_SOURCE\ >=\ 600)
-.TP 4
+_XOPEN_SOURCE && ! (_POSIX_C_SOURCE\ >=\ 200112L)
+    || /* Since glibc 2.20: */ _DEFAULT_SOURCE
+    || /* Glibc versions <= 2.19: */ _BSD_SOURCE
 .fi
+.TP 4
 Before glibc 2.2.2: none
 .PD
 .RE
@@ -66,25 +65,52 @@ changes the root directory of the calling process to that specified in
 .IR path .
 This directory will be used for pathnames beginning with \fI/\fP.
 The root directory is inherited by all children of the calling process.
-
+.PP
 Only a privileged process (Linux: one with the
 .B CAP_SYS_CHROOT
-capability) may call
+capability in its user namespace) may call
 .BR chroot ().
-
+.PP
 This call changes an ingredient in the pathname resolution process
 and does nothing else.
-
+In particular, it is not intended to be used
+for any kind of security purpose, neither to fully sandbox a process nor
+to restrict filesystem system calls.
+In the past,
+.BR chroot ()
+has been used by daemons to restrict themselves prior to passing paths
+supplied by untrusted users to system calls such as
+.BR open (2).
+However, if a folder is moved out of the chroot directory, an attacker
+can exploit that to get out of the chroot directory as well.
+The easiest way to do that is to
+.BR chdir (2)
+to the to-be-moved directory, wait for it to be moved out, then open a
+path like ../../../etc/passwd.
+.PP
+.\" This is how the "slightly trickier variation" works:
+.\" https://github.com/QubesOS/qubes-secpack/blob/master/QSBs/qsb-014-2015.txt#L142
+A slightly
+trickier variation also works under some circumstances if
+.BR chdir (2)
+is not permitted.
+If a daemon allows a "chroot directory" to be specified,
+that usually means that if you want to prevent remote users from accessing
+files outside the chroot directory, you must ensure that folders are never
+moved out of it.
+.PP
 This call does not change the current working directory,
 so that after the call \(aq\fI.\fP\(aq can
 be outside the tree rooted at \(aq\fI/\fP\(aq.
 In particular, the superuser can escape from a "chroot jail"
 by doing:
-.nf
-
-    mkdir foo; chroot foo; cd ..
-.fi
-
+.PP
+.in +4n
+.EX
+mkdir foo; chroot foo; cd ..
+.EE
+.in
+.PP
 This call does not close open file descriptors, and such file
 descriptors may allow access to files outside the chroot tree.
 .SH RETURN VALUE
@@ -142,21 +168,28 @@ A child process created via
 inherits its parent's root directory.
 The root directory is left unchanged by
 .BR execve (2).
-
+.PP
+The magic symbolic link,
+.IR /proc/[pid]/root ,
+can be used to discover a process's root directory; see
+.BR proc (5)
+for details.
+.PP
 FreeBSD has a stronger
 .BR jail ()
 system call.
-.\" FIXME . eventually say something about containers,
-.\" virtual servers, etc.?
 .SH SEE ALSO
+.BR chroot (1),
 .BR chdir (2),
-.BR path_resolution (7)
+.BR pivot_root (2),
+.BR path_resolution (7),
+.BR switch_root (8)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

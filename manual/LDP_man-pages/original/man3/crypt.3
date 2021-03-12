@@ -33,25 +33,23 @@
 .\" added _XOPEN_SOURCE, aeb, 970705
 .\" added GNU MD5 stuff, aeb, 011223
 .\"
-.TH CRYPT 3 2014-02-26 "" "Linux Programmer's Manual"
+.TH CRYPT 3 2018-04-30 "" "Linux Programmer's Manual"
 .SH NAME
 crypt, crypt_r \- password and data encryption
 .SH SYNOPSIS
 .nf
 .BR "#define _XOPEN_SOURCE" "       /* See feature_test_macros(7) */"
-.br
 .B #include <unistd.h>
-.sp
+.PP
 .BI "char *crypt(const char *" key ", const char *" salt );
-.sp
+
 .BR "#define _GNU_SOURCE" "         /* See feature_test_macros(7) */"
-.br
 .B #include <crypt.h>
-.sp
+.PP
 .BI "char *crypt_r(const char *" key ", const char *" salt ,
 .BI "              struct crypt_data *" data );
 .fi
-.sp
+.PP
 Link with \fI\-lcrypt\fP.
 .SH DESCRIPTION
 .BR crypt ()
@@ -80,7 +78,7 @@ characters (the first two characters represent the salt itself).
 The return value points to static data whose content is
 overwritten by each call.
 .PP
-Warning: The key space consists of
+Warning: the key space consists of
 .if t 2\s-2\u56\s0\d
 .if n 2**56
 equal 7.2e16 possible values.
@@ -105,7 +103,7 @@ If you are planning on using the
 .BR crypt ()
 interface for a cryptography project, don't do it: get a good book on
 encryption and one of the widely available DES libraries.
-
+.PP
 .BR crypt_r ()
 is a reentrant version of
 .BR crypt ().
@@ -125,8 +123,6 @@ On error, NULL is returned.
 .B EINVAL
 .I salt
 has the wrong format.
-.TP
-.B
 .TP
 .B ENOSYS
 The
@@ -172,37 +168,68 @@ function was not implemented, probably because of U.S.A. export restrictions.
 has a nonzero value,
 and an attempt was made to use a weak encryption type, such as DES.
 .SH ATTRIBUTES
-.SS Multithreading (see pthreads(7))
-The
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lb lb lb
+l l l.
+Interface	Attribute	Value
+T{
 .BR crypt ()
-function is not thread-safe.
-.LP
-The
+T}	Thread safety	MT-Unsafe race:crypt
+T{
 .BR crypt_r ()
-function is thread-safe.
+T}	Thread safety	MT-Safe
+.TE
 .SH CONFORMING TO
 .BR crypt ():
-SVr4, 4.3BSD, POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008, SVr4, 4.3BSD.
 .BR crypt_r ()
 is a GNU extension.
 .SH NOTES
-.SS Glibc notes
-The glibc2 version of this function supports additional
+.SS Availability in glibc
+The
+.BR crypt (),
+.BR encrypt (3),
+and
+.BR setkey (3)
+functions are part of the POSIX.1-2008 XSI Options Group for Encryption
+and are optional.
+If the interfaces are not available, then the symbolic constant
+.BR _XOPEN_CRYPT
+is either not defined,
+or it is defined to \-1 and availability can be checked at run time with
+.BR sysconf (3).
+This may be the case if the downstream distribution has switched from glibc
+crypt to
+.IR libxcrypt .
+When recompiling applications in such distributions,
+the programmer must detect if
+.BR _XOPEN_CRYPT
+is not available and include
+.I <crypt.h>
+for the function prototypes;
+otherwise
+.I libxcrypt
+is an ABI-compatible drop-in replacement.
+.SS Features in glibc
+The glibc version of this function supports additional
 encryption algorithms.
-
+.PP
 If
 .I salt
 is a character string starting with the characters "$\fIid\fP$"
-followed by a string terminated by "$":
+followed by a string optionally terminated by "$",
+then the result has the form:
 .RS
-
+.PP
 $\fIid\fP$\fIsalt\fP$\fIencrypted\fP
-
 .RE
-then instead of using the DES machine,
+.PP
 .I id
-identifies the encryption method used and this then determines how the rest
-of the password string is interpreted.
+identifies the encryption method used instead of DES and this
+then determines how the rest of the password string is interpreted.
 The following values of
 .I id
 are supported:
@@ -224,14 +251,15 @@ _
 6   | SHA-512 (since glibc 2.7)
 .TE
 .RE
-
-So $5$\fIsalt\fP$\fIencrypted\fP is an SHA-256 encoded
-password and $6$\fIsalt\fP$\fIencrypted\fP is an
-SHA-512 encoded one.
-
+.PP
+Thus, $5$\fIsalt\fP$\fIencrypted\fP and $6$\fIsalt\fP$\fIencrypted\fP
+contain the password encrypted with, respectively, functions
+based on SHA-256 and SHA-512.
+.PP
 "\fIsalt\fP" stands for the up to 16 characters
 following "$\fIid\fP$" in the salt.
-The encrypted part of the password string is the actual computed password.
+The "\fIencrypted\fP"
+part of the password string is the actual computed password.
 The size of this string is fixed:
 .TS
 l l.
@@ -239,13 +267,36 @@ MD5     | 22 characters
 SHA-256 | 43 characters
 SHA-512 | 86 characters
 .TE
-
+.sp 1
 The characters in "\fIsalt\fP" and "\fIencrypted\fP" are drawn from the set
 [\fBa\-zA\-Z0\-9./\fP].
 In the MD5 and SHA implementations the entire
 .I key
 is significant (instead of only the first
 8 bytes in DES).
+.PP
+Since glibc 2.7,
+.\" glibc commit 9425cb9eea6a62fc21d99aafe8a60f752b934b05
+the SHA-256 and SHA-512 implementations support a user-supplied number of
+hashing rounds, defaulting to 5000.
+If the "$\fIid\fP$" characters in the salt are
+followed by "rounds=\fIxxx\fP$", where \fIxxx\fP is an integer, then the
+result has the form
+.RS
+.PP
+$\fIid\fP$\fIrounds=yyy\fP$\fIsalt\fP$\fIencrypted\fP
+.RE
+.PP
+where \fIyyy\fP is the number of hashing rounds actually used.
+The number of rounds actually used is 1000 if
+.I xxx
+is less than
+1000, 999999999 if
+.I xxx
+is greater than 999999999, and
+is equal to
+.I xxx
+otherwise.
 .SH SEE ALSO
 .BR login (1),
 .BR passwd (1),
@@ -253,11 +304,11 @@ is significant (instead of only the first
 .BR getpass (3),
 .BR passwd (5)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

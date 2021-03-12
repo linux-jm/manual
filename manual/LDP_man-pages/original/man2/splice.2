@@ -23,14 +23,14 @@
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
 .\"
-.TH SPLICE 2 2014-12-31 "Linux" "Linux Programmer's Manual"
+.TH SPLICE 2 2020-06-09 "Linux" "Linux Programmer's Manual"
 .SH NAME
 splice \- splice data to/from a pipe
 .SH SYNOPSIS
 .nf
 .BR "#define _GNU_SOURCE" "         /* See feature_test_macros(7) */"
 .B #include <fcntl.h>
-
+.PP
 .BI "ssize_t splice(int " fd_in ", loff_t *" off_in ", int " fd_out ,
 .BI "               loff_t *" off_out ", size_t " len \
 ", unsigned int " flags );
@@ -46,8 +46,8 @@ bytes of data from the file descriptor
 .I fd_in
 to the file descriptor
 .IR fd_out ,
-where one of the descriptors must refer to a pipe.
-
+where one of the file descriptors must refer to a pipe.
+.PP
 The following semantics apply for
 .I fd_in
 and
@@ -65,8 +65,8 @@ does not refer to a pipe and
 .I off_in
 is NULL, then bytes are read from
 .I fd_in
-starting from the current file offset,
-and the current file offset is adjusted appropriately.
+starting from the file offset,
+and the file offset is adjusted appropriately.
 .IP *
 If
 .I fd_in
@@ -77,7 +77,7 @@ is not NULL, then
 must point to a buffer which specifies the starting
 offset from which bytes will be read from
 .IR fd_in ;
-in this case, the current file offset of
+in this case, the file offset of
 .I fd_in
 is not changed.
 .PP
@@ -85,12 +85,12 @@ Analogous statements apply for
 .I fd_out
 and
 .IR off_out .
-
+.PP
 The
 .I flags
 argument is a bit mask that is composed by ORing together
 zero or more of the following values:
-.TP 1.9i
+.TP
 .B SPLICE_F_MOVE
 Attempt to move pages instead of copying.
 This is only a hint to the kernel:
@@ -125,7 +125,7 @@ in
 and the description of
 .B TCP_CORK
 in
-.BR tcp (7))
+.BR tcp (7)).
 .TP
 .B SPLICE_F_GIFT
 Unused for
@@ -137,11 +137,14 @@ Upon successful completion,
 .BR splice ()
 returns the number of bytes
 spliced to or from the pipe.
-A return value of 0 means that there was no data to transfer,
-and it would not make sense to block, because there are no
-writers connected to the write end of the pipe referred to by
-.IR fd_in .
-
+.PP
+A return value of 0 means end of input.
+If
+.I fd_in
+refers to a pipe, then this means that there was no data to transfer,
+and it would not make sense to block because there are no writers
+connected to the write end of the pipe.
+.PP
 On error,
 .BR splice ()
 returns \-1 and
@@ -152,7 +155,9 @@ is set to indicate the error.
 .B EAGAIN
 .B SPLICE_F_NONBLOCK
 was specified in
-.IR flags ,
+.IR flags
+or one of the file descriptors had been marked as nonblocking
+.RB ( O_NONBLOCK ) ,
 and the operation would block.
 .TP
 .B EBADF
@@ -160,12 +165,24 @@ One or both file descriptors are not valid,
 or do not have proper read-write mode.
 .TP
 .B EINVAL
-Target filesystem doesn't support splicing;
-target file is opened in append mode;
+The target filesystem doesn't support splicing.
+.TP
+.B EINVAL
+The target file is opened in append mode.
 .\" The append-mode error is given since 2.6.27; in earlier kernels,
 .\" splice() in append mode was broken
-neither of the descriptors refers to a pipe; or
-offset given for nonseekable device.
+.TP
+.B EINVAL
+Neither of the file descriptors refers to a pipe.
+.TP
+.B EINVAL
+An offset was given for nonseekable device (e.g., a pipe).
+.TP
+.B EINVAL
+.I fd_in
+and
+.I fd_out
+refer to the same pipe.
 .TP
 .B ENOMEM
 Out of memory.
@@ -193,14 +210,14 @@ provide user-space programs with full control over an arbitrary
 kernel buffer, implemented within the kernel using the same type
 of buffer that is used for a pipe.
 In overview, these system calls perform the following tasks:
-.TP 1.2i
+.IP \(bu 2
 .BR splice ()
 moves data from the buffer to an arbitrary file descriptor, or vice versa,
 or from one buffer to another.
-.TP
+.IP \(bu
 .BR tee (2)
 "copies" the data from one buffer to another.
-.TP
+.IP \(bu
 .BR vmsplice (2)
 "copies" data from user space into the buffer.
 .PP
@@ -234,19 +251,31 @@ only pointers are copied, not the pages of the buffer.
 .\" the data and choose to forward it to two or more different
 .\" users - for things like logging etc.).
 .\"
-.SH EXAMPLE
+.PP
+In Linux 2.6.30 and earlier,
+exactly one of
+.I fd_in
+and
+.I fd_out
+was required to be a pipe.
+Since Linux 2.6.31,
+.\" commit 7c77f0b3f9208c339a4b40737bb2cb0f0319bb8d
+both arguments may refer to pipes.
+.SH EXAMPLES
 See
 .BR tee (2).
 .SH SEE ALSO
+.BR copy_file_range (2),
 .BR sendfile (2),
 .BR tee (2),
-.BR vmsplice (2)
+.BR vmsplice (2),
+.BR pipe (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

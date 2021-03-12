@@ -38,7 +38,7 @@
 .\" Modified 1998,1999 by Andi Kleen
 .\" 2001-06-19 corrected SO_EE_OFFENDER, bug report by James Hawtin
 .\"
-.TH RECV 2 2014-08-19 "Linux" "Linux Programmer's Manual"
+.TH RECV 2 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 recv, recvfrom, recvmsg \- receive a message from a socket
 .SH SYNOPSIS
@@ -46,14 +46,13 @@ recv, recvfrom, recvmsg \- receive a message from a socket
 .\" .br
 .nf
 .B #include <sys/types.h>
-.br
 .B #include <sys/socket.h>
-.sp
+.PP
 .BI "ssize_t recv(int " sockfd ", void *" buf ", size_t " len ", int " flags );
-.sp
+.PP
 .BI "ssize_t recvfrom(int " sockfd ", void *" buf ", size_t " len ", int " flags ,
 .BI "                 struct sockaddr *" src_addr ", socklen_t *" addrlen );
-.sp
+.PP
 .BI "ssize_t recvmsg(int " sockfd ", struct msghdr *" msg ", int " flags );
 .fi
 .SH DESCRIPTION
@@ -67,6 +66,27 @@ They may be used
 to receive data on both connectionless and connection-oriented sockets.
 This page first describes common features of all three system calls,
 and then describes the differences between the calls.
+.PP
+The only difference between
+.BR recv ()
+and
+.BR read (2)
+is the presence of
+.IR flags .
+With a zero
+.I flags
+argument,
+.BR recv ()
+is generally equivalent to
+.BR read (2)
+(but see NOTES).
+Also, the following call
+.PP
+    recv(sockfd, buf, len, flags);
+.PP
+is equivalent to
+.PP
+    recvfrom(sockfd, buf, len, flags, NULL, NULL);
 .PP
 All three calls return the length of the message on successful
 completion.
@@ -109,12 +129,21 @@ flag of
 .BR MSG_DONTWAIT " (since Linux 2.2)"
 Enables nonblocking operation; if the operation would block,
 the call fails with the error
-.BR EAGAIN " or " EWOULDBLOCK
-(this can also be enabled using the
+.BR EAGAIN " or " EWOULDBLOCK .
+This provides similar behavior to setting the
 .B O_NONBLOCK
-flag with the
+flag (via the
+.BR fcntl (2)
 .B F_SETFL
-.BR fcntl (2)).
+operation), but differs in that
+.B MSG_DONTWAIT
+is a per-call option, whereas
+.B O_NONBLOCK
+is a setting on the open file description (see
+.BR open (2)),
+which will affect all threads in the calling process
+and as well as other processes that hold file descriptors
+referring to the same open file description.
 .TP
 .BR MSG_ERRQUEUE " (since Linux 2.2)"
 This flag
@@ -135,24 +164,12 @@ The original destination address of the datagram that caused the error
 is supplied via
 .IR msg_name .
 .IP
-For local errors, no address is passed (this can be checked with the
-.I cmsg_len
-member of the
-.IR cmsghdr ).
-For error receives, the
-.B MSG_ERRQUEUE
-is set in the
-.IR msghdr .
-After an error has been passed, the pending socket error
-is regenerated based on the next queued error and will be passed
-on the next socket operation.
-
 The error is supplied in a
 .I sock_extended_err
 structure:
+.IP
 .in +4n
-.nf
-
+.EX
 #define SO_EE_ORIGIN_NONE    0
 #define SO_EE_ORIGIN_LOCAL   1
 #define SO_EE_ORIGIN_ICMP    2
@@ -160,18 +177,18 @@ structure:
 
 struct sock_extended_err
 {
-    uint32_t ee_errno;   /* error number */
-    uint8_t  ee_origin;  /* where the error originated */
-    uint8_t  ee_type;    /* type */
-    uint8_t  ee_code;    /* code */
-    uint8_t  ee_pad;     /* padding */
-    uint32_t ee_info;    /* additional information */
-    uint32_t ee_data;    /* other data */
+    uint32_t ee_errno;   /* Error number */
+    uint8_t  ee_origin;  /* Where the error originated */
+    uint8_t  ee_type;    /* Type */
+    uint8_t  ee_code;    /* Code */
+    uint8_t  ee_pad;     /* Padding */
+    uint32_t ee_info;    /* Additional information */
+    uint32_t ee_data;    /* Other data */
     /* More data may follow */
 };
 
 struct sockaddr *SO_EE_OFFENDER(struct sock_extended_err *);
-.fi
+.EE
 .in
 .IP
 .I ee_errno
@@ -204,7 +221,7 @@ member of the
 For error receives,
 the
 .B MSG_ERRQUEUE
-is set in the
+flag is set in the
 .IR msghdr .
 After an error has been passed, the pending socket error
 is regenerated based on the next queued error and will be passed
@@ -228,10 +245,12 @@ subsequent receive call will return the same data.
 For raw
 .RB ( AF_PACKET ),
 Internet datagram (since Linux 2.4.27/2.6.8),
-netlink (since Linux 2.6.22), and UNIX datagram (since Linux 3.4) sockets:
+netlink (since Linux 2.6.22), and UNIX datagram
+.\" commit 9f6f9af7694ede6314bed281eec74d588ba9474f
+(since Linux 3.4) sockets:
 return the real length of the packet or datagram,
 even when it was longer than the passed buffer.
-
+.IP
 For use with Internet stream sockets, see
 .BR tcp (7).
 .TP
@@ -241,6 +260,7 @@ satisfied.
 However, the call may still return less data than requested if
 a signal is caught, an error or disconnect occurs, or the next data to be
 received is of a different type than that returned.
+This flag has no effect for datagram sockets.
 .\"
 .SS recvfrom()
 .BR recvfrom ()
@@ -248,7 +268,7 @@ places the received message into the buffer
 .IR buf .
 The caller must specify the size of the buffer in
 .IR len .
-
+.PP
 If
 .I src_addr
 is not NULL,
@@ -276,7 +296,7 @@ The returned address is truncated if the buffer provided is too small;
 in this case,
 .I addrlen
 will return a value greater than was supplied to the call.
-
+.PP
 If the caller is not interested in the source address,
 .I src_addr
 and
@@ -291,8 +311,8 @@ call is normally used only on a
 socket (see
 .BR connect (2)).
 It is equivalent to the call:
-
-    recvfrom(fd, buf, len, flags, NULL, 0));
+.PP
+    recvfrom(fd, buf, len, flags, NULL, 0);
 .\"
 .SS recvmsg()
 The
@@ -302,24 +322,24 @@ call uses a
 structure to minimize the number of directly supplied arguments.
 This structure is defined as follows in
 .IR <sys/socket.h> :
+.PP
 .in +4n
-.nf
-
+.EX
 struct iovec {                    /* Scatter/gather array items */
     void  *iov_base;              /* Starting address */
     size_t iov_len;               /* Number of bytes to transfer */
 };
 
 struct msghdr {
-    void         *msg_name;       /* optional address */
-    socklen_t     msg_namelen;    /* size of address */
-    struct iovec *msg_iov;        /* scatter/gather array */
+    void         *msg_name;       /* Optional address */
+    socklen_t     msg_namelen;    /* Size of address */
+    struct iovec *msg_iov;        /* Scatter/gather array */
     size_t        msg_iovlen;     /* # elements in msg_iov */
-    void         *msg_control;    /* ancillary data, see below */
-    size_t        msg_controllen; /* ancillary data buffer len */
-    int           msg_flags;      /* flags on received message */
+    void         *msg_control;    /* Ancillary data, see below */
+    size_t        msg_controllen; /* Ancillary data buffer len */
+    int           msg_flags;      /* Flags on received message */
 };
-.fi
+.EE
 .in
 .PP
 The
@@ -335,14 +355,14 @@ will contain the length of the returned address.
 If the application does not need to know the source address,
 .I msg_name
 can be specified as NULL.
-
+.PP
 The fields
 .I msg_iov
 and
 .I msg_iovlen
 describe scatter-gather locations, as discussed in
 .BR readv (2).
-
+.PP
 The field
 .IR msg_control ,
 which has length
@@ -359,17 +379,18 @@ upon return from a successful call it will contain the length
 of the control message sequence.
 .PP
 The messages are of the form:
+.PP
 .in +4n
-.nf
-
+.EX
 struct cmsghdr {
-    socklen_t     cmsg_len;     /* data byte count, including hdr */
-    int           cmsg_level;   /* originating protocol */
-    int           cmsg_type;    /* protocol-specific type */
+    size_t cmsg_len;    /* Data byte count, including header
+                           (type is socklen_t in POSIX) */
+    int    cmsg_level;  /* Originating protocol */
+    int    cmsg_type;   /* Protocol-specific type */
 /* followed by
     unsigned char cmsg_data[]; */
 };
-.fi
+.EE
 .in
 .PP
 Ancillary data should be accessed only by the macros defined in
@@ -377,6 +398,11 @@ Ancillary data should be accessed only by the macros defined in
 .PP
 As an example, Linux uses this ancillary data mechanism to pass extended
 errors, IP options, or file descriptors over UNIX domain sockets.
+For further information on the use of ancillary data in various
+socket domains, see
+.BR unix (7)
+and
+.BR ip (7).
 .PP
 The
 .I msg_flags
@@ -396,11 +422,11 @@ indicates that the trailing portion of a datagram was discarded because the
 datagram was larger than the buffer supplied.
 .TP
 .B MSG_CTRUNC
-indicates that some control data were discarded due to lack of space in the
+indicates that some control data was discarded due to lack of space in the
 buffer for ancillary data.
 .TP
 .B MSG_OOB
-is returned to indicate that expedited or out-of-band data were received.
+is returned to indicate that expedited or out-of-band data was received.
 .TP
 .B MSG_ERRQUEUE
 indicates that no data was received but an extended error from the socket
@@ -411,14 +437,14 @@ if an error occurred.
 In the event of an error,
 .I errno
 is set to indicate the error.
-
+.PP
 When a stream socket peer has performed an orderly shutdown,
 the return value will be 0 (the traditional "end-of-file" return).
-
+.PP
 Datagram sockets in various domains (e.g., the UNIX and Internet domains)
 permit zero-length datagrams.
 When such a datagram is received, the return value is 0.
-
+.PP
 The value 0 may also be returned if the requested number of bytes
 to receive from a stream socket was 0.
 .SH ERRORS
@@ -432,14 +458,14 @@ see their manual pages.
 The socket is marked nonblocking and the receive operation
 would block, or a receive timeout had been set and the timeout expired
 before data was received.
-POSIX.1-2001 allows either error to be returned for this case,
+POSIX.1 allows either error to be returned for this case,
 and does not require these constants to have the same value,
 so a portable application should check for both possibilities.
 .TP
 .B EBADF
 The argument
 .I sockfd
-is an invalid descriptor.
+is an invalid file descriptor.
 .TP
 .B ECONNREFUSED
 A remote host refused to allow the network connection (typically
@@ -451,7 +477,7 @@ address space.
 .TP
 .B EINTR
 The receive was interrupted by delivery of a signal before
-any data were available; see
+any data was available; see
 .BR signal (7).
 .TP
 .B EINVAL
@@ -470,45 +496,65 @@ and
 .BR accept (2)).
 .TP
 .B ENOTSOCK
-The argument
+The file descriptor
 .I sockfd
 does not refer to a socket.
 .SH CONFORMING TO
-4.4BSD (these function calls first appeared in 4.2BSD),
-POSIX.1-2001.
-.LP
-POSIX.1-2001 describes only the
+POSIX.1-2001, POSIX.1-2008,
+4.4BSD (these interfaces first appeared in 4.2BSD).
+.PP
+POSIX.1 describes only the
 .BR MSG_OOB ,
 .BR MSG_PEEK ,
 and
 .B MSG_WAITALL
 flags.
 .SH NOTES
+If a zero-length datagram is pending,
+.BR read (2)
+and
+.BR recv ()
+with a
+.I flags
+argument of zero provide different behavior.
+In this circumstance,
+.BR read (2)
+has no effect (the datagram remains pending), while
+.BR recv ()
+consumes the pending datagram.
+.PP
 The
 .I socklen_t
 type was invented by POSIX.
 See also
 .BR accept (2).
-
-According to POSIX.1-2001, the
+.PP
+According to POSIX.1,
+.\" POSIX.1-2001, POSIX.1-2008
+the
 .I msg_controllen
 field of the
 .I msghdr
 structure should be typed as
 .IR socklen_t ,
-but glibc currently types it as
+and the
+.I msg_iovlen
+field should be typed as
+.IR int ,
+but glibc currently types both as
 .IR size_t .
-.\" glibc bug raised 12 Mar 2006
+.\" glibc bug for msg_controllen raised 12 Mar 2006
 .\" http://sourceware.org/bugzilla/show_bug.cgi?id=2448
 .\" The problem is an underlying kernel issue: the size of the
-.\" __kernel_size_t type used to type this field varies
-.\" across architectures, but socklen_t is always 32 bits.
-
+.\" __kernel_size_t type used to type these fields varies
+.\" across architectures, but socklen_t is always 32 bits,
+.\" as (at least with GCC) is int.
+.PP
 See
 .BR recvmmsg (2)
 for information about a Linux-specific system call
 that can be used to receive multiple datagrams in a single call.
-.SH EXAMPLE
+.SH EXAMPLES
 An example of the use of
 .BR recvfrom ()
 is shown in
@@ -523,13 +569,18 @@ is shown in
 .BR socket (2),
 .BR cmsg (3),
 .BR sockatmark (3),
-.BR socket (7)
+.BR ip (7),
+.BR ipv6 (7),
+.BR socket (7),
+.BR tcp (7),
+.BR udp (7),
+.BR unix (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

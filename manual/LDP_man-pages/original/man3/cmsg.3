@@ -8,38 +8,26 @@
 .\" %%%LICENSE_END
 .\"
 .\" $Id: cmsg.3,v 1.8 2000/12/20 18:10:31 ak Exp $
-.TH CMSG 3 2014-12-31 "Linux" "Linux Programmer's Manual"
+.TH CMSG 3 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 CMSG_ALIGN, CMSG_SPACE, CMSG_NXTHDR, CMSG_FIRSTHDR \- access ancillary data
 .SH SYNOPSIS
-.B #include <sys/socket.h>
-.sp
-.BI "struct cmsghdr *CMSG_FIRSTHDR(struct msghdr *" msgh );
-.br
-.BI "struct cmsghdr *CMSG_NXTHDR(struct msghdr *" msgh ", struct cmsghdr *" cmsg );
-.br
-.BI "size_t CMSG_ALIGN(size_t " length );
-.br
-.BI "size_t CMSG_SPACE(size_t " length );
-.br
-.BI "size_t CMSG_LEN(size_t " length );
-.br
-.BI "unsigned char *CMSG_DATA(struct cmsghdr *" cmsg );
-.sp
 .nf
-struct cmsghdr {
-    socklen_t cmsg_len;    /* data byte count, including header */
-    int       cmsg_level;  /* originating protocol */
-    int       cmsg_type;   /* protocol-specific type */
-    /* followed by unsigned char cmsg_data[]; */
-};
+.B #include <sys/socket.h>
+.BI "struct cmsghdr *CMSG_FIRSTHDR(struct msghdr *" msgh );
+.BI "struct cmsghdr *CMSG_NXTHDR(struct msghdr *" msgh ,
+.BR "                            struct cmsghdr *" cmsg );
+.BI "size_t CMSG_ALIGN(size_t " length );
+.BI "size_t CMSG_SPACE(size_t " length );
+.BI "size_t CMSG_LEN(size_t " length );
+.BI "unsigned char *CMSG_DATA(struct cmsghdr *" cmsg );
 .fi
 .SH DESCRIPTION
 These macros are used to create and access control messages (also called
 ancillary data) that are not a part of the socket payload.
 This control information may
 include the interface the packet was received on, various rarely used header
-fields, an extended error description, a set of file descriptors or UNIX
+fields, an extended error description, a set of file descriptors, or UNIX
 credentials.
 For instance, control messages can be used to send
 additional header fields such as IP options.
@@ -50,44 +38,81 @@ and received by calling
 See their manual pages for more information.
 .PP
 Ancillary data is a sequence of
-.I struct cmsghdr
+.I cmsghdr
 structures with appended data.
-This sequence should be accessed
-using only the macros described in this manual page and never directly.
 See the specific protocol man pages for the available control message types.
 The maximum ancillary buffer size allowed per socket can be set using
 .IR /proc/sys/net/core/optmem_max ;
 see
 .BR socket (7).
 .PP
+The
+.I cmsghdr
+structure is defined as follows:
+.PP
+.in +4n
+.EX
+struct cmsghdr {
+    size_t cmsg_len;    /* Data byte count, including header
+                           (type is socklen_t in POSIX) */
+    int    cmsg_level;  /* Originating protocol */
+    int    cmsg_type;   /* Protocol-specific type */
+/* followed by
+   unsigned char cmsg_data[]; */
+};
+.EE
+.in
+.PP
+The sequence of
+.I cmsghdr
+structures should never be accessed directly.
+Instead, use only the following macros:
+.IP * 3
 .BR CMSG_FIRSTHDR ()
 returns a pointer to the first
 .I cmsghdr
 in the ancillary
 data buffer associated with the passed
 .IR msghdr .
-.PP
+It returns NULL if there isn't enough space for a
+.I cmsghdr
+in the buffer.
+.IP *
 .BR CMSG_NXTHDR ()
 returns the next valid
 .I cmsghdr
 after the passed
 .IR cmsghdr .
 It returns NULL when there isn't enough space left in the buffer.
-.PP
+.IP
+When initializing a buffer that will contain a series of
+.I cmsghdr
+structures (e.g., to be sent with
+.BR sendmsg (2)),
+that buffer should first be zero-initialized
+to ensure the correct operation of
+.BR CMSG_NXTHDR ().
+.IP *
 .BR CMSG_ALIGN (),
 given a length, returns it including the required alignment.
 This is a
 constant expression.
-.PP
+.IP *
 .BR CMSG_SPACE ()
 returns the number of bytes an ancillary element with payload of the
 passed data length occupies.
 This is a constant expression.
-.PP
+.IP *
 .BR CMSG_DATA ()
 returns a pointer to the data portion of a
 .IR cmsghdr .
-.PP
+The pointer returned cannot be assumed to be suitably aligned for
+accessing arbitrary payload data types.
+Applications should not cast it to a pointer type matching the payload,
+but should instead use
+.BR memcpy (3)
+to copy data to or from a suitably declared object.
+.IP *
 .BR CMSG_LEN ()
 returns the value to store in the
 .I cmsg_len
@@ -131,16 +156,20 @@ For more information on the
 .IR msghdr ,
 see
 .BR recvmsg (2).
-.PP
-When the control message buffer is too short to store all messages, the
-.B MSG_CTRUNC
-flag is set in the
-.I msg_flags
-member of the
-.IR msghdr .
 .SH CONFORMING TO
 This ancillary data model conforms to the POSIX.1g draft, 4.4BSD-Lite,
 the IPv6 advanced API described in RFC\ 2292 and SUSv2.
+.BR CMSG_FIRSTHDR (),
+.BR CMSG_NXTHDR (),
+and
+.BR CMSG_DATA ()
+are specified in POSIX.1-2008.
+.BR CMSG_SPACE ()
+and
+.BR CMSG_LEN ()
+.\" https://www.austingroupbugs.net/view.php?id=978#c3242
+will be included in the next POSIX release (Issue 8).
+.PP
 .BR CMSG_ALIGN ()
 is a Linux extension.
 .SH NOTES
@@ -154,39 +183,35 @@ In Linux,
 .BR CMSG_DATA (),
 and
 .BR CMSG_ALIGN ()
-are constant expressions (assuming their argument is constant);
-this could be used to declare the size of global
-variables.
+are constant expressions (assuming their argument is constant),
+meaning that these values can be used to declare the size of global variables.
 This may not be portable, however.
-.SH EXAMPLE
+.SH EXAMPLES
 This code looks for the
 .B IP_TTL
 option in a received ancillary buffer:
 .PP
 .in +4n
-.nf
+.EX
 struct msghdr msgh;
 struct cmsghdr *cmsg;
-int *ttlptr;
 int received_ttl;
 
 /* Receive auxiliary data in msgh */
+
 for (cmsg = CMSG_FIRSTHDR(&msgh); cmsg != NULL;
-        cmsg = CMSG_NXTHDR(&msgh,cmsg)) {
+        cmsg = CMSG_NXTHDR(&msgh, cmsg)) {
     if (cmsg\->cmsg_level == IPPROTO_IP
             && cmsg\->cmsg_type == IP_TTL) {
-        ttlptr = (int *) CMSG_DATA(cmsg);
-        received_ttl = *ttlptr;
+        memcpy(&receive_ttl, CMSG_DATA(cmsg), sizeof(received_ttl));
         break;
     }
 }
+
 if (cmsg == NULL) {
-    /*
-     * Error: IP_TTL not enabled or small buffer
-     * or I/O error.
-     */
+    /* Error: IP_TTL not enabled or small buffer or I/O error */
 }
-.fi
+.EE
 .in
 .PP
 The code below passes an array of file descriptors over a
@@ -194,30 +219,31 @@ UNIX domain socket using
 .BR SCM_RIGHTS :
 .PP
 .in +4n
-.nf
-struct msghdr msg = {0};
+.EX
+struct msghdr msg = { 0 };
 struct cmsghdr *cmsg;
-int myfds[NUM_FD]; /* Contains the file descriptors to pass. */
-union {
-    /* ancillary data buffer, wrapped in a union in order to ensure it is
-       suitably aligned */
-    char buf[CMSG_SPACE(sizeof myfds)];
+int myfds[NUM_FD];  /* Contains the file descriptors to pass */
+char iobuf[1];
+struct iovec io = {
+    .iov_base = iobuf,
+    .iov_len = sizeof(iobuf)
+};
+union {         /* Ancillary data buffer, wrapped in a union
+                   in order to ensure it is suitably aligned */
+    char buf[CMSG_SPACE(sizeof(myfds))];
     struct cmsghdr align;
 } u;
-int *fdptr;
 
+msg.msg_iov = &io;
+msg.msg_iovlen = 1;
 msg.msg_control = u.buf;
-msg.msg_controllen = sizeof u.buf;
+msg.msg_controllen = sizeof(u.buf);
 cmsg = CMSG_FIRSTHDR(&msg);
 cmsg\->cmsg_level = SOL_SOCKET;
 cmsg\->cmsg_type = SCM_RIGHTS;
-cmsg\->cmsg_len = CMSG_LEN(sizeof(int) * NUM_FD);
-/* Initialize the payload: */
-fdptr = (int *) CMSG_DATA(cmsg);
-memcpy(fdptr, myfds, NUM_FD * sizeof(int));
-/* Sum of the length of all control messages in the buffer: */
-msg.msg_controllen = cmsg\->cmsg_len;
-.fi
+cmsg\->cmsg_len = CMSG_LEN(sizeof(myfds));
+memcpy(CMSG_DATA(cmsg), myfds, sizeof(myfds));
+.EE
 .in
 .SH SEE ALSO
 .BR recvmsg (2),
@@ -225,11 +251,11 @@ msg.msg_controllen = cmsg\->cmsg_len;
 .PP
 RFC\ 2292
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

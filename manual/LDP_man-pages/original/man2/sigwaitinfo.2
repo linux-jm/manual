@@ -22,24 +22,25 @@
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
 .\"
-.TH SIGWAITINFO 2 2014-08-19 "Linux" "Linux Programmer's Manual"
+.TH SIGWAITINFO 2 2017-09-15 "Linux" "Linux Programmer's Manual"
 .SH NAME
-sigwaitinfo, sigtimedwait \- synchronously wait for queued signals
+sigwaitinfo, sigtimedwait, rt_sigtimedwait \- synchronously wait
+for queued signals
 .SH SYNOPSIS
 .nf
 .B #include <signal.h>
-.sp
+.PP
 .BI "int sigwaitinfo(const sigset_t *" set ", siginfo_t *" info ");"
-.sp
-.BI "int sigtimedwait(const sigset_t *" set ", siginfo_t *" info ", "
+.PP
+.BI "int sigtimedwait(const sigset_t *" set ", siginfo_t *" info ,
 .BI "                 const struct timespec *" timeout ");"
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .BR sigwaitinfo (),
 .BR sigtimedwait ():
 _POSIX_C_SOURCE\ >=\ 199309L
@@ -53,7 +54,7 @@ is pending
 is already pending for the calling thread,
 .BR sigwaitinfo ()
 will return immediately.)
-
+.PP
 .BR sigwaitinfo ()
 removes the signal from the set of pending
 signals and returns the signal number as its function result.
@@ -85,16 +86,16 @@ the thread is suspended waiting for a signal.
 and kernel scheduling delays mean that the interval
 may overrun by a small amount.)
 This argument is of the following type:
-.sp
+.PP
 .in +4n
-.nf
+.EX
 struct timespec {
     long    tv_sec;         /* seconds */
     long    tv_nsec;        /* nanoseconds */
 }
-.fi
+.EE
 .in
-.sp
+.PP
 If both fields of this structure are specified as 0, a poll is performed:
 .BR sigtimedwait ()
 returns immediately, either with information about a signal that
@@ -131,7 +132,7 @@ The wait was interrupted by a signal handler; see
 .I timeout
 was invalid.
 .SH CONFORMING TO
-POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008.
 .SH NOTES
 In normal usage, the calling program blocks the signals in
 .I set
@@ -150,18 +151,18 @@ a thread other than the one calling
 .BR sigwaitinfo ()
 or
 .BR sigtimedwait ()).
-
+.PP
 The set of signals that is pending for a given thread is the
 union of the set of signals that is pending specifically for that thread
 and the set of signals that is pending for the process as a whole (see
 .BR signal (7)).
-
+.PP
 Attempts to wait for
 .B SIGKILL
 and
 .B SIGSTOP
 are silently ignored.
-
+.PP
 If multiple threads of a process are blocked
 waiting for the same signal(s) in
 .BR sigwaitinfo ()
@@ -170,7 +171,19 @@ or
 then exactly one of the threads will actually receive the
 signal if it becomes pending for the process as a whole;
 which of the threads receives the signal is indeterminate.
-
+.PP
+.BR sigwaitinfo ()
+or
+.BR sigtimedwait (),
+can't be used to receive signals that
+are synchronously generated, such as the
+.BR SIGSEGV
+signal that results from accessing an invalid memory address
+or the
+.BR SIGFPE
+signal that results from an arithmetic error.
+Such signals can be caught only via signal handler.
+.PP
 POSIX leaves the meaning of a NULL value for the
 .I timeout
 argument of
@@ -180,24 +193,48 @@ as a call to
 .BR sigwaitinfo (),
 and indeed this is what is done on Linux.
 .\"
-.SS C library/kernel ABI differences
+.SS C library/kernel differences
 On Linux,
 .BR sigwaitinfo ()
 is a library function implemented on top of
 .BR sigtimedwait ().
-
-The raw
+.PP
+The glibc wrapper functions for
+.BR sigwaitinfo ()
+and
 .BR sigtimedwait ()
-system call has a fifth argument,
+silently ignore attempts to wait for the two real-time signals that
+are used internally by the NPTL threading implementation.
+See
+.BR nptl (7)
+for details.
+.PP
+The original Linux system call was named
+.BR sigtimedwait ().
+However, with the addition of real-time signals in Linux 2.2,
+the fixed-size, 32-bit
+.I sigset_t
+type supported by that system call was no longer fit for purpose.
+Consequently, a new system call,
+.BR rt_sigtimedwait (),
+was added to support an enlarged
+.IR sigset_t
+type.
+The new system call takes a fourth argument,
 .IR "size_t sigsetsize" ,
-which specifies the size in bytes of the
-.IR set
-argument.
+which specifies the size in bytes of the signal set in
+.IR set .
+This argument is currently required to have the value
+.IR sizeof(sigset_t)
+(or the error
+.B EINVAL
+results).
 The glibc
 .BR sigtimedwait ()
-wrapper function specifies this argument as a fixed value
-(equal to
-.IR sizeof(sigset_t) ).
+wrapper function hides these details from us, transparently calling
+.BR rt_sigtimedwait ()
+when the kernel provides it.
+.\"
 .SH SEE ALSO
 .BR kill (2),
 .BR sigaction (2),
@@ -211,11 +248,11 @@ wrapper function specifies this argument as a fixed value
 .BR signal (7),
 .BR time (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

@@ -1,0 +1,281 @@
+.\" Copyright (c) 2019 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.TH PIDFD_OPEN 2 2020-08-13 "Linux" "Linux Programmer's Manual"
+.SH NAME
+pidfd_open \- obtain a file descriptor that refers to a process
+.SH SYNOPSIS
+.nf
+.B #include <sys/types.h>
+.PP
+.BI "int pidfd_open(pid_t " pid ", unsigned int " flags );
+.fi
+.SH DESCRIPTION
+The
+.BR pidfd_open ()
+system call creates a file descriptor that refers to
+the process whose PID is specified in
+.IR pid .
+The file descriptor is returned as the function result;
+the close-on-exec flag is set on the file descriptor.
+.PP
+The
+.I flags
+argument is reserved for future use;
+currently, this argument must be specified as 0.
+.SH RETURN VALUE
+On success,
+.BR pidfd_open ()
+returns a file descriptor (a nonnegative integer).
+On error, \-1 is returned and
+.I errno
+is set to indicate the cause of the error.
+.SH ERRORS
+.TP
+.B EINVAL
+.I flags
+is not 0.
+.TP
+.B EINVAL
+.I pid
+is not valid.
+.TP
+.B EMFILE
+The per-process limit on the number of open file descriptors has been reached
+(see the description of
+.BR RLIMIT_NOFILE
+in
+.BR getrlimit (2)).
+.TP
+.B ENFILE
+The system-wide limit on the total number of open files has been reached.
+.TP
+.B ENODEV
+The anonymous inode filesystem is not available in this kernel.
+.TP
+.B ENOMEM
+Insufficient kernel memory was available.
+.TP
+.B ESRCH
+The process specified by
+.I pid
+does not exist.
+.SH VERSIONS
+.BR pidfd_open ()
+first appeared in Linux 5.3.
+.SH CONFORMING TO
+.BR pidfd_open ()
+is Linux specific.
+.SH NOTES
+Currently, there is no glibc wrapper for this system call; call it using
+.BR syscall (2).
+.PP
+The following code sequence can be used to obtain a file descriptor
+for the child of
+.BR fork (2):
+.PP
+.in +4n
+.EX
+pid = fork();
+if (pid > 0) {     /* If parent */
+    pidfd = pidfd_open(pid, 0);
+    ...
+}
+.EE
+.in
+.PP
+Even if the child has already terminated by the time of the
+.BR pidfd_open ()
+call, its PID will not have been recycled and the returned
+file descriptor will refer to the resulting zombie process.
+Note, however, that this is guaranteed only if the following
+conditions hold true:
+.IP \(bu 2
+the disposition of
+.BR SIGCHLD
+has not been explicitly set to
+.BR SIG_IGN
+(see
+.BR sigaction (2));
+.IP \(bu
+the
+.BR SA_NOCLDWAIT
+flag was not specified while establishing a handler for
+.BR SIGCHLD
+or while setting the disposition of that signal to
+.BR SIG_DFL
+(see
+.BR sigaction (2));
+and
+.IP \(bu
+the zombie process was not reaped elsewhere in the program
+(e.g., either by an asynchronously executed signal handler or by
+.BR wait (2)
+or similar in another thread).
+.PP
+If any of these conditions does not hold,
+then the child process (along with a PID file descriptor that refers to it)
+should instead be created using
+.BR clone (2)
+with the
+.BR CLONE_PIDFD
+flag.
+.\"
+.SS Use cases for PID file descriptors
+A PID file descriptor returned by
+.BR pidfd_open ()
+(or by
+.BR clone (2)
+with the
+.BR CLONE_PID
+flag) can be used for the following purposes:
+.IP \(bu 2
+The
+.BR pidfd_send_signal (2)
+system call can be used to send a signal to the process referred to by
+a PID file descriptor.
+.IP \(bu
+A PID file descriptor can be monitored using
+.BR poll (2),
+.BR select (2),
+and
+.BR epoll (7).
+When the process that it refers to terminates,
+these interfaces indicate the file descriptor as readable.
+Note, however, that in the current implementation,
+nothing can be read from the file descriptor
+.RB ( read (2)
+on the file descriptor fails with the error
+.BR EINVAL ).
+.IP \(bu
+If the PID file descriptor refers to a child of the calling process,
+then it can be waited on using
+.BR waitid (2).
+.IP \(bu
+The
+.BR pidfd_getfd (2)
+system call can be used to obtain a duplicate of a file descriptor
+of another process referred to by a PID file descriptor.
+.IP \(bu
+A PID file descriptor can be used as the argument of
+.BR setns (2)
+in order to move into one or more of the same namespaces as the process
+referred to by the file descriptor.
+.PP
+The
+.BR pidfd_open ()
+system call is the preferred way of obtaining a PID file descriptor
+for an already existing process.
+The alternative is to obtain a file descriptor by opening a
+.I /proc/[pid]
+directory.
+However, the latter technique is possible only if the
+.BR proc (5)
+filesystem is mounted;
+furthermore, the file descriptor obtained in this way is
+.I not
+pollable and can't be waited on with
+.BR waitid (2).
+.SH EXAMPLES
+The program below opens a PID file descriptor for the
+process whose PID is specified as its command-line argument.
+It then uses
+.BR poll (2)
+to monitor the file descriptor for process exit, as indicated by an
+.BR EPOLLIN
+event.
+.\"
+.SS Program source
+\&
+.EX
+#define _GNU_SOURCE
+#include <sys/types.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+#include <poll.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#ifndef __NR_pidfd_open
+#define __NR_pidfd_open 434   /* System call # on most architectures */
+#endif
+
+static int
+pidfd_open(pid_t pid, unsigned int flags)
+{
+    return syscall(__NR_pidfd_open, pid, flags);
+}
+
+int
+main(int argc, char *argv[])
+{
+    struct pollfd pollfd;
+    int pidfd, ready;
+
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <pid>\en", argv[0]);
+        exit(EXIT_SUCCESS);
+    }
+
+    pidfd = pidfd_open(atoi(argv[1]), 0);
+    if (pidfd == \-1) {
+        perror("pidfd_open");
+        exit(EXIT_FAILURE);
+    }
+
+    pollfd.fd = pidfd;
+    pollfd.events = POLLIN;
+
+    ready = poll(&pollfd, 1, \-1);
+    if (ready == \-1) {
+        perror("poll");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Events (%#x): POLLIN is %sset\en", pollfd.revents,
+            (pollfd.revents & POLLIN) ? "" : "not ");
+
+    close(pidfd);
+    exit(EXIT_SUCCESS);
+}
+.EE
+.SH SEE ALSO
+.BR clone (2),
+.BR kill (2),
+.BR pidfd_getfd (2),
+.BR pidfd_send_signal (2),
+.BR poll (2),
+.BR select (2),
+.BR setns (2),
+.BR waitid (2),
+.BR epoll (7)
+.SH COLOPHON
+This page is part of release 5.10 of the Linux
+.I man-pages
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+\%https://www.kernel.org/doc/man\-pages/.

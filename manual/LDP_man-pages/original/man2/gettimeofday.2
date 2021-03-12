@@ -37,62 +37,67 @@
 .\" Modified, 2004-05-27 by Michael Kerrisk <mtk.manpages@gmail.com>
 .\"   Added notes on capability requirement.
 .\"
-.TH GETTIMEOFDAY 2 2012-04-26 "Linux" "Linux Programmer's Manual"
+.TH GETTIMEOFDAY 2 2019-03-06 "Linux" "Linux Programmer's Manual"
 .SH NAME
 gettimeofday, settimeofday \- get / set time
 .SH SYNOPSIS
 .nf
 .B #include <sys/time.h>
-
+.PP
 .BI "int gettimeofday(struct timeval *" tv ", struct timezone *" tz );
-
+.PP
 .BI "int settimeofday(const struct timeval *" tv \
 ", const struct timezone *" tz );
-
 .fi
-.in -4n
+.PP
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .BR settimeofday ():
-_BSD_SOURCE
+    Since glibc 2.19:
+        _DEFAULT_SOURCE
+    Glibc 2.19 and earlier:
+        _BSD_SOURCE
 .SH DESCRIPTION
 The functions
 .BR gettimeofday ()
 and
 .BR settimeofday ()
 can get and set the time as well as a timezone.
+.PP
 The
 .I tv
 argument is a
 .I struct timeval
 (as specified in
 .IR <sys/time.h> ):
-.sp
+.PP
 .in +4n
-.nf
+.EX
 struct timeval {
     time_t      tv_sec;     /* seconds */
     suseconds_t tv_usec;    /* microseconds */
 };
-.fi
+.EE
 .in
-.sp
+.PP
 and gives the number of seconds and microseconds since the Epoch (see
 .BR time (2)).
+.PP
 The
 .I tz
 argument is a
 .IR "struct timezone" :
-.sp
+.PP
 .in +4n
-.nf
+.EX
 struct timezone {
     int tz_minuteswest;     /* minutes west of Greenwich */
     int tz_dsttime;         /* type of DST correction */
 };
-.fi
+.EE
 .in
 .PP
 If either
@@ -116,7 +121,7 @@ structure is obsolete; the
 .I tz
 argument should normally be specified as NULL.
 (See NOTES below.)
-
+.PP
 Under Linux, there are some peculiar "warp clock" semantics associated
 with the
 .BR settimeofday ()
@@ -152,7 +157,25 @@ or
 pointed outside the accessible address space.
 .TP
 .B EINVAL
-Timezone (or something else) is invalid.
+.RB ( settimeofday ()):
+.I timezone
+is invalid.
+.TP
+.B EINVAL
+.RB ( settimeofday ()):
+.I tv.tv_sec
+is negative or
+.I tv.tv_usec
+is outside the range [0..999,999].
+.TP
+.BR EINVAL " (since Linux 4.3)"
+.\" commit e1d7ba8735551ed79c7a0463a042353574b96da3
+.RB ( settimeofday ()):
+An attempt was made to set the time to a value less than
+the current value of the
+.B CLOCK_MONOTONIC
+clock (see
+.BR clock_gettime (2)).
 .TP
 .B EPERM
 The calling process has insufficient privilege to call
@@ -179,27 +202,49 @@ affected by discontinuous jumps in the system time
 (e.g., if the system administrator manually changes the system time).
 If you need a monotonically increasing clock, see
 .BR clock_gettime (2).
-
+.PP
 Macros for operating on
 .I timeval
 structures are described in
 .BR timeradd (3).
-
+.PP
 Traditionally, the fields of
 .I struct timeval
 were of type
 .IR long .
-
-The
+.\"
+.SS C library/kernel differences
+On some architectures, an implementation of
+.BR gettimeofday ()
+is provided in the
+.BR vdso (7).
+.\"
+.SS The tz_dsttime field
+On a non-Linux kernel, with glibc, the
 .I tz_dsttime
-field has never been used under Linux.
+field of
+.I struct timezone
+will be set to a nonzero value by
+.BR gettimeofday ()
+if the current timezone has ever had or will have a daylight saving
+rule applied.
+In this sense it exactly mirrors the meaning of
+.BR daylight (3)
+for the current zone.
+On Linux, with glibc, the setting of the
+.I tz_dsttime
+field of
+.I struct timezone
+has never been used by
+.BR settimeofday ()
+or
+.BR gettimeofday ().
 .\" it has not
 .\" been and will not be supported by libc or glibc.
 .\" Each and every occurrence of this field in the kernel source
 .\" (other than the declaration) is a bug.
-Thus, the following
-is purely of historic interest.
-
+Thus, the following is purely of historical interest.
+.PP
 On old systems, the field
 .I tz_dsttime
 contains a symbolic constant (values are given below)
@@ -209,31 +254,21 @@ is in force.
 it does not indicate that DST is in force, it just selects an
 algorithm.)
 The daylight saving time algorithms defined are as follows:
+.PP
 .in +4n
-.nf
-
+.EX
 \fBDST_NONE\fP     /* not on DST */
-.br
 \fBDST_USA\fP      /* USA style DST */
-.br
 \fBDST_AUST\fP     /* Australian style DST */
-.br
 \fBDST_WET\fP      /* Western European DST */
-.br
 \fBDST_MET\fP      /* Middle European DST */
-.br
 \fBDST_EET\fP      /* Eastern European DST */
-.br
 \fBDST_CAN\fP      /* Canada */
-.br
 \fBDST_GB\fP       /* Great Britain and Eire */
-.br
 \fBDST_RUM\fP      /* Romania */
-.br
 \fBDST_TUR\fP      /* Turkey */
-.br
 \fBDST_AUSTALT\fP  /* Australian style with shift in 1986 */
-.fi
+.EE
 .in
 .PP
 Of course it turned out that the period in which
@@ -252,13 +287,15 @@ has been abandoned.
 .BR ftime (3),
 .BR timeradd (3),
 .BR capabilities (7),
-.BR time (7)
+.BR time (7),
+.BR vdso (7),
+.BR hwclock (8)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

@@ -32,7 +32,7 @@
 .\" 2005-04-08, mtk, Noted kernel version numbers for semtimedop()
 .\" 2007-07-09, mtk, Added an EXAMPLE code segment.
 .\"
-.TH SEMOP 2 2014-12-31 "Linux" "Linux Programmer's Manual"
+.TH SEMOP 2 2020-04-11 "Linux" "Linux Programmer's Manual"
 .SH NAME
 semop, semtimedop \- System V semaphore operations
 .SH SYNOPSIS
@@ -40,33 +40,33 @@ semop, semtimedop \- System V semaphore operations
 .B #include <sys/types.h>
 .B #include <sys/ipc.h>
 .B #include <sys/sem.h>
-.sp
+.PP
 .BI "int semop(int " semid ", struct sembuf *" sops ", size_t " nsops );
-.sp
+.PP
 .BI "int semtimedop(int " semid ", struct sembuf *" sops ", size_t " nsops ,
 .BI "               const struct timespec *" timeout );
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .BR semtimedop ():
 _GNU_SOURCE
 .SH DESCRIPTION
 Each semaphore in a System\ V semaphore set
 has the following associated values:
-.sp
+.PP
 .in +4n
-.nf
+.EX
 unsigned short  semval;   /* semaphore value */
 unsigned short  semzcnt;  /* # waiting for zero */
 unsigned short  semncnt;  /* # waiting for increase */
-pid_t           sempid;   /* ID of process that did last op */
-.sp
-.in -4n
-.fi
+pid_t           sempid;   /* PID of process that last
+.EE
+.in
+.PP
 .BR semop ()
 performs operations on selected semaphores in the set indicated by
 .IR semid .
@@ -79,15 +79,15 @@ specifies an operation to be performed on a single semaphore.
 The elements of this structure are of type
 .IR "struct sembuf" ,
 containing the following members:
-.sp
+.PP
 .in +4n
-.nf
+.EX
 unsigned short sem_num;  /* semaphore number */
 short          sem_op;   /* semaphore operation */
 short          sem_flg;  /* operation flags */
-.sp
-.in -4n
-.fi
+.EE
+.in
+.PP
 Flags recognized in
 .I sem_flg
 are
@@ -112,7 +112,7 @@ performed immediately depends on the presence of the
 flag in the individual
 .I sem_flg
 fields, as noted below.
-
+.PP
 Each operation is performed on the
 .IR sem_num \-th
 semaphore of the semaphore set, where the first semaphore of the set
@@ -159,7 +159,7 @@ Otherwise,
 (the count of threads waiting until this semaphore's value becomes zero)
 is incremented by one and the thread sleeps until
 one of the following occurs:
-.IP \(bu 3
+.IP \(bu 2
 .I semval
 becomes 0, at which time the value of
 .I semzcnt
@@ -224,7 +224,7 @@ Otherwise,
 (the counter of threads waiting for this semaphore's value to increase)
 is incremented by one and the thread sleeps until
 one of the following occurs:
-.IP \(bu 3
+.IP \(bu 2
 .I semval
 becomes greater than or equal to the absolute value of
 .IR sem_op :
@@ -287,9 +287,9 @@ then
 .BR semtimedop ()
 behaves exactly like
 .BR semop ().
-
+.PP
 Note that if
-.BR semtimeop ()
+.BR semtimedop ()
 is interrupted by a signal, causing the call to fail with the error
 .BR EINTR ,
 the contents of
@@ -323,7 +323,7 @@ The calling process does not have the permissions required
 to perform the specified semaphore operations,
 and does not have the
 .B CAP_IPC_OWNER
-capability.
+capability in the user namespace that governs its IPC namespace.
 .TP
 .B EAGAIN
 An operation could not proceed immediately and either
@@ -384,7 +384,7 @@ Glibc support for
 .BR semtimedop ()
 first appeared in version 2.3.3.
 .SH CONFORMING TO
-SVr4, POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008, SVr4.
 .\" SVr4 documents additional error conditions EINVAL, EFBIG, ENOSPC.
 .SH NOTES
 The inclusion of
@@ -399,7 +399,7 @@ Applications intended to be portable to such old systems may need
 to include these header files.
 .\" Like Linux, the FreeBSD man pages still document
 .\" the inclusion of these header files.
-
+.PP
 The
 .I sem_undo
 structures of a process aren't inherited by the child produced by
@@ -413,7 +413,7 @@ is never automatically restarted after being interrupted by a signal handler,
 regardless of the setting of the
 .B SA_RESTART
 flag when establishing a signal handler.
-
+.PP
 A semaphore adjustment
 .RI ( semadj )
 value is a per-process, per-semaphore integer that is the negated sum
@@ -446,7 +446,7 @@ flag allows more than one process to share a
 list; see
 .BR clone (2)
 for details.
-
+.PP
 The \fIsemval\fP, \fIsempid\fP, \fIsemzcnt\fP, and \fIsemnct\fP values
 for a semaphore can all be retrieved using appropriate
 .BR semctl (2)
@@ -459,10 +459,22 @@ call:
 .B SEMOPM
 Maximum number of operations allowed for one
 .BR semop ()
-call (32)
-(on Linux, this limit can be read and modified via the third field of
-.IR /proc/sys/kernel/sem ).
+call.
+Before Linux 3.19,
+.\" commit e843e7d2c88b7db107a86bd2c7145dc715c058f4
+the default value for this limit was 32.
+Since Linux 3.19, the default value is 500.
+On Linux, this limit can be read and modified via the third field of
+.IR /proc/sys/kernel/sem .
 .\" This /proc file is not available in Linux 2.2 and earlier -- MTK
+.IR Note :
+this limit should not be raised above 1000,
+.\" See comment in Linux 3.19 source file include/uapi/linux/sem.h
+because of the risk of that
+.BR semop ()
+fails due to kernel memory fragmentation when allocating memory to copy the
+.IR sops
+array.
 .TP
 .B SEMVMX
 Maximum allowable value for
@@ -496,7 +508,7 @@ is specified for a semaphore operation).
 Linux adopts a third approach: decreasing the semaphore value
 as far as possible (i.e., to zero) and allowing process
 termination to proceed immediately.
-
+.PP
 In kernels 2.6.x, x <= 10, there is a bug that in some circumstances
 prevents a thread that is waiting for a semaphore value to become
 zero from being woken up when the value does actually become zero.
@@ -505,31 +517,38 @@ This bug is fixed in kernel 2.6.11.
 .\" http://marc.theaimsgroup.com/?l=linux-kernel&m=110260821123863&w=2
 .\" the fix:
 .\" http://marc.theaimsgroup.com/?l=linux-kernel&m=110261701025794&w=2
-.SH EXAMPLE
+.SH EXAMPLES
 The following code segment uses
 .BR semop ()
 to atomically wait for the value of semaphore 0 to become zero,
 and then increment the semaphore value by one.
-.nf
+.PP
+.in +4n
+.EX
+struct sembuf sops[2];
+int semid;
 
-    struct sembuf sops[2];
-    int semid;
+/* Code to set \fIsemid\fP omitted */
 
-    /* Code to set \fIsemid\fP omitted */
+sops[0].sem_num = 0;        /* Operate on semaphore 0 */
+sops[0].sem_op = 0;         /* Wait for value to equal 0 */
+sops[0].sem_flg = 0;
 
-    sops[0].sem_num = 0;        /* Operate on semaphore 0 */
-    sops[0].sem_op = 0;         /* Wait for value to equal 0 */
-    sops[0].sem_flg = 0;
+sops[1].sem_num = 0;        /* Operate on semaphore 0 */
+sops[1].sem_op = 1;         /* Increment value by one */
+sops[1].sem_flg = 0;
 
-    sops[1].sem_num = 0;        /* Operate on semaphore 0 */
-    sops[1].sem_op = 1;         /* Increment value by one */
-    sops[1].sem_flg = 0;
-
-    if (semop(semid, sops, 2) == \-1) {
-        perror("semop");
-        exit(EXIT_FAILURE);
-    }
-.fi
+if (semop(semid, sops, 2) == \-1) {
+    perror("semop");
+    exit(EXIT_FAILURE);
+}
+.EE
+.in
+.PP
+A further example of the use of
+.BR semop ()
+can be found in
+.BR shmop (2).
 .SH SEE ALSO
 .BR clone (2),
 .BR semctl (2),
@@ -537,14 +556,14 @@ and then increment the semaphore value by one.
 .BR sigaction (2),
 .BR capabilities (7),
 .BR sem_overview (7),
-.BR svipc (7),
+.BR sysvipc (7),
 .BR time (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

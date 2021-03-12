@@ -38,19 +38,19 @@
 .\" Modified 2004-06-17 by Michael Kerrisk <mtk.manpages@gmail.com>
 .\" 2008-12-04, mtk, Add documentation of accept4()
 .\"
-.TH ACCEPT 2 2010-09-10 "Linux" "Linux Programmer's Manual"
+.TH ACCEPT 2 2020-04-11 "Linux" "Linux Programmer's Manual"
 .SH NAME
 accept, accept4 \- accept a connection on a socket
 .SH SYNOPSIS
 .nf
 .BR "#include <sys/types.h>" "          /* See NOTES */"
 .B #include <sys/socket.h>
-
+.PP
 .BI "int accept(int " sockfd ", struct sockaddr *" addr ", socklen_t *" addrlen );
 
 .BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
 .B #include <sys/socket.h>
-
+.PP
 .BI "int accept4(int " sockfd ", struct sockaddr *" addr ,
 .BI "            socklen_t *" addrlen ", int " flags );
 .fi
@@ -78,7 +78,7 @@ bound to a local address with
 .BR bind (2),
 and is listening for connections after a
 .BR listen (2).
-
+.PP
 The argument
 .I addr
 is a pointer to a
@@ -96,7 +96,7 @@ When
 is NULL, nothing is filled in; in this case,
 .I addrlen
 is not used, and should also be NULL.
-
+.PP
 The
 .I addrlen
 argument is a value-result argument:
@@ -104,7 +104,7 @@ the caller must initialize it to contain the
 size (in bytes) of the structure pointed to by
 .IR addr ;
 on return it will contain the actual size of the peer address.
-
+.PP
 The returned address is truncated if the buffer provided is too small;
 in this case,
 .I addrlen
@@ -124,9 +124,10 @@ or
 .BR EWOULDBLOCK .
 .PP
 In order to be notified of incoming connections on a socket, you can use
-.BR select (2)
+.BR select (2),
+.BR poll (2),
 or
-.BR poll (2).
+.BR epoll (7).
 A readable event will be delivered when a new connection is attempted and you
 may then call
 .BR accept ()
@@ -137,19 +138,6 @@ when activity occurs on a socket; see
 .BR socket (7)
 for details.
 .PP
-For certain protocols which require an explicit confirmation,
-such as
-DECNet,
-.BR accept ()
-can be thought of as merely dequeuing the next connection request and not
-implying confirmation.
-Confirmation can be implied by
-a normal read or write on the new file descriptor, and rejection can be
-implied by closing the new socket.
-Currently only
-DECNet
-has these semantics on Linux.
-
 If
 .IR flags
 is 0, then
@@ -163,7 +151,9 @@ to obtain different behavior:
 .B SOCK_NONBLOCK
 Set the
 .BR O_NONBLOCK
-file status flag on the new open file description.
+file status flag on the open file description (see
+.BR open (2))
+referred to by the new file descriptor.
 Using this flag saves extra calls to
 .BR fcntl (2)
 to achieve the same result.
@@ -179,11 +169,13 @@ flag in
 for reasons why this may be useful.
 .SH RETURN VALUE
 On success,
-these system calls return a nonnegative integer that is a descriptor
-for the accepted socket.
-On error, \-1 is returned, and
+these system calls return a file descriptor
+for the accepted socket (a nonnegative integer).
+On error, \-1 is returned,
 .I errno
-is set appropriately.
+is set appropriately, and
+.I addrlen
+is left unchanged.
 .SS Error handling
 Linux
 .BR accept ()
@@ -217,12 +209,14 @@ and
 .\" Actually EAGAIN on Linux
 The socket is marked nonblocking and no connections are
 present to be accepted.
-POSIX.1-2001 allows either error to be returned for this case,
-and does not require these constants to have the same value,
+POSIX.1-2001 and POSIX.1-2008
+allow either error to be returned for this case,
+and do not require these constants to have the same value,
 so a portable application should check for both possibilities.
 .TP
 .B EBADF
-The descriptor is invalid.
+.I sockfd
+is not an open file descriptor.
 .TP
 .B ECONNABORTED
 A connection has been aborted.
@@ -248,10 +242,10 @@ invalid value in
 .IR flags .
 .TP
 .B EMFILE
-The per-process limit of open file descriptors has been reached.
+The per-process limit on the number of open file descriptors has been reached.
 .TP
 .B ENFILE
-The system limit on the total number of open files has been reached.
+The system-wide limit on the total number of open files has been reached.
 .TP
 .BR ENOBUFS ", " ENOMEM
 Not enough free memory.
@@ -259,7 +253,9 @@ This often means that the memory allocation is limited by the socket buffer
 limits, not by the system memory.
 .TP
 .B ENOTSOCK
-The descriptor references a file, not a socket.
+The file descriptor
+.I sockfd
+does not refer to a socket.
 .TP
 .B EOPNOTSUPP
 The referenced socket is not of type
@@ -293,8 +289,8 @@ system call is available starting with Linux 2.6.28;
 support in glibc is available starting with version 2.10.
 .SH CONFORMING TO
 .BR accept ():
-POSIX.1-2001,
-SVr4, 4.4BSD,
+POSIX.1-2001, POSIX.1-2008,
+SVr4, 4.4BSD
 .RB ( accept ()
 first appeared in 4.2BSD).
 .\" The BSD man page documents five possible error returns
@@ -303,10 +299,10 @@ first appeared in 4.2BSD).
 .\" EAGAIN, EBADF, ECONNABORTED, EINTR, EINVAL, EMFILE,
 .\" ENFILE, ENOBUFS, ENOMEM, ENOTSOCK, EOPNOTSUPP, EPROTO, EWOULDBLOCK.
 .\" In addition, SUSv2 documents EFAULT and ENOSR.
-
+.PP
 .BR accept4 ()
 is a nonstandard Linux extension.
-.LP
+.PP
 On Linux, the new socket returned by
 .BR accept ()
 does \fInot\fP inherit file status flags such as
@@ -327,13 +323,14 @@ POSIX.1-2001 does not require the inclusion of
 and this header file is not required on Linux.
 However, some historical (BSD) implementations required this header
 file, and portable applications are probably wise to include it.
-
+.PP
 There may not always be a connection waiting after a
 .B SIGIO
 is delivered or
-.BR select (2)
+.BR select (2),
+.BR poll (2),
 or
-.BR poll (2)
+.BR epoll (7)
 return a readability event because the connection might have been
 removed by an asynchronous network error or another thread before
 .BR accept ()
@@ -348,34 +345,29 @@ needs to have the
 .B O_NONBLOCK
 flag set (see
 .BR socket (7)).
-.SS The socklen_t type
-The third argument of
+.PP
+For certain protocols which require an explicit confirmation,
+such as DECnet,
 .BR accept ()
-was originally declared as an \fIint *\fP (and is that under libc4 and libc5
-and on many other systems like 4.x BSD, SunOS 4, SGI); a POSIX.1g draft
-standard wanted to change it into a \fIsize_t *\fP, and that is what it is
-for SunOS 5.
-Later POSIX drafts have \fIsocklen_t *\fP,
-and so do the Single UNIX Specification and glibc2.
-Quoting Linus Torvalds:
-
-.\" .I fails: only italicizes a single line
-"_Any_ sane library _must_ have "socklen_t" be the same size
-as int.
-Anything else breaks any BSD socket layer stuff.
-POSIX initially \fIdid\fP make it a size_t, and I (and hopefully others, but
-obviously not too many) complained to them very loudly indeed.
-Making it a size_t is completely broken, exactly because size_t very
-seldom is the same size as "int" on 64-bit architectures, for example.
-And it
-\fIhas\fP to be the same size as "int" because that's what the BSD socket
-interface is.
-Anyway, the POSIX people eventually got a clue, and created "socklen_t".
-They shouldn't have touched it in the first place, but once they did
-they felt it had to have a named type for some unfathomable reason
-(probably somebody didn't like losing face over having done the original
-stupid thing, so they silently just renamed their blunder)."
-.SH EXAMPLE
+can be thought of as merely dequeuing the next connection request and not
+implying confirmation.
+Confirmation can be implied by
+a normal read or write on the new file descriptor, and rejection can be
+implied by closing the new socket.
+Currently, only DECnet has these semantics on Linux.
+.\"
+.SS The socklen_t type
+In the original BSD sockets implementation (and on other older systems)
+.\" such as Linux libc4 and libc5, SunOS 4, SGI
+the third argument of
+.BR accept ()
+was declared as an \fIint\ *\fP.
+A POSIX.1g draft
+standard wanted to change it into a \fIsize_t\ *\fPC;
+.\" SunOS 5 has 'size_t *'
+later POSIX standards and glibc 2.x have
+.IR "socklen_t\ * ".
+.SH EXAMPLES
 See
 .BR bind (2).
 .SH SEE ALSO
@@ -386,11 +378,11 @@ See
 .BR socket (2),
 .BR socket (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

@@ -33,8 +33,9 @@
 .\"	Language and formatting clean-ups
 .\"	Added msqid_ds and ipc_perm structure definitions
 .\" 2005-08-02, mtk: Added IPC_INFO, MSG_INFO, MSG_STAT descriptions
+.\" 2018-03-20, dbueso: Added MSG_STAT_ANY description.
 .\"
-.TH MSGCTL 2 2014-02-24 "Linux" "Linux Programmer's Manual"
+.TH MSGCTL 2 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 msgctl \- System V message control operations
 .SH SYNOPSIS
@@ -42,7 +43,7 @@ msgctl \- System V message control operations
 .B #include <sys/types.h>
 .B #include <sys/ipc.h>
 .B #include <sys/msg.h>
-
+.PP
 .BI "int msgctl(int " msqid ", int " cmd ", struct msqid_ds *" buf );
 .fi
 .SH DESCRIPTION
@@ -55,25 +56,70 @@ on the System\ V message queue with identifier
 The
 .I msqid_ds
 data structure is defined in \fI<sys/msg.h>\fP as follows:
-.nf
+.PP
 .in +4n
-
+.EX
 struct msqid_ds {
-    struct ipc_perm msg_perm;     /* Ownership and permissions */
-    time_t          msg_stime;    /* Time of last msgsnd(2) */
-    time_t          msg_rtime;    /* Time of last msgrcv(2) */
-    time_t          msg_ctime;    /* Time of last change */
-    unsigned long   __msg_cbytes; /* Current number of bytes in
-                                     queue (nonstandard) */
-    msgqnum_t       msg_qnum;     /* Current number of messages
-                                     in queue */
-    msglen_t        msg_qbytes;   /* Maximum number of bytes
-                                     allowed in queue */
-    pid_t           msg_lspid;    /* PID of last msgsnd(2) */
-    pid_t           msg_lrpid;    /* PID of last msgrcv(2) */
+    struct ipc_perm msg_perm;   /* Ownership and permissions */
+    time_t          msg_stime;  /* Time of last msgsnd(2) */
+    time_t          msg_rtime;  /* Time of last msgrcv(2) */
+    time_t          msg_ctime;  /* Time of creation or last
+                                   modification by msgctl() */
+    unsigned long   msg_cbytes; /* # of bytes in queue */
+    msgqnum_t       msg_qnum;   /* # number of messages in queue */
+    msglen_t        msg_qbytes; /* Maximum # of bytes in queue */
+    pid_t           msg_lspid;  /* PID of last msgsnd(2) */
+    pid_t           msg_lrpid;  /* PID of last msgrcv(2) */
 };
+.EE
 .in
-.fi
+.PP
+The fields of the
+.I msgid_ds
+structure are as follows:
+.TP 11
+.I msg_perm
+This is an
+.I ipc_perm
+structure (see below) that specifies the access permissions on the message
+queue.
+.TP
+.I msg_stime
+Time of the last
+.BR msgsnd (2)
+system call.
+.TP
+.I msg_rtime
+Time of the last
+.BR msgrcv (2)
+system call.
+.TP
+.I msg_ctime
+Time of creation of queue or time of last
+.BR msgctl ()
+.BR IPC_SET
+operation.
+.TP
+.I msg_cbytes
+Number of bytes in all messages currently on the message queue.
+This is a nonstandard Linux extension that is not specified in POSIX.
+.TP
+.I msg_qnum
+Number of messages currently on the message queue.
+.TP
+.I msg_qbytes
+Maximum number of bytes of message text allowed on the message
+queue.
+.TP
+.I msg_lspid
+ID of the process that performed the last
+.BR msgsnd (2)
+system call.
+.TP
+.I msg_lrpid
+ID of the process that performed the last
+.BR msgrcv (2)
+system call.
 .PP
 The
 .I ipc_perm
@@ -81,8 +127,8 @@ structure is defined as follows
 (the highlighted fields are settable using
 .BR IPC_SET ):
 .PP
-.nf
 .in +4n
+.EX
 struct ipc_perm {
     key_t          __key;       /* Key supplied to msgget(2) */
     uid_t          \fBuid\fP;         /* Effective UID of owner */
@@ -92,8 +138,26 @@ struct ipc_perm {
     unsigned short \fBmode\fP;        /* Permissions */
     unsigned short __seq;       /* Sequence number */
 };
+.EE
 .in
-.fi
+.PP
+The least significant 9 bits of the
+.I mode
+field of the
+.I ipc_perm
+structure define the access permissions for the message queue.
+The permission bits are as follows:
+.TS
+l l.
+0400	Read by user
+0200	Write by user
+0040	Read by group
+0020	Write by group
+0004	Read by others
+0002	Write by others
+.TE
+.PP
+Bits 0100, 0010, and 0001 (the execute bits) are unused by the system.
 .PP
 Valid values for
 .I cmd
@@ -117,12 +181,14 @@ to the kernel data structure associated with this message queue,
 updating also its
 .I msg_ctime
 member.
+.IP
 The following members of the structure are updated:
 .IR msg_qbytes ,
 .IR msg_perm.uid ,
 .IR msg_perm.gid ,
 and (the least significant 9 bits of)
 .IR msg_perm.mode .
+.IP
 The effective UID of the calling process must match the owner
 .RI ( msg_perm.uid )
 or creator
@@ -161,9 +227,9 @@ defined in
 if the
 .B _GNU_SOURCE
 feature test macro is defined:
-.nf
+.IP
 .in +4n
-
+.EX
 struct msginfo {
     int msgpool; /* Size in kibibytes of buffer pool
                     used to hold message data;
@@ -181,13 +247,13 @@ struct msginfo {
                     unused within kernel */
     int msgtql;  /* Maximum number of messages on all queues
                     in system; unused within kernel */
-    unsigned short int msgseg;
+    unsigned short msgseg;
                  /* Maximum number of segments;
                     unused within kernel */
 };
-
+.EE
 .in
-.fi
+.IP
 The
 .IR msgmni ,
 .IR msgmax ,
@@ -226,6 +292,19 @@ However, the
 argument is not a queue identifier, but instead an index into
 the kernel's internal array that maintains information about
 all message queues on the system.
+.TP
+.BR MSG_STAT_ANY " (Linux-specific, since Linux 4.17)"
+Return a
+.I msqid_ds
+structure as for
+.BR MSG_STAT .
+However,
+.I msg_perm.mode
+is not checked for read access for
+.IR msqid
+meaning that any user can employ this operation (just as any user may read
+.IR /proc/sysvipc/msg
+to obtain the same information).
 .SH RETURN VALUE
 On success,
 .BR IPC_STAT ,
@@ -242,12 +321,16 @@ kernel's internal array recording information about all
 message queues.
 (This information can be used with repeated
 .B MSG_STAT
+or
+.B MSG_STAT_ANY
 operations to obtain information about all queues on the system.)
 A successful
 .B MSG_STAT
+or
+.B MSG_STAT_ANY
 operation returns the identifier of the queue whose index was given in
 .IR msqid .
-
+.PP
 On error, \-1 is returned with
 .I errno
 indicating the error.
@@ -267,7 +350,7 @@ but the calling process does not have read permission on the message queue
 .IR msqid ,
 and does not have the
 .B CAP_IPC_OWNER
-capability.
+capability in the user namespace that governs its IPC namespace.
 .TP
 .B EFAULT
 The argument
@@ -323,7 +406,7 @@ but the caller is not privileged (Linux: does not have the
 .B CAP_SYS_RESOURCE
 capability).
 .SH CONFORMING TO
-SVr4, POSIX.1-2001.
+POSIX.1-2001, POSIX.1-2008, SVr4.
 .\" SVID does not document the EIDRM error condition.
 .SH NOTES
 The inclusion of
@@ -338,10 +421,10 @@ Applications intended to be portable to such old systems may need
 to include these header files.
 .\" Like Linux, the FreeBSD man pages still document
 .\" the inclusion of these header files.
-
+.PP
 The
 .BR IPC_INFO ,
-.B MSG_STAT
+.BR MSG_STAT ,
 and
 .B MSG_INFO
 operations are used by the
@@ -350,7 +433,7 @@ program to provide information on allocated resources.
 In the future these may modified or moved to a
 .I /proc
 filesystem interface.
-
+.PP
 Various fields in the \fIstruct msqid_ds\fP were
 typed as
 .I short
@@ -370,13 +453,13 @@ flag in
 .BR msgsnd (2),
 .BR capabilities (7),
 .BR mq_overview (7),
-.BR svipc (7)
+.BR sysvipc (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

@@ -25,13 +25,14 @@
 .\"
 .\" 2009-01-12, mtk, Created
 .\"
-.TH RTLD-AUDIT 7 2012-07-07 "Linux" "Linux Programmer's Manual"
+.TH RTLD-AUDIT 7 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 rtld-audit \- auditing API for the dynamic linker
 .SH SYNOPSIS
+.nf
 .BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
-
 .B #include <link.h>
+.fi
 .SH DESCRIPTION
 The GNU dynamic linker (run-time linker)
 provides an auditing API that allows an application
@@ -40,14 +41,14 @@ This API is very similar to the auditing interface provided by the
 Solaris run-time linker.
 The necessary constants and prototypes are defined by including
 .IR <link.h> .
-
+.PP
 To use this interface, the programmer creates a shared library
 that implements a standard set of function names.
 Not all of the functions need to be implemented: in most cases,
 if the programmer is not interested in a particular class of auditing event,
 then no implementation needs to be provided for the corresponding
 auditing function.
-
+.PP
 To employ the auditing interface, the environment variable
 .BR LD_AUDIT
 must be defined to contain a colon-separated list of shared libraries,
@@ -69,17 +70,33 @@ the auditing library.
 When invoking this function, the dynamic linker passes, in
 .IR version ,
 the highest version of the auditing interface that the linker supports.
-If necessary, the auditing library can check that this version
-is sufficient for its requirements.
-
-As its function result,
-this function should return the version of the auditing interface
-that this auditing library expects to use (returning
+.PP
+A typical implementation of this function simply returns the constant
+.BR LAV_CURRENT ,
+which indicates the version of
+.I <link.h>
+that was used to build the audit module.
+If the dynamic linker does
+not support this version of the audit interface, it will refuse to
+activate this audit module.
+If the function returns zero, the dynamic
+linker also does not activate this audit module.
+.PP
+In order to enable backwards compatibility with older dynamic linkers,
+an audit module can examine the
 .I version
-is acceptable).
-If the returned value is 0,
-or a version that is greater than that supported by the dynamic linker,
-then the audit library is ignored.
+argument and return an earlier version than
+.BR LAV_CURRENT ,
+assuming the module can adjust its implementation to match the
+requirements of the previous version of the audit interface.
+The
+.B la_version
+function should not return the value of
+.I version
+without further checks because it could correspond to an interface
+that does not match the
+.I <link.h>
+definitions used to build the audit module.
 .SS la_objsearch()
 \&
 .nf
@@ -223,7 +240,7 @@ The
 .I cookie
 argument is the identifier obtained from a previous invocation of
 .BR la_objopen ().
-
+.PP
 In the current implementation, the value returned by
 .BR la_objclose ()
 is ignored.
@@ -262,7 +279,7 @@ function is employed on 32-bit platforms;
 the
 .BR la_symbind64 ()
 function is employed on 64-bit platforms.
-
+.PP
 The
 .I sym
 argument is a pointer to a structure
@@ -272,12 +289,12 @@ The structure definition is shown in
 Among the fields of this structure,
 .I st_value
 indicates the address to which the symbol is bound.
-
+.PP
 The
 .I ndx
 argument gives the index of the symbol in the symbol table
 of the bound shared object.
-
+.PP
 The
 .I refcook
 argument identifies the shared object that is making the symbol reference;
@@ -292,11 +309,11 @@ this is the same identifier that is provided to the
 .BR la_objopen ()
 function that returned
 .BR LA_FLG_BINDTO .
-
+.PP
 The
 .I symname
 argument points a string containing the name of the symbol.
-
+.PP
 The
 .I flags
 argument is a bit mask that both provides information about the symbol
@@ -354,17 +371,17 @@ depend on the hardware platform.
 (The appropriate definition is supplied by
 .IR <link.h> .)
 Here is the definition for x86-32:
+.PP
 .nf
-
 .BI "Elf32_Addr la_i86_gnu_pltenter(Elf32_Sym *" sym ", unsigned int " ndx ,
 .BI "                 uintptr_t *" refcook ", uintptr_t *" defcook ,
 .BI "                 La_i86_regs *" regs ", unsigned int *" flags ,
-.BI "                 const char *" symname ", long int *" framesizep );
+.BI "                 const char *" symname ", long *" framesizep );
 .fi
-
+.PP
 This function is invoked just before a PLT entry is called,
 between two shared objects that have been marked for binding notification.
-
+.PP
 The
 .IR sym ,
 .IR ndx ,
@@ -374,20 +391,20 @@ and
 .IR symname
 are as for
 .BR la_symbind* ().
-
+.PP
 The
 .I regs
 argument points to a structure (defined in
 .IR <link.h> )
 containing the values of registers to be used for
 the call to this PLT entry.
-
+.PP
 The
 .I flags
 argument points to a bit mask that conveys information about,
 and can be used to modify subsequent auditing of, this PLT entry, as for
 .BR la_symbind* ().
-
+.PP
 .\" FIXME . Is the following correct?
 The
 .IR framesizep
@@ -400,10 +417,10 @@ If different
 invocations for this symbol return different values,
 then the maximum returned value is used.
 The
-.BR la_pltenter ()
+.BR la_pltexit ()
 function is called only if this buffer is
 explicitly set to a suitable value.
-
+.PP
 The return value of
 .BR la_pltenter ()
 is as for
@@ -414,8 +431,8 @@ depend on the hardware platform.
 (The appropriate definition is supplied by
 .IR <link.h> .)
 Here is the definition for x86-32:
+.PP
 .nf
-
 .BI "unsigned int la_i86_gnu_pltexit(Elf32_Sym *" sym ", unsigned int " ndx ,
 .BI "                 uintptr_t *" refcook ", uintptr_t *" defcook ,
 .BI "                 const La_i86_regs *" inregs ", La_i86_retval *" outregs ,
@@ -437,7 +454,7 @@ and
 .IR symname
 are as for
 .BR la_symbind* ().
-
+.PP
 The
 .I inregs
 argument points to a structure (defined in
@@ -450,7 +467,7 @@ argument points to a structure (defined in
 containing return values for the call to this PLT entry.
 These values can be modified by the caller,
 and the changes will be visible to the caller of the PLT entry.
-
+.PP
 In the current GNU implementation, the return value of
 .BR la_pltexit ()
 is ignored.
@@ -499,24 +516,25 @@ This is reportedly fixed in glibc 2.10.
 .\" My simple tests on Solaris work okay, but not on Linux -- mtk, Jan 2009
 .\" glibc bug filed: http://sourceware.org/bugzilla/show_bug.cgi?id=9733
 .\" Reportedly, this is fixed on 16 Mar 2009 (i.e., for glibc 2.10)
-.SH EXAMPLE
-.nf
+.SH EXAMPLES
+.EX
 #include <link.h>
 #include <stdio.h>
 
 unsigned int
 la_version(unsigned int version)
 {
-    printf("la_version(): %d\\n", version);
+    printf("la_version(): version = %u; LAV_CURRENT = %u\en",
+            version, LAV_CURRENT);
 
-    return version;
+    return LAV_CURRENT;
 }
 
 char *
 la_objsearch(const char *name, uintptr_t *cookie, unsigned int flag)
 {
-    printf("la_objsearch(): name = %s; cookie = %x", name, cookie);
-    printf("; flag = %s\\n",
+    printf("la_objsearch(): name = %s; cookie = %p", name, cookie);
+    printf("; flag = %s\en",
             (flag == LA_SER_ORIG) ?    "LA_SER_ORIG" :
             (flag == LA_SER_LIBPATH) ? "LA_SER_LIBPATH" :
             (flag == LA_SER_RUNPATH) ? "LA_SER_RUNPATH" :
@@ -531,7 +549,7 @@ la_objsearch(const char *name, uintptr_t *cookie, unsigned int flag)
 void
 la_activity (uintptr_t *cookie, unsigned int flag)
 {
-    printf("la_activity(): cookie = %x; flag = %s\\n", cookie,
+    printf("la_activity(): cookie = %p; flag = %s\en", cookie,
             (flag == LA_ACT_CONSISTENT) ? "LA_ACT_CONSISTENT" :
             (flag == LA_ACT_ADD) ?        "LA_ACT_ADD" :
             (flag == LA_ACT_DELETE) ?     "LA_ACT_DELETE" :
@@ -541,7 +559,7 @@ la_activity (uintptr_t *cookie, unsigned int flag)
 unsigned int
 la_objopen(struct link_map *map, Lmid_t lmid, uintptr_t *cookie)
 {
-    printf("la_objopen(): loading \\"%s\\"; lmid = %s; cookie=%x\\n",
+    printf("la_objopen(): loading \e"%s\e"; lmid = %s; cookie=%p\en",
             map\->l_name,
             (lmid == LM_ID_BASE) ?  "LM_ID_BASE" :
             (lmid == LM_ID_NEWLM) ? "LM_ID_NEWLM" :
@@ -554,7 +572,7 @@ la_objopen(struct link_map *map, Lmid_t lmid, uintptr_t *cookie)
 unsigned int
 la_objclose (uintptr_t *cookie)
 {
-    printf("la_objclose(): %x\\n", cookie);
+    printf("la_objclose(): %p\en", cookie);
 
     return 0;
 }
@@ -562,17 +580,17 @@ la_objclose (uintptr_t *cookie)
 void
 la_preinit(uintptr_t *cookie)
 {
-    printf("la_preinit(): %x\\n", cookie);
+    printf("la_preinit(): %p\en", cookie);
 }
 
 uintptr_t
 la_symbind32(Elf32_Sym *sym, unsigned int ndx, uintptr_t *refcook,
         uintptr_t *defcook, unsigned int *flags, const char *symname)
 {
-    printf("la_symbind32(): symname = %s; sym\->st_value = %p\\n",
+    printf("la_symbind32(): symname = %s; sym\->st_value = %p\en",
             symname, sym\->st_value);
-    printf("        ndx = %d; flags = 0x%x", ndx, *flags);
-    printf("; refcook = %x; defcook = %x\\n", refcook, defcook);
+    printf("        ndx = %u; flags = %#x", ndx, *flags);
+    printf("; refcook = %p; defcook = %p\en", refcook, defcook);
 
     return sym\->st_value;
 }
@@ -581,10 +599,10 @@ uintptr_t
 la_symbind64(Elf64_Sym *sym, unsigned int ndx, uintptr_t *refcook,
         uintptr_t *defcook, unsigned int *flags, const char *symname)
 {
-    printf("la_symbind64(): symname = %s; sym\->st_value = %p\\n",
+    printf("la_symbind64(): symname = %s; sym\->st_value = %p\en",
             symname, sym\->st_value);
-    printf("        ndx = %d; flags = 0x%x", ndx, *flags);
-    printf("; refcook = %x; defcook = %x\\n", refcook, defcook);
+    printf("        ndx = %u; flags = %#x", ndx, *flags);
+    printf("; refcook = %p; defcook = %p\en", refcook, defcook);
 
     return sym\->st_value;
 }
@@ -592,24 +610,24 @@ la_symbind64(Elf64_Sym *sym, unsigned int ndx, uintptr_t *refcook,
 Elf32_Addr
 la_i86_gnu_pltenter(Elf32_Sym *sym, unsigned int ndx,
         uintptr_t *refcook, uintptr_t *defcook, La_i86_regs *regs,
-        unsigned int *flags, const char *symname, long int *framesizep)
+        unsigned int *flags, const char *symname, long *framesizep)
 {
-    printf("la_i86_gnu_pltenter(): %s (%p)\\n", symname, sym\->st_value);
+    printf("la_i86_gnu_pltenter(): %s (%p)\en", symname, sym\->st_value);
 
     return sym\->st_value;
 }
-.fi
+.EE
 .SH SEE ALSO
 .BR ldd (1),
 .BR dlopen (3),
 .BR ld.so (8),
 .BR ldconfig (8)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

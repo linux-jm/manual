@@ -27,31 +27,29 @@
 .\"
 .\" Modified 2003-04-04, aeb
 .\"
-.TH ENCRYPT 3 2013-07-22 "" "Linux Programmer's Manual"
+.TH ENCRYPT 3 2020-11-01 "" "Linux Programmer's Manual"
 .SH NAME
 encrypt, setkey, encrypt_r, setkey_r \- encrypt 64-bit messages
 .SH SYNOPSIS
+.nf
 .BR "#define _XOPEN_SOURCE" "       /* See feature_test_macros(7) */"
-.br
 .B #include <unistd.h>
-.sp
+.PP
 .BI "void encrypt(char " block "[64], int " edflag );
-.sp
+
 .BR "#define _XOPEN_SOURCE" "       /* See feature_test_macros(7) */"
-.br
 .B #include <stdlib.h>
-.sp
+.PP
 .BI "void setkey(const char *" key );
-.sp
+
 .BR "#define _GNU_SOURCE" "         /* See feature_test_macros(7) */"
-.br
 .B "#include <crypt.h>"
-.sp
+.PP
 .BI "void setkey_r(const char *" key ", struct crypt_data *" data );
-.br
 .BI "void encrypt_r(char *" block ", int " edflag \
 ", struct crypt_data *" data );
-.sp
+.fi
+.PP
 Each of these requires linking with \fI\-lcrypt\fP.
 .SH DESCRIPTION
 These functions encrypt and decrypt 64-bit messages.
@@ -87,22 +85,22 @@ and
 are the reentrant versions.
 They use the following
 structure to hold the key data:
+.PP
 .in +4n
-.nf
-
+.EX
 struct crypt_data {
-    char     keysched[16 * 8];
-    char     sb0[32768];
-    char     sb1[32768];
-    char     sb2[32768];
-    char     sb3[32768];
-    char     crypt_3_buf[14];
-    char     current_salt[2];
-    long int current_saltbits;
-    int      direction;
-    int      initialized;
+    char keysched[16 * 8];
+    char sb0[32768];
+    char sb1[32768];
+    char sb2[32768];
+    char sb3[32768];
+    char crypt_3_buf[14];
+    char current_salt[2];
+    long current_saltbits;
+    int  direction;
+    int  initialized;
 };
-.fi
+.EE
 .in
 .PP
 Before calling
@@ -121,67 +119,109 @@ On success, it is unchanged.
 .B ENOSYS
 The function is not provided.
 (For example because of former USA export restrictions.)
-.SH ATTRIBUTES
-.SS Multithreading (see pthreads(7))
-The
-.BR encrypt ()
-and
-.BR setkey ()
-functions are not thread-safe.
-.LP
-The
-.BR encrypt_r ()
+.SH VERSIONS
+Because they employ the DES block cipher,
+which is no longer considered secure,
+.BR crypt (),
+.BR crypt_r (),
+.BR setkey (),
 and
 .BR setkey_r ()
-functions are thread-safe.
-.SH CONFORMING TO
-The functions
-.BR encrypt ()
-and
+were removed in glibc 2.28.
+Applications should switch to a modern cryptography library, such as
+.BR libgcrypt .
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw23 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR encrypt (),
 .BR setkey ()
-conform to SVr4, SUSv2, and POSIX.1-2001.
+T}	Thread safety	MT-Unsafe race:crypt
+T{
+.BR encrypt_r (),
+.BR setkey_r ()
+T}	Thread safety	MT-Safe
+.TE
+.SH CONFORMING TO
+.BR encrypt (),
+.BR setkey ():
+POSIX.1-2001, POSIX.1-2008, SUS, SVr4.
+.PP
 The functions
 .BR encrypt_r ()
 and
 .BR setkey_r ()
 are GNU extensions.
 .SH NOTES
+.SS Availability in glibc
+See
+.BR crypt (3).
+.SS Features in glibc
 In glibc 2.2, these functions use the DES algorithm.
-.SH EXAMPLE
-You need to link with libcrypt to compile this example with glibc.
-To do useful work, the
-.I key[]
-and
-.I txt[]
-arrays must be filled with a useful bit pattern.
-.sp
-.nf
+.SH EXAMPLES
+.EX
 #define _XOPEN_SOURCE
-#include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <crypt.h>
 
 int
 main(void)
 {
-    char key[64];      /* bit pattern for key */
-    char txt[64];      /* bit pattern for messages */
+    char key[64];
+    char orig[9] = "eggplant";
+    char buf[64];
+    char txt[9];
 
-    setkey(key);
-    encrypt(txt, 0);   /* encode */
-    encrypt(txt, 1);   /* decode */
+    for (int i = 0; i < 64; i++) {
+        key[i] = rand() & 1;
+    }
+
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            buf[i * 8 + j] = orig[i] >> j & 1;
+        }
+        setkey(key);
+    }
+    printf("Before encrypting: %s\en", orig);
+
+    encrypt(buf, 0);
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0, txt[i] = \(aq\e0\(aq; j < 8; j++) {
+            txt[i] |= buf[i * 8 + j] << j;
+        }
+        txt[8] = \(aq\e0\(aq;
+    }
+    printf("After encrypting:  %s\en", txt);
+
+    encrypt(buf, 1);
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0, txt[i] = \(aq\e0\(aq; j < 8; j++) {
+            txt[i] |= buf[i * 8 + j] << j;
+        }
+        txt[8] = \(aq\e0\(aq;
+    }
+    printf("After decrypting:  %s\en", txt);
+    exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SH SEE ALSO
 .BR cbc_crypt (3),
 .BR crypt (3),
 .BR ecb_crypt (3),
 .\" .BR fcrypt (3)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

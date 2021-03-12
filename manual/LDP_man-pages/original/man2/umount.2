@@ -27,15 +27,15 @@
 .\" 2008-10-06, mtk: Created this as a new page by splitting
 .\"     umount/umount2 material out of mount.2
 .\"
-.TH UMOUNT 2 2014-02-26 "Linux" "Linux Programmer's Manual"
+.TH UMOUNT 2 2020-06-09 "Linux" "Linux Programmer's Manual"
 .SH NAME
 umount, umount2 \- unmount filesystem
 .SH SYNOPSIS
 .nf
 .B "#include <sys/mount.h>"
-.sp
+.PP
 .BI "int umount(const char *" target );
-.sp
+.PP
 .BI "int umount2(const char *" target ", int " flags );
 .fi
 .SH DESCRIPTION
@@ -47,11 +47,11 @@ remove the attachment of the (topmost) filesystem mounted on
 .\" Note: the kernel naming differs from the glibc naming
 .\" umount2 is the glibc name for what the kernel now calls umount
 .\" and umount is the glibc name for oldumount
-
+.PP
 Appropriate privilege (Linux: the
 .B CAP_SYS_ADMIN
 capability) is required to unmount filesystems.
-
+.PP
 Linux 2.1.116 added the
 .BR umount2 ()
 system call, which, like
@@ -61,14 +61,28 @@ unmounts a target, but allows additional
 controlling the behavior of the operation:
 .TP
 .BR MNT_FORCE " (since Linux 2.1.116)"
-Force unmount even if busy.
-This can cause data loss.
-(Only for NFS mounts.)
+Ask the filesystem to abort pending requests before attempting the
+unmount.
+This may allow the unmount to complete without waiting
+for an inaccessible server, but could cause data loss.
+If, after aborting requests,
+some processes still have active references to the filesystem,
+the unmount will still fail.
+As at Linux 4.12,
+.BR MNT_FORCE
+is supported only on the following filesystems:
+9p (since Linux 2.6.16),
+ceph (since Linux 2.6.34),
+cifs (since Linux 2.6.12),
+fuse (since Linux 2.6.16),
+lustre (since Linux 3.11),
+and NFS (since Linux 2.1.116).
 .TP
 .BR MNT_DETACH " (since Linux 2.4.11)"
-Perform a lazy unmount: make the mount point unavailable for
-new accesses, and actually perform the unmount when the mount point
-ceases to be busy.
+Perform a lazy unmount: make the mount point unavailable for new
+accesses, immediately disconnect the filesystem and all filesystems
+mounted below it from each other and from the mount table, and
+actually perform the unmount when the mount point ceases to be busy.
 .TP
 .BR MNT_EXPIRE " (since Linux 2.6.8)"
 Mark the mount point as expired.
@@ -163,6 +177,39 @@ are available in glibc since version 2.11.
 These functions are Linux-specific and should not be used in
 programs intended to be portable.
 .SH NOTES
+.SS umount() and shared mount points
+Shared mount points cause any mount activity on a mount point, including
+.BR umount ()
+operations, to be forwarded to every shared mount point in the
+peer group and every slave mount of that peer group.
+This means that
+.BR umount ()
+of any peer in a set of shared mounts will cause all of its
+peers to be unmounted and all of their slaves to be unmounted as well.
+.PP
+This propagation of unmount activity can be particularly surprising
+on systems where every mount point is shared by default.
+On such systems,
+recursively bind mounting the root directory of the filesystem
+onto a subdirectory and then later unmounting that subdirectory with
+.BR MNT_DETACH
+will cause every mount in the mount namespace to be lazily unmounted.
+.PP
+To ensure
+.BR umount ()
+does not propagate in this fashion,
+the mount point may be remounted using a
+.BR mount (2)
+call with a
+.I mount_flags
+argument that includes both
+.BR MS_REC
+and
+.BR MS_PRIVATE
+prior to
+.BR umount ()
+being called.
+.SS Historical details
 The original
 .BR umount ()
 function was called as \fIumount(device)\fP and would return
@@ -175,15 +222,16 @@ leaving only \fIumount(dir)\fP (since now devices can be mounted
 in more than one place, so specifying the device does not suffice).
 .SH SEE ALSO
 .BR mount (2),
+.BR mount_namespaces (7),
 .BR path_resolution (7),
 .BR mount (8),
 .BR umount (8)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

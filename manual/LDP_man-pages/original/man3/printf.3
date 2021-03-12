@@ -31,48 +31,56 @@
 .\" 2000-07-26 jsm28@hermes.cam.ac.uk - three small fixes
 .\" 2000-10-16 jsm28@hermes.cam.ac.uk - more fixes
 .\"
-.TH PRINTF 3  2014-07-08 "GNU" "Linux Programmer's Manual"
+.TH PRINTF 3  2020-11-01 "GNU" "Linux Programmer's Manual"
 .SH NAME
-printf, fprintf, sprintf, snprintf, vprintf, vfprintf, vsprintf,
-vsnprintf \- formatted output conversion
+printf, fprintf, dprintf, sprintf, snprintf, vprintf, vfprintf, vdprintf,
+vsprintf, vsnprintf \- formatted output conversion
 .SH SYNOPSIS
+.nf
 .B #include <stdio.h>
-.sp
+.PP
 .BI "int printf(const char *" format ", ...);"
-.br
 .BI "int fprintf(FILE *" stream ", const char *" format ", ...);"
-.br
+.BI "int dprintf(int " fd ", const char *" format ", ...);"
 .BI "int sprintf(char *" str ", const char *" format ", ...);"
-.br
 .BI "int snprintf(char *" str ", size_t " size ", const char *" format ", ...);"
-.sp
+
 .B #include <stdarg.h>
-.sp
+.PP
 .BI "int vprintf(const char *" format ", va_list " ap );
-.br
 .BI "int vfprintf(FILE *" stream ", const char *" format ", va_list " ap );
-.br
+.BI "int vdprintf(int " fd ", const char *" format ", va_list " ap );
 .BI "int vsprintf(char *" str ", const char *" format ", va_list " ap );
-.br
 .BI "int vsnprintf(char *" str ", size_t " size ", const char *" format \
 ", va_list " ap );
-.sp
-.in -4n
+.fi
+.PP
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .ad l
 .BR snprintf (),
 .BR vsnprintf ():
 .RS 4
-_BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _ISOC99_SOURCE ||
-_POSIX_C_SOURCE\ >=\ 200112L;
-.br
-or
-.I "cc -std=c99"
+_XOPEN_SOURCE\ >=\ 500 || _ISOC99_SOURCE ||
+    || /* Glibc versions <= 2.19: */ _BSD_SOURCE
+.RE
+.PP
+.BR dprintf (),
+.BR vdprintf ():
+.PD 0
+.RS 4
+.TP 4
+Since glibc 2.10:
+_POSIX_C_SOURCE\ >=\ 200809L
+.TP
+Before glibc 2.10:
+_GNU_SOURCE
 .RE
 .ad
+.PD
 .SH DESCRIPTION
 The functions in the
 .BR printf ()
@@ -93,11 +101,21 @@ write output to the given output
 .IR stream ;
 .BR sprintf (),
 .BR snprintf (),
-.BR vsprintf ()
+.BR vsprintf (),
 and
 .BR vsnprintf ()
 write to the character string
 .IR str .
+.PP
+The function
+.BR dprintf ()
+is the same as
+.BR fprintf ()
+except that it outputs to a file descriptor,
+.IR fd ,
+instead of to a
+.I stdio
+stream.
 .PP
 The functions
 .BR snprintf ()
@@ -111,11 +129,13 @@ bytes (including the terminating null byte (\(aq\e0\(aq)) to
 The functions
 .BR vprintf (),
 .BR vfprintf (),
+.BR vdprintf (),
 .BR vsprintf (),
 .BR vsnprintf ()
 are equivalent to the functions
 .BR printf (),
 .BR fprintf (),
+.BR dprintf (),
 .BR sprintf (),
 .BR snprintf (),
 respectively, except that they are called with a
@@ -132,13 +152,13 @@ is undefined after the call.
 See
 .BR stdarg (3).
 .PP
-These eight functions write the output under the control of a
+All of these functions write the output under the control of a
 .I format
 string that specifies how subsequent arguments (or arguments accessed via
 the variable-length argument facilities of
 .BR stdarg (3))
 are converted for output.
-
+.PP
 C99 and POSIX.1-2001 specify that the results are undefined if a call to
 .BR sprintf (),
 .BR snprintf (),
@@ -149,27 +169,6 @@ would cause copying to take place between objects that overlap
 (e.g., if the target string array and one of the supplied input arguments
 refer to the same buffer).
 See NOTES.
-.SS Return value
-Upon successful return, these functions return the number of characters
-printed (excluding the null byte used to end output to strings).
-
-The functions
-.BR snprintf ()
-and
-.BR vsnprintf ()
-do not write more than
-.I size
-bytes (including the terminating null byte (\(aq\e0\(aq)).
-If the output was truncated due to this limit, then the return value
-is the number of characters (excluding the terminating null byte)
-which would have been written to the final string if enough space
-had been available.
-Thus, a return value of
-.I size
-or more means that the output was truncated.
-(See also below under NOTES.)
-
-If an output error is encountered, a negative value is returned.
 .SS Format of the format string
 The format string is a character string, beginning and ending
 in its initial shift state, if any.
@@ -192,34 +191,38 @@ an optional
 .I precision
 and an optional
 .IR "length modifier" .
-
+.PP
 The arguments must correspond properly (after type promotion) with the
 conversion specifier.
 By default, the arguments are used in the order
-given, where each \(aq*\(aq and each conversion specifier asks for the next
+given, where each \(aq*\(aq (see
+.I "Field width"
+and
+.I Precision
+below) and each conversion specifier asks for the next
 argument (and it is an error if insufficiently many arguments are given).
 One can also specify explicitly which argument is taken,
 at each place where an argument is required, by writing "%m$" instead
 of \(aq%\(aq and "*m$" instead of \(aq*\(aq,
-where the decimal integer m denotes
+where the decimal integer \fIm\fP denotes
 the position in the argument list of the desired argument, indexed starting
 from 1.
 Thus,
+.PP
 .in +4n
-.nf
-
+.EX
 printf("%*d", width, num);
-
-.fi
+.EE
 .in
+.PP
 and
+.PP
 .in +4n
-.nf
-
+.EX
 printf("%2$*1$d", width, num);
-
-.fi
+.EE
 .in
+.PP
 are equivalent.
 The second style allows repeated references to the
 same argument.
@@ -228,31 +231,33 @@ which comes from the Single UNIX Specification.
 If the style using
 \(aq$\(aq is used, it must be used throughout for all conversions taking an
 argument and all width and precision arguments, but it may be mixed
-with "%%" formats which do not consume an argument.
+with "%%" formats, which do not consume an argument.
 There may be no
 gaps in the numbers of arguments specified using \(aq$\(aq; for example, if
 arguments 1 and 3 are specified, argument 2 must also be specified
 somewhere in the format string.
-
+.PP
 For some numeric conversions a radix character ("decimal point") or
 thousands' grouping character is used.
 The actual character used
 depends on the
 .B LC_NUMERIC
 part of the locale.
+(See
+.BR setlocale (3).)
 The POSIX locale
 uses \(aq.\(aq as radix character, and does not have a grouping character.
 Thus,
+.PP
 .in +4n
-.nf
-
-    printf("%\(aq.2f", 1234567.89);
-
-.fi
+.EX
+printf("%\(aq.2f", 1234567.89);
+.EE
 .in
+.PP
 results in "1234567.89" in the POSIX locale, in "1234567,89" in the
 nl_NL locale, and in "1.234.567,89" in the da_DK locale.
-.SS The flag characters
+.SS Flag characters
 The character % is followed by zero or more of the following flags:
 .TP
 .B #
@@ -347,7 +352,7 @@ if both are given.
 .B +
 A sign (+ or \-) should always be placed before a number produced by a signed
 conversion.
-By default a sign is used only for negative numbers.
+By default, a sign is used only for negative numbers.
 A
 .B +
 overrides a space if both are used.
@@ -366,6 +371,8 @@ For decimal conversion
 .BR G )
 the output is to be grouped with thousands' grouping characters
 if the locale information indicates any.
+(See
+.BR setlocale (3).)
 Note that many versions of
 .BR gcc (1)
 cannot parse this option and will issue a warning.
@@ -383,7 +390,7 @@ the output uses the locale's alternative output digits, if any.
 For example, since glibc 2.2.3 this will give Arabic-Indic digits
 in the Persian ("fa_IR") locale.
 .\" outdigits keyword in locale file
-.SS The field width
+.SS Field width
 An optional decimal digit string (with nonzero first digit) specifying
 a minimum field width.
 If the converted value has fewer characters
@@ -399,12 +406,12 @@ positive field width.
 In no case does a nonexistent or small field width cause truncation of a
 field; if the result of a conversion is wider than the field width, the
 field is expanded to contain the conversion result.
-.SS The precision
+.SS Precision
 An optional precision, in the form of a period (\(aq.\(aq)  followed by an
 optional decimal digit string.
 Instead of a decimal digit string one may write "*" or "*m$"
-(for some decimal integer m) to specify that the precision
-is given in the next argument, or in the m-th argument, respectively,
+(for some decimal integer \fIm\fP) to specify that the precision
+is given in the next argument, or in the \fIm\fP-th argument, respectively,
 which must be of type
 .IR int .
 If the precision is given as just \(aq.\(aq, the precision is taken to
@@ -436,7 +443,7 @@ string for
 and
 .B S
 conversions.
-.SS The length modifier
+.SS Length modifier
 Here, "integer conversion" stands for
 .BR d ,
 .BR i ,
@@ -460,24 +467,24 @@ argument.
 .TP
 .B h
 A following integer conversion corresponds to a
-.I short int
+.I short
 or
-.I unsigned short int
+.I unsigned short
 argument, or a following
 .B n
 conversion corresponds to a pointer to a
-.I short int
+.I short
 argument.
 .TP
 .B l
 (ell) A following integer conversion corresponds to a
-.I long int
+.I long
 or
-.I unsigned long int
+.I unsigned long
 argument, or a following
 .B n
 conversion corresponds to a pointer to a
-.I long int
+.I long
 argument, or a following
 .B c
 conversion corresponds to a
@@ -491,14 +498,20 @@ argument.
 .B ll
 (ell-ell).
 A following integer conversion corresponds to a
-.I long long int
+.I long long
 or
-.I unsigned long long int
+.I unsigned long long
 argument, or a following
 .B n
 conversion corresponds to a pointer to a
-.I long long int
+.I long long
 argument.
+.TP
+.B q
+A synonym for
+.BR ll .
+This is a nonstandard extension, derived from BSD;
+avoid its use in new code.
 .TP
 .B L
 A following
@@ -515,12 +528,6 @@ conversion corresponds to a
 .I long double
 argument.
 (C99 allows %LF, but SUSv2 does not.)
-.\" .TP
-.\" .B q
-.\" ("quad". 4.4BSD and Linux libc5 only.
-.\" Don't use.)
-This is a synonym for
-.BR ll .
 .TP
 .B j
 A following integer conversion corresponds to an
@@ -543,10 +550,13 @@ argument, or a following
 conversion corresponds to a pointer to a
 .I size_t
 argument.
-.\" (Linux libc5 has
-.\" .B Z
-.\" with this meaning.
-.\" Don't use it.)
+.TP
+.B Z
+A nonstandard synonym for
+.BR z
+that predates the appearance of
+.BR z .
+Do not use in new code.
 .TP
 .B t
 A following integer conversion corresponds to a
@@ -557,7 +567,8 @@ conversion corresponds to a pointer to a
 .I ptrdiff_t
 argument.
 .PP
-SUSv3 specifies all of the above.
+SUSv3 specifies all of the above,
+except for those modifiers explicitly noted as being nonstandard extensions.
 SUSv2 specified only the length modifiers
 .B h
 (in
@@ -586,7 +597,22 @@ and
 .BR Lf ,
 .BR Lg ,
 .BR LG ).
-.SS The conversion specifier
+.PP
+As a nonstandard extension, the GNU implementations treats
+.B ll
+and
+.B L
+as synonyms, so that one can, for example, write
+.BR llg
+(as a synonym for the standards-compliant
+.BR Lg )
+and
+.BR Ld
+(as a synonym for the standards compliant
+.BR lld ).
+Such usage is nonportable.
+.\"
+.SS Conversion specifiers
 A character that specifies the type of conversion to be applied.
 The conversion specifiers and their meanings are:
 .TP
@@ -632,7 +658,8 @@ The
 .I double
 argument is rounded and converted in the style
 .RB [\-]d \&. ddd e \(+-dd
-where there is one digit before the decimal-point character and the number
+where there is one digit (which is nonzero if the argument is nonzero)
+before the decimal-point character and the number
 of digits after it is equal to the precision; if the precision is missing,
 it is taken as 6; if the precision is zero, no decimal-point character
 appears.
@@ -656,7 +683,7 @@ the precision specification.
 If the precision is missing, it is taken as
 6; if the precision is explicitly zero, no decimal-point character appears.
 If a decimal point appears, at least one digit appears before it.
-
+.IP
 (SUSv2 does not know about
 .B F
 and says that character string representations for infinity and NaN
@@ -666,7 +693,7 @@ SUSv3 adds a specification for
 The C99 standard specifies "[\-]inf" or "[\-]infinity"
 for infinity, and a string starting with "nan" for NaN, in the case of
 .B f
-conversion, and "[\-]INF" or "[\-]INFINITY" or "NAN*" in the case of
+conversion, and "[\-]INF" or "[\-]INFINITY" or "NAN" in the case of
 .B F
 conversion.)
 .TP
@@ -703,7 +730,7 @@ conversion, the
 .I double
 argument is converted to hexadecimal notation (using the letters abcdef)
 in the style
-.RB [\-] 0x h \&. hhhh p \(+-;
+.RB [\-] 0x h \&. hhhh p \(+-d;
 for
 .B A
 conversion the prefix
@@ -719,6 +746,8 @@ and otherwise is sufficiently large to distinguish values of type
 .IR double .
 The digit before the decimal point is unspecified for nonnormalized
 numbers, and nonzero but otherwise unspecified for normalized numbers.
+The exponent always contains at least one
+digit; if the value is zero, the exponent is 0.
 .TP
 .B c
 If no
@@ -741,21 +770,21 @@ resulting multibyte string is written.
 .B s
 If no
 .B l
-modifier is present: The
+modifier is present: the
 .I "const char\ *"
 argument is expected to be a pointer to an array of character type (pointer
 to a string).
 Characters from the array are written up to (but not
-including) a terminating null byte (\(aq\\0\(aq);
+including) a terminating null byte (\(aq\e0\(aq);
 if a precision is specified, no more than the number specified
 are written.
 If a precision is given, no null byte need be present;
 if the precision is not specified, or is greater than the size of the
 array, the array must contain a terminating null byte.
-
+.IP
 If an
 .B l
-modifier is present: The
+modifier is present: the
 .I "const wchar_t\ *"
 argument is expected to be a pointer to an array of wide characters.
 Wide characters from the array are converted to multibyte characters
@@ -808,11 +837,12 @@ That argument shall be an
 or variant whose size matches the (optionally)
 supplied integer length modifier.
 No argument is converted.
+(This specifier is not supported by the bionic C library.)
 The behavior is undefined if the conversion specification includes
 any flags, a field width, or a precision.
 .TP
 .B m
-(Glibc extension.)
+(Glibc extension; supported by uClibc and musl.)
 Print output of
 .IR strerror(errno) .
 No argument is required.
@@ -822,21 +852,69 @@ A \(aq%\(aq is written.
 No argument is converted.
 The complete conversion
 specification is \(aq%%\(aq.
+.SH RETURN VALUE
+Upon successful return, these functions return the number of characters
+printed (excluding the null byte used to end output to strings).
+.PP
+The functions
+.BR snprintf ()
+and
+.BR vsnprintf ()
+do not write more than
+.I size
+bytes (including the terminating null byte (\(aq\e0\(aq)).
+If the output was truncated due to this limit, then the return value
+is the number of characters (excluding the terminating null byte)
+which would have been written to the final string if enough space
+had been available.
+Thus, a return value of
+.I size
+or more means that the output was truncated.
+(See also below under NOTES.)
+.PP
+If an output error is encountered, a negative value is returned.
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw23 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR printf (),
+.BR fprintf (),
+.br
+.BR sprintf (),
+.BR snprintf (),
+.br
+.BR vprintf (),
+.BR vfprintf (),
+.br
+.BR vsprintf (),
+.BR vsnprintf ()
+T}	Thread safety	MT-Safe locale
+.TE
+.sp 1
 .SH CONFORMING TO
-The
 .BR fprintf (),
 .BR printf (),
 .BR sprintf (),
 .BR vprintf (),
 .BR vfprintf (),
-and
-.BR vsprintf ()
-functions conform to C89 and C99.
+.BR vsprintf ():
+POSIX.1-2001, POSIX.1-2008, C89, C99.
+.PP
+.BR snprintf (),
+.BR vsnprintf ():
+POSIX.1-2001, POSIX.1-2008, C99.
+.PP
 The
-.BR snprintf ()
+.BR dprintf ()
 and
-.BR vsnprintf ()
-functions conform to C99.
+.BR vdprintf ()
+functions were originally GNU extensions that were later standardized
+in POSIX.1-2008.
 .PP
 Concerning the return value of
 .BR snprintf (),
@@ -850,7 +928,7 @@ while C99 allows
 to be NULL in this case, and gives the return value (as always)
 as the number of characters that would have been written in case
 the output string has been large enough.
-SUSv3 and later align their specification of
+POSIX.1-2001 and later align their specification of
 .BR snprintf ()
 with C99.
 .\" .PP
@@ -872,7 +950,7 @@ with C99.
 .\" locale, "%m$" and "*m$".
 .\" It knows about the length modifiers \fBh\fP, \fBl\fP, \fBL\fP,
 .\" \fBZ\fP, and \fBq\fP, but accepts \fBL\fP and \fBq\fP
-.\" both for \fIlong double\fP and for \fIlong long int\fP (this is a bug).
+.\" both for \fIlong double\fP and for \fIlong long\fP (this is a bug).
 .\" It no longer recognizes \fBF\fP, \fBD\fP, \fBO\fP, and \fBU\fP,
 .\" but adds the conversion character
 .\" .BR m ,
@@ -888,9 +966,9 @@ glibc 2.2 adds the conversion character \fBF\fP with C99 semantics,
 and the flag character \fBI\fP.
 .SH NOTES
 Some programs imprudently rely on code such as the following
-
+.PP
     sprintf(buf, "%s some further text", buf);
-
+.PP
 to append text to
 .IR buf .
 However, the standards explicitly note that the results are undefined
@@ -906,7 +984,7 @@ Depending on the version of
 used, and the compiler options employed, calls such as the above will
 .B not
 produce the expected results.
-
+.PP
 The glibc implementation of the functions
 .BR snprintf ()
 and
@@ -992,17 +1070,17 @@ call to write to memory and creating a security hole.
 .\" .PP
 .\" Some floating-point conversions under early libc4
 .\" caused memory leaks.
-.SH EXAMPLE
+.SH EXAMPLES
 To print
 .I Pi
 to five decimal places:
+.PP
 .in +4n
-.nf
-
+.EX
 #include <math.h>
 #include <stdio.h>
 fprintf(stdout, "pi = %.5f\en", 4 * atan(1.0));
-.fi
+.EE
 .in
 .PP
 To print a date and time in the form "Sunday, July 3, 10:02",
@@ -1011,44 +1089,44 @@ where
 and
 .I month
 are pointers to strings:
+.PP
 .in +4n
-.nf
-
+.EX
 #include <stdio.h>
 fprintf(stdout, "%s, %s %d, %.2d:%.2d\en",
         weekday, month, day, hour, min);
-.fi
+.EE
 .in
 .PP
 Many countries use the day-month-year order.
 Hence, an internationalized version must be able to print
 the arguments in an order specified by the format:
+.PP
 .in +4n
-.nf
-
+.EX
 #include <stdio.h>
 fprintf(stdout, format,
         weekday, month, day, hour, min);
-
-.fi
+.EE
 .in
+.PP
 where
 .I format
 depends on locale, and may permute the arguments.
 With the value:
+.PP
 .in +4n
-.nf
-
+.EX
 "%1$s, %3$d. %2$s, %4$d:%5$.2d\en"
-
-.fi
+.EE
 .in
+.PP
 one might obtain "Sonntag, 3. Juli, 10:02".
 .PP
 To allocate a sufficiently large string and print into it
 (code correct for both glibc 2.0 and glibc 2.1):
-.nf
-
+.PP
+.EX
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -1056,68 +1134,58 @@ To allocate a sufficiently large string and print into it
 char *
 make_message(const char *fmt, ...)
 {
-    int n;
-    int size = 100;     /* Guess we need no more than 100 bytes */
-    char *p, *np;
+    int n = 0;
+    size_t size = 0;
+    char *p = NULL;
     va_list ap;
 
+    /* Determine required size */
+
+    va_start(ap, fmt);
+    n = vsnprintf(p, size, fmt, ap);
+    va_end(ap);
+
+    if (n < 0)
+        return NULL;
+
+    /* One extra byte for \(aq\e0\(aq */
+
+    size = (size_t) n + 1;
     p = malloc(size);
     if (p == NULL)
         return NULL;
 
-    while (1) {
+    va_start(ap, fmt);
+    n = vsnprintf(p, size, fmt, ap);
+    va_end(ap);
 
-        /* Try to print in the allocated space */
-
-        va_start(ap, fmt);
-        n = vsnprintf(p, size, fmt, ap);
-        va_end(ap);
-
-        /* Check error code */
-
-        if (n < 0) {
-            free(p);
-            return NULL;
-        }
-
-        /* If that worked, return the string */
-
-        if (n < size)
-            return p;
-
-        /* Else try again with more space */
-
-        size = n + 1;       /* Precisely what is needed */
-
-
-        np = realloc(p, size);
-        if (np == NULL) {
-            free(p);
-            return NULL;
-        } else {
-            p = np;
-        }
+    if (n < 0) {
+        free(p);
+        return NULL;
     }
+
+    return p;
 }
-.fi
+.EE
 .PP
 If truncation occurs in glibc versions prior to 2.0.6, this is treated as an
 error instead of being handled gracefully.
 .SH SEE ALSO
 .BR printf (1),
 .BR asprintf (3),
-.BR dprintf (3),
+.BR puts (3),
 .BR scanf (3),
 .BR setlocale (3),
+.BR strfromd (3),
 .BR wcrtomb (3),
 .BR wprintf (3),
 .BR locale (5)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

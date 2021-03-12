@@ -1,4 +1,4 @@
-.\" Copyright (C) 2002 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright (C) 2002, 2020 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -22,8 +22,7 @@
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
 .\"
-.\" FIXME . Add an example to this page
-.TH SHM_OPEN 3 2015-01-22 "Linux" "Linux Programmer's Manual"
+.TH SHM_OPEN 3 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 shm_open, shm_unlink \- create/open or unlink POSIX shared memory objects
 .SH SYNOPSIS
@@ -32,11 +31,11 @@ shm_open, shm_unlink \- create/open or unlink POSIX shared memory objects
 .BR "#include <sys/stat.h>" "        /* For mode constants */"
 .br
 .BR "#include <fcntl.h>" "           /* For O_* constants */"
-.sp
+.PP
 .BI "int shm_open(const char *" name ", int " oflag ", mode_t " mode );
-.sp
+.PP
 .BI "int shm_unlink(const char *" name );
-.sp
+.PP
 Link with \fI\-lrt\fP.
 .SH DESCRIPTION
 .BR shm_open ()
@@ -50,7 +49,7 @@ The
 function performs the converse operation,
 removing an object previously created by
 .BR shm_open ().
-.LP
+.PP
 The operation of
 .BR shm_open ()
 is analogous to that of
@@ -71,14 +70,14 @@ followed by one or more characters, none of which are slashes.
 .\" case the subdirectory must exist under /dev/shm, and allow the
 .\" required permissions if a user wants to create a shared memory
 .\" object in that subdirectory.
-.LP
+.PP
 .I oflag
 is a bit mask created by ORing together exactly one of
 .B O_RDONLY
 or
 .B O_RDWR
 and any of the other flags listed here:
-.TP 1.1i
+.TP
 .B O_RDONLY
 Open the object for read access.
 A shared memory object opened in this way can be
@@ -109,7 +108,7 @@ is listed in
 .BR open (2).
 (Symbolic definitions of these constants can be obtained by including
 .IR <sys/stat.h> .)
-.sp
+.IP
 A new shared memory object initially has zero length\(emthe size of the
 object can be set using
 .BR ftruncate (2).
@@ -127,10 +126,10 @@ does not exist, are performed atomically.
 .TP
 .B O_TRUNC
 If the shared memory object already exists, truncate it to zero bytes.
-.LP
+.PP
 Definitions of these flag values can be obtained by including
 .IR <fcntl.h> .
-.LP
+.PP
 On successful completion
 .BR shm_open ()
 returns a new file descriptor referring to the shared memory object.
@@ -141,7 +140,7 @@ The
 flag (see
 .BR fcntl (2))
 is set for the file descriptor.
-
+.PP
 The file descriptor is normally used in subsequent calls
 to
 .BR ftruncate (2)
@@ -150,7 +149,7 @@ to
 After a call to
 .BR mmap (2)
 the file descriptor may be closed without affecting the memory mapping.
-
+.PP
 The operation
 of
 .BR shm_unlink ()
@@ -165,13 +164,13 @@ attempts to
 .BR shm_open ()
 an object with the same
 .I name
-will fail (unless
+fail (unless
 .B O_CREAT
 was specified, in which case a new, distinct object is created).
 .SH RETURN VALUE
 On success,
 .BR shm_open ()
-returns a nonnegative file descriptor.
+returns a file descriptor (a nonnegative integer).
 On failure,
 .BR shm_open ()
 returns \-1.
@@ -219,7 +218,7 @@ argument to
 was invalid.
 .TP
 .B EMFILE
-The process already has the maximum number of files open.
+The per-process limit on the number of open file descriptors has been reached.
 .TP
 .B ENAMETOOLONG
 The length of
@@ -228,8 +227,7 @@ exceeds
 .BR PATH_MAX .
 .TP
 .B ENFILE
-The limit on the total number of files open on the system has been
-reached.
+The system-wide limit on the total number of open files has been reached.
 .TP
 .B ENOENT
 An attempt was made to
@@ -248,14 +246,31 @@ a
 that does not exist.
 .SH VERSIONS
 These functions are provided in glibc 2.2 and later.
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw24 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR shm_open (),
+.BR shm_unlink ()
+T}	Thread safety	MT-Safe locale
+.TE
+.sp 1
 .SH CONFORMING TO
-POSIX.1-2001.
-.LP
+POSIX.1-2001, POSIX.1-2008.
+.PP
 POSIX.1-2001 says that the group ownership of a newly created shared
 memory object is set to either the calling process's effective group ID
 or "a system default group ID".
+POSIX.1-2008 says that the group ownership
+may be set to either the calling process's effective group ID
+or, if the object is visible in the filesystem,
+the group ID of the parent directory.
 .SH NOTES
-.LP
 POSIX leaves the behavior of the combination of
 .B O_RDONLY
 and
@@ -263,11 +278,230 @@ and
 unspecified.
 On Linux, this will successfully truncate an existing
 shared memory object\(emthis may not be so on other UNIX systems.
-.LP
-The POSIX shared memory object implementation on Linux 2.4 makes use
-of a dedicated filesystem, which is normally
-mounted under
+.PP
+The POSIX shared memory object implementation on Linux makes use
+of a dedicated
+.BR tmpfs (5)
+filesystem that is normally mounted under
 .IR /dev/shm .
+.SH EXAMPLES
+The programs below employ POSIX shared memory and POSIX unnamed semaphores
+to exchange a piece of data.
+The "bounce" program (which must be run first) raises the case
+of a string that is placed into the shared memory by the "send" program.
+Once the data has been modified, the "send" program then prints
+the contents of the modified shared memory.
+An example execution of the two programs is the following:
+.PP
+.in +4n
+.EX
+$ \fB./pshm_ucase_bounce /myshm &\fP
+[1] 270171
+$ \fB./pshm_ucase_send /myshm hello\fP
+HELLO
+.EE
+.in
+.PP
+Further detail about these programs is provided below.
+.\"
+.SS Program source: pshm_ucase.h
+The following header file is included by both programs below.
+Its primary purpose is to define a structure that will be imposed
+on the memory object that is shared between the two programs.
+.PP
+.in +4n
+.EX
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <semaphore.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
+                        } while (0)
+
+#define BUF_SIZE 1024   /* Maximum size for exchanged string */
+
+/* Define a structure that will be imposed on the shared
+   memory object */
+
+struct shmbuf {
+    sem_t  sem1;            /* POSIX unnamed semaphore */
+    sem_t  sem2;            /* POSIX unnamed semaphore */
+    size_t cnt;             /* Number of bytes used in \(aqbuf\(aq */
+    char   buf[BUF_SIZE];   /* Data being transferred */
+};
+.EE
+.in
+.\"
+.SS Program source: pshm_ucase_bounce.c
+The "bounce" program creates a new shared memory object with the name
+given in its command-line argument and sizes the object to
+match the size of the
+.I shmbuf
+structure defined in the header file.
+It then maps the object into the process's address space,
+and initializes two POSIX semaphores inside the object to 0.
+.PP
+After the "send" program has posted the first of the semaphores,
+the "bounce" program upper cases the data that has been placed
+in the memory by the "send" program and then posts the second semaphore
+to tell the "send" program that it may now access the shared memory.
+.PP
+.in +4n
+.EX
+/* pshm_ucase_bounce.c
+
+   Licensed under GNU General Public License v2 or later.
+*/
+#include <ctype.h>
+#include "pshm_ucase.h"
+
+int
+main(int argc, char *argv[])
+{
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s /shm\-path\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    char *shmpath = argv[1];
+
+    /* Create shared memory object and set its size to the size
+       of our structure */
+
+    int fd = shm_open(shmpath, O_CREAT | O_EXCL | O_RDWR,
+                      S_IRUSR | S_IWUSR);
+    if (fd == \-1)
+        errExit("shm_open");
+
+    if (ftruncate(fd, sizeof(struct shmbuf)) == \-1)
+        errExit("ftruncate");
+
+    /* Map the object into the caller\(aqs address space */
+
+    struct shmbuf *shmp = mmap(NULL, sizeof(*shmp),
+                               PROT_READ | PROT_WRITE,
+                               MAP_SHARED, fd, 0);
+    if (shmp == MAP_FAILED)
+        errExit("mmap");
+
+    /* Initialize semaphores as process-shared, with value 0 */
+
+    if (sem_init(&shmp\->sem1, 1, 0) == \-1)
+        errExit("sem_init\-sem1");
+    if (sem_init(&shmp\->sem2, 1, 0) == \-1)
+        errExit("sem_init\-sem2");
+
+    /* Wait for \(aqsem1\(aq to be posted by peer before touching
+       shared memory */
+
+    if (sem_wait(&shmp\->sem1) == \-1)
+        errExit("sem_wait");
+
+    /* Convert data in shared memory into upper case */
+
+    for (int j = 0; j < shmp\->cnt; j++)
+        shmp\->buf[j] = toupper((unsigned char) shmp\->buf[j]);
+
+    /* Post \(aqsem2\(aq to tell the to tell peer that it can now
+       access the modified data in shared memory */
+
+    if (sem_post(&shmp\->sem2) == \-1)
+        errExit("sem_post");
+
+    /* Unlink the shared memory object. Even if the peer process
+       is still using the object, this is okay. The object will
+       be removed only after all open references are closed. */
+
+    shm_unlink(shmpath);
+
+    exit(EXIT_SUCCESS);
+}
+.EE
+.in
+.\"
+.SS Program source: pshm_ucase_send.c
+The "send" program takes two command-line arguments:
+the pathname of a shared memory object previously created by the "bounce"
+program and a string that is to be copied into that object.
+.PP
+The program opens the shared memory object
+and maps the object into its address space.
+It then copies the data specified in its second argument
+into the shared memory,
+and posts the first semaphore,
+which tells the "bounce" program that it can now access that data.
+After the "bounce" program posts the second semaphore,
+the "send" program prints the contents of the shared memory
+on standard output.
+.PP
+.in +4n
+.EX
+/* pshm_ucase_send.c
+
+   Licensed under GNU General Public License v2 or later.
+*/
+#include <string.h>
+#include "pshm_ucase.h"
+
+int
+main(int argc, char *argv[])
+{
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s /shm\-path string\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    char *shmpath = argv[1];
+    char *string = argv[2];
+    size_t len = strlen(string);
+
+    if (len > BUF_SIZE) {
+        fprintf(stderr, "String is too long\en");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Open the existing shared memory object and map it
+       into the caller\(aqs address space */
+
+    int fd = shm_open(shmpath, O_RDWR, 0);
+    if (fd == \-1)
+        errExit("shm_open");
+
+    struct shmbuf *shmp = mmap(NULL, sizeof(*shmp),
+                               PROT_READ | PROT_WRITE,
+                               MAP_SHARED, fd, 0);
+    if (shmp == MAP_FAILED)
+        errExit("mmap");
+
+    /* Copy data into the shared memory object */
+
+    shmp\->cnt = len;
+    memcpy(&shmp\->buf, string, len);
+
+    /* Tell peer that it can now access shared memory */
+
+    if (sem_post(&shmp\->sem1) == \-1)
+        errExit("sem_post");
+
+    /* Wait until peer says that it has finished accessing
+       the shared memory */
+
+    if (sem_wait(&shmp\->sem2) == \-1)
+        errExit("sem_wait");
+
+    /* Write modified data in shared memory to standard output */
+
+    write(STDOUT_FILENO, &shmp\->buf, len);
+    write(STDOUT_FILENO, "\en", 1);
+
+    exit(EXIT_SUCCESS);
+}
+.EE
+.in
 .SH SEE ALSO
 .BR close (2),
 .BR fchmod (2),
@@ -281,11 +515,11 @@ mounted under
 .BR umask (2),
 .BR shm_overview (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

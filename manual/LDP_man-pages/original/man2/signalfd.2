@@ -17,12 +17,12 @@
 .\" <http://www.gnu.org/licenses/>.
 .\" %%%LICENSE_END
 .\"
-.TH SIGNALFD 2 2014-07-08 Linux "Linux Programmer's Manual"
+.TH SIGNALFD 2 2020-11-01 Linux "Linux Programmer's Manual"
 .SH NAME
 signalfd \- create a file descriptor for accepting signals
 .SH SYNOPSIS
 .B #include <sys/signalfd.h>
-.sp
+.PP
 .BI "int signalfd(int " fd ", const sigset_t *" mask ", int " flags );
 .SH DESCRIPTION
 .BR signalfd ()
@@ -35,7 +35,7 @@ and has the advantage that the file descriptor may be monitored by
 .BR poll (2),
 and
 .BR epoll (7).
-
+.PP
 The
 .I mask
 argument specifies the set of signals that the caller
@@ -55,21 +55,21 @@ or
 signals via a signalfd file descriptor;
 these signals are silently ignored if specified in
 .IR mask .
-
+.PP
 If the
 .I fd
 argument is \-1,
 then the call creates a new file descriptor and associates the
 signal set specified in
 .I mask
-with that descriptor.
+with that file descriptor.
 If
 .I fd
 is not \-1,
 then it must specify a valid existing signalfd file descriptor, and
 .I mask
-is used to replace the signal set associated with that descriptor.
-
+is used to replace the signal set associated with that file descriptor.
+.PP
 Starting with Linux 2.6.27, the following values may be bitwise ORed in
 .IR flags
 to change the behavior of
@@ -78,7 +78,9 @@ to change the behavior of
 .B SFD_NONBLOCK
 Set the
 .BR O_NONBLOCK
-file status flag on the new open file description.
+file status flag on the open file description (see
+.BR open (2))
+referred to by the new file descriptor.
 Using this flag saves extra calls to
 .BR fcntl (2)
 to achieve the same result.
@@ -96,7 +98,7 @@ for reasons why this may be useful.
 In Linux up to version 2.6.26, the
 .I flags
 argument is unused, and must be specified as zero.
-
+.PP
 .BR signalfd ()
 returns a file descriptor that supports the following operations:
 .TP
@@ -168,36 +170,38 @@ The format of the
 structure(s) returned by
 .BR read (2)s
 from a signalfd file descriptor is as follows:
+.PP
 .in +4n
-.nf
-
+.EX
 struct signalfd_siginfo {
-    uint32_t ssi_signo;   /* Signal number */
-    int32_t  ssi_errno;   /* Error number (unused) */
-    int32_t  ssi_code;    /* Signal code */
-    uint32_t ssi_pid;     /* PID of sender */
-    uint32_t ssi_uid;     /* Real UID of sender */
-    int32_t  ssi_fd;      /* File descriptor (SIGIO) */
-    uint32_t ssi_tid;     /* Kernel timer ID (POSIX timers)
-    uint32_t ssi_band;    /* Band event (SIGIO) */
-    uint32_t ssi_overrun; /* POSIX timer overrun count */
-    uint32_t ssi_trapno;  /* Trap number that caused signal */
+    uint32_t ssi_signo;    /* Signal number */
+    int32_t  ssi_errno;    /* Error number (unused) */
+    int32_t  ssi_code;     /* Signal code */
+    uint32_t ssi_pid;      /* PID of sender */
+    uint32_t ssi_uid;      /* Real UID of sender */
+    int32_t  ssi_fd;       /* File descriptor (SIGIO) */
+    uint32_t ssi_tid;      /* Kernel timer ID (POSIX timers)
+    uint32_t ssi_band;     /* Band event (SIGIO) */
+    uint32_t ssi_overrun;  /* POSIX timer overrun count */
+    uint32_t ssi_trapno;   /* Trap number that caused signal */
 .\" ssi_trapno is unused on most arches
-    int32_t  ssi_status;  /* Exit status or signal (SIGCHLD) */
-    int32_t  ssi_int;     /* Integer sent by sigqueue(3) */
-    uint64_t ssi_ptr;     /* Pointer sent by sigqueue(3) */
-    uint64_t ssi_utime;   /* User CPU time consumed (SIGCHLD) */
-    uint64_t ssi_stime;   /* System CPU time consumed (SIGCHLD) */
-    uint64_t ssi_addr;    /* Address that generated signal
-                             (for hardware-generated signals) */
-.\" FIXME Since Linux 2.6.37 there is 'uint16_t ssi_addr_lsb'
-.\" in the signalfd_siginfo structure. This needs to be documented.
-    uint8_t  pad[\fIX\fP];      /* Pad size to 128 bytes (allow for
+    int32_t  ssi_status;   /* Exit status or signal (SIGCHLD) */
+    int32_t  ssi_int;      /* Integer sent by sigqueue(3) */
+    uint64_t ssi_ptr;      /* Pointer sent by sigqueue(3) */
+    uint64_t ssi_utime;    /* User CPU time consumed (SIGCHLD) */
+    uint64_t ssi_stime;    /* System CPU time consumed
+                              (SIGCHLD) */
+    uint64_t ssi_addr;     /* Address that generated signal
+                              (for hardware-generated signals) */
+    uint16_t ssi_addr_lsb; /* Least significant bit of address
+                              (SIGBUS; since Linux 2.6.37)
+.\" ssi_addr_lsb: commit b8aeec34175fc8fe8b0d40efea4846dfc1ba663e
+    uint8_t  pad[\fIX\fP];       /* Pad size to 128 bytes (allow for
                               additional fields in the future) */
 };
-
-.fi
+.EE
 .in
+.PP
 Each of the fields in this structure
 is analogous to the similarly named field in the
 .I siginfo_t
@@ -226,6 +230,15 @@ A
 .BR read (2)
 from the file descriptor in the child will return information
 about signals queued to the child.
+.SS Semantics of file descriptor passing
+As with other file descriptors,
+signalfd file descriptors can be passed to another process
+via a UNIX domain socket (see
+.BR unix (7)).
+In the receiving process, a
+.BR read (2)
+from the received file descriptor will return information
+about signals queued to that process.
 .SS execve(2) semantics
 Just like any other file descriptor,
 a signalfd file descriptor remains open across an
@@ -248,6 +261,33 @@ itself and the signals that are directed to the process
 (i.e., the entire thread group).
 (A thread will not be able to read signals that are directed
 to other threads in the process.)
+.\"
+.SS epoll(7) semantics
+If a process adds (via
+.BR epoll_ctl (2))
+a signalfd file descriptor to an
+.BR epoll (7)
+instance, then
+.BR epoll_wait (2)
+returns events only for signals sent to that process.
+In particular, if the process then uses
+.BR fork (2)
+to create a child process, then the child will be able to
+.BR read (2)
+signals that are sent to it using the signalfd file descriptor, but
+.BR epoll_wait (2)
+will
+.B not
+indicate that the signalfd file descriptor is ready.
+In this scenario, a possible workaround is that after the
+.BR fork (2),
+the child process can close the signalfd file descriptor that it inherited
+from the parent process and then create another signalfd file descriptor
+and add it to the epoll instance.
+Alternatively, the parent and the child could delay creating their
+(separate) signalfd file descriptors and adding them to the
+epoll instance until after the call to
+.BR fork (2).
 .SH RETURN VALUE
 On success,
 .BR signalfd ()
@@ -285,7 +325,7 @@ or, in Linux 2.6.26 or earlier,
 is nonzero.
 .TP
 .B EMFILE
-The per-process limit of open file descriptors has been reached.
+The per-process limit on the number of open file descriptors has been reached.
 .TP
 .B ENFILE
 The system-wide limit on the total number of open files has been
@@ -318,12 +358,59 @@ on different file descriptors.
 .BR poll (2),
 or
 .BR epoll (7):
-the arrival of different signals will make different descriptors ready.)
+the arrival of different signals will make different file descriptors ready.)
 If a signal appears in the
 .I mask
 of more than one of the file descriptors, then occurrences
-of that signal can be read (once) from any one of the descriptors.
-.SS C library/kernel ABI differences
+of that signal can be read (once) from any one of the file descriptors.
+.PP
+Attempts to include
+.B SIGKILL
+and
+.B SIGSTOP
+in
+.I mask
+are silently ignored.
+.PP
+The signal mask employed by a signalfd file descriptor can be viewed
+via the entry for the corresponding file descriptor in the process's
+.IR /proc/[pid]/fdinfo
+directory.
+See
+.BR proc (5)
+for further details.
+.\"
+.SS Limitations
+The signalfd mechanism can't be used to receive signals that
+are synchronously generated, such as the
+.BR SIGSEGV
+signal that results from accessing an invalid memory address
+or the
+.BR SIGFPE
+signal that results from an arithmetic error.
+Such signals can be caught only via signal handler.
+.PP
+As described above,
+in normal usage one blocks the signals that will be accepted via
+.BR signalfd ().
+If spawning a child process to execute a helper program
+(that does not need the signalfd file descriptor),
+then, after the call to
+.BR fork (2),
+you will normally want to unblock those signals before calling
+.BR execve (2),
+so that the helper program can see any signals that it expects to see.
+Be aware, however,
+that this won't be possible in the case of a helper program spawned
+behind the scenes by any library function that the program may call.
+In such cases, one must fall back to using a traditional signal
+handler that writes to a file descriptor monitored by
+.BR select (2),
+.BR poll (2),
+or
+.BR epoll (7).
+.\"
+.SS C library/kernel differences
 The underlying Linux system call requires an additional argument,
 .IR "size_t sizemask" ,
 which specifies the size of the
@@ -333,7 +420,7 @@ The glibc
 .BR signalfd ()
 wrapper function does not include this argument,
 since it provides the required value for the underlying system call.
-
+.PP
 There are two underlying Linux system calls:
 .BR signalfd ()
 and the more recent
@@ -357,7 +444,7 @@ and
 fields are not filled in with the data accompanying a signal sent by
 .BR sigqueue (3).
 .\" The fix also was put into 2.6.24.5
-.SH EXAMPLE
+.SH EXAMPLES
 The program below accepts the signals
 .B SIGINT
 and
@@ -367,29 +454,29 @@ The program terminates after accepting a
 .B SIGQUIT
 signal.
 The following shell session demonstrates the use of the program:
+.PP
 .in +4n
-.nf
-
+.EX
 .RB "$" " ./signalfd_demo"
-.BR "^C" "                   # Control\-C generates SIGINT"
+.BR "\(haC" "                   # Control\-C generates SIGINT"
 Got SIGINT
-.B ^C
+.B \(haC
 Got SIGINT
-\fB^\\\fP                    # Control\-\\ generates SIGQUIT
+\fB\(ha\e\fP                    # Control\-\e generates SIGQUIT
 Got SIGQUIT
 $
-.fi
+.EE
 .in
 .SS Program source
 \&
-.nf
+.EX
 #include <sys/signalfd.h>
 #include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-#define handle_error(msg) \\
+#define handle_error(msg) \e
     do { perror(msg); exit(EXIT_FAILURE); } while (0)
 
 int
@@ -415,21 +502,21 @@ main(int argc, char *argv[])
         handle_error("signalfd");
 
     for (;;) {
-        s = read(sfd, &fdsi, sizeof(struct signalfd_siginfo));
-        if (s != sizeof(struct signalfd_siginfo))
+        s = read(sfd, &fdsi, sizeof(fdsi));
+        if (s != sizeof(fdsi))
             handle_error("read");
 
         if (fdsi.ssi_signo == SIGINT) {
-            printf("Got SIGINT\\n");
+            printf("Got SIGINT\en");
         } else if (fdsi.ssi_signo == SIGQUIT) {
-            printf("Got SIGQUIT\\n");
+            printf("Got SIGQUIT\en");
             exit(EXIT_SUCCESS);
         } else {
-            printf("Read unexpected signal\\n");
+            printf("Read unexpected signal\en");
         }
     }
 }
-.fi
+.EE
 .SH SEE ALSO
 .BR eventfd (2),
 .BR poll (2),
@@ -444,11 +531,11 @@ main(int argc, char *argv[])
 .BR epoll (7),
 .BR signal (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

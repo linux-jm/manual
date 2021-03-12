@@ -1,4 +1,5 @@
 .\" Copyright 1993 Giorgio Ciucci (giorgio@crcc.it)
+.\" and Copyright (C) 2020 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -33,7 +34,7 @@
 .\"	Rewrote BUGS note about semget()'s failure to initialize
 .\"		semaphore values
 .\"
-.TH SEMGET 2 2014-05-21 "Linux" "Linux Programmer's Manual"
+.TH SEMGET 2 2020-04-11 "Linux" "Linux Programmer's Manual"
 .SH NAME
 semget \- get a System V semaphore set identifier
 .SH SYNOPSIS
@@ -42,7 +43,7 @@ semget \- get a System V semaphore set identifier
 .B #include <sys/ipc.h>
 .B #include <sys/sem.h>
 .fi
-.sp
+.PP
 .BI "int semget(key_t " key ,
 .BI "int " nsems ,
 .BI "int " semflg );
@@ -52,6 +53,15 @@ The
 system call returns the System\ V semaphore set identifier
 associated with the argument
 .IR key .
+It may be used either to obtain the identifier of a previously created
+semaphore set (when
+.I semflg
+is zero and
+.I key
+does not have the value
+.BR IPC_PRIVATE ),
+or to create a new set.
+.PP
 A new set of
 .I nsems
 semaphores is created if
@@ -104,29 +114,29 @@ initializes the set's associated data structure,
 (see
 .BR semctl (2)),
 as follows:
-.IP
+.IP \(bu 2
 .I sem_perm.cuid
 and
 .I sem_perm.uid
 are set to the effective user ID of the calling process.
-.IP
+.IP \(bu
 .I sem_perm.cgid
 and
 .I sem_perm.gid
 are set to the effective group ID of the calling process.
-.IP
+.IP \(bu
 The least significant 9 bits of
 .I sem_perm.mode
 are set to the least significant 9 bits of
 .IR semflg .
-.IP
+.IP \(bu
 .I sem_nsems
 is set to the value of
 .IR nsems .
-.IP
+.IP \(bu
 .I sem_otime
 is set to 0.
-.IP
+.IP \(bu
 .I sem_ctime
 is set to the current time.
 .PP
@@ -161,7 +171,7 @@ A semaphore set exists for
 but the calling process does not have permission to access the set,
 and does not have the
 .B CAP_IPC_OWNER
-capability.
+capability in the user namespace that governs its IPC namespace.
 .TP
 .B EEXIST
 .B IPC_CREAT
@@ -224,7 +234,7 @@ Applications intended to be portable to such old systems may need
 to include these header files.
 .\" Like Linux, the FreeBSD man pages still document
 .\" the inclusion of these header files.
-
+.PP
 .B IPC_PRIVATE
 isn't a flag field but a
 .I key_t
@@ -247,7 +257,7 @@ it should explicitly initialize the semaphores to the desired values.
 .\" In truth, every one of the many implementations that I've tested sets
 .\" the values to zero, but I suppose there is/was some obscure
 .\" implementation out there that does not.
-
+.PP
 Initialization can be done using
 .BR semctl (2)
 .B SETVAL
@@ -268,15 +278,25 @@ The following limits on semaphore set resources affect the
 call:
 .TP
 .B SEMMNI
-System-wide limit on the number of semaphore sets: policy dependent
-(on Linux, this limit can be read and modified via the fourth field of
-.IR /proc/sys/kernel/sem ).
+System-wide limit on the number of semaphore sets.
+On Linux systems before version 3.19,
+the default value for this limit was 128.
+Since Linux 3.19,
+.\" commit e843e7d2c88b7db107a86bd2c7145dc715c058f4
+the default value is 32,000.
+On Linux, this limit can be read and modified via the fourth field of
+.IR /proc/sys/kernel/sem .
 .\" This /proc file is not available in Linux 2.2 and earlier -- MTK
 .TP
 .B SEMMSL
-Maximum number of semaphores per semaphore ID: implementation dependent
-(on Linux, this limit can be read and modified via the first field of
-.IR /proc/sys/kernel/sem ).
+Maximum number of semaphores per semaphore ID.
+On Linux systems before version 3.19,
+the default value for this limit was 250.
+Since Linux 3.19,
+.\" commit e843e7d2c88b7db107a86bd2c7145dc715c058f4
+the default value is 32,000.
+On Linux, this limit can be read and modified via the first field of
+.IR /proc/sys/kernel/sem .
 .TP
 .B SEMMNS
 System-wide limit on the number of semaphores: policy dependent
@@ -293,19 +313,163 @@ The name choice
 was perhaps unfortunate,
 .B IPC_NEW
 would more clearly show its function.
+.SH EXAMPLES
+The program shown below uses
+.BR semget ()
+to create a new semaphore set or retrieve the ID of an existing set.
+It generates the
+.I key
+for
+.BR semget ()
+using
+.BR ftok (3).
+The first two command-line arguments are used as the
+.I pathname
+and
+.I proj_id
+arguments for
+.BR ftok (3).
+The third command-line argument is an integer that specifies the
+.I nsems
+argument for
+.BR semget ().
+Command-line options can be used to specify the
+.BR IPC_CREAT
+.RI ( \-c )
+and
+.BR IPC_EXCL
+.RI ( \-x )
+flags for the call to
+.BR semget ().
+The usage of this program is demonstrated below.
+.PP
+We first create two files that will be used to generate keys using
+.BR ftok (3),
+create two semaphore sets using those files, and then list the sets using
+.BR ipcs (1):
+.PP
+.in +4n
+.EX
+$ \fBtouch mykey mykey2\fP
+$ \fB./t_semget \-c mykey p 1\fP
+ID = 9
+$ \fB./t_semget \-c mykey2 p 2\fP
+ID = 10
+$ \fBipcs \-s\fP
+
+\-\-\-\-\-\- Semaphore Arrays \-\-\-\-\-\-\-\-
+key        semid      owner      perms      nsems
+0x7004136d 9          mtk        600        1
+0x70041368 10         mtk        600        2
+.EE
+.in
+.PP
+Next, we demonstrate that when
+.BR semctl (2)
+is given the same
+.I key
+(as generated by the same arguments to
+.BR ftok (3)),
+it returns the ID of the already existing semaphore set:
+.PP
+.in +4n
+.EX
+$ \fB./t_semget \-c mykey p 1\fP
+ID = 9
+.EE
+.in
+.PP
+Finally, we demonstrate the kind of collision that can occur when
+.BR ftok (3)
+is given different
+.I pathname
+arguments that have the same inode number:
+.PP
+.in +4n
+.EX
+$ \fBln mykey link\fP
+$ \fBls \-i1 link mykey\fP
+2233197 link
+2233197 mykey
+$ \fB./t_semget link p 1\fP       # Generates same key as \(aqmykey\(aq
+ID = 9
+.EE
+.in
+.SS Program source
+\&
+.EX
+/* t_semget.c
+
+   Licensed under GNU General Public License v2 or later.
+*/
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+static void
+usage(const char *pname)
+{
+    fprintf(stderr, "Usage: %s [\-cx] pathname proj\-id num\-sems\en",
+            pname);
+    fprintf(stderr, "    \-c           Use IPC_CREAT flag\en");
+    fprintf(stderr, "    \-x           Use IPC_EXCL flag\en");
+    exit(EXIT_FAILURE);
+}
+
+int
+main(int argc, char *argv[])
+{
+    int semid, nsems, flags, opt;
+    key_t key;
+
+    flags = 0;
+    while ((opt = getopt(argc, argv, "cx")) != \-1) {
+        switch (opt) {
+        case \(aqc\(aq: flags |= IPC_CREAT;   break;
+        case \(aqx\(aq: flags |= IPC_EXCL;    break;
+        default:  usage(argv[0]);
+        }
+    }
+
+    if (argc != optind + 3)
+        usage(argv[0]);
+
+    key = ftok(argv[optind], argv[optind + 1][0]);
+    if (key == \-1) {
+        perror("ftok");
+        exit(EXIT_FAILURE);
+    }
+
+    nsems = atoi(argv[optind + 2]);
+
+    semid = semget(key, nsems, flags | 0600);
+    if (semid == \-1) {
+        perror("semget");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("ID = %d\en", semid);
+
+    exit(EXIT_SUCCESS);
+}
+.EE
 .SH SEE ALSO
 .BR semctl (2),
 .BR semop (2),
 .BR ftok (3),
 .BR capabilities (7),
 .BR sem_overview (7),
-.BR svipc (7)
+.BR sysvipc (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

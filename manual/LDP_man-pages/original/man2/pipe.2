@@ -33,19 +33,26 @@
 .\"     to EXAMPLE text.
 .\" 2008-10-10, mtk: add description of pipe2()
 .\"
-.TH PIPE 2 2014-07-08 "Linux" "Linux Programmer's Manual"
+.TH PIPE 2 2020-06-09 "Linux" "Linux Programmer's Manual"
 .SH NAME
 pipe, pipe2 \- create pipe
 .SH SYNOPSIS
 .nf
 .B #include <unistd.h>
-.sp
+.PP
+/* On Alpha, IA-64, MIPS, SuperH, and SPARC/SPARC64; see NOTES */
+.B struct fd_pair {
+.B "    long fd[2];"
+.B "};"
+.B struct fd_pair pipe();
+.PP
+/* On all other architectures */
 .BI "int pipe(int " pipefd "[2]);"
-.sp
+
 .BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
-.BR "#include <fcntl.h>" "              /* Obtain O_* constant definitions */
+.BR "#include <fcntl.h>" "              /* Obtain O_* constant definitions */"
 .B #include <unistd.h>
-.sp
+.PP
 .BI "int pipe2(int " pipefd "[2], int " flags );
 .fi
 .SH DESCRIPTION
@@ -63,7 +70,7 @@ Data written to the write end of the pipe is buffered by the kernel
 until it is read from the read end of the pipe.
 For further details, see
 .BR pipe (7).
-
+.PP
 If
 .IR flags
 is 0, then
@@ -122,19 +129,44 @@ that specifies a buffer size of zero is a no-op, and returns 0.)
 Older kernels that do not support this flag will indicate this via an
 .B EINVAL
 error.
+.IP
+Since Linux 4.5,
+.\" commit 0dbf5f20652108106cb822ad7662c786baaa03ff
+.\" FIXME . But, it is not possible to specify O_DIRECT when opening a FIFO
+it is possible to change the
+.B O_DIRECT
+setting of a pipe file descriptor using
+.BR fcntl (2).
 .TP
 .B O_NONBLOCK
 Set the
 .BR O_NONBLOCK
-file status flag on the two new open file descriptions.
+file status flag on the open file descriptions
+referred to by the new file descriptors.
 Using this flag saves extra calls to
 .BR fcntl (2)
 to achieve the same result.
 .SH RETURN VALUE
 On success, zero is returned.
-On error, \-1 is returned, and
+On error, \-1 is returned,
 .I errno
-is set appropriately.
+is set appropriately, and
+.I pipefd
+is left unchanged.
+.PP
+On Linux (and other systems),
+.BR pipe ()
+does not modify
+.I pipefd
+on failure.
+A requirement standardizing this behavior was added in POSIX.1-2008 TC2.
+.\" http://austingroupbugs.net/view.php?id=467
+The Linux-specific
+.BR pipe2 ()
+system call
+likewise does not modify
+.I pipefd
+on failure.
 .SH ERRORS
 .TP
 .B EFAULT
@@ -147,10 +179,15 @@ Invalid value in
 .IR flags .
 .TP
 .B EMFILE
-Too many file descriptors are in use by the process.
+The per-process limit on the number of open file descriptors has been reached.
 .TP
 .B ENFILE
-The system limit on the total number of open files has been reached.
+The system-wide limit on the total number of open files has been reached.
+.TP
+.B ENFILE
+The user hard limit on memory that can be allocated for pipes
+has been reached and the caller is not privileged; see
+.BR pipe (7).
 .SH VERSIONS
 .BR pipe2 ()
 was added to Linux in version 2.6.27;
@@ -158,11 +195,28 @@ glibc support is available starting with
 version 2.9.
 .SH CONFORMING TO
 .BR pipe ():
-POSIX.1-2001.
-
+POSIX.1-2001, POSIX.1-2008.
+.PP
 .BR pipe2 ()
 is Linux-specific.
-.SH EXAMPLE
+.SH NOTES
+.\" See http://math-atlas.sourceforge.net/devel/assembly/64.psabi.1.33.ps.Z
+.\" for example, section 3.2.1 "Registers and the Stack Frame".
+The System V ABI on some architectures allows the use of more than one register
+for returning multiple values; several architectures
+(namely, Alpha, IA-64, MIPS, SuperH, and SPARC/SPARC64)
+(ab)use this feature in order to implement the
+.BR pipe ()
+system call in a functional manner:
+the call doesn't take any arguments and returns
+a pair of file descriptors as the return value on success.
+The glibc
+.BR pipe ()
+wrapper function transparently deals with this.
+See
+.BR syscall (2)
+for information regarding registers used for storing second file descriptor.
+.SH EXAMPLES
 .\" fork.2 refers to this example program.
 The following program creates a pipe, and then
 .BR fork (2)s
@@ -171,7 +225,7 @@ the child inherits a duplicate set of file
 descriptors that refer to the same pipe.
 After the
 .BR fork (2),
-each process closes the descriptors that it doesn't need for the pipe
+each process closes the file descriptors that it doesn't need for the pipe
 (see
 .BR pipe (7)).
 The parent then writes the string contained in the program's
@@ -179,7 +233,7 @@ command-line argument to the pipe,
 and the child reads this string a byte at a time from the pipe
 and echoes it on standard output.
 .SS Program source
-.nf
+.EX
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdio.h>
@@ -195,7 +249,7 @@ main(int argc, char *argv[])
     char buf;
 
     if (argc != 2) {
-        fprintf(stderr, "Usage: %s <string>\\n", argv[0]);
+        fprintf(stderr, "Usage: %s <string>\en", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -216,7 +270,7 @@ main(int argc, char *argv[])
         while (read(pipefd[0], &buf, 1) > 0)
             write(STDOUT_FILENO, &buf, 1);
 
-        write(STDOUT_FILENO, "\\n", 1);
+        write(STDOUT_FILENO, "\en", 1);
         close(pipefd[0]);
         _exit(EXIT_SUCCESS);
 
@@ -228,20 +282,23 @@ main(int argc, char *argv[])
         exit(EXIT_SUCCESS);
     }
 }
-.fi
+.EE
 .SH SEE ALSO
 .BR fork (2),
 .BR read (2),
 .BR socketpair (2),
+.BR splice (2),
+.BR tee (2),
+.BR vmsplice (2),
 .BR write (2),
 .BR popen (3),
 .BR pipe (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

@@ -1,6 +1,6 @@
-.\" Copyright (c) 1993 Michael Haardt
-.\" (michael@moria.de)
+.\" Copyright (c) 1993 Michael Haardt (michael@moria.de)
 .\" Fri Apr  2 11:32:09 MET DST 1993
+.\" Copyright (c) 2006-2015, Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(GPLv2+_DOC_FULL)
 .\" This is free documentation; you can redistribute it and/or
@@ -37,7 +37,7 @@
 .\"     Enhanced the discussion of "raw" mode for cfmakeraw().
 .\"     Document CMSPAR.
 .\"
-.TH TERMIOS 3 2015-02-01 "Linux" "Linux Programmer's Manual"
+.TH TERMIOS 3 2020-08-13 "Linux" "Linux Programmer's Manual"
 .SH NAME
 termios, tcgetattr, tcsetattr, tcsendbreak, tcdrain, tcflush, tcflow,
 cfmakeraw, cfgetospeed, cfgetispeed, cfsetispeed, cfsetospeed, cfsetspeed \-
@@ -45,60 +45,61 @@ get and set terminal attributes, line control, get and set baud rate
 .SH SYNOPSIS
 .nf
 .B #include <termios.h>
-.br
 .B #include <unistd.h>
-.sp
+.PP
 .BI "int tcgetattr(int " fd ", struct termios *" termios_p );
-.sp
+.PP
 .BI "int tcsetattr(int " fd ", int " optional_actions ,
 .BI "              const struct termios *" termios_p );
-.sp
+.PP
 .BI "int tcsendbreak(int " fd ", int " duration );
-.sp
+.PP
 .BI "int tcdrain(int " fd );
-.sp
+.PP
 .BI "int tcflush(int " fd ", int " queue_selector );
-.sp
+.PP
 .BI "int tcflow(int " fd ", int " action );
-.sp
+.PP
 .BI "void cfmakeraw(struct termios *" termios_p );
-.sp
+.PP
 .BI "speed_t cfgetispeed(const struct termios *" termios_p );
-.sp
+.PP
 .BI "speed_t cfgetospeed(const struct termios *" termios_p );
-.sp
+.PP
 .BI "int cfsetispeed(struct termios *" termios_p ", speed_t " speed );
-.sp
+.PP
 .BI "int cfsetospeed(struct termios *" termios_p ", speed_t " speed );
-.sp
+.PP
 .BI "int cfsetspeed(struct termios *" termios_p ", speed_t " speed );
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .BR cfsetspeed (),
 .BR cfmakeraw ():
-_BSD_SOURCE
+    Since glibc 2.19:
+        _DEFAULT_SOURCE
+    Glibc 2.19 and earlier:
+        _BSD_SOURCE
 .SH DESCRIPTION
 The termios functions describe a general terminal interface that is
 provided to control asynchronous communications ports.
 .SS The termios structure
-.LP
 Many of the functions described here have a \fItermios_p\fP argument
 that is a pointer to a \fItermios\fP structure.
 This structure contains at least the following members:
-.sp
+.PP
 .in +4n
-.nf
+.EX
 tcflag_t c_iflag;      /* input modes */
 tcflag_t c_oflag;      /* output modes */
 tcflag_t c_cflag;      /* control modes */
 tcflag_t c_lflag;      /* local modes */
 cc_t     c_cc[NCCS];   /* special characters */
-.fi
+.EE
 .in
 .PP
 The values that may be assigned to these fields are described below.
@@ -126,18 +127,31 @@ queues to be flushed, and if the terminal is the controlling
 terminal of a foreground process group, it will cause a
 \fBSIGINT\fP to be sent to this foreground process group.
 When neither \fBIGNBRK\fP nor \fBBRKINT\fP are set, a BREAK
-reads as a null byte (\(aq\\0\(aq), except when \fBPARMRK\fP is set,
-in which case it reads as the sequence \\377 \\0 \\0.
+reads as a null byte (\(aq\e0\(aq), except when \fBPARMRK\fP is set,
+in which case it reads as the sequence \e377 \e0 \e0.
 .TP
 .B IGNPAR
 Ignore framing errors and parity errors.
 .TP
 .B PARMRK
-If \fBIGNPAR\fP is not set, prefix a character with a parity error or
-framing error with \\377 \\0.
+If this bit is set, input bytes with parity or framing errors are
+marked when passed to the program.
+This bit is meaningful only when
+\fBINPCK\fP is set and \fBIGNPAR\fP is not set.
+The way erroneous bytes are marked is with two preceding bytes,
+\e377 and \e0.
+Thus, the program actually reads three bytes for one
+erroneous byte received from the terminal.
+If a valid byte has the value \e377,
+and \fBISTRIP\fP (see below) is not set,
+the program might confuse it with the prefix that marks a
+parity error.
+Therefore, a valid byte \e377 is passed to the program as two
+bytes, \e377 \e377, in this case.
+.IP
 If neither \fBIGNPAR\fP nor \fBPARMRK\fP
 is set, read a character with a parity error or framing error
-as \\0.
+as \e0.
 .TP
 .B INPCK
 Enable input parity checking.
@@ -201,7 +215,7 @@ Send fill characters for a delay, rather than using a timed delay.
 .TP
 .B OFDEL
 Fill character is ASCII DEL (0177).
-If unset, fill character is ASCII NUL (\(aq\\0\(aq).
+If unset, fill character is ASCII NUL (\(aq\e0\(aq).
 (Not implemented on Linux.)
 .TP
 .B NLDLY
@@ -226,7 +240,10 @@ or
 .TP
 .B TABDLY
 Horizontal tab delay mask.
-Values are \fBTAB0\fP, \fBTAB1\fP, \fBTAB2\fP, \fBTAB3\fP (or \fBXTABS\fP).
+Values are \fBTAB0\fP, \fBTAB1\fP, \fBTAB2\fP, \fBTAB3\fP (or \fBXTABS\fP,
+but see the
+.B BUGS
+section).
 A value of TAB3, that is, XTABS, expands tabs to spaces
 (with tab stops every eight columns).
 [requires
@@ -277,7 +294,7 @@ or
 .B _BSD_SOURCE
 or
 .BR _SVID_SOURCE ]
-.sp
+.IP
 (POSIX says that the baud speed is stored in the
 .I termios
 structure without specifying where precisely, and provides
@@ -369,8 +386,8 @@ Enable canonical mode (described below).
 .B XCASE
 (not in POSIX; not supported under Linux)
 If \fBICANON\fP is also set, terminal is uppercase only.
-Input is converted to lowercase, except for characters preceded by \\.
-On output, uppercase characters are preceded by \\ and lowercase
+Input is converted to lowercase, except for characters preceded by \e.
+On output, uppercase characters are preceded by \e and lowercase
 characters are converted to uppercase.
 [requires
 .B _BSD_SOURCE
@@ -400,11 +417,11 @@ If \fBICANON\fP is also set, echo the NL character even if ECHO is not set.
 .B ECHOCTL
 (not in POSIX) If \fBECHO\fP is also set,
 terminal special characters other than
-TAB, NL, START, and STOP are echoed as \fB^X\fP,
+TAB, NL, START, and STOP are echoed as \fB\(haX\fP,
 where X is the character with
 ASCII code 0x40 greater than the special character.
 For example, character
-0x08 (BS) is echoed as \fB^H\fP.
+0x08 (BS) is echoed as \fB\(haH\fP.
 [requires
 .B _BSD_SOURCE
 or
@@ -590,7 +607,7 @@ Status character (STATUS).
 Display status information at terminal,
 including state of foreground process and amount of CPU time it has consumed.
 Also sends a
-.BR SIGINFO
+.B SIGINFO
 signal (not supported on Linux) to the foreground process group.
 .TP
 .B VSTOP
@@ -629,13 +646,13 @@ Recognized when
 and
 .B IEXTEN
 are set, and then not passed as input.
-.LP
+.PP
 An individual terminal special character can be disabled by setting
 the value of the corresponding
 .I c_cc
 element to
 .BR _POSIX_VDISABLE .
-.LP
+.PP
 The above symbolic subscript values are all different, except that
 .BR VTIME ,
 .B VMIN
@@ -652,7 +669,6 @@ and
 see the description of
 noncanonical mode below.
 .SS Retrieving and changing terminal settings
-.PP
 .BR tcgetattr ()
 gets the parameters associated with the object referred by \fIfd\fP and
 stores them in the \fItermios\fP structure referenced by
@@ -660,7 +676,7 @@ stores them in the \fItermios\fP structure referenced by
 This function may be invoked from a background process;
 however, the terminal attributes may be subsequently changed by a
 foreground process.
-.LP
+.PP
 .BR tcsetattr ()
 sets the parameters associated with the terminal (unless support is
 required from the underlying hardware that is not available) from the
@@ -692,8 +708,8 @@ noncanonical mode
 unset).
 By default,
 .B ICANON
-set.
-
+is set.
+.PP
 In canonical mode:
 .IP * 2
 Input is made available line by line.
@@ -715,11 +731,26 @@ requested fewer bytes than are available in the current line of input,
 then only as many bytes as requested are read,
 and the remaining characters will be available for a future
 .BR read (2).
+.IP * 2
+The maximum line length is 4096 chars
+(including the terminating newline character);
+lines longer than 4096 chars are truncated.
+After 4095 characters, input processing (e.g.,
+.B ISIG
+and
+.B ECHO*
+processing) continues, but any input data after 4095 characters up to
+(but not including) any terminating newline is discarded.
+This ensures that the terminal can always receive
+more input until at least one line can be read.
 .PP
 In noncanonical mode input is available immediately (without
 the user having to type a line-delimiter character),
 no input processing is performed,
 and line editing is disabled.
+The read buffer will only accept 4095 chars; this provides the
+necessary space for a newline char if the input mode is switched
+to canonical.
 The settings of MIN
 .RI ( c_cc[VMIN] )
 and TIME
@@ -804,7 +835,6 @@ in noncanonical mode to return either 0, or \-1 with
 set to
 .BR EAGAIN .
 .SS Raw mode
-.LP
 .BR cfmakeraw ()
 sets the terminal to something like the
 "raw" mode of the old Version 7 terminal driver:
@@ -812,35 +842,37 @@ input is available character by character,
 echoing is disabled, and all special processing of
 terminal input and output characters is disabled.
 The terminal attributes are set as follows:
-.nf
-
-    termios_p\->c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP
-                    | INLCR | IGNCR | ICRNL | IXON);
-    termios_p\->c_oflag &= ~OPOST;
-    termios_p\->c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-    termios_p\->c_cflag &= ~(CSIZE | PARENB);
-    termios_p\->c_cflag |= CS8;
-.fi
+.PP
+.in +4n
+.EX
+termios_p\->c_iflag &= \(ti(IGNBRK | BRKINT | PARMRK | ISTRIP
+                | INLCR | IGNCR | ICRNL | IXON);
+termios_p\->c_oflag &= \(tiOPOST;
+termios_p\->c_lflag &= \(ti(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+termios_p\->c_cflag &= \(ti(CSIZE | PARENB);
+termios_p\->c_cflag |= CS8;
+.EE
+.in
+.\"
 .SS Line control
-.LP
 .BR tcsendbreak ()
 transmits a continuous stream of zero-valued bits for a specific
 duration, if the terminal is using asynchronous serial data
 transmission.
 If \fIduration\fP is zero, it transmits zero-valued bits
-for at least 0.25 seconds, and not more that 0.5 seconds.
+for at least 0.25 seconds, and not more than 0.5 seconds.
 If \fIduration\fP is not zero, it sends zero-valued bits for some
 implementation-defined length of time.
-.LP
+.PP
 If the terminal is not using asynchronous serial data transmission,
 .BR tcsendbreak ()
 returns without taking any action.
-.LP
+.PP
 .BR tcdrain ()
 waits until all output written to the object referred to by
 .I fd
 has been transmitted.
-.LP
+.PP
 .BR tcflush ()
 discards data written to the object referred to by
 .I fd
@@ -854,7 +886,7 @@ flushes data written but not transmitted.
 .IP \fBTCIOFLUSH\fP
 flushes both data received but not read, and data written but not
 transmitted.
-.LP
+.PP
 .BR tcflow ()
 suspends transmission or reception of data on the object referred to by
 .IR fd ,
@@ -870,7 +902,7 @@ transmitting data to the system.
 .IP \fBTCION\fP
 transmits a START character, which starts the terminal device
 transmitting data to the system.
-.LP
+.PP
 The default on open of a terminal file is that neither its input nor its
 output is suspended.
 .SS Line speed
@@ -880,24 +912,24 @@ The new values do not take effect
 until
 .BR tcsetattr ()
 is successfully called.
-
+.PP
 Setting the speed to \fBB0\fP instructs the modem to "hang up".
 The actual bit rate corresponding to \fBB38400\fP may be altered with
 .BR setserial (8).
-.LP
+.PP
 The input and output baud rates are stored in the \fItermios\fP
 structure.
-.LP
+.PP
 .BR cfgetospeed ()
 returns the output baud rate stored in the \fItermios\fP structure
 pointed to by
 .IR termios_p .
-.LP
+.PP
 .BR cfsetospeed ()
 sets the output baud rate stored in the \fItermios\fP structure pointed
 to by \fItermios_p\fP to \fIspeed\fP, which must be one of these constants:
+.PP
 .nf
-
 .ft B
 	B0
 	B50
@@ -919,8 +951,8 @@ to by \fItermios_p\fP to \fIspeed\fP, which must be one of these constants:
 	B115200
 	B230400
 .ft P
-
 .fi
+.PP
 The zero baud rate, \fBB0\fP,
 is used to terminate the connection.
 If B0 is specified, the modem control lines shall no longer be asserted.
@@ -928,10 +960,10 @@ Normally, this will disconnect the line.
 \fBCBAUDEX\fP is a mask
 for the speeds beyond those defined in POSIX.1 (57600 and above).
 Thus, \fBB57600\fP & \fBCBAUDEX\fP is nonzero.
-.LP
+.PP
 .BR cfgetispeed ()
 returns the input baud rate stored in the \fItermios\fP structure.
-.LP
+.PP
 .BR cfsetispeed ()
 sets the input baud rate stored in the \fItermios\fP structure to
 .IR speed ,
@@ -939,22 +971,21 @@ which must be specified as one of the \fBBnnn\fP constants listed above for
 .BR cfsetospeed ().
 If the input baud rate is set to zero, the input baud rate will be
 equal to the output baud rate.
-.LP
+.PP
 .BR cfsetspeed ()
 is a 4.4BSD extension.
 It takes the same arguments as
 .BR cfsetispeed (),
 and sets both input and output speed.
 .SH RETURN VALUE
-.LP
 .BR cfgetispeed ()
 returns the input baud rate stored in the
 \fItermios\fP
 structure.
-.LP
+.PP
 .BR cfgetospeed ()
 returns the output baud rate stored in the \fItermios\fP structure.
-.LP
+.PP
 All other functions return:
 .IP 0
 on success.
@@ -962,7 +993,7 @@ on success.
 on failure and set
 .I errno
 to indicate the error.
-.LP
+.PP
 Note that
 .BR tcsetattr ()
 returns success if \fIany\fP of the requested changes could be
@@ -972,22 +1003,41 @@ it may be necessary to follow this call with a further call to
 .BR tcgetattr ()
 to check that all changes have been performed successfully.
 .SH ATTRIBUTES
-.SS Multithreading (see pthreads(7))
-The
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.nh
+.ad l
+.TS
+allbox;
+lbw36 lb lb
+l l l.
+Interface	Attribute	Value
+T{
 .BR tcgetattr (),
 .BR tcsetattr (),
-.BR tcsendbreak (),
 .BR tcdrain (),
 .BR tcflush (),
 .BR tcflow (),
+.BR tcsendbreak (),
 .BR cfmakeraw (),
 .BR cfgetispeed (),
 .BR cfgetospeed (),
 .BR cfsetispeed (),
 .BR cfsetospeed (),
-and
 .BR cfsetspeed ()
-functions are thread-safe.
+T}	Thread safety	MT-Safe
+.TE
+.\" FIXME: The markings are different from that in the glibc manual.
+.\" markings in glibc manual are more detailed:
+.\"
+.\"     tcsendbreak: MT-Unsafe race:tcattr(filedes)/bsd
+.\"     tcflow: MT-Unsafe race:tcattr(filedes)/bsd
+.\"
+.\" glibc manual says /bsd indicate the preceding marker only applies
+.\" when the underlying kernel is a BSD kernel.
+.\" So, it is safety in Linux kernel.
+.ad
+.hy
 .SH CONFORMING TO
 .BR tcgetattr (),
 .BR tcsetattr (),
@@ -1001,7 +1051,7 @@ functions are thread-safe.
 and
 .BR cfsetospeed ()
 are specified in POSIX.1-2001.
-
+.PP
 .BR cfmakeraw ()
 and
 .BR cfsetspeed ()
@@ -1011,7 +1061,7 @@ UNIX\ V7 and several later systems have a list of baud rates
 where after the fourteen values B0, ..., B9600 one finds the
 two constants EXTA, EXTB ("External A" and "External B").
 Many systems extend the list with much higher baud rates.
-.LP
+.PP
 The effect of a nonzero \fIduration\fP with
 .BR tcsendbreak ()
 varies.
@@ -1033,21 +1083,35 @@ behaves like
 .\" libc4.7.6, libc5, glibc for unix: duration in ms.
 .\" glibc for bsd: duration in us
 .\" glibc for sunos4: ignore duration
+.SH BUGS
+.\" kernel 77e5bff1640432f28794a00800955e646dcd7455
+.\" glibc 573963e32ffac46d9891970ddebde2ac3212c5c0
+On the Alpha architecture before Linux 4.16 (and glibc before 2.28), the
+.B XTABS
+value was different from
+.B TAB3
+and it was ignored by the
+.B N_TTY
+line discipline code of the terminal driver as a result
+(because as it wasn't part of the
+.B TABDLY
+mask).
 .SH SEE ALSO
 .BR reset (1),
 .BR setterm (1),
 .BR stty (1),
 .BR tput (1),
 .BR tset (1),
-.BR console_ioctl (4),
-.BR tty_ioctl (4),
+.BR tty (1),
+.BR ioctl_console (2),
+.BR ioctl_tty (2),
 .BR setserial (8)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

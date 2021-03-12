@@ -18,7 +18,7 @@
 .\"
 .\"  Davide Libenzi <davidel@xmailserver.org>
 .\"
-.TH EPOLL 7 2015-01-10 "Linux" "Linux Programmer's Manual"
+.TH EPOLL 7 2019-03-06 "Linux" "Linux Programmer's Manual"
 .SH NAME
 epoll \- I/O event notification facility
 .SH SYNOPSIS
@@ -33,31 +33,59 @@ The
 .B epoll
 API can be used either as an edge-triggered or a level-triggered
 interface and scales well to large numbers of watched file descriptors.
+.PP
+The central concept of the
+.B epoll
+API is the
+.B epoll
+.IR instance ,
+an in-kernel data structure which, from a user-space perspective,
+can be considered as a container for two lists:
+.IP \(bu 2
+The
+.I interest
+list (sometimes also called the
+.B epoll
+set): the set of file descriptors that the process has registered
+an interest in monitoring.
+.IP \(bu
+The
+.I ready
+list: the set of file descriptors that are "ready" for I/O.
+The ready list is a subset of
+(or, more precisely, a set of references to)
+the file descriptors in the interest list.
+The ready list is dynamically populated
+by the kernel as a result of I/O activity on those file descriptors.
+.PP
 The following system calls are provided to
 create and manage an
 .B epoll
 instance:
-.IP * 3
+.IP \(bu 2
 .BR epoll_create (2)
-creates an
+creates a new
 .B epoll
 instance and returns a file descriptor referring to that instance.
 (The more recent
 .BR epoll_create1 (2)
 extends the functionality of
 .BR epoll_create (2).)
-.IP *
+.IP \(bu
 Interest in particular file descriptors is then registered via
-.BR epoll_ctl (2).
-The set of file descriptors currently registered on an
+.BR epoll_ctl (2),
+which adds items to the interest list of the
 .B epoll
-instance is sometimes called an
-.I epoll
-set.
-.IP *
+instance.
+.IP \(bu
 .BR epoll_wait (2)
 waits for I/O events,
 blocking the calling thread if no events are currently available.
+(This system call can be thought of as fetching items from
+the ready list of the
+.B epoll
+instance.)
+.\"
 .SS Level-triggered and edge-triggered
 The
 .B epoll
@@ -74,7 +102,7 @@ is registered on the
 .B epoll
 instance.
 .IP 2.
-A pipe writer writes 2 kB of data on the write side of the pipe.
+A pipe writer writes 2\ kB of data on the write side of the pipe.
 .IP 3.
 A call to
 .BR epoll_wait (2)
@@ -82,7 +110,7 @@ is done that will return
 .I rfd
 as a ready file descriptor.
 .IP 4.
-The pipe reader reads 1 kB of data from
+The pipe reader reads 1\ kB of data from
 .IR rfd .
 .IP 5.
 A call to
@@ -123,7 +151,7 @@ does not consume the whole buffer data, the call to
 done in step
 .B 5
 might block indefinitely.
-
+.PP
 An application that employs the
 .B EPOLLET
 flag should use nonblocking file descriptors to avoid having a blocking
@@ -133,19 +161,15 @@ The suggested way to use
 as an edge-triggered
 .RB ( EPOLLET )
 interface is as follows:
-.RS
-.TP 4
-.B i
+.IP a) 3
 with nonblocking file descriptors; and
-.TP
-.B ii
+.IP b)
 by waiting for an event only after
 .BR read (2)
 or
 .BR write (2)
 return
 .BR EAGAIN .
-.RE
 .PP
 By contrast, when used as a level-triggered interface
 (the default, when
@@ -156,7 +180,7 @@ is simply a faster
 .BR poll (2),
 and can be used wherever the latter is used since it shares the
 same semantics.
-
+.PP
 Since even with edge-triggered
 .BR epoll ,
 multiple events can be generated upon receipt of multiple chunks of data,
@@ -173,6 +197,23 @@ it is the caller's responsibility to rearm the file descriptor using
 .BR epoll_ctl (2)
 with
 .BR EPOLL_CTL_MOD .
+.PP
+If multiple threads
+(or processes, if child processes have inherited the
+.B epoll
+file descriptor across
+.BR fork (2))
+are blocked in
+.BR epoll_wait (2)
+waiting on the same epoll file descriptor and a file descriptor
+in the interest list that is marked for edge-triggered
+.RB ( EPOLLET )
+notification becomes ready,
+just one of the threads (or processes) is awoken from
+.BR epoll_wait (2).
+This provides a useful optimization for avoiding "thundering herd" wake-ups
+in some scenarios.
+.\"
 .SS Interaction with autosleep
 If the system is in
 .B autosleep
@@ -182,10 +223,10 @@ and an event happens which wakes the device from sleep, the device
 driver will keep the device awake only until that event is queued.
 To keep the device awake until the event has been processed,
 it is necessary to use the
-.BR epoll (7)
+.BR epoll_ctl (2)
 .B EPOLLWAKEUP
 flag.
-
+.PP
 When the
 .B EPOLLWAKEUP
 flag is set in the
@@ -255,9 +296,9 @@ it will continue to
 or
 .BR write (2)
 from where it stopped before.
-
+.PP
 .in +4n
-.nf
+.EX
 #define MAX_EVENTS 10
 struct epoll_event ev, events[MAX_EVENTS];
 int listen_sock, conn_sock, nfds, epollfd;
@@ -281,14 +322,14 @@ if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == \-1) {
 for (;;) {
     nfds = epoll_wait(epollfd, events, MAX_EVENTS, \-1);
     if (nfds == \-1) {
-        perror("epoll_pwait");
+        perror("epoll_wait");
         exit(EXIT_FAILURE);
     }
 
     for (n = 0; n < nfds; ++n) {
         if (events[n].data.fd == listen_sock) {
             conn_sock = accept(listen_sock,
-                            (struct sockaddr *) &local, &addrlen);
+                               (struct sockaddr *) &addr, &addrlen);
             if (conn_sock == \-1) {
                 perror("accept");
                 exit(EXIT_FAILURE);
@@ -306,9 +347,9 @@ for (;;) {
         }
     }
 }
-.fi
+.EE
 .in
-
+.PP
 When used as an edge-triggered interface, for performance reasons, it is
 possible to add the file descriptor inside the
 .B epoll
@@ -326,24 +367,19 @@ calling
 with
 .BR EPOLL_CTL_MOD .
 .SS Questions and answers
-.TP 4
-.B Q0
+.IP 0. 4
 What is the key used to distinguish the file descriptors registered in an
-.B epoll
-set?
-.TP
-.B A0
+interest list?
+.IP
 The key is the combination of the file descriptor number and
 the open file description
 (also known as an "open file handle",
 the kernel's internal representation of an open file).
-.TP
-.B Q1
+.IP 1.
 What happens if you register the same file descriptor on an
 .B epoll
 instance twice?
-.TP
-.B A1
+.IP
 You will probably get
 .BR EEXIST .
 However, it is possible to add a duplicate
@@ -351,19 +387,19 @@ However, it is possible to add a duplicate
 .BR dup2 (2),
 .BR fcntl (2)
 .BR F_DUPFD )
-descriptor to the same
+file descriptor to the same
 .B epoll
 instance.
-.\" But a descriptor duplicated by fork(2) can't be added to the
+.\" But a file descriptor duplicated by fork(2) can't be added to the
 .\" set, because the [file *, fd] pair is already in the epoll set.
 .\" That is a somewhat ugly inconsistency.  On the one hand, a child process
 .\" cannot add the duplicate file descriptor to the epoll set.  (In every
-.\" other case that I can think of, descriptors duplicated by fork have
-.\" similar semantics to descriptors duplicated by dup() and friends.)  On
+.\" other case that I can think of, file descriptors duplicated by fork have
+.\" similar semantics to file descriptors duplicated by dup() and friends.)  On
 .\" the other hand, the very fact that the child has a duplicate of the
-.\" descriptor means that even if the parent closes its descriptor, then
-.\" epoll_wait() in the parent will continue to receive notifications for
-.\" that descriptor because of the duplicated descriptor in the child.
+.\" file descriptor means that even if the parent closes its file descriptor,
+.\" then epoll_wait() in the parent will continue to receive notifications for
+.\" that file descriptor because of the duplicated file descriptor in the child.
 .\"
 .\" See http://thread.gmane.org/gmane.linux.kernel/596462/
 .\" "epoll design problems with common fork/exec patterns"
@@ -373,68 +409,56 @@ This can be a useful technique for filtering events,
 if the duplicate file descriptors are registered with different
 .I events
 masks.
-.TP
-.B Q2
+.IP 2.
 Can two
 .B epoll
 instances wait for the same file descriptor?
 If so, are events reported to both
 .B epoll
 file descriptors?
-.TP
-.B A2
+.IP
 Yes, and events would be reported to both.
 However, careful programming may be needed to do this correctly.
-.TP
-.B Q3
+.IP 3.
 Is the
 .B epoll
 file descriptor itself poll/epoll/selectable?
-.TP
-.B A3
+.IP
 Yes.
 If an
 .B epoll
 file descriptor has events waiting, then it will
 indicate as being readable.
-.TP
-.B Q4
+.IP 4.
 What happens if one attempts to put an
 .B epoll
 file descriptor into its own file descriptor set?
-.TP
-.B A4
+.IP
 The
 .BR epoll_ctl (2)
-call will fail
+call fails
 .RB ( EINVAL ).
 However, you can add an
 .B epoll
 file descriptor inside another
 .B epoll
 file descriptor set.
-.TP
-.B Q5
+.IP 5.
 Can I send an
 .B epoll
 file descriptor over a UNIX domain socket to another process?
-.TP
-.B A5
+.IP
 Yes, but it does not make sense to do this, since the receiving process
-would not have copies of the file descriptors in the
-.B epoll
-set.
-.TP
-.B Q6
+would not have copies of the file descriptors in the interest list.
+.IP 6.
 Will closing a file descriptor cause it to be removed from all
 .B epoll
-sets automatically?
-.TP
-.B A6
+interest lists?
+.IP
 Yes, but be aware of the following point.
 A file descriptor is a reference to an open file description (see
 .BR open (2)).
-Whenever a descriptor is duplicated via
+Whenever a file descriptor is duplicated via
 .BR dup (2),
 .BR dup2 (2),
 .BR fcntl (2)
@@ -445,46 +469,48 @@ a new file descriptor referring to the same open file description is
 created.
 An open file description continues to exist until all
 file descriptors referring to it have been closed.
+.IP
 A file descriptor is removed from an
-.B epoll
-set only after all the file descriptors referring to the underlying
-open file description have been closed
-(or before if the descriptor is explicitly removed using
-.BR epoll_ctl (2)
-.BR EPOLL_CTL_DEL ).
+interest list only after all the file descriptors referring to the underlying
+open file description have been closed.
 This means that even after a file descriptor that is part of an
-.B epoll
-set has been closed,
+interest list has been closed,
 events may be reported for that file descriptor if other file
 descriptors referring to the same underlying file description remain open.
-.TP
-.B Q7
+To prevent this happening,
+the file descriptor must be explicitly removed from the interest list (using
+.BR epoll_ctl (2)
+.BR EPOLL_CTL_DEL )
+before it is duplicated.
+Alternatively,
+the application must ensure that all file descriptors are closed
+(which may be difficult if file descriptors were duplicated
+behind the scenes by library functions that used
+.BR dup (2)
+or
+.BR fork (2)).
+.IP 7.
 If more than one event occurs between
 .BR epoll_wait (2)
 calls, are they combined or reported separately?
-.TP
-.B A7
+.IP
 They will be combined.
-.TP
-.B Q8
+.IP 8.
 Does an operation on a file descriptor affect the
 already collected but not yet reported events?
-.TP
-.B A8
+.IP
 You can do two operations on an existing file descriptor.
 Remove would be meaningless for
 this case.
 Modify will reread available I/O.
-.TP
-.B Q9
+.IP 9.
 Do I need to continuously read/write a file descriptor
 until
 .B EAGAIN
 when using the
 .B EPOLLET
-flag (edge-triggered behavior) ?
-.TP
-.B A9
+flag (edge-triggered behavior)?
+.IP
 Receiving an event from
 .BR epoll_wait (2)
 should suggest to you that such
@@ -493,13 +519,13 @@ You must consider it ready until the next (nonblocking)
 read/write yields
 .BR EAGAIN .
 When and how you will use the file descriptor is entirely up to you.
-.sp
+.IP
 For packet/token-oriented files (e.g., datagram socket,
 terminal in canonical mode),
 the only way to detect the end of the read/write I/O space
 is to continue to read/write until
 .BR EAGAIN .
-.sp
+.IP
 For stream-oriented files (e.g., pipe, FIFO, stream socket), the
 condition that the read/write I/O space is exhausted can also be detected by
 checking the amount of data read from / written to the target file
@@ -574,17 +600,34 @@ mechanisms, for example, FreeBSD has
 .IR kqueue ,
 and Solaris has
 .IR /dev/poll .
+.SH NOTES
+The set of file descriptors that is being monitored via
+an epoll file descriptor can be viewed via the entry for
+the epoll file descriptor in the process's
+.IR /proc/[pid]/fdinfo
+directory.
+See
+.BR proc (5)
+for further details.
+.PP
+The
+.BR kcmp (2)
+.B KCMP_EPOLL_TFD
+operation can be used to test whether a file descriptor
+is present in an epoll instance.
 .SH SEE ALSO
 .BR epoll_create (2),
 .BR epoll_create1 (2),
 .BR epoll_ctl (2),
-.BR epoll_wait (2)
+.BR epoll_wait (2),
+.BR poll (2),
+.BR select (2)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

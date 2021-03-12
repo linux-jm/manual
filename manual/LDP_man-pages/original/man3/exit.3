@@ -26,23 +26,23 @@
 .\" could be listed on this page. See, for example, the list in the
 .\" POSIX exit(3p) page.
 .\"
-.TH EXIT 3  2014-03-25 "Linux" "Linux Programmer's Manual"
+.TH EXIT 3  2020-02-09 "Linux" "Linux Programmer's Manual"
 .SH NAME
 exit \- cause normal process termination
 .SH SYNOPSIS
 .nf
 .B #include <stdlib.h>
-.sp
+.PP
 .BI "void exit(int " status );
 .fi
 .SH DESCRIPTION
 The
 .BR exit ()
-function causes normal process termination and the
-value of \fIstatus & 0377\fP is returned to the parent
-(see
+function causes normal process termination and the least significant byte of
+.I status
+(i.e., \fIstatus & 0xFF\fP) is returned to the parent (see
 .BR wait (2)).
-.LP
+.PP
 All functions registered with
 .BR atexit (3)
 and
@@ -69,14 +69,14 @@ If a function has been registered multiple times using
 or
 .BR on_exit (3),
 then it is called as many times as it was registered.
-.LP
+.PP
 All open
 .BR stdio (3)
 streams are flushed and closed.
 Files created by
 .BR tmpfile (3)
 are removed.
-.LP
+.PP
 The C standard specifies two constants,
 \fBEXIT_SUCCESS\fP and \fBEXIT_FAILURE\fP,
 that may be passed to
@@ -88,17 +88,26 @@ The
 .BR exit ()
 function does not return.
 .SH ATTRIBUTES
-.SS Multithreading (see pthreads(7))
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lb lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR exit ()
+T}	Thread safety	MT-Unsafe race:exit
+.TE
+.PP
 The
 .BR exit ()
 function uses a global variable that is not protected,
 so it is not thread-safe.
 .SH CONFORMING TO
-SVr4, 4.3BSD, POSIX.1-2001, C89, C99.
+POSIX.1-2001, POSIX.1-2008, C89, C99, SVr4, 4.3BSD.
 .SH NOTES
-.LP
-It is undefined what happens if one of the
-functions registered using
+The behavior is undefined if one of the functions registered using
 .BR atexit (3)
 and
 .BR on_exit (3)
@@ -112,7 +121,7 @@ removes registrations created using
 .BR atexit (3)
 and
 .BR on_exit (3).
-.LP
+.PP
 The use of
 .B EXIT_SUCCESS
 and
@@ -121,35 +130,39 @@ is slightly more portable
 (to non-UNIX environments) than the use of 0 and some nonzero value
 like 1 or \-1.
 In particular, VMS uses a different convention.
-.LP
-BSD has attempted to standardize exit codes; see the file
+.PP
+BSD has attempted to standardize exit codes
+(which some C libraries such as the GNU C library have also adopted);
+see the file
 .IR <sysexits.h> .
-.LP
+.PP
 After
 .BR exit (),
 the exit status must be transmitted to the
 parent process.
-There are three cases.
+There are three cases:
+.IP \(bu 3
 If the parent has set
 .BR SA_NOCLDWAIT ,
 or has set the
 .B SIGCHLD
 handler to
 .BR SIG_IGN ,
-the status is discarded.
+the status is discarded and the child dies immediately.
+.IP \(bu
 If the parent was waiting on the child,
-it is notified of the exit status.
-In both cases the exiting
-process dies immediately.
-If the parent has not indicated that
-it is not interested in the exit status, but is not waiting,
-the exiting process turns into a "zombie" process
-(which is nothing but a container for the single byte representing
-the exit status) so that the parent can learn the exit status when
-it later calls one of the
-.BR wait (2)
-functions.
-.LP
+it is notified of the exit status and the child dies immediately.
+.IP \(bu
+Otherwise,
+the child becomes a "zombie" process:
+most of the process resources are recycled,
+but a slot containing minimal information about the child process
+(termination status, resource usage statistics) is retained in process table.
+This allows the parent to subsequently use
+.BR waitpid (2)
+(or similar) to learn the termination status of the child;
+at that point the zombie process slot is released.
+.PP
 If the implementation supports the
 .B SIGCHLD
 signal, this signal
@@ -159,8 +172,9 @@ If the parent has set
 it is undefined whether a
 .B SIGCHLD
 signal is sent.
-.LP
-If the process is a session leader and its controlling terminal
+.\"
+.SS Signals sent to other processes
+If the exiting process is a session leader and its controlling terminal
 is the controlling terminal of the session, then each process in
 the foreground process group of this controlling terminal
 is sent a
@@ -168,7 +182,7 @@ is sent a
 signal, and the terminal is disassociated
 from this session, allowing it to be acquired by a new controlling
 process.
-.LP
+.PP
 If the exit of the process causes a process group to become orphaned,
 and if any member of the newly orphaned process group is stopped,
 then a
@@ -180,19 +194,30 @@ sent to each process in this process group.
 See
 .BR setpgid (2)
 for an explanation of orphaned process groups.
+.PP
+Except in the above cases,
+where the signalled processes may be children of the terminating process,
+termination of a process does
+.I not
+in general cause a signal to be sent to children of that process.
+However, a process can use the
+.BR prctl (2)
+.B PR_SET_PDEATHSIG
+operation to arrange that it receives a signal if its parent terminates.
 .SH SEE ALSO
 .BR _exit (2),
+.BR get_robust_list (2),
 .BR setpgid (2),
 .BR wait (2),
 .BR atexit (3),
 .BR on_exit (3),
 .BR tmpfile (3)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

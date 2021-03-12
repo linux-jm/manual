@@ -61,49 +61,49 @@
 .\" 2008-05-07, mtk / Peter Zijlstra, Added description of RLIMIT_RTTIME
 .\" 2010-11-06, mtk: Added documentation of prlimit()
 .\"
-.TH GETRLIMIT 2 2015-01-22 "Linux" "Linux Programmer's Manual"
+.TH GETRLIMIT 2 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 getrlimit, setrlimit, prlimit \- get/set resource limits
 .SH SYNOPSIS
 .B #include <sys/time.h>
 .br
 .B #include <sys/resource.h>
-.sp
+.PP
 .BI "int getrlimit(int " resource ", struct rlimit *" rlim );
 .br
 .BI "int setrlimit(int " resource ", const struct rlimit *" rlim );
-.sp
+.PP
 .BI "int prlimit(pid_t "  pid ", int " resource \
 ", const struct rlimit *" new_limit ,
 .br
 .BI "            struct rlimit *" old_limit );
-.sp
-.in -4n
+.PP
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.in
-.sp
+.RE
+.PP
 .BR prlimit ():
-_GNU_SOURCE && _FILE_OFFSET_BITS == 64
+_GNU_SOURCE
 .SH DESCRIPTION
 The
 .BR getrlimit ()
 and
 .BR setrlimit ()
-system calls get and set resource limits respectively.
+system calls get and set resource limits.
 Each resource has an associated soft and hard limit, as defined by the
 .I rlimit
 structure:
 .PP
 .in +4n
-.nf
+.EX
 struct rlimit {
     rlim_t rlim_cur;  /* Soft limit */
     rlim_t rlim_max;  /* Hard limit (ceiling for rlim_cur) */
 };
-
-.fi
+.EE
 .in
+.PP
 The soft limit is the value that the kernel enforces for the
 corresponding resource.
 The hard limit acts as a ceiling for the soft limit:
@@ -111,7 +111,8 @@ an unprivileged process may set only its soft limit to a value in the
 range from 0 up to the hard limit, and (irreversibly) lower its hard limit.
 A privileged process (under Linux: one with the
 .B CAP_SYS_RESOURCE
-capability) may make arbitrary changes to either limit value.
+capability in the initial user namespace)
+may make arbitrary changes to either limit value.
 .PP
 The value
 .B RLIM_INFINITY
@@ -125,7 +126,9 @@ The
 argument must be one of:
 .TP
 .B RLIMIT_AS
-The maximum size of the process's virtual memory (address space) in bytes.
+This is the maximum size of the process's virtual memory
+(address space).
+The limit is specified in bytes, and is rounded down to the system page size.
 .\" since 2.0.27 / 2.1.12
 This limit affects calls to
 .BR brk (2),
@@ -135,25 +138,27 @@ and
 which fail with the error
 .B ENOMEM
 upon exceeding this limit.
-Also automatic stack expansion will fail
-(and generate a
+In addition, automatic stack expansion fails
+(and generates a
 .B SIGSEGV
 that kills the process if no alternate stack
 has been made available via
 .BR sigaltstack (2)).
 Since the value is a \fIlong\fP, on machines with a 32-bit \fIlong\fP
-either this limit is at most 2 GiB, or this resource is unlimited.
+either this limit is at most 2\ GiB, or this resource is unlimited.
 .TP
 .B RLIMIT_CORE
-Maximum size of a
+This is the maximum size of a
 .I core
 file (see
-.BR core (5)).
+.BR core (5))
+in bytes that the process may dump.
 When 0 no core dump files are created.
 When nonzero, larger dumps are truncated to this size.
 .TP
 .B RLIMIT_CPU
-CPU time limit in seconds.
+This is a limit, in seconds,
+on the amount of CPU time that the process can consume.
 When the process reaches the soft limit, it is sent a
 .B SIGXCPU
 signal.
@@ -173,18 +178,25 @@ perform an orderly termination upon first receipt of
 .BR SIGXCPU .)
 .TP
 .B RLIMIT_DATA
-The maximum size of the process's data segment (initialized data,
+This is the maximum size
+of the process's data segment (initialized data,
 uninitialized data, and heap).
+The limit is specified in bytes, and is rounded down to the system page size.
 This limit affects calls to
-.BR brk (2)
-and
+.BR brk (2),
 .BR sbrk (2),
+and (since Linux 4.7)
+.BR mmap (2),
+.\" commits 84638335900f1995495838fe1bd4870c43ec1f67
+.\" ("mm: rework virtual memory accounting"),
+.\" f4fcd55841fc9e46daac553b39361572453c2b88
+.\" (mm: enable RLIMIT_DATA by default with workaround for valgrind).
 which fail with the error
 .B ENOMEM
 upon encountering the soft limit of this resource.
 .TP
 .B RLIMIT_FSIZE
-The maximum size of files that the process may create.
+This is the maximum size in bytes of files that the process may create.
 Attempts to extend a file beyond this limit result in delivery of a
 .B SIGXFSZ
 signal.
@@ -195,28 +207,27 @@ catch this signal instead, in which case the relevant system call (e.g.,
 fails with the error
 .BR EFBIG .
 .TP
-.BR RLIMIT_LOCKS " (Early Linux 2.4 only)"
+.BR RLIMIT_LOCKS " (Linux 2.4.0 to 2.4.24)"
 .\" to be precise: Linux 2.4.0-test9; no longer in 2.4.25 / 2.5.65
-A limit on the combined number of
+This is a limit on the combined number of
 .BR flock (2)
 locks and
 .BR fcntl (2)
 leases that this process may establish.
 .TP
 .B RLIMIT_MEMLOCK
-The maximum number of bytes of memory that may be locked
+This is the maximum number of bytes of memory that may be locked
 into RAM.
-In effect this limit is rounded down to the nearest multiple
+This limit is in effect rounded down to the nearest multiple
 of the system page size.
 This limit affects
-.BR mlock (2)
-and
-.BR mlockall (2)
+.BR mlock (2),
+.BR mlockall (2),
 and the
 .BR mmap (2)
 .B MAP_LOCKED
 operation.
-Since Linux 2.6.9 it also affects the
+Since Linux 2.6.9, it also affects the
 .BR shmctl (2)
 .B SHM_LOCK
 operation, where it sets a maximum on the total bytes in
@@ -235,6 +246,7 @@ and
 .BR MAP_LOCKED ;
 a process can lock bytes up to this limit in each of these
 two categories.
+.IP
 In Linux kernels before 2.6.9, this limit controlled the amount of
 memory that could be locked by a privileged process.
 Since Linux 2.6.9, no limits are placed on the amount of memory
@@ -242,29 +254,33 @@ that a privileged process may lock, and this limit instead governs
 the amount of memory that an unprivileged process may lock.
 .TP
 .BR RLIMIT_MSGQUEUE " (since Linux 2.6.8)"
-Specifies the limit on the number of bytes that can be allocated
+This is a limit on the number of bytes that can be allocated
 for POSIX message queues for the real user ID of the calling process.
 This limit is enforced for
 .BR mq_open (3).
 Each message queue that the user creates counts (until it is removed)
 against this limit according to the formula:
-.nf
-
+.IP
     Since Linux 3.5:
+.IP
+.EX
         bytes = attr.mq_maxmsg * sizeof(struct msg_msg) +
                 min(attr.mq_maxmsg, MQ_PRIO_MAX) *
                       sizeof(struct posix_msg_tree_node)+
                                 /* For overhead */
                 attr.mq_maxmsg * attr.mq_msgsize;
                                 /* For message data */
-
+.EE
+.IP
     Linux 3.4 and earlier:
+.IP
+.EX
         bytes = attr.mq_maxmsg * sizeof(struct msg_msg *) +
                                 /* For overhead */
                 attr.mq_maxmsg * attr.mq_msgsize;
                                 /* For message data */
-
-.fi
+.EE
+.IP
 where
 .I attr
 is the
@@ -276,7 +292,7 @@ and the
 and
 .I posix_msg_tree_node
 structures are kernel-internal structures.
-
+.IP
 The "overhead" addend in the formula accounts for overhead
 bytes required by the implementation
 and ensures that the user cannot
@@ -284,20 +300,26 @@ create an unlimited number of zero-length messages (such messages
 nevertheless each consume some system memory for bookkeeping overhead).
 .TP
 .BR RLIMIT_NICE " (since Linux 2.6.12, but see BUGS below)"
-Specifies a ceiling to which the process's nice value can be raised using
+This specifies a ceiling to which the process's nice value can be raised using
 .BR setpriority (2)
 or
 .BR nice (2).
 The actual ceiling for the nice value is calculated as
 .IR "20\ \-\ rlim_cur" .
-(This strangeness occurs because negative numbers cannot be specified
+The useful range for this limit is thus from 1
+(corresponding to a nice value of 19) to 40
+(corresponding to a nice value of -20).
+This unusual choice of range was necessary
+because negative numbers cannot be specified
 as resource limit values, since they typically have special meanings.
 For example,
 .B RLIM_INFINITY
-typically is the same as \-1.)
+typically is the same as \-1.
+For more detail on the nice value, see
+.BR sched (7).
 .TP
 .B RLIMIT_NOFILE
-Specifies a value one greater than the maximum file descriptor number
+This specifies a value one greater than the maximum file descriptor number
 that can be opened by this process.
 Attempts
 .RB ( open (2),
@@ -309,22 +331,39 @@ to exceed this limit yield the error
 (Historically, this limit was named
 .B RLIMIT_OFILE
 on BSD.)
+.IP
+Since Linux 4.5,
+this limit also defines the maximum number of file descriptors that
+an unprivileged process (one without the
+.BR CAP_SYS_RESOURCE
+capability) may have "in flight" to other processes,
+by being passed across UNIX domain sockets.
+This limit applies to the
+.BR sendmsg (2)
+system call.
+For further details, see
+.BR unix (7).
 .TP
 .B RLIMIT_NPROC
-The maximum number of processes (or, more precisely on Linux, threads)
-that can be created for the real user ID of the calling process.
-Upon encountering this limit,
+This is a limit on the number of extant process
+(or, more precisely on Linux, threads)
+for the real user ID of the calling process.
+So long as the current number of processes belonging to this
+process's real user ID is greater than or equal to this limit,
 .BR fork (2)
 fails with the error
 .BR EAGAIN .
-This limit is not enforced for processes that have either the
+.IP
+The
+.B RLIMIT_NPROC
+limit is not enforced for processes that have either the
 .B CAP_SYS_ADMIN
 or the
 .B CAP_SYS_RESOURCE
 capability.
 .TP
 .B RLIMIT_RSS
-Specifies the limit (in pages) of the process's resident set
+This is a limit (in bytes) on the process's resident set
 (the number of virtual pages resident in RAM).
 This limit has effect only in Linux 2.4.x, x < 30, and there
 affects only calls to
@@ -336,14 +375,17 @@ specifying
 .\"       -- MTK, Jul 05
 .TP
 .BR RLIMIT_RTPRIO " (since Linux 2.6.12, but see BUGS)"
-Specifies a ceiling on the real-time priority that may be set for
+This specifies a ceiling on the real-time priority that may be set for
 this process using
 .BR sched_setscheduler (2)
 and
 .BR sched_setparam (2).
+.IP
+For further details on real-time scheduling policies, see
+.BR sched (7)
 .TP
 .BR RLIMIT_RTTIME " (since Linux 2.6.25)"
-Specifies a limit (in microseconds)
+This is a limit (in microseconds)
 on the amount of CPU time that a process scheduled
 under a real-time scheduling policy may consume without making a blocking
 system call.
@@ -353,7 +395,7 @@ the count of its consumed CPU time is reset to zero.
 The CPU time count is not reset if the process continues trying to
 use the CPU but is preempted, its time slice expires, or it calls
 .BR sched_yield (2).
-
+.IP
 Upon reaching the soft limit, the process is sent a
 .B SIGXCPU
 signal.
@@ -364,12 +406,15 @@ will be generated once each second until the hard limit is reached,
 at which point the process is sent a
 .B SIGKILL
 signal.
-
+.IP
 The intended use of this limit is to stop a runaway
 real-time process from locking up the system.
+.IP
+For further details on real-time scheduling policies, see
+.BR sched (7)
 .TP
 .BR RLIMIT_SIGPENDING " (since Linux 2.6.8)"
-Specifies the limit on the number of signals
+This is a limit on the number of signals
 that may be queued for the real user ID of the calling process.
 Both standard and real-time signals are counted for the purpose of
 checking this limit.
@@ -383,13 +428,13 @@ queued to the process.
 .\" that was present in kernels <= 2.6.7.  MTK Dec 04
 .TP
 .B RLIMIT_STACK
-The maximum size of the process stack, in bytes.
+This is the maximum size of the process stack, in bytes.
 Upon reaching this limit, a
 .B SIGSEGV
 signal is generated.
 To handle this signal, a process must employ an alternate signal stack
 .RB ( sigaltstack (2)).
-
+.IP
 Since Linux 2.6.23,
 this limit also determines the amount of space used for the process's
 command-line arguments and environment variables; for details, see
@@ -414,14 +459,14 @@ system call combines and extends the functionality of
 and
 .BR getrlimit ().
 It can be used to both set and get the resource limits of an arbitrary process.
-
+.PP
 The
 .I resource
 argument has the same meaning as for
 .BR setrlimit ()
 and
 .BR getrlimit ().
-
+.PP
 If the
 .IR new_limit
 argument is a not NULL, then the
@@ -439,7 +484,7 @@ in the
 .I rlimit
 structure pointed to by
 .IR old_limit .
-
+.PP
 The
 .I pid
 argument specifies the ID of the process on which the call is to operate.
@@ -449,7 +494,8 @@ is 0, then the call applies to the calling process.
 To set or get the resources of a process other than itself,
 the caller must have the
 .B CAP_SYS_RESOURCE
-capability, or the
+capability in the user namespace of the process
+whose resource limits are being changed, or the
 real, effective, and saved set user IDs of the target process
 must match the real user ID of the caller
 .I and
@@ -508,21 +554,36 @@ The
 .BR prlimit ()
 system call is available since Linux 2.6.36.
 Library support is available since glibc 2.13.
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw35 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR getrlimit (),
+.BR setrlimit (),
+.BR prlimit ()
+T}	Thread safety	MT-Safe
+.TE
+.sp 1
 .SH CONFORMING TO
 .BR getrlimit (),
 .BR setrlimit ():
-SVr4, 4.3BSD, POSIX.1-2001.
-.br
+POSIX.1-2001, POSIX.1-2008, SVr4, 4.3BSD.
+.PP
 .BR prlimit ():
 Linux-specific.
-
+.PP
 .B RLIMIT_MEMLOCK
 and
 .B RLIMIT_NPROC
-derive from BSD and are not specified in POSIX.1-2001;
+derive from BSD and are not specified in POSIX.1;
 they are present on the BSDs and Linux, but on few other implementations.
 .B RLIMIT_RSS
-derives from BSD and is not specified in POSIX.1-2001;
+derives from BSD and is not specified in POSIX.1;
 it is nevertheless present on most implementations.
 .BR RLIMIT_MSGQUEUE ,
 .BR RLIMIT_NICE ,
@@ -537,12 +598,15 @@ A child process created via
 inherits its parent's resource limits.
 Resource limits are preserved across
 .BR execve (2).
-
+.PP
+Resource limits are per-process attributes that are shared
+by all of the threads in a process.
+.PP
 Lowering the soft limit for a resource below the process's
 current consumption of that resource will succeed
 (but will prevent the process from further increasing
 its consumption of the resource).
-
+.PP
 One can set the resource limits of the shell using the built-in
 .IR ulimit
 command
@@ -551,12 +615,12 @@ in
 .BR csh (1)).
 The shell's resource limits are inherited by the processes that
 it creates to execute commands.
-
+.PP
 Since Linux 2.6.24, the resource limits of any process can be inspected via
 .IR /proc/[pid]/limits ;
 see
 .BR proc (5).
-
+.PP
 Ancient systems provided a
 .BR vlimit ()
 function with a similar purpose to
@@ -565,7 +629,7 @@ For backward compatibility, glibc also provides
 .BR vlimit ().
 All new applications should be written using
 .BR setrlimit ().
-.SS C library/ kernel ABI differences
+.SS C library/kernel ABI differences
 Since version 2.13, the glibc
 .BR getrlimit ()
 and
@@ -574,6 +638,11 @@ wrapper functions no longer invoke the corresponding system calls,
 but instead employ
 .BR prlimit (),
 for the reasons described in BUGS.
+.PP
+The name of the glibc wrapper function is
+.BR prlimit ();
+the underlying system call is
+.BR prlimit64 ().
 .SH BUGS
 In older Linux kernels, the
 .B SIGXCPU
@@ -583,7 +652,7 @@ signals delivered when a process encountered the soft and hard
 .B RLIMIT_CPU
 limits were delivered one (CPU) second later than they should have been.
 This was fixed in kernel 2.6.8.
-
+.PP
 In 2.6.x kernels before 2.6.17, a
 .B RLIMIT_CPU
 limit of 0 is wrongly treated as "no limit" (like
@@ -591,12 +660,12 @@ limit of 0 is wrongly treated as "no limit" (like
 Since Linux 2.6.17, setting a limit of 0 does have an effect,
 but is actually treated as a limit of 1 second.
 .\" see http://marc.theaimsgroup.com/?l=linux-kernel&m=114008066530167&w=2
-
+.PP
 A kernel bug means that
 .\" See https://lwn.net/Articles/145008/
 .B RLIMIT_RTPRIO
 does not work in kernel 2.6.12; the problem is fixed in kernel 2.6.13.
-
+.PP
 In kernel 2.6.12, there was an off-by-one mismatch
 between the priority ranges returned by
 .BR getpriority (2)
@@ -607,7 +676,7 @@ was calculated as
 .IR "19\ \-\ rlim_cur" .
 This was fixed in kernel 2.6.13.
 .\" see http://marc.theaimsgroup.com/?l=linux-kernel&m=112256338703880&w=2
-
+.PP
 Since Linux 2.6.12,
 .\" The relevant patch, sent to LKML, seems to be
 .\" http://thread.gmane.org/gmane.linux.kernel/273462
@@ -634,7 +703,7 @@ portable applications should avoid relying on this Linux-specific behavior.
 The Linux-specific
 .BR RLIMIT_RTTIME
 limit exhibits the same behavior when the soft limit is encountered.
-
+.PP
 Kernels before 2.4.22 did not diagnose the error
 .B EINVAL
 for
@@ -643,6 +712,11 @@ when
 .I rlim\->rlim_cur
 was greater than
 .IR rlim\->rlim_max .
+.\" d3561f78fd379a7110e46c87964ba7aa4120235c
+.PP
+Linux doesn't return an error when an attempt to set
+.B RLIMIT_CPU
+has failed, for compatibility reasons.
 .\"
 .SS Representation of """large""" resource limit values on 32-bit platforms
 The glibc
@@ -660,7 +734,11 @@ and
 .BR setrlimit ()
 system calls is a (32-bit)
 .IR "unsigned long" .
-Furthermore, in Linux versions before 2.6.36,
+.\" Linux still uses long for limits internally:
+.\" c022a0acad534fd5f5d5f17280f6d4d135e74e81
+.\" kernel/sys.c:do_prlimit() still uses struct rlimit which
+.\" uses kernel_ulong_t for its members, i.e. 32-bit  on 32-bit kernel.
+Furthermore, in Linux,
 the kernel represents resource limits on 32-bit platforms as
 .IR "unsigned long" .
 However, a 32-bit data type is not wide enough.
@@ -675,7 +753,7 @@ represent file offsets\(emthat is, as wide as a 64-bit
 .BR off_t
 (assuming a program compiled with
 .IR _FILE_OFFSET_BITS=64 ).
-
+.PP
 To work around this kernel limitation,
 if a program tried to set a resource limit to a value larger than
 can be represented in a 32-bit
@@ -685,15 +763,6 @@ then the glibc
 wrapper function silently converted the limit value to
 .BR RLIM_INFINITY .
 In other words, the requested resource limit setting was silently ignored.
-
-This problem was addressed in Linux 2.6.36 with two principal changes:
-.IP * 3
-the addition of a new kernel representation of resource limits that
-uses 64 bits, even on 32-bit platforms;
-.IP *
-the addition of the
-.BR prlimit ()
-system call, which employs 64-bit values for its resource limit arguments.
 .PP
 Since version 2.13,
 .\" https://www.sourceware.org/bugzilla/show_bug.cgi?id=12201
@@ -707,20 +776,21 @@ and
 .BR getrlimit ()
 as wrapper functions that call
 .BR prlimit ().
-.SH EXAMPLE
+.SH EXAMPLES
 The program below demonstrates the use of
 .BR prlimit ().
 .PP
-.nf
+.EX
 #define _GNU_SOURCE
 #define _FILE_OFFSET_BITS 64
+#include <stdint.h>
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/resource.h>
 
-#define errExit(msg) 	do { perror(msg); exit(EXIT_FAILURE); \\
+#define errExit(msg) do { perror(msg); exit(EXIT_FAILURE); \e
                         } while (0)
 
 int
@@ -732,7 +802,7 @@ main(int argc, char *argv[])
 
     if (!(argc == 2 || argc == 4)) {
         fprintf(stderr, "Usage: %s <pid> [<new\-soft\-limit> "
-                "<new\-hard\-limit>]\\n", argv[0]);
+                "<new\-hard\-limit>]\en", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -750,19 +820,19 @@ main(int argc, char *argv[])
 
     if (prlimit(pid, RLIMIT_CPU, newp, &old) == \-1)
         errExit("prlimit\-1");
-    printf("Previous limits: soft=%lld; hard=%lld\\n",
-            (long long) old.rlim_cur, (long long) old.rlim_max);
+    printf("Previous limits: soft=%jd; hard=%jd\en",
+            (intmax_t) old.rlim_cur, (intmax_t) old.rlim_max);
 
     /* Retrieve and display new CPU time limit */
 
     if (prlimit(pid, RLIMIT_CPU, NULL, &old) == \-1)
         errExit("prlimit\-2");
-    printf("New limits: soft=%lld; hard=%lld\\n",
-            (long long) old.rlim_cur, (long long) old.rlim_max);
+    printf("New limits: soft=%jd; hard=%jd\en",
+            (intmax_t) old.rlim_cur, (intmax_t) old.rlim_max);
 
-    exit(EXIT_FAILURE);
+    exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SH SEE ALSO
 .BR prlimit (1),
 .BR dup (2),
@@ -780,13 +850,15 @@ main(int argc, char *argv[])
 .BR ulimit (3),
 .BR core (5),
 .BR capabilities (7),
+.BR cgroups (7),
+.BR credentials (7),
 .BR signal (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

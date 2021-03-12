@@ -29,30 +29,30 @@
 .\" Modified Mon Dec 11 13:32:51 MET 2000 by aeb
 .\" Modified Thu Apr 22 03:49:15 CEST 2002 by Roger Luethi <rl@hellgate.ch>
 .\"
-.TH GETCWD 3 2014-08-19 "GNU" "Linux Programmer's Manual"
+.TH GETCWD 3 2018-04-30 "GNU" "Linux Programmer's Manual"
 .SH NAME
 getcwd, getwd, get_current_dir_name \- get current working directory
 .SH SYNOPSIS
 .nf
 .B #include <unistd.h>
-.sp
+.PP
 .BI "char *getcwd(char *" buf ", size_t " size );
-.sp
+.PP
 .BI "char *getwd(char *" buf );
-.sp
+.PP
 .B "char *get_current_dir_name(void);"
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
-.sp
-.in
+.RE
+.PP
 .BR get_current_dir_name ():
 .RS
 _GNU_SOURCE
 .RE
-.sp
+.PP
 .BR getwd ():
 .ad l
 .RS 4
@@ -60,15 +60,14 @@ _GNU_SOURCE
 .TP 4
 Since glibc 2.12:
 .nf
-_BSD_SOURCE ||
-    (_XOPEN_SOURCE\ >=\ 500 ||
-        _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED) &&
-    !(_POSIX_C_SOURCE\ >=\ 200809L || _XOPEN_SOURCE\ >=\ 700)
-.TP 4
+(_XOPEN_SOURCE\ >=\ 500) && ! (_POSIX_C_SOURCE\ >=\ 200809L)
+    || /* Glibc since 2.19: */ _DEFAULT_SOURCE
+    || /* Glibc versions <= 2.19: */ _BSD_SOURCE
 .fi
+.TP 4
 Before glibc 2.12:
-_BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 ||
-_XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+_BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500
+.\"    || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
 .PD
 .RE
 .ad b
@@ -79,7 +78,7 @@ the calling process.
 The pathname is returned as the function result and via the argument
 .IR buf ,
 if present.
-
+.PP
 The
 .BR getcwd ()
 function copies an absolute pathname of the current working directory
@@ -115,7 +114,7 @@ is allocated as big as necessary.
 The caller should
 .BR free (3)
 the returned buffer.
-
+.PP
 .BR get_current_dir_name ()
 will
 .BR malloc (3)
@@ -128,7 +127,7 @@ is set, and its value is correct, then that value will be returned.
 The caller should
 .BR free (3)
 the returned buffer.
-
+.PP
 .BR getwd ()
 does not
 .BR malloc (3)
@@ -156,13 +155,13 @@ is deprecated.
 .SH RETURN VALUE
 On success, these functions return a pointer to a string containing
 the pathname of the current working directory.
-In the case
+In the case of
 .BR getcwd ()
 and
 .BR getwd ()
 this is the same value as
 .IR buf .
-
+.PP
 On failure, these functions return NULL, and
 .I errno
 is set to indicate the error.
@@ -185,12 +184,12 @@ argument is zero and
 .I buf
 is not a null pointer.
 .TP
-EINVAL
+.B EINVAL
 .BR getwd ():
 .I buf
 is NULL.
 .TP
-ENAMETOOLONG
+.B ENAMETOOLONG
 .BR getwd ():
 The size of the null-terminated absolute pathname string exceeds
 .B PATH_MAX
@@ -199,12 +198,31 @@ bytes.
 .B ENOENT
 The current working directory has been unlinked.
 .TP
+.B ENOMEM
+Out of memory.
+.TP
 .B ERANGE
 The
 .I size
 argument is less than the length of the absolute pathname of the
 working directory, including the terminating null byte.
 You need to allocate a bigger array and try again.
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbw22 lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.BR getcwd (),
+.BR getwd ()
+T}	Thread safety	MT-Safe
+T{
+.BR get_current_dir_name ()
+T}	Thread safety	MT-Safe env
+.TE
 .SH CONFORMING TO
 .BR getcwd ()
 conforms to POSIX.1-2001.
@@ -213,7 +231,7 @@ Note however that POSIX.1-2001 leaves the behavior of
 unspecified if
 .I buf
 is NULL.
-
+.PP
 .BR getwd ()
 is present in POSIX.1-2001, but marked LEGACY.
 POSIX.1-2008 removes the specification of
@@ -224,21 +242,21 @@ instead.
 POSIX.1-2001
 does not define any errors for
 .BR getwd ().
-
+.PP
 .BR get_current_dir_name ()
 is a GNU extension.
 .SH NOTES
-Under Linux, the function
+Under Linux, these functions make use of the
 .BR getcwd ()
-is a system call (since 2.1.92).
-On older systems it would query
+system call (available since Linux 2.1.92).
+On older systems they would query
 .IR /proc/self/cwd .
 If both system call and proc filesystem are missing, a
 generic implementation is called.
 Only in that case can
 these calls fail under Linux with
 .BR EACCES .
-.LP
+.PP
 These functions are often used to save the location of the current working
 directory for the purpose of returning to it later.
 Opening the current
@@ -246,7 +264,57 @@ directory (".") and calling
 .BR fchdir (2)
 to return is usually a faster and more reliable alternative when sufficiently
 many file descriptors are available, especially on platforms other than Linux.
+.\"
+.SS C library/kernel differences
+On Linux, the kernel provides a
+.BR getcwd ()
+system call, which the functions described in this page will use if possible.
+The system call takes the same arguments as the library function
+of the same name, but is limited to returning at most
+.BR PATH_MAX
+bytes.
+(Before Linux 3.12,
+.\" commit 3272c544da48f8915a0e34189182aed029bd0f2b
+the limit on the size of the returned pathname was the system page size.
+On many architectures,
+.BR PATH_MAX
+and the system page size are both 4096 bytes,
+but a few architectures have a larger page size.)
+If the length of the pathname of the current working directory
+exceeds this limit, then the system call fails with the error
+.BR ENAMETOOLONG .
+In this case, the library functions fall back to
+a (slower) alternative implementation that returns the full pathname.
+.PP
+Following a change in Linux 2.6.36,
+.\" commit 8df9d1a4142311c084ffeeacb67cd34d190eff74
+the pathname returned by the
+.BR getcwd ()
+system call will be prefixed with the string "(unreachable)"
+if the current directory is not below the root directory of the current
+process (e.g., because the process set a new filesystem root using
+.BR chroot (2)
+without changing its current directory into the new root).
+Such behavior can also be caused by an unprivileged user by changing
+the current directory into another mount namespace.
+When dealing with pathname from untrusted sources, callers of the
+functions described in this page
+should consider checking whether the returned pathname starts
+with '/' or '(' to avoid misinterpreting an unreachable path
+as a relative pathname.
+.SH BUGS
+Since the Linux 2.6.36 change that added "(unreachable)" in the
+circumstances described above, the glibc implementation of
+.BR getcwd ()
+has failed to conform to POSIX and returned a relative pathname when the API
+contract requires an absolute pathname.
+With glibc 2.27 onwards this is corrected;
+calling
+.BR getcwd ()
+from such a pathname will now result in failure with
+.BR ENOENT .
 .SH SEE ALSO
+.BR pwd (1),
 .BR chdir (2),
 .BR fchdir (2),
 .BR open (2),
@@ -254,11 +322,11 @@ many file descriptors are available, especially on platforms other than Linux.
 .BR free (3),
 .BR malloc (3)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

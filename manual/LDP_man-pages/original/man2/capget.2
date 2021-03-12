@@ -1,4 +1,5 @@
-.\" written by Andrew Morgan <morgan@kernel.org>
+.\" Copyright: written by Andrew Morgan <morgan@kernel.org>
+.\" and Copyright 2006, 2008, Michael Kerrisk <tmk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(GPL_NOVERSION_ONELINE)
 .\" may be distributed as per GPL
@@ -12,27 +13,16 @@
 .\"     64-bit capability sets in kernel 2.6.2[45].
 .\" Modified 2009-01-26, andi kleen
 .\"
-.TH CAPGET 2 2013-03-11 "Linux" "Linux Programmer's Manual"
+.TH CAPGET 2 2020-02-09 "Linux" "Linux Programmer's Manual"
 .SH NAME
 capget, capset \- set/get capabilities of thread(s)
 .SH SYNOPSIS
 .B #include <sys/capability.h>
-.sp
+.PP
 .BI "int capget(cap_user_header_t " hdrp ", cap_user_data_t " datap );
-.sp
+.PP
 .BI "int capset(cap_user_header_t " hdrp ", const cap_user_data_t " datap );
 .SH DESCRIPTION
-As of Linux 2.2,
-the power of the superuser (root) has been partitioned into
-a set of discrete capabilities.
-Each thread has a set of effective capabilities identifying
-which capabilities (if any) it may currently exercise.
-Each thread also has a set of inheritable capabilities that may be
-passed through an
-.BR execve (2)
-call, and a set of permitted capabilities
-that it can make effective or inheritable.
-.PP
 These two system calls are the raw kernel interface for getting and
 setting thread capabilities.
 Not only are these system calls specific to Linux,
@@ -41,28 +31,32 @@ these system calls (in particular the format of the
 .I cap_user_*_t
 types) is subject to extension with each kernel revision,
 but old programs will keep working.
-.sp
+.PP
 The portable interfaces are
 .BR cap_set_proc (3)
 and
 .BR cap_get_proc (3);
 if possible, you should use those interfaces in applications.
-If you wish to use the Linux extensions in applications, you should
-use the easier-to-use interfaces
-.BR capsetp (3)
-and
-.BR capgetp (3).
+.\"
 .SS Current details
 Now that you have been warned, some current kernel details.
 The structures are defined as follows.
-.sp
-.nf
+.PP
 .in +4n
+.EX
 #define _LINUX_CAPABILITY_VERSION_1  0x19980330
 #define _LINUX_CAPABILITY_U32S_1     1
 
+        /* V2 added in Linux 2.6.25; deprecated */
 #define _LINUX_CAPABILITY_VERSION_2  0x20071026
+.\" commit e338d263a76af78fe8f38a72131188b58fceb591
+.\" Added 64 bit capability support
 #define _LINUX_CAPABILITY_U32S_2     2
+
+        /* V3 added in Linux 2.6.26 */
+#define _LINUX_CAPABILITY_VERSION_3  0x20080522
+.\" commit ca05a99a54db1db5bca72eccb5866d2a86f8517f
+#define _LINUX_CAPABILITY_U32S_3     2
 
 typedef struct __user_cap_header_struct {
    __u32 version;
@@ -74,9 +68,9 @@ typedef struct __user_cap_data_struct {
    __u32 permitted;
    __u32 inheritable;
 } *cap_user_data_t;
-.fi
-.in -4n
-.sp
+.EE
+.in
+.PP
 The
 .IR effective ,
 .IR permitted ,
@@ -84,54 +78,68 @@ and
 .I inheritable
 fields are bit masks of the capabilities defined in
 .BR capabilities (7).
-Note the
+Note that the
 .B CAP_*
 values are bit indexes and need to be bit-shifted before ORing into
 the bit fields.
-To define the structures for passing to the system call you have to use the
+To define the structures for passing to the system call, you have to use the
 .I struct __user_cap_header_struct
 and
 .I struct __user_cap_data_struct
 names because the typedefs are only pointers.
-
+.PP
 Kernels prior to 2.6.25 prefer
 32-bit capabilities with version
-.BR _LINUX_CAPABILITY_VERSION_1 ,
-and kernels 2.6.25+ prefer 64-bit capabilities with version
+.BR _LINUX_CAPABILITY_VERSION_1 .
+Linux 2.6.25 added 64-bit capability sets, with version
 .BR _LINUX_CAPABILITY_VERSION_2 .
-Note, 64-bit capabilities use
-.IR datap [0]
+There was, however, an API glitch, and Linux 2.6.26 added
+.BR _LINUX_CAPABILITY_VERSION_3
+to fix the problem.
+.PP
+Note that 64-bit capabilities use
+.I datap[0]
 and
-.IR datap [1],
+.IR datap[1] ,
 whereas 32-bit capabilities use only
-.IR datap [0].
-.sp
-Another change affecting the behavior of these system calls is kernel
-support for file capabilities (VFS capability support).
-This support is currently a compile time option (added in kernel 2.6.24).
-.sp
+.IR datap[0] .
+.PP
+On kernels that support file capabilities (VFS capabilities support),
+these system calls behave slightly differently.
+This support was added as an option in Linux 2.6.24,
+and became fixed (nonoptional) in Linux 2.6.33.
+.PP
 For
 .BR capget ()
 calls, one can probe the capabilities of any process by specifying its
 process ID with the
 .I hdrp->pid
 field value.
-.SS With VFS capability support
-VFS Capability support creates a file-attribute method for adding
-capabilities to privileged executables.
+.PP
+For details on the data, see
+.BR capabilities (7).
+.\"
+.SS With VFS capabilities support
+VFS capabilities employ a file extended attribute (see
+.BR xattr (7))
+to allow capabilities to be attached to executables.
 This privilege model obsoletes kernel support for one process
 asynchronously setting the capabilities of another.
-That is, with VFS support, for
-.BR capset ()
-calls the only permitted values for
+That is, on kernels that have VFS capabilities support, when calling
+.BR capset (),
+the only permitted values for
 .I hdrp->pid
-are 0 or
-.BR getpid (2),
-which are equivalent.
-.SS Without VFS capability support
-When the kernel does not support VFS capabilities,
+are 0 or, equivalently, the value returned by
+.BR gettid (2).
+.\"
+.SS Without VFS capabilities support
+On older kernels that do not provide VFS capabilities support
 .BR capset ()
-calls can operate on the capabilities of the thread specified by the
+can, if the caller has the
+.BR CAP_SETPCAP
+capability, be used to change not only the caller's own capabilities,
+but also the capabilities of other threads.
+The call operates on the capabilities of the thread specified by the
 .I pid
 field of
 .I hdrp
@@ -154,16 +162,13 @@ caller and
 .BR init (1);
 or a value less than \-1, in which case the change is applied
 to all members of the process group whose ID is \-\fIpid\fP.
-
-For details on the data, see
-.BR capabilities (7).
 .SH RETURN VALUE
 On success, zero is returned.
 On error, \-1 is returned, and
 .I errno
 is set appropriately.
-
-The calls will fail with the error
+.PP
+The calls fail with the error
 .BR EINVAL ,
 and set the
 .I version
@@ -190,9 +195,21 @@ capability version format supported by the kernel.
 One of the arguments was invalid.
 .TP
 .B EPERM
-An attempt was made to add a capability to the Permitted set, or to set
-a capability in the Effective or Inheritable sets that is not in the
-Permitted set.
+An attempt was made to add a capability to the permitted set, or to set
+a capability in the effective set that is not in the
+permitted set.
+.TP
+.B EPERM
+An attempt was made to add a capability to the inheritable set, and either:
+.RS
+.IP * 3
+that capability was not in the caller's bounding set; or
+.IP *
+the capability was not in the caller's permitted set
+and the caller lacked the
+.B CAP_SETPCAP
+capability in its effective set.
+.RE
 .TP
 .B EPERM
 The caller attempted to use
@@ -230,11 +247,11 @@ library and is available here:
 .BR gettid (2),
 .BR capabilities (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

@@ -1,4 +1,4 @@
-.\" Copyright (C) 2013, Heinrich Schuchardt <xypron.glpk@gmx.de>
+\" Copyright (C) 2013, Heinrich Schuchardt <xypron.glpk@gmx.de>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -21,14 +21,14 @@
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
 .\" %%%LICENSE_END
-.TH FANOTIFY_INIT 2 2014-10-02 "Linux" "Linux Programmer's Manual"
+.TH FANOTIFY_INIT 2 2020-11-01 "Linux" "Linux Programmer's Manual"
 .SH NAME
 fanotify_init \- create and initialize fanotify group
 .SH SYNOPSIS
 .B #include <fcntl.h>
 .br
 .B #include <sys/fanotify.h>
-.sp
+.PP
 .BI "int fanotify_init(unsigned int " flags ", unsigned int " event_f_flags );
 .SH DESCRIPTION
 For an overview of the fanotify API, see
@@ -40,8 +40,8 @@ queue associated with the group.
 .PP
 The file descriptor is used in calls to
 .BR fanotify_mark (2)
-to specify the files, directories, and mounts for which fanotify events
-shall be created.
+to specify the files, directories, mounts or filesystems for which fanotify
+events shall be created.
 These events are received by reading from the file descriptor.
 Some events are only informative, indicating that a file has been accessed.
 Other events can be used to determine whether
@@ -128,7 +128,7 @@ for the file descriptor.
 Reading from the file descriptor will not block.
 Instead, if no data is available,
 .BR read (2)
-will fail with the error
+fails with the error
 .BR EAGAIN .
 .TP
 .B FAN_UNLIMITED_QUEUE
@@ -142,6 +142,142 @@ Remove the limit of 8192 marks.
 Use of this flag requires the
 .B CAP_SYS_ADMIN
 capability.
+.TP
+.BR FAN_REPORT_TID " (since Linux 4.20)"
+.\" commit d0a6a87e40da49cfc7954c491d3065a25a641b29
+Report thread ID (TID) instead of process ID (PID)
+in the
+.I pid
+field of the
+.I "struct fanotify_event_metadata"
+supplied to
+.BR read (2)
+(see
+.BR fanotify (7)).
+.TP
+.BR FAN_REPORT_FID " (since Linux 5.1)"
+.\" commit a8b13aa20afb69161b5123b4f1acc7ea0a03d360
+This value allows the receipt of events which contain additional information
+about the underlying filesystem object correlated to an event.
+An additional record of type
+.BR FAN_EVENT_INFO_TYPE_FID
+encapsulates the information about the object and is included alongside the
+generic event metadata structure.
+The file descriptor that is used to represent the object correlated to an
+event is instead substituted with a file handle.
+It is intended for applications that may find the use of a file handle to
+identify an object more suitable than a file descriptor.
+Additionally, it may be used for applications monitoring a directory or a
+filesystem that are interested in the directory entry modification events
+.BR FAN_CREATE ,
+.BR FAN_DELETE ,
+and
+.BR FAN_MOVE ,
+or in events such as
+.BR FAN_ATTRIB ,
+.BR FAN_DELETE_SELF ,
+and
+.BR FAN_MOVE_SELF .
+All the events above require an fanotify group that identifies filesystem
+objects by file handles.
+Note that for the directory entry modification events the reported file handle
+identifies the modified directory and not the created/deleted/moved child
+object.
+The use of
+.BR FAN_CLASS_CONTENT
+or
+.BR FAN_CLASS_PRE_CONTENT
+is not permitted with this flag and will result in the error
+.BR EINVAL .
+See
+.BR fanotify (7)
+for additional details.
+.TP
+.BR FAN_REPORT_DIR_FID " (since Linux 5.9)"
+Events for fanotify groups initialized with this flag will contain
+(see exceptions below) additional information about a directory object
+correlated to an event.
+An additional record of type
+.BR FAN_EVENT_INFO_TYPE_DFID
+encapsulates the information about the directory object and is included
+alongside the generic event metadata structure.
+For events that occur on a non-directory object, the additional structure
+includes a file handle that identifies the parent directory filesystem object.
+Note that there is no guarantee that the directory filesystem object will be
+found at the location described by the file handle information at the time
+the event is received.
+When combined with the flag
+.BR FAN_REPORT_FID ,
+two records may be reported with events that occur on a non-directory object,
+one to identify the non-directory object itself and one to identify the parent
+directory object.
+Note that in some cases, a filesystem object does not have a parent,
+for example, when an event occurs on an unlinked but open file.
+In that case, with the
+.BR FAN_REPORT_FID
+flag, the event will be reported with only one record to identify the
+non-directory object itself, because there is no directory associated with
+the event.
+Without the
+.BR FAN_REPORT_FID
+flag, no event will be reported.
+See
+.BR fanotify (7)
+for additional details.
+.TP
+.BR FAN_REPORT_NAME " (since Linux 5.9)"
+Events for fanotify groups initialized with this flag will contain additional
+information about the name of the directory entry correlated to an event.
+This flag must be provided in conjunction with the flag
+.BR FAN_REPORT_DIR_FID .
+Providing this flag value without
+.BR FAN_REPORT_DIR_FID
+will result in the error
+.BR EINVAL .
+This flag may be combined with the flag
+.BR FAN_REPORT_FID .
+An additional record of type
+.BR FAN_EVENT_INFO_TYPE_DFID_NAME ,
+which encapsulates the information about the directory entry, is included
+alongside the generic event metadata structure and substitutes the additional
+information record of type
+.BR FAN_EVENT_INFO_TYPE_DFID .
+The additional record includes a file handle that identifies a directory
+filesystem object followed by a name that identifies an entry in that
+directory.
+For the directory entry modification events
+.BR FAN_CREATE ,
+.BR FAN_DELETE ,
+and
+.BR FAN_MOVE ,
+the reported name is that of the created/deleted/moved directory entry.
+For other events that occur on a directory object, the reported file handle
+is that of the directory object itself and the reported name is '.'.
+For other events that occur on a non-directory object, the reported file handle
+is that of the parent directory object and the reported name is the name of a
+directory entry where the object was located at the time of the event.
+The rationale behind this logic is that the reported directory file handle can
+be passed to
+.BR open_by_handle_at (2)
+to get an open directory file descriptor and that file descriptor along with
+the reported name can be used to call
+.BR fstatat (2).
+The same rule that applies to record type
+.BR FAN_EVENT_INFO_TYPE_DFID
+also applies to record type
+.BR FAN_EVENT_INFO_TYPE_DFID_NAME :
+if a non-directory object has no parent, either the event will not be reported
+or it will be reported without the directory entry information.
+Note that there is no guarantee that the filesystem object will be found at the
+location described by the directory entry information at the time the event is
+received.
+See
+.BR fanotify (7)
+for additional details.
+.TP
+.B FAN_REPORT_DFID_NAME
+This is a synonym for
+.RB ( FAN_REPORT_DIR_FID | FAN_REPORT_NAME ).
 .PP
 The
 .I event_f_flags
@@ -170,13 +306,14 @@ Additional bits can be set in
 The most useful values are:
 .TP
 .B O_LARGEFILE
-Enable support for files exceeding 2 GB.
+Enable support for files exceeding 2\ GB.
 Failing to set this flag will result in an
 .B EOVERFLOW
 error when trying to open a large file which is monitored by
 an fanotify group on a 32-bit system.
 .TP
-.B O_CLOEXEC
+.BR O_CLOEXEC " (since Linux 3.18)"
+.\" commit 0b37e097a648aa71d4db1ad108001e95b69a2da4
 Enable the close-on-exec flag for the file descriptor.
 See the description of the
 .B O_CLOEXEC
@@ -211,11 +348,16 @@ An invalid value was passed in
 or
 .IR event_f_flags .
 .B FAN_ALL_INIT_FLAGS
+(deprecated since Linux kernel version 4.20)
+.\" commit 23c9deeb3285d34fd243abb3d6b9f07db60c3cf4
 defines all allowable bits for
 .IR flags .
 .TP
 .B EMFILE
 The number of fanotify groups for this user exceeds 128.
+.TP
+.B EMFILE
+The per-process limit on the number of open file descriptors has been reached.
 .TP
 .B ENOMEM
 The allocation of memory for the notification group failed.
@@ -234,13 +376,12 @@ capability.
 .BR fanotify_init ()
 was introduced in version 2.6.36 of the Linux kernel and enabled in version
 2.6.37.
-.SH "CONFORMING TO"
+.SH CONFORMING TO
 This system call is Linux-specific.
 .SH BUGS
-As of Linux 3.17,
-the following bug exists:
+The following bug was present in Linux kernels before version 3.18:
 .IP * 3
-.\" FIXME . Patch proposed: https://lkml.org/lkml/2014/9/24/967
+.\" Fixed by commit 0b37e097a648aa71d4db1ad108001e95b69a2da4
 The
 .B O_CLOEXEC
 is ignored when passed in
@@ -257,15 +398,15 @@ such as
 .BR FMODE_EXEC ,
 can be set, and will consequently be set for the file descriptors
 returned when reading from the fanotify file descriptor.
-.SH "SEE ALSO"
+.SH SEE ALSO
 .BR fanotify_mark (2),
 .BR fanotify (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

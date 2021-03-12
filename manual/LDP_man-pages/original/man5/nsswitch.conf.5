@@ -22,24 +22,24 @@
 .\" <http://www.gnu.org/licenses/>.
 .\" %%%LICENSE_END
 .\"
-.TH NSSWITCH.CONF 5 2013-02-12 "Linux" "Linux Programmer's Manual"
+.TH NSSWITCH.CONF 5 2017-05-03 "Linux" "Linux Programmer's Manual"
 .SH NAME
 nsswitch.conf \- Name Service Switch configuration file
 .SH DESCRIPTION
 The Name Service Switch (NSS) configuration file,
 .IR /etc/nsswitch.conf ,
-is used by the GNU C Library to determine
+is used by the GNU C Library and certain other applications to determine
 the sources from which to obtain name-service information in
 a range of categories,
 and in what order.
 Each category of information is identified by a database name.
-.LP
+.PP
 The file is plain ASCII text, with columns separated by spaces or tab
 characters.
 The first column specifies the database name.
 The remaining columns describe the order of sources to query and a
 limited set of actions that can be performed by lookup result.
-.LP
+.PP
 The following databases are understood by the GNU C Library:
 .TP 12
 .B aliases
@@ -101,44 +101,34 @@ and related functions.
 Shadow user passwords, used by
 .BR getspnam (3)
 and related functions.
-.LP
+.PP
+The GNU C Library ignores databases with unknown names.  Some
+applications use this to implement special handling for their own
+databases.  For example,
+.BR sudo (8)
+consults the
+.B sudoers
+database.
+.PP
 Here is an example
 .I /etc/nsswitch.conf
 file:
-.LP
-.RS 4
-.PD 0
-.TP 16
-passwd:
-compat
-.TP
-group:
-compat
-.TP
-shadow:
-compat
-.sp 1n
-.TP
-hosts:
-dns [!UNAVAIL=return] files
-.TP
-networks:
-nis [NOTFOUND=return] files
-.TP
-ethers:
-nis [NOTFOUND=return] files
-.TP
-protocols:
-nis [NOTFOUND=return] files
-.TP
-rpc:
-nis [NOTFOUND=return] files
-.TP
-services:
-nis [NOTFOUND=return] files
-.PD
-.RE
-.LP
+.PP
+.in +4n
+.EX
+passwd:         compat
+group:          compat
+shadow:         compat
+
+hosts:          dns [!UNAVAIL=return] files
+networks:       nis [NOTFOUND=return] files
+ethers:         nis [NOTFOUND=return] files
+protocols:      nis [NOTFOUND=return] files
+rpc:            nis [NOTFOUND=return] files
+services:       nis [NOTFOUND=return] files
+.EE
+.in
+.PP
 The first column is the database name.
 The remaining columns specify:
 .IP * 3
@@ -148,7 +138,7 @@ those services will be queried, in turn, until a result is found.
 .IP *
 Optional actions to perform if a particular result is obtained
 from the preceding service, for example, "[NOTFOUND=return]".
-.LP
+.PP
 The service specifications supported on your system depend on the
 presence of shared libraries, and are therefore extensible.
 Libraries called
@@ -164,7 +154,7 @@ For the
 .BR passwd ,
 .BR group ,
 and
-.BR shadow
+.B shadow
 databases, you can additionally specify
 "compat" (see
 .B "Compatibility mode"
@@ -174,20 +164,20 @@ The version number
 may be 1 for glibc 2.0, or 2 for glibc 2.1 and later.
 On systems with additional libraries installed, you may have access to
 further services such as "hesiod", "ldap", "winbind" and "wins".
-.LP
+.PP
 An action may also be specified following a service specification.
 The action modifies the behavior following a result obtained
 from the preceding data source.
 Action items take the general form:
-.LP
+.PP
 .RS 4
 .RI [ STATUS = ACTION ]
 .br
 .RI [! STATUS = ACTION ]
 .RE
-.LP
+.PP
 where
-.LP
+.PP
 .RS 4
 .I STATUS
 =>
@@ -204,12 +194,14 @@ where
 .B return
 |
 .B continue
+|
+.B merge
 .RE
-.LP
+.PP
 The ! negates the test, matching all possible results except the
 one specified.
 The case of the keywords is not significant.
-.LP
+.PP
 The
 .I STATUS
 value is matched against the result of the lookup function called by
@@ -237,7 +229,7 @@ This could mean a file is
 locked or a server currently cannot accept more connections.
 The default action for this condition is "continue".
 .RE
-.LP
+.PP
 The
 .I ACTION
 value can be one of:
@@ -257,19 +249,39 @@ without affecting the search result.
 .TP
 .B continue
 Call the next lookup function.
+.TP
+.B merge
+.I [SUCCESS=merge]
+is used between two database entries.
+When a group is located in the first of the two group entries,
+processing will continue on to the next one.
+If the group is also found in the next entry (and the group name and GID
+are an exact match), the member list of the second entry will be added
+to the group object to be returned.
+Available since glibc 2.24.
+Note that merging will not be done for
+.BR getgrent (3)
+nor will duplicate members be pruned when they occur in both entries
+being merged.
 .RE
 .SS Compatibility mode (compat)
 The NSS "compat" service is similar to "files" except that it
-additionally permits special entries in
-.I /etc/passwd
+additionally permits special entries in corresponding files
 for granting users or members of netgroups access to the system.
 The following entries are valid in this mode:
+.RS 4
+.PP
+For
+.B passwd
+and
+.B shadow
+databases:
 .RS 4
 .TP 12
 .BI + user
 Include the specified
 .I user
-from the NIS passwd map.
+from the NIS passwd/shadow map.
 .TP
 .BI +@ netgroup
 Include all users in the given
@@ -278,7 +290,7 @@ Include all users in the given
 .BI \- user
 Exclude the specified
 .I user
-from the NIS passwd map.
+from the NIS passwd/shadow map.
 .TP
 .BI \-@ netgroup
 Exclude all users in the given
@@ -286,11 +298,33 @@ Exclude all users in the given
 .TP
 .B +
 Include every user, except previously excluded ones, from the
-NIS passwd map.
+NIS passwd/shadow map.
 .RE
-.LP
-By default the source is "nis", but this may be
-overridden by specifying "nisplus" as the source for the pseudo-databases
+.PP
+For
+.B group
+database:
+.RS 4
+.TP 12
+.BI + group
+Include the specified
+.I group
+from the NIS group map.
+.TP
+.BI \- group
+Exclude the specified
+.I group
+from the NIS group map.
+.TP
+.B +
+Include every group, except previously excluded ones, from the
+NIS group map.
+.RE
+.RE
+.PP
+By default, the source is "nis", but this may be
+overridden by specifying any NSS service except "compat" itself
+as the source for the pseudo-databases
 .BR passwd_compat ,
 .BR group_compat ,
 and
@@ -330,13 +364,59 @@ implements "nis" source.
 implements "nisplus" source.
 .PD
 .RE
+.PP
+The following files are read when "files" source is specified
+for respective databases:
+.RS 4
+.TP 12
+.PD 0
+.B aliases
+.I /etc/aliases
+.TP
+.B ethers
+.I /etc/ethers
+.TP
+.B group
+.I /etc/group
+.TP
+.B hosts
+.I /etc/hosts
+.TP
+.B initgroups
+.I /etc/group
+.TP
+.B netgroup
+.I /etc/netgroup
+.TP
+.B networks
+.I /etc/networks
+.TP
+.B passwd
+.I /etc/passwd
+.TP
+.B protocols
+.I /etc/protocols
+.TP
+.B publickey
+.I /etc/publickey
+.TP
+.B rpc
+.I /etc/rpc
+.TP
+.B services
+.I /etc/services
+.TP
+.B shadow
+.I /etc/shadow
+.PD
+.RE
 .SH NOTES
 Within each process that uses
 .BR nsswitch.conf ,
 the entire file is read only once.
 If the file is later changed, the
 process will continue using the old configuration.
-.LP
+.PP
 Traditionally, there was only a single source for service information,
 often in the form of a single configuration
 file (e.g., \fI/etc/passwd\fP).
@@ -353,11 +433,11 @@ introduced a cleaner solution to the problem.
 .BR getent (1),
 .BR nss (5)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.

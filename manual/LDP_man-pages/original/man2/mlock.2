@@ -23,35 +23,39 @@
 .\" <http://www.gnu.org/licenses/>.
 .\" %%%LICENSE_END
 .\"
-.TH MLOCK 2 2014-04-14 "Linux" "Linux Programmer's Manual"
+.TH MLOCK 2 2020-04-11 "Linux" "Linux Programmer's Manual"
 .SH NAME
-mlock, munlock, mlockall, munlockall \- lock and unlock memory
+mlock, mlock2, munlock, mlockall, munlockall \- lock and unlock memory
 .SH SYNOPSIS
 .nf
 .B #include <sys/mman.h>
-.sp
+.PP
 .BI "int mlock(const void *" addr ", size_t " len );
+.BI "int mlock2(const void *" addr ", size_t " len ", int " flags );
 .BI "int munlock(const void *" addr ", size_t " len );
-.sp
+.PP
 .BI "int mlockall(int " flags );
 .B int munlockall(void);
 .fi
 .SH DESCRIPTION
-.BR mlock ()
+.BR mlock (),
+.BR mlock2 (),
 and
 .BR mlockall ()
-respectively lock part or all of the calling process's virtual address
+lock part or all of the calling process's virtual address
 space into RAM, preventing that memory from being paged to the
 swap area.
+.PP
 .BR munlock ()
 and
 .BR munlockall ()
 perform the converse operation,
-respectively unlocking part or all of the calling process's virtual
+unlocking part or all of the calling process's virtual
 address space, so that pages in the specified virtual address range may
 once more to be swapped out if required by the kernel memory manager.
+.PP
 Memory locking and unlocking are performed in units of whole pages.
-.SS mlock() and munlock()
+.SS mlock(), mlock2(), and munlock()
 .BR mlock ()
 locks pages in the address range starting at
 .I addr
@@ -61,7 +65,37 @@ bytes.
 All pages that contain a part of the specified address range are
 guaranteed to be resident in RAM when the call returns successfully;
 the pages are guaranteed to stay in RAM until later unlocked.
-
+.PP
+.BR mlock2 ()
+.\" commit a8ca5d0ecbdde5cc3d7accacbd69968b0c98764e
+.\" commit de60f5f10c58d4f34b68622442c0e04180367f3f
+.\" commit b0f205c2a3082dd9081f9a94e50658c5fa906ff1
+also locks pages in the specified range starting at
+.I addr
+and continuing for
+.I len
+bytes.
+However, the state of the pages contained in that range after the call
+returns successfully will depend on the value in the
+.I flags
+argument.
+.PP
+The
+.I flags
+argument can be either 0 or the following constant:
+.TP
+.B MLOCK_ONFAULT
+Lock pages that are currently resident and mark the entire range so
+that the remaining nonresident pages are locked when they are populated
+by a page fault.
+.PP
+If
+.I flags
+is 0,
+.BR mlock2 ()
+behaves exactly the same as
+.BR mlock ().
+.PP
 .BR munlock ()
 unlocks pages in the address range starting at
 .I addr
@@ -80,12 +114,12 @@ memory, and memory-mapped files.
 All mapped pages are guaranteed
 to be resident in RAM when the call returns successfully;
 the pages are guaranteed to stay in RAM until later unlocked.
-
+.PP
 The
 .I flags
 argument is constructed as the bitwise OR of one or more of the
 following constants:
-.TP 1.2i
+.TP
 .B MCL_CURRENT
 Lock all pages which are currently mapped into the address space of
 the process.
@@ -93,9 +127,36 @@ the process.
 .B MCL_FUTURE
 Lock all pages which will become mapped into the address space of the
 process in the future.
-These could be for instance new pages required
+These could be, for instance, new pages required
 by a growing heap and stack as well as new memory-mapped files or
 shared memory regions.
+.TP
+.BR MCL_ONFAULT " (since Linux 4.4)"
+Used together with
+.BR MCL_CURRENT ,
+.BR MCL_FUTURE ,
+or both.
+Mark all current (with
+.BR MCL_CURRENT )
+or future (with
+.BR MCL_FUTURE )
+mappings to lock pages when they are faulted in.
+When used with
+.BR MCL_CURRENT ,
+all present pages are locked, but
+.BR mlockall ()
+will not fault in non-present pages.
+When used with
+.BR MCL_FUTURE ,
+all future mappings will be marked to lock pages when they are faulted
+in, but they will not be populated by the lock when the mapping is
+created.
+.B MCL_ONFAULT
+must be used with either
+.B MCL_CURRENT
+or
+.B MCL_FUTURE
+or both.
 .PP
 If
 .B MCL_FUTURE
@@ -109,12 +170,12 @@ In the same circumstances, stack growth may likewise fail:
 the kernel will deny stack expansion and deliver a
 .B SIGSEGV
 signal to the process.
-
+.PP
 .BR munlockall ()
 unlocks all pages mapped into the address space of the
 calling process.
 .SH RETURN VALUE
-On success these system calls return 0.
+On success, these system calls return 0.
 On error, \-1 is returned,
 .I errno
 is set appropriately, and no changes are made to any locks in the
@@ -146,9 +207,10 @@ The caller is not privileged, but needs privilege
 .RB ( CAP_IPC_LOCK )
 to perform the requested operation.
 .\"SVr4 documents an additional EAGAIN error code.
-.LP
+.PP
 For
-.BR mlock ()
+.BR mlock (),
+.BR mlock2 (),
 and
 .BR munlock ():
 .TP
@@ -157,9 +219,9 @@ Some or all of the specified address range could not be locked.
 .TP
 .B EINVAL
 The result of the addition
-.IR start + len
+.IR addr + len
 was less than
-.IR start
+.IR addr
 (e.g., the addition may have resulted in an overflow).
 .TP
 .B EINVAL
@@ -170,22 +232,49 @@ was not a multiple of the page size.
 .B ENOMEM
 Some of the specified address range does not correspond to mapped
 pages in the address space of the process.
-.LP
+.TP
+.B ENOMEM
+Locking or unlocking a region would result in the total number of
+mappings with distinct attributes (e.g., locked versus unlocked)
+exceeding the allowed maximum.
+.\" I.e., the number of VMAs would exceed the 64kB maximum
+(For example, unlocking a range in the middle of a currently locked
+mapping would result in three mappings:
+two locked mappings at each end and an unlocked mapping in the middle.)
+.PP
+For
+.BR mlock2 ():
+.TP
+.B EINVAL
+Unknown \fIflags\fP were specified.
+.PP
 For
 .BR mlockall ():
 .TP
 .B EINVAL
-Unknown \fIflags\fP were specified.
-.LP
+Unknown \fIflags\fP were specified or
+.B MCL_ONFAULT
+was specified without either
+.B MCL_FUTURE
+or
+.BR MCL_CURRENT .
+.PP
 For
 .BR munlockall ():
 .TP
 .B EPERM
 (Linux 2.6.8 and earlier) The caller was not privileged
 .RB ( CAP_IPC_LOCK ).
+.SH VERSIONS
+.BR mlock2 ()
+is available since Linux 4.4;
+glibc support was added in version 2.27.
 .SH CONFORMING TO
-POSIX.1-2001, SVr4.
-.SH AVAILABILITY
+POSIX.1-2001, POSIX.1-2008, SVr4.
+.PP
+.BR mlock2 ()
+is Linux specific.
+.PP
 On POSIX systems on which
 .BR mlock ()
 and
@@ -197,7 +286,7 @@ can be determined from the constant
 .B PAGESIZE
 (if defined) in \fI<limits.h>\fP or by calling
 .IR sysconf(_SC_PAGESIZE) .
-
+.PP
 On POSIX systems on which
 .BR mlockall ()
 and
@@ -228,7 +317,7 @@ software has erased the secrets in RAM and terminated.
 (But be aware that the suspend mode on laptops and some desktop
 computers will save a copy of the system's RAM to disk, regardless
 of memory locks.)
-
+.PP
 Real-time processes that are using
 .BR mlockall ()
 to prevent delays on page faults should reserve enough
@@ -241,7 +330,7 @@ This way, enough pages will be mapped for the stack and can be
 locked into RAM.
 The dummy writes ensure that not even copy-on-write
 page faults can occur in the critical section.
-
+.PP
 Memory locks are not inherited by a child created via
 .BR fork (2)
 and are automatically removed (unlocked) during an
@@ -250,18 +339,35 @@ or when the process terminates.
 The
 .BR mlockall ()
 .B MCL_FUTURE
-setting is not inherited by a child created via
+and
+.B MCL_FUTURE | MCL_ONFAULT
+settings are not inherited by a child created via
 .BR fork (2)
-and is cleared during an
+and are cleared during an
 .BR execve (2).
-
+.PP
+Note that
+.BR fork (2)
+will prepare the address space for a copy-on-write operation.
+The consequence is that any write access that follows will cause
+a page fault that in turn may cause high latencies for a real-time process.
+Therefore, it is crucial not to invoke
+.BR fork (2)
+after an
+.BR mlockall ()
+or
+.BR mlock ()
+operation\(emnot even from a thread which runs at a low priority within
+a process which also has a thread running at elevated priority.
+.PP
 The memory lock on an address range is automatically removed
 if the address range is unmapped via
 .BR munmap (2).
-
+.PP
 Memory locks do not stack, that is, pages which have been locked several times
 by calls to
-.BR mlock ()
+.BR mlock (),
+.BR mlock2 (),
 or
 .BR mlockall ()
 will be unlocked by a single call to
@@ -271,26 +377,52 @@ for the corresponding range or by
 Pages which are mapped to several locations or by several processes stay
 locked into RAM as long as they are locked at least at one location or by
 at least one process.
+.PP
+If a call to
+.BR mlockall ()
+which uses the
+.B MCL_FUTURE
+flag is followed by another call that does not specify this flag, the
+changes made by the
+.B MCL_FUTURE
+call will be lost.
+.PP
+The
+.BR mlock2 ()
+.B MLOCK_ONFAULT
+flag and the
+.BR mlockall ()
+.B MCL_ONFAULT
+flag allow efficient memory locking for applications that deal with
+large mappings where only a (small) portion of pages in the mapping are touched.
+In such cases, locking all of the pages in a mapping would incur
+a significant penalty for memory locking.
 .SS Linux notes
 Under Linux,
-.BR mlock ()
+.BR mlock (),
+.BR mlock2 (),
 and
 .BR munlock ()
 automatically round
 .I addr
 down to the nearest page boundary.
-However, POSIX.1-2001 allows an implementation to require that
+However, the POSIX.1 specification of
+.BR mlock ()
+and
+.BR munlock ()
+allows an implementation to require that
 .I addr
 is page aligned, so portable applications should ensure this.
-
+.PP
 The
 .I VmLck
 field of the Linux-specific
-.I /proc/PID/status
+.I /proc/[pid]/status
 file shows how many kilobytes of memory the process with ID
 .I PID
 has locked using
 .BR mlock (),
+.BR mlock2 (),
 .BR mlockall (),
 and
 .BR mmap (2)
@@ -302,13 +434,36 @@ a process must be privileged
 in order to lock memory and the
 .B RLIMIT_MEMLOCK
 soft resource limit defines a limit on how much memory the process may lock.
-
+.PP
 Since Linux 2.6.9, no limits are placed on the amount of memory
 that a privileged process can lock and the
 .B RLIMIT_MEMLOCK
 soft resource limit instead defines a limit on how much memory an
 unprivileged process may lock.
 .SH BUGS
+In Linux 4.8 and earlier,
+a bug in the kernel's accounting of locked memory for unprivileged processes
+(i.e., without
+.BR CAP_IPC_LOCK )
+meant that if the region specified by
+.I addr
+and
+.I len
+overlapped an existing lock,
+then the already locked bytes in the overlapping region were counted twice
+when checking against the limit.
+Such double accounting could incorrectly calculate a "total locked memory"
+value for the process that exceeded the
+.BR RLIMIT_MEMLOCK
+limit, with the result that
+.BR mlock ()
+and
+.BR mlock2 ()
+would fail on requests that should have succeeded.
+This bug was fixed
+.\" commit 0cf2f6f6dc605e587d2c1120f295934c77e810e8
+in Linux 4.9.
+.PP
 In the 2.4 series Linux kernels up to and including 2.4.17,
 a bug caused the
 .BR mlockall ()
@@ -316,7 +471,7 @@ a bug caused the
 flag to be inherited across a
 .BR fork (2).
 This was rectified in kernel 2.4.18.
-
+.PP
 Since kernel 2.6.9, if a privileged process calls
 .I mlockall(MCL_FUTURE)
 and later drops privileges (loses the
@@ -334,6 +489,7 @@ resource limit is encountered.
 .\" "Rationale for RLIMIT_MEMLOCK"
 .\" 23 Jan 2006
 .SH SEE ALSO
+.BR mincore (2),
 .BR mmap (2),
 .BR setrlimit (2),
 .BR shmctl (2),
@@ -341,11 +497,11 @@ resource limit is encountered.
 .BR proc (5),
 .BR capabilities (7)
 .SH COLOPHON
-This page is part of release 3.79 of the Linux
+This page is part of release 5.10 of the Linux
 .I man-pages
 project.
 A description of the project,
 information about reporting bugs,
 and the latest version of this page,
 can be found at
-\%http://www.kernel.org/doc/man\-pages/.
+\%https://www.kernel.org/doc/man\-pages/.
