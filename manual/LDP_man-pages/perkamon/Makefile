@@ -9,7 +9,7 @@ PO4AFLAGS ?= -k 100
 LANGS ?=
 WORK_DIR ?= .
 UTF8_LOCALE ?= en_US.UTF-8
-PO4A_SUBDIRS ?= $(EXTRA_PO4A_SUBDIRS) $(sort $(notdir $(wildcard po4a/*)))
+PO4A_SUBDIRS ?= $(EXTRA_PO4A_SUBDIRS) $(sort $(patsubst %.cfg, %, $(notdir $(wildcard po4a/*/*.cfg))))
 
 all: translate
 
