@@ -24,7 +24,7 @@ po4a を利用しているので、インストールしておきます。
 .. code-block:: console
 
    $ cd manual/LDP_man-pages
-   $ make jm-setup
+   $ make setup
    $ make
    $ git status
 

@@ -22,19 +22,14 @@ Git レポジトリの LDP_man-pages 以下はきれいな状態にした状態�
 .. code-block:: console
 
    $ cd manual/LDP_man-pages
-   $ make clean-setup
+   $ make clean
    $ git status
 
 1. po4a 環境の更新
 ==================
 
-このセクションの操作はすべて ``perkamon`` ディレクトリーで行う。
 ここでは、新しいバージョンの LDP man-pages が po4a で正常に行えることの
 確認までを行う。
-
-.. code-block:: console
-
-   $ cd perkamon
 
 LDP man-pages のバージョン番号を更新する。
 
@@ -112,7 +107,6 @@ po4a が対応している書式が含まれていてエラーが表示される
    $ git status
    $ git add ....
    $ git commit
-   $ cd ..
 
 .. _po4a-error:
 
@@ -173,8 +167,8 @@ JM ではコメント行は翻訳していないので、無視してよい。
 
 1. [make jm-setup]
 
-   * 最新版の man-pages の tarball が ``perkamon/`` 直下にダウンロードされる。
-   * tarball が ``perkamon/man-pages`` ディレクトリに展開される。
+   * 最新版の man-pages の tarball がダウンロードされる。
+   * tarball が ``man-pages`` ディレクトリに展開される。
    * po4a 作業用の source lang が ``build/C`` として用意される。
 
      * 実際にコンテンツがあるファイルが ``build/C/man?`` 以下に
@@ -256,10 +250,15 @@ COLOPHON 以外でも、翻訳に直接関係ないマイナーな更新があ�
 perkamon について
 =================
 
+.. note::
+
+   このセクションの内容は過去の覚書です。
+   perkamon の Makefile の内容は manual/LDP_man-pages/Makefile に統合されました。
+
 perkamon は LDP man-pages の po4a への変換を支援するスクリプトです。
 
 po4a で翻訳する際に、オプション、変換ルール、対象となるファイルなどを
-po4a の cfg (`具体例 <https://osdn.net/users/amotoki/pf/jm/scm/blobs/master/manual/LDP_man-pages/perkamon/po4a/aio/aio.cfg>`__)
+po4a の cfg (`具体例 <https://osdn.net/projects/linuxjm/scm/git/jm/blobs/master/manual/LDP_man-pages/po4a/aio/aio.cfg>`__)
 として書いておいて、以下のような形で一括で変換することができます。
 
 .. code-block:: console
