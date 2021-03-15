@@ -7,15 +7,6 @@ GNU coreutils 翻訳ガイド
 準備
 ====
 
-GNU coreutils のマニュアルのレポジトリは git の submodule になっている。
-作業時は以下のように submodule を展開する。
-
-.. code-block:: console
-
-   git://scm.osdn.jp/gitroot/linuxjm/jm.git
-   cd jm
-   git submodule update --init --recursive
-
 ``help2man`` と ``help2man`` のメッセージカタログをインストールしておく必要がある。
 Debian/Ubuntu の場合は ``help2man`` と ``language-pack-ja`` をインストールする。
 
@@ -29,7 +20,7 @@ Debian/Ubuntu の場合は ``help2man`` と ``language-pack-ja`` をインスト
 翻訳の手順
 ==========
 
-GNU coreutils のマニュアルは ``help2man`` を使って生成しています。
+GNU coreutils のマニュアルは ``help2man`` を使って生成されています。
 翻訳は以下の 2 つの組み合わせで生成されています。
 
 * GNU coreutils のコマンドの ``--help`` の出力
@@ -83,6 +74,10 @@ help2man.ja/\*.x
 
 翻訳校正 (暫定ルール)
 =====================
+
+.. note::
+
+   レビュー方法は改善の余地がいろいろあると思います。
 
 * ``*.x`` を投稿する。
   original の翻訳者が manpage も投稿してもよい。
