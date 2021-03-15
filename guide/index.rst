@@ -1,17 +1,9 @@
-.. JM (Linux Japanese manual project) documentation master file, created by
-   sphinx-quickstart on Sun Feb 14 22:00:34 2016.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 ===========================
 Linux JM プロジェクトガイド
 ===========================
 
 `JM ホームページ <http://linuxjm.osdn.jp/>`__ |
-Git リポジトリ (`JM <https://osdn.jp/projects/linuxjm/scm/git/jm/>`__,
-`LDP <https://osdn.jp/projects/linuxjm/scm/git/LDP_man-pages/>`__,
-`coreutils <https://osdn.jp/projects/linuxjm/scm/git/coreutils/>`__,
-`iptables <https://osdn.jp/projects/linuxjm/scm/git/iptables/>`__) |
+`Git リポジトリ <https://osdn.jp/projects/linuxjm/scm/git/jm/>`__ |
 `メーリングリスト <https://osdn.jp/projects/linuxjm/lists/archive/discuss/>`__ |
 `Wiki <https://osdn.jp/projects/linuxjm/wiki/FrontPage>`__
 
