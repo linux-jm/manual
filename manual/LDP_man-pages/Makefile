@@ -41,7 +41,7 @@ stats/%:	stamp-setup po4a/%/po/ja.po
 	mkdir -p _transtmp
 	$(RM) build/ja
 	ln -s ../_transtmp build/ja
-	po4a -k 100 $(FLAGS) --variable langs='$(LANGS)' --previous --srcdir . --destdir . po4a/$*/$*.cfg | tee _log.txt
+	LC_ALL=C po4a -k 100 $(FLAGS) --variable langs='$(LANGS)' --previous --srcdir . --destdir . po4a/$*/$*.cfg | tee _log.txt
 	./tools/extract-untrans.pl < _log.txt > $@
 	$(RM) build/ja
 	ln -s ../draft build/ja
