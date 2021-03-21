@@ -144,7 +144,7 @@ po4a が対応している書式が含まれていてエラーが表示される
 po4a のオプションでは対応できず、翻訳上も必要な場合は、
 原文の roff ファイルを変更する手もある。
 その場合は ``build/C/manN/xxxx.N`` を直接変更し、変更後の内容を確認する。
-変更内容は ``workaround.diff`` に反映する
+変更内容は ``workaround.patch`` に反映する
 (``diff -u man-pages/manN/xxxx.N build/C/manN/xxxx.N`` の出力)。
 
 なお、 ``.\`` で始まる行がある場合は以下のようなメッセージが表示されるが、
