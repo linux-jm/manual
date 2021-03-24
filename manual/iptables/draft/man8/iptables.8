@@ -12,7 +12,7 @@
 .\" Updated & Modified 2004-02-21, Yuichi SATO <ysato444@yahoo.co.jp>
 .\" Updated 2013-04-08, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH IPTABLES 8 "" "iptables 1.4.21" "iptables 1.4.21"
+.TH IPTABLES 8 "" "iptables 1.8.4" "iptables 1.8.4"
 .\"
 .\" Man page written by Herve Eychenne <rv@wallfire.org> (May 1999)
 .\" It is based on ipchains page.
@@ -104,9 +104,9 @@ target = \fB\-j\fP \fItargetname\fP [\fIper\-target\-options\fP]
 \fBnat\fP:
 このテーブルは新しい接続を開くパケットの場合に参照される。 \fBPREROUTING\fP
 (パケットが入ってきた場合、すぐにそのパケットを変換するためのチェイン)、 \fBOUTPUT\fP
-(ローカルで生成されたパケットをルーティングの前に変換するためのチェイン)、 \fBPOSTROUTING\fP
-(パケットが出て行くときに変換するためのチェイン) という 3 つの組み込みチェインがある。 IPv6 NAT サポートはカーネル 3.7
-以降で利用できる。
+(ローカルで生成されたパケットをルーティングの前に変換するためのチェイン)、 \fBINPUT\fP
+(ローカルソケット宛てのパケットを変更するためのチェイン)、 \fBPOSTROUTING\fP (パケットが出て行くときに変換するためのチェイン) という
+4 つの組み込みチェインがある。 IPv6 NAT サポートはカーネル 3.7 以降で利用できる。
 .TP 
 \fBmangle\fP:
 このテーブルは特別なパケット変換に使われる。 カーネル 2.4.17 までは、組み込みチェインは \fBPREROUTING\fP
@@ -169,11 +169,11 @@ Linux セキュリティモジュールにより実装されている。 セキ�
 .fi
 DNS の逆引きを避けるために、 \fB\-n\fP オプションと共に使用されることがよくある。 \fB\-Z\fP (ゼロクリア)
 オプションを同時に指定することもできる。 この場合、各チェインの表示とゼロクリアは同時に行われ、カウンタ値に抜けが発生することはない。
-細かな出力内容は同時に指定された他の引き数により変化する。 以下のように \fB\-v\fP オプションを指定しない限り、
-ルールの表示は一部省略されたものとなる。
+細かな出力内容は同時に指定された他の引き数により変化する。デフォルトでは、ルールの表示は一部省略されたものとなる。完全なルールを表示するには、
 .nf
  iptables \-L \-v
 .fi
+のように \fB\-v\fP オプションを指定するか \fBiptables\-save\fP(8) を使うこと。
 .TP 
 \fB\-S\fP, \fB\-\-list\-rules\fP [\fIchain\fP]
 選択されたチェインにある全てのルールを表示する。チェインが指定されない場合、 iptables\-save と同じく、 全てのチェインの情報が表示される。
@@ -197,8 +197,8 @@ DNS の逆引きを避けるために、 \fB\-n\fP オプションと共に使�
 引き数が指定されなかった場合、テーブルにあるチェインのうち組み込みチェイン以外のものを全て削除する。
 .TP 
 \fB\-P\fP, \fB\-\-policy\fP \fIchain target\fP
-チェインのポリシーを指定したターゲットに設定する。指定可能なターゲットは「\fBターゲット\fP」の章を参照すること。 (ユーザー定義ではない)
-組み込みチェインにしかポリシーは設定できない。 また、ポリシーのターゲットに、 組み込みチェインやユーザー定義チェインを設定することはできない。
+組み込みチェイン (ユーザー定義ではないチェイン) のポリシーを指定したターゲットに設定する。ポリシーのターゲットは \fBACCEPT\fP か
+\fBDROP\fP でなければならない。
 .TP 
 \fB\-E\fP, \fB\-\-rename\-chain\fP \fIold\-chain new\-chain\fP
 ユーザー定義チェインを指定した名前に変更する。 これは見た目だけの変更なので、テーブルの構造には何も影響しない。
@@ -291,12 +291,19 @@ IPv4 の分割されたパケット (fragmented packet) のうち 2 番目以降
 コマンドに適用すると、 ルールについての詳細な情報を表示する。 \fB\-v\fP は複数回指定することができ、
 数が多くなるとより多くのデバッグ情報が出力される。
 .TP 
-\fB\-w\fP, \fB\-\-wait\fP
+\fB\-w\fP, \fB\-\-wait\fP [\fIseconds\fP]
 Wait for the xtables lock.  To prevent multiple instances of the program
 from running concurrently, an attempt will be made to obtain an exclusive
 lock at launch.  By default, the program will exit if the lock cannot be
-obtained.  This option will make the program wait until the exclusive lock
-can be obtained.
+obtained.  This option will make the program wait (indefinitely or for
+optional \fIseconds\fP) until the exclusive lock can be obtained.
+.TP 
+\fB\-W\fP, \fB\-\-wait\-interval\fP \fImicroseconds\fP
+Interval to wait per each iteration.  When running latency sensitive
+applications, waiting for the xtables lock for extended durations may not be
+acceptable. This option will make each iteration take the amount of time
+specified. The default interval is 1 second. This option only works with
+\fB\-w\fP.
 .TP 
 \fB\-n\fP, \fB\-\-numeric\fP
 数値による出力を行う。 IP アドレスやポート番号を数値によるフォーマットで表示する。 デフォルトでは、iptables は (可能であれば) IP
@@ -362,9 +369,9 @@ Jozsef Kadlecsik は REJECT ターゲットを書いた。
 Harald Welte は ULOG ターゲット、NFQUEUE ターゲット、新しい libiptc や TTL, DSCP, ECN
 のマッチ・ターゲットを書いた。
 .PP
-Netfilter コアチームは、Martin Josefsson, Yasuyuki Kozakai, Jozsef Kadlecsik,
-Patrick McHardy, James Morris, Pablo Neira Ayuso, Harald Welte, Rusty
-Russell である。
+Netfilter コアチームは、 Jozsef Kadlecsik, Pablo Neira Ayuso, Eric Leblond, Florian
+Westphal, Arturo Borrero Gonzalez である。名誉コアメンバーは Marc Boucher, Martin
+Josefsson, Yasuyuki Kozakai, James Morris, Harald Welte, Rusty Russell である。
 .PP
 .\" .. and did I mention that we are incredibly cool people?
 .\" .. sexy, too ..
@@ -373,4 +380,4 @@ Russell である。
 man ページは元々 Herve Eychenne <rv@wallfire.org> が書いた。
 .SH バージョン
 .PP
-この man ページは iptables/ip6tables 1.4.21 について説明している。
+この man ページは iptables/ip6tables 1.8.4 について説明している。

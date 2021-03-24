@@ -8,7 +8,7 @@
 .\"         all rights reserved.
 .\" Translated 2013-04-08, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH iptables\-extensions 8 "" "iptables 1.4.21" "iptables 1.4.21"
+.TH iptables\-extensions 8 "" "iptables 1.8.4" "iptables 1.8.4"
 .SH 名前
 iptables\-extensions \(em 標準の iptables に含まれる拡張モジュールのリスト
 .SH 書式
@@ -97,11 +97,26 @@ SPI にマッチする。
 .TP 
 [\fB!\fP] \fB\-\-ahspi\fP \fIspi\fP[\fB:\fP\fIspi\fP]
 .SS bpf
-Linux Socket Filter を使ってマッチを行う。 BPF プログラムを 10 進数形式で指定する。 これは
-\fBnfbpf_compile\fP ユーティリティにより生成されるフォーマットである。
+Linux Socket Filter を使ってマッチを行う。 eBPF オブジェクトへのパスもしくは、 10 進数形式の cBPF
+プログラムを指定する。
+.TP 
+\fB\-\-object\-pinned\fP \fIpath\fP
+Pass a path to a pinned eBPF object.
+.PP
+Applications load eBPF programs into the kernel with the bpf() system call
+and BPF_PROG_LOAD command and can pin them in a virtual filesystem with
+BPF_OBJ_PIN.  To use a pinned object in iptables, mount the bpf filesystem
+using
+.IP
+mount \-t bpf bpf ${BPF_MOUNT}
+.PP
+then insert the filter in iptables by path:
+.IP
+iptables \-A OUTPUT \-m bpf \-\-object\-pinned ${BPF_MOUNT}/{PINNED_PATH} \-j
+ACCEPT
 .TP 
 \fB\-\-bytecode\fP \fIcode\fP
-BPF バイトコードフォーマットを渡す (フォーマットについては下記の例で説明)。
+BPF バイトコードフォーマットを渡す。 \fBnfbpf_compile\fP ユーティリティにより生成されるフォーマットである。
 .PP
 コードのフォーマットは tcpdump の \-ddd コマンドの出力に似ている。 最初に命令数が入った行が 1 行あり、 1 行 1 命令がこれに続く。
 命令行は 'u16 u8 u8 u32' のパターンで 10 進数で指定する。 各フィールドは、命令、 true 時のジャンプオフセット、 false
@@ -129,7 +144,51 @@ iptables \-A OUTPUT \-m bpf \-\-bytecode '4,48 0 0 9,21 0 1 6,6 0 0 1,6 0 0 0'
 iptables \-A OUTPUT \-m bpf \-\-bytecode "`nfbpf_compile RAW 'ip proto 6'`" \-j
 ACCEPT
 .PP
+Or use tcpdump \-ddd. In that case, generate BPF targeting a device with the
+same data link type as the xtables match. Iptables passes packets from the
+network layer up, without mac layer. Select a device with data link type
+RAW, such as a tun device:
+.IP
+ip tuntap add tun0 mode tun
+.br
+ip link set tun0 up
+.br
+tcpdump \-ddd \-i tun0 ip proto 6
+.PP
+See tcpdump \-L \-i $dev for a list of known data link types for a given
+device.
+.PP
 BPF についてもっと詳しく知るには FreeBSD の bpf(4) manpage を見るといいだろう。
+.SS cgroup
+.TP 
+[\fB!\fP] \fB\-\-path\fP \fIpath\fP
+Match cgroup2 membership.
+
+Each socket is associated with the v2 cgroup of the creating process.  This
+matches packets coming from or going to all sockets in the sub\-hierarchy of
+the specified path.  The path should be relative to the root of the cgroup2
+hierarchy.
+.TP 
+[\fB!\fP] \fB\-\-cgroup\fP \fIclassid\fP
+Match cgroup net_cls classid.
+
+classid is the marker set through the cgroup net_cls controller.  This
+option and \-\-path can't be used together.
+.PP
+例:
+.IP
+iptables \-A OUTPUT \-p tcp \-\-sport 80 \-m cgroup ! \-\-path service/http\-server
+\-j DROP
+.IP
+iptables \-A OUTPUT \-p tcp \-\-sport 80 \-m cgroup ! \-\-cgroup 1 \-j DROP
+.PP
+\fBIMPORTANT\fP: when being used in the INPUT chain, the cgroup matcher is
+currently only of limited functionality, meaning it will only match on
+packets that are processed for local sockets through early socket
+demuxing. Therefore, general usage on the INPUT chain is not advised unless
+the implications are well understood.
+.PP
+Linux 3.14 以降で利用可能。
 .SS cluster
 このモジュールを使うと、負荷分散装置なしで、ゲートウェイとバックエンドの負荷分散クラスターを配備できる。
 .PP
@@ -228,6 +287,40 @@ TO が省略した場合は FROM のみがチェックされる。 "!" を使う
 例:
 iptables .. \-m connbytes \-\-connbytes 10000:100000 \-\-connbytes\-dir both
 \-\-connbytes\-mode bytes ...
+.SS connlabel
+Module matches or adds connlabels to a connection.  connlabels are similar
+to connmarks, except labels are bit\-based; i.e.  all labels may be attached
+to a flow at the same time.  Up to 128 unique labels are currently
+supported.
+.TP 
+[\fB!\fP] \fB\-\-label\fP \fBname\fP
+matches if label \fBname\fP has been set on a connection.  Instead of a name
+(which will be translated to a number, see EXAMPLE below), a number may be
+used instead.  Using a number always overrides connlabel.conf.
+.TP 
+\fB\-\-set\fP
+if the label has not been set on the connection, set it.  Note that setting
+a label can fail.  This is because the kernel allocates the conntrack label
+storage area when the connection is created, and it only reserves the amount
+of memory required by the ruleset that exists at the time the connection is
+created.  In this case, the match will fail (or succeed, in case \fB\-\-label\fP
+option was negated).
+.PP
+This match depends on libnetfilter_conntrack 1.0.4 or later.  Label
+translation is done via the \fB/etc/xtables/connlabel.conf\fP configuration
+file.
+.PP
+例:
+.IP
+.nf
+0	eth0\-in
+1	eth0\-out
+2	ppp\-in
+3	ppp\-out
+4	bulk\-traffic
+5	interactive
+.fi
+.PP
 .SS connlimit
 一つのサーバーに対する、 一つのクライアント IP アドレス (またはクライアントアドレスブロック) からの同時接続数を制限することができる。
 .TP 
@@ -503,6 +596,14 @@ Like \-\-hashlimit\-srcmask, but for destination addresses.
 .TP 
 \fB\-\-hashlimit\-htable\-gcinterval\fP \fImsec\fP
 ガベージコレクションの間隔 (ミリ秒)。
+.TP 
+\fB\-\-hashlimit\-rate\-match\fP
+Classify the flow instead of rate\-limiting it. This acts like a true/false
+match on whether the rate is above/below a certain number
+.TP 
+\fB\-\-hashlimit\-rate\-interval\fP \fIsec\fP
+Can be used with \-\-hashlimit\-rate\-match to specify the interval at which the
+rate should be sampled
 .PP
 例:
 .TP 
@@ -616,10 +717,10 @@ ESP (Encapsulating Security Payload) ヘッダー
 No Next header which matches 59 in the 'Next Header field' of IPv6 header or
 any IPv6 extension headers
 .TP 
-\fBproto\fP
+\fBprot\fP
 which matches any upper layer protocol header. A protocol name from
 /etc/protocols and numeric value also allowed. The number 255 is equivalent
-to \fBproto\fP.
+to \fBprot\fP.
 .SS ipvs
 IPVS コネクション属性にマッチする。
 .TP 
@@ -787,6 +888,10 @@ POSTROUTING チェインでのみ有効である。 転送パケットはどの�
 [\fB!\fP] \fB\-\-gid\-owner\fP \fIgroupid\fP[\fB\-\fP\fIgroupid\fP]
 そのパケットのソケットのファイル構造体の所有者が指定されたグループの場合にマッチする。 数値の GID や GID の範囲を指定することもできる。
 .TP 
+\fB\-\-suppl\-groups\fP
+Causes group(s) specified with \fB\-\-gid\-owner\fP to be also checked in the
+supplementary groups of a process.
+.TP 
 [\fB!\fP] \fB\-\-socket\-exists\fP
 パケットがソケットに関連付けられている場合にマッチする。
 .SS physdev
@@ -799,11 +904,8 @@ POSTROUTING チェインでのみ有効である。 転送パケットはどの�
 ブリッジデバイスを通して受け取られなかったパケットは、 \&'!' が指定されていない限り、 このオプションにマッチしない。
 .TP 
 [\fB!\fP] \fB\-\-physdev\-out\fP \fIname\fP
-パケットを送信することになるブリッジのポート名 (\fBFORWARD\fP, \fBOUTPUT\fP, \fBPOSTROUTING\fP
-チェインに入るパケットのみ)。 インターフェース名が "+" で終っている場合、 その名前で始まる任意のインターフェース名にマッチする。 \fBnat\fP
-と \fBmangle\fP テーブルの \fBOUTPUT\fP チェインではブリッジの出力ポートにマッチさせることができないが、 \fBfilter\fP テーブルの
-\fBOUPUT\fP チェインではマッチ可能である。 パケットがブリッジデバイスから送られなかった場合、 またはパケットの出力デバイスが不明であった場合は、
-\&'!' が指定されていない限り、 パケットはこのオプションにマッチしない。
+パケットが送信されるブリッジのポート名 (\fBFORWARD\fP, \fBPOSTROUTING\fP チェインに入るパケットに対して)。 インターフェース名が
+"+" で終っている場合、 その名前で始まる任意のインターフェース名にマッチする。
 .TP 
 [\fB!\fP] \fB\-\-physdev\-is\-in\fP
 パケットがブリッジインターフェースに入った場合にマッチする。
@@ -960,7 +1062,9 @@ setups involving dynamic routing protocols like BGP.
 [\fB!\fP] \fB\-\-realm\fP \fIvalue\fP[\fB/\fP\fImask\fP]
 Matches a given realm number (and optionally mask). If not a number, value
 can be a named realm from /etc/iproute2/rt_realms (mask can not be used in
-that case).
+that case).  Both value and mask are four byte unsigned integers and may be
+specified in decimal, hex (by prefixing with "0x") or octal (if a leading
+zero is given).
 .SS recent
 IP アドレスのリストを動的に作成し、このリストに対するマッチングをいくつかの方法で行う。
 .PP
@@ -1184,7 +1288,7 @@ counter of the element is less than the given value as well.
 If the packet is matched an element in the set, match only if the packet
 counter of the element is greater than the given value as well.
 .TP 
-[\fB!\fP] \fB\-bytes\-eq\fP \fIvalue\fP
+[\fB!\fP] \fB\-\-bytes\-eq\fP \fIvalue\fP
 If the packet is matched an element in the set, match only if the byte
 counter of the element matches the given value too.
 .TP 
@@ -1226,6 +1330,21 @@ is recommended to use the \-\-transparent option instead.
 Example (assuming packets with mark 1 are delivered locally):
 .IP
 \-t mangle \-A PREROUTING \-m socket \-\-transparent \-j MARK \-\-set\-mark 1
+.TP 
+\fB\-\-restore\-skmark\fP
+Set the packet mark to the matching socket's mark. Can be combined with the
+\fB\-\-transparent\fP and \fB\-\-nowildcard\fP options to restrict the sockets to be
+matched when restoring the packet mark.
+.PP
+Example: An application opens 2 transparent (\fBIP_TRANSPARENT\fP) sockets and
+sets a mark on them with \fBSO_MARK\fP socket option. We can filter matching
+packets:
+.IP
+\-t mangle \-I PREROUTING \-m socket \-\-transparent \-\-restore\-skmark \-j action
+.IP
+\-t mangle \-A action \-m mark \-\-mark 10 \-j action2
+.IP
+\-t mangle \-A action \-m mark \-\-mark 11 \-j action3
 .SS state
 "state" 拡張は "conntrack" モジュールのサブセットである。 "state" を使うと、
 パケットについてのコネクション追跡状態を参照できる。
@@ -1270,6 +1389,9 @@ n パケットに 1 つマッチする。 \fBnth\fP モードでのみ機能す�
 [\fB!\fP] \fB\-\-hex\-string\fP \fIpattern\fP
 指定された 16 進表記のパターンにマッチする。
 .TP 
+\fB\-\-icase\fP
+Ignore case when searching.
+.TP 
 例:
 .IP
 # 文字列パターンは単純なテキスト文字を探すのに使用できる。
@@ -1287,8 +1409,7 @@ iptables \-p udp \-\-dport 53 \-m string \-\-algo bm \-\-from 40 \-\-to 57
 [\fB!\fP] \fB\-\-source\-port\fP,\fB\-\-sport\fP \fIport\fP[\fB:\fP\fIport\fP]
 送信元ポートまたはポート範囲の指定。 サービス名またはポート番号を指定できる。 \fIfirst\fP\fB:\fP\fIlast\fP という形式で、 2
 つの番号を含む範囲を指定することもできる。 最初のポートを省略した場合、 "0" を仮定する。 最後のポートを省略した場合、 "65535"
-を仮定する。 最初のポートが最後のポートより大きい場合、 2 つは入れ換えられる。 フラグ \fB\-\-sport\fP は、
-このオプションの便利な別名である。
+を仮定する。 フラグ \fB\-\-sport\fP は、 このオプションの便利な別名である。
 .TP 
 [\fB!\fP] \fB\-\-destination\-port\fP,\fB\-\-dport\fP \fIport\fP[\fB:\fP\fIport\fP]
 宛先ポートまたはポート範囲の指定。 フラグ \fB\-\-dport\fP は、 このオプションの便利な別名である。
@@ -1317,7 +1438,8 @@ TCP ヘッダーの TCP MSS (maximum segment size) フィールドにマッチ�
 SYN/ACK パケットに対してのみ利用できる。 MSS のネゴシエーションはコネクション開始時の TCP ハンドシェイク中だけだからである。
 .TP 
 [\fB!\fP] \fB\-\-mss\fP \fIvalue\fP[\fB:\fP\fIvalue\fP]
-指定された TCP MSS 値か範囲にマッチする。
+Match a given TCP MSS value or range. If a range is given, the second
+\fIvalue\fP must be greater than or equal to the first \fIvalue\fP.
 .SS time
 このモジュールはパケットの到着時刻/日付が指定された範囲内の場合にマッチする。 すべてのオプションが任意オプションで、 複数指定した場合は AND
 と解釈される。 デフォルトではすべての時刻は UTC と解釈される。
@@ -1465,19 +1587,24 @@ A は \fBchar *\fP 型で、最初は IP ヘッダーのアドレスが入って
 B と C は 32 ビット整数で、最初は 0 である。
 .PP
 命令は以下の通り。
-.IP
-number B = number;
+.TP 
+\fBnumber\fP
+B = number;
 .IP
 C = (*(A+B)<<24) + (*(A+B+1)<<16) + (*(A+B+2)<<8) +
 *(A+B+3)
-.IP
-&number C = C & number
-.IP
-<< number C = C << number
-.IP
->> number C = C >> number
-.IP
-@number A = A + C; この後、命令の数字を実行する
+.TP 
+\fB&number\fP
+C = C & number
+.TP 
+\fB<< number\fP
+C = C << number
+.TP 
+\fB>> number\fP
+C = C >> number
+.TP 
+\fB@number\fP
+A = A + C; then do the instruction number
 .PP
 [skb\->data,skb\->end] 以外へのメモリアクセスはすべてマッチ失敗となる。 それ以外の場合、計算の結果が C
 の最終的な値となる。
@@ -1552,8 +1679,6 @@ TCP ペイロードのバイト 8\-12 が 1, 2, 5, 8 のいずれかかを検査
 .TP 
 [\fB!\fP] \fB\-\-destination\-port\fP,\fB\-\-dport\fP \fIport\fP[\fB:\fP\fIport\fP]
 宛先ポートまたはポート範囲の指定。 詳細は TCP 拡張の \fB\-\-destination\-port\fP オプションの説明を参照すること。
-.SS "unclean (IPv4 の場合)"
-このモジュールにはオプションがないが、 おかしく正常でないように見えるパケットにマッチする。 これは実験的なものとして扱われている。
 .SH ターゲットの拡張
 .\" @TARGET@
 iptables は拡張ターゲットモジュールを使うことができる: 以下のものが、 標準的なディストリビューションに含まれている。
@@ -1562,13 +1687,15 @@ iptables は拡張ターゲットモジュールを使うことができる: 以
 許可/廃棄/拒否されたパケットを記録するのに使用できる。 詳細については auditd(8) を参照。
 .TP 
 \fB\-\-type\fP {\fBaccept\fP|\fBdrop\fP|\fBreject\fP}
-監査レコード種別を設定する。
+Set type of audit record. Starting with linux\-4.12, this option has no
+effect on generated audit messages anymore. It is still accepted by iptables
+for compatibility reasons, but ignored.
 .PP
 例:
 .IP
 iptables \-N AUDIT_DROP
 .IP
-iptables \-A AUDIT_DROP \-j AUDIT \-\-type drop
+iptables \-A AUDIT_DROP \-j AUDIT
 .IP
 iptables \-A AUDIT_DROP \-j DROP
 .SS CHECKSUM
@@ -1691,9 +1818,21 @@ event types are: \fBnew\fP, \fBrelated\fP, \fBdestroy\fP, \fBreply\fP, \fBassure
 Only generate the specified expectation events for this connection.
 Possible event types are: \fBnew\fP.
 .TP 
-\fB\-\-zone\fP \fIid\fP
+\fB\-\-zone\-orig\fP {\fIid\fP|\fBmark\fP}
+For traffic coming from ORIGINAL direction, assign this packet to zone \fIid\fP
+and only have lookups done in that zone. If \fBmark\fP is used instead of
+\fIid\fP, the zone is derived from the packet nfmark.
+.TP 
+\fB\-\-zone\-reply\fP {\fIid\fP|\fBmark\fP}
+For traffic coming from REPLY direction, assign this packet to zone \fIid\fP
+and only have lookups done in that zone. If \fBmark\fP is used instead of
+\fIid\fP, the zone is derived from the packet nfmark.
+.TP 
+\fB\-\-zone\fP {\fIid\fP|\fBmark\fP}
 Assign this packet to zone \fIid\fP and only have lookups done in that zone.
-By default, packets have zone 0.
+If \fBmark\fP is used instead of \fIid\fP, the zone is derived from the packet
+nfmark. By default, packets have zone 0. This option applies to both
+directions.
 .TP 
 \fB\-\-timeout\fP \fIname\fP
 Use the timeout policy identified by \fIname\fP for the connection. This is
@@ -1946,14 +2085,13 @@ nfmark と \fIbits\fP のビット XOR を取る (\fB\-\-set\-xmark\fP \fIbits\f
 .TP 
 \fB\-\-random\fP
 送信元ポートのマッピングをランダム化する。 \fB\-\-random\fP オプションを使用すると、 ポートマッピングがランダム化される (カーネル
-2.6.21 以降)。
+2.6.21 以降)。カーネル 5.0 以降では、 \fB\-\-random\fP は \fB\-\-random\-fully\fP と等価である。
+.TP 
+\fB\-\-random\-fully\fP
+送信元ポートのマッピングを完全にランダム化する。 \fB\-\-random\-fully\fP オプションを使用すると、 ポートマッピングが完全にランダム化される
+(カーネル 3.13 以降)。
 .TP 
 IPv6 サポートは Linux カーネル 3.7 以降で利用可能である。
-.SS "MIRROR (IPv4 の場合)"
-実験的なデモンストレーション用のターゲットであり、 IP ヘッダーの送信元と宛先フィールドを入れ換え、 パケットを再送信するものである。 これは
-\fBINPUT\fP, \fBFORWARD\fP, \fBPREROUTING\fP チェインと、 これらのチェインから呼び出される
-ユーザー定義チェインだけで有効である。 ループ等の問題を回避するため、 外部に送られるパケットは
-いかなるパケットフィルタリングチェイン・コネクション追跡・NAT からも 監視\fBされない\fP。
 .SS NETMAP
 このターゲットを使うと、あるアドレスネットワーク全体を別のネットワークアドレスに静的にマッピングできる。 このターゲットは \fBnat\fP
 テーブルでルールでのみ使用できる。
@@ -1979,6 +2117,9 @@ IPv6 サポートは Linux カーネル 3.7 以降で利用可能である。
 ログメッセージの前に付けるプレフィックス文字列。 最大 64 文字までの指定できる。 ログの中でメッセージを区別するのに役に立つ。
 .TP 
 \fB\-\-nflog\-range\fP \fIsize\fP
+This option has never worked, use \-\-nflog\-size instead
+.TP 
+\fB\-\-nflog\-size\fP \fIsize\fP
 ユーザー空間にコピーするバイト数 (nfnetlink_log の場合のみ利用できる)。 nfnetlink_log
 のインスタンスは自身でコピーする範囲を指定できるが、 このオプションはそれを上書きする。
 .TP 
@@ -2032,7 +2173,8 @@ Rate measurement averaging time constant.
 このターゲットは、 \fBnat\fP テーブルの \fBPREROUTING\fP チェインと \fBOUTPUT\fP チェイン、
 およびこれらチェインから呼び出されるユーザー定義チェインでのみ有効である。 このターゲットは、 宛先 IP
 をパケットを受信したインタフェースの最初のアドレスに変更することで、 パケットをそのマシン自身にリダイレクトする
-(ローカルで生成されたパケットはローカルホストのアドレス、 IPv4 では 127.0.0.1、 IPv6 では ::1 にマップされる)。
+(ローカルで生成されたパケットはローカルホストのアドレス、 IPv4 では 127.0.0.1、 IPv6 では ::1 にマップされる。 IP
+アドレスを設定されていないインタフェースに到着したパケットは破棄される)。
 .TP 
 \fB\-\-to\-ports\fP \fIport\fP[\fB\-\fP\fIport\fP]
 このオプションは使用される宛先ポート・ポート範囲・複数ポートを指定する。 このオプションが指定されない場合、 宛先ポートは変更されない。
@@ -2074,27 +2216,9 @@ IPv6 サポートは Linux カーネル 3.7 以降で利用可能である。
 オプション \fBtcp\-reset\fP を使うことができる。 このオプションを使うと、 TCP RST パケットが送り返される。 主として
 \fIident\fP (113/tcp) による探査を阻止するのに役立つ。 \fIident\fP による探査は、 壊れている (メールを受け取らない)
 メールホストに メールが送られる場合に頻繁に起こる。
-.PP
+.IP
 (*) icmp\-admin\-prohibited をサポートしないカーネルで、 icmp\-admin\-prohibited を使用すると、
 REJECT ではなく単なる DROP になる。
-.SS "SAME (IPv4 の場合)"
-Similar to SNAT/DNAT depending on chain: it takes a range of addresses
-(`\-\-to 1.2.3.4\-1.2.3.7') and gives a client the same
-source\-/destination\-address for each connection.
-.PP
-N.B.: The DNAT target's \fB\-\-persistent\fP option replaced the SAME target.
-.TP 
-\fB\-\-to\fP \fIipaddr\fP[\fB\-\fP\fIipaddr\fP]
-Addresses to map source to. May be specified more than once for multiple
-ranges.
-.TP 
-\fB\-\-nodst\fP
-Don't use the destination\-ip in the calculations when selecting the new
-source\-ip
-.TP 
-\fB\-\-random\fP
-Port mapping will be forcibly randomized to avoid attacks based on port
-prediction (kernel >= 2.6.21).
 .SS SECMARK
 This is used to set the security mark value associated with the packet for
 use by security subsystems such as SELinux.  It is valid in the \fBsecurity\fP
@@ -2110,6 +2234,10 @@ the \fBmangle\fP table). The mark is 32 bits wide.
 .TP 
 \fB\-\-del\-set\fP \fIsetname\fP \fIflag\fP[\fB,\fP\fIflag\fP...]
 集合から指定されたアドレス/ポート (複数可) を削除する
+.TP 
+\fB\-\-map\-set\fP \fIsetname\fP \fIflag\fP[\fB,\fP\fIflag\fP...] 
+[\-\-map\-mark] [\-\-map\-prio] [\-\-map\-queue] map packet properties (firewall
+mark, tc priority, hardware queue)
 .IP
 \fIflag\fP は \fBsrc\fP や \fBdst\fP の指定であり、 指定できるのは 6 個までである。
 .TP 
@@ -2118,6 +2246,17 @@ the \fBmangle\fP table). The mark is 32 bits wide.
 .TP 
 \fB\-\-exist\fP
 エントリを追加する際に、 エントリが存在する場合、 タイムアウト値を、 指定された値か集合定義のデフォルト値にリセットする
+.TP 
+\fB\-\-map\-set\fP \fIset\-name\fP
+the set\-name should be created with \-\-skbinfo option \fB\-\-map\-mark\fP map
+firewall mark to packet by lookup of value in the set \fB\-\-map\-prio\fP map
+traffic control priority to packet by lookup of value in the set
+\fB\-\-map\-queue\fP map hardware NIC queue to packet by lookup of value in the
+set
+.IP
+The \fB\-\-map\-set\fP option can be used from the mangle table only. The
+\fB\-\-map\-prio\fP and \fB\-\-map\-queue\fP flags can be used in the OUTPUT, FORWARD
+and POSTROUTING chains.
 .PP
 \-j SET を使用するには ipset のカーネルサポートが必要である。 標準のカーネルでは、 Linux 2.6.39 以降で提供されている。
 .SS SNAT
@@ -2136,7 +2275,10 @@ the \fBmangle\fP table). The mark is 32 bits wide.
 する機能は存在しない。
 .TP 
 \fB\-\-random\fP
-\fB\-\-random\fP オプションが使用されると、ポートマッピングはランダム化される (カーネル 2.6.21 以降)。
+\fB\-\-random\fP オプションが使用されると、ポートマッピングは、ハッシュを使ったアルゴリズムでランダム化される (カーネル 2.6.21 以降)。
+.TP 
+\fB\-\-random\-fully\fP
+\fB\-\-random\fP オプションが使用されると、ポートマッピングは PRNG でランダム化される (カーネル 2.6.21 以降)。
 .TP 
 \fB\-\-persistent\fP
 クライアントの各コネクションに同じ送信元アドレス/宛先アドレスを割り当てる。 これは SAME ターゲットよりも優先される。 persistent
@@ -2169,6 +2311,73 @@ IPv6 neighbor proxy を有効にする必要があるかもしれない。
 sysctl \-w net.ipv6.conf.all.proxy_ndp=1
 .PP
 また、変換されたフローに対するコネクション追跡を無効にするには \fBNOTRACK\fP ターゲットを使用する必要がある。
+.SS SYNPROXY
+This target will process TCP three\-way\-handshake parallel in netfilter
+context to protect either local or backend system. This target requires
+connection tracking because sequence numbers need to be translated.  The
+kernels ability to absorb SYNFLOOD was greatly improved starting with Linux
+4.4, so this target should not be needed anymore to protect Linux servers.
+.TP 
+\fB\-\-mss\fP \fImaximum segment size\fP
+Maximum segment size announced to clients. This must match the backend.
+.TP 
+\fB\-\-wscale\fP \fIwindow scale\fP
+Window scale announced to clients. This must match the backend.
+.TP 
+\fB\-\-sack\-perm\fP
+Pass client selective acknowledgement option to backend (will be disabled if
+not present).
+.TP 
+\fB\-\-timestamps\fP
+Pass client timestamp option to backend (will be disabled if not present,
+also needed for selective acknowledgement and window scaling).
+.PP
+例:
+.PP
+Determine tcp options used by backend, from an external system
+.IP
+tcpdump \-pni eth0 \-c 1 'tcp[tcpflags] == (tcp\-syn|tcp\-ack)'
+.br
+    port 80 &
+.br
+telnet 192.0.2.42 80
+.br
+18:57:24.693307 IP 192.0.2.42.80 > 192.0.2.43.48757:
+.br
+    Flags [S.], seq 360414582, ack 788841994, win 14480,
+.br
+    options [mss 1460,sackOK,
+.br
+    TS val 1409056151 ecr 9690221,
+.br
+    nop,wscale 9],
+.br
+    length 0
+.PP
+Switch tcp_loose mode off, so conntrack will mark out\-of\-flow packets as
+state INVALID.
+.IP
+echo 0 > /proc/sys/net/netfilter/nf_conntrack_tcp_loose
+.PP
+Make SYN packets untracked
+.IP
+iptables \-t raw \-A PREROUTING \-i eth0 \-p tcp \-\-dport 80
+    \-\-syn \-j CT \-\-notrack
+.PP
+Catch UNTRACKED (SYN packets) and INVALID (3WHS ACK packets) states and send
+them to SYNPROXY. This rule will respond to SYN packets with SYN+ACK
+syncookies, create ESTABLISHED for valid client response (3WHS ACK packets)
+and drop incorrect cookies. Flags combinations not expected during 3WHS will
+not match and continue (e.g. SYN+FIN, SYN+ACK).
+.IP
+iptables \-A INPUT \-i eth0 \-p tcp \-\-dport 80
+    \-m state \-\-state UNTRACKED,INVALID \-j SYNPROXY
+    \-\-sack\-perm \-\-timestamp \-\-mss 1460 \-\-wscale 9
+.PP
+Drop invalid packets, this will be out\-of\-flow packets that were not matched
+by SYNPROXY.
+.IP
+iptables \-A INPUT \-i eth0 \-p tcp \-\-dport 80 \-m state \-\-state INVALID \-j DROP
 .SS TCPMSS
 このターゲットを用いると、 TCP の SYN パケットの MSS 値を書き換え、 そのコネクションでの最大サイズを制御できる (通常は、
 送信インターフェースの MTU から IPv4 では 40 を、 IPv6 では 60 を引いた値に制限する)。 もちろん \fB\-p tcp\fP
@@ -2277,15 +2486,20 @@ otherwise these packets will get forwarded, which is probably not what you
 want.)
 .SS TRACE
 This target marks packets so that the kernel will log every rule which match
-the packets as those traverse the tables, chains, rules.
+the packets as those traverse the tables, chains, rules. It can only be used
+in the \fBraw\fP table.
 .PP
-A logging backend, such as ip(6)t_LOG or nfnetlink_log, must be loaded for
-this to be visible.  The packets are logged with the string prefix: "TRACE:
-tablename:chainname:type:rulenum " where type can be "rule" for plain rule,
-"return" for implicit rule at the end of a user defined chain and "policy"
-for the policy of the built in chains.
-.br
-It can only be used in the \fBraw\fP table.
+With iptables\-legacy, a logging backend, such as ip(6)t_LOG or
+nfnetlink_log, must be loaded for this to be visible.  The packets are
+logged with the string prefix: "TRACE: tablename:chainname:type:rulenum "
+where type can be "rule" for plain rule, "return" for implicit rule at the
+end of a user defined chain and "policy" for the policy of the built in
+chains.
+.PP
+With iptables\-nft, the target is translated into nftables' \fBmeta nftrace\fP
+expression. Hence the kernel sends trace events via netlink to userspace
+where they may be displayed using \fBxtables\-monitor \-\-trace\fP command. For
+details, refer to \fBxtables\-monitor\fP(8).
 .SS "TTL (IPv4 の場合)"
 このターゲットを使うと、 IPv4 の TTL ヘッダーフィールドを変更できる。 TTL フィールドにより、 TTL
 がなくなるまでに、パケットが何ホップ (何個のルータ) を通過できるかが決定される。
