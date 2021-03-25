@@ -6,7 +6,7 @@ MASTER_CMD = $(wildcard original/man[^23]/*.[1-8])
 MASTER_LIB = $(wildcard original/man[23]/*.[1-8])
 MASTER_ROFFS = $(MASTER_CMD) $(MASTER_LIB)
 TRANS_ROFFS = $(patsubst original/%,draft/%,$(MASTER_ROFFS))
-POFILES = $(wildcard po4a/*/*.ja.po)
+POFILES = $(sort $(wildcard po4a/*/*.ja.po))
 POTFILES = $(wildcard po4a/*/*.pot)
 MSGMERGE_OPTS = --no-wrap --no-location
 
