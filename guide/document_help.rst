@@ -24,15 +24,14 @@ build 環境の準備
 
    $ pip install -r requirements.txt
 
-上記のコマンドを有効にすると、
-``sphinx`` と ``sphinx-bootstrap-theme`` がインストールされます。
+上記のコマンドを実行すると、 ``sphinx`` とがインストールされます。
 
 build 方法
 ----------
 
 .. code-block:: console
 
-   $ cd <JM_GIT_REPO_TOP>/guide
+   $ cd guide
    $ make html
 
 作成されたドキュメントを破棄して作り直すには以下のようにします。

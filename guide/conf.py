@@ -15,8 +15,6 @@
 import sys
 import os
 
-import sphinx_bootstrap_theme
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -113,29 +111,14 @@ todo_include_todos = False
 # a list of builtin themes.
 html_theme = 'nature'
 # html_theme = 'pyramid'
-# html_theme = 'bootstrap'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #html_theme_options = {}
-if html_theme == 'bootstrap':
-    html_theme_options = {
-        'bootswatch_theme': 'cosmo',
-        'navbar_site_name': '目次',
-        'navbar_pagenav_name': 'ページ',
-        'navbar_links': [
-            (u'JM トップへ', 'http://linuxjm.osdn.jp/', 1),
-        ],
-        'navbar_sidebarrel': False,
-        'globaltoc_depth': -1,
-    }
-else:
-    html_theme_options = {}
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
-html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
