@@ -1,0 +1,881 @@
+.\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\"
+.\" %%%LICENSE_START(VERBATIM_ONE_PARA)
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\" %%%LICENSE_END
+.\"
+.\" $Id: ip.7,v 1.19 2000/12/20 18:10:31 ak Exp $
+.\"
+.\" FIXME The following socket options are yet to be documented
+.\"
+.\" 	IP_XFRM_POLICY (2.5.48)
+.\"	    Needs CAP_NET_ADMIN
+.\"
+.\" 	IP_IPSEC_POLICY (2.5.47)
+.\"	    Needs CAP_NET_ADMIN
+.\"
+.\"	IP_MINTTL (2.6.34)
+.\"	    commit d218d11133d888f9745802146a50255a4781d37a
+.\"	    Author: Stephen Hemminger <shemminger@vyatta.com>
+.\"
+.\"	MCAST_JOIN_GROUP (2.4.22 / 2.6)
+.\"
+.\"	MCAST_BLOCK_SOURCE (2.4.22 / 2.6)
+.\"
+.\"	MCAST_UNBLOCK_SOURCE (2.4.22 / 2.6)
+.\"
+.\"	MCAST_LEAVE_GROUP (2.4.22 / 2.6)
+.\"
+.\"	MCAST_JOIN_SOURCE_GROUP (2.4.22 / 2.6)
+.\"
+.\"	MCAST_LEAVE_SOURCE_GROUP (2.4.22 / 2.6)
+.\"
+.\"	MCAST_MSFILTER (2.4.22 / 2.6)
+.\"
+.\"	IP_UNICAST_IF (3.4)
+.\"	    commit 76e21053b5bf33a07c76f99d27a74238310e3c71
+.\"	    Author: Erich E. Hoover <ehoover@mines.edu>
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1999 NAKANO Takeo all rights reserved.
+.\" Translated 1999-12-06, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated 2001-02-14, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2001-04-04, Yuichi SATO <ysato@h4.dion.ne.jp>
+.\" Updated & Modified 2003-10-16, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2005-01-22, Yuichi SATO
+.\" Updated & Modified 2005-09-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated & Modified 2005-10-06, Akihiro MOTOKI
+.\" Updated 2007-01-05, Akihiro MOTOKI, Catch up to LDP man-pages 2.43
+.\" Updated 2007-05-28, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.48
+.\" Updated 2008-12-26, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.14
+.\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH IP 7 2020\-11\-01 Linux "Linux Programmer's Manual"
+.SH 名前
+ip \- Linux IPv4 プロトコルの実装
+.SH 書式
+\fB#include <sys/socket.h>\fP
+.br
+.\" .B #include <net/netinet.h> -- does not exist anymore
+.\" .B #include <linux/errqueue.h> -- never include <linux/foo.h>
+\fB#include <netinet/in.h>\fP
+.br
+\fB#include <netinet/ip.h> \fP/* 上記のスーパーセット */
+.PP
+\fItcp_socket\fP\fB = socket(AF_INET, SOCK_STREAM, 0);\fP
+.br
+\fIudp_socket\fP\fB = socket(AF_INET, SOCK_DGRAM, 0);\fP
+.br
+\fIraw_socket\fP\fB = socket(AF_INET, SOCK_RAW, \fP\fIprotocol\fP\fB);\fP
+.SH 説明
+Linux は RFC\ 791 と RFC\ 1122 で記述されている Internet Protocol, version 4 を実装している。
+\fBip\fP には RFC\ 1112 に準拠した level 2 マルチキャストの実装が含まれている。 またパケットフィルタ機能を含む IP
+ルーターも実装されている。
+.PP
+プログラミングインターフェースは BSD ソケットと互換である。 ソケットに関するより詳細な情報は \fBsocket\fP(7)  を参照のこと。
+.PP
+An IP socket is created using \fBsocket\fP(2):
+.PP
+    socket(AF_INET, socket_type, protocol);
+.PP
+Valid socket types include \fBSOCK_STREAM\fP to open a stream socket,
+\fBSOCK_DGRAM\fP to open a datagram socket, and \fBSOCK_RAW\fP to open a \fBraw\fP(7)
+socket to access the IP protocol directly.
+.PP
+\fIprotocol\fP is the IP protocol in the IP header to be received or sent.
+Valid values for \fIprotocol\fP include:
+.IP \(bu 2
+0 and \fBIPPROTO_TCP\fP for \fBtcp\fP(7)  stream sockets;
+.IP \(bu
+0 and \fBIPPROTO_UDP\fP for \fBudp\fP(7)  datagram sockets;
+.IP \(bu
+\fBIPPROTO_SCTP\fP for \fBsctp\fP(7)  stream sockets; and
+.IP \(bu
+\fBIPPROTO_UDPLITE\fP for \fBudplite\fP(7)  datagram sockets.
+.PP
+For \fBSOCK_RAW\fP you may specify a valid IANA IP protocol defined in RFC\ 1700 assigned numbers.
+.PP
+あるプロセスで、やってくるパケットを受信したり 接続要求を受けたりしたい場合には、 そのプロセスはローカルなインターフェースアドレスに、
+\fBbind\fP(2) を用いてソケットをバインドしなければならない。 この場合、 ローカルの「アドレスとポート」のペアに対してバインドできる IP
+ソケットは一つだけである。 \fBbind\fP(2) の呼び出しで \fBINADDR_ANY\fP が指定されていた場合は、 ソケットは \fIすべて\fP
+のローカルインターフェースにバインドされる。 \fBlisten\fP(2) がバインドされていないソケットに対してコールされると、 そのソケットは、
+ローカルポートはランダムに選択された空いているポートで、 ローカルアドレスは \fBINADDR_ANY\fP で自動的にバインドされる。
+\fBconnect\fP(2) がバインドされていないソケットに対してコールされると、 そのソケットは、
+ローカルポートはランダムに選択された空いているポートか未使用の共有ポートで、 ローカルアドレスは \fBINADDR_ANY\fP で自動的にバインドされる。
+.PP
+\fBSO_REUSEADDR\fP フラグがセットされていない場合には、 バインドされていた TCP ローカルソケットアドレスは
+クローズされた後しばらくの間使えなくなる。 \fBSO_REUSEADDR\fP フラグを使うと TCP の信頼性を低下させるので、
+使うときには注意が必要である。
+.SS アドレスのフォーマット
+IP ソケットアドレスは、 IP インターフェースアドレスと 16ビットのポート番号の組み合わせで定義される。 IP
+プロトコルそのものはポート番号を扱わない。 ポート番号は、 \fBudp\fP(7)  や \fBtcp\fP(7)  といった、上位のプロトコルで実装される。
+raw ソケットでは、 \fIsin_port\fP が IP プロトコルにセットされる。
+.PP
+.in +4n
+.EX
+struct sockaddr_in {
+    sa_family_t    sin_family; /* address family: AF_INET */
+    in_port_t      sin_port;   /* port in network byte order */
+    struct in_addr sin_addr;   /* internet address */
+};
+
+/* Internet address. */
+struct in_addr {
+    uint32_t       s_addr;     /* address in network byte order */
+};
+.EE
+.in
+.PP
+\fIsin_family\fP is always set to \fBAF_INET\fP.  This is required; in Linux 2.2
+most networking functions return \fBEINVAL\fP when this setting is missing.
+\fIsin_port\fP contains the port in network byte order.  The port numbers below
+1024 are called \fIprivileged ports\fP (or sometimes: \fIreserved ports\fP).  Only
+a privileged process (on Linux: a process that has the
+\fBCAP_NET_BIND_SERVICE\fP capability in the user namespace governing its
+network namespace) may \fBbind\fP(2)  to these sockets.  Note that the raw IPv4
+protocol as such has no concept of a port, they are implemented only by
+higher protocols like \fBtcp\fP(7)  and \fBudp\fP(7).
+.PP
+\fIsin_addr\fP is the IP host address.  The \fIs_addr\fP member of \fIstruct
+in_addr\fP contains the host interface address in network byte order.
+\fIin_addr\fP should be assigned one of the \fBINADDR_*\fP values (e.g.,
+\fBINADDR_LOOPBACK\fP)  using \fBhtonl\fP(3)  or set using the \fBinet_aton\fP(3),
+\fBinet_addr\fP(3), \fBinet_makeaddr\fP(3)  library functions or directly with the
+name resolver (see \fBgethostbyname\fP(3)).
+.PP
+.\" Leave a loophole for XTP @)
+IPv4 アドレスには、ユニキャストアドレス、 ブロードキャストアドレス、マルチキャストアドレスがある。
+ユニキャストアドレスは、あるホストの一つのアドレスを指定する。 ブロードキャストアドレスは、あるネットワーク上の全てのホストを指定する。
+マルチキャストアドレスは、マルチキャストグループに所属する 全てのホストを指定する。ブロードキャストアドレスへのデータグラムは、
+\fBSO_BROADCAST\fP ソケットフラグがセットされていないと送信・受信できない。
+現在の実装では、接続指向のソケットにはユニキャストアドレスしか使えない。
+.PP
+アドレスとポートは常にネットワークバイトオーダーで格納されることに注意せよ。 具体的には、ポートを指定する数値には \fBhtons\fP(3)
+を呼び出す必要がある。 標準ライブラリにあるアドレス/ポート操作関数は すべてネットワークバイトオーダーで動作する。
+.PP
+特別なアドレスがいくつか存在する: \fBINADDR_LOOPBACK\fP(127.0.0.1)  は loopback
+デバイスを通して常にローカルなホストを参照する。 \fBINADDR_ANY\fP(0.0.0.0)  は任意のアドレスを意味し、バインド用である。
+\fBINADDR_BROADCAST\fP(255.255.255.255)  は任意のホストを意味し、歴史的理由から、バインドの際には
+\fBINADDR_ANY\fP と同じ効果になる。
+.SS ソケットオプション
+.\" or SOL_IP on Linux
+IP にはプロトコル固有のソケットオプションがいくつか存在し、 \fBsetsockopt\fP(2)  で設定が、 \fBgetsockopt\fP(2)
+で取得ができる。 IP のソケットオプションレベルは \fBIPPROTO_IP\fP である。 ブール整数値のフラグでは、 0
+は偽、それ以外は真を意味する。
+.PP
+When an invalid socket option is specified, \fBgetsockopt\fP(2)  and
+\fBsetsockopt\fP(2)  fail with the error \fBENOPROTOOPT\fP.
+.TP 
+\fBIP_ADD_MEMBERSHIP\fP (Linux 1.2 以降)
+マルチキャストグループに参加する。 引き数は \fIip_mreqn\fP 構造体である。
+.PP
+.in +4n
+.EX
+struct ip_mreqn {
+    struct in_addr imr_multiaddr; /* IP multicast group
+                                     address */
+    struct in_addr imr_address;   /* IP address of local
+                                     interface */
+    int            imr_ifindex;   /* interface index */
+};
+.EE
+.in
+.PP
+.\" (i.e., within the 224.0.0.0-239.255.255.255 range)
+\fIimr_multiaddr\fP には、アプリケーションが参加または脱退したい マルチキャストグループのアドレスが入る。
+指定するアドレスは有効なマルチキャストアドレスでなければならない (さもなければ \fBsetsockopt\fP(2)  がエラー \fBEINVAL\fP
+で失敗する)。 \fIimr_address\fP はシステムがマルチキャストグループに参加する際に用いる ローカルなインターフェースのアドレスである。
+これが \fBINADDR_ANY\fP であった場合には、適切なインターフェースがシステムによって選択される。 \fIimr_ifindex\fP は
+\fIimr_multiaddr\fP グループに参加/脱退するインターフェースの interface index である。
+どのインターフェースでもよい場合は 0 にする。
+.IP
+The \fIip_mreqn\fP structure is available only since Linux 2.2.  For
+compatibility, the old \fIip_mreq\fP structure (present since Linux 1.2) is
+still supported; it differs from \fIip_mreqn\fP only by not including the
+\fIimr_ifindex\fP field.  (The kernel determines which structure is being
+passed based on the size passed in \fIoptlen\fP.)
+.IP
+.\"
+\fBIP_ADD_MEMBERSHIP\fP is valid only for \fBsetsockopt\fP(2).
+.TP 
+\fBIP_ADD_SOURCE_MEMBERSHIP\fP (Linux 2.4.22 以降 / 2.5.68 以降)
+マルチキャストグループに参加、指定された送信元からのデータの受信のみを許可する。 引き数は \fIip_mreq_source\fP 構造体である。
+.PP
+.in +4n
+.EX
+struct ip_mreq_source {
+    struct in_addr imr_multiaddr;  /* IP multicast group
+                                      address */
+    struct in_addr imr_interface;  /* IP address of local
+                                      interface */
+    struct in_addr imr_sourceaddr; /* IP address of
+                                      multicast source */
+};
+.EE
+.in
+.PP
+\fIip_mreq_source\fP 構造体は \fBIP_ADD_MEMBERSHIP\fP の項で説明した \fIip_mreqn\fP に似ている。
+\fIimr_multiaddr\fP フィールドには、アプリケーションが参加または脱退したいマルチキャストグループのアドレスが入る。
+\fIimr_interface\fP フィールドは、 マルチキャストグループに参加する際に システムが使用すべきローカルインターフェースのアドレスである。
+\fIimr_sourceaddr\fP フィールドには、アプリケーションがデータを受信したい送信元のアドレスが入る。
+.IP
+このオプションを複数回使うことで、 複数の送信元からのデータ受信を許可することができる。
+.TP 
+\fBIP_BIND_ADDRESS_NO_PORT\fP (Linux 4.2 以降)
+.\" commit 90c337da1524863838658078ec34241f45d8394d
+Inform the kernel to not reserve an ephemeral port when using \fBbind\fP(2)
+with a port number of 0.  The port will later be automatically chosen at
+\fBconnect\fP(2)  time, in a way that allows sharing a source port as long as
+the 4\-tuple is unique.
+.TP 
+\fBIP_BLOCK_SOURCE\fP (since Linux 2.4.22 以降 / 2.5.68 以降)
+指定したグループで、指定した送信元からのマルチキャストデータの受信を停止する。 このオプションは、アプリケーションが
+\fBIP_ADD_MEMBERSHIP\fP か \fBIP_ADD_SOURCE_MEMBERSHIP\fP
+のいずれかを使ってマルチキャストグループに参加した後でのみ有効である。
+.IP
+引き数は \fIip_mreq_source\fP 構造体である。 \fBIP_ADD_SOURCE_MEMBERSHIP\fP の項に説明がある。
+.TP 
+\fBIP_DROP_MEMBERSHIP\fP (Linux 1.2 以降)
+マルチキャストグループから抜ける。引き数は \fBIP_ADD_MEMBERSHIP\fP と同様に \fIip_mreqn\fP または \fIip_mreq\fP
+構造体である。
+.TP 
+\fBIP_DROP_SOURCE_MEMBERSHIP\fP (Linux 2.4.22 以降 / 2.5.68 以降)
+送信元を指定してグループから抜ける。 つまり、 指定したマルチキャストグループの指定された送信元からのデータ受信を停止する。
+アプリケーションは同じマルチキャストグループで複数の送信元を購読 (subscribe) している場合には、
+残りの送信元からのデータの受信は引き続き配信される。 すべての送信元からのデータ受信を一度で停止するには \fBIP_DROP_MEMBERSHIP\fP
+を使うこと。
+.IP
+引き数は \fIip_mreq_source\fP 構造体である。 \fBIP_ADD_SOURCE_MEMBERSHIP\fP の項に説明がある。
+.TP 
+\fBIP_FREEBIND\fP (Linux 2.4 以降)
+.\" Precisely: 2.4.0-test10
+このブール値のオプションを有効にすると、ローカルではない IP アドレスや存在
+しない IP アドレスをバインドできるようになる。これを使うと、対応するネット
+ワークインターフェイスがなかったり、アプリケーションがソケットをバインドしようと
+する時点で特定の動的 IP アドレスが有効になっていなかったりしても、ソケットを
+接続待ち状態 (listening) にできるようになる。
+このオプションは、下記に説明がある \fIip_nonlocal_bind\fP \fI/proc\fP インターフェイス
+のソケット単位の設定である。
+.TP 
+\fBIP_HDRINCL\fP (Linux 2.0 以降)
+If enabled, the user supplies an IP header in front of the user data.  Valid
+only for \fBSOCK_RAW\fP sockets; see \fBraw\fP(7)  for more information.  When
+this flag is enabled, the values set by \fBIP_OPTIONS\fP, \fBIP_TTL\fP, and
+\fBIP_TOS\fP are ignored.
+.TP 
+\fBIP_MSFILTER\fP (since Linux 2.4.22 以降 / 2.5.68 以降)
+このオプションを使うと、 高度なフィルタリング API へアクセスできる。 この API ではすべての状態にアクセスできる。 引き数は
+\fIip_msfilter\fP 構造体である。
+.PP
+.in +4n
+.EX
+struct ip_msfilter {
+    struct in_addr imsf_multiaddr; /* IP multicast group
+                                      address */
+    struct in_addr imsf_interface; /* IP address of local
+                                      interface */
+    uint32_t       imsf_fmode;     /* Filter\-mode */
+
+    uint32_t       imsf_numsrc;    /* Number of sources in
+                                      the following array */
+    struct in_addr imsf_slist[1];  /* Array of source
+                                      addresses */
+};
+.EE
+.in
+.PP
+\fBMCAST_INCLUDE\fP と \fBMCAST_EXCLUDE\fP の 2 つのマクロがあり、 フィルタリングモードを指定するのに使用できる。
+また、 \fBIP_MSFILTER_SIZE\fP(n) マクロがあり、 送信元リストに \fIn\fP 個の送信元が入った \fIip_msfilter\fP
+構造体を格納するのに必要なメモリー量を判定することができる。
+.IP
+マルチキャスト送信元フィルタリングの全容は RFC\ 3376 を参照のこと。
+.TP 
+\fBIP_MTU\fP (Linux 2.2 以降)
+.\" Precisely: 2.1.124
+Retrieve the current known path MTU of the current socket.  Returns an
+integer.
+.IP
+\fBIP_MTU\fP is valid only for \fBgetsockopt\fP(2)  and can be employed only when
+the socket has been connected.
+.TP 
+\fBIP_MTU_DISCOVER\fP (Linux 2.2 以降)
+.\" Precisely: 2.1.124
+ソケットの Path MTU Discovery の設定をセット・取得する。
+有効になっていると、Linux は \fBSOCK_STREAM\fP ソケットに対して
+RFC\ 1191 で定義されている Path MTU Discovery を行う。
+\fBSOCK_STREAM\fP でないソケットについては、 \fBIP_PMTUDISC_DO\fP をセットすると、
+全ての送信パケットでフラグメント不許可フラグ (don't\-fragment flag) が必ず
+セットされるようになる。 \fBSOCK_STREAM\fP でないソケットでは、
+パケットを MTU のサイズの塊に分割したり、必要に応じて再送したりするのは、
+ユーザーが責任を持って行う必要がある。
+既知の Path MTU よりも大きなデータグラムの送信が要求されると、
+カーネルは (\fBEMSGSIZE\fP で) 送信を拒否する。
+\fBIP_PMTUDISC_WANT\fP の場合は、 Path MTU に基づいて必要であればデータグラム
+の分割が行われ、それ以外の場合はフラグメント不許可フラグがセットされる。
+.IP
+システム全体のデフォルトは \fBIP_PMTUDISC_WANT\fP と \fBIP_PMTUDISC_DONT\fP の
+どちらかに設定することができる。設定の変更は、
+\fI/proc/sys/net/ipv4/ip_no_pmtu_disc\fP ファイルに、0 (\fBIP_PMTUDISC_WANT\fP) か
+0 以外 (\fBIP_PMTUDISC_DONT\fP) を書き込むことで行う。
+.TS
+tab(:);
+c l
+l l.
+Path MTU discovery 値:意味
+IP_PMTUDISC_WANT:ルートごとの設定を用いる。
+IP_PMTUDISC_DONT:Path MTU Discovery を行わない。
+IP_PMTUDISC_DO:常に Path MTU Discovery を行う。
+IP_PMTUDISC_PROBE:DFビットをセットするが、Path MTU を無視する。
+.TE
+.sp 1
+path MTU discovery が有効になっていると、カーネルは宛先ホストごとに 自動的に
+path MTU を処理する。特定の相手に \fBconnect\fP(2) で接続した場合には、
+\fBIP_MTU\fP ソケットオプションを用いれば、既知の path MTU の取得に便利である
+(たとえば \fBEMSGSIZE\fP エラーが起きた後など)。 path MTU は時間とともに変化する
+かもしれない。 宛先がたくさんあるコネクションレスなソケットでは、 与えられた
+宛先に対する新しい MTU にも、 エラーキューを用いてアクセスすることができる
+(\fBIP_RECVERR\fP を見よ)。 MTU 更新が到着するごとに、新たなエラーがキューイング
+される。
+.IP
+MTU discovery の進行中には、データグラムソケットからの初期パケットは 到着しないかもしれない。 UDP を用いるアプリケーションでは、
+このことを気にかけておき、 パケットの再送アルゴリズムにこの分を除外させるべきである。
+.IP
+To bootstrap the path MTU discovery process on unconnected sockets, it is
+possible to start with a big datagram size (headers up to 64 kilobytes long)
+and let it shrink by updates of the path MTU.
+.IP
+path MTU の値をまず見積もってみるには、宛先アドレスに \fBconnect\fP(2)  を使ってデータグラムソケットを接続し、
+\fBgetsockopt\fP(2)  を \fBIP_MTU\fP オプションとともに呼び、 MTU を取得することである。
+.IP
+\fBIP_PMTUDISC_PROBE\fP (Linux 2.6.22 以降で利用可能) を設定することで、 \fBSOCK_DGRAM\fP や
+\fBSOCK_RAW\fP のソケットで RFC 4821 の MTU 探索を実装することが可能である。 また、この機能は、 \fBtracepath\fP(8)
+のような診断ツールで特に有用である。これらのツールでは、 観測された Path MTU よりも大きな探索パケットを意図的に 送信しようとする。
+.TP 
+\fBIP_MULTICAST_ALL\fP (Linux 2.6.31 以降)
+このオプションを使って、 マルチキャストメッセージの、 ワイルドカードの \fBINADDR_ANY\fP アドレスにバインドされているソケットへの
+配送ポリシーを変更することができる。 引き数はブート値の整数で、 デフォルト値は 1 である。 このオプションを 1
+に設定されている場合、そのソケットでは、このシステムで参加しているすべてのグループからのメッセージが受信される。 それ以外の場合は、そのソケットでは、
+そのソケットに対して (\fBIP_ADD_MEMBERSHIP\fP などを使って) 明示的に参加が指定されたグループからのメッセージだけが受信される。
+.TP 
+\fBIP_MULTICAST_IF\fP (Linux 1.2 以降)
+.\" net: IP_MULTICAST_IF setsockopt now recognizes struct mreq
+.\" Commit: 3a084ddb4bf299a6e898a9a07c89f3917f0713f7
+Set the local device for a multicast socket.  The argument for
+\fBsetsockopt\fP(2)  is an \fIip_mreqn\fP or (since Linux 3.5)  \fIip_mreq\fP
+structure similar to \fBIP_ADD_MEMBERSHIP\fP, or an \fIin_addr\fP structure.  (The
+kernel determines which structure is being passed based on the size passed
+in \fIoptlen\fP.)  For \fBgetsockopt\fP(2), the argument is an \fIin_addr\fP
+structure.
+.TP 
+\fBIP_MULTICAST_LOOP\fP (Linux 1.2 以降)
+マルチキャストパケットをローカルなソケットにループバックするかどうかを 定めるブール値の整数引き数を設定・取得する。
+.TP 
+\fBIP_MULTICAST_TTL\fP (Linux 1.2 以降)
+このソケットから発信されるマルチキャストパケットの time\-to\-live 値を設定・取得する。 マルチキャストパケットに対しては、できるだけ小さな
+TTL に設定することがとても重要である。デフォルトは 1 で、 ユーザープログラムが明示的に要求しない限り
+マルチキャストパケットはローカルなネットワークから出ないことになる。 引き数に整数を取る。
+.TP 
+\fBIP_NODEFRAG\fP (Linux 2.6.36 以降)
+If enabled (argument is nonzero), the reassembly of outgoing packets is
+disabled in the netfilter layer.  The argument is an integer.
+.IP
+This option is valid only for \fBSOCK_RAW\fP sockets.
+.TP 
+\fBIP_OPTIONS\fP (Linux 2.0 以降)
+.\" Precisely: 1.3.30
+このソケットから送られるパケット全てに付随する IP オプションを 設定・取得する。オプションを保存しているメモリーバッファーへのポインターと
+オプションの長さとを引き数に取る。 \fBsetsockopt\fP(2)  を呼び出すと、ソケットに関連づけられる IP オプションを設定できる。 IPv4
+におけるオプションのサイズの最大値は 40 バイトである。 用いることのできるオプションについては RFC\ 791 を見よ。
+\fBSOCK_STREAM\fP ソケットに対する初期接続要求パケットに IP オプションが含まれていると、
+ルーティングヘッダーを付けて戻されてくる初期パケットの IP オプションに同じオプションがセットされる。接続が確立された後、
+やってきたパケットのオプションを変更することはできない。 デフォルトでは。外部から受信したパケットの全ての source routing オプション
+の処理は無効となっており、 \fI/proc\fP インターフェースの \fIaccept_source_route\fP
+を使うとこれを有効にできる。これを無効にしていても timestamps など の他のオプションの処理は行われる。データグラムソケットでは、 IP
+オプションはローカルユーザーしか設定できない。 \fBgetsockopt\fP(2)  を \fBIP_OPTIONS\fP
+をつけて呼ぶと、現在送信に用いられている IP オプションを 引き数に与えたバッファーに取得できる。
+.TP 
+\fBIP_PASSSEC\fP (Linux 2.6.17 以降)
+.\" commit 2c7946a7bf45ae86736ab3b43d0085e43947945c
+If labeled IPSEC or NetLabel is configured on the sending and receiving
+hosts, this option enables receiving of the security context of the peer
+socket in an ancillary message of type \fBSCM_SECURITY\fP retrieved using
+\fBrecvmsg\fP(2).  This option is supported only for UDP sockets; for TCP or
+SCTP sockets, see the description of the \fBSO_PEERSEC\fP option below.
+.IP
+The value given as an argument to \fBsetsockopt\fP(2)  and returned as the
+result of \fBgetsockopt\fP(2)  is an integer boolean flag.
+.IP
+The security context returned in the \fBSCM_SECURITY\fP ancillary message is of
+the same format as the one described under the \fBSO_PEERSEC\fP option below.
+.IP
+Note: the reuse of the \fBSCM_SECURITY\fP message type for the \fBIP_PASSSEC\fP
+socket option was likely a mistake, since other IP control messages use
+their own numbering scheme in the IP namespace and often use the socket
+option value as the message type.  There is no conflict currently since the
+IP option with the same value as \fBSCM_SECURITY\fP is \fBIP_HDRINCL\fP and this
+is never used for a control message type.
+.TP 
+\fBIP_PKTINFO\fP (Linux 2.2 以降)
+.\" Precisely: 2.1.68
+\fBIP_PKTINFO\fP 補助メッセージを渡す。これには到着パケットに関する情報を提供する \fIpktinfo\fP 構造体が含まれている。
+データグラム指向のソケットでしか動作しない。 引き数は \fBIP_PKTINFO\fP メッセージを通過させるかどうかをソケットに知らせるフラグである。
+メッセージ自身は \fBrecvmsg\fP(2)  または \fBsendmsg\fP(2)  を用いたパケットの制御メッセージとしてのみ送受信できる。
+.IP
+.in +4n
+.EX
+struct in_pktinfo {
+    unsigned int   ipi_ifindex;  /* Interface index */
+    struct in_addr ipi_spec_dst; /* Local address */
+    struct in_addr ipi_addr;     /* Header Destination
+                                    address */
+};
+.EE
+.in
+.IP
+.\" This field is grossly misnamed
+\fIipi_ifindex\fP はパケットが受信されたインターフェースの、他と重ならないインデックスである。 \fIipi_spec_dst\fP
+はパケットのローカルアドレスである。 \fIipi_addr\fP はパケットヘッダーにある宛先アドレスである。 \fBIP_PKTINFO\fP が
+\fBsendmsg\fP(2)  に渡されて、かつ \fIipi_spec_dst\fP が 0 以外の場合、 \fIipi_spec_dst\fP
+はルーティングテーブルを検索する際にローカルな送信元アドレスとして使用され、 IP source route オプションを設定するのにも使用される。
+\fIipi_ifindex\fP が 0 以外の場合、このインデックスによって指定されるインターフェースの プライマリローカルアドレスで
+\fIipi_spec_dst\fP を上書きし、ルーティングテーブルを検索する。
+.TP 
+\fBIP_RECVERR\fP (Linux 2.2 以降)
+.\" Precisely: 2.1.15
+.\" or SOL_IP on Linux
+エラーメッセージの受け渡しに、信頼性の高い拡張された方法を有効にする。 データグラムソケットに対して有効になっていると、
+発生したエラーは全てソケットごとのエラーキューに保存される。 ユーザーはソケット操作からエラーを受け取ったとき、 \fBrecvmsg\fP(2)  を
+\fBMSG_ERRQUEUE\fP フラグとともに呼べばそのエラーを取得できる。 そのエラーを記述する \fIsock_extended_err\fP
+構造体が、タイプ \fBIP_RECVERR\fP・ レベル \fBIPPROTO_IP\fP の補助メッセージとして渡される。
+これは接続志向でないソケットで信頼性の高いエラー処理を行いたい場合に 有用である。エラーキューの受信データフラグメントには エラーパケットが含まれる。
+.IP
+\fBIP_RECVERR\fP 制御メッセージには \fIsock_extended_err\fP 構造体が含まれる:
+.IP
+.in +4n
+.EX
+#define SO_EE_ORIGIN_NONE    0
+#define SO_EE_ORIGIN_LOCAL   1
+#define SO_EE_ORIGIN_ICMP    2
+#define SO_EE_ORIGIN_ICMP6   3
+
+struct sock_extended_err {
+    uint32_t ee_errno;   /* error number */
+    uint8_t  ee_origin;  /* where the error originated */
+    uint8_t  ee_type;    /* type */
+    uint8_t  ee_code;    /* code */
+    uint8_t  ee_pad;
+    uint32_t ee_info;    /* additional information */
+    uint32_t ee_data;    /* other data */
+    /* More data may follow */
+};
+
+struct sockaddr *SO_EE_OFFENDER(struct sock_extended_err *);
+.EE
+.in
+.IP
+\fIee_errno\fP にはキューに入っているエラーの \fIerrno\fP 番号が入る。 \fIee_origin\fP
+にはエラーが発生した場所を示すコードが入る。 その他のフィールドはプロトコル依存である。 \fBSO_EE_OFFENDER\fP
+マクロは与えられた補助メッセージへのポインターから エラーの発生したネットワークオブジェクトのアドレスへのポインターを返す。 アドレスが不明な場合、
+\fIsockaddr\fP 構造体の \fIsa_family\fP フィールドは \fBAF_UNSPEC\fP となり、その他のフィールド値は不定である。
+.IP
+.\" FIXME . Is it a good idea to document that? It is a dubious feature.
+.\" On
+.\" .B SOCK_STREAM
+.\" sockets,
+.\" .B IP_RECVERR
+.\" has slightly different semantics. Instead of
+.\" saving the errors for the next timeout, it passes all incoming
+.\" errors immediately to the user.
+.\" This might be useful for very short-lived TCP connections which
+.\" need fast error handling. Use this option with care:
+.\" it makes TCP unreliable
+.\" by not allowing it to recover properly from routing
+.\" shifts and other normal
+.\" conditions and breaks the protocol specification.
+IP は以下のような \fIsock_extended_err\fP 構造体を用いる: \fIee_origin\fP は、エラー
+が ICMP パケットとして受信された場合には \fBSO_EE_ORIGIN_ICMP\fP にセットされ、
+ローカルで起こった場合には \fBSO_EE_ORIGIN_LOCAL\fP にセットされる。 不明な値は
+無視される。 \fIee_type\fP と \fIee_code\fP は ICMP ヘッダーの type フィールドと
+code フィールドの値にセットされる。 \fIee_info\fP には \fBEMSGSIZE\fP エラーに対す
+る discover された MTU が入る。 メッセージにはエラーを引き起こしたノードの
+\fIsockaddr_in\fP 構造体も含まれる。 これには \fBSO_EE_OFFENDER\fP マクロを使ってア
+クセスできる。 ソースが不明の場合、 \fBSO_EE_OFFENDER\fP アドレスの
+\fIsin_family\fP フィールドは \fBAF_UNSPEC\fP となる。 エラーがネットワークで起きた
+場合には、 ソケットで有効になっていたすべての IP オプション (\fBIP_OPTIONS\fP,
+\fBIP_TTL\fP など) とエラーパケットに含まれていたすべての IP オプションとが、 制
+御メッセージとして渡される。 エラーを起こしたパケットのペイロード (payload)
+は 普通のペイロードとして返される。 TCP にはエラーキューがないことに注意して
+ほしい。 \fBMSG_ERRQUEUE\fP は \fBSOCK_STREAM\fP ソケットに対しては使えない。 TCP
+では \fBIP_RECVERR\fP だけが有効だが、ソケット関数から返されるエラーは
+\fBSO_ERROR\fP だけになる。
+.IP
+raw ソケットに対して \fBIP_RECVERR\fP を指定すると、受信したすべての ICMP エラーをアプリケーションに
+渡すようになる。指定しないと、 接続済みのソケットに対するエラーだけを報告する。
+.IP
+このオプションはブール値のフラグを設定・取得する。 \fBIP_RECVERR\fP はデフォルトではオフになっている。
+.TP 
+\fBIP_RECVOPTS\fP (Linux 2.2 以降)
+.\" Precisely: 2.1.15
+到着した全ての IP オプションを \fBIP_OPTION\fP コントロールメッセージに入れてユーザーに渡す。
+ルーティングヘッダーとその他のオプションとは、 ローカルホストに対してはあらかじめ記入されている。 \fBSOCK_STREAM\fP
+ソケットではサポートされていない。
+.TP 
+\fBIP_RECVORIGDSTADDR\fP (Linux 2.6.29 以降)
+.\" commit e8b2dfe9b4501ed0047459b2756ba26e5a940a69
+このブール値のオプションがセットされると、
+\fBrecvmsg\fP(2) で \fBIP_ORIGDSTADDR\fP 補助メッセージが有効になる。
+カーネルはデータグラムを受信した元の宛先アドレスをこの補助メッセージで返す。
+この補助メッセージには \fIstruct sockaddr_in\fP が格納される。
+.TP 
+\fBIP_RECVTOS\fP (Linux 2.2 以降)
+.\" Precisely: 2.1.68
+有効になっていると、 \fBIP_TOS\fP 補助メッセージが到着パケットとともに渡される。 これにはパケットヘッダーの
+Service/Precedence フィールドのタイプを指定するバイトデータが含まれている。 ブール整数値のフラグをとる。
+.TP 
+\fBIP_RECVTTL\fP (Linux 2.2 以降)
+.\" Precisely: 2.1.68
+When this flag is set, pass a \fBIP_TTL\fP control message with the
+time\-to\-live field of the received packet as a 32 bit integer.  Not
+supported for \fBSOCK_STREAM\fP sockets.
+.TP 
+\fBIP_RETOPTS\fP
+.\" Precisely: 2.1.15
+\fBIP_RETOPTS\fP (Linux 2.2 以降)  \fBIP_RECVOPTS\fP と等価だが、未処理の生のオプションを、 この hop
+では記入されない timestamp レコードと route レコードとともに返す。
+.TP 
+\fBIP_ROUTER_ALERT\fP (Linux 2.2 以降)
+.\" Precisely: 2.1.68
+Pass all to\-be forwarded packets with the IP Router Alert option set to this
+socket.  Valid only for raw sockets.  This is useful, for instance, for
+user\-space RSVP daemons.  The tapped packets are not forwarded by the
+kernel; it is the user's responsibility to send them out again.  Socket
+binding is ignored, such packets are filtered only by protocol.  Expects an
+integer flag.
+.TP 
+\fBIP_TOS\fP (Linux 1.0 以降)
+.\" FIXME elaborate on this
+.\" The priority can also be set in a protocol-independent way by the
+.\" .RB ( SOL_SOCKET ", " SO_PRIORITY )
+.\" socket option (see
+.\" .BR socket (7)).
+このソケットから送信されるすべての IP パケットに適用される Type\-Of\-Service (TOS) フィールドを設定・取得する。
+これはネットワーク上でのパケットの優先度を決めるために用いられる。 TOS はバイトデータである。標準の TOS フラグがいくつか定義されている。
+\fBIPTOS_LOWDELAY\fP はインタラクティブなトラフィックの遅延を最小にする。 \fBIPTOS_THROUGHPUT\fP
+はスループットを最大にする。 \fBIPTOS_RELIABILITY\fP は信頼性を最高にする。 \fBIPTOS_MINCOST\fP
+は転送速度が遅くてもかまわないとき、「データを詰め込む」のに用いられる。 これらのうち、 1 つまでだけを設定できる。
+他のビットは無効で、クリアされる。 Linux はデフォルトでは \fBIPTOS_LOWDELAY\fP データグラムを最初に送信する。
+しかし、正確な振る舞いはキュー処理の設定に依存する。 高い優先度にするにはスーパーユーザー権限 (\fBCAP_NET_ADMIN\fP ケーパビリティ)
+が必要となるかもしれない。
+.TP 
+\fBIP_TRANSPARENT\fP (Linux 2.6.24 以降)
+.\" commit f5715aea4564f233767ea1d944b2637a5fd7cd2e
+.\"     This patch introduces the IP_TRANSPARENT socket option: enabling that
+.\"     will make the IPv4 routing omit the non-local source address check on
+.\"     output. Setting IP_TRANSPARENT requires NET_ADMIN capability.
+.\" http://lwn.net/Articles/252545/
+このブール値のオプションを有効にすると、 このソケットで透過プロキシ (transparent proxy) ができるようになる。
+このソケットオプションを使うと、呼び出したアプリケーションは、 ローカルではない IP アドレスをバインドして、ローカルの端点として自分以外のアドレス
+(foreign address) を持つクライアントやサーバの両方として動作できるようになる。 \fB注意\fP:
+この機能が動作するためには、自分以外のアドレス宛のパケットが透過プロキシが動作するマシン (すなわちソケットオプション
+\fBIP_TRANSPARENT\fP を利用するアプリケーションが動作しているシステム) 経由で転送されるように、 ルーティングが設定される必要がある。
+このソケットオプションを有効にするには、スーパーユーザー特権 (\fBCAP_NET_ADMIN\fP ケーパビリティ) が必要である。
+.IP
+iptables の TPROXY ターゲットで透過プロキシリダイレクション
+(TProxy redirection) を行うには、リダイレクトされるソケットに対して
+このオプションを設定する必要がある。
+.TP 
+\fBIP_TTL\fP (Linux 1.0 以降)
+time\-to\-live フィールドの値を設定または取得する。 この値はこのソケットから送信されるすべてのパケットに用いられる。
+.TP 
+\fBIP_UNBLOCK_SOURCE\fP (Linux 2.4.22 以降 / 2.5.68 以降)
+それ以前はブロックされていたマルチキャストの送信元のブロックを解除する。 指定した送信元がブロックされていない場合は \fBEADDRNOTAVAIL\fP
+を返す。
+.IP
+引き数は \fIip_mreq_source\fP 構造体である。 \fBIP_ADD_SOURCE_MEMBERSHIP\fP の項に説明がある。
+.TP 
+\fBSO_PEERSEC\fP (Linux 2.6.17 以降)
+If labeled IPSEC or NetLabel is configured on both the sending and receiving
+hosts, this read\-only socket option returns the security context of the peer
+socket connected to this socket.  By default, this will be the same as the
+security context of the process that created the peer socket unless
+overridden by the policy or by a process with the required permissions.
+.IP
+The argument to \fBgetsockopt\fP(2)  is a pointer to a buffer of the specified
+length in bytes into which the security context string will be copied.  If
+the buffer length is less than the length of the security context string,
+then \fBgetsockopt\fP(2)  returns \-1, sets \fIerrno\fP to \fBERANGE\fP, and returns
+the required length via \fIoptlen\fP.  The caller should allocate at least
+\fBNAME_MAX\fP bytes for the buffer initially, although this is not guaranteed
+to be sufficient.  Resizing the buffer to the returned length and retrying
+may be necessary.
+.IP
+The security context string may include a terminating null character in the
+returned length, but is not guaranteed to do so: a security context "foo"
+might be represented as either {'f','o','o'} of length 3 or
+{'f','o','o','\e0'} of length 4, which are considered to be
+interchangeable.  The string is printable, does not contain non\-terminating
+null characters, and is in an unspecified encoding (in particular, it is not
+guaranteed to be ASCII or UTF\-8).
+.IP
+.\" commit 2c7946a7bf45ae86736ab3b43d0085e43947945c
+.\" commit d452930fd3b9031e59abfeddb2fa383f1403d61a
+The use of this option for sockets in the \fBAF_INET\fP address family is
+supported since Linux 2.6.17 for TCP sockets, and since Linux 4.17 for SCTP
+sockets.
+.IP
+.\"
+For SELinux, NetLabel conveys only the MLS portion of the security context
+of the peer across the wire, defaulting the rest of the security context to
+the values defined in the policy for the netmsg initial security identifier
+(SID).  However, NetLabel can be configured to pass full security contexts
+over loopback.  Labeled IPSEC always passes full security contexts as part
+of establishing the security association (SA) and looks them up based on the
+association for each packet.
+.SS "/proc インターフェース"
+.\" FIXME As at 2.6.12, 14 Jun 2005, the following are undocumented:
+.\"  ip_queue_maxlen
+.\"  ip_conntrack_max
+.\"
+IP プロトコルでは、いくつかのグローバルパラメーターを設定するための \fI/proc\fP ファイル群が用意されている。 これらのパラメーターには、
+\fI/proc/sys/net/ipv4/\fP ディレクトリ内のファイルの読み書きでアクセスできる。 \fIBoolean\fP
+と書かれたインターフェースは整数値をとり、 0 以外の値 ("true") は対応するオプションが有効、 0 値 ("false")
+は無効、であることを意味する。
+.TP 
+\fIip_always_defrag\fP (Boolean; Linux 2.2.13 以降)
+[2.2.13 で新規登場。以前のバージョンのカーネルでは、この機能は コンパイル時に \fBCONFIG_IP_ALWAYS_DEFRAG\fP
+オプションによって制御されていた; このファイルは 2.4.x 以降では存在しない]
+.IP
+このブール値のフラグが有効になっている (0 以外になっている) と、 到着したフラグメント (IP パケットの一部で、
+発信元と発信先の間のどこかのホストで、そのパケットが 大きすぎると判断され、分割された場合に生じる)  は、たとえフォワードされる場合であっても
+処理前に再構築 (デフラグメント) される。
+.IP
+ファイアウォールがローカル側のネットワークに唯一のリンクを持っている 場合や、透過プロクシの場合に限って有効にすべきである。
+通常のルーターやホストでは決して使用することのないように。 さもないとフラグメントが別のリンクを経由して伝わる場合に、
+通信のフラグメント化ができなくなってしまう。 またフラグメント再構築処理はメモリーと CPU 時間のコストが非常に大きい。
+.IP
+.\"
+これはマスカレードや透過プロクシが設定されると、 不思議な仕組みによって自動的に有効になる。
+.TP 
+\fIip_autoconfig\fP (Linux 2.2 以降 2.6.17 まで)
+.\" Precisely: since 2.1.68
+.\" FIXME document ip_autoconfig
+.\"
+まだ記述していない。
+.TP 
+\fIip_default_ttl\fP (integer; default: 64; Linux 2.2 以降)
+.\" Precisely: 2.1.15
+.\"
+送出されるパケットの time\-to\-live 値のデフォルトをセットする。 これは \fBIP_TTL\fP
+オプションを用いれば、パケットごとに変えることもできる。
+.TP 
+\fIip_dynaddr\fP (ブール値; デフォルト: 無効; Linux 2.0.31 以降)
+.\"
+動的ソケットアドレスと、インターフェースアドレスが変更された際の マスカレードエントリーの再書き込みを有効にする。 ダイアルアップインターフェースで、
+IP アドレスが変更される場合に便利である。
+.TP 
+\fIip_forward\fP (ブール値; デフォルト: 無効; Linux 1.2 以降)
+.\"
+IP forwarding を有効にするかどうかのブール値フラグ。 IP forwarding するかどうかはインターフェースごとにも設定できる。
+.TP 
+\fIip_local_port_range\fP (Linux 2.2 以降)
+.\" Precisely: since 2.1.68
+このファイルには、 ポート番号に明示的にバインドされないソケットに割り当てられるデフォルトのローカルポートの範囲 \(em つまり「一時ポート
+(\fIephemeral ports\fP)」に使用される範囲 \(em を定める 2 つの整数が入っている。
+一時ポートは以下の場合にソケットに割り当てられる。
+.RS
+.IP * 3
+\fBbind\fP(2) の呼び出し時にソケットアドレスのポート番号に 0 が指定されている。
+.IP *
+バインドされていないストリームソケットに対して \fBlisten\fP(2) が呼び出された。
+.IP *
+バインドされていないソケットに対して \fBconnect\fP(2)  が呼ばれた。
+.IP *
+バインドされていないデータグラムソケットに対して \fBsendto\fP(2)  が呼ばれた。
+.RE
+.IP
+一時ポートに割り当てられるポート番号の範囲は、 \fIip_local_port_range\fP の最初の数字から始まり、 2 番目の数字で終わる。
+一時ポートの範囲を使い切った場合、 関連するシステムコールはエラーを返す (バグの節を参照)。
+.IP
+.\"
+\fIip_local_port_range\fP で指定するポート番号の範囲は、 マスカレードで用いられているポートと重なってはならない
+(その場合も取り扱われるが)。 ファイアウォールのパケットフィルターが「利用中のローカルポート」 について何らかの仮定をしている場合には、
+番号を勝手に決めてしまうと問題が起きるかもしれない。 1 番目の番号は少なくとも 1024 より大きくすべきである。
+良く使われるポートとの衝突を避けたり、ファイアウォールの問題を 回避したければ、 4096 よりも大きくするほうが良いだろう。
+.TP 
+\fIip_no_pmtu_disc\fP (ブール値; デフォルト: 無効; Linux 2.2 以降)
+.\" Precisely: 2.1.15
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+有効になっていると、デフォルトで TCP ソケットに対する Path MTU Discoverty を行わない。 Path MTU Discovery
+は、 正しく設定されていない (ICMP パケットを全てドロップする) ファイアウォールや、 (point\-to\-point リンクで双方の MTU
+が一致していない場合など)  正しく設定されていないインターフェースが経路上に存在すると失敗してしまう。 Path MTU Discovery
+をグローバルに無効にするよりは、 壊れているルーターを直すほうが良い。 Path MTU Discovery を無効にするとネットワークのコストが
+大きくなってしまうからである。
+.TP 
+\fIip_nonlocal_bind\fP (ブール値; デフォルト: 無効; Linux 2.4 以降)
+.\" Precisely: patch-2.4.0-test10
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+セットされていれば、プロセスが自分以外の IP アドレスを \fBbind\fP(2)
+できるようになる。これはかなり便利だが、うまく動かないアプリケーションもある。
+.TP 
+\fIip6frag_time\fP (integer; default: 30)
+.\"
+.\" The following is from 2.6.12: Documentation/networking/ip-sysctl.txt
+IPv6 フラグメントをメモリーに保持しておく時間 (秒単位)。
+.TP 
+\fIip6frag_secret_interval\fP (integer; default: 600)
+IPv6 フラグメントの hash secret の生成間隔 (hash secret の寿命)  (秒単位)。
+.TP 
+\fIipfrag_high_thresh\fP (integer), \fIipfrag_low_thresh\fP (integer)
+キューイングされている IP フラグメントの量が \fIipfrag_high_thresh\fP に達すると、キューの内容は
+\fIipfrag_low_thresh\fP にまで切り捨てられる。それぞれの大きさを バイト単位で表す整数値が入っている。
+.TP 
+\fIneigh/*\fP
+.\" FIXME Document the conf/*/* interfaces
+.\"
+.\" FIXME Document the route/* interfaces
+\fBarp\fP(7)  を見よ。
+.SS ioctl
+\fBsocket\fP(7)  に記述されている ioctl は、すべて \fBip\fP にも適用される。
+.PP
+.\" FIXME Add a discussion of multicasting
+ジェネリックデバイスのパラメーターを設定する ioctl については \fBnetdevice\fP(7)  に記述されている。
+.SH エラー
+.\" FIXME document all errors.
+.\"     We should really fix the kernels to give more uniform
+.\"     error returns (ENOMEM vs ENOBUFS, EPERM vs EACCES etc.)
+.TP 
+\fBEACCES\fP
+必要な権限のないユーザーが操作を実行しようとした。 以下のような場合が考えられる: \fBSO_BROADCAST\fP
+フラグを設定していない状態でブロードキャストアドレスに パケットを送ろうとした。 \fIprohibit\fP なルートを通してパケットを送ろうとした。
+スーパーユーザー権限 (\fBCAP_NET_ADMIN\fP ケーパビリティ) なしでファイアウォールの設定を変更しようとした。 スーパーユーザー権限
+(\fBCAP_NET_BIND_SERVICE\fP ケーパビリティ) なしで特権ポートにバインドしようとした。
+.TP 
+\fBEADDRINUSE\fP
+既に使用されているアドレスにバインドしようとした。
+.TP 
+\fBEADDRNOTAVAIL\fP
+存在しないインターフェースが要求された。または 要求されたソースアドレスがローカルでない。
+.TP 
+\fBEAGAIN\fP
+非ブロッキングソケットに対してブロックする操作を行った。
+.TP 
+\fBEALREADY\fP
+非ブロッキングソケットに対する接続操作が既に実行中である。
+.TP 
+\fBECONNABORTED\fP
+\fBaccept\fP(2)  の途中で接続がクローズされた。
+.TP 
+\fBEHOSTUNREACH\fP
+宛先アドレスにマッチする有効なエントリーがルーティングテーブルに 存在しない。このエラーはリモートルーターからの、
+あるいはローカルルーティングテーブルへの ICMP メッセージによって引き起こされることがある。
+.TP 
+\fBEINVAL\fP
+不正な引き数が渡された。送信操作において、 \fIblackhole\fP ルートに送信しようとするとこのエラーが起こることがある。
+.TP 
+\fBEISCONN\fP
+接続済みのソケットに対して \fBconnect\fP(2)  が呼ばれた。
+.TP 
+\fBEMSGSIZE\fP
+データグラムが path MTU よりも大きく、フラグメント化もできない。
+.TP 
+\fBENOBUFS\fP, \fBENOMEM\fP
+空きメモリーが足りない。 このエラーは、メモリーアロケーションがソケットバッファーの 大きさによって制限されていることを意味しているのが通常であるが、
+100% そうだというわけではない。
+.TP 
+\fBENOENT\fP
+パケットが到着していないソケットに対して \fBSIOCGSTAMP\fP が呼ばれた。
+.TP 
+\fBENOPKG\fP
+カーネルサブシステムが設定されていない。
+.TP 
+\fBENOPROTOOPT\fP と \fBEOPNOTSUPP\fP
+無効なソケットオプションが渡された。
+.TP 
+\fBENOTCONN\fP
+接続されていないソケットに対して、 接続状態でしか定義されていない操作を行おうとした。
+.TP 
+\fBEPERM\fP
+高い優先度を設定したり、設定を変更したり、要求されたプロセスや プロセスグループにシグナルを送ったりするのに必要な権限を、 ユーザーが持っていない。
+.TP 
+\fBEPIPE\fP
+接続が接続相手によって、予期しないやり方でクローズまたはシャットダウンされた。
+.TP 
+\fBESOCKTNOSUPPORT\fP
+ソケットが未設定であるか、知らないソケットタイプが要求された。
+.PP
+他のエラーが上層のプロトコルによって生じるかもしれない。 \fBtcp\fP(7), \fBraw\fP(7), \fBudp\fP(7), \fBsocket\fP(7)
+などを参照のこと。
+.SH 注意
+.\" IP_XFRM_POLICY is Linux-specific
+.\" IP_IPSEC_POLICY is a nonstandard extension, also present on some BSDs
+\fBIP_FREEBIND\fP, \fBIP_MSFILTER\fP, \fBIP_MTU\fP, \fBIP_MTU_DISCOVER\fP,
+\fBIP_RECVORIGDSTADDR\fP, \fBIP_PASSSEC\fP, \fBIP_PKTINFO\fP, \fBIP_RECVERR\fP,
+\fBIP_ROUTER_ALERT\fP, \fBIP_TRANSPARENT\fP は Linux 固有である。
+.PP
+\fBSO_BROADCAST\fP オプションの利用には、くれぐれも注意すること。
+これは Linux では特権操作ではない。
+不注意なブロードキャストを行うと、ネットワークは簡単に過負荷状態になる。
+新しいアプリケーションプロトコルには、ブロードキャストではなく
+マルチキャストグループを用いるほうがよい。 ブロードキャストは推奨されない。
+.PP
+他の BSD のソケット実装では、 \fBIP_RCVDSTADDR\fP と \fBIP_RECVIF\fP といったソケットオプションがサポートされており、
+宛先アドレスや受信データグラムのインターフェースが取得できるように なっていることもある。 Linux で同じことをやらせるには、より一般的な
+\fBIP_PKTINFO\fP が使える。
+.PP
+いくつかの BSD のソケット実装では \fBIP_RECVTTL\fP オプションも提供されているが、タイプ \fBIP_RECVTTL\fP
+の補助メッセージは受信パケットとともに渡される。 これは Linux で使われている \fBIP_TTL\fP オプションとは異なる動作である。
+.PP
+\fBSOL_IP\fP ソケットオプションレベルは移植性がない。 BSD ベースのプロトコルスタックでは \fBIPPROTO_IP\fP
+レベルが使用されている。
+.PP
+\fBINADDR_ANY\fP
+(0.0.0.0) and
+\fBINADDR_BROADCAST\fP
+(255.255.255.255) are byte\-order\-neutral.
+ This means
+\fBhtonl\fP(3)
+has no effect on them.
+.SS 移植性
+Linux 2.0 との互換性のために、 obsolete な \fBsocket(AF_INET, SOCK_PACKET,
+\fP\fIprotocol\fP\fB)\fP という書式でも \fBpacket\fP(7)  をオープンできるようになっているが、これはお勧めできない。今後は
+\fBsocket(AF_PACKET, SOCK_RAW, \fP\fIprotocol\fP\fB)\fP
+を代わりに用いるべきである。主な違いは、ジェネリックなリンク層用の \fIsockaddr_ll\fP アドレス構造体が、古い \fBsockaddr_pkt\fP
+に変わって用いられるようになったことである。
+.SH バグ
+エラーの値がまったく首尾一貫していない。
+.PP
+一時ポートの範囲の枯渇を示すのに使われるエラーは、 一時ポートの割り当てを行えるシステムコール (\fBconnect\fP(2), \fBbind\fP(2),
+\fBlisten\fP(2), \fBsendto\fP(2)) により異なる。
+.PP
+.\" .PP
+.\" Some versions of glibc forget to declare
+.\" .IR in_pktinfo .
+.\" Workaround currently is to copy it into your program from this man page.
+IP 固有のインターフェースオプションを指定するための ioctl と ARP テーブルのことが記述されていない。
+.PP
+.\" .SH AUTHORS
+.\" This man page was written by Andi Kleen.
+\fBrecvmsg\fP(2)  で \fImsg_name\fP に \fBMSG_ERRQUEUE\fP
+を指定して、受信パケットに入っていた宛先アドレスを取得する方法は 2.2 カーネルの一部でうまく動かない。
+.SH 関連項目
+\fBrecvmsg\fP(2), \fBsendmsg\fP(2), \fBbyteorder\fP(3), \fBcapabilities\fP(7),
+\fBicmp\fP(7), \fBipv6\fP(7), \fBnetdevice\fP(7), \fBnetlink\fP(7), \fBraw\fP(7),
+\fBsocket\fP(7), \fBtcp\fP(7), \fBudp\fP(7), \fBip\fP(8)
+.PP
+The kernel source file \fIDocumentation/networking/ip\-sysctl.txt\fP.
+.PP
+RFC\ 791: 元々の IP 仕様。 RFC\ 1122: IPv4 ホストの要件。 RFC\ 1812: IPv4 ルーターの要件。
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

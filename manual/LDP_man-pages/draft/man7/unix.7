@@ -1,0 +1,835 @@
+.\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>,
+.\" Copyright (C) 2008-2014, Michael Kerrisk <mtk.manpages@gmail.com>,
+.\" and Copyright (C) 2016, Heinrich Schuchardt <xypron.glpk@gmx.de>
+.\"
+.\" %%%LICENSE_START(VERBATIM_ONE_PARA)
+.\" Permission is granted to distribute possibly modified copies
+.\" of this page provided the header is included verbatim,
+.\" and in case of nontrivial modification author and date
+.\" of the modification is added to the header.
+.\" %%%LICENSE_END
+.\"
+.\" Modified, 2003-12-02, Michael Kerrisk, <mtk.manpages@gmail.com>
+.\" Modified, 2003-09-23, Adam Langley
+.\" Modified, 2004-05-27, Michael Kerrisk, <mtk.manpages@gmail.com>
+.\"	Added SOCK_SEQPACKET
+.\" 2008-05-27, mtk, Provide a clear description of the three types of
+.\"     address that can appear in the sockaddr_un structure: pathname,
+.\"     unnamed, and abstract.
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1999 Shouichi Saito and
+.\"     NAKANO Takeo all rights reserved.
+.\" Translated 1999-12-06, NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\"     based on the work by Shouichi Saito <ss236rx@ymg.urban.ne.jp>
+.\" Updated 2003-01-07, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-02-21, Akihiro MOTOKI
+.\" Updated 2005-12-26, Akihiro MOTOKI
+.\" Updated 2008-08-08, Akihiro MOTOKI, LDP v3.05
+.\"
+.TH UNIX 7 2020\-11\-01 Linux "Linux Programmer's Manual"
+.SH 名前
+unix \- ローカルな プロセス間通信用のソケット
+.SH 書式
+\fB#include <sys/socket.h>\fP
+.br
+\fB#include <sys/un.h>\fP
+.PP
+\fIunix_socket\fP\fB = socket(AF_UNIX, type, 0);\fP
+.br
+\fIerror\fP\fB = socketpair(AF_UNIX, type, 0, int *\fP\fIsv\fP\fB);\fP
+.SH 説明
+\fBAF_UNIX\fP (\fBAF_LOCAL\fP とも言われる) ソケットファミリーは、同じマシン上で
+プロセス同士が 効率的に通信するために用いられる。伝統的に、UNIX ドメイン
+ソケットは、名前なしにもできるし、 (ソケット型であると印のついた) ファイル
+システムのパス名に 結び付けることもできる。さらに Linux では、ファイル
+システムに依存しない抽象名前空間 (abstract namespace) もサポートしている。
+.PP
+Valid socket types in the UNIX domain are: \fBSOCK_STREAM\fP, for a
+stream\-oriented socket; \fBSOCK_DGRAM\fP, for a datagram\-oriented socket that
+preserves message boundaries (as on most UNIX implementations, UNIX domain
+datagram sockets are always reliable and don't reorder datagrams); and
+(since Linux 2.6.4)  \fBSOCK_SEQPACKET\fP, for a sequenced\-packet socket that
+is connection\-oriented, preserves message boundaries, and delivers messages
+in the order that they were sent.
+.PP
+UNIX ドメインソケットでは、補助データを使って ファイルディスクリプターや
+プロセスの信任状 (credential) を 送受信することもできる。
+.SS アドレスのフォーマット
+UNIX ドメインソケットのアドレスは以下の構造体で表現される。
+.PP
+.in +4n
+.EX
+.\" #define UNIX_PATH_MAX    108
+.\"
+struct sockaddr_un {
+    sa_family_t sun_family;               /* AF_UNIX */
+    char        sun_path[108];            /* Pathname */
+};
+.EE
+.in
+.PP
+The \fIsun_family\fP field always contains \fBAF_UNIX\fP.  On Linux, \fIsun_path\fP
+is 108 bytes in size; see also NOTES, below.
+.PP
+様々なシステムコール (例えば \fBbind\fP(2), \fBconnect\fP(2), \fBsendto\fP(2)) は入力として
+\fIsockaddr_un\fP 引き数を取る。 他のいくつかのシステムコール (例えば \fBgetsockname\fP(2),
+\fBgetpeername\fP(2), \fBrecvfrom\fP(2), \fBaccept\fP(2)) はこの型の引き数を返す。
+.PP
+\fIsockaddr_un\fP 構造体では 3 種類のアドレスが区別される。
+.IP * 3
+\fIpathname (パス名)\fP: \fBbind\fP(2) を使って、UNIX ドメインソケットを、
+ヌル終端されたファイルシステム上のパス名に結び付けることができる。 (上述のいずれかのシステムコールにより) ソケットのアドレスが返される際、
+その長さは
+.IP
+    offsetof(struct sockaddr_un, sun_path) + strlen(sun_path) + 1
+.IP
+であり、 \fIsun_path\fP にはヌル終端されたパス名が格納される。 (Linux では、上記の \fBoffsetof\fP() 式は
+\fIsizeof(sa_family_t)\fP の値と同じだが、 他の実装では \fIsun_path\fP の前に他のフィールドが含まれる場合もある。
+そのため、 \fBoffsetof\fP() 式を使う方がより移植性のある方法でアドレス構造体のサイズを知ることができる。)
+.IP
+パス名ソケットの詳細については、後で説明する。
+.IP *
+.\" There is quite some variation across implementations: FreeBSD
+.\" says the length is 16 bytes, HP-UX 11 says it's zero bytes.
+\fIunnamed (名前なし)\fP: \fBbind\fP(2)  を使ってパス名に結び付けることができないストリーム型のソケットは 名前を持たない。同様に、
+\fBsocketpair\fP(2)  で作成される 2 つのソケットも名前を持たない。 名前なしのソケットのアドレスを返す際には、 その長さは
+\fIsizeof(sa_family_t)\fP であり、 \fIsun_path\fP は検査すべきではない。
+.IP *
+\fIabstract (抽象)\fP: 抽象ソケットアドレスは、 \fIsun_path[0]\fP がヌルバイト (\(aq\e0\(aq) であることから
+(パス名ソケットから) 区別できる。 この名前空間におけるソケットのアドレスは、 \fIsun_path\fP の残りのバイトの、
+アドレス構造体の指定された長さの範囲で表される (名前中のヌルバイトには特別な意味はない)。 この名前はファイルシステムのパス名とは何の関係もない。
+抽象ソケットのアドレスを返される際には、 返される \fIaddrlen\fP は \fIsizeof(sa_family_t)\fP より大きく (つまり 2
+より大きく)、 ソケットの名前は \fIsun_path\fP の最初の \fI(addrlen \- sizeof(sa_family_t))\fP
+バイトに格納される。
+.SS パス名ソケット
+ソケットにパス名を結びつける際に、 最大限の移植性を持たせ、コーディングを簡単にするためのルールがいくつかある。
+.IP * 3
+\fIsun_path\fP のパス名はヌル終端すべきである。
+.IP *
+終端のヌルバイトを含めたパス名の長さは \fIsun_path\fP の大きさを超えないようにすべきである。
+.IP *
+\fIsockaddr_un\fP 構造体の終わりを示す \fIaddrlen\fP 引き数は最低でも以下の値を持つべきである。
+.IP
+.nf
+    offsetof(struct sockaddr_un, sun_path)+strlen(addr.sun_path)+1
+.fi
+.IP
+もしくは、もっと簡単には、 \fIaddrlen\fP に \fIsizeof(struct sockaddr_un)\fP を指定することもできる。
+.PP
+.\" Linux does this, including for the case where the supplied path
+.\" is 108 bytes
+UNIX ドメインソケットアドレスの扱いが上記のルールに従っていない実装もいくつかある。 (全部ではないが) いくつかの実装では、
+\fIsun_path\fP に文字列終端の NULL がなかった場合に終端の NULL が追加される。
+.PP
+.\" HP-UX
+.\" Modern BSDs generally have 104, Tru64 and AIX have 104,
+.\" Solaris and Irix have 108
+移植性があるアプリケーションを作成する際には、 いくつかの実装では \fIsun_path\fP は 92 バイトしかないという点にも留意しておくとよい。
+.PP
+.\"
+様々なシステムコール (\fBaccept\fP(2), \fBrecvfrom\fP(2), \fBgetsockname\fP(2),
+\fBgetpeername\fP(2)) がソケットアドレス構造体を返す。 これらのシステムコールが UNIX ドメインソケットに対して呼ばれた際には、
+これらの呼び出しに渡す \fIaddrlen\fP 引き数は上記の説明のように初期化すべきである。
+リターン時には、この引き数にはアドレス構造体の「実際の」サイズが設定される。 呼び出し側ではこの引き数で返された値を確認すべきである。
+返された値が入力値よりも大きい場合、 \fIsun_path\fP に終端の NULL バイトが存在する保証はない (「バグ」を参照)。
+.SS "Pathname socket ownership and permissions"
+In the Linux implementation, pathname sockets honor the permissions of the
+directory they are in.  Creation of a new socket fails if the process does
+not have write and search (execute) permission on the directory in which the
+socket is created.
+.PP
+On Linux, connecting to a stream socket object requires write permission on
+that socket; sending a datagram to a datagram socket likewise requires write
+permission on that socket.  POSIX does not make any statement about the
+effect of the permissions on a socket file, and on some systems (e.g., older
+BSDs), the socket permissions are ignored.  Portable programs should not
+rely on this feature for security.
+.PP
+When creating a new socket, the owner and group of the socket file are set
+according to the usual rules.  The socket file has all permissions enabled,
+other than those that are turned off by the process \fBumask\fP(2).
+.PP
+.\" However, fchown() and fchmod() do not seem to have an effect
+.\"
+The owner, group, and permissions of a pathname socket can be changed (using
+\fBchown\fP(2)  and \fBchmod\fP(2)).
+.SS 抽象ソケット
+Socket permissions have no meaning for abstract sockets: the process
+\fBumask\fP(2)  has no effect when binding an abstract socket, and changing the
+ownership and permissions of the object (via \fBfchown\fP(2)  and \fBfchmod\fP(2))
+has no effect on the accessibility of the socket.
+.PP
+Abstract sockets automatically disappear when all open references to the
+socket are closed.
+.PP
+.\"
+The abstract socket namespace is a nonportable Linux extension.
+.SS ソケットオプション
+歴史的な理由により、これらのオプションは たとえ \fBAF_UNIX\fP 固有のオプションであっても \fBSOL_SOCKET\fP 型で指定する。
+ソケットファミリーとして \fBSOL_SOCKET\fP を指定すると、 \fBsetsockopt\fP(2)  でオプションが設定でき、
+\fBgetsockopt\fP(2)  で取得ができる。
+.TP 
+\fBSO_PASSCRED\fP
+Enabling this socket option causes receipt of the credentials of the sending
+process in an \fBSCM_CREDENTIALS ancillary\fP message in each subsequently
+received message.  The returned credentials are those specified by the
+sender using \fBSCM_CREDENTIALS\fP, or a default that includes the sender's
+PID, real user ID, and real group ID, if the sender did not specify
+\fBSCM_CREDENTIALS\fP ancillary data.
+.IP
+このオプションがセットされていて、まだソケットが接続されていないと、抽象名前空間に他と重ならない名前が自動的に生成される。
+.IP
+The value given as an argument to \fBsetsockopt\fP(2)  and returned as the
+result of \fBgetsockopt\fP(2)  is an integer boolean flag.
+.TP 
+\fBSO_PASSSEC\fP
+Enables receiving of the SELinux security label of the peer socket in an
+ancillary message of type \fBSCM_SECURITY\fP (see below).
+.IP
+The value given as an argument to \fBsetsockopt\fP(2)  and returned as the
+result of \fBgetsockopt\fP(2)  is an integer boolean flag.
+.IP
+.\" commit 877ce7c1b3afd69a9b1caeb1b9964c992641f52a
+.\" commit 37a9a8df8ce9de6ea73349c9ac8bdf6ba4ec4f70
+The \fBSO_PASSSEC\fP option is supported for UNIX domain datagram sockets since
+Linux 2.6.18; support for UNIX domain stream sockets was added in Linux 4.2.
+.TP 
+\fBSO_PEEK_OFF\fP
+\fBsocket\fP(7) を参照。
+.TP 
+\fBSO_PEERCRED\fP
+This read\-only socket option returns the credentials of the peer process
+connected to this socket.  The returned credentials are those that were in
+effect at the time of the call to \fBconnect\fP(2)  or \fBsocketpair\fP(2).
+.IP
+The argument to \fBgetsockopt\fP(2)  is a pointer to a \fIucred\fP structure;
+define the \fB_GNU_SOURCE\fP feature test macro to obtain the definition of
+that structure from \fI<sys/socket.h>\fP.
+.IP
+The use of this option is possible only for connected \fBAF_UNIX\fP stream
+sockets and for \fBAF_UNIX\fP stream and datagram socket pairs created using
+\fBsocketpair\fP(2).
+.TP 
+\fBSO_PEERSEC\fP
+This read\-only socket option returns the security context of the peer socket
+connected to this socket.  By default, this will be the same as the security
+context of the process that created the peer socket unless overridden by the
+policy or by a process with the required permissions.
+.IP
+The argument to \fBgetsockopt\fP(2)  is a pointer to a buffer of the specified
+length in bytes into which the security context string will be copied.  If
+the buffer length is less than the length of the security context string,
+then \fBgetsockopt\fP(2)  returns \-1, sets \fIerrno\fP to \fBERANGE\fP, and returns
+the required length via \fIoptlen\fP.  The caller should allocate at least
+\fBNAME_MAX\fP bytes for the buffer initially, although this is not guaranteed
+to be sufficient.  Resizing the buffer to the returned length and retrying
+may be necessary.
+.IP
+The security context string may include a terminating null character in the
+returned length, but is not guaranteed to do so: a security context "foo"
+might be represented as either {'f','o','o'} of length 3 or
+{'f','o','o','\e0'} of length 4, which are considered to be
+interchangeable.  The string is printable, does not contain non\-terminating
+null characters, and is in an unspecified encoding (in particular, it is not
+guaranteed to be ASCII or UTF\-8).
+.IP
+.\" commit 0b811db2cb2aabc910e53d34ebb95a15997c33e7
+.\"
+The use of this option for sockets in the \fBAF_UNIX\fP address family is
+supported since Linux 2.6.2 for connected stream sockets, and since Linux
+4.18 also for stream and datagram socket pairs created using
+\fBsocketpair\fP(2).
+.SS "自動バインド (autobind) 機能"
+.\" i.e., sizeof(short)
+\fBbind\fP(2) 呼び出しで \fIsizeof(sa_family_t)\fP として \fIaddrlen\fP を指定するか、
+アドレスに明示的にバインドされていないソケットに対して
+\fBSO_PASSCRED\fP ソケットオプションが指定されていた場合、
+そのソケットは抽象アドレスに自動的にバインドされる。
+このアドレスは、1 個のヌルバイトの後に、文字集合 \fI[0\-9a\-f]\fP のバイトが
+5 個続く形式である。したがって、自動的にバインドされるアドレス数には
+2^20 個という上限が存在する。
+(Linux 2.1.15 以降で、自動バインド機能が追加されたときには、
+8 バイトが使われており、自動バインドアドレス数の上限は 2^32 であった。
+Linux 2.3.15 で 5 バイトに変更された。)
+.SS "ソケット API"
+この節では、Linux の UNIX ドメインソケットでの、ドメイン固有の詳細仕様と
+ソケット API でサポートされていない機能について説明する。
+.PP
+UNIX ドメインソケットでは、帯域外データ (out\-of\-band data) の 送信
+(\fBsend\fP(2) と \fBrecv\fP(2) の \fBMSG_OOB\fP フラグ) はサポートされていない。
+.PP
+\fBsend\fP(2) \fBMSG_MORE\fP フラグは UNIX ドメインソケットではサポートされていない。
+.PP
+.\" commit 9f6f9af7694ede6314bed281eec74d588ba9474f
+Linux 3.4 より前では、 \fBrecv\fP(2) の \fIflags\fP 引き数での \fBMSG_TRUNC\fP の使用は UNIX
+ドメインソケットではサポートされていなかった。
+.PP
+\fBSO_SNDBUF\fP ソケットオプションは UNIX ドメインソケットで効果を持つが、
+\fBSO_RCVBUF\fP は効果がない。 データグラムソケットでは、 \fBSO_SNDBUF\fP の値が
+出力データグラムの上限サイズとなる。 実際の上限値は、 \fBSO_SNDBUF\fP オプション
+として設定された値の 2倍 (\fBsocket\fP(7) 参照) からオーバヘッドとして使用される
+32 バイトを引いた値となる。
+.SS 補助メッセージ
+補助データを送受するには、 \fBsendmsg\fP(2)  や \fBrecvmsg\fP(2)  を使用する。
+歴史的な理由により、以下に示す補助メッセージの型は たとえ \fBAF_UNIX\fP 固有のものであっても \fBSOL_SOCKET\fP 型で指定する。
+これらを送るには、構造体 \fIcmsghdr\fP の \fIcmsg_level\fP フィールドに \fBSOL_SOCKET\fP をセットし、
+\fIcmsg_type\fP フィールドにタイプをセットする。 詳細は \fBcmsg\fP(3)  を見よ。
+.TP 
+\fBSCM_RIGHTS\fP
+他のプロセスでオープンされたファイルディスクリプターのセットを送受信する。 データ部分にファイルディスクリプターの整数配列が入っている。
+.IP
+Commonly, this operation is referred to as "passing a file descriptor" to
+another process.  However, more accurately, what is being passed is a
+reference to an open file description (see \fBopen\fP(2)), and in the receiving
+process it is likely that a different file descriptor number will be used.
+Semantically, this operation is equivalent to duplicating (\fBdup\fP(2))  a
+file descriptor into the file descriptor table of another process.
+.IP
+If the buffer used to receive the ancillary data containing file descriptors
+is too small (or is absent), then the ancillary data is truncated (or
+discarded)  and the excess file descriptors are automatically closed in the
+receiving process.
+.IP
+If the number of file descriptors received in the ancillary data would cause
+the process to exceed its \fBRLIMIT_NOFILE\fP resource limit (see
+\fBgetrlimit\fP(2)), the excess file descriptors are automatically closed in
+the receiving process.
+.IP
+.\" commit bba14de98753cb6599a2dae0e520714b2153522d
+The kernel constant \fBSCM_MAX_FD\fP defines a limit on the number of file
+descriptors in the array.  Attempting to send an array larger than this
+limit causes \fBsendmsg\fP(2)  to fail with the error \fBEINVAL\fP.  \fBSCM_MAX_FD\fP
+has the value 253 (or 255 in kernels before 2.6.38).
+.TP 
+\fBSCM_CREDENTIALS\fP
+UNIX 信任状を送受信する。これは認証に用いることができる。
+信任状は \fIstruct ucred\fP の補助メッセージとして渡される。
+この構造体は \fI<sys/socket.h>\fP で以下のように定義されている。
+.IP
+.in +4n
+.EX
+struct ucred {
+    pid_t pid;    /* Process ID of the sending process */
+    uid_t uid;    /* User ID of the sending process */
+    gid_t gid;    /* Group ID of the sending process */
+};
+.EE
+.in
+.IP
+glibc 2.8 以降では、この構造体の定義を得るためには
+(\fIどの\fPヘッダーファイルをインクルードするよりも前に)
+機能検査マクロ \fB_GNU_SOURCE\fP を定義しなければならない。
+.IP
+The credentials which the sender specifies are checked by the kernel.  A
+privileged process is allowed to specify values that do not match its own.
+The sender must specify its own process ID (unless it has the capability
+\fBCAP_SYS_ADMIN\fP, in which case the PID of any existing process may be
+specified), its real user ID, effective user ID, or saved set\-user\-ID
+(unless it has \fBCAP_SETUID\fP), and its real group ID, effective group ID, or
+saved set\-group\-ID (unless it has \fBCAP_SETGID\fP).
+.IP
+To receive a \fIstruct ucred\fP message, the \fBSO_PASSCRED\fP option must be
+enabled on the socket.
+.TP 
+\fBSCM_SECURITY\fP
+Receive the SELinux security context (the security label)  of the peer
+socket.  The received ancillary data is a null\-terminated string containing
+the security context.  The receiver should allocate at least \fBNAME_MAX\fP
+bytes in the data portion of the ancillary message for this data.
+.IP
+To receive the security context, the \fBSO_PASSSEC\fP option must be enabled on
+the socket (see above).
+.PP
+When sending ancillary data with \fBsendmsg\fP(2), only one item of each of the
+above types may be included in the sent message.
+.PP
+At least one byte of real data should be sent when sending ancillary data.
+On Linux, this is required to successfully send ancillary data over a UNIX
+domain stream socket.  When sending ancillary data over a UNIX domain
+datagram socket, it is not necessary on Linux to send any accompanying real
+data.  However, portable applications should also include at least one byte
+of real data when sending ancillary data over a datagram socket.
+.PP
+When receiving from a stream socket, ancillary data forms a kind of barrier
+for the received data.  For example, suppose that the sender transmits as
+follows:
+.PP
+.RS
+.PD 0
+.IP 1. 3
+\fBsendmsg\fP(2)  of four bytes, with no ancillary data.
+.IP 2.
+\fBsendmsg\fP(2)  of one byte, with ancillary data.
+.IP 3.
+\fBsendmsg\fP(2)  of four bytes, with no ancillary data.
+.PD
+.RE
+.PP
+Suppose that the receiver now performs \fBrecvmsg\fP(2)  calls each with a
+buffer size of 20 bytes.  The first call will receive five bytes of data,
+along with the ancillary data sent by the second \fBsendmsg\fP(2)  call.  The
+next call will receive the remaining four bytes of data.
+.PP
+.\"
+If the space allocated for receiving incoming ancillary data is too small
+then the ancillary data is truncated to the number of headers that will fit
+in the supplied buffer (or, in the case of an \fBSCM_RIGHTS\fP file descriptor
+list, the list of file descriptors may be truncated).  If no buffer is
+provided for incoming ancillary data (i.e., the \fImsg_control\fP field of the
+\fImsghdr\fP structure supplied to \fBrecvmsg\fP(2)  is NULL), then the incoming
+ancillary data is discarded.  In both of these cases, the \fBMSG_CTRUNC\fP flag
+will be set in the \fImsg.msg_flags\fP value returned by \fBrecvmsg\fP(2).
+.SS ioctl
+以下の \fBioctl\fP(2) 呼び出しは \fIvalue\fP に情報を入れて返す。
+正しい書式は以下の通り。
+.PP
+.RS
+.nf
+\fBint\fP\fI value\fP\fB;\fP
+\fIerror\fP\fB = ioctl(\fP\fIunix_socket\fP\fB, \fP\fIioctl_type\fP\fB, &\fP\fIvalue\fP\fB);\fP
+.fi
+.RE
+.PP
+\fIioctl_type\fP には以下を指定できる:
+.TP 
+\fBSIOCINQ\fP
+.\" FIXME . http://sources.redhat.com/bugzilla/show_bug.cgi?id=12002,
+.\" filed 2010-09-10, may cause SIOCINQ to be defined in glibc headers
+.\" SIOCOUTQ also has an effect for UNIX domain sockets, but not
+.\" quite what userland might expect. It seems to return the number
+.\" of bytes allocated for buffers containing pending output.
+.\" That number is normally larger than the number of bytes of pending
+.\" output. Since this info is, from userland's point of view, imprecise,
+.\" and it may well change, probably best not to document this now.
+For \fBSOCK_STREAM\fP sockets, this call returns the number of unread bytes in
+the receive buffer.  The socket must not be in LISTEN state, otherwise an
+error (\fBEINVAL\fP)  is returned.  \fBSIOCINQ\fP is defined in
+\fI<linux/sockios.h>\fP.  Alternatively, you can use the synonymous
+\fBFIONREAD\fP, defined in \fI<sys/ioctl.h>\fP.  For \fBSOCK_DGRAM\fP
+sockets, the returned value is the same as for Internet domain datagram
+sockets; see \fBudp\fP(7).
+.SH エラー
+.TP 
+\fBEADDRINUSE\fP
+指定したローカルアドレスが既に使用されているか、ファイルシステムの
+ソケットオブジェクトが既に存在している。
+.TP 
+\fBEBADF\fP
+This error can occur for \fBsendmsg\fP(2)  when sending a file descriptor as
+ancillary data over a UNIX domain socket (see the description of
+\fBSCM_RIGHTS\fP, above), and indicates that the file descriptor number that is
+being sent is not valid (e.g., it is not an open file descriptor).
+.TP 
+\fBECONNREFUSED\fP
+\fBconnect\fP(2) により指定されたリモートアドレスが接続待ちソケットではなかった。
+このエラーはターゲットのパス名がソケットでなかった場合にも発生する。
+.TP 
+\fBECONNRESET\fP
+リモートソケットが予期しないかたちでクローズされた。
+.TP 
+\fBEFAULT\fP
+ユーザーメモリーアドレスが不正。
+.TP 
+\fBEINVAL\fP
+渡した引数が不正。よくある原因としては、渡したアドレスの \fIsun_type\fP フィール
+ドに \fBAF_UNIX\fP が指定されていなかった、行おうとした操作に対してソケットが有
+効な状態ではなかった、など。
+.TP 
+\fBEISCONN\fP
+既に接続されているソケットに対して \fBconnect\fP(2)  が呼ばれた。または、指定したターゲットアドレスが 既に接続済みのソケットだった。
+.TP 
+\fBENOENT\fP
+\fBconnect\fP(2) に指定されたリモートアドレスのパス名が存在しなかった。
+.TP 
+\fBENOMEM\fP
+メモリーが足りない。
+.TP 
+\fBENOTCONN\fP
+ソケット操作にターゲットアドレスが必要だが、 このソケットは接続されていない。
+.TP 
+\fBEOPNOTSUPP\fP
+ストリーム指向でないソケットに対してストリーム操作が呼び出された。 または帯域外データオプションを用いようとした。
+.TP 
+\fBEPERM\fP
+送信者が \fIstruct ucred\fP に不正な信任状を渡した。
+.TP 
+\fBEPIPE\fP
+リモートソケットがストリームソケット上でクローズされた。 可能な場合は \fBSIGPIPE\fP も同時に送られる。これを避けるには
+\fBMSG_NOSIGNAL\fP フラグを \fBsend\fP(2)  や \fBsendmsg\fP(2)  に渡す。
+.TP 
+\fBEPROTONOSUPPORT\fP
+渡されたプロトコルが \fBAF_UNIX\fP でない。
+.TP 
+\fBEPROTOTYPE\fP
+リモートソケットとローカルソケットのタイプが一致していなかった (\fBSOCK_DGRAM\fP と \fBSOCK_STREAM\fP)。
+.TP 
+\fBESOCKTNOSUPPORT\fP
+未知のソケットタイプ。
+.TP 
+\fBESRCH\fP
+While sending an ancillary message containing credentials
+(\fBSCM_CREDENTIALS\fP), the caller specified a PID that does not match any
+existing process.
+.TP 
+\fBETOOMANYREFS\fP
+This error can occur for \fBsendmsg\fP(2)  when sending a file descriptor as
+ancillary data over a UNIX domain socket (see the description of
+\fBSCM_RIGHTS\fP, above).  It occurs if the number of "in\-flight" file
+descriptors exceeds the \fBRLIMIT_NOFILE\fP resource limit and the caller does
+not have the \fBCAP_SYS_RESOURCE\fP capability.  An in\-flight file descriptor
+is one that has been sent using \fBsendmsg\fP(2)  but has not yet been accepted
+in the recipient process using \fBrecvmsg\fP(2).
+.IP
+.\" commit 712f4aad406bb1ed67f3f98d04c044191f0ff593
+This error is diagnosed since mainline Linux 4.5 (and in some earlier kernel
+versions where the fix has been backported).  In earlier kernel versions, it
+was possible to place an unlimited number of file descriptors in flight, by
+sending each file descriptor with \fBsendmsg\fP(2)  and then closing the file
+descriptor so that it was not accounted against the \fBRLIMIT_NOFILE\fP
+resource limit.
+.PP
+他にも汎用のソケット層でエラーが起こったり、 ファイルシステム上にソケットオブジェクトを作ろうとした場合に ファイルシステムのエラーが起こることがある。
+それぞれの詳細は適切な man ページを参照すること。
+.SH バージョン
+\fBSCM_CREDENTIALS\fP と抽象名前空間は、Linux 2.2 で導入された。 移植性が必要なプログラムでは使うべきではない。 (BSD
+由来のシステムの中にも信任状の送受信をサポートしているものがあるが、 その実装の詳細はシステムによって異なる)
+.SH 注意
+ファイル名を指定してソケットにバインドすると、ファイルシステムにソケットが
+生成される。これは必要なくなったときに呼びだしたユーザーが削除しなければ
+ならない (\fBunlink\fP(2) を用いる)。 UNIX で通常使われる「背後で閉じる方式」
+が適用される。ソケットはいつでも unlink することができ、最後の参照が
+クローズされたときにファイルシステムから削除される。
+.PP
+\fBSOCK_STREAM\fP ソケット上でファイルディスクリプターや信任状を渡すためには、同じ \fBsendmsg\fP(2)  や
+\fBrecvmsg\fP(2)  コールで補助データ以外のデータを少なくとも 1 バイト送信/受信しなければならない。
+.PP
+.\"
+UNIX ドメインのストリームソケットでは、 帯域外データの概念はサポートされない。
+.SH バグ
+.\" The behavior on Solaris is quite similar.
+ソケットをアドレスに結びつける際、 Linux は終端の NULL が \fIsun_path\fP になかった場合に追加する実装の一つである。
+ほとんどの場合、 これは問題にならない。 ソケットアドレスが取得された際、ソケットをバインドしたときに指定したものより 1 バイト長くなるだけである。
+しかしながら、紛らわしい動作が起こる場合が一つある。 ソケットをバインドした際に 108 個の NULL でないバイトを指定した場合、 終端の NULL
+が追加されるとパス名の長さが \fIsizeof(sun_path)\fP を超えてしまう。 結果として、(例えば \fBaccept\fP(2) で)
+ソケットアドレスを取得した際に、 値を取得する呼び出しの入力の \fIaddress\fP 引き数に \fIsizeof(struct
+sockaddr_un)\fP を指定したとすると、 返されるアドレス構造体は \fIsun_path\fP に終端の NULL を「含まない」ことになる。
+.PP
+.\" i.e., traditional BSD
+さらに、 いくつかの実装では、ソケットをバインドする際に終端の NULL が必要ではなく (\fIaddrlen\fP 引き数を使って \fIsun_path\fP
+の長さが判定される)、 このような実装でソケットアドレスを取得する際には、 \fIsun_path\fP に終端の NULL は存在しない。
+.PP
+ソケットアドレスを取得するアプリケーションでは、 \fIsun_path\fP に終端の NULL が存在しないという移植性の問題を、
+パス名の有効なバイト数が以下のようになると事実を考慮することで取り扱うことができる。
+.PP
+.\" The following patch to amend kernel behavior was rejected:
+.\" http://thread.gmane.org/gmane.linux.kernel.api/2437
+.\" Subject: [patch] Fix handling of overlength pathname in AF_UNIX sun_path
+.\" 2012-04-17
+.\" And there was a related discussion in the Austin list:
+.\" http://thread.gmane.org/gmane.comp.standards.posix.austin.general/5735
+.\" Subject: Having a sun_path with no null terminator
+.\" 2012-04-18
+.\"
+.\" FIXME . Track http://austingroupbugs.net/view.php?id=561
+    strnlen(addr.sun_path, addrlen \- offsetof(sockaddr_un, sun_path))
+.PP
+他の方法としては、 アプリケーションがソケットアドレスを取得する際、 取得の呼び出しを行う前に、 大きさが \fIsizeof(struct
+sockaddr_un)+1\fP のバッファーを割り当てることもできる。 取得の呼び出しでは \fIaddrlen\fP に \fIsizeof(struct
+sockaddr_un)\fP を指定すると、 余分な一つの 0 バイトにより \fIsun_path\fP で返される文字列に終端の NULL
+が含まれることが保証される。
+.PP
+.in +4n
+.EX
+void *addrp;
+
+addrlen = sizeof(struct sockaddr_un);
+addrp = malloc(addrlen + 1);
+if (addrp == NULL)
+    /* Handle error */ ;
+memset(addrp, 0, addrlen + 1);
+
+if (getsockname(sfd, (struct sockaddr *) addrp, &addrlen)) == \-1)
+    /* handle error */ ;
+
+printf("sun_path = %s\en", ((struct sockaddr_un *) addrp)\->sun_path);
+.EE
+.in
+.PP
+アプリケーションが「パス名ソケット」の節で説明したルールにしたがってパス名を「作成」していれば、 このような分かりにくさは避けることができる。
+.SH 例
+The following code demonstrates the use of sequenced\-packet sockets for
+local interprocess communication.  It consists of two programs.  The server
+program waits for a connection from the client program.  The client sends
+each of its command\-line arguments in separate messages.  The server treats
+the incoming messages as integers and adds them up.  The client sends the
+command string "END".  The server sends back a message containing the sum of
+the client's integers.  The client prints the sum and exits.  The server
+waits for the next client to connect.  To stop the server, the client is
+called with the command\-line argument "DOWN".
+.PP
+The following output was recorded while running the server in the background
+and repeatedly executing the client.  Execution of the server program ends
+when it receives the "DOWN" command.
+.SS 出力例
+.in +4n
+.EX
+$ \fB./server &\fP
+[1] 25887
+$ \fB./client 3 4\fP
+Result = 7
+$ \fB./client 11 \-5\fP
+Result = 6
+$ \fB./client DOWN\fP
+Result = 0
+[1]+  Done                    ./server
+$
+.EE
+.in
+.SS プログラムのソース
+\&
+.EX
+/*
+ * File connection.h
+ */
+
+#define SOCKET_NAME "/tmp/9Lq7BNBnBycd6nxy.socket"
+#define BUFFER_SIZE 12
+
+/*
+ * File server.c
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include "connection.h"
+
+int
+main(int argc, char *argv[])
+{
+    struct sockaddr_un name;
+    int down_flag = 0;
+    int ret;
+    int connection_socket;
+    int data_socket;
+    int result;
+    char buffer[BUFFER_SIZE];
+
+    /* Create local socket. */
+
+    connection_socket = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+    if (connection_socket == \-1) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    /*
+     * For portability clear the whole structure, since some
+     * implementations have additional (nonstandard) fields in
+     * the structure.
+     */
+
+    memset(&name, 0, sizeof(name));
+
+    /* Bind socket to socket name. */
+
+    name.sun_family = AF_UNIX;
+    strncpy(name.sun_path, SOCKET_NAME, sizeof(name.sun_path) \- 1);
+
+    ret = bind(connection_socket, (const struct sockaddr *) &name,
+               sizeof(name));
+    if (ret == \-1) {
+        perror("bind");
+        exit(EXIT_FAILURE);
+    }
+
+    /*
+     * Prepare for accepting connections. The backlog size is set
+     * to 20. So while one request is being processed other requests
+     * can be waiting.
+     */
+
+    ret = listen(connection_socket, 20);
+    if (ret == \-1) {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+
+    /* This is the main loop for handling connections. */
+
+    for (;;) {
+
+        /* Wait for incoming connection. */
+
+        data_socket = accept(connection_socket, NULL, NULL);
+        if (data_socket == \-1) {
+            perror("accept");
+            exit(EXIT_FAILURE);
+        }
+
+        result = 0;
+        for (;;) {
+
+            /* Wait for next data packet. */
+
+            ret = read(data_socket, buffer, sizeof(buffer));
+            if (ret == \-1) {
+                perror("read");
+                exit(EXIT_FAILURE);
+            }
+
+            /* Ensure buffer is 0\-terminated. */
+
+            buffer[sizeof(buffer) \- 1] = 0;
+
+            /* Handle commands. */
+
+            if (!strncmp(buffer, "DOWN", sizeof(buffer))) {
+                down_flag = 1;
+                break;
+            }
+
+            if (!strncmp(buffer, "END", sizeof(buffer))) {
+                break;
+            }
+
+            /* Add received summand. */
+
+            result += atoi(buffer);
+        }
+
+        /* Send result. */
+
+        sprintf(buffer, "%d", result);
+        ret = write(data_socket, buffer, sizeof(buffer));
+        if (ret == \-1) {
+            perror("write");
+            exit(EXIT_FAILURE);
+        }
+
+        /* Close socket. */
+
+        close(data_socket);
+
+        /* Quit on DOWN command. */
+
+        if (down_flag) {
+            break;
+        }
+    }
+
+    close(connection_socket);
+
+    /* Unlink the socket. */
+
+    unlink(SOCKET_NAME);
+
+    exit(EXIT_SUCCESS);
+}
+
+/*
+ * File client.c
+ */
+
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include "connection.h"
+
+int
+main(int argc, char *argv[])
+{
+    struct sockaddr_un addr;
+    int ret;
+    int data_socket;
+    char buffer[BUFFER_SIZE];
+
+    /* Create local socket. */
+
+    data_socket = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+    if (data_socket == \-1) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    /*
+     * For portability clear the whole structure, since some
+     * implementations have additional (nonstandard) fields in
+     * the structure.
+     */
+
+    memset(&addr, 0, sizeof(addr));
+
+    /* Connect socket to socket address */
+
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, SOCKET_NAME, sizeof(addr.sun_path) \- 1);
+
+    ret = connect(data_socket, (const struct sockaddr *) &addr,
+                   sizeof(addr));
+    if (ret == \-1) {
+        fprintf(stderr, "The server is down.\en");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Send arguments. */
+
+    for (int i = 1; i < argc; ++i) {
+        ret = write(data_socket, argv[i], strlen(argv[i]) + 1);
+        if (ret == \-1) {
+            perror("write");
+            break;
+        }
+    }
+
+    /* Request result. */
+
+    strcpy(buffer, "END");
+    ret = write(data_socket, buffer, strlen(buffer) + 1);
+    if (ret == \-1) {
+        perror("write");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Receive result. */
+
+    ret = read(data_socket, buffer, sizeof(buffer));
+    if (ret == \-1) {
+        perror("read");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Ensure buffer is 0\-terminated. */
+
+    buffer[sizeof(buffer) \- 1] = 0;
+
+    printf("Result = %s\en", buffer);
+
+    /* Close socket. */
+
+    close(data_socket);
+
+    exit(EXIT_SUCCESS);
+}
+.EE
+.PP
+\fBSCM_RIGHTS\fP の使用例については \fBcmsg\fP(3) を参照。
+.SH 関連項目
+\fBrecvmsg\fP(2), \fBsendmsg\fP(2), \fBsocket\fP(2), \fBsocketpair\fP(2), \fBcmsg\fP(3),
+\fBcapabilities\fP(7), \fBcredentials\fP(7), \fBsocket\fP(7), \fBudp\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。
