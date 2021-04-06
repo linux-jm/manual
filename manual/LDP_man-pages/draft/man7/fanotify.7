@@ -1,0 +1,897 @@
+.\" Copyright (C) 2013, Heinrich Schuchardt <xypron.glpk@gmx.de>
+.\" and Copyright (C) 2014, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of
+.\" this manual under the conditions for verbatim copying, provided that
+.\" the entire resulting derived work is distributed under the terms of
+.\" a permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume.
+.\" no responsibility for errors or omissions, or for damages resulting.
+.\" from the use of the information contained herein.  The author(s) may.
+.\" not have taken the same level of care in the production of this.
+.\" manual, which is licensed free of charge, as they might when working.
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH FANOTIFY 7 2020\-11\-01 Linux "Linux Programmer's Manual"
+.SH 名前
+fanotify \- ファイルシステムイベントを監視する
+.SH 説明
+The fanotify API provides notification and interception of filesystem
+events.  Use cases include virus scanning and hierarchical storage
+management.  In the original fanotify API, only a limited set of events was
+supported.  In particular, there was no support for create, delete, and move
+events.  The support for those events was added in Linux 5.1.  (See
+\fBinotify\fP(7)  for details of an API that did notify those events pre Linux
+5.1.)
+.PP
+\fBinotify\fP(7) API と比較して追加されている機能としては、 マウントされたファイルシステムの全オブジェクトを監視する機能、
+アクセス許可の判定を行う機能、 他のアプリケーションによるアクセスの前にファイルを読み出したり変更したりする機能がある。
+.PP
+この API では以下のシステムコールを使用する: \fBfanotify_init\fP(2), \fBfanotify_mark\fP(2),
+\fBread\fP(2), \fBwrite\fP(2), \fBclose\fP(2)。
+.SS "fanotify_init(), fanotify_mark() と通知グループ"
+\fBfanotify_init\fP(2) システムコールは fanotify 通知グループを作成、初期化し、
+この通知グループを参照するファイルディスクリプターを返す。
+.PP
+fanotify 通知グループはカーネル内部のオブジェクトで、
+イベントが作成されるファイル、ディレクトリ、ファイルシステム、マウントポイントのリストを保持する。
+.PP
+fanotify 通知グループの各エントリーには 2 つのビットマスクがある。 \fImark\fP マスクと \fIignore\fP マスクである。 mark
+マスクはどのファイル操作についてイベントを作成するかを定義する。 ignore マスクはどの操作についてイベントを作成しないかを定義する。 これらの 2
+種類のマスクがあることで、 ファイルシステム、マウントポイント、ディレクトリに対してイベントの受信を mark しておきつつ、
+同時にそのマウントポイントやディレクトリ配下の特定のオブジェクトに対するイベントを無視する、 といったことができる。
+.PP
+\fBfanotify_mark\fP(2) システムコールは、ファイル、ディレクトリ、ファイルシステム、マウントポイントを通知グループに追加し、
+どのイベントを報告 (もしくは無視) するかを指定する。 また、このようなエントリーの削除、変更も行う。
+.PP
+ignore マスクの考えられる使用方法はファイルキャッシュに対してである。
+ファイルキャッシュに関して興味のあるイベントは、ファイルの変更とファイルのクローズである。 それゆえ、
+キャッシュされたディレクトリやマウントポイントは、 これらのイベントを受信するようにマークされる。
+ファイルが変更されたという最初のイベントを受信した後は、 対応するキャッシュエントリーは無効化される。 そのファイルがクローズされるまでは、
+このファイルに対する変更イベントは興味のない情報となる。 したがって、 変更イベントを ignore マスクに追加することができる。
+クローズイベントを受信すると、 変更イベントを ignore イベントから削除し、 ファイルキャッシュエントリーを更新することができる。
+.PP
+The entries in the fanotify notification groups refer to files and
+directories via their inode number and to mounts via their mount ID.  If
+files or directories are renamed or moved within the same mount, the
+respective entries survive.  If files or directories are deleted or moved to
+another mount or if filesystems or mounts are unmounted, the corresponding
+entries are deleted.
+.SS イベントキュー
+通知グループにより監視されているファイルシステムオブジェクトでイベントが発生すると、 fanotify システムはイベントを生成し、
+そのイベントはキューにまとめられる。 これらのイベントは、 \fBfanotify_init\fP(2) が返した fanotify
+ファイルディスクリプターから (\fBread\fP(2) などを使って) 読み出すことができる。
+.PP
+Two types of events are generated: \fInotification\fP events and \fIpermission\fP
+events.  Notification events are merely informative and require no action to
+be taken by the receiving application with one exception: if a valid file
+descriptor is provided within a generic event, the file descriptor must be
+closed.  Permission events are requests to the receiving application to
+decide whether permission for a file access shall be granted.  For these
+events, the recipient must write a response which decides whether access is
+granted or not.
+.PP
+イベントは、 読み出されると、 fanotify グループのイベントキューから削除される。 読み出されたアクセス許可イベントは、 fanotify
+ファイルディスクリプターにアクセス許可の判定が書き込まれるか、 fanotify ファイルディスクリプターがクローズされるまで、 fanotify
+グループの内部のリストに保持される。
+.SS "fanotify イベントの読み出し"
+\fBfanotify_init\fP(2) が返したファイルディスクリプターに対する \fBread\fP(2) を呼び出しは、
+(\fBfanotify_init\fP(2) の呼び出しでフラグ \fBFAN_NONBLOCK\fP を指定しなかった場合)
+ファイルイベントが起こるか、呼び出しがシグナルによって割り込まれる (\fBsignal\fP(7) 参照) まで停止する。
+.PP
+The use of one of the flags \fBFAN_REPORT_FID\fP, \fBFAN_REPORT_DIR_FID\fP in
+\fBfanotify_init\fP(2)  influences what data structures are returned to the
+event listener for each event.  Events reported to a group initialized with
+one of these flags will use file handles to identify filesystem objects
+instead of file descriptors.
+.TP 
+\fBread\fP(2) が成功すると、
+読み出しバッファーには以下の構造体が 1 つ以上格納される。
+.PP
+.in +4n
+.EX
+struct fanotify_event_metadata {
+    __u32 event_len;
+    __u8 vers;
+    __u8 reserved;
+    __u16 metadata_len;
+    __aligned_u64 mask;
+    __s32 fd;
+    __s32 pid;
+};
+.EE
+.in
+.PP
+In case of an fanotify group that identifies filesystem objects by file
+handles, you should also expect to receive one or more additional
+information records of the structure detailed below following the generic
+\fIfanotify_event_metadata\fP structure within the read buffer:
+.PP
+.in +4n
+.EX
+struct fanotify_event_info_header {
+    __u8 info_type;
+    __u8 pad;
+    __u16 len;
+};
+
+struct fanotify_event_info_fid {
+    struct fanotify_event_info_header hdr;
+    __kernel_fsid_t fsid;
+    unsigned char file_handle[0];
+};
+.EE
+.in
+.PP
+性能上の理由から、複数のイベントを一度の \fBread\fP(2) で取得できるように大きめのバッファーサイズ (例えば 4096 バイト)
+を使用することを推奨する。
+.PP
+\fBread\fP(2) の返り値はバッファーに格納されたバイト数である。 エラーの場合は \-1 が返される (ただし、バグも参照)。
+.PP
+\fIfanotify_event_metadata\fP 構造体のフィールドは以下のとおりである。
+.TP 
+\fIevent_len\fP
+This is the length of the data for the current event and the offset to the
+next event in the buffer.  Unless the group identifies filesystem objects by
+file handles, the value of \fIevent_len\fP is always
+\fBFAN_EVENT_METADATA_LEN\fP.  For a group that identifies filesystem objects
+by file handles, \fIevent_len\fP also includes the variable length file
+identifier records.
+.TP 
+\fIvers\fP
+このフィールドには構造体のバージョン番号が入る。 実行時に返された構造体がコンパイル時の構造体と一致しているかを検査するには、 この値を
+\fBFANOTIFY_METADATA_VERSION\fP を比較すること。 一致しない場合、 アプリケーションはその fanotify
+ファイルディスクリプターを使用するのを諦めるべきである。
+.TP 
+\fIreserved\fP
+このフィールドは使用されない。
+.TP 
+\fImetadata_len\fP
+この構造体の長さである。 このフィールドは、 イベント種別単位のオプションヘッダーの実装を扱うために導入された。
+現在の実装ではこのようなオプションヘッダーは存在しない。
+.TP 
+\fImask\fP
+イベントを示すビットマスクである (下記参照)
+.TP 
+\fIfd\fP
+This is an open file descriptor for the object being accessed, or
+\fBFAN_NOFD\fP if a queue overflow occurred.  With an fanotify group that
+identifies filesystem objects by file handles, applications should expect
+this value to be set to \fBFAN_NOFD\fP for each event that is received.  The
+file descriptor can be used to access the contents of the monitored file or
+directory.  The reading application is responsible for closing this file
+descriptor.
+.IP
+\fBfanotify_init\fP(2) を呼び出す際、
+呼び出し元はこのファイルディスクリプターに対応するオープンファイル記述にセットされた様々なファイル状態フラグを (\fIevent_f_flags\fP
+引き数を使って) 指定することができる。 さらに、 (カーネル内部の) \fBFMODE_NONOTIFY\fP
+ファイル状態フラグがオープンファイル記述にセットされる。 このフラグは fanotify イベントの生成を抑制する。 したがって、 fanotify
+イベントの受信者がこのファイルディスクリプターを使って通知されたファイルやディレクトリにアクセスした際に、 これ以上イベントが作成されなくなる。
+.TP 
+\fIpid\fP
+If flag \fBFAN_REPORT_TID\fP was set in \fBfanotify_init\fP(2), this is the TID of
+the thread that caused the event.  Otherwise, this the PID of the process
+that caused the event.
+.PP
+fanotify イベントを監視しているプログラムは、 この PID を \fBgetpid\fP(2) が返す PID と比較することで、
+イベントが監視しているプログラム自身から発生したかどうか、 別のプロセスによるファイルアクセスにより発生したか、を判定できる。
+.PP
+\fImask\fP のビットマスクは、1 つのファイルシステムオブジェクトに対してどのイベントが発生したかを示す。
+監視対象のファイルシステムオブジェクトに複数のイベントが発生した場合は、 このマスクに複数のビットがセットされることがある。 特に、
+同じファイルシステムオブジェクトに対する連続するイベントが同じプロセスから生成された場合には、 一つのイベントにまとめられることがある。 例外として、
+2 つのアクセス許可イベントが一つのキューエントリーにまとめられることは決してない。
+.PP
+\fImask\fP でセットされている可能性のあるビットは以下のとおりである。
+.TP 
+\fBFAN_ACCESS\fP
+ファイルやディレクトリがアクセスされた (読み出しが行われた) (ただし、「バグ」の節も参照)。
+.TP 
+\fBFAN_OPEN\fP
+ファイルやディレクトリがオープンされた。
+.TP 
+\fBFAN_OPEN_EXEC\fP
+A file was opened with the intent to be executed.  See NOTES in
+\fBfanotify_mark\fP(2)  for additional details.
+.TP 
+\fBFAN_ATTRIB\fP
+ファイルかディレクトリのメタデータが変更された。
+.TP 
+\fBFAN_CREATE\fP
+A child file or directory was created in a watched parent.
+.TP 
+\fBFAN_DELETE\fP
+A child file or directory was deleted in a watched parent.
+.TP 
+\fBFAN_DELETE_SELF\fP
+A watched file or directory was deleted.
+.TP 
+\fBFAN_MOVED_FROM\fP
+A file or directory has been moved from a watched parent directory.
+.TP 
+\fBFAN_MOVED_TO\fP
+A file or directory has been moved to a watched parent directory.
+.TP 
+\fBFAN_MOVE_SELF\fP
+監視対象のディレクトリやファイルが移動された。
+.TP 
+\fBFAN_MODIFY\fP
+ファイルが変更された。
+.TP 
+\fBFAN_CLOSE_WRITE\fP
+書き込み用 (\fBO_WRONLY\fP か \fBO_RDWR\fP) にオープンされたファイルがクローズされた。
+.TP 
+\fBFAN_CLOSE_NOWRITE\fP
+読み出し用 (\fBO_RDONLY\fP) にオープンされたファイルがクローズされた。
+.TP 
+\fBFAN_Q_OVERFLOW\fP
+イベントキューが 16384 エントリーの上限を超過した。 この上限は \fBfanotify_init\fP(2) 呼び出し時に
+\fBFAN_UNLIMITED_QUEUE\fP フラグを指定することで上書きできる。
+.TP 
+\fBFAN_ACCESS_PERM\fP
+アプリケーションが例えば \fBread\fP(2) や \fBreaddir\fP(2) などを使ってファイルやディレクトリを読み出そうとした。
+このイベントを読み出したプログラムは、 そのファイルシステムオブジェクトへのアクセス許可を承認するかを判定し (下記で説明するとおり)
+応答を書き込まなければならない。
+.TP 
+\fBFAN_OPEN_PERM\fP
+アプリケーションがファイルやディレクトリをオープンしようとした。 このイベントを読み出したプログラムは、
+そのファイルシステムオブジェクトのオープンを承認するかを判定し (下記で説明するとおり) 応答を書き込まなければならない。
+.TP 
+\fBFAN_OPEN_EXEC_PERM\fP
+An application wants to open a file for execution.  The reader must write a
+response that determines whether the permission to open the filesystem
+object for execution shall be granted.  See NOTES in \fBfanotify_mark\fP(2)
+for additional details.
+.PP
+クローズイベントを確認するために以下のビットマスクを使うことができる。
+.TP 
+\fBFAN_CLOSE\fP
+ファイルがクローズされた。 以下の同義語である。
+.IP
+    FAN_CLOSE_WRITE | FAN_CLOSE_NOWRITE
+.PP
+移動イベントを確認するために以下のビットマスクを使うことができる。
+.TP 
+\fBFAN_MOVE\fP
+ファイルやディレクトリが移動された。 以下の同義語である。
+.IP
+    FAN_MOVED_FROM | FAN_MOVED_TO
+.PP
+The following bits may appear in \fImask\fP only in conjunction with other
+event type bits:
+.TP 
+\fBFAN_ONDIR\fP
+The events described in the \fImask\fP have occurred on a directory object.
+Reporting events on directories requires setting this flag in the mark
+mask.  See \fBfanotify_mark\fP(2)  for additional details.  The \fBFAN_ONDIR\fP
+flag is reported in an event mask only if the fanotify group identifies
+filesystem objects by file handles.
+.PP
+\fIfanotify_event_info_fid\fP 構造体のフィールドは以下のとおりである。
+.TP 
+\fIhdr\fP
+This is a structure of type \fIfanotify_event_info_header\fP.  It is a generic
+header that contains information used to describe an additional information
+record attached to the event.  For example, when an fanotify file descriptor
+is created using \fBFAN_REPORT_FID\fP, a single information record is expected
+to be attached to the event with \fIinfo_type\fP field value of
+\fBFAN_EVENT_INFO_TYPE_FID\fP.  When an fanotify file descriptor is created
+using the combination of \fBFAN_REPORT_FID\fP and \fBFAN_REPORT_DIR_FID\fP, there
+may be two information records attached to the event: one with \fIinfo_type\fP
+field value of \fBFAN_EVENT_INFO_TYPE_DFID\fP, identifying a parent directory
+object, and one with \fIinfo_type\fP field value of \fBFAN_EVENT_INFO_TYPE_FID\fP,
+identifying a non\-directory object.  The \fIfanotify_event_info_header\fP
+contains a \fIlen\fP field.  The value of \fIlen\fP is the size of the additional
+information record including the \fIfanotify_event_info_header\fP itself.  The
+total size of all additional information records is not expected to be
+bigger than ( \fIevent_len\fP \- \fImetadata_len\fP ).
+.TP 
+\fIfsid\fP
+This is a unique identifier of the filesystem containing the object
+associated with the event.  It is a structure of type \fI__kernel_fsid_t\fP and
+contains the same value as \fIf_fsid\fP when calling \fBstatfs\fP(2).
+.TP 
+\fIfile_handle\fP
+This is a variable length structure of type struct file_handle.  It is an
+opaque handle that corresponds to a specified object on a filesystem as
+returned by \fBname_to_handle_at\fP(2).  It can be used to uniquely identify a
+file on a filesystem and can be passed as an argument to
+\fBopen_by_handle_at\fP(2).  Note that for the directory entry modification
+events \fBFAN_CREATE\fP, \fBFAN_DELETE\fP, and \fBFAN_MOVE\fP, the \fIfile_handle\fP
+identifies the modified directory and not the created/deleted/moved child
+object.  If the value of \fIinfo_type\fP field is
+\fBFAN_EVENT_INFO_TYPE_DFID_NAME\fP, the file handle is followed by a null
+terminated string that identifies the created/deleted/moved directory entry
+name.  For other events such as \fBFAN_OPEN\fP, \fBFAN_ATTRIB\fP,
+\fBFAN_DELETE_SELF\fP, and \fBFAN_MOVE_SELF\fP, if the value of \fIinfo_type\fP field
+is \fBFAN_EVENT_INFO_TYPE_FID\fP, the \fIfile_handle\fP identifies the object
+correlated to the event.  If the value of \fIinfo_type\fP field is
+\fBFAN_EVENT_INFO_TYPE_DFID\fP, the \fIfile_handle\fP identifies the directory
+object correlated to the event or the parent directory of a non\-directory
+object correlated to the event.  If the value of \fIinfo_type\fP field is
+\fBFAN_EVENT_INFO_TYPE_DFID_NAME\fP, the \fIfile_handle\fP identifies the same
+directory object that would be reported with \fBFAN_EVENT_INFO_TYPE_DFID\fP and
+the file handle is followed by a null terminated string that identifies the
+name of a directory entry in that directory, or '.' to identify the
+directory object itself.
+.PP
+fanotify ファイルディスクリプターからの \fBread\fP(2) が返した fanotify
+イベントメタデータを含むバッファーに対して繰り返しを行うため、 以下のマクロが提供されている。
+.TP 
+\fBFAN_EVENT_OK(meta, len)\fP
+このマクロは、 バッファー \fImeta\fP の残りの長さ \fIlen\fP を、 メタデータ構造体の長さとバッファーの最初のメタデータ構造体の
+\fIevent_len\fP フィールドと比較して検査する。
+.TP 
+\fBFAN_EVENT_NEXT(meta, len)\fP
+This macro uses the length indicated in the \fIevent_len\fP field of the
+metadata structure pointed to by \fImeta\fP to calculate the address of the
+next metadata structure that follows \fImeta\fP.  \fIlen\fP is the number of bytes
+of metadata that currently remain in the buffer.  The macro returns a
+pointer to the next metadata structure that follows \fImeta\fP, and reduces
+\fIlen\fP by the number of bytes in the metadata structure that has been
+skipped over (i.e., it subtracts \fImeta\->event_len\fP from \fIlen\fP).
+.PP
+また、 以下のマクロも用意されている。
+.TP 
+\fBFAN_EVENT_METADATA_LEN\fP
+.\"
+このマクロは \fIfanotify_event_metadata\fP 構造体の (バイト単位の) サイズを返す。
+返される値はイベントメタデータの最小値である (現在のところ、これが唯一のサイズである)。
+.SS "fanotify ファイルディスクリプターのイベントを監視する"
+fanotify イベントが発生すると、 \fBepoll\fP(7), \fBpoll\fP(2), \fBselect\fP(2) に fanotify
+ファイルディスクリプターが渡された場合には、そのファイルディスクリプターが読み出し可能であると通知される。
+.SS アクセス許可イベントの取り扱い
+アクセス許可イベントでは、 アプリケーションは以下の形式の構造体を fanotify ファイルディスクリプターに \fBwrite\fP(2)
+しなければならない。
+.PP
+.in +4n
+.EX
+struct fanotify_response {
+    __s32 fd;
+    __u32 response;
+};
+.EE
+.in
+.PP
+この構造体のフィールドは以下のとおりである。
+.TP 
+\fIfd\fP
+このフィールドは \fIfanotify_event_metadata\fP 構造体で返されたファイルディスクリプターである。
+.TP 
+\fIresponse\fP
+このフィールドはアクセス許可を承認するかどうかを示す。 値は、このファイル操作を許可する \fBFAN_ALLOW\fP か、 このファイル操作を拒否する
+\fBFAN_DENY\fP のいずれかでなければならない。
+.PP
+.\"
+アクセスを拒否した場合、 アクセスを要求したアプリケーションは \fBEPERM\fP エラーを受け取ることになる。
+.SS "fanotify ファイルディスクリプターのクローズ"
+fanotify 通知グループを参照するすべてのファイルディスクリプターがクローズされると、 fanotify グループは解放され、
+カーネルが再利用できるようにそのリソースは解放される。 \fBclose\fP(2) の際に、 処理中であったアクセス許可イベントには許可が設定される。
+.SS /proc/[pid]/fdinfo
+ファイル \fI/proc/[pid]/fdinfo/[fd]\fP には、 プロセス \fIpid\fP のファイルディスクリプター \fIfd\fP の
+fanotify マークに関する情報が格納される。 詳細は \fBproc\fP(5) を参照。
+.SH エラー
+通常の \fBread\fP(2) のエラーに加え、 fanotify ファイルディスクリプターから読み出しを行った際に以下のエラーが発生することがある。
+.TP 
+\fBEINVAL\fP
+バッファーがイベントを保持するには小さすぎる。
+.TP 
+\fBEMFILE\fP
+オープンしたファイル数のプロセス毎の上限に達した。 \fBgetrlimit\fP(2) の \fBRLIMIT_NOFILE\fP の説明を参照。
+.TP 
+\fBENFILE\fP
+オープンされたファイルの総数のシステム全体の上限に達した。 \fBproc\fP(5) の \fI/proc/sys/fs/file\-max\fP を参照。
+.TP 
+\fBETXTBSY\fP
+\fBfanotify_init\fP(2) の呼び出し時に \fBO_RDWR\fP か \fBO_WRONLY\fP が \fIevent_f_flags\fP
+引き数に指定されており、 現在実行中の監視対象のファイルに対してイベントが発生した際に、 このエラーが \fBread\fP(2) から返される。
+.PP
+通常の \fBwrite\fP(2) のエラーに加え、 fanotify ファイルディスクリプターに書き込みを行った際に以下のエラーが発生することがある。
+.TP 
+\fBEINVAL\fP
+fanotify アクセス許可がカーネルの設定で有効になっていない。 応答構造体の \fIresponse\fP 値が無効である。
+.TP 
+\fBENOENT\fP
+応答構造体のファイルディスクリプター \fIfd\fP が無効である。 このエラーはアクセス許可イベントに対する応答がすでに書き込まれている際に発生する。
+.SH バージョン
+fanotify API は Linux カーネルのバージョン 2.6.36 で導入され、 バージョン 2.6.37 で有効にされた。 fdinfo
+のサポートはバージョン 3.8 で追加された。
+.SH 準拠
+fanotify API は Linux 独自のものである。
+.SH 注意
+fanotify API が利用できるのは、 カーネルが \fBCONFIG_FANOTIFY\fP 設定オプションを有効にして作成されている場合だけである。
+また、 fanotify アクセス許可の処理が利用できるのは \fBCONFIG_FANOTIFY_ACCESS_PERMISSIONS\fP
+設定オプションが有効になっている場合だけである。
+.SS 制限と警告
+fanotify が報告するのはユーザー空間プログラムがファイルシステム API 経由で行ったイベントだけである。 その結果、 fanotify
+ではネットワークファイルシステム上で発生したリモートイベントは捕捉できない。
+.PP
+inotify API は \fBmmap\fP(2), \fBmsync\fP(2), \fBmunmap\fP(2)
+により起こったファイルのアクセスと変更を報告しない。
+.PP
+ディレクトリのイベントは、ディレクトリ自身がオープン、読み出し、クローズされた場合にしか作成されない。
+マークされたディレクトリでの子要素の追加、削除、変更では、監視対象のディレクトリ自身へのイベントは作成されない。
+.PP
+Fanotify monitoring of directories is not recursive: to monitor
+subdirectories under a directory, additional marks must be created.  The
+\fBFAN_CREATE\fP event can be used for detecting when a subdirectory has been
+created under a marked directory.  An additional mark must then be set on
+the newly created subdirectory.  This approach is racy, because it can lose
+events that occurred inside the newly created subdirectory, before a mark is
+added on that subdirectory.  Monitoring mounts offers the capability to
+monitor a whole directory tree in a race\-free manner.  Monitoring
+filesystems offers the capability to monitor changes made from any mount of
+a filesystem instance in a race\-free manner.
+.PP
+ベントキューはオーバーフローすることがある。 この場合、 イベントは失われる。
+.SH バグ
+.\" commit 820c12d5d6c0890bc93dd63893924a13041fdc35
+Before Linux 3.19, \fBfallocate\fP(2)  did not generate fanotify events.  Since
+Linux 3.19, calls to \fBfallocate\fP(2)  generate \fBFAN_MODIFY\fP events.
+.PP
+Linux 3.17 時点では、 以下のバグが存在する。
+.IP * 3
+Linux では、ファイルシステムオブジェクトは複数のパスでアクセス可能である。 例えば、 ファイルシステムの一部は \fBmount\fP(8) の
+\fI\-\-bind\fP オプションを使って再マウントされることがある。 マークされたマウントの監視者は、
+同じマウントを使ったファイルオブジェクトについてのみイベント通知を受ける。 それ以外のイベントは通知されない。
+.IP *
+.\" FIXME . A patch was proposed.
+イベントが生成された際に、 そのファイルのファイルディスクリプターを渡す前に、 イベントを受信するプロセスのユーザー ID
+がそのファイルに対する読み出し／書き込み許可があるかの確認は行われない。 非特権ユーザーによって実行されたプログラムに \fBCAP_SYS_ADMIN\fP
+ケーパビリティーがセットされている場合には、 このことはセキュリティーリスクとなる。
+.IP *
+\fBread\fP(2) の呼び出しが fanotify キューから複数のイベントを処理している際に、 エラーが発生した場合、
+返り値はエラーが発生する前までにユーザー空間バッファーに正常にコピーされたイベントの合計長となる。 返り値は \-1 にならず、 \fIerrno\fP
+もセットされない。 したがって、 読み出しを行うアプリケーションではエラーを検出する方法はない。
+.SH 例
+The two example programs below demonstrate the usage of the fanotify API.
+.SS "Example program: fanotify_example.c"
+The first program is an example of fanotify being used with its event object
+information passed in the form of a file descriptor.  The program marks the
+mount point passed as a command\-line argument and waits for events of type
+\fBFAN_OPEN_PERM\fP and \fBFAN_CLOSE_WRITE\fP.  When a permission event occurs, a
+\fBFAN_ALLOW\fP response is given.
+.PP
+The following shell session shows an example of running this program.  This
+session involved editing the file \fI/home/user/temp/notes\fP.  Before the file
+was opened, a \fBFAN_OPEN_PERM\fP event occurred.  After the file was closed, a
+\fBFAN_CLOSE_WRITE\fP event occurred.  Execution of the program ends when the
+user presses the ENTER key.
+.PP
+.in +4n
+.EX
+# \fB./fanotify_example /home\fP
+Press enter key to terminate.
+Listening for events.
+FAN_OPEN_PERM: File /home/user/temp/notes
+FAN_CLOSE_WRITE: File /home/user/temp/notes
+
+Listening for events stopped.
+.EE
+.in
+.SS "プログラムのソース: fanotify_example.c"
+\&
+.EX
+#define _GNU_SOURCE     /* O_LARGEFILE の定義を得るために必要 */
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <poll.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/fanotify.h>
+#include <unistd.h>
+
+/* ファイルディスクリプター \(aqfd\(aq から読み出しできる全 fanotify イベントを読み出す */
+
+static void
+handle_events(int fd)
+{
+    const struct fanotify_event_metadata *metadata;
+    struct fanotify_event_metadata buf[200];
+    ssize_t len;
+    char path[PATH_MAX];
+    ssize_t path_len;
+    char procfd_path[PATH_MAX];
+    struct fanotify_response response;
+
+    /* fanotify ファイルディスクリプターからイベントが読み出せる間はループする */
+
+    for (;;) {
+
+        /* イベントを読み出す */
+
+        len = read(fd, buf, sizeof(buf));
+        if (len == \-1 && errno != EAGAIN) {
+            perror("read");
+            exit(EXIT_FAILURE);
+        }
+
+        /* 読み出せるデータの最後に達しているかチェックする */
+
+        if (len <= 0)
+            break;
+
+        /* バッファーの最初のイベントを参照する */
+
+        metadata = buf;
+
+        /* バッファー内の全イベントを処理する */
+
+        while (FAN_EVENT_OK(metadata, len)) {
+
+            /* 実行時とコンパイル時の構造体が一致するか確認する */
+
+            if (metadata\->vers != FANOTIFY_METADATA_VERSION) {
+                fprintf(stderr,
+                        "Mismatch of fanotify metadata version.\en");
+                exit(EXIT_FAILURE);
+            }
+
+            /* metadata\->fd には、キューのオーバーフローを示す FAN_NOFD か、
+               ファイルディスクリプター (負でない整数) のいずれかが入っている。
+               ここではキューのオーバーフローは無視している。 */
+
+            if (metadata\->fd >= 0) {
+
+                /* オープン許可イベントを処理する */
+
+                if (metadata\->mask & FAN_OPEN_PERM) {
+                    printf("FAN_OPEN_PERM: ");
+
+                    /* ファイルのオープンを許可する */
+
+                    response.fd = metadata\->fd;
+                    response.response = FAN_ALLOW;
+                    write(fd, &response, sizeof(response));
+                }
+
+                /* 書き込み可能ファイルのクローズイベントを処理する */
+
+                if (metadata\->mask & FAN_CLOSE_WRITE)
+                    printf("FAN_CLOSE_WRITE: ");
+
+                /* アクセスされたファイルのパス名を取得し表示する */
+
+                snprintf(procfd_path, sizeof(procfd_path),
+                         "/proc/self/fd/%d", metadata\->fd);
+                path_len = readlink(procfd_path, path,
+                                    sizeof(path) \- 1);
+                if (path_len == \-1) {
+                    perror("readlink");
+                    exit(EXIT_FAILURE);
+                }
+
+                path[path_len] = \(aq\e0\(aq;
+                printf("File %s\en", path);
+
+                /* イベントのファイルディスクリプターをクローズする */
+
+                close(metadata\->fd);
+            }
+
+            /* 次のイベントに進む */
+
+            metadata = FAN_EVENT_NEXT(metadata, len);
+        }
+    }
+}
+
+int
+main(int argc, char *argv[])
+{
+    char buf;
+    int fd, poll_num;
+    nfds_t nfds;
+    struct pollfd fds[2];
+
+    /* マウントポイントが指定されたか確認する */
+
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s MOUNT\en", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Press enter key to terminate.\en");
+
+    /* fanotify API にアクセスするためのファイルディスクリプターを作成する */
+
+    fd = fanotify_init(FAN_CLOEXEC | FAN_CLASS_CONTENT | FAN_NONBLOCK,
+                       O_RDONLY | O_LARGEFILE);
+    if (fd == \-1) {
+        perror("fanotify_init");
+        exit(EXIT_FAILURE);
+    }
+
+    /* 指定されたマウントに対して以下を監視するようにマークを付ける:
+       \- ファイルのオープン前のアクセス許可イベント
+       \- 書き込み可能なファイルディスクリプターのクローズ後の
+         通知イベント */
+
+    if (fanotify_mark(fd, FAN_MARK_ADD | FAN_MARK_MOUNT,
+                      FAN_OPEN_PERM | FAN_CLOSE_WRITE, AT_FDCWD,
+                      argv[1]) == \-1) {
+        perror("fanotify_mark");
+        exit(EXIT_FAILURE);
+    }
+
+    /* ポーリングの準備 */
+
+    nfds = 2;
+
+    /* コンソールの入力 */
+
+    fds[0].fd = STDIN_FILENO;
+    fds[0].events = POLLIN;
+
+    /* fanotify の入力 */
+
+    fds[1].fd = fd;
+    fds[1].events = POLLIN;
+
+    /* イベントの発生を待つループ */
+
+    printf("Listening for events.\en");
+
+    while (1) {
+        poll_num = poll(fds, nfds, \-1);
+        if (poll_num == \-1) {
+            if (errno == EINTR)     /* シグナルに割り込まれた場合 */
+                continue;           /* poll() を再開する */
+
+            perror("poll");         /* 予期しないエラー */
+            exit(EXIT_FAILURE);
+        }
+
+        if (poll_num > 0) {
+            if (fds[0].revents & POLLIN) {
+
+                /* コンソールからの入力がある場合: 空の標準入力であれば終了 */
+
+                while (read(STDIN_FILENO, &buf, 1) > 0 && buf != \(aq\en\(aq)
+                    continue;
+                break;
+            }
+
+            if (fds[1].revents & POLLIN) {
+
+                /* fanotify イベントがある場合 */
+
+                handle_events(fd);
+            }
+        }
+    }
+
+    printf("Listening for events stopped.\en");
+    exit(EXIT_SUCCESS);
+}
+.EE
+.\"
+.SS "Example program: fanotify_fid.c"
+The second program is an example of fanotify being used with a group that
+identifies objects by file handles.  The program marks the filesystem object
+that is passed as a command\-line argument and waits until an event of type
+\fBFAN_CREATE\fP has occurred.  The event mask indicates which type of
+filesystem object\(emeither a file or a directory\(emwas created.  Once all
+events have been read from the buffer and processed accordingly, the program
+simply terminates.
+.PP
+The following shell sessions show two different invocations of this program,
+with different actions performed on a watched object.
+.PP
+The first session shows a mark being placed on \fI/home/user\fP.  This is
+followed by the creation of a regular file, \fI/home/user/testfile.txt\fP.
+This results in a \fBFAN_CREATE\fP event being generated and reported against
+the file's parent watched directory object and with the created file name.
+Program execution ends once all events captured within the buffer have been
+processed.
+.PP
+.in +4n
+.EX
+# \fB./fanotify_fid /home/user\fP
+Listening for events.
+FAN_CREATE (file created):
+        Directory /home/user has been modified.
+        Entry \(aqtestfile.txt\(aq is not a subdirectory.
+All events processed successfully. Program exiting.
+
+$ \fBtouch /home/user/testfile.txt\fP              # In another terminal
+.EE
+.in
+.PP
+The second session shows a mark being placed on \fI/home/user\fP.  This is
+followed by the creation of a directory, \fI/home/user/testdir\fP.  This
+specific action results in a \fBFAN_CREATE\fP event being generated and is
+reported with the \fBFAN_ONDIR\fP flag set and with the created directory name.
+.PP
+.in +4n
+.EX
+# \fB./fanotify_fid /home/user\fP
+Listening for events.
+FAN_CREATE | FAN_ONDIR (subdirectory created):
+        Directory /home/user has been modified.
+        Entry \(aqtestdir\(aq is a subdirectory.
+All events processed successfully. Program exiting.
+
+$ \fBmkdir \-p /home/user/testdir\fP          # In another terminal
+.EE
+.in
+.SS "プログラムのソース: fanotify_fid.c"
+\&
+.EX
+#define _GNU_SOURCE
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/fanotify.h>
+#include <unistd.h>
+
+#define BUF_SIZE 256
+
+int
+main(int argc, char **argv)
+{
+    int fd, ret, event_fd, mount_fd;
+    ssize_t len, path_len;
+    char path[PATH_MAX];
+    char procfd_path[PATH_MAX];
+    char events_buf[BUF_SIZE];
+    struct file_handle *file_handle;
+    struct fanotify_event_metadata *metadata;
+    struct fanotify_event_info_fid *fid;
+    const char *file_name;
+    struct stat sb;
+
+    if (argc != 2) {
+        fprintf(stderr, "Invalid number of command line arguments.\en");
+        exit(EXIT_FAILURE);
+    }
+
+    mount_fd = open(argv[1], O_DIRECTORY | O_RDONLY);
+    if (mount_fd == \-1) {
+        perror(argv[1]);
+        exit(EXIT_FAILURE);
+    }
+
+
+    /* Create an fanotify file descriptor with FAN_REPORT_DFID_NAME as
+       a flag so that program can receive fid events with directory
+       entry name. */
+
+    fd = fanotify_init(FAN_CLASS_NOTIF | FAN_REPORT_DFID_NAME, 0);
+    if (fd == \-1) {
+        perror("fanotify_init");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Place a mark on the filesystem object supplied in argv[1]. */
+
+    ret = fanotify_mark(fd, FAN_MARK_ADD | FAN_MARK_ONLYDIR,
+                        FAN_CREATE | FAN_ONDIR,
+                        AT_FDCWD, argv[1]);
+    if (ret == \-1) {
+        perror("fanotify_mark");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Listening for events.\en");
+
+    /* Read events from the event queue into a buffer */
+
+    len = read(fd, events_buf, sizeof(events_buf));
+    if (len == \-1 && errno != EAGAIN) {
+        perror("read");
+        exit(EXIT_FAILURE);
+    }
+
+        /* バッファー内の全イベントを処理する */
+
+    for (metadata = (struct fanotify_event_metadata *) events_buf;
+            FAN_EVENT_OK(metadata, len);
+            metadata = FAN_EVENT_NEXT(metadata, len)) {
+        fid = (struct fanotify_event_info_fid *) (metadata + 1);
+        file_handle = (struct file_handle *) fid\->handle;
+
+        /* Ensure that the event info is of the correct type */
+
+        if (fid\->hdr.info_type == FAN_EVENT_INFO_TYPE_FID ||
+            fid\->hdr.info_type == FAN_EVENT_INFO_TYPE_DFID) {
+            file_name = NULL;
+        } else if (fid\->hdr.info_type == FAN_EVENT_INFO_TYPE_DFID_NAME) {
+            file_name = file_handle\->f_handle +
+                        file_handle\->handle_bytes;
+        } else {
+            fprintf(stderr, "Received unexpected event info type.\en");
+            exit(EXIT_FAILURE);
+        }
+
+        if (metadata\->mask == FAN_CREATE)
+            printf("FAN_CREATE (file created):\en");
+
+        if (metadata\->mask == (FAN_CREATE | FAN_ONDIR))
+            printf("FAN_CREATE | FAN_ONDIR (subdirectory created):\en");
+
+	/* metadata\->fd is set to FAN_NOFD when the group identifies
+	   objects by file handles.  To obtain a file descriptor for
+	   the file object corresponding to an event you can use the
+	   struct file_handle that\(aqs provided within the
+	   fanotify_event_info_fid in conjunction with the
+	   open_by_handle_at(2) system call.  A check for ESTALE is
+	   done to accommodate for the situation where the file handle
+	   for the object was deleted prior to this system call. */
+
+        event_fd = open_by_handle_at(mount_fd, file_handle, O_RDONLY);
+        if (event_fd == \-1) {
+            if (errno == ESTALE) {
+                printf("File handle is no longer valid. "
+                        "File has been deleted\en");
+                continue;
+            } else {
+                perror("open_by_handle_at");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        snprintf(procfd_path, sizeof(procfd_path), "/proc/self/fd/%d",
+                event_fd);
+
+                /* 変更された dentry のパスを取得し表示する */
+
+        path_len = readlink(procfd_path, path, sizeof(path) \- 1);
+        if (path_len == \-1) {
+            perror("readlink");
+            exit(EXIT_FAILURE);
+        }
+
+        path[path_len] = \(aq\e0\(aq;
+        printf("\etDirectory \(aq%s\(aq has been modified.\en", path);
+
+        if (file_name) {
+            ret = fstatat(event_fd, file_name, &sb, 0);
+            if (ret == \-1) {
+                if (errno != ENOENT) {
+                    perror("fstatat");
+                    exit(EXIT_FAILURE);
+                }
+                printf("\etEntry \(aq%s\(aq does not exist.\en", file_name);
+            } else if ((sb.st_mode & S_IFMT) == S_IFDIR) {
+                printf("\etEntry \(aq%s\(aq is a subdirectory.\en", file_name);
+            } else {
+                printf("\etEntry \(aq%s\(aq is not a subdirectory.\en",
+                        file_name);
+            }
+        }
+
+        /* Close associated file descriptor for this event */
+
+        close(event_fd);
+    }
+
+    printf("All events processed successfully. Program exiting.\en");
+    exit(EXIT_SUCCESS);
+}
+.EE
+.SH 関連項目
+.ad l
+\fBfanotify_init\fP(2), \fBfanotify_mark\fP(2), \fBinotify\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。
