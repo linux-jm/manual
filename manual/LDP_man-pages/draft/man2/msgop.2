@@ -1,0 +1,436 @@
+.\" Copyright 1993 Giorgio Ciucci <giorgio@crcc.it>
+.\" and Copyright 2015 Bill Pemberton <wfp5p@worldbroken.com>
+.\"
+.\" %%%LICENSE_START(VERBATIM)
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\"
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\"
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" %%%LICENSE_END
+.\"
+.\" Modified Tue Oct 22 16:40:11 1996 by Eric S. Raymond <esr@thyrsus.com>
+.\" Modified Mon Jul 10 21:09:59 2000 by aeb
+.\" Modified 1 Jun 2002, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Language clean-ups.
+.\"	Enhanced and corrected information on msg_qbytes, MSGMNB and MSGMAX
+.\"	Added note on restart behavior of msgsnd() and msgrcv()
+.\"	Formatting clean-ups (argument and field names marked as .I
+.\"		instead of .B)
+.\" Modified, 27 May 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"     Added notes on capability requirements
+.\" Modified, 11 Nov 2004, Michael Kerrisk <mtk.manpages@gmail.com>
+.\"	Language and formatting clean-ups
+.\"	Added notes on /proc files
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-02-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified 2000-09-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2002-11-26, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-03-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2006-03-05, Akihiro MOTOKI, LDP v2.25
+.\" Updated 2008-08-09, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH MSGOP 2 2020\-11\-01 Linux "Linux Programmer's Manual"
+.SH 名前
+msgrcv, msgsnd \- System V メッセージキュー操作
+.SH 書式
+.nf
+\fB#include <sys/types.h>\fP
+\fB#include <sys/ipc.h>\fP
+\fB#include <sys/msg.h>\fP
+.PP
+\fBint msgsnd(int \fP\fImsqid\fP\fB, const void *\fP\fImsgp\fP\fB, size_t \fP\fImsgsz\fP\fB, int \fP\fImsgflg\fP\fB);\fP
+.PP
+\fBssize_t msgrcv(int \fP\fImsqid\fP\fB, void *\fP\fImsgp\fP\fB, size_t \fP\fImsgsz\fP\fB, long \fP\fImsgtyp\fP\fB,\fP
+\fB               int \fP\fImsgflg\fP\fB);\fP
+.fi
+.SH 説明
+システムコール \fBmsgsnd\fP() と \fBmsgrcv\fP() は、 System\ V
+メッセージキューへのメッセージの送信と、メッセージの受信に使用される。呼び出し元プロセスは、
+メッセージを送信するためにはメッセージキューに対する書き込み許可を、 メッセージを受信するためには読み出し許可を持っていなければならない。
+.PP
+呼び出し元プロセスは以下に示す構造体を用意し、この構造体への ポインターを \fImsgp\fP 引き数として渡す。
+.PP
+.in +4n
+.EX
+struct msgbuf {
+    long mtype;       /* message type, must be > 0 */
+    char mtext[1];    /* message data */
+};
+.EE
+.in
+.PP
+\fImtext\fP フィールドは配列 (または他の構造体) で、その大きさは 非負の整数である \fImsgsz\fP で指定される。 長さ 0 のメッセージ
+(つまり \fImtext\fP フィールドがないメッセージ) も認められている。 \fBmtype\fP フィールドは厳密に正の整数でなければならない。
+この値は、メッセージを受信するプロセスでメッセージを選択するために 使用される (下記の \fBmsgrcv\fP()  の説明を参照のこと)。
+.SS msgsnd()
+\fBmsgsnd\fP()  システムコールは \fImsgp\fP 引き数で指定されたメッセージのコピーを \fImsqid\fP
+で指定された識別子を持つメッセージキューへ追加する。
+.PP
+キューに十分な空き容量がある場合、 \fBmsgsnd\fP()  は直ちに成功する。 キューの容量は、メッセージキューのデータ構造体の
+\fImsg_qbytes\fP フィールドで制御される。 キュー作成時にこのフィールドは \fBMSGMNB\fP に初期化されるが、この制限は
+\fBmsgctl\fP(2)  を使って変更できる。 次のいずれかの条件が成立する場合に、メッセージキューは一杯と判断される。
+.IP \(bu 2
+新しいメッセージをそのキューに追加すると、 そのキューの全バイト数がキューの最大サイズ (\fImsg_qbytes\fP フィールド)
+を超過してしまう場合。
+.IP \(bu
+そのキューにもう一つメッセージを追加すると、 そのキューが全メッセージ数がキューの最大サイズ (\fImsg_qbytes\fP フィールド)
+を超過してしまう場合。 このチェックは、無限個の長さ 0 のメッセージをそのキューに追加するのを防ぐために必要である。 長さ 0
+のメッセージはデータを含まないが、 (ロックされた) カーネルメモリーを消費するからである。
+.PP
+そのキューに十分な領域がない場合、 デフォルトの動作では、 必要な領域ができるまで \fBmsgsnd\fP() は停止 (block) する。
+\fImsgflg\fP に \fBIPC_NOWAIT\fP が指定された場合、 \fBmsgsnd\fP() はエラー \fBEAGAIN\fP で失敗する。
+.PP
+停止している \fBmsgsnd\fP()  は以下の場合にも失敗する。
+.IP \(bu 2
+キューが削除された。 この場合、 \fIerrno\fP は \fBEIDRM\fP に設定される。
+.IP \(bu
+シグナルが捕捉された。 この場合、 \fIerrno\fP は \fBEINTR\fP に設定される。 \fBsignal\fP(7)  参照。 (\fBmsgsnd\fP()
+は、たとえシグナルハンドラーの設定時に \fBSA_RESTART\fP を指定していたとしても、シグナルハンドラーによって割り込まれた後で
+自動的に再スタートすることは決してない。)
+.PP
+正常に終了した場合、メッセージキューのデータ構造体は以下のように 更新される:
+.IP \(bu 2
+\fImsg_lspid\fP には呼び出し元プロセスのプロセス ID が設定される。
+.IP \(bu
+\fImsg_qnum\fP は 1 増加する。
+.IP \(bu
+\fImsg_stime\fP には現在時刻が設定される。
+.SS msgrcv()
+\fBmsgrcv\fP()  システムコールは \fImsqid\fP で指定されたキューからメッセージを削除し、 \fImsgp\fP
+で指定されたバッファーにそのメッセージを格納する。
+.PP
+\fImsgsz\fP 引き数には \fImsgp\fP 引き数で指定された構造体の \fImtext\fP メンバーの最大のバイト数を指定する。
+メッセージのテキストの長さが \fImsgsz\fP より大きい場合の動作は、 \fImsgflg\fP に \fBMSG_NOERROR\fP
+が指定されているかどうかで決まる。 \fBMSG_NOERROR\fP が指定されていれば、メッセージのテキストは切り詰められる
+(切り捨てられた部分は失われる)。 \fBMSG_NOERROR\fP が指定されていなければ、メッセージはキューから削除されず、 システムコールは \-1
+を返して失敗し、 \fIerrno\fP に \fBE2BIG\fP が設定される。
+.PP
+\fBMSG_COPY\fP が \fImsgflg\fP に指定されていない場合 (下記参照)、 \fImsgtyp\fP 引き数には要求するメッセージの型を指定する。
+型は以下のように指定する:
+.IP \(bu 2
+\fImsgtyp\fP が 0 ならば、キューの最初にあるメッセージが読み込まれる。
+.IP \(bu
+\fImsgtyp\fP が 0 より大きい場合、 \fImsgflg\fP に \fBMSG_EXCEPT\fP が指定されていなければ、 \fImsgtyp\fP
+型のキューの最初のメッセージが読み込まれる。 \fBMSG_EXCEPT\fP が指定された場合は、 \fImsgtyp\fP
+型以外のキューの最初のメッセージが読み込まれる。
+.IP \(bu
+\fImsgtyp\fP が 0 より小さければ、 \fImsgtyp\fP の絶対値以下で最も小さい型を持つキューの最初のメッセージが読み込まれる。
+.PP
+\fImsgflg\fP 引き数には、以下のフラグを任意の数だけ (0個も可)、これらの OR で指定する:
+.TP 
+\fBIPC_NOWAIT\fP
+キューに要求された型のメッセージがない場合には直ちに返る。 システムコールは失敗し、 \fIerrno\fP には \fBENOMSG\fP が設定される。
+.TP 
+\fBMSG_COPY\fP (Linux 3.8 以降)
+.\" commit 4a674f34ba04a002244edaf891b5da7fc1473ae8
+キューの中で \fImsgtyp\fP で指定した位置にあるメッセージのコピーを、キューを変更せずに (非破壊的に) 取り出す (メッセージの位置は 0
+から順番に番号が割り当てられる)。
+.IP
+このフラグは \fBIPC_NOWAIT\fP と組み合わせて指定しなければならない。 その結果、指定した位置にメッセージがなかった場合、呼び出しはエラー
+\fBENOMSG\fP ですぐに失敗する。 \fBMSG_COPY\fP と \fBMSG_EXCEPT\fP は \fImsgtyp\fP
+の意味を相容れない方法で使用するため、この二つのフラグの両方を \fImsgtyp\fP に指定することはできない。
+.IP
+\fBMSG_COPY\fP フラグは、 カーネルのチェックポイント復元 (checkpoint\-restore) 機能の実装のために追加された。
+このフラグはカーネルが \fBCONFIG_CHECKPOINT_RESTORE\fP オプションを有効にして作成された場合にのみ利用できる。
+.TP 
+\fBMSG_EXCEPT\fP
+0 より大きな \fImsgtyp\fP と一緒に使用して、 \fImsgtyp\fP 以外のキューの最初のメッセージを読み込む。
+.TP 
+\fBMSG_NOERROR\fP
+\fImsgsz\fP バイトよりも長かった場合はメッセージのテキストを切り詰める。
+.PP
+要求された型のメッセージが存在せず、 \fImsgflg\fP に \fBIPC_NOWAIT\fP が指定されていなかった場合、呼び出し元プロセスは
+以下のいずれかの状況になるまで停止 (block) される:
+.IP \(bu 2
+要求している型のメッセージがキューへ入れられた。
+.IP \(bu
+メッセージキューがシステムから削除された。 この場合、システムコールは失敗し、 \fIerrno\fP に \fBEIDRM\fP が設定される。
+.IP \(bu
+呼び出し元プロセスがシグナルを捕獲した。 この場合、システムコールは失敗し、 \fIerrno\fP に \fBEINTR\fP が設定される。
+(\fBmsgrcv\fP()  は、たとえシグナルハンドラーの設定時に \fBSA_RESTART\fP
+を指定していたとしても、シグナルハンドラーによって割り込まれた後で 自動的に再スタートすることは決してない。)
+.PP
+正常に終了した場合、メッセージキューのデータ構造体は以下のように 更新される:
+.IP
+\fImsg_lrpid\fP には呼び出し元プロセスのプロセス ID が設定される。
+.IP
+\fImsg_qnum\fP は 1 減算される。
+.IP
+\fImsg_rtime\fP には現在の時刻が設定される。
+.SH 返り値
+失敗した場合は、どちらの関数も \-1 を返し、エラーを \fIerrno\fP に表示する。成功した場合、 \fBmsgsnd\fP()  は 0 を返し、
+\fBmsgrcv\fP()  は \fImtext\fP 配列に実際にコピーしたバイト数を返す。
+.SH エラー
+\fBmsgsnd\fP()  が失敗した場合、 \fBerrno\fP に以下の値のいずれかが設定される:
+.TP 
+\fBEACCES\fP
+The calling process does not have write permission on the message queue, and
+does not have the \fBCAP_IPC_OWNER\fP capability in the user namespace that
+governs its IPC namespace.
+.TP 
+\fBEAGAIN\fP
+\fImsg_qbytes\fP がキューの制限を超えていたため、メッセージを送ることができず、かつ \fImsgflg\fP に \fBIPC_NOWAIT\fP
+が指定されていた。
+.TP 
+\fBEFAULT\fP
+\fImsgp\fP が指しているアドレスがアクセス可能でない。
+.TP 
+\fBEIDRM\fP
+メッセージキューが削除された。
+.TP 
+\fBEINTR\fP
+メッセージキューが要求した条件を満たすまで停止している時に、 プロセスがシグナルを捕獲した。
+.TP 
+\fBEINVAL\fP
+\fImsqid\fP が不適切な値であるか、 \fImtype\fP が正の値でないか、 \fImsgsz\fP が不適切な値 (0 以下か、システムで決まる値
+\fBMSGMAX\fP よりも大きい値) である。
+.TP 
+\fBENOMEM\fP
+\fImsgp\fP が指すメッセージのコピーを作成するのに十分なメモリーがシステムに存在しない。
+.PP
+\fBmsgrcv\fP()  が失敗した場合には \fIerrno\fP に以下の値のいずれかが設定される:
+.TP 
+\fBE2BIG\fP
+メッセージのテキストの長さが \fImsgsz\fP よりも大きく、 \fImsgflg\fP に \fBMSG_NOERROR\fP が設定されていなかった。
+.TP 
+\fBEACCES\fP
+The calling process does not have read permission on the message queue, and
+does not have the \fBCAP_IPC_OWNER\fP capability in the user namespace that
+governs its IPC namespace.
+.TP 
+\fBEFAULT\fP
+\fImsgp\fP が指しているアドレスがアクセス可能でない。
+.TP 
+\fBEIDRM\fP
+メッセージを受信するためにプロセスが停止している間に、 メッセージキューが削除された。
+.TP 
+\fBEINTR\fP
+メッセージを受けるためにプロセスが停止している間に、 プロセスがシグナルを捕獲した。 \fBsignal\fP(7)  参照。
+.TP 
+\fBEINVAL\fP
+\fImsgid\fP が不正か、 \fImsgsz\fP が 0 より小さい。
+.TP 
+\fBEINVAL\fP (Linux 3.14 以降)
+\fImsgflg\fP に \fBMSG_COPY\fP が指定されたが、 \fBIPC_NOWAIT\fP が指定されていない。
+.TP 
+\fBEINVAL\fP (Linux 3.14 以降)
+\fImsgflg\fP に \fBMSG_COPY\fP と \fBMSG_EXCEPT\fP の両方が指定された。
+.TP 
+\fBENOMSG\fP
+\fImsgflg\fP に \fBIPC_NOWAIT\fP が設定されており、 メッセージキューに要求された型のメッセージが存在しなかった。
+.TP 
+\fBENOMSG\fP
+\fBIPC_NOWAIT\fP と \fBMSG_COPY\fP が \fImsgflg\fP に指定されたが、 キューには \fImsgtyp\fP
+未満のメッセージしか入っていなかった。
+.TP 
+\fBENOSYS\fP (Linux 3.8 以降)
+\fImsgflg\fP に \fIMSG_COPY\fP と \fBIPC_NOWAIT\fP の両方が指定されたが、カーネルが
+\fBCONFIG_CHECKPOINT_RESTORE\fP なしで作成されている。
+.SH 準拠
+POSIX.1\-2001, POSIX.1\-2008, SVr4.
+.PP
+.\" MSG_COPY since glibc 2.18
+フラグ \fBMSG_EXCEPT\fP と \fBMSG_COPY\fP は Linux 固有である。 これらの定義を得るには、機能検査マクロ
+\fB_GNU_SOURCE\fP を定義する。
+.SH 注意
+.\" Like Linux, the FreeBSD man pages still document
+.\" the inclusion of these header files.
+Linux や POSIX の全てのバージョンでは、 \fI<sys/types.h>\fP と \fI<sys/ipc.h>\fP
+のインクルードは必要ない。しかしながら、いくつかの古い実装ではこれらのヘッダーファイルのインクルードが必要であり、 SVID
+でもこれらのインクルードをするように記載されている。このような古いシステムへの移植性を意図したアプリケーションではこれらのファイルをインクルードする必要があるかもしれない。
+.PP
+\fImsgp\fP 引き数は、 glibc 2.0 と 2.1 では \fIstruct msgbuf\ *\fP と宣言されている。glibc 2.2
+以降では、 SUSv2 と SUSv3 の要求通り、\fIvoid\ *\fP と宣言されている。
+.PP
+以下は \fBmsgsnd\fP システムコールに影響するシステム制限である:
+.TP 
+\fBMSGMAX\fP
+Maximum size of a message text, in bytes (default value: 8192 bytes).  On
+Linux, this limit can be read and modified via \fI/proc/sys/kernel/msgmax\fP.
+.TP 
+\fBMSGMNB\fP
+Maximum number of bytes that can be held in a message queue (default value:
+16384 bytes).  On Linux, this limit can be read and modified via
+\fI/proc/sys/kernel/msgmnb\fP.  A privileged process (Linux: a process with the
+\fBCAP_SYS_RESOURCE\fP capability)  can increase the size of a message queue
+beyond \fBMSGMNB\fP using the \fBmsgctl\fP(2)  \fBIPC_SET\fP operation.
+.PP
+現在の実装では、システム全体のメッセージヘッダーの上限数 (\fBMSGTQL\fP)  と、システム全体のメッセージプールの最大バイト数
+(\fBMSGPOOL\fP)  に関して実装依存の制限はない。
+.SH バグ
+.\" http://marc.info/?l=linux-kernel&m=139048542803605&w=2
+.\" commit 4f87dac386cc43d5525da7a939d4b4e7edbea22c
+Linux 3.13 以前では、 \fBmsgrcv\fP() の呼び出しで \fBMSG_COPY\fP フラグは指定されたが \fBIPC_NOWAIT\fP
+は指定されず、かつメッセージキューに \fImsgtyp\fP 未満のメッセージしかない場合に、 \fBmsgrcv\fP()
+の呼び出しはキューに次のメッセージが書き込まれるまで停止していた。 新しいメッセージが書き込まれた時点で、 そのメッセージが指定された位置
+\fImsgtyp\fP かどうかに\fI関わらず\fP、 \fBmsgrcv\fP() の呼び出しは新たに書き込まれたメッセージのコピーを返していた。 このバグは
+Linux ３．１４で修正された。
+.PP
+.\" http://marc.info/?l=linux-kernel&m=139048542803605&w=2
+.\" commit 4f87dac386cc43d5525da7a939d4b4e7edbea22c
+\fImsg_copy\fP に \fBMSG_COPY\fP と \fBMSG_EXCEPT\fP の両方を指定するのは、論理的なエラーである
+(なぜならこれらのフラグは \fImsgtyp\fP を別の意味で解釈するからである)。 Linux 3.13 以前では、\fBmsgrcv\fP()
+がこのエラーを検出しなかった。 このバグは Linux 3.14 で修正された。
+.SH 例
+The program below demonstrates the use of \fBmsgsnd\fP()  and \fBmsgrcv\fP().
+.PP
+The example program is first run with the \fB\-s\fP option to send a message and
+then run again with the \fB\-r\fP option to receive a message.
+.PP
+The following shell session shows a sample run of the program:
+.PP
+.in +4n
+.EX
+$\fB ./a.out \-s\fP
+sent: a message at Wed Mar  4 16:25:45 2015
+
+$\fB ./a.out \-r\fP
+message received: a message at Wed Mar  4 16:25:45 2015
+.EE
+.in
+.SS プログラムのソース
+\&
+.EX
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+struct msgbuf {
+    long mtype;
+    char mtext[80];
+};
+
+static void
+usage(char *prog_name, char *msg)
+{
+    if (msg != NULL)
+        fputs(msg, stderr);
+
+    fprintf(stderr, "Usage: %s [options]\en", prog_name);
+    fprintf(stderr, "Options are:\en");
+    fprintf(stderr, "\-s        send message using msgsnd()\en");
+    fprintf(stderr, "\-r        read message using msgrcv()\en");
+    fprintf(stderr, "\-t        message type (default is 1)\en");
+    fprintf(stderr, "\-k        message queue key (default is 1234)\en");
+    exit(EXIT_FAILURE);
+}
+
+static void
+send_msg(int qid, int msgtype)
+{
+    struct msgbuf msg;
+    time_t t;
+
+    msg.mtype = msgtype;
+
+    time(&t);
+    snprintf(msg.mtext, sizeof(msg.mtext), "a message at %s",
+            ctime(&t));
+
+    if (msgsnd(qid, &msg, sizeof(msg.mtext),
+                IPC_NOWAIT) == \-1) {
+        perror("msgsnd error");
+        exit(EXIT_FAILURE);
+    }
+    printf("sent: %s\en", msg.mtext);
+}
+
+static void
+get_msg(int qid, int msgtype)
+{
+    struct msgbuf msg;
+
+    if (msgrcv(qid, &msg, sizeof(msg.mtext), msgtype,
+               MSG_NOERROR | IPC_NOWAIT) == \-1) {
+        if (errno != ENOMSG) {
+            perror("msgrcv");
+            exit(EXIT_FAILURE);
+        }
+        printf("No message available for msgrcv()\en");
+    } else
+        printf("message received: %s\en", msg.mtext);
+}
+
+int
+main(int argc, char *argv[])
+{
+    int qid, opt;
+    int mode = 0;               /* 1 = send, 2 = receive */
+    int msgtype = 1;
+    int msgkey = 1234;
+
+    while ((opt = getopt(argc, argv, "srt:k:")) != \-1) {
+        switch (opt) {
+        case \(aqs\(aq:
+            mode = 1;
+            break;
+        case \(aqr\(aq:
+            mode = 2;
+            break;
+        case \(aqt\(aq:
+            msgtype = atoi(optarg);
+            if (msgtype <= 0)
+                usage(argv[0], "\-t option must be greater than 0\en");
+            break;
+        case \(aqk\(aq:
+            msgkey = atoi(optarg);
+            break;
+        default:
+            usage(argv[0], "Unrecognized option\en");
+        }
+    }
+
+    if (mode == 0)
+        usage(argv[0], "must use either \-s or \-r option\en");
+
+    qid = msgget(msgkey, IPC_CREAT | 0666);
+
+    if (qid == \-1) {
+        perror("msgget");
+        exit(EXIT_FAILURE);
+    }
+
+    if (mode == 2)
+        get_msg(qid, msgtype);
+    else
+        send_msg(qid, msgtype);
+
+    exit(EXIT_SUCCESS);
+}
+.EE
+.SH 関連項目
+\fBmsgctl\fP(2), \fBmsgget\fP(2), \fBcapabilities\fP(7), \fBmq_overview\fP(7),
+\fBsysvipc\fP(7)
+.SH この文書について
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。
