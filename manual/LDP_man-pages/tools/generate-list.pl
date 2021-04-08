@@ -5,6 +5,11 @@ use Getopt::Std qw/getopts/;
 
 $debug = 0;
 $page_count = 0;
+$pages = (
+    "over80", 0,
+    "over70", 0,
+    "over60", 0
+);
 %opts = ();
 %exclude_pages = ();
 
@@ -16,20 +21,34 @@ sub print_header {
 <!--
  tr.over80 { background-color: #AAFFAA; }
  tr.over70 { background-color: #FFAAFF; }
+ tr.title { background-color: yellow; text-align: center; font-weight: bold; }
 -->
 </STYLE>
 </HEAD>
 <BODY>
 <TABLE BORDER=1>
-<TR class=\"over80\"><TD COLSPAN=3>Released pages but not completed (released if &gt;=80%)</TD></TR>
-<TR class=\"over70\"><TD COLSPAN=3>Near release pages (&gt;= 70%)</TD></TR>
+<TR class="over80"><TD COLSPAN=3>Released pages but not completed (released if &gt;=80%)</TD></TR>
+<TR class="over70"><TD COLSPAN=3>Near release pages (&gt;= 70%)</TD></TR>
 <TR><TH>page name</TH><TH>remaining</TH><TH>comp. %</TH></TR>
 EOF
 }
 
 sub print_footer {
+    my $over80 = $pages{"over80"};
+    my $over70 = $pages{"over70"};
+    my $over60 = $pages{"over60"};
+    my $others = $page_count - ($over80 + $over70 + $over60);
     print <<EOF;
-<TR><TD COLSPAN=3>Total $page_count pages</TD></TR>
+<TR class="title"><TD COLSPAN=3>Summary</TD></TR>
+<TR><TD COLSPAN=3>
+<UL>
+<LI>Total uncompleted: $page_count
+<LI>&gt;=80%: $over80
+<LI>&gt;=70%: $over70
+<LI>&gt;=60%: $over60
+<LI>&lt;60%: $others
+</UL>
+</TD></TR>
 </TABLE>
 </BODY></HTML>
 EOF
@@ -37,8 +56,7 @@ EOF
 
 sub print_poname {
     my $poname = shift;
-    printf("<TR><TD ALIGN=\"center\" COLSPAN=3 BGCOLOR=\"Yellow\">" .
-	   "<B>%s</B></TD></TR>\n", $poname);
+    printf("<TR class=\"title\"><TD COLSPAN=3>%s</TD></TR>\n", $poname);
 }
 
 sub print_manpage {
@@ -73,6 +91,13 @@ sub process_postat {
 	}
 	print_manpage($page, $total, $remaining, $ratio);
 	$page_count++;
+	if ($ratio >= 80) {
+	    $pages{"over80"}++;
+	} elsif ($ratio >= 70) {
+	    $pages{"over70"}++;
+	} elsif ($ratio >= 60) {
+	    $pages{"over60"}++;
+	}
     }
 }
 
