@@ -2,7 +2,7 @@
 翻訳更新方法
 ============
 
-JM Repository の構成は :doc:`git_repository` に書かれている通りです。
+JM リポジトリの構成は :doc:`git_repository` に書かれている通りです。
 
 JM の翻訳の管理方法は
 

@@ -17,7 +17,7 @@ LDP man-pages 管理ガイド
 
 :ref:`ldp_preparation` を参照してください。
 
-Git レポジトリの LDP_man-pages 以下はきれいな状態にした状態で始めること。
+Git リポジトリの LDP_man-pages 以下はきれいな状態にした状態で始めること。
 
 .. code-block:: console
 
@@ -279,7 +279,7 @@ perkamon がやっていることは、以下の通り。
 * po4a cfg の中で、翻訳時に追加する header や footer の定義なども含まれている。
   (JM では昔の copyright や翻訳履歴を生成した man に入れるのに使っている)
 
-JM の LDP_man-pages レポジトリの Makefile は perkamon の wrapper になっている。
+JM の LDP_man-pages リポジトリの Makefile は perkamon の wrapper になっている。
 perkamon のフォルダーで直接作業するのは LDP man-pages のバージョンを更新する
 ときのみ。
 
@@ -290,5 +290,5 @@ perkamon という別ディレクトリになっているのは、 LDP man-pages
 
 ツール群が perkamon という別ディレクトリになっているため、
 LDP_man-pages/Makefile では symlink を作成するなど手順が煩雑になっている点は
-あります。 perkamon ディレクトリも含めて、JM のレポジトリに取り込んだ現在では、
+あります。 perkamon ディレクトリも含めて、JM のリポジトリに取り込んだ現在では、
 もう少し単純化できるかもしれませんが、そこはみなさんの判断にお任せします。

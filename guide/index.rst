@@ -7,6 +7,14 @@ Linux JM プロジェクトガイド
 `メーリングリスト <https://osdn.jp/projects/linuxjm/lists/archive/discuss/>`__ |
 `Wiki <https://osdn.jp/projects/linuxjm/wiki/FrontPage>`__
 
+はじめに
+========
+
+.. toctree::
+   :maxdepth: 1
+
+   basic_info.rst
+
 翻訳ガイド
 ==========
 
