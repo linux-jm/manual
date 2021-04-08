@@ -64,10 +64,9 @@ read \- ファイルディスクリプターから読み込む
 \fBread\fP()  はファイルディスクリプター (file descriptor)  \fIfd\fP から最大 \fIcount\fP バイトを \fIbuf\fP
 で始まるバッファーへ読み込もうとする。
 .PP
-On files that support seeking, the read operation commences at the file
-offset, and the file offset is incremented by the number of bytes read.  If
-the file offset is at or past the end of file, no bytes are read, and
-\fBread\fP()  returns zero.
+seek に対応しているファイルでは、read
+はファイルオフセットから行われ、ファイルオフセットは読み込んだバイト数分だけ進められる。ファイルオフセットがファイル末尾かそれより先の場合は、読み出しは行われず、
+\fBread\fP() は 0 を返す。
 .PP
 \fIcount\fP が 0 の場合、 \fBread\fP() は以下で説明するエラーを検出する\fI場合がある\fP。 どのエラーもなかった場合、もしくは
 \fBread\fP() がエラーのチェックを行わない場合、 \fIcount\fP が 0 で呼び出された \fBread\fP() は 0 を返し、何も行わない。
@@ -75,22 +74,18 @@ the file offset is at or past the end of file, no bytes are read, and
 According to POSIX.1, if \fIcount\fP is greater than \fBSSIZE_MAX\fP, the result
 is implementation\-defined; see NOTES for the upper limit on Linux.
 .SH 返り値
-On success, the number of bytes read is returned (zero indicates end of
-file), and the file position is advanced by this number.  It is not an error
-if this number is smaller than the number of bytes requested; this may
-happen for example because fewer bytes are actually available right now
-(maybe because we were close to end\-of\-file, or because we are reading from
-a pipe, or from a terminal), or because \fBread\fP()  was interrupted by a
-signal.  See also NOTES.
+成功した場合、読み込んだバイト数を返す (0 はファイルの終りを意味する)。 ファイル位置はこの数だけ進められる。
+この数が要求した数より小さかったとしてもエラーではない; 例えば今すぐには実際にそれだけの数しかない場合 (ファイルの最後に近いのかも
+しれないし、パイプ (pipe) や端末 (terminal) から読み込んでいるかもしれない) や \fBread\fP()  がシグナル (signal)
+によって割り込まれた場合にこれは起こりえる。
 .PP
-On error, \-1 is returned, and \fIerrno\fP is set appropriately.  In this case,
-it is left unspecified whether the file position (if any) changes.
+エラーの場合は、\-1 が返され、 \fIerrno\fP が適切に設定される。この場合はファイル位置が変更されるかどうかは 不定である。
 .SH エラー
 .TP 
 \fBEAGAIN\fP
-The file descriptor \fIfd\fP refers to a file other than a socket and has been
-marked nonblocking (\fBO_NONBLOCK\fP), and the read would block.  See
-\fBopen\fP(2)  for further details on the \fBO_NONBLOCK\fP flag.
+ファイルディスクリプター \fIfd\fP がソケット以外のファイルを参照していて、 非停止 (nonblocking) モード
+(\fBO_NONBLOCK\fP)  に設定されており、読み込みを行うと停止する状況にある。 \fBO_NONBLOCK\fP フラグの詳細は
+\fBopen\fP(2) を参照。
 .TP 
 \fBEAGAIN\fP または \fBEWOULDBLOCK\fP
 .\" Actually EAGAIN on Linux
@@ -108,10 +103,8 @@ marked nonblocking (\fBO_NONBLOCK\fP), and the read would block.  See
 何のデータも読み込まないうちにシグナルに割り込まれた。 \fBsignal\fP(7)  参照。
 .TP 
 \fBEINVAL\fP
-\fIfd\fP is attached to an object which is unsuitable for reading; or the file
-was opened with the \fBO_DIRECT\fP flag, and either the address specified in
-\fIbuf\fP, the value specified in \fIcount\fP, or the file offset is not suitably
-aligned.
+\fIfd\fP は読み込みに適していないオブジェクトを参照している。 もしくは、ファイルが \fBO_DIRECT\fP フラグを指定してオープンされているが、
+\fIbuf\fP に指定されたアドレス、 \fIcount\fP に指定された値、 ファイルオフセットのいずれかの アラインメントが不適切である。
 .TP 
 \fBEINVAL\fP
 \fIfd\fP が \fBtimerfd_create\fP(2)  の呼び出しで作成されたが、 \fBread\fP()  に間違ったサイズのバッファーが渡された。
@@ -142,14 +135,11 @@ On Linux, \fBread\fP()  (and similar system calls) will transfer at most
 0x7ffff000 (2,147,479,552) bytes, returning the number of bytes actually
 transferred.  (This is true on both 32\-bit and 64\-bit systems.)
 .PP
-On NFS filesystems, reading small amounts of data will update the timestamp
-only the first time, subsequent calls may not do so.  This is caused by
-client side attribute caching, because most if not all NFS clients leave
-\fIst_atime\fP (last file access time)  updates to the server, and client side
-reads satisfied from the client's cache will not cause \fIst_atime\fP updates
-on the server as there are no server\-side reads.  UNIX semantics can be
-obtained by disabling client\-side attribute caching, but in most situations
-this will substantially increase server load and decrease performance.
+NFS において。少量のデータを読み込む場合、最初の時のみにタイム スタンプが更新され、続くコールでは更新されないだろう。
+これはクライアント側で属性のキャッシングを行なうためである。 なぜならば、もし全ての NFS クライアントが \fIst_atime\fP
+(最終ファイルアクセス時刻)  の更新をサーバーに送らず、クライアント側でキャッシュを読むことに満足して いれば、サーバー側での read
+は発生しないので \fIst_atime\fP の更新は行なわれからだ。 UNIX の方式では、クライアント側の属性のキャッシングを無効にすることで、
+これを得ることができる。しかしほとんどの状況ではこれは続くサーバーの 負荷を増加させ、パフォーマンスの低下をもたらす。
 .SH バグ
 POSIX.1\-2008/SUSv4 セクション XSI 2.9.7 ("Thread Interactions with Regular File
 Operations") によると、
