@@ -149,6 +149,7 @@ stamp-setup:	stamp-unpack
 clean:	clean-setup
 clean-setup:
 	$(RM) stamp-*
+	$(RM) -r stamp
 	$(RM) po4a/add_ja
 	$(RM) -r man-pages build
 
