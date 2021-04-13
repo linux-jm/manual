@@ -43,6 +43,12 @@ git で add/remove を行う。
 
    ../../admin/upd_tl.perl translation_list upd.txt VERSION
 
+.. warning::
+
+   git のバージョンによっては ``git2upd`` が期待通り動作しない場合がある。
+   :doc:`upstream_update` の ``git2upd`` に関する注意を参照し、
+   必要な場合は ``git status`` の出力を加工すること。
+
 (4) help2man.ja の更新
 ----------------------
 

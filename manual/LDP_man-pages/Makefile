@@ -159,19 +159,16 @@ upgrade:
 	cd man-pages \
 	  && ../../../admin/JM-orig-upd.sh ../original \
 	  && cp README man-pages-* Changes* ../original
-	cd original \
-	  sed -e 's/\^\\\.SH /^\\.S[Hh] /' ../man-pages/scripts/remove_COLOPHON.sh \
-	  sh ../man-pages/scripts/remove_COLOPHON.sh man?/*.[1-8]
 	git add --all original/
-	git status original | ../../admin/git2upd > upd.txt
-	../../admin/upd_tl.perl translation_list upd.txt $(V)
-	mv translation_list.* translation_list
-	$(MAKE) FLAGS="--no-translations -v --force" translate-pages
-	$(MAKE) update-stats
-	git add translation_list
-	git commit -m "LDP: Update original to LDP v$(V)" original/ translation_list
-	git add po4a/ stats/ untrans.html
-	git commit -m "LDP: Update POT and ja.po to LDP v$(V)" po4a/ stats/ untrans.html
+	#git status original | ../../admin/git2upd > upd.txt
+	#../../admin/upd_tl.perl translation_list upd.txt $(V)
+	#mv translation_list.* translation_list
+	#$(MAKE) FLAGS="--no-translations -v --force" translate-pages
+	#$(MAKE) update-stats
+	#git add translation_list
+	#git commit -m "LDP: Update original to LDP v$(V)" original/ translation_list
+	#git add po4a/ stats/ untrans.html
+	#git commit -m "LDP: Update POT and ja.po to LDP v$(V)" po4a/ stats/ untrans.html
 
 disable-removed:
 	@set -e; for f in po4a/*/*.cfg; do \

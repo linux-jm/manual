@@ -27,6 +27,36 @@ roff を直接翻訳
 * admin/git2upd
 * admin/upd_tl.perl
 
+.. warning::
+
+   ``git2upd`` コマンドは新しい git status の出力に対応していないので注意。
+
+   ``git2upd`` コマンドは、 ``git add`` コマンドで staged された原文を
+   ``git status`` コマンドの出力に基づいて ``upd_tl.perl`` に渡すファイルを
+   作成するが、以下のように staged されたファイルリストの前に空行があることを
+   期待している。しかし、新しめの git ではこの空行が出力されないため、
+   ``git2upd`` コマンドが期待通り動作しない。本来は ``git2upd`` コマンドを修正
+   すべきだが、とりあえずの対処としては ``git status original`` の出力を保存
+   した上で、必要な空行を挿入して対処する。
+   (少なくとも git 2.25.1 では空行が出力されないことを確認している。)
+
+   .. code-block:: console
+
+      HEAD detached at 015f61e7
+      Changes to be committed:
+       (use "git restore --staged <file>..." to unstage)
+
+             modified:   original/Changes
+             modified:   original/Changes.old
+             modified:   original/README
+             renamed:    original/man-pages-3.79.Announce -> original/man-pages-5.10.Announce
+             renamed:    original/man-pages-3.79.lsm -> original/man-pages-5.10.lsm
+             modified:   original/man1/getent.1
+             modified:   original/man1/iconv.1
+             ...
+
+
+
 po4a を使って翻訳
 =================
 
