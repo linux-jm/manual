@@ -1,4 +1,5 @@
 .\" Copyright (C) 1995, Thomas K. Dyas <tdyas@eden.rutgers.edu>
+.\" and Copyright (C) 2013, 2019, Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -44,23 +45,34 @@
 .\" Modified 2005-02-24, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SETFSUID 2 2013\-08\-08 Linux "Linux Programmer's Manual"
+.TH SETFSUID 2 2019\-05\-09 Linux "Linux Programmer's Manual"
 .SH 名前
 setfsuid \- ファイルシステムのチェックに用いられるユーザー ID を設定する
 .SH 書式
 \fB#include <sys/fsuid.h>\fP
-.sp
+.PP
 \fBint setfsuid(uid_t \fP\fIfsuid\fP\fB);\fP
 .SH 説明
-\fBsetfsuid\fP()  は、 呼び出し元のファイルシステムユーザー ID \(em ファイルシステムへの全てのアクセスのチェックにおいて
-Linux カーネルが使用するユーザー ID \(em の値を変更する。通常はファイルシステムユーザー ID の値は実効 (effective)
-ユーザーID と同じになる。実際、 実効ユーザーID が変更される度にファイルシステムユーザー ID もまた新しい実効ユーザー ID の値に変更される。
-
-通常、 \fBsetfsuid\fP()  や \fBsetfsgid\fP() を明示的に呼び出すのは、Linux NFS サーバー のように、
-ファイルアクセスに用いるユーザーID / グループID を変更しなければならないが、 対応する実(real)/実効(effective) ユーザーID
-/ グループID は変更したくないような プログラムに限られる。 NFS サーバーのようなプログラムで、通常のユーザーID を変更すると、
-プロセスを望まないシグナルにさらす可能性があり、 セキュリティホールになる。(下記参照)
-
+On Linux, a process has both a filesystem user ID and an effective user ID.
+The (Linux\-specific) filesystem user ID is used for permissions checking
+when accessing filesystem objects, while the effective user ID is used for
+various other kinds of permissions checks (see \fBcredentials\fP(7)).
+.PP
+Normally, the value of the process's filesystem user ID is the same as the
+value of its effective user ID.  This is so, because whenever a process's
+effective user ID is changed, the kernel also changes the filesystem user ID
+to be the same as the new value of the effective user ID.  A process can
+cause the value of its filesystem user ID to diverge from its effective user
+ID by using \fBsetfsuid\fP()  to change its filesystem user ID to the value
+given in \fIfsuid\fP.
+.PP
+Explicit calls to \fBsetfsuid\fP()  and \fBsetfsgid\fP(2)  are (were) usually used
+only by programs such as the Linux NFS server that need to change what user
+and group ID is used for file access without a corresponding change in the
+real and effective user and group IDs.  A change in the normal user IDs for
+a program such as the NFS server is (was) a security hole that can expose it
+to unwanted signals.  (However, this issue is historical; see below.)
+.PP
 \fBsetfsuid\fP()  は、スーパーユーザーによって呼び出された場合か、 \fIfsuid\fP が呼び出し元の実ユーザーID、実効ユーザーID、
 保存セットユーザーID (saved set\-user\-ID)、現在のファイルシステムグループ ID の値のいずれかに一致する場合にのみ成功する。
 .SH 返り値
@@ -72,9 +84,6 @@ Linux カーネルが使用するユーザー ID \(em の値を変更する。�
 .SH 準拠
 \fBsetfsuid\fP()  は Linux 特有であり、移植を想定したプログラムで使用してはいけない。
 .SH 注意
-glibc が引き数がユーザーID として不正だと判断した場合は、 システムコールを行わず \fIerrno\fP に \fBEINVAL\fP を設定して \-1
-が返される。
-.LP
 このシステムコールが導入された当時、 あるプロセスは同じ実効ユーザー ID を持つ別のプロセスにシグナルを送信できた。 これは、
 特権プロセスがファイルのアクセス許可をチェックするために自身の実効ユーザー ID を変更すると、 同じユーザー ID を持つ別の (非特権)
 プロセスが送信したシグナルを受け取るようになってしまうことを意味する。そのため、 プロセスが、 受け取りたくないシグナルを受信する状態にならずに、
@@ -82,13 +91,18 @@ glibc が引き数がユーザーID として不正だと判断した場合は�
 2.0 以降では、 シグナルの送信許可の扱いは異なり (\fBkill\fP(2) 参照)、 プロセスは、
 望まないプロセスからシグナルを受信してしまう状態にならずに、 自身の実効ユーザー ID を変更することができる。 したがって、
 \fBsetfsuid\fP() は今日では不要であり、 新規のアプリケーションでは使用すべきではない (\fBsetfsgid\fP(2) も同様)。
-
+.PP
 元々の Linux の \fBsetfsuid\fP() システムコールは
 16 ビットのグループ ID だけに対応していた。
 その後、Linux 2.4 で、32 ビットの ID に対応した
 \fBsetfsuid32\fP() が追加された。
 glibc の \fBsetfsuid\fP() のラッパー関数は
 カーネルバージョンによるこの違いを吸収している。
+.SS "C ライブラリとカーネルの違い"
+In glibc 2.15 and earlier, when the wrapper for this system call determines
+that the argument can't be passed to the kernel without integer truncation
+(because the kernel is old and does not support 32\-bit user IDs), it will
+return \-1 and set \fIerrno\fP to \fBEINVAL\fP without attempting the system call.
 .SH バグ
 いかなる種類のエラーメッセージも返さず、 成功した場合も失敗した場合も呼び出しは同じ値を返すため、
 呼び出しが成功したか失敗したかを直接判定することはできない。 その代わり、 直前の \fBsetfsuid\fP() の呼び出しがファイルシステムグループ
@@ -98,6 +112,5 @@ ID を変更したかどうかを判定するために、 呼び出し元はこ�
 .SH 関連項目
 \fBkill\fP(2), \fBsetfsgid\fP(2), \fBcapabilities\fP(7), \fBcredentials\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

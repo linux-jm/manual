@@ -60,33 +60,49 @@
 .\" Updated 2008-08-04, Akihiro MOTOKI, LDP v3.05
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH GETPRIORITY 2 2014\-08\-19 Linux "Linux Programmer's Manual"
+.TH GETPRIORITY 2 2017\-09\-15 Linux "Linux Programmer's Manual"
 .SH 名前
 getpriority, setpriority \- プログラムのスケジューリングの優先度を取得/設定する
 .SH 書式
 \fB#include <sys/time.h>\fP
 .br
 \fB#include <sys/resource.h>\fP
-.sp
+.PP
 \fBint getpriority(int \fP\fIwhich\fP\fB, id_t \fP\fIwho\fP\fB);\fP
 .br
 \fBint setpriority(int \fP\fIwhich\fP\fB, id_t \fP\fIwho\fP\fB, int \fP\fIprio\fP\fB);\fP
 .SH 説明
-システムコール \fBgetpriority\fP()  や \fBsetpriority\fP()  は、 \fIwhich\fP と \fIwho\fP
-で指定されたプロセス、プロセスグループ、ユーザーの スケジューリング優先度 (scheduling priority) の 取得や設定をそれぞれ行う。
-
+The scheduling priority of the process, process group, or user, as indicated
+by \fIwhich\fP and \fIwho\fP is obtained with the \fBgetpriority\fP()  call and set
+with the \fBsetpriority\fP()  call.  The process attribute dealt with by these
+system calls is the same attribute (also known as the "nice" value) that is
+dealt with by \fBnice\fP(2).
+.PP
 \fIwhich\fP の値は \fBPRIO_PROCESS\fP, \fBPRIO_PGRP\fP, \fBPRIO_USER\fP, のどれか一つで、 \fIwho\fP は
 \fIwhich\fP に応じて解釈される (\fBPRIO_PROCESS\fP だとプロセス識別子、 \fBPRIO_PGRP\fP だとプロセスグループ識別子、
 \fBPRIO_USER\fP だと UID (ユーザーID) と解釈される)。 \fIwho\fP がゼロならば、(それぞれ)呼び出したプロセス、
-呼び出したプロセスのプロセスグループ、 呼び出したプロセスの実UID を意味する。 \fIprio\fP は \-20 から 19 の範囲の値で
-(但し以下の注意の項を参照のこと)、 デフォルトの優先度は 0 である; 小さな数字ほど、有利なスケジューリングとなる。
-
+呼び出したプロセスのプロセスグループ、 呼び出したプロセスの実UID を意味する。
+.PP
+\fIprio\fP 引き数は \-20 から 19 の範囲の値で (但し以下の「注意」を参照)、 \-20 が最高優先度で、 19
+が最低優先度である。優先度をこの範囲外に設定しようとした場合は、値は黙ってこの範囲となる。デフォルトの優先度は 0 である;
+小さな数字ほど、プロセスのスケジューリング優先度が高くなる。
+.PP
 \fBgetpriority\fP()  コールは指定したプロセスの中の最も高い優先度 (数値的には最小の値) を返す。 \fBsetpriority\fP()
-コールは指定したプロセス全ての優先度を指定した値に設定する。 優先度を今より小さい値に設定できるのはスーパーユーザーだけである。
+コールは指定したプロセス全ての優先度を指定した値に設定する。
+.PP
+Traditionally, only a privileged process could lower the nice value (i.e.,
+set a higher priority).  However, since Linux 2.6.12, an unprivileged
+process can decrease the nice value of a target process that has a suitable
+\fBRLIMIT_NICE\fP soft limit; see \fBgetrlimit\fP(2)  for details.
 .SH 返り値
+On success, \fBgetpriority\fP()  returns the calling thread's nice value, which
+may be a negative number.  On error, it returns \-1 and sets \fIerrno\fP to
+indicate the cause of the error.
+.PP
 \fBgetpriority\fP()  は成功した場合にも \-1 の値を返す可能性があるので、 呼び出しの前に外部変数の \fIerrno\fP
-をクリアし、呼び出しの後に返り値の \-1 が正当な値か エラーかを判別する必要がある。 \fBsetpriority\fP()  コールはエラーがなければ 0
-を返し、エラーがあれば \-1 を返す。
+をクリアし、呼び出しの後に返り値の \-1 が正当な値か エラーかを判別する必要がある。
+.PP
+成功すると、 \fBsetpriority\fP() は 0 を返す。 エラーの場合、\-1 を返し、 \fIerrno\fP にエラーの原因を示す値を設定する。
 .SH エラー
 .TP 
 \fBEINVAL\fP
@@ -98,41 +114,36 @@ getpriority, setpriority \- プログラムのスケジューリングの優先�
 上記のものに加えて \fBsetpriority\fP()  では以下のエラーがある:
 .TP 
 \fBEACCES\fP
-呼び出し元がプロセスの優先度を下げようとしたが、必要な特権を 持っていなかった (Linux の場合、 \fBCAP_SYS_NICE\fP
-ケーパビリティがなかった)。 Linux 2.6.12 以降では、呼び出し元が、あるプロセスの優先度を、 変更対象のプロセスのリソース
-\fBRLIMIT_NICE\fP のソフトリミットの範囲外に設定しようとした場合にのみ、 このエラーが発生する。詳細は \fBgetrlimit\fP(2)
-を参照。
+The caller attempted to set a lower nice value (i.e., a higher process
+priority), but did not have the required privilege (on Linux: did not have
+the \fBCAP_SYS_NICE\fP capability).
 .TP 
 \fBEPERM\fP
 プロセスは見つかったが、そのプロセスの実効 (effective) UID が 呼び出し元の実効UID にも実 (real) UID にも一致せず、
 呼び出し元が特権も持っていなかった (Linux の場合、 \fBCAP_SYS_NICE\fP ケーパビリティがなかった)。 以下の「注意」も参照のこと。
 .SH 準拠
-SVr4, 4.4BSD (これらの関数は 4.2BSD で最初に登場した), POSIX.1\-2001.
+POSIX.1\-2001, POSIX.1\-2008, SVr4, 4.4BSD (これらのインターフェースは 4.2BSD で初めて登場した)
 .SH 注意
+nice 値の詳細は \fBsched\fP(7) を参照のこと。
+.PP
+\fINote\fP: the addition of the "autogroup" feature in Linux 2.6.38 means that
+the nice value no longer has its traditional effect in many circumstances.
+For details, see \fBsched\fP(7).
+.PP
 \fBfork\fP(2)  で作成された子プロセスは、 親プロセスの nice 値を継承する。 \fBexecve\fP(2)  の前後で nice
 値は保存される。
-
-相対的な nice 値の違いがプロセス間のスケジューリングにどの程度影響を与えるか は、UNIX システム間で異なり、Linux
-ではカーネルバージョンにより異なる。 Linux は、カーネル 2.6.23 以降で、nice 値の相対的な違いが、非常に強い影響を
-与えるアルゴリズムを採用した。このアルゴリズムでは、 他に優先度の高いものがシステムに存在する時には、 非常に低い nice 値 (+19)
-ではプロセスに本当にほとんど CPU が割り当てられない。 また、高い nice 値 (\-20) では CPU を必要とするアプリケーション (例えば
-オーディオアプリケーション) に CPU のほとんどが割り当てられる。
-
+.PP
 \fBEPERM\fP が発生する条件の詳細はシステムに依存する。 上記の説明は POSIX.1\-2001 のものであり、全ての System\ V
 風システムは これに従っているようである。 2.6.12 より前の Linux カーネルでは、呼び出し元の実 UID または 実効 UID がプロセス
 \fIwho\fP の (実効 UID でなく)  実 UID に一致する必要がある。 Linux 2.6.12 以降では、呼び出し元の実行 UID
 がプロセス \fIwho\fP の実 UID か実効 UID のいずれかと一致する必要がある。 全ての BSD 風システム (SunOS 4.1.3,
 Ultrix 4.2, 4.3BSD, FreeBSD 4.3, OpenBSD\-2.5等) は、 Linux 2.6.12 以降と同じ動作をする。
-.LP
-実際の優先度の範囲はカーネルのバージョンにより異なる。 バージョン 1.3.36 より前の Linux では
-\-infinity(マイナス無限大)..15 である。 カーネル 1.3.43 以降の Linux では、 \-20..19 である。
-他のいくつかのシステムでは、この範囲が \-20..20 である。
-
+.PP
 .\"
 現在では \fI<sys/time.h>\fP をインクルードする必要はないが、インクルードすれば移植性を高めることができる (実際には
 \fI<sys/resource.h>\fP で \fIrusage\fP 構造体が定義されているが、そのフィールドで使用されている
 \fIstruct timeval\fP 型は \fI<sys/time.h>\fP で定義されている)。
-.SS "C ライブラリとカーネル ABI の違い"
+.SS "C ライブラリとカーネルの違い"
 カーネル内部では、nice 値は実際には 40 〜 1 の範囲を使って 表現されており (負の値はエラーコードとなるため)、こちらの値が システムコール
 \fBsetpriority\fP()  と \fBgetpriority\fP()  で使用されている。 glibc
 のこれらのシステムコールのラッパー関数において、nice 値の ユーザー領域 (user\-land) とカーネル表現の間の変換が行われる。 変換式は
@@ -144,10 +155,9 @@ POSIX では nice 値はプロセス単位の設定となっている。 一方�
 の動作を前提するのは避けるべきである。 Linux の動作は将来標準に準拠した動作になるかもしれない。
 .SH 関連項目
 \fBnice\fP(1), \fBrenice\fP(1), \fBfork\fP(2), \fBcapabilities\fP(7), \fBsched\fP(7)
-
+.PP
 Linux カーネルのソースツリー内の \fIDocumentation/scheduler/sched\-nice\-design.txt\fP (Linux
 2.6.23 以降)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

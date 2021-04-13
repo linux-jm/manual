@@ -38,42 +38,41 @@
 .\"         all rights reserved.
 .\" Translated 2013-05-22, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH RECVMMSG 2 2014\-06\-13 Linux "Linux Programmer's Manual"
+.TH RECVMMSG 2 2020\-11\-01 Linux "Linux Programmer's Manual"
 .SH 名前
 recvmmsg \- 複数のメッセージをソケットから受信する
 .SH 書式
 .nf
 \fB#define _GNU_SOURCE\fP         /* feature_test_macros(7) 参照 */
 \fB#include <sys/socket.h>\fP
-
+.PP
 \fBint recvmmsg(int \fP\fIsockfd\fP\fB, struct mmsghdr *\fP\fImsgvec\fP\fB, unsigned int \fP\fIvlen\fP\fB,\fP
-.br
-\fB             unsigned int \fP\fIflags\fP\fB, struct timespec *\fP\fItimeout\fP\fB);\fP
+\fB             int \fP\fIflags\fP\fB, struct timespec *\fP\fItimeout\fP\fB);\fP
 .fi
 .SH 説明
 \fBrecvmmsg\fP() システムコールは \fBrecvmsg\fP(2) の拡張で、
 このシステムコールを使うと一度の呼び出しでソケットから複数のメッセージを受信することができる (アプリケーションによっては性能上のメリットがある)。
 他に \fBrecvmsg\fP(2) から拡張されている点としては、受信操作におけるタイムアウトのサポートがある。
-
+.PP
 \fIsockfd\fP 引き数は、データを受信するソケットのファイルディスクリプターである。
-
+.PP
 \fImsgvec\fP 引き数は \fImmsghdr\fP 構造体の配列である。 この配列の大きさは \fIvlen\fP で指定する。
-
+.PP
 \fImmsghdr\fP 構造体は \fI<sys/socket.h>\fP で次のように定義されている。
-
+.PP
 .in +4n
-.nf
+.EX
 struct mmsghdr {
     struct msghdr msg_hdr;  /* メッセージヘッダー */
     unsigned int  msg_len;  /* このヘッダーで受信されたバイト数 */
 };
-.fi
+.EE
 .in
 .PP
 \fImsg_hdr\fP フィールドは、 \fBrecvmsg\fP(2) で説明されている \fImsghdr\fP 構造体である。 \fImsg_len\fP
 フィールドは、 このエントリーで返されるメッセージのバイト数で、 このヘッダーに対して \fBrecvmsg\fP(2)
 を呼び出した場合の返り値と同じ値が入る。
-
+.PP
 \fIflags\fP 引き数には複数のフラグを論理和 (OR) で指定できる。 フラグは、 \fBrecvmsg\fP(2)
 で説明されているものに加えて、以下が使用できる。
 .TP 
@@ -84,11 +83,11 @@ struct mmsghdr {
 この構造体で受信操作のタイムアウト (秒とナノ秒) を指定する (\fIただし、バグを参照のこと\fP)
 (待ち時間はシステムクロックの粒度に切り上げられ、カーネルのスケジューリング遅延により少しだけ長くなる可能性がある)。 \fItimeout\fPが NULL
 の場合、 受信操作は無期限に停止 (block) する。
-
+.PP
 停止 (blocking) モードの \fBrecvmmsg\fP() の呼び出しは、 \fIvlen\fP
 個のメッセージを受信するか、タイムアウトが満了するまで停止する。 非停止 (nonblocking) モードの呼び出しでは、 読み出し可能なメッセージ
 (最大で \fIvlen\fP 個) を読み出し、 すぐに返る。
-
+.PP
 \fBrecvmmsg\fP() が返った際には、 \fImsgvec\fP のうちデータが受信された要素には、受信したそれぞれのメッセージの情報が格納されている。
 また、 \fImsg_len\fP には受信したメッセージの大きさが入り、 \fImsg_hdr\fP の各フィールドは \fBrecvmsg\fP(2)
 に書かれている通りに更新される。 呼び出しの返り値は、更新された \fImsgvec\fP の要素数である。
@@ -100,29 +99,43 @@ struct mmsghdr {
 .TP 
 \fBEINVAL\fP
 \fItimeout\fP が無効である。
+.PP
+See also BUGS.
 .SH バージョン
 \fBrecvmmsg\fP() システムコールは Linux 2.6.33 で追加された。 glibc でのサポートはバージョン 2.12
 以降で利用可能である。
 .SH 準拠
 \fBrecvmmsg\fP() は Linux 固有である。
-.SH 例
+.SH バグ
+.\" FIXME . https://bugzilla.kernel.org/show_bug.cgi?id=75371
+.\" http://thread.gmane.org/gmane.linux.man/5677
+\fItimeout\fP 引き数は意図した通りには動作しない。 タイムアウトは各データグラムの受信後にのみチェックされる。 そのため、
+タイムアウトが満了する前に \fIvlen\-1\fP 個のデータグラムを受信し、 その後全くデータグラムを受信しなかった場合、
+呼び出しはずっと停止し続けてしまう。
 .PP
+If an error occurs after at least one message has been received, the call
+succeeds, and returns the number of messages received.  The error code is
+expected to be returned on a subsequent call to \fBrecvmmsg\fP().  In the
+current implementation, however, the error code can be overwritten in the
+meantime by an unrelated network event on a socket, for example an incoming
+ICMP packet.
+.SH 例
 以下のプログラムは、 \fBrecvmmsg\fP() を使って複数のメッセージをソケットから受信し、それらを複数のバッファーに格納する。
 呼び出しは、すべてのバッファーにメッセージが格納されるか、 指定したタイムアウト時間が経過すると返る。
-
+.PP
 以下のコマンドは、 ランダムな数字が入った UDP データグラムを定期的に生成する。
+.PP
 .in +4n
-.nf
-
-$\fB while true; do echo $RANDOM > /dev/udp/127.0.0.1/1234; \fP
+.EX
+$\fB while true; do echo $RANDOM > /dev/udp/127.0.0.1/1234;\fP
 \fBsleep 0.25; done\fP
-.fi
+.EE
 .in
-
+.PP
 生成されたデータグラムをサンプルアプリケーションが読み出し、以下のような出力が得られる。
+.PP
 .in +4n
-.nf
-
+.EX
 $\fB ./a.out\fP
 5 messages received
 1 11782
@@ -130,11 +143,11 @@ $\fB ./a.out\fP
 3 304
 4 13514
 5 28421
-.fi
+.EE
 .in
 .SS プログラムのソース
 \&
-.nf
+.EX
 #define _GNU_SOURCE
 #include <netinet/ip.h>
 #include <stdio.h>
@@ -148,8 +161,8 @@ main(void)
 #define VLEN 10
 #define BUFSIZE 200
 #define TIMEOUT 1
-    int sockfd, retval, i;
-    struct sockaddr_in sa;
+    int sockfd, retval;
+    struct sockaddr_in addr;
     struct mmsghdr msgs[VLEN];
     struct iovec iovecs[VLEN];
     char bufs[VLEN][BUFSIZE+1];
@@ -161,16 +174,16 @@ main(void)
         exit(EXIT_FAILURE);
     }
 
-    sa.sin_family = AF_INET;
-    sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    sa.sin_port = htons(1234);
-    if (bind(sockfd, (struct sockaddr *) &sa, sizeof(sa)) == \-1) {
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = htons(1234);
+    if (bind(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == \-1) {
         perror("bind()");
         exit(EXIT_FAILURE);
     }
 
     memset(msgs, 0, sizeof(msgs));
-    for (i = 0; i < VLEN; i++) {
+    for (int i = 0; i < VLEN; i++) {
         iovecs[i].iov_base         = bufs[i];
         iovecs[i].iov_len          = BUFSIZE;
         msgs[i].msg_hdr.msg_iov    = &iovecs[i];
@@ -187,23 +200,16 @@ main(void)
     }
 
     printf("%d messages received\en", retval);
-    for (i = 0; i < retval; i++) {
+    for (int i = 0; i < retval; i++) {
         bufs[i][msgs[i].msg_len] = 0;
         printf("%d %s", i+1, bufs[i]);
     }
     exit(EXIT_SUCCESS);
 }
-.fi
-.SH バグ
-.\" FIXME . https://bugzilla.kernel.org/show_bug.cgi?id=75371
-.\" http://thread.gmane.org/gmane.linux.man/5677
-\fItimeout\fP 引き数は意図した通りには動作しない。 タイムアウトは各データグラムの受信後にのみチェックされる。 そのため、
-タイムアウトが満了する前に \fIvlen\-1\fP 個のデータグラムを受信し、 その後全くデータグラムを受信しなかった場合、
-呼び出しはずっと停止し続けてしまう。
+.EE
 .SH 関連項目
 \fBclock_gettime\fP(2), \fBrecvmsg\fP(2), \fBsendmmsg\fP(2), \fBsendmsg\fP(2),
 \fBsocket\fP(2), \fBsocket\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -32,27 +32,27 @@
 .\" Translated 2006-07-31, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\" Updated 2009-02-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.18
 .\"
-.TH FEXECVE 3 2015\-01\-22 Linux "Linux Programmer's Manual"
+.TH FEXECVE 3 " 2019\-10\-10" Linux "Linux Programmer's Manual"
 .SH 名前
 fexecve \- ファイルディスクリプターで指定されたプログラムを実行する
 .SH 書式
 .nf
 \fB#include <unistd.h>\fP
-.sp
+.PP
 \fBint fexecve(int \fP\fIfd\fP\fB, char *const \fP\fIargv\fP\fB[], char *const \fP\fIenvp\fP\fB[]);\fP
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 \fBfexecve\fP():
 .PD 0
 .ad l
 .RS 4
 .TP  4
 glibc 2.10 以降:
-_XOPEN_SOURCE\ >=\ 700 || _POSIX_C_SOURCE\ >=\ 200809L
+_POSIX_C_SOURCE\ >=\ 200809L
 .TP 
 glibc 2.10 より前:
 _GNU_SOURCE
@@ -60,11 +60,11 @@ _GNU_SOURCE
 .ad
 .PD
 .SH 説明
-.\" POSIX.1-2008 specifies the O_EXEC flag for open as an alternative,
-.\" but Linux doesn't support this flag yet.
-\fBfexecve\fP()  は \fBexecve\fP(2)  と同じ作業を行う。違うのは、 実行するファイルを、パス名ではなく、 ファイルディスクリプター
-\fIfd\fP を用いて指定する点である。 ファイルディスクリプター \fIfd\fP は、読み込み専用でオープンされていなければならず、
-呼び出し元はファイルディスクリプターが参照するファイルに対する 実行許可を持っていなければならない。
+\fBfexecve\fP()  performs the same task as \fBexecve\fP(2), with the difference
+that the file to be executed is specified via a file descriptor, \fIfd\fP,
+rather than via a pathname.  The file descriptor \fIfd\fP must be opened
+read\-only (\fBO_RDONLY\fP)  or with the \fBO_PATH\fP flag and the caller must have
+permission to execute the file that it refers to.
 .SH 返り値
 \fBfexecve\fP()  は呼び出しに成功した場合、戻ることはない。 エラーの場合、返り値 \-1 で関数が返り、 \fIerrno\fP
 が適切に設定される。
@@ -74,27 +74,45 @@ _GNU_SOURCE
 \fBEINVAL\fP
 \fIfd\fP が有効なファイルディスクリプターでない。または \fIargv\fP が NULL である。または \fIenvp\fP が NULL である。
 .TP 
+\fBENOENT\fP
+The close\-on\-exec flag is set on \fIfd\fP, and \fIfd\fP refers to a script.  See
+BUGS.
+.TP 
 \fBENOSYS\fP
-\fI/proc\fP ファイルシステムにアクセスできなかった。
+The kernel does not provide the \fBexecveat\fP(2)  system call, and the
+\fI/proc\fP filesystem could not be accessed.
 .SH バージョン
 \fBfexecve\fP()  は glibc 2.3.2 以降で実装されている。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lb lb lb
+l l l.
+インターフェース	属性	値
+T{
+ \fBfexecve\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.sp 1
 .SH 準拠
 POSIX.1\-2008.  この関数は POSIX.1\-2001 では規定されておらず、 他のシステムで広く利用できるわけではない。
 POSIX.1\-2008 で規定されている。
 .SH 注意
-.\" FIXME .
-.\" With the addition of the execveat(2), fexecve() can be implemented
-.\" even where /proc is unavailable. Review future glibc releases to
-.\" see if the implementation is changed to use execveat(2).
-Linux では、 \fBfexecve\fP()  は \fBproc\fP(5)  ファイルシステムを使って実装されている。
-そのため、この関数を呼び出す時点では \fI/proc\fP がマウントされて利用可能となっている必要がある。
-
+.\" glibc commit 43ffc53a352a67672210c9dd4959f6c6b7407e60
+On Linux with glibc versions 2.26 and earlier, \fBfexecve\fP()  is implemented
+using the \fBproc\fP(5)  filesystem, so \fI/proc\fP needs to be mounted and
+available at the time of the call.  Since glibc 2.27, if the underlying
+kernel supports the \fBexecveat\fP(2)  system call, then \fBfexecve\fP()  is
+implemented using that system call, with the benefit that \fI/proc\fP does not
+need to be mounted.
+.PP
 \fBfexecve\fP() の裏にある考えは、呼び出し元が、ファイルを実行する前に実行ファイルの内容を検査 (チェックサムを確認)
 できるようにすることである。単に、ファイルをオープンして内容のチェックサムを検査し、それから \fBexecve\fP(2)
 を行うのは十分ではない。なぜなら、2 つのステップの間で、ファイル名や、パス名のディレクトリの前の方が入れ換えられる可能性があるからだ
 (例えば、シンボリックリンクのリンク先を変更するなど)。\fBfexecve\fP() は、チェックサムの検査と \fBfexecve\fP()
 の呼び出しの間で、ファイルの\fI内容\fPを変更できる可能性があるという問題への対策にはならない。この問題に対する対応策は、確実に、ファイルのアクセス許可を設定し、悪意のあるユーザーがファイルを変更できないようにすることである。
-
+.PP
 \fBfexecve\fP() を使用する際の理にかなった方法は、 \fIfd\fP に close\-on\-exec フラグをセットし、
 実行するプログラムを通じてそのファイルディスクリプターが外部にもれないようにすることである。 この方法は 2 つの理由から理にかなっている。 1
 つ目は、 これにより不必要にファイルディスクリプターが消費されるのを防ぐことができる
@@ -110,6 +128,5 @@ close\-on\-exec フラグを \fIfd\fP にセットすることはできず、 �
 .SH 関連項目
 \fBexecve\fP(2), \fBexecveat\fP(2)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

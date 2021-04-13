@@ -48,27 +48,30 @@
 .\" Updated Tue Oct 16 JST 2001 by Kentaro Shirakata <argrath@ub32.org>
 .\" Updated Mon Sep  8 JST 2003 by Kentaro Shirakata <argrath@ub32.org>
 .\"
-.TH SYNC 2 2014\-08\-19 Linux "Linux Programmer's Manual"
+.TH SYNC 2 2020\-08\-13 Linux "Linux Programmer's Manual"
 .SH 名前
-sync, syncfs \- バッファーキャッシュをディスクに書き込む
+sync, syncfs \- ファイルシステムキャッシュをディスクに書き込む
 .SH 書式
 \fB#include <unistd.h>\fP
-.sp
+.PP
 \fBvoid sync(void);\fP
-.sp
+.PP
 \fBint syncfs(int \fP\fIfd\fP\fB);\fP
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 \fBsync\fP():
 .ad l
 .RS 4
-_BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+.\"    || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+_XOPEN_SOURCE\ >=\ 500
+    || /* Since glibc 2.19: */ _DEFAULT_SOURCE
+    || /* Glibc versions <= 2.19: */ _BSD_SOURCE
 .RE
 .ad
-.sp
+.PP
 \fBsyncfs\fP():
 .ad l
 .RS 4
@@ -76,9 +79,9 @@ _GNU_SOURCE
 .RE
 .ad
 .SH 説明
-\fBsync\fP() を呼び出すと、バッファーされたファイルのメタデータとデータ本体に
-対して行われた全ての変更が、対応するファイルシステムに書き込まれる。
-
+\fBsync\fP()  causes all pending modifications to filesystem metadata and
+cached file data to be written to the underlying filesystems.
+.PP
 \fBsyncfs\fP() は \fBsync\fP() と同様だが、オープンされたファイルディスクリプター \fIfd\fP
 が参照するファイルを含むファイルシステムだけを同期する点が異なる。
 .SH 返り値
@@ -86,34 +89,53 @@ _GNU_SOURCE
 \fIerrno\fP にエラーを示す値を設定する。
 .SH エラー
 \fBsync\fP() は常に成功する。
-
+.PP
 \fBsyncfs\fP() は少なくとも以下の理由で失敗する可能性がある:
 .TP 
 \fBEBADF\fP
 \fIfd\fP が有効なファイルディスクリプターでない。。
+.TP 
+\fBEIO\fP
+An error occurred during synchronization.  This error may relate to data
+written to any file on the filesystem, or on metadata related to the
+filesystem itself.
+.TP 
+\fBENOSPC\fP
+Disk space was exhausted while synchronizing.
+.TP 
+\fBENOSPC\fP, \fBEDQUOT\fP
+Data was written to a files on NFS or another filesystem which does not
+allocate space at the time of a \fBwrite\fP(2)  system call, and some previous
+write failed due to insufficient storage space.
 .SH バージョン
 \fBsyncfs\fP() は Linux 2.6.39 で初めて登場した。
 ライブラリによるサポートは glibc バージョン 2.14 で追加された。
 .SH 準拠
-\fBsync\fP(): SVr4, 4.3BSD, POSIX.1\-2001.
-
+\fBsync\fP(): POSIX.1\-2001, POSIX.1\-2008, SVr4, 4.3BSD.
+.PP
 \fBsyncfs\fP() is Linux 固有である。
 .SH 注意
 Linux での \fBsync\fP() のプロトタイプは、さまざまな標準規格での規定に準拠し、
 glibc 2.2.2 から上述のようになった。
 glibc 2.2.1 以前ではプロトタイプは "int sync(void)" で、
 \fBsync\fP()  は常に 0 を返していた。
+.PP
+According to the standard specification (e.g., POSIX.1\-2001), \fBsync\fP()
+schedules the writes, but may return before the actual writing is done.
+However Linux waits for I/O completions, and thus \fBsync\fP()  or \fBsyncfs\fP()
+provide the same guarantees as \fBfsync\fP()  called on every file in the
+system or filesystem respectively.
+.PP
+.\" commit 735e4ae5ba28c886d249ad04d3c8cc097dad6336
+In mainline kernel versions prior to 5.8, \fBsyncfs\fP()  will fail only when
+passed a bad file descriptor (\fBEBADF\fP).  Since Linux 5.8, \fBsyncfs\fP()  will
+also report an error if one or more inodes failed to be written back since
+the last \fBsyncfs\fP()  call.
 .SH バグ
-標準規格 (例えば POSIX.1\-2001) によると、
-\fBsync\fP()
-は書き込むことを予定に
-組み込むのみで実際に書き込みが終了する前に戻ってもよいことになっている。
-一方で Linux はバージョン 1.3.20 からは書き込みが終了するまで待つ。
-(最近のディスクは大きなキャッシュを持っているため、
- これはデータの完全性 (data integrity) までは保証していない。)
+Before version 1.3.20 Linux did not wait for I/O to complete before
+returning.
 .SH 関連項目
-\fBbdflush\fP(2), \fBfdatasync\fP(2), \fBfsync\fP(2), \fBsync\fP(1)
+\fBsync\fP(1), \fBfdatasync\fP(2), \fBfsync\fP(2)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

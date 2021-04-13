@@ -47,18 +47,18 @@
 .\" Updated & Modified Thu Dec 23 10:04:20 JST 2004
 .\"         by Yuichi SATO <ysato444@yahoo.co.jp>
 .\"
-.TH CHROOT 2 2010\-09\-20 Linux "Linux Programmer's Manual"
+.TH CHROOT 2 2020\-12\-21 Linux "Linux Programmer's Manual"
 .SH 名前
 chroot \- ルートディレクトリを変更する
 .SH 書式
 \fB#include <unistd.h>\fP
-.sp
+.PP
 \fBint chroot(const char *\fP\fIpath\fP\fB);\fP
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 \fBchroot\fP():
 .ad l
 .RS 4
@@ -66,12 +66,11 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 .TP  4
 glibc 2.2.2 以降:
 .nf
-_BSD_SOURCE ||
-    (_XOPEN_SOURCE\ >=\ 500 ||
-        _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED) &&
-    !(_POSIX_C_SOURCE\ >=\ 200112L || _XOPEN_SOURCE\ >=\ 600)
-.TP  4
+_XOPEN_SOURCE && ! (_POSIX_C_SOURCE\ >=\ 200112L)
+    || /* glibc 2.20 以降: */ _DEFAULT_SOURCE
+    || /* Glibc 2.19 以前: */ _BSD_SOURCE
 .fi
+.TP  4
 glibc 2.2.2 より前: なし
 .PD
 .RE
@@ -79,20 +78,39 @@ glibc 2.2.2 より前: なし
 .SH 説明
 \fBchroot\fP()  は、呼び出し元プロセスのルートディレクトリを \fIpath\fP で指定されたディレクトリに変更する。 このディレクトリ以下が
 \fI/\fP から始まるパス名として使われる。 このルートディレクトリは呼び出し元のプロセスの全ての子プロセスに受け継がれる。
-
-特権プロセス (Linux では、 \fBCAP_SYS_CHROOT\fP ケーパビリティを持つプロセス) のみが \fBchroot\fP()
-を呼び出すことができる。
-
-このコールはパス名解決の過程で構成要素を変更するのみで、 その他には何も行わない。
-
+.PP
+特権プロセス (Linux では、そのプロセスのユーザー名前空間で \fBCAP_SYS_CHROOT\fP ケーパビリティを持つプロセス) のみが
+\fBchroot\fP()  を呼び出すことができる。
+.PP
+This call changes an ingredient in the pathname resolution process and does
+nothing else.  In particular, it is not intended to be used for any kind of
+security purpose, neither to fully sandbox a process nor to restrict
+filesystem system calls.  In the past, \fBchroot\fP()  has been used by daemons
+to restrict themselves prior to passing paths supplied by untrusted users to
+system calls such as \fBopen\fP(2).  However, if a folder is moved out of the
+chroot directory, an attacker can exploit that to get out of the chroot
+directory as well.  The easiest way to do that is to \fBchdir\fP(2)  to the
+to\-be\-moved directory, wait for it to be moved out, then open a path like
+\&../../../etc/passwd.
+.PP
+.\" This is how the "slightly trickier variation" works:
+.\" https://github.com/QubesOS/qubes-secpack/blob/master/QSBs/qsb-014-2015.txt#L142
+A slightly trickier variation also works under some circumstances if
+\fBchdir\fP(2)  is not permitted.  If a daemon allows a "chroot directory" to
+be specified, that usually means that if you want to prevent remote users
+from accessing files outside the chroot directory, you must ensure that
+folders are never moved out of it.
+.PP
 このコールは現在の作業ディレクトリ (working directory) を変更しない。 そのため、このコールの後に \(aq\fI.\fP\(aq が
 \(aq\fI/\fP\(aq を 根とするツリーの外になる場合がある。 特に、スーパーユーザーは以下のようにすることで "chroot jail"
 から逃げ出せてしまう。
-.nf
-
-    mkdir foo; chroot foo; cd ..
-.fi
-
+.PP
+.in +4n
+.EX
+mkdir foo; chroot foo; cd ..
+.EE
+.in
+.PP
 このコールはオープンファイルディスクリプターをクローズしないので、 このようなファイルディスクリプターは chroot ツリーの外にある
 ファイルにアクセスできる。
 .SH 返り値
@@ -135,13 +153,14 @@ SVr4, 4.4BSD, SUSv2 (但し、SUSv2 では過去の名残とされている)。 
 .SH 注意
 \fBfork\fP(2)  で作成された子プロセスは、 親プロセスのルートディレクトリを継承する。 \fBexecve\fP(2)
 の場合も、ルートディレクトリは変更されない。
-
-.\" FIXME . eventually say something about containers,
-.\" virtual servers, etc.?
+.PP
+The magic symbolic link, \fI/proc/[pid]/root\fP, can be used to discover a
+process's root directory; see \fBproc\fP(5)  for details.
+.PP
 FreeBSD にはより強力な \fBjail\fP()  システムコールがある。
 .SH 関連項目
-\fBchdir\fP(2), \fBpath_resolution\fP(7)
+\fBchroot\fP(1), \fBchdir\fP(2), \fBpivot_root\fP(2), \fBpath_resolution\fP(7),
+\fBswitch_root\fP(8)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

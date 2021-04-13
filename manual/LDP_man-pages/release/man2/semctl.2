@@ -37,6 +37,7 @@
 .\"	Rewrote semun text
 .\"	Added semid_ds and ipc_perm structure definitions
 .\" 2005-08-02, mtk: Added IPC_INFO, SEM_INFO, SEM_STAT descriptions.
+.\" 2018-03-20, dbueso: Added SEM_STAT_ANY description.
 .\"
 .\"*******************************************************************
 .\"
@@ -55,7 +56,7 @@
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-07-24, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SEMCTL 2 2013\-06\-03 Linux "Linux Programmer's Manual"
+.TH SEMCTL 2 2020\-12\-21 Linux "Linux Programmer's Manual"
 .SH 名前
 semctl \- System V セマフォの制御操作を行なう
 .SH 書式
@@ -63,7 +64,7 @@ semctl \- System V セマフォの制御操作を行なう
 \fB#include <sys/types.h>\fP
 \fB#include <sys/ipc.h>\fP
 \fB#include <sys/sem.h>\fP
-.sp
+.PP
 \fBint semctl(int \fP\fIsemid\fP\fB, int \fP\fIsemnum\fP\fB, int \fP\fIcmd\fP\fB, ...);\fP
 .fi
 .SH 説明
@@ -72,9 +73,9 @@ semctl \- System V セマフォの制御操作を行なう
 .PP
 この関数は、 \fIcmd\fP の値に依存して、3 個または 4 個の引き数を持つ。 引き数が 4 個の場合、第 4 引き数の型は \fIunion
 semun\fP である。 \fI呼び出し元プログラム\fPは、 この共用体 (union) を以下のように定義しなければならない。
-
-.nf
+.PP
 .in +4n
+.EX
 union semun {
     int              val;    /* SETVAL の値 */
     struct semid_ds *buf;    /* IPC_STAT, IPC_SET 用のバッファー */
@@ -82,26 +83,44 @@ union semun {
     struct seminfo  *__buf;  /* IPC_INFO 用のバッファー
                                 (Linux 固有) */
 };
+.EE
 .in
-.fi
 .PP
 \fIsemid_ds\fP データ構造体は \fI<sys/sem.h>\fP で以下のように定義されている:
-.nf
+.PP
 .in +4n
-
+.EX
 struct semid_ds {
     struct ipc_perm sem_perm;  /* 所有権と許可 */
     time_t          sem_otime; /* 最後の semop の時刻 */
-    time_t          sem_ctime; /* 最後に変更が行われた時刻 */
+    time_t          sem_ctime; /* 作成時刻/semctl() により
+                                  最後に変更が行われた時刻 */
     unsigned long   sem_nsems; /* 集合内のセマフォの数 */
 };
+.EE
 .in
-.fi
+.PP
+The fields of the \fIsemid_ds\fP structure are as follows:
+.TP  11
+\fIsem_perm\fP
+This is an \fIipc_perm\fP structure (see below) that specifies the access
+permissions on the semaphore set.
+.TP 
+\fIsem_otime\fP
+Time of last \fBsemop\fP(2)  system call.
+.TP 
+\fIsem_ctime\fP
+Time of creation of semaphore set or time of last \fBsemctl\fP()  \fBIPCSET\fP,
+\fBSETVAL\fP, or \fBSETALL\fP operation.
+.TP 
+\fIsem_nsems\fP
+Number of semaphores in the set.  Each semaphore of the set is referenced by
+a nonnegative integer ranging from \fB0\fP to \fIsem_nsems\-1\fP.
 .PP
 \fIipc_perm\fP 構造体は以下のように定義されている (強調されたフィールドは \fBIPC_SET\fP を使って設定可能である):
 .PP
-.nf
 .in +4n
+.EX
 struct ipc_perm {
     key_t          __key; /* semget(2) に与えられるキー */
     uid_t          \fBuid\fP;   /* 所有者 (owner) の実効 UID */
@@ -111,21 +130,42 @@ struct ipc_perm {
     unsigned short \fBmode\fP;  /* 許可 */
     unsigned short __seq; /* シーケンス番号 */
 };
+.EE
 .in
-.fi
+.PP
+The least significant 9 bits of the \fImode\fP field of the \fIipc_perm\fP
+structure define the access permissions for the shared memory segment.  The
+permission bits are as follows:
+.TS
+l l.
+0400	Read by user
+0200	Write by user
+0040	Read by group
+0020	Write by group
+0004	Read by others
+0002	Write by others
+.TE
+.PP
+In effect, "write" means "alter" for a semaphore set.  Bits 0100, 0010, and
+0001 (the execute bits) are unused by the system.
 .PP
 \fIcmd\fP として有効な値は次の通りである。
-.TP  10
+.TP 
 \fBIPC_STAT\fP
 \fIsemid\fP に関連づけられたカーネルデータ構造体の情報を \fIarg.buf\fP で指された \fIsemid_ds\fP 構造体へコピーする。
 \fIsemnum\fP 引き数は無視される。 呼び出したプロセスはそのセマフォ集合に対する 読み込み許可を持たなければならない。
 .TP 
 \fBIPC_SET\fP
-\fIarg.buf\fP で指定された \fIsemid_ds\fP 構造体のメンバーのいくつかの値を、
-このセマフォに関連づけられたカーネルデータ構造体に書き込み、 \fIsem_ctime\fP メンバーの値も更新する。 構造体の以下のメンバーが更新される:
-\fIsem_perm.uid\fP, \fIsem_perm.gid\fP, \fIsem_perm.mode\fP (の最下位 9 ビット)。
-呼び出したプロセスの実効 UID が所有者 (\fIsem_perm.uid\fP)  または作成者 (\fIsem_perm.cuid\fP)
-と一致するか、呼び出した人が特権を持たなければならない。 \fIsemnum\fP 引き数は無視される。
+Write the values of some members of the \fIsemid_ds\fP structure pointed to by
+\fIarg.buf\fP to the kernel data structure associated with this semaphore set,
+updating also its \fIsem_ctime\fP member.
+.IP
+The following members of the structure are updated: \fIsem_perm.uid\fP,
+\fIsem_perm.gid\fP, and (the least significant 9 bits of)  \fIsem_perm.mode\fP.
+.IP
+The effective UID of the calling process must match the owner
+(\fIsem_perm.uid\fP)  or creator (\fIsem_perm.cuid\fP)  of the semaphore set, or
+the caller must be privileged.  The argument \fIsemnum\fP is ignored.
 .TP 
 \fBIPC_RMID\fP
 セマフォ集合をただちに削除し、その集合上の \fBsemop\fP(2)  コールでブロックされている全てのプロセスを目覚めさせる (エラー値が返されて、
@@ -136,9 +176,9 @@ struct ipc_perm {
 システム全体でのセマフォの制限とパラメーターに関する情報を、 \fIarg.__buf\fP が指す構造体に入れて返す。 この構造体は \fIseminfo\fP
 型である。 \fIseminfo\fP は \fB_GNU_SOURCE\fP 機能検査マクロが定義された場合に \fI<sys/sem.h>\fP
 で以下のように定義される:
-.nf
+.IP
 .in +4n
-
+.EX
 struct  seminfo {
     int semmap;  /* セマフォマップの最大エントリー数;
                     カーネル内では未使用 */
@@ -156,9 +196,9 @@ struct  seminfo {
     int semaem;  /* セマフォの調整 (semaphore adjustment;
                      SEM_UNDO) のために記録される最大値 */
 };
-
+.EE
 .in
-.fi
+.IP
 設定 \fIsemmsl\fP, \fIsemmns\fP, \fIsemopm\fP, \fIsemmni\fP は \fI/proc/sys/kernel/sem\fP
 経由で変更可能である。 詳しくは \fBproc\fP(5)  を参照。
 .TP 
@@ -171,43 +211,51 @@ struct  seminfo {
 \fBIPC_STAT\fP と同じく \fIsemid_ds\fP 構造体を返す。 但し、 \fIsemid\fP
 引き数は、セマフォ識別子ではなく、システム上の全てのセマフォ集合 に関する情報を管理するカーネルの内部配列へのインデックスである。
 .TP 
+\fBSEM_STAT_ANY\fP (Linux 固有, Linux 4.17 以降)
+Return a \fIseminfo\fP structure containing the same information as for
+\fBSEM_STAT\fP.  However, \fIsem_perm.mode\fP is not checked for read access for
+\fIsemid\fP meaning that any user can employ this operation (just as any user
+may read \fI/proc/sysvipc/sem\fP to obtain the same information).
+.TP 
 \fBGETALL\fP
 集合の全てのセマフォの \fBsemval\fP の値 (現在の値) を \fIarg.array\fP に返す。 \fIsemnum\fP 引き数は無視される。
 呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
 .TP 
 \fBGETNCNT\fP
-集合の \fIsemnum\fP 番目のセマフォの \fBsemncnt\fP の値を返す (集合の \fIsemnum\fP 番目のセマフォの \fBsemval\fP
-の増加を待っているプロセスの数を返す)。 呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
+Return the \fBsemncnt\fP value for the \fIsemnum\fP\-th semaphore of the set (i.e.,
+the number of processes waiting for the semaphore's value to increase).  The
+calling process must have read permission on the semaphore set.
 .TP 
 \fBGETPID\fP
-集合の \fIsemnum\fP 番目のセマフォの \fBsempid\fP の値 (集合の \fIsemnum\fP 番目のセマフォに最後に \fBsemop\fP(2)
-コールを実行したプロセスの PID) を返す。 呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
+集合の \fIsemnum\fP 番目のセマフォの \fBsempid\fP の値を返す。この値は、そのセマフォに対して最後に操作を行ったプロセスの PID である
+(ただし「バグ」を参照)。呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
 .TP 
 \fBGETVAL\fP
-集合の \fIsemnum\fP 番目のセマフォの \fBsemval\fP の値を返す。
+集合の \fIsemnum\fP 番目のセマフォの \fBsemval\fP (セマフォの値) を返す。
 呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
 .TP 
 \fBGETZCNT\fP
-集合の \fIsemnum\fP 番目のセマフォの \fBsemzcnt\fP の値を返す (集合の \fIsemnum\fP 番目のセマフォの \fBsemval\fP
-の値が 0 になるのを待っているプロセスの数を返す)。 呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
+集合の \fIsemnum\fP 番目のセマフォの \fBsemzcnt\fP の値 (つまり、そのセマフォの値が 0 になるのを待っているプロセスの数)
+を返す。呼び出したプロセスはそのセマフォ集合に読み込み許可を持たなければならない。
 .TP 
 \fBSETALL\fP
-集合の全てのセマフォの \fBsemval\fP に \fIarg.array\fP で指定された値を設定する。 その集合に関連する \fIsemid_ds\fP
+集合の全てのセマフォの \fBsemval\fP 値に \fIarg.array\fP で指定された値を設定する。 その集合に関連する \fIsemid_ds\fP
 構造体の \fIsem_ctime\fP メンバーの値も更新する。 全てのプロセスのセマフォの変更についてのアンドゥエントリー (\fBsemop\fP(2)
 を参照) は消去 (clear) される。 セマフォの値の変更により、他のプロセス内でブロックされている \fBsemop\fP(2)
 コールの続行が許可されると、それらのプロセスは起こされる (wake up)。 \fIsemnum\fP 引き数は無視される。
 呼び出したプロセスはそのセマフォ集合に 変更 (書き込み) 許可を持たなければならない。
 .TP 
 \fBSETVAL\fP
-集合の \fIsemnum\fP 番目のセマフォの \fBsemval\fP に \fIarg.val\fP の値を設定する。その集合に関連する \fIsemid_ds\fP
-構造体の \fIsem_ctime\fP メンバーの値も更新する。 全てのプロセスのセマフォの変更についてのアンドゥエントリーは消去される。
-セマフォの値の変更により、他のプロセス内でブロックされている \fBsemop\fP(2)  コールの続行が許可されると、それらのプロセスは起こされる
-(wake up)。 呼び出したプロセスはそのセマフォ集合に 変更 (書き込み) 許可を持たなければならない。
+集合の \fIsemnum\fP 番目のセマフォのセマフォ地 (\fBsemval\fP) に \fIarg.val\fP の値を設定する。その集合に関連する
+\fIsemid_ds\fP 構造体の \fIsem_ctime\fP メンバーの値も更新する。
+全てのプロセスのセマフォの変更についてのアンドゥエントリーは消去される。 セマフォの値の変更により、他のプロセス内でブロックされている
+\fBsemop\fP(2)  コールの続行が許可されると、それらのプロセスは起こされる (wake up)。 呼び出したプロセスはそのセマフォ集合に 変更
+(書き込み) 許可を持たなければならない。
 .SH 返り値
 失敗した場合、 \fBsemctl\fP()  は \-1 を返し、 \fIerrno\fP にそのエラーを示す。
-
+.PP
 そうでなければシステムコールは \fIcmd\fP によって以下の負でない値を返す:
-.TP  10
+.TP 
 \fBGETNCNT\fP
 \fBsemncnt\fP の値
 .TP 
@@ -222,22 +270,28 @@ struct  seminfo {
 .TP 
 \fBIPC_INFO\fP
 全てのセマフォ集合に関する情報を管理しているカーネルの内部配列の使用中 エントリーのインデックスの最大値
-(この情報は、システムの全てのセマフォ集合に関する情報を取得するために \fBSEM_STAT\fP 操作を繰り返し実行する際に使用できる)
+(この情報は、システムの全てのセマフォ集合に関する情報を取得するために操作 \fBSEM_STAT\fP や \fBSEM_STAT_ANY\fP
+を繰り返し実行する際に使用できる)
 .TP 
 \fBSEM_INFO\fP
 \fBIPC_INFO\fP と同じ
 .TP 
 \fBSEM_STAT\fP
 \fIsemid\fP で指定されたインデックスを持つセマフォ集合の識別子
-.LP
+.TP 
+\fBSEM_STAT_ANY\fP
+\fBSEM_STAT\fP と同じ。
+.PP
 \fIcmd\fP の値がそれ以外の場合、成功すると 0 が返される。
 .SH エラー
 失敗した場合は \fIerrno\fP には以下の値のどれかが設定される:
 .TP 
 \fBEACCES\fP
-\fIcmd\fP 引き数が \fBGETALL\fP, \fBGETPID\fP, \fBGETVAL\fP, \fBGETNCNT\fP, \fBGETZCNT\fP,
-\fBIPC_STAT\fP, \fBSEM_STAT\fP, \fBSETALL\fP, \fBSETVAL\fP のうちの何れかの値を持ち、
-呼び出したプロセスがセマフォに対して必要とされる許可と \fBCAP_IPC_OWNER\fP ケーパビリティ (capability) を持っていない。
+The argument \fIcmd\fP has one of the values \fBGETALL\fP, \fBGETPID\fP, \fBGETVAL\fP,
+\fBGETNCNT\fP, \fBGETZCNT\fP, \fBIPC_STAT\fP, \fBSEM_STAT\fP, \fBSEM_STAT_ANY\fP,
+\fBSETALL\fP, or \fBSETVAL\fP and the calling process does not have the required
+permissions on the semaphore set and does not have the \fBCAP_IPC_OWNER\fP
+capability in the user namespace that governs its IPC namespace.
 .TP 
 \fBEFAULT\fP
 \fIarg.buf\fP または \fIarg.array\fP で指されているアドレスにアクセスすることができない。
@@ -259,9 +313,10 @@ struct  seminfo {
 0 より小さいか、実装の制限 \fBSEMVMX\fP よりも大きい。
 .SH 準拠
 .\" SVr4 documents more error conditions EINVAL and EOVERFLOW.
-SVr4, POSIX.1\-2001.
-
-POSIX.1\-2001 では \fIsemid_ds\fP 構造体の \fIsem_nsems\fP フィールドは \fIunsigned\ short\fP
+POSIX.1\-2001, POSIX.1\-2008, SVr4.
+.PP
+.\" POSIX.1-2001, POSIX.1-2008
+POSIX.1 では \fIsemid_ds\fP 構造体の \fIsem_nsems\fP フィールドは \fIunsigned\ short\fP
 型を持つと規定されており、 他のほとんどのシステムでこのフィールドは \fIunsigned\ short\fP 型になっている。 Linux 2.4
 以前ではそうなっていたが、 Linux 2.4 以降ではこのフィールドは \fIunsigned\ long\fP 型である。
 .SH 注意
@@ -270,29 +325,53 @@ POSIX.1\-2001 では \fIsemid_ds\fP 構造体の \fIsem_nsems\fP フィールド
 Linux や POSIX の全てのバージョンでは、 \fI<sys/types.h>\fP と \fI<sys/ipc.h>\fP
 のインクルードは必要ない。しかしながら、いくつかの古い実装ではこれらのヘッダーファイルのインクルードが必要であり、 SVID
 でもこれらのインクルードをするように記載されている。このような古いシステムへの移植性を意図したアプリケーションではこれらのファイルをインクルードする必要があるかもしれない。
-
+.PP
 \fBIPC_INFO\fP, \fBSEM_STAT\fP, \fBSEM_INFO\fP 操作は \fBipcs\fP(1)
 プログラムによって割当られた資源について情報を提供するために使用される。 将来的にはこれらは変更されるか、 \fI/proc\fP
 ファイルシステムインターフェースに移動されるかもしれない。
-.LP
+.PP
 \fI構造体 semid_ds\fP 内の多くのフィールドは、 Linux 2.2 では \fIshort\fP 型だったが、Linux 2.4 では
 \fIlong\fP 型になった。 この利点を生かすには、glibc\-2.1.91 以降の環境下で 再コンパイルすれば十分である。
 カーネルは新しい形式の呼び出しと古い形式の呼び出しを \fIcmd\fP 内の \fBIPC_64\fP フラグで区別する。
 .PP
-初期のバージョンの glibc では、 \fIsemun\fP 共用体は \fI<sys/sem.h>\fP で定義されていたが、
-POSIX.1\-2001 では呼び出し側がこの共用体を定義する必要がある。 この共用体が定義されて\fIいない\fP glibc のバージョンでは、 マクロ
+.\" POSIX.1-2001, POSIX.1-2008
+初期のバージョンの glibc では、 \fIsemun\fP 共用体は \fI<sys/sem.h>\fP で定義されていたが、 POSIX.1
+では呼び出し側がこの共用体を定義する必要がある。 この共用体が定義されて\fIいない\fP glibc のバージョンでは、 マクロ
 \fB_SEM_SEMUN_UNDEFINED\fP が \fI<sys/sem.h>\fP で定義されている。
 .PP
 以下は \fBsemctl\fP()  コールに影響するセマフォ集合のシステム制限:
 .TP 
 \fBSEMVMX\fP
 \fBsemval\fP の最大値 : 実装依存 (32767)。
-.LP
+.PP
+.\"
 移植性を高めるための一番良い方法は、常に 4 個の引き数で \fBsemctl\fP()  を呼び出すことである。
+.SS "The sempid value"
+POSIX.1 defines \fIsempid\fP as the "process ID of [the] last operation" on a
+semaphore, and explicitly notes that this value is set by a successful
+\fBsemop\fP(2)  call, with the implication that no other interface affects the
+\fIsempid\fP value.
+.PP
+.\" At least OpenSolaris (and, one supposes, older Solaris) and Darwin
+While some implementations conform to the behavior specified in POSIX.1,
+others do not.  (The fault here probably lies with POSIX.1 inasmuch as it
+likely failed to capture the full range of existing implementation
+behaviors.)  Various other implementations also update \fIsempid\fP for the
+other operations that update the value of a semaphore: the \fBSETVAL\fP and
+\fBSETALL\fP operations, as well as the semaphore adjustments performed on
+process termination as a consequence of the use of the \fBSEM_UNDO\fP flag (see
+\fBsemop\fP(2)).
+.PP
+.\" commit a5f4db877177d2a3d7ae62a7bac3a5a27e083d7f
+Linux also updates \fIsempid\fP for \fBSETVAL\fP operations and semaphore
+adjustments.  However, somewhat inconsistently, up to and including Linux
+4.5, the kernel did not update \fIsempid\fP for \fBSETALL\fP operations.  This was
+rectified in Linux 4.6.
+.SH 例
+\fBshmop\fP(2) 参照。
 .SH 関連項目
 \fBipc\fP(2), \fBsemget\fP(2), \fBsemop\fP(2), \fBcapabilities\fP(7),
-\fBsem_overview\fP(7), \fBsvipc\fP(7)
+\fBsem_overview\fP(7), \fBsysvipc\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

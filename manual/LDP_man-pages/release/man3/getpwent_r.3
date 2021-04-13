@@ -32,38 +32,44 @@
 .\" Translated Sun Aug  8 00:53:40 JST 2004
 .\"         by Yuichi SATO <ysato444@yahoo.co.jp>
 .\"
-.TH GETPWENT_R 3 2015\-01\-22 GNU "Linux Programmer's Manual"
+.TH GETPWENT_R 3 2020\-11\-01 GNU "Linux Programmer's Manual"
 .SH 名前
 getpwent_r, fgetpwent_r \- パスワードファイルのエントリーを リエントラントで取り出す
 .SH 書式
 .nf
 \fB#include <pwd.h>\fP
-.sp
+.PP
 \fBint getpwent_r(struct passwd *\fP\fIpwbuf\fP\fB, char *\fP\fIbuf\fP\fB,\fP
-.br
 \fB               size_t \fP\fIbuflen\fP\fB, struct passwd **\fP\fIpwbufp\fP\fB);\fP
-.sp
+.PP
 \fBint fgetpwent_r(FILE *\fP\fIstream\fP\fB, struct passwd *\fP\fIpwbuf\fP\fB, char *\fP\fIbuf\fP\fB,\fP
-.br
 \fB                size_t \fP\fIbuflen\fP\fB, struct passwd **\fP\fIpwbufp\fP\fB);\fP
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
-\fBgetpwent_r\fP(), _BSD_SOURCE || _SVID_SOURCE
+.RE
+.PP
+\fBgetpwent_r\fP(),
+    glibc 2.19 以降:
+        _DEFAULT_SOURCE
+    glibc 2.19 以前:
+        _BSD_SOURCE || _SVID_SOURCE
 .br
-\fBfgetpwent_r\fP(): _SVID_SOURCE
+\fBfgetpwent_r\fP():
+    glibc 2.19 以降:
+        _DEFAULT_SOURCE
+    glibc 2.19 以前:
+        _SVID_SOURCE
 .SH 説明
 関数 \fBgetpwent_r\fP()  と \fBfgetpwent_r\fP()  は \fBgetpwent\fP(3)  と \fBfgetpwent\fP(3)
 のリエントラント (reentrant) 版である。 前者は、 \fBsetpwent\fP(3)
 によって初期化されたストリームから、次のパスワードエントリーを読み込む。 後者は、 \fIstream\fP から次のパスワードエントリーを読み込む。
 .PP
 \fIpasswd\fP 構造体は、\fI<pwd.h>\fP で以下のように定義されている:
-.sp
+.PP
 .in +4n
-.nf
+.EX
 struct passwd {
     char    *pw_name;      /* ユーザー名 */
     char    *pw_passwd;    /* ユーザーのパスワード */
@@ -73,11 +79,11 @@ struct passwd {
     char    *pw_dir;       /* ホームディレクトリ */
     char    *pw_shell;     /* シェルプログラム */
 };
-.fi
+.EE
 .in
 .PP
 この構造体のフィールドの詳細は \fBpasswd\fP(5)  を参照のこと。
-
+.PP
 リエントラントでない関数は静的な格納領域へのポインターを返す。 この静的な格納領域には、更にユーザー名・パスワード・gecos フィールド・
 ホームディレクトリ・シェルへのポインターが含まれる。 ここで説明されているリエントラント版の関数は、
 呼び出し側から提供されるバッファーにユーザー名など全てを返す。 最初の引き数として \fIstruct passwd\fP を保持できるバッファー
@@ -94,55 +100,76 @@ passwd\fP へのポインターは \fI*pwbufp\fP に返される。
 .TP 
 \fBERANGE\fP
 十分なバッファー空間が与えられていない。 もっと大きなバッファーで再度実行すること。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lb lb lbw27
+l l l.
+インターフェース	属性	値
+T{
+\fBgetpwent_r\fP()
+T}	Thread safety	MT\-Unsafe race:pwent locale
+T{
+\fBfgetpwent_r\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.sp 1
+In the above table, \fIpwent\fP in \fIrace:pwent\fP signifies that if any of the
+functions \fBsetpwent\fP(), \fBgetpwent\fP(), \fBendpwent\fP(), or \fBgetpwent_r\fP()
+are used in parallel in different threads of a program, then data races
+could occur.
 .SH 準拠
 これらの関数は GNU 拡張であり、POSIX 版の関数 \fBgetpwnam_r\fP(3)  の形式に似せてある。
 他のシステムでは以下のプロトタイプが使われている。
-.sp
-.nf
+.PP
 .in +4n
+.EX
 struct passwd *
 getpwent_r(struct passwd *pwd, char *buf, int buflen);
+.EE
 .in
-.fi
-.sp
+.PP
 より良いものでは、以下のようになっている。
-.sp
-.nf
+.PP
 .in +4n
+.EX
 int
 getpwent_r(struct passwd *pwd, char *buf, int buflen,
            FILE **pw_fp);
+.EE
 .in
-.fi
 .SH 注意
 関数 \fBgetpwent_r\fP()  は本当のリエントラントではない。 なぜなら、ストリームの読み込み位置を
 他の全てのスレッドと共有しているためである。
 .SH 例
-.nf
+.EX
 #define _GNU_SOURCE
 #include <pwd.h>
 #include <stdio.h>
+#include <stdint.h>
 #define BUFLEN 4096
 
 int
 main(void)
 {
-    struct passwd pw, *pwp;
+    struct passwd pw;
+    struct passwd *pwp;
     char buf[BUFLEN];
     int i;
 
     setpwent();
     while (1) {
-        i = getpwent_r(&pw, buf, BUFLEN, &pwp);
+        i = getpwent_r(&pw, buf, sizeof(buf), &pwp);
         if (i)
             break;
-        printf("%s (%d)\etHOME %s\etSHELL %s\en", pwp\->pw_name,
-               pwp\->pw_uid, pwp\->pw_dir, pwp\->pw_shell);
+        printf("%s (%jd)\etHOME %s\etSHELL %s\en", pwp\->pw_name,
+               (intmax_t) pwp\->pw_uid, pwp\->pw_dir, pwp\->pw_shell);
     }
     endpwent();
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .\" perhaps add error checking - should use strerror_r
 .\" #include <errno.h>
 .\" #include <stdlib.h>
@@ -156,6 +183,5 @@ main(void)
 \fBfgetpwent\fP(3), \fBgetpw\fP(3), \fBgetpwent\fP(3), \fBgetpwnam\fP(3),
 \fBgetpwuid\fP(3), \fBputpwent\fP(3), \fBpasswd\fP(5)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

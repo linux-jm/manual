@@ -24,8 +24,6 @@
 .\" This man page written 950814 by aeb, based on Paul Gortmaker's HOWTO
 .\" (dated v1.0.1, 15/08/95).
 .\" Major update, aeb, 970114.
-.\" FIXME . The use of quotes on this page is inconsistent with the
-.\" rest of man-pages.
 .\"
 .\"*******************************************************************
 .\"
@@ -44,73 +42,54 @@
 .\" Updated 2013-07-31, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-08-16, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH BOOTPARAM 7 2014\-06\-13 Linux "Linux Programmer's Manual"
+.TH BOOTPARAM 7 2017\-09\-15 Linux "Linux Programmer's Manual"
 .SH 名前
 bootparam \- Linux カーネル起動時パラメーターの解説
 .SH 説明
 Linux カーネルは起動するときに「コマンドラインオプション」あるいは 「起動時パラメーター」を受け付ける。 これは一般に、
 カーネルには決定できないハードウェアのパラメーターをカーネルに渡したい場合や、
 カーネルが検出するであろう値を意図的に無効にしたり変更したりする場合に用いる。
-
-カーネルが BIOS から直接起動されるとき (たとえば 'cp zImage /dev/fd0' でフロッピーにコピーしたカーネルから起動するなど)
-は、 パラメーターを指定する機会はない。 そのため、この起動時パラメーター機能を利用するためには、 GRUB
-のようなパラメーターを指定できるブートローダーを使用しなければならない。
-
-.\" The LILO program (LInux LOader) written by Werner Almesberger is the
-.\" most commonly used.
-.\" It has the ability to boot various kernels, and
-.\" stores the configuration information in a plain text file.
-.\" (See
-.\" .BR lilo (8)
-.\" and
-.\" .BR lilo.conf (5).)
-.\" LILO can boot DOS, OS/2, Linux, FreeBSD, UnixWare, etc., and is quite flexible.
-.\"
-.\" The other commonly used Linux loader is 'LoadLin', which is a DOS
-.\" program that has the capability to launch a Linux kernel from the DOS
-.\" prompt (with boot-args) assuming that certain resources are available.
-.\" This is good for people that want to launch Linux from DOS.
-.\"
-.\" It is also very useful if you have certain hardware which relies on
-.\" the supplied DOS driver to put the hardware into a known state.
-.\" A common example is 'SoundBlaster Compatible' sound cards that require
-.\" the DOS driver to twiddle a few mystical registers to put the card
-.\" into a SB compatible mode.
-.\" Booting DOS with the supplied driver, and
-.\" then loading Linux from the DOS prompt with loadlin avoids the reset
-.\" of the card that happens if one rebooted instead.
+.PP
+When the kernel is booted directly by the BIOS, you have no opportunity to
+specify any parameters.  So, in order to take advantage of this possibility
+you have to use a boot loader that is able to pass parameters, such as GRUB.
 .SS 引数リスト
-カーネルのコマンドラインはパースされ、スペースで区切られた文字列 (\fI起動時引数: boot arguments\fP)  のリストとなる。
-ほとんどの起動時引数は次の書式である。
-
+The kernel command line is parsed into a list of strings (boot arguments)
+separated by spaces.  Most of the boot arguments have the form:
+.PP
 .in +4n
-.nf
+.EX
 name[=value_1][,value_2]...[,value_10]
-.fi
+.EE
 .in
-.LP
+.PP
 ここで 'name' は、それに対応する値がカーネルのどの部分に渡されるものなのかを 識別するための、他と重ならないキーワードである。 書式中の 10
 という制限は実際に存在する。 現在のコードは、キーワードひとつあたり、コンマで区切られたパラメーターを 10 個までしか取り扱うことができない。
 (しかし、事情が非常に複雑な場合には、同じキーワードを再度利用して 10 個以上のパラメーターを与えることができるかもしれない。
 対象となるハードウェアの設定関数がそれをサポートしていれば、だが。)
-
+.PP
 カーネルコマンドラインの識別はほとんどがカーネルソースファイル \fIinit/main.c\fP に書かれている。 最初に、カーネルは \&'root=',
 \&'nfsroot=', 'nfsaddrs=', 'ro', 'rw', 'debug', 'init' といった特別な引数があるかをチェックする。
 これらの意味については後述する。
-
-カーネルは次に設定関数のリスト (配列 bootsetups に含まれている) をスキャンし、 指定された引数文字列 (例えば 'foo') が
-特定のデバイスやカーネルの一部に対する設定関数 ('foo_setup()') に関連付けられているかを調べる。 例えばカーネルに
-foo=3,4,5,6 のようなパラメーターを与えたとすると、 カーネルは配列 bootsetups を調べて、 'foo' が登録されているか調べる。
-登録されていたら、'foo' に対応する設定関数 ('foo_setup()') をコールし、 カーネルコマンドラインに与えられた引数である 3, 4,
-5, 6 を設定関数に渡す。
-
+.PP
+Then it walks a list of setup functions to see if the specified argument
+string (such as 'foo') has been associated with a setup function
+('foo_setup()') for a particular device or part of the kernel.  If you
+passed the kernel the line foo=3,4,5,6 then the kernel would search the
+bootsetups array to see if 'foo' was registered.  If it was, then it would
+call the setup function associated with 'foo' (foo_setup()) and hand it the
+arguments 3, 4, 5, and 6 as given on the kernel command line.
+.PP
 \&'foo=bar' という形式の引数のうち、 上記のように設定関数に受け入れられなかったものは、 環境変数と解釈されて設定される。
 (あまり役に立たない?) 例としては、'TERM=VT100' がある。
-
-カーネルによって処理されず、環境変数としても解釈されなかった 残りの引数は、プロセス 1 に渡されることになる。 通常このプロセス 1 は
-\fBinit\fP(1) プログラムである。 \fIinit\fP プロセスに渡される引数で最もよく使われるのは、 'single' というキーワードである。
-これを指定すると init はシングルユーザーモードでコンピュータを起動し、 通常使われるデーモンは一切起動しない。 システムにインストールされている
-\fBinit\fP(1) が どんな引数を受け付けるかは、 マニュアルページで調べること。
+.PP
+Any remaining arguments that were not picked up by the kernel and were not
+interpreted as environment variables are then passed onto PID 1, which is
+usually the \fBinit\fP(1)  program.  The most common argument that is passed to
+the \fIinit\fP process is the word 'single' which instructs it to boot the
+computer in single user mode, and not launch all the usual daemons.  Check
+the manual page for the version of \fBinit\fP(1)  installed on your system to
+see what arguments it accepts.
 .SS 一般的な、デバイス固有ではない起動時引き数
 .TP 
 \&\fB'init=...'\fP
@@ -119,41 +98,27 @@ foo=3,4,5,6 のようなパラメーターを与えたとすると、 カーネ�
 panic を起こす。
 .TP 
 \&\fB'nfsaddrs=...'\fP
-nfs のブートアドレスを指定した文字列に設定する。 このブートアドレスはネットワークブートの場合に用いられる。
+This sets the NFS boot address to the given string.  This boot address is
+used in case of a net boot.
 .TP 
 \&\fB'nfsroot=...'\fP
-nfs ルートの名前を設定する。 この文字列の先頭が '/'、','、数字のいずれでもでないときは、 \&'/tftpboot/' が先頭に付加される。
-この名前はネットワークブートの場合に用いられる。
-.TP 
-\&\fB'no387'\fP
-(カーネルのコンパイル時に \fBCONFIG_BUGi386\fP が指定されたときのみ有効。)  一部の i387 コプロセッサチップには、 32
-ビットプロテクトモードでの使用時に生じるバグがある。 例えば初期の ULSI\-387 チップは、 浮動小数点演算を行なうと確実にロックアップしてしまう。
-この起動時引数 'no387' を指定すると、 Linux はコプロセッサがあってもそれを無視するようになる。
-なおもちろん、カーネルコンパイル時に浮動小数点演算をエミュレートする (kernel math emulation) 指定をしなければならない!
-.TP 
-\&\fB'no\-hlt'\fP
-(カーネルのコンパイル時に \fBCONFIG_BUGi386\fP が指定されたときのみ有効。)  初期の i486DX\-100 チップの一部では
-\&'hlt' 命令に問題があって、 この命令を使うとオペレーティングモードに正しく戻って来ない。 \&'no\-hlt' を指定すれば、Linux
-はアイドリング時に CPU を停止 (halt) するかわりに無限ループを実行するようになる。 これによって、そのようなバグのあるチップでも Linux
-を使用できる。
+This sets the NFS root name to the given string.  If this string does not
+begin with '/' or ',' or a digit, then it is prefixed by \&'/tftpboot/'.
+This root name is used in case of a net boot.
 .TP 
 \&\fB'root=...'\fP
 起動時にルートファイルシステムとして使われるデバイスをカーネルに指定する。 デフォルトはコンパイル時に決定され、
 通常はカーネルを構築したシステムのルートデバイスになる。 この値を無効にして、 例えば 2
 番目のフロッピーディスクドライブをルートデバイスに指定する場合は、 \&'root=/dev/fd1' とする。
-
-ルートデバイスの指定にはシンボル形式と数値形式を用いることができる。 シンボル形式の場合は \fI/dev/XXYN\fP という書式で指定する。 XX
-にはデバイスタイプを指定する。 Y にはドライブレターもしくはドライブ番号、 N には (フロッピーディスクを除く) ディスクの パーティション番号を
-10 進数の数値で指定する。 (ST\-506 互換ハードディスクではデバイスタイプが 'hd' で Y の範囲は 'a' から 'd'、 SCSI
-ディスクは 'sd' で Y は 'a' から 'e'、 Atari ACSI ディスクは 'ad' で Y は 'a' から 'e'、 Syquest
-EZ135 パラレルポートリムーバブルディスクは 'ez' で Y は 'a' のみ、 XT ディスクは 'xt' で Y は 'a' か 'b'、
-フロッピーディスクは 'fd' で Y にはドライブ番号を指定する。 fd0 は DOS の 'A:'、fd1 は 'B:' に対応している。
-パーティションは存在しないので N は指定しない。)  最新のカーネルでは、他にも次のような多くのデバイスタイプを指定できる (ほとんどは CD\-ROM
-だが): nfs, ram, scd, mcd, cdu535, aztcd, cm206cd, gscd, sbpcd, sonycd, bpcd。
-(nfs はネットワークブートに、ram は RAM ディスクを使用する場合に用いる。)
-
+.IP
+The root device can be specified symbolically or numerically.  A symbolic
+specification has the form \fI/dev/XXYN\fP, where XX designates the device type
+(e.g., 'hd' for ST\-506 compatible hard disk, with Y in \&'a'\(en'd'; 'sd'
+for SCSI compatible disk, with Y in 'a'\(en'e'), Y the driver letter or
+number, and N the number (in decimal) of the partition on this device.
+.IP
 なお、これらはファイルシステム上でのデバイスの指定方法とは全く関係ない。 \&'/dev/' を用いるのは単に慣習に過ぎない。
-
+.IP
 扱いにくいし移植性も良くないが、 上記のデバイスを major/minor 番号の数値で指定してもよい。 (例えば \fI/dev/sda3\fP は
 major 番号 8、minor 番号 3 なので、 \&'root=0x803' と記述できる。)
 .TP 
@@ -173,86 +138,65 @@ major 番号 8、minor 番号 3 なので、 \&'root=0x803' と記述できる�
 プログラムがファイルシステムの矛盾を検査できるようにする。 ファイルシステムが「読み書き可能」として再マウントされる (つまり 'mount \-w \-n
 \-o remount /') までの間は、 いかなるプロセスもこのファイルシステム上のファイルに書き込むことはできない。 (\fBmount\fP(8)
 も参照。)
-
+.IP
 rw オプションはルートファイルシステムを 「読み書き可能」でマウントするようカーネルに指示する。 こちらがデフォルトである。
-
 .TP 
 \&\fB'resume=...'\fP
-このオプションは、 マシンを休止状態 (ハイバネーション) から再起動する際の、ディスク上に保存したデータの起動位置をカーネルに指示する。
-通常は、スワップパーティションやスワップファイルと同じである。例えば、
-
+This tells the kernel the location of the suspend\-to\-disk data that you want
+the machine to resume from after hibernation.  Usually, it is the same as
+your swap partition or file.  Example:
+.IP
 .in +4n
-.nf
+.EX
 resume=/dev/hda2
-.fi
+.EE
 .in
 .TP 
 \&\fB'reserve=...'\fP
 デバイスの自動検出から I/O ポートを保護するために用いる。 コマンドの形式は以下の通り。
-
+.IP
 .in +4n
-.nf
+.EX
 \fBreserve=\fP\fIiobase,extent[,iobase,extent]...\fP
-.fi
+.EE
 .in
-.sp
+.IP
 機種によっては、 デバイスドライバによるデバイスの自動検出を、 特定の範囲に対しては禁止しなければならないことがある。
 ハードウェアが検出動作によって深刻な問題を引き起こす場合や、 誤認識される可能性がある場合、
 また単にカーネルにハードウェアを初期化させたくない場合などがありうるだろう。
-
+.IP
 この起動時引数 reserve は、自動検出の対象外とする I/O ポートの範囲を指定する。 デバイスドライバは、
 他の起動時引数によって明示的に指定されない限り、 予約された範囲に対して自動検出動作を行わない。
-
+.IP
 例えばブート時のコマンドラインに
-
+.IP
 .in +4n
-.nf
+.EX
 reserve=0x300,32  blah=0x300
-.fi
+.EE
 .in
 .IP
 と指定すると、'blah' を除くすべてのデバイスドライバは 0x300 から 0x31f の範囲を自動検出の対象外とする。
 .TP 
-\&\fB'mem=...'\fP
-搭載されているメモリーの量を返す BIOS コールは PC の仕様で定義されているが、これは最大 64MB までしか返すことができない。 Linux
-は搭載メモリーの量を調べるために、 起動時にこの BIOS コールを使用する。 もし 64MB 以上の RAM を搭載している場合は、
-この起動時引数を用いて 実際のメモリー容量を Linux に知らせることができる。 値は 10 進数または 16 進数 (先頭に 0x を付加)
-の数値で指定し、 1024 倍を表す 'k' または 1048576 倍を表す 'M' を末尾に付加できる。 以下は Linus による 'mem='
-パラメーターの解説である。
-
-.in +0.5i
-カーネルは 'mem=xx' パラメーターとして どんな値を指定してもそれをそのまま受け入れる。 だからそれが嘘だとわかったら、
-遅かれ早かれひどいクラッシュをするだろう。 パラメーターはアクセスしうる最も高位の RAM アドレスを指示する。 だから例えば
-\&'mem=0x1000000' っていうのは 16MB のメモリーがある、という意味になる。 96MB のマシンなら 'mem=0x6000000'
-だ。
-
-\fB注意\fP: マシンによってはメモリーの最上位の領域を BIOS のキャッシュやら何やらの ために使っていることがあるから、 実際には 96MB
-をフルにアドレスすることはできないかもしれない。 逆の場合もある。 いくつかのチップセットでは、 BIOS
-領域に入っている物理メモリーを最上位のメモリーのさらに上にマップする。 よって最上位のメモリーはたとえば 96MB + 384kB
-なんて値になるかもしれない。 linux に実際より多いメモリーを教えてしまったとしたら、 まずいことが起きるだろう。
-すぐにではないかもしれないけど、ゆくゆくは確実にね。
-.in
-
-また、起動時引数に 'mem=nopentium' を指定すると、 pentium とそれ以降の CPU を使った IA32
-システム用に設定されたカーネルで 4MB のページテーブルを無効にすることができる。
-.TP 
 \&\fB'panic=N'\fP
-デフォルトでは、カーネルはパニックの後リブートしない。 このオプションを用いて (N を 0 より大きな値とすれば)  N
-秒後にリブートするようになる。 この値は、起動後に以下のようにして設定することもできる。
-
+By default, the kernel will not reboot after a panic, but this option will
+cause a kernel reboot after N seconds (if N is greater than zero).  This
+panic timeout can also be set by
+.IP
 .in +4n
-.nf
+.EX
 echo N > /proc/sys/kernel/panic
-.fi
+.EE
 .in
 .TP 
 \&\fB'reboot=[warm|cold][,[bios|hard]]'\fP
-(カーネルコンパイル時に \fBCONFIG_BUGi386\fP が指定されたときのみ有効。)  カーネルバージョン 2.0.22 から、
-リブートのデフォルトはコールドブートになった。 以前のデフォルトであるウォームブートをするには \&'reboot=warm'
-と指定しなければならない。 (ある種のハードウェアをリセットするにはコールドブートが必要になるが、
-ディスクキャッシュにある書き込んでいないデータは破壊される。 ウォームブートでは、より素早くリブートできる。)  デフォルトではリブートは 'hard'
-で行われる。 すなわちリセットラインに low を出力するようキーボードコントローラーに要求して、 リブートを行う。
-しかし一部のマザーボードではこれができない。 \&'reboot=bios' オプションを指定すると、 代わりに BIOS を経由するようになる。
+Since Linux 2.0.22, a reboot is by default a cold reboot.  One asks for the
+old default with 'reboot=warm'.  (A cold reboot may be required to reset
+certain hardware, but might destroy not yet written data in a disk cache.  A
+warm reboot may be faster.)  By default, a reboot is hard, by asking the
+keyboard controller to pulse the reset line low, but there is at least one
+type of motherboard where that doesn't work.  The option 'reboot=bios' will
+instead jump through the BIOS.
 .TP 
 \&\fB'nosmp'\fP と \fB'maxcpus=N'\fP
 (カーネルのコンパイル時に __SMP__ が指定されたときのみ有効。)  コマンドラインオプションに 'nosmp' または 'maxcpus=0'
@@ -261,12 +205,15 @@ SMP モードで有効にする CPU の最大数を N に制限する。
 .SS カーネル開発者用の起動時引数
 .TP 
 \&\fB'debug'\fP
-カーネルが出力するメッセージはカーネルログデーモン klogd に渡され、 ディスクに記録できるようになる。 プライオリティが
-\fIconsole_loglevel\fP のメッセージはコンソールにも表示される。
-(これらのレベルについては、\fI<linux/kernel.h>\fP を参照。)  デフォルトではこの変数は、
-デバッグメッセージよりも重要なあらゆるメッセージを記録するよう設定されている (デバッグメッセージは含まない)。 この起動時引数を指定すると、
-カーネルはプライオリティが DEBUG のメッセージも出力するようになる。 \fIconsole_loglevel\fP も klogd
-にオプションを渡せば実行時に設定できる。 \fBklogd\fP(8)  を参照。
+Kernel messages are handed off to a daemon (e.g., \fBklogd\fP(8)  or similar)
+so that they may be logged to disk.  Messages with a priority above
+\fIconsole_loglevel\fP are also printed on the console.  (For a discussion of
+log levels, see \fBsyslog\fP(2).)  By default, \fIconsole_loglevel\fP is set to
+log messages at levels higher than \fBKERN_DEBUG\fP.  This boot argument will
+cause the kernel to also print messages logged at level \fBKERN_DEBUG\fP.  The
+console loglevel can also be set on a booted system via the
+\fI/proc/sys/kernel/printk\fP file (described in \fBsyslog\fP(2)), the
+\fBsyslog\fP(2)  \fBSYSLOG_ACTION_CONSOLE_LEVEL\fP operation, or \fBdmesg\fP(8).
 .TP 
 \&\fB'profile=N'\fP
 カーネルがどこで CPU サイクルを消費しているか調べたい場合には、 カーネルのプロファイリング機能を有効にすればこれを実現できる。
@@ -275,38 +222,31 @@ SMP モードで有効にする CPU の最大数を N に制限する。
 が指定されれば N となり、N が指定されなかった場合は \fBCONFIG_PROFILE_SHIFT\fP の値が用いられる。
 どちらも指定されなければデフォルト値の 2 が用いられる。 この変数が重要なのは、 カーネルプロファイリングの粒度を決定するところにある。
 すなわち、各クロックの割込みごとに、システムがカーネルコードを実行していれば、 以下のようにカウンターの値がインクリメントされる。
-
+.IP
 .in +4n
-.nf
+.EX
 profile[address >> prof_shift]++;
-.fi
+.EE
 .in
-.sp
+.IP
 生のプロファイリング情報は、 \fI/proc/profile\fP から見ることができるが、readprofile.c
 のような情報を加工するツールを使ったほうが良いだろう。 \fI/proc/profile\fP に任意のデータを書込むと、 カウンターはリセットされる。
-.TP 
-\&\fB'swap=N1,N2,N3,N4,N5,N6,N7,N8'\fP
-カーネルのスワップアルゴリズムをコントロールする 次の 8 つのパラメーターをセットする。 max_page_age, page_advance,
-page_decline, page_initial_age, age_cluster_fract, age_cluster_min,
-pageout_weight, bufferout_weight.  これはカーネルをチューンする人のためのオプションである。
-.TP 
-\&\fB'buff=N1,N2,N3,N4,N5,N6'\fP
-カーネルのバッファーメモリー管理をコントロールする 次の 6 つのパラメーターをセットする。 max_buff_age, buff_advance,
-buff_decline, buff_initial_age, bufferout_weight, buffermem_grace.
-これはカーネルをチューンする人のためのオプションである。
 .SS "RAM ディスク関連の起動時引数"
-(カーネルのコンパイル時に \fBCONFIG_BLK_DEV_RAM\fP オプションが指定されたときのみ有効。)  一般的には、Linux で RAM
-ディスクを使用するのはあまり良い考えではない。 システムに任せておけばもっと効率的にメモリーを使用する。 しかしブート時
-(またはブートフロッピーの作成中) には、 フロッピーの内容を RAM ディスクにロードすると便利かもしれない。
-メインディスクがアクセス可能になる前に、 (ファイルシステムやハードウェアに関する)
-モジュールをいくつかロードしなければならないシステムもあるだろう。
-
-Linux のバージョン 1.3.48 において、 RAM ディスクの取り扱いが根底から変化した。 それ以前までは、メモリーは静的に割り当てられ、
-\&'ramdisk=N' パラメーターでそのサイズを指定していた (この値はコンパイル時にカーネルイメージに指定することもできた)。  現在は RAM
-ディスクはバッファーキャッシュを使用しており、 動的に拡張される。 新しい RAM ディスクの動作に関する多くの情報が、 カーネルソースファイル
-\fIDocumentation/blockdev/ramdisk.txt\fP (古いカーネルでは
-\fIDocumentation/ramdisk.txt\fP) にある。
-
+(Only if the kernel was compiled with \fBCONFIG_BLK_DEV_RAM\fP.)  In general it
+is a bad idea to use a ramdisk under Linux\(emthe system will use available
+memory more efficiently itself.  But while booting, it is often useful to
+load the floppy contents into a ramdisk.  One might also have a system in
+which first some modules (for filesystem or hardware) must be loaded before
+the main disk can be accessed.
+.IP
+In Linux 1.3.48, ramdisk handling was changed drastically.  Earlier, the
+memory was allocated statically, and there was a 'ramdisk=N' parameter to
+tell its size.  (This could also be set in the kernel image at compile
+time.)  These days ram disks use the buffer cache, and grow dynamically.
+For a lot of information on the current ramdisk setup, see the kernel source
+file \fIDocumentation/blockdev/ramdisk.txt\fP (\fIDocumentation/ramdisk.txt\fP in
+older kernels).
+.IP
 4 つのパラメーターがある。論理値をとるものが 2 つ、整数値をとるものが 2 つ。
 .TP 
 \&\fB'load_ramdisk=N'\fP
@@ -317,7 +257,7 @@ N=1 ならフロッピー挿入を促すプロンプトを出す (デフォル�
 (従って、このパラメーターを指定する必要はまず無いであろう。)
 .TP 
 \&\fB'ramdisk_size=N'\fP もしくは (古い形式の) \fB'ramdisk=N'\fP
-ラムディスクの最大サイズを N kB (キロバイト) にセットする。 省略時は 4096 (4 MB)。
+Set the maximal size of the ramdisk(s) to N kB.  The default is 4096 (4\ MB).
 .TP 
 \&\fB'ramdisk_start=N'\fP
 開始ブロック番号 (フロッピー先頭からのオフセットで指定した RAM ディスクの開始点)  を N にセットする。 これはカーネルイメージのあとに
@@ -330,25 +270,28 @@ RAM ディスクイメージを置く場合に必要となる。
 ディスクがルートデバイスとして「読み書き可能」でマウントされる。 次に \fI/linuxrc\fP が実行される。
 その後「真の」ルートファイルシステムがマウントされ、 initrd ファイルシステムは \fI/initrd\fP に移される。 最後に通常のブートシーケンス
 (具体的には \fI/sbin/init\fP の呼び出し) が実行される。
-
-initrd に関する詳細な解説はカーネルソースファイル \fIDocumentation/initrd.txt\fP を参照。
-
+.IP
+.\" commit 9d85025b0418163fae079c9ba8f8445212de8568
+For a detailed description of the initrd feature, see the kernel source file
+\fIDocumentation/admin\-guide/initrd.rst\fP (or \fIDocumentation/initrd.txt\fP
+before Linux 4.10).
+.IP
 \&'noinitrd' オプションを用いると、 カーネルは (initrd 動作を行うようにコンパイルされている場合でも)
 上記の動作を行なわず、代わりに initrd のデータを \fI/dev/initrd\fP に残す。 (このデバイスは一度しか使えない。
 データは、そのデータを使った最後のプロセスが \fI/dev/initrd\fP をクローズするとすぐに解放される。)
 .SS "SCSI デバイス用の起動時引数"
 この節における用語：
-
+.PP
 \fIiobase\fP \-\- SCSI ホストアダプターが占有する I/O ポートの先頭アドレス。 16 進表記で指定し、通常 0x200 から 0x3ff
 の範囲に位置する。
-
+.PP
 \fIirq\fP \-\- カードが利用するハードウェア割り込み。有効な値はカードに よって異なるが、通常は 5, 7, 9, 10, 11, 12, 15
 である。 これ以外の値は通常、IDE ハードディスク、フロッピー、 シリアルポートといった一般的な周辺機器によって使用される。
-
+.PP
 \fIscsi\-id\fP \-\- SCSI バス上のホストアダプターが自分自身を識別するために使用する ID 番号。
 この値を変更できるホストアダプターもごく希に存在するが、 ほとんどはアダプター内部で固定されている。 よく使われるデフォルト値は 7
 であるが、Seagate もしくは Future Domain 製の TMC\-950 ボードでは 6 が使われる。
-
+.PP
 \fIparity\fP \-\- SCSI ホストアダプターが取り付けられたデバイスとの通信に際して パリティ値を必要とするかどうか。 1
 を指定するとパリティチェックが有効になり、 0 でパリティチェックが無効になる。 しかし、すべてのデバイスがこの起動時引数によるパリティの選択を
 サポートするわけではない。
@@ -357,311 +300,52 @@ initrd に関する詳細な解説はカーネルソースファイル \fIDocume
 SCSI デバイスは複数の「サブデバイス」を自分自身の内部に持つことができる。 最もよくある例として、一時に 1 枚以上のディスクを扱うことができる
 (チェンジャー機能付の) SCSI CD\-ROM がある。 それぞれの CD はそのデバイスの 「論理ユニット番号 (LUN)」によって特定される。
 しかしほとんどのデバイス (例えばハードディスクやテープドライブ) は、 LUN 番号 0 が割り当てられた、ただひとつのデバイスからなる。
-
+.IP
 設計が不十分な SCSI デバイスでは 0 以外の LUN 番号への自動検出を 扱えないことがある。 したがって、コンパイル時に
 \fBCONFIG_SCSI_MULTI_LUN\fP オプションが指定されていないと、 最近のカーネルではデフォルトでは LUN 番号 0 のみを検出する。
-
+.IP
 起動時に調べる LUN 番号を指定する場合、起動時引数として \&'max_scsi_luns=n' を指定する。n は 1 から 8 の間で指定する。
 n=1 以上の値を使用しないようにすれば、 このようないかれた機械にひどい目にあわされずにすむだろう。
 .TP 
 \fBSCSI テープドライブの設定\fP
 SCSI テープドライバの起動時設定の一部は以下のようにして行なうことができる。
-
+.IP
 .in +4n
-.nf
+.EX
 \fBst=\fP\fIbuf_size[,write_threshold[,max_bufs]]\fP
-.fi
+.EE
 .in
-.sp
-最初の 2 つの数字は kB 単位で指定する。 \fIbuf_size\fP のデフォルトは 32kB である。上限は 16384kB まで指定できる。
-\fIwrite_threshold\fP はデータ書き出しの閾値で、 バッファーのデータのサイズがこの値を越えるとデータはテープに書き出される。
-デフォルト値は 30kB である。 バッファー数の最大値 (\fImax_bufs\fP)  は検出されたドライブの数によって変化するが、デフォルトは 2
-である。 使用例を以下に示す。
-
+.IP
+The first two numbers are specified in units of kB.  The default \fIbuf_size\fP
+is 32k\ B, and the maximum size that can be specified is a ridiculous 16384\ kB.  The \fIwrite_threshold\fP is the value at which the buffer is committed to
+tape, with a default value of 30\ kB.  The maximum number of buffers varies
+with the number of drives detected, and has a default of two.  An example
+usage would be:
+.IP
 .in +4n
-.nf
+.EX
 st=32,30,2
-.fi
+.EE
 .in
 .IP
 詳細は Linux カーネルソース内の \fIDocumentation/scsi/st.txt\fP (古いカーネルの場合は
 \fIdrivers/scsi/README.st\fP) に書かれている。
-.TP 
-\fBAdaptec aha151x, aha152x, aic6260, aic6360, SB16\-SCSI の設定\fP
-aha に続く番号はカードを表し、 aic に続く番号はカードに搭載されている実際のチップを表す (Soundblaster\-16 SCSI
-も後者に含まれる)。
-
-SCSI ホストの検出コードは、 インストールされている BIOS を探す。 見つからないと、カードは検出できない。
-この場合は以下のように起動時引数を指定することになる。
-
-.in +4n
-.nf
-\fBaha152x=\fP\fIiobase[,irq[,scsi\-id[,reconnect[,parity]]]]\fP
-.fi
-.in
-.IP
-もしドライバのコンパイル時にデバッグオプションを指定していた場合は、 6 番目の値でデバッグレベルを指定できる。
-
-すべてのパラメーターは、このセクションの最初で説明した通りである。 \fIreconnect\fP に 0
-以外の値を指定すると、デバイスを切断したり接続したりできる。 以下に例を示す。
-
-.in +4n
-.nf
-aha152x=0x340,11,7,1
-.fi
-.in
-.IP
-パラメーターは必ず上記の順番どおりに指定されなければならない。 例えば、パリティ (parity) を設定したい場合には、 iobase, irq,
-scsi\-id, reconnect も同時に指定する必要がある。
-.TP 
-\fBAdaptec aha154x の設定\fP
-aha1542 シリーズのカードは i82077 フロッピーディスクコントローラーをボードに搭載している。 一方 aha1540
-シリーズのカードは搭載していない。 これらは共にバスマスタカードであり、 他のデバイスとバスを共有する際に、
-どのくらい「フェアに」振る舞うかを指定するパラメーターがある。 起動時引数は以下のようにして指定する。
-
-.in +4n
-.nf
-\fBaha1542=\fP\fIiobase[,buson,busoff[,dmaspeed]]\fP
-.fi
-.in
-.IP
-有効な iobase の値は次の通り。 0x130, 0x134, 0x230, 0x234, 0x330, 0x334。
-クローンカードの中には他の値を指定できるものもある。
-
-\fIbuson\fP, \fIbusoff\fP 値はカードがISA バスを占有する時間をマイクロ秒単位で指定する。 省略時はそれぞれ 11us on と 4us
-off になっているので、 他のカード (例えば ISA LANCE イーサネットカード) も ISA バスにアクセスできる。
-
-\fIdmaspeed\fP 値は DMA (Direct Memory Access) 転送速度を MB/s 単位で設定する。 省略時は 5MB/s
-である。新しいリビジョンのカードでは、 この値を使ったソフトウェアによる設定ができる。 古いカードはジャンパ設定を必要とする。
-マザーボードが対応していれば最大 10MB/s まで指定可能である。 5MB/s 以上の値を使う場合は注意して実験してからにすること。
-.TP 
-\fBAdaptec aha274x, aha284x, aic7xxx の設定\fP
-これらのボードは以下の形式で指定する。
-
-.in +4n
-.nf
-\fBaic7xxx=\fP\fIextended,no_reset\fP
-.fi
-.in
-.IP
-\fIextended\fP 値が 0 以外の時は、大容量ディスク用の拡張変換が有効になる。 \fIno_reset\fP 値を 0
-以外の値にすると、ホストアダプターの検出時に、 ドライバによる SCSI バスの初期化を行わない。
-.TP 
-\fBAdvanSys SCSI ホストアダプターの設定 ('advansys=')\fP
-AdvanSys ドライバはカードの検出先として 4 つの I/O アドレスを受け付ける。 EISA や PCI
-カードではこれらを指定しても全く効果が無い。 ISA 及び VLB カードの検出に対してのみ用いられる。
-さらに、デバッグオプション付きでドライバがコンパイルされている場合、 デバッグ情報の出力レベルとして 0xdeb[0\-f] パラメーターを追加できる。
-0\-f によりデバッグメッセージの情報のレベルを 16 段階で指定する。
-.TP 
-\fBAM53C974\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-\fBAM53C974=\fP\fIhost\-scsi\-id,target\-scsi\-id,max\-rate,max\-offset\fP
-.fi
-.in
-.TP 
-\fBBusLogic SCSI ホストアダプターの設定 ('BusLogic=')\fP
-
-構文は以下の通り。
-.in +4n
-.nf
-\fBBusLogic=\fP\fIN1,N2,N3,N4,N5,S1,S2,...\fP
-.fi
-.in
-.IP
-.\" (lines 3149-3270 in the kernel version I am looking at).
-Buslogic のコマンドラインパラメーターに関する詳細な議論はカーネルソースファイル \fIdrivers/scsi/BusLogic.c\fP
-を参照すること。 以下はこれを非常におおざっぱに要約したものである。
-
-パラメーター N1 から N5 までは整数である。 パラメーター S1 以降は文字列である。 N1 はホストアダプターが存在する I/O アドレス。
-N2 はタグキューイングをサポートするデバイスに対して使用するキューの深さ。 N3 はバス安定時間 (BST) を秒単位で指定する。
-これはホストアダプターのハードリセットにより SCSI バスをリセットしてから SCSI コマンドの発行を開始するまでの待ち時間である。 N4
-はローカルオプション (ひとつのホストアダプター用)。 N5 はグローバルオプション (すべてのホストアダプター用)。
-
-文字列オプションは以下の動作を制御する: タグキューイング (TQ:Default, TQ:Enable, TQ:Disable,
-TQ:<Per\-Target\-Spec>)、 エラー復帰 (ER:Default, ER:HardReset,
-ER:BusDeviceReset, ER:None, ER:<Per\-Target\-Spec>)、 ホストアダプターの検出
-(NoProbe, NoProbeISA, NoSortPCI)。
-.TP 
-\fBEATA/DMA の設定\fP
-検出対象にする I/O ポートのデフォルトのリストは以下のようにして変更できる。
-
-.in +4n
-.nf
-\fBeata=\fP\fIiobase,iobase,...\fP\fB.\fP
-.fi
-.in
-.TP 
-\fBFuture Domain TMC\-16x0 の設定\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-\fBfdomain=\fP\fIiobase,irq[,adapter_id]\fP
-.fi
-.in
-.TP 
-\fBGreat Valley Products (GVP) SCSI コントローラーの設定\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-\fBgvp11=\fP\fIdma_transfer_bitmask\fP
-.fi
-.in
-.TP 
-\fBFuture Domain 製 TMC\-8xx, TMC\-950 の設定\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-\fBtmc8xx=\fP\fImem_base,irq\fP
-.fi
-.in
-.IP
-\fImem_base\fP にはカードが使用するメモリーマップ I/O の領域を指定する。
-通常は次の値のどれかである: 0xc8000, 0xca000, 0xcc000, 0xce000, 0xdc000, 0xde000。
-.TP 
-\fBIN2000 の設定\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-\fBin2000=\fP\fIS\fP
-.fi
-.in
-.IP
-S はコンマ区切りの文字列で、各項目は keyword[:value] 形式で指定する。 指定できるキーワードは以下の通り。 ioport:addr,
-noreset, nosync:x, period:ns, disconnect:x, debug:x, proc:x。
-これらのパラメーターの機能についてはカーネルソースファイル \fIdrivers/scsi/in2000.c\fP を参照。
-.TP 
-\fBNCR5380 および NCR53C400 の設定\fP
-この起動時引数は以下の書式で指定する。
-
-.in +4n
-.nf
-\fBncr5380=\fP\fIiobase,irq,dma\fP
-.fi
-.in
-.IP
-または
-
-.in +4n
-.nf
-\fBncr53c400=\fP\fIiobase,irq\fP
-.fi
-.in
-.IP
-カードが IRQ を使用しない場合は、 255 (0xff) を指定すれば無効にできる。 IRQ に 254 を指定すると自動検出する。 詳細は
-Linux カーネルソース内の \fIDocumentation/scsi/g_NCR5380.txt\fP (古いカーネルの場合は
-\fIdrivers/scsi/README.g_NCR5380\fP)  に書かれている。
-.TP 
-\fBNCR53C8xx の設定\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-\fBncr53c8xx=\fP\fIS\fP
-.fi
-.in
-.IP
-S はコンマ区切りの文字列で、各項目は keyword[:value] 形式で指定する。 指定できるキーワードは以下の通り。 mpar
-(master_parity), spar (scsi_parity), disc (disconnection), specf
-(special_features), ultra (ultra_scsi), fsn (force_sync_nego), tags
-(default_tags), sync (default_sync), verb (verbose), debug (debug), burst
-(burst_max)。 これらのオプションの機能についてはカーネルソースファイル \fIdrivers/scsi/ncr53c8xx.c\fP
-を参照すること。
-.TP 
-\fBNCR53c406a の設定\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-\fBncr53c406a=\fP\fIiobase[,irq[,fastpio]]\fP
-.fi
-.in
-.IP
-割り込み無しで動作するモードには irq に 0 を指定する。 高速 PIO モードは fastpio に 1 を指定し、低速モードは 0 を指定する。
-.TP 
-\fBPro Audio Spectrum の設定\fP
-PAS16 は NC5380 SCSI チップを使用しており、 最近のモデルはジャンパレスの設定をサポートしている。 起動時引数の書式は以下の通り。
-
-.in +4n
-.nf
-\fBpas16=\fP\fIiobase,irq\fP
-.fi
-.in
-.IP
-唯一の違いとして、 IRQ に 255 を指定すれば割り込みを使用しないようドライバに指示できる (パフォーマンスは低下する)。 通常 iobase は
-0x388 である。
-.TP 
-\fBSeagate 製 ST\-0x の設定\fP
-カードが起動時に認識されない場合は以下のような指定が必要になるだろう。
-
-.in +4n
-.nf
-\fBst0x=\fP\fImem_base,irq\fP
-.fi
-.in
-.IP
-\fImem_base\fP にはカードが使用するメモリーマップ I/O の領域を指定する。
-通常は次の値のどれかである: 0xc8000, 0xca000, 0xcc000, 0xce000, 0xdc000, 0xde000。
-.TP 
-\fBTrantor 製 T128 の設定\fP
-このカードも NCR5380 チップを利用しており、 以下のオプションを受け付ける。
-
-.in +4n
-.nf
-\fBt128=\fP\fImem_base,irq\fP
-.fi
-.in
-.IP
-有効な \fImem_base\fP の値は次の通りである: 0xcc000, 0xc8000, 0xdc000, 0xd8000。
-.TP 
-\fBUltraStor 製 14F/34F の設定\fP
-検出対象にする I/O ポートのデフォルトのリストは以下のようにして変更できる。
-
-.in +4n
-.nf
-\fBeata=\fP\fIiobase,iobase,...\fP\fB.\fP
-.fi
-.in
-.TP 
-\fBWD7000 の設定\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-\fBwd7000=\fP\fIirq,dma,iobase\fP
-.fi
-.in
-.TP 
-\fBCommodore Amiga 製 A2091/590 SCSI コントローラーの設定\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-\fBwd33c93=\fP\fIS\fP
-.fi
-.in
-.IP
-S はコンマ区切りの文字列で、各項目は keyword[:value] 形式で指定する。 認識されるオプションは以下の通り。
-nosync:bitmask, nodma:x, period:ns, disconnect:x, debug:x, clock:x, next。
-詳細はカーネルソースファイル \fIdrivers/scsi/wd33c93.c\fP を参照。
 .SS ハードディスク
 .TP 
 \fBIDE Disk/CD\-ROM ドライバのパラメーター\fP
-IDE ドライバは、 ディスクのジオメトリ指定からバグのあるコントローラーチップのサポートまで、 数多くのパラメーターを受け付ける。
-ドライブを特定するには 'hdX=' を使う。 ここで X には 'a' から 'h' の文字を指定する。
-
+The IDE driver accepts a number of parameters, which range from disk
+geometry specifications, to support for broken controller chips.
+Drive\-specific options are specified by using 'hdX=' with X in 'a'\(en'h'.
+.IP
 あるドライブに特有なものではないオプションは、hd= を前に付けて指定する。 ドライブ特有でないオプションに対してドライブ指定 ('hdX=')
 を前置しても問題はない。 そのオプションは期待通りそのドライブに適用される。
-
-\&'hd=' は、(a, ..., h) のシーケンスにおいて、 まだ指定されていない次のドライブを指すためにも使える。 これ以降では簡単のために
-\&'hd=' を使って説明する。 さらに詳しい情報を得るには、Linux カーネルソース内の \fIDocumentation/ide.txt\fP
-(古いカーネルの場合は \fIdrivers/block/README.ide\fP) を参照のこと。
+.IP
+.\" Linux 2.0, 2.2, 2.4
+Also note that 'hd=' can be used to refer to the next unspecified drive in
+the (a, ..., h) sequence.  For the following discussions, the 'hd=' option
+will be cited for brevity.  See the file \fIDocumentation/ide/ide.txt\fP (or
+\fIDocumentation/ide.txt\fP in older kernels, or \fIdrivers/block/README.ide\fP in
+ancient kernels) in the Linux kernel source for more details.
 .TP 
 \&\fB'hd=cyls,heads,sects[,wpcom[,irq]]' オプション\fP
 これらのオプションはディスクの物理的なジオメトリを指定するために使う。 最初の 3 つの値以降は省略できる。 シリンダ (cyls)、ヘッド
@@ -674,17 +358,13 @@ IDE ドライバは、 ディスクのジオメトリ指定からバグのある
 プライマリインターフェース上のドライブを 同時に使用するとデータが破壊されることがある。 このオプションを使用すると、
 ドライバは両方のインターフェースが 同時に使用されることが絶対にないようにする。
 .TP 
-\&\fB'hd=dtc2278' オプション\fP
-このオプションは、DTC\-2278D IDE インターフェースが使われている ことをドライバに伝える。 するとドライバは、DTC 特有の機能 (2
-番目のインターフェースと高速転送モード)  を使用可能にするよう試みる。
-.TP 
 \&\fB'hd=noprobe' オプション\fP
 このドライブの自動検出をしない。 例えば
-
+.IP
 .in +4n
-.nf
+.EX
 hdb=noprobe hdb=1166,7,17
-.fi
+.EE
 .in
 .IP
 とすると自動検出が無効になる。 しかしドライブのジオメトリを指定しているので、 このドライブは正しいブロックデバイスとして登録され、使用可能になる。
@@ -701,485 +381,99 @@ CD\-ROM はたいてい自動的に認識されるが、 うまく行かない�
 スタンダードディスクドライバは IDE ドライバと同様のジオメトリ指定を引数にとることができる。 ただし受け付ける値はちょうど 3 つ (C/H/S)
 に限られる。 それ以上の値やそれ以下の値を指定すると、ドライバは黙ってその指定を無視する。 また引数として受け入れられるのは 'hd='
 の形式だけである。 つまり 'hda=' のような指定はここでは正しくない。 書式は次の通り。
-
+.IP
 .in +4n
-.nf
+.EX
 hd=cyls,heads,sects
-.fi
+.EE
 .in
 .IP
 2 台のディスクが接続されてい場合は、 2 番目のディスクに対しても上記のジオメトリが設定される。
-.TP 
-\fBXT ディスクドライバのオプション ('xd=')\fP
-これらの古い 8 bit カード (125kB/s の転送速度しかない!)  を使わなければならない不幸な人のためのオプションである。
-カードが認識されない場合は以下の書式で起動時引数を指定する必要があるだろう。
-
-.in +4n
-.nf
-xd=type,irq,iobase,dma_chan
-.fi
-.in
-.IP
-.\" 1.1.50, 1.3.81, 1.3.99, 2.0.34, 2.1.67, 2.1.78, 2.1.127
-type 値にはカードのメーカーを指定し、これは自動検知より優先される。 指定すべき type の値については、使っているカーネルのソースファイル
-\fIdrivers/block/xd.c\fP を調べてほしい。type はリスト \fIxd_sigs\fP
-のインデックスで、歴史と共に追加されたり削除されたりしてきた。 リストの途中での追加・削除も行われたので、 その場合はすべての type
-番号が変更された。 今日 (Linux 2.5.0) における type は、 0=generic; 1=DTC 5150cx; 2,3=DTC
-5150x; 4,5=Western Digital; 6,7,8=Seagate; 9=Omti; 10=XEBEC である。 ここではいくつかの
-type に同じ指定が与えられているが、 それらは等価である。
-
-xd_setup() 関数は引数をチェックせず、 4 つの値がすべて指定されることを想定している。 引数を省略してはならない。 例として、BIOS
-が無効にされた (あるいは削除された)  WD1002 コントローラーの場合を示す (パラメーターには XT
-コントローラーの「デフォルト」の値を使っている)。
-
-.in +4n
-.nf
-xd=2,5,0x320,3
-.fi
-.in
-.TP 
-\fBSyquest 製 EZ* リムーバブルディスク\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-\fBez=\fP\fIiobase[,irq[,rep[,nybble]]]\fP
-.fi
-.in
-.SS "IBM MCA バス上のデバイス"
-カーネルソースファイル \fIDocumentation/mca.txt\fP も参照。
-.TP 
-\fBPS/2 ESDI ハードディスク\fP
-起動時に所望のジオメトリを指定できる。
-
-.in +4n
-.nf
-\fBed=\fP\fIcyls,heads,sectors.\fP
-.fi
-.in
-.IP
-ThinkPad\-720 を使用する場合は以下のオプションを追加すること。
-
-.in +4n
-.nf
-\fBtp720=1\fP.
-.fi
-.in
-.TP 
-\fBIBM Microchannel SCSI サブシステムの設定\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-\fBibmmcascsi=\fP\fIN\fP
-.fi
-.in
-.IP
-N はサブシステムの \fIpun\fP (SCSI ID) を表す。
-.TP 
-\fBAztech インターフェース\fP
-このタイプのカードの構文は以下の通り。
-
-.in +4n
-.nf
-aztcd=iobase[,magic_number]
-.fi
-.in
-.IP
-magic_number に 0x79 をセットすると、 ドライバはファームウェアのバージョンが分からない場合でも、 とにかく実行を試みる。
-その他の値はすべて無視される。
-.TP 
-\fBパラレルポート CD\-ROM ドライブ\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-pcd.driveN=prt,pro,uni,mod,slv,dly
-pcd.nice=nice
-.fi
-.in
-.IP
-ここで 'port' はベースアドレス、'pro' はプロトコル番号、'uni' はユニットセレクタ (チェインデバイス用)、'mod' はモード
-(あるいは自動的に最適のものを選ばせるには \-1)、'slv' はスレーブにしたい場合に 1、'dly'
-はポートアクセスを遅くしたい場合に小さな整数を与える。'nice' パラメーターは、 ドライバのアイドル CPU 時間の使い方を制御する。
-ただし速度はある程度低下する。
-.TP 
-\fBSony 製 CDU\-31A と CDU\-33A のインターフェース\fP
-この CD\-ROM インターフェースは、 Pro Audio Spectrum サウンドカードの一部や
-ソニーが供給するインターフェースカードで使われている。 構文は以下の通り。
-
-.in +4n
-.nf
-cdu31a=iobase,[irq[,is_pas_card]]
-.fi
-.in
-.IP
-IRQ に 0 を指定すると、 ハードウェア割り込みがサポートされていないことをドライバに伝える (PAS カードにはそのようなものがある)。
-使用するカードが割り込みをサポートしているなら、 ドライバによる CPU の負荷を減らすためにも割り込みを使用すべきである。
-
-\fIis_pas_card\fP には、Pro Audio Spectrum カードを使用しているときには 'PAS' を指定し、
-そうでないときにはなにも指定しない。
-.TP 
-\fBSony 製 CDU\-535 インターフェース\fP
-この CD\-ROM インターフェースの構文は以下の通り。
-
-.in +4n
-.nf
-sonycd535=iobase[,irq]
-.fi
-.in
-.IP
-IRQ の値だけを指定したい場合には、 iobase 値を 0 とすれば単なる穴埋めと解釈される。
-.TP 
-\fBGoldStar インターフェース\fP
-この CD\-ROM インターフェースの構文は以下の通り。
-
-.in +4n
-.nf
-gscd=iobase
-.fi
-.in
-.TP 
-\fBISP16 CD\-ROM インターフェース\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-isp16=[iobase[,irq[,dma[,type]]]]
-.fi
-.in
-.IP
-(整数値 3 つと文字列 1 つの形式) type に 'noisp16' を指定すると、 インターフェースの設定は行なわれない。 type
-にはこの他にも 'Sanyo', 'Sony', 'Panasonic', 'Mitsumi' が指定できる。
-.TP 
-\fBMitsumi 標準インターフェース\fP
-この CD\-ROM インターフェースの構文は以下の通り。
-
-.in +4n
-.nf
-mcd=iobase,[irq[,wait_value]]
-.fi
-.in
-.IP
-\fIwait_value\fP はドライブに問題がある場合に、 ドライバ内部のタイムアウトの指定に用いる。 コンパイル時の #define
-によって実装されるかされないかが決まる。 Mitsumi FX400 は IDE/ATAPI CD\-ROM プレイヤーであり、 この mcd
-ドライバは使用しない。
-.TP 
-\fBMitsumi XA/マルチセッションインターフェース\fP
-これは上記と同じハードウェアだが、拡張機能がある。 構文は以下の通り。
-
-.in +4n
-.nf
-mcdx=iobase[,irq]
-.fi
-.in
-.TP 
-\fBOptics ストレージインターフェース\fP
-このタイプのカードの構文は以下の通り。
-
-.in +4n
-.nf
-optcd=iobase
-.fi
-.in
-.TP 
-\fBPhillips CM206 インターフェース\fP
-このタイプのカードの構文は以下の通り。
-
-.in +4n
-.nf
-cm206=[iobase][,irq]
-.fi
-.in
-.IP
-ドライバは IRQ 値として 3 から 11 まで、 I/O ポートアドレスの値として 0x300 から 0x370 を想定している。
-いずれか一方、あるいは両方を指定できる。順番も問わない。 \&'cm206=auto' とすることにより自動検出もできる。
-.TP 
-\fBSanyo インターフェース\fP
-このタイプのカードの構文は以下の通り。
-
-.in +4n
-.nf
-sjcd=iobase[,irq[,dma_channel]]
-.fi
-.in
-.TP 
-\fBSoundBlaster Pro インターフェース\fP
-このタイプのカードの構文は以下の通り。
-
-.in +4n
-.nf
-sbpcd=iobase,type
-.fi
-.in
-.IP
-type 値には 'SoundBlaster', 'LaserMate', 'SPEA' のうちひとつを指定できる (大文字小文字が区別される)。
-iobase は CD\-ROM インターフェースの値である。 カードのサウンド部の値と間違えないこと。
 .SS イーサネットデバイス
 ドライバが異なると用いるパラメーターも異なるが、 すべてのドライバは、少なくとも割り込み番号 (irq)、 I/O ポートのベースアドレス
 (iobase)、名前 (name) を持つ。 最も一般的な形式は以下の通り。
-
+.PP
 .in +4n
-.nf
+.EX
 ether=irq,iobase[,param_1[,...param_8]],name
-.fi
+.EE
 .in
-
+.PP
 最初の数字でない値は名前として使用される。 param_n の値はカード (ドライバ) ごとに異なる意味を持つ。
 よくある目的は、共有メモリーアドレスの指定、インターフェースの選択、 DMA チャネルなどである。
-
+.PP
 このパラメーターの最もよくある利用法は、 2 番目の Ethernet カードを強制的に検出させる場合である (デフォルトでは 1 枚しか検出しない)。
 これは簡単で、次のようにすればよい。
-
+.PP
 .in +4n
-.nf
+.EX
 ether=0,0,eth1
-.fi
+.EE
 .in
-
+.PP
 この例で IRQ と I/O ベースアドレスに 0 を指定しているのは、 ドライバに自動検出をするよう伝えているのである。
-
+.PP
 Ethernet\-HOWTO では、複数のカードを使うやり方や、 カードやドライバに特有の param_n 値の意味について、
 ずっと詳細に解説されている。 興味を持った読者は、この文書にあたり、 自分のカードに関して書かれているセクションを参照すると良い。
 .SS フロッピーディスクドライバ
-フロッピードライバのオプションは多数あり、 Linux カーネルソース内の \fIDocumentation/floppy.txt\fP
-(古いカーネルの場合は \fIdrivers/block/README.fd\fP)  にすべて記載されている。
-以下の情報はこのファイルからとったものである。
-.TP 
-\fBfloppy=mask,allowed_drive_mask\fP
-使ってよいドライブにかけるビットマスクを設定する。 デフォルトでは、 ユニット 0 と 1 のフロッピーコントローラーだけが許可されている。
-これは、標準でないハードウェア (例えば ASUS の PCIマザーボードなど)  でユニット 2 や 3 にアクセスすると、
-キーボードがおかしくなってしまうからである。 cmos オプション (後述) の導入によって、 このオプションはあまり使われなくなった。
-.TP 
-\fBfloppy=all_drives\fP
-許可するドライブを示すビットマスクを、「すべてのドライブ」にする。 1 つのフロッピーコントローラーに 2 台以上のドライブを接続する場合に用いる。
-.TP 
-\fBfloppy=asus_pci\fP
-ユニット 0 と 1 のみを許可するようビットマスクを設定する。 (デフォルト)。
-.TP 
-\fBfloppy=daring\fP
-正しく振る舞うフロッピーコントローラーを使っていることをドライバに伝える。 このオプションを使うと動作はより効率的かつスムースになるが、
-コントローラーによっては動作に失敗することがある。 これを指定するとある種の動作が高速になる。
-.TP 
-\fBfloppy=0,daring\fP
-注意して扱わなければならない フロッピーコントローラーであることをドライバに伝える。
-.TP 
-\fBfloppy=one_fdc\fP
-フロッピーコントローラーがひとつしかないことをドライバに伝える (デフォルト)。
-.TP 
-\fBfloppy=two_fdc\fP または \fBfloppy=address,two_fdc\fP
-フロッピーコントローラーがふたつあることをドライバに伝える。 2 番目のコントローラーの I/O アドレスは address で指定する。
-address が指定されない場合は 0x370 が使われる。
-.TP 
-\fBfloppy=thinkpad\fP
-Thinkpad を使っていることをフロッピードライバに伝える。
-Thinkpad はディスク取出の検出信号を反転して使っている。
-.TP 
-\fBfloppy=0,thinkpad\fP
-Thinkpad を使っていないことをドライバに伝える。
-.TP 
-\fBfloppy=drive,type,cmos\fP
-ドライブの cmos タイプを type に設定する。 さらにビットマスクを変更し、このドライブの使用を許可する。
-この指定が便利なのは、フロッピードライブが 2 台以上ある場合 (物理 cmos に記述できるのは 2 台まで) や、 BIOS が標準的でない
-CMOS タイプを使っている場合である。 最初の 2 台のドライブの CMOS に 0 を指定する (デフォルト) と、
-フロッピードライバはこれらのドライブの物理 cmos を参照する。
-.TP 
-\fBfloppy=unexpected_interrupts\fP
-予期しない割り込みを受けた時に警告メッセージを表示する (デフォルト)。
-.TP 
-\fBfloppy=no_unexpected_interrupts\fP または \fBfloppy=L40SX\fP
-予期しない割り込みを受けた時でも警告メッセージを表示しない。 これは IBM L40SX ラップトップコンピュータを
-特定のビデオモードで使用する時に必要となる。 (ビデオとフロッピーとの間で何らかの相互作用があるようだ。
-予期しない割り込みは性能だけに影響し、無視しても安全である。)
+There are many floppy driver options, and they are all listed in
+\fIDocumentation/blockdev/floppy.txt\fP (or \fIDocumentation/floppy.txt\fP in
+older kernels, or \fIdrivers/block/README.fd\fP for ancient kernels) in the
+Linux kernel source.  See that file for the details.
 .SS サウンドドライバ
-サウンドドライバも起動時引数を受け付け、 コンパイル時に指定された値を変更できる。 これはやや面倒なため、あまりお薦めできない。 詳細は、Linux
-カーネルソース内の \fIDocumentation/sound/oss/README.OSS\fP (古いカーネルの場合は
-\fIdrivers/sound/Readme.linux\fP)  に記載されている。 引数の形式は以下の通り。
-
+The sound driver can also accept boot arguments to override the compiled\-in
+values.  This is not recommended, as it is rather complex.  It is described
+in the Linux kernel source file \fIDocumentation/sound/oss/README.OSS\fP
+(\fIdrivers/sound/Readme.linux\fP in older kernel versions).  It accepts a boot
+argument of the form:
+.PP
 .in +4n
-.nf
+.EX
 sound=device1[,device2[,device3...[,device10]]]
-.fi
+.EE
 .in
-.IP
+.PP
 各 deviceN はそれぞれ 0xTaaaId という形式で指定する。 各バイトの意味は以下の通り。
-
+.PP
 T \- デバイスのタイプ: 1=FM, 2=SB, 3=PAS, 4=GUS, 5=MPU401, 6=SB16, 7=SB16\-MPU401
-
+.PP
 aaa \- I/O ポートアドレス (16進値)
-
-I \- 割り込み番号 (16 進値。例: 10=a, 11=b, ...)
-
+.PP
+I \- interrupt line in hex (i.e., 10=a, 11=b, ...)
+.PP
 d \- DMA チャネル
-
-上記の通り、かなり扱いにくい形式となっており、 コンパイル時に自分にあった値を指定する方が良いだろう。 なお起動時引数として 'sound=0'
-を指定すると、 サウンドドライバを完全に無効にする。
-.SS "ISDN ドライバ"
-.TP 
-\fBICN ISDN ドライバ\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-icn=iobase,membase,icn_id1,icn_id2
-.fi
-.in
-.IP
-icn_id1,icn_id2 はカードを識別するための 2 つの文字列である。 カーネルメッセージで用いられる。
-.TP 
-\fBPCBIT ISDN ドライバ\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-pcbit=membase1,irq1[,membase2,irq2]
-.fi
-.in
-.IP
-membaseN は N 番目のカードの共有メモリーのベースアドレスであり、 irqN は N 番目のカードの割り込み設定である。 無指定時には IRQ
-= 5, membase = 0xD0000 となる。
-.TP 
-\fBTeles ISDN ドライバ\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-teles=iobase,irq,membase,protocol,teles_id
-.fi
-.in
-.IP
-iobase はカードの I/O ポートアドレス、 membase はカードの共有メモリーのベースアドレス、 そして irq
-はカードが使用する割り込みチャネルである。 teles_id はアスキー文字列による識別文字列である (他と重ならないようにする)。
-.SS シリアルポートドライバ
-.TP 
-\fBRISCom/8 マルチポートシリアルドライバ ('riscom8=')\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-riscom=iobase1[,iobase2[,iobase3[,iobase4]]]
-.fi
-.in
-.IP
-詳細はカーネルソースファイル \fIDocumentation/riscom8.txt\fP を参照のこと。
-.TP 
-\fBDigiBoard ドライバ ('digi=')\fP
-このオプションを使う場合は、6 個のパラメーターをきっちり指定しなければならない。
-構文は以下の通り。
-
-.in +4n
-.nf
-digi=status,type,altpin,numports,iobase,membase
-.fi
-.in
-.IP
-パラメーターは整数値か文字列で与える。 文字列で指定する場合は、 iobase と membase は 16 進値でなければならない。
-整数値で指定する場合はパラメーターの個数は少なくても良く、順に: status このカードの動作を指定する (Enable(1) または
-Disable(0)), type カードのタイプ (PC/Xi(0), PC/Xe(1), PC/Xeve(2), PC/Xem(3)),
-altpin ピン配置を反転させる (Enable(1) or Disable(0)), numports カードのポート番号, iobase
-このカードの I/O ポート (文字列指定の場合は 16 進表記), membase メモリーウィンドウのベースアドレス (文字列指定の場合は 16
-進表記)。 したがって以下のふたつの起動時引数は同じ意味を持つ。
-
-.in +4n
-.nf
-digi=E,PC/Xi,D,16,200,D0000
-digi=1,0,0,16,0x200,851968
-.fi
-.in
-.IP
-詳細はカーネルソースファイル \fIDocumentation/digiboard.txt\fP を参照。
-.TP 
-\fBBaycom シリアル・パラレル ラジオモデム\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-baycom=iobase,irq,modem
-.fi
-.in
-.IP
-ちょうど 3 つのパラメーターを与える。 複数のカードがある場合は、'baycom=' コマンドも複数記述する。 modem パラメーターは文字列で、
-ser12, ser12*, par96, par96* の中からひとつを選ぶ。 * をつけるとソフトウェア DCD を使用する。 モデムの種類に応じて
-ser12 か par96 かを選択する。 詳細は Linux カーネルソース内の
-\fIDocumentation/networking/baycom.txt\fP (古いカーネルの場合は
-\fIdrivers/net/README.baycom\fP)  を参照。
-.TP 
-\fBサウンドカードラジオモデムドライバ\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-soundmodem=iobase,irq,dma[,dma2[,serio[,pario]]],0,mode
-.fi
-.in
-.IP
-最後のパラメーターを除くすべてのパラメーターは整数である。 ダミーの 0 があるのは、設定プログラムのバグのせいである。 mode
-パラメーターは文字列で、hw:modem という書式で指定する。 hw は sbc, wss, wssfdx のうちひとつ、 modem は
-afsk1200, fsk9600 のどちらかを選択して記述する。
+.PP
+As you can see, it gets pretty messy, and you are better off to compile in
+your own personal values as recommended.  Using a boot argument of
+\&'sound=0' will disable the sound driver entirely.
 .SS ラインプリンタドライバ
 .TP 
 \&\fB'lp='\fP
 .br
 構文は以下の通り。
-
+.IP
 .in +4n
-.nf
+.EX
 lp=0
 lp=auto
 lp=reset
 lp=port[,port...]
-.fi
+.EE
 .in
 .IP
 プリンタドライバには、どのポートを使うか、 どのポートを使ってはいけないかを伝えることができる。 後者は、
 利用可能なあらゆるパラレルポートをプリンタドライバが要求しないようにして、 他のドライバ (PLIP や PPA など) から
 それらを使えるようにしたい場合に便利である。
-
-引数の書式は、複数のポート名である。 例えば lp=none,parport0 とすると、 最初のパラレルポートを lp1 として使い、 lp0
-は無効にする。プリンタードライバを完全に無効にするには lp=0 とすればよい。
-.TP 
-\fBWDT500/501 ドライバ\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-wdt=io,irq
-.fi
-.in
-.SS マウスドライバ
-.TP 
-\&\fB'bmouse=irq'\fP
-バスマウスドライバはパラメーターをひとつだけとり、 ハードウェア IRQ を指定できる。
-.TP 
-\&\fB'msmouse=irq'\fP
-msmouse ドライバでもこの事情はまったく同じである。
-.TP 
-\fBATARI マウスの設定\fP
-構文は以下の通り。
-
-.in +4n
-.nf
-atamouse=threshold[,y\-threshold]
-.fi
-.in
 .IP
-パラメーターがひとつだけ与えられた場合には、 x\-threshold と y\-threshold を両方に用いられる。
-ふたつ与えられた場合は、最初の値が x\-threshold として用いられ、 2 番目の値が y\-threshold として用いられる。 値は 1 から
-20 までの数値で指定する。 デフォルトは 2。
-.SS ビデオ機器
-.TP 
-\&\fB'no\-scroll'\fP
 .\" .SH AUTHORS
 .\" Linus Torvalds (and many others)
-このオプションは、コンソールドライバに、 ハードウェアスクロールを用いないよう伝える (ここで言うハードウェアスクロールとは、
-ビデオメモリー上のデータを移動させることによって スクリーン表示領域をスクロールさせることを指す)。 特定の点字マシンではこの指定が必要となる。
+引数の書式は、複数のポート名である。 例えば lp=none,parport0 とすると、 最初のパラレルポートを lp1 として使い、 lp0
+は無効にする。プリンタードライバを完全に無効にするには lp=0 とすればよい。
 .SH 関連項目
 \fBklogd\fP(8), \fBmount\fP(8)
-
-このマニュアルページの大部分は Paul Gortmaker による Boot Parameter HOWTO (version 1.0.1)
-を基にしている。 この (あるいは最新の) HOWTO をあたれば、 さらに多くの情報が入手できるだろう。 最新の情報源はカーネルソースファイル
-\fIDocumentation/kernel\-parameters.txt\fP である。
+.PP
+For up\-to\-date information, see the kernel source file
+\fIDocumentation/admin\-guide/kernel\-parameters.txt\fP.
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

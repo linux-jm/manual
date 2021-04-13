@@ -34,7 +34,7 @@
 .\"         by Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH GETXATTR 2 2014\-04\-06 Linux "Linux Programmer's Manual"
+.TH GETXATTR 2 2020\-06\-09 Linux "Linux Programmer's Manual"
 .SH 名前
 getxattr, lgetxattr, fgetxattr \- 拡張属性の値を取得する
 .SH 書式
@@ -42,7 +42,7 @@ getxattr, lgetxattr, fgetxattr \- 拡張属性の値を取得する
 .nf
 \fB#include <sys/types.h>\fP
 \fB#include <sys/xattr.h>\fP
-.sp
+.PP
 \fBssize_t getxattr(const char\ *\fP\fIpath\fP\fB, const char\ *\fP\fIname\fP\fB,\fP
 \fB                 void\ *\fP\fIvalue\fP\fB, size_t \fP\fIsize\fP\fB);\fP
 \fBssize_t lgetxattr(const char\ *\fP\fIpath\fP\fB, const char\ *\fP\fIname\fP\fB,\fP
@@ -52,12 +52,17 @@ getxattr, lgetxattr, fgetxattr \- 拡張属性の値を取得する
 .fi
 .fam T
 .SH 説明
-拡張属性は、inode (ファイル、ディレクトリ、シンボリックリンク等) に 関連付けられた \fIname\fP:\fIvalue\fP の対である。
-これらは、システム上のすべての inode に関連付けられた通常の属性 (\fBstat\fP(2)  が返すデータ) を拡張するものである。
-拡張属性のコンセプトは \fBattr\fP(5)  に書かれている。
+Extended attributes are \fIname\fP:\fIvalue\fP pairs associated with inodes
+(files, directories, symbolic links, etc.).  They are extensions to the
+normal attributes which are associated with all inodes in the system (i.e.,
+the \fBstat\fP(2)  data).  A complete overview of extended attributes concepts
+can be found in \fBxattr\fP(7).
 .PP
-\fBgetxattr\fP()  は、ファイルシステム内の指定された \fIpath\fP に対応する、名前 \fIname\fP の拡張属性の \fIvalue\fP
-(値) を取得する。 属性 \fIvalue\fP の長さが返される。
+\fBgetxattr\fP()  retrieves the value of the extended attribute identified by
+\fIname\fP and associated with the given \fIpath\fP in the filesystem.  The
+attribute value is placed in the buffer pointed to by \fIvalue\fP; \fIsize\fP
+specifies the size of that buffer.  The return value of the call is the
+number of bytes placed in \fIvalue\fP.
 .PP
 \fBlgetxattr\fP()  は \fBgetxattr\fP()  と同じだが、シンボリックリンクの場合に、リンクが参照しているファイル
 ではなく、リンクそのものの情報を取得する点だけが異なる。
@@ -65,22 +70,37 @@ getxattr, lgetxattr, fgetxattr \- 拡張属性の値を取得する
 \fBfgetxattr\fP()  は \fBgetxattr\fP()  と同じだが、 \fIpath\fP の代わりに \fIfd\fP
 で参照されたオープン済みファイルの情報だけを取得する点が異なる (\fIfd\fP は \fBopen\fP(2)  によって返される)。
 .PP
-拡張属性の名前 \fIname\fP は普通のヌル終端された文字列である。 名前には、名前空間を表す接頭辞 (prefix) が含まれる; 個々の inode
-に対して、互いに独立な名前空間が複数あってもよい。 拡張属性の値は、ある一定の長さの任意のテキストデータまたは バイナリデータの集合である。
+An extended attribute \fIname\fP is a null\-terminated string.  The name
+includes a namespace prefix; there may be several, disjoint namespaces
+associated with an individual inode.  The value of an extended attribute is
+a chunk of arbitrary textual or binary data that was assigned using
+\fBsetxattr\fP(2).
 .PP
-\fIsize\fP に 0 を指定して空のバッファーをこれらのシステムコールに渡すことができ、
-この場合には指定された名前の拡張属性の現在のサイズが返される。 この方法は、拡張属性の値を保持するのに十分な大きさのバッファーサイズを
-見積もるのに使うことができる、
-.PP
-このシステムコールインターフェースは、初期バッファーのサイズの推測をしたり、
-与えられたバッファーが小さすぎたことを返り値で知らせることでバッファーを大きく したりできるように設計されている。
+If \fIsize\fP is specified as zero, these calls return the current size of the
+named extended attribute (and leave \fIvalue\fP unchanged).  This can be used
+to determine the size of the buffer that should be supplied in a subsequent
+call.  (But, bear in mind that there is a possibility that the attribute
+value may change between the two calls, so that it is still necessary to
+check the return status from the second call.)
 .SH 返り値
-成功した場合、拡張属性の値の長さを表す非負の数が返される。 失敗した場合、 \-1 が返され、 \fIerrno\fP に適切な値がセットされる。
+On success, these calls return a nonnegative value which is the size (in
+bytes) of the extended attribute value.  On failure, \-1 is returned and
+\fIerrno\fP is set appropriately.
 .SH エラー
 .TP 
-\fBENOATTR\fP
-指定された名前の属性が存在しない、またはプロセスがその属性にアクセスする権限がない (\fBENOATTR\fP は
-\fI<attr/xattr.h>\fP で \fBENODATA\fP の同義語として定義されている)。
+\fBE2BIG\fP
+The size of the attribute value is larger than the maximum size allowed; the
+attribute cannot be retrieved.  This can happen on filesystems that support
+very large attribute values such as NFSv4, for example.
+.TP 
+\fBENODATA\fP
+.\" .RB ( ENOATTR
+.\" is defined to be a synonym for
+.\" .BR ENODATA
+.\" in
+.\" .IR <attr/attributes.h> .)
+The named attribute does not exist, or the process has no access to this
+attribute.
 .TP 
 \fBENOTSUP\fP
 拡張属性がそのファイルシステムでサポートされていない、 もしくは無効になっている。
@@ -99,10 +119,11 @@ getxattr, lgetxattr, fgetxattr \- 拡張属性の値を取得する
 .\" .RI < linux-xfs@oss.sgi.com >.
 .\" Please send any bug reports or comments to these addresses.
 これらのシステムコールは Linux 独自である。
+.SH 例
+\fBlistxattr\fP(2) を参照。
 .SH 関連項目
 \fBgetfattr\fP(1), \fBsetfattr\fP(1), \fBlistxattr\fP(2), \fBopen\fP(2),
-\fBremovexattr\fP(2), \fBsetxattr\fP(2), \fBstat\fP(2), \fBattr\fP(5), \fBsymlink\fP(7)
+\fBremovexattr\fP(2), \fBsetxattr\fP(2), \fBstat\fP(2), \fBsymlink\fP(7), \fBxattr\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

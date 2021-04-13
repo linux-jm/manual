@@ -33,6 +33,7 @@
 .\"	Language and formatting clean-ups
 .\"	Added msqid_ds and ipc_perm structure definitions
 .\" 2005-08-02, mtk: Added IPC_INFO, MSG_INFO, MSG_STAT descriptions
+.\" 2018-03-20, dbueso: Added MSG_STAT_ANY description.
 .\"
 .\"*******************************************************************
 .\"
@@ -49,7 +50,7 @@
 .\" Updated & Modified 2005-10-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH MSGCTL 2 2014\-02\-24 Linux "Linux Programmer's Manual"
+.TH MSGCTL 2 2020\-11\-01 Linux "Linux Programmer's Manual"
 .SH 名前
 msgctl \- System V メッセージ制御操作
 .SH 書式
@@ -57,7 +58,7 @@ msgctl \- System V メッセージ制御操作
 \fB#include <sys/types.h>\fP
 \fB#include <sys/ipc.h>\fP
 \fB#include <sys/msg.h>\fP
-
+.PP
 \fBint msgctl(int \fP\fImsqid\fP\fB, int \fP\fIcmd\fP\fB, struct msqid_ds *\fP\fIbuf\fP\fB);\fP
 .fi
 .SH 説明
@@ -65,30 +66,59 @@ msgctl \- System V メッセージ制御操作
 に対して \fIcmd\fP で指定された制御操作を行なう。
 .PP
 \fImsqid_ds\fP データ構造体は \fI<sys/msg.h>\fP で以下のように定義されている:
-.nf
+.PP
 .in +4n
-
+.EX
 struct msqid_ds {
-    struct ipc_perm msg_perm;     /* 所有権と許可 */
-    time_t          msg_stime;    /* 最後の msgsnd(2) の時刻 */
-    time_t          msg_rtime;    /* 最後の msgrcv(2) の時刻 */
-    time_t          msg_ctime;    /* 最後に変更が行われた時刻 */
-    unsigned long   __msg_cbytes; /* キューにある現在のバイト数
-                                     (非標準) */
-    msgqnum_t       msg_qnum;     /* キューにある現在入っている
-                                     メッセージの数 */
-    msglen_t        msg_qbytes;   /* キューに許可されている
-                                     最大バイト数 */
-    pid_t           msg_lspid;    /* 最後の msgsnd(2) の PID */
-    pid_t           msg_lrpid;    /* 最後の msgrcv(2) の PID */
+    struct ipc_perm msg_perm;   /* Ownership and permissions */
+    time_t          msg_stime;  /* Time of last msgsnd(2) */
+    time_t          msg_rtime;  /* Time of last msgrcv(2) */
+    time_t          msg_ctime;  /* Time of creation or last
+                                   modification by msgctl() */
+    unsigned long   msg_cbytes; /* # of bytes in queue */
+    msgqnum_t       msg_qnum;   /* # number of messages in queue */
+    msglen_t        msg_qbytes; /* Maximum # of bytes in queue */
+    pid_t           msg_lspid;  /* PID of last msgsnd(2) */
+    pid_t           msg_lrpid;  /* PID of last msgrcv(2) */
 };
+.EE
 .in
-.fi
+.PP
+\fImsgid_ds\fP 構造体のフィールドは以下の通りである:
+.TP  11
+\fImsg_perm\fP
+This is an \fIipc_perm\fP structure (see below) that specifies the access
+permissions on the message queue.
+.TP 
+\fImsg_stime\fP
+最後の \fBmsgsnd\fP(2) システムコールの時刻。
+.TP 
+\fImsg_rtime\fP
+最後の \fBmsgrcv\fP(2) システムコールの時刻。
+.TP 
+\fImsg_ctime\fP
+Time of creation of queue or time of last \fBmsgctl\fP()  \fBIPC_SET\fP operation.
+.TP 
+\fImsg_cbytes\fP
+Number of bytes in all messages currently on the message queue.  This is a
+nonstandard Linux extension that is not specified in POSIX.
+.TP 
+\fImsg_qnum\fP
+Number of messages currently on the message queue.
+.TP 
+\fImsg_qbytes\fP
+Maximum number of bytes of message text allowed on the message queue.
+.TP 
+\fImsg_lspid\fP
+最後の \fBmsgsnd\fP(2) システムコールを実行したプロセスの ID。
+.TP 
+\fImsg_lrpid\fP
+最後の \fBmsgrcv\fP(2) システムコールを実行したプロセスの ID。
 .PP
 \fIipc_perm\fP 構造体は以下のように定義されている (強調されたフィールドは \fBIPC_SET\fP を使って設定可能である):
 .PP
-.nf
 .in +4n
+.EX
 struct ipc_perm {
     key_t          __key;       /* msgget(2) に与えるキー */
     uid_t          \fBuid\fP;         /* 所有者の実効 UID */
@@ -98,8 +128,23 @@ struct ipc_perm {
     unsigned short \fBmode\fP;        /* 許可 */
     unsigned short __seq;       /* シーケンス番号 */
 };
+.EE
 .in
-.fi
+.PP
+The least significant 9 bits of the \fImode\fP field of the \fIipc_perm\fP
+structure define the access permissions for the message queue.  The
+permission bits are as follows:
+.TS
+l l.
+0400	ユーザーによる読み出し
+0200	ユーザーによる書き込み
+0040	グループによる読み出し
+0020	グループによる書き込み
+0004	他人 (others) による読み出し
+0002	他人 (others) による書き込み
+.TE
+.PP
+ビット 0100, 0010, 0001 (実行ビット) をシステムは使用しない。
 .PP
 \fIcmd\fP として有効な値は:
 .TP 
@@ -108,13 +153,19 @@ struct ipc_perm {
 構造体に情報をコピーする。 呼び出し側はメッセージキューに対する読み込み許可を持っていなければならない。
 .TP 
 \fBIPC_SET\fP
-ポインター \fIbuf\fP が指し示す \fImsqid_ds\fP 構造体のメンバーの値を、メッセージキューに関連づけられた カーネルデータ構造体に書き込み、
-\fImsg_ctime\fP メンバーも更新する。 構造体のメンバーのうち、更新されるものを以下に示す: \fImsg_qbytes\fP,
-\fImsg_perm.uid\fP, \fImsg_perm.gid\fP, \fImsg_perm.mode\fP (の下位 9 ビット)。
-呼び出したプロセスの実効ユーザー ID が、メッセージキューの所有者 (\fImsg_perm.uid\fP)  または作成者
-(\fImsg_perm.cuid\fP)  と一致するか、呼び出し元が特権を持たなければならない。 \fImsg_qbytes\fP をシステムパラメーターの
-\fBMSGMNB\fP を超えて設定するには、適切な特権 (Linux では \fBCAP_SYS_RESOURCE\fP ケーパビリティ
-(capability)) が必要である。
+Write the values of some members of the \fImsqid_ds\fP structure pointed to by
+\fIbuf\fP to the kernel data structure associated with this message queue,
+updating also its \fImsg_ctime\fP member.
+.IP
+The following members of the structure are updated: \fImsg_qbytes\fP,
+\fImsg_perm.uid\fP, \fImsg_perm.gid\fP, and (the least significant 9 bits of)
+\fImsg_perm.mode\fP.
+.IP
+The effective UID of the calling process must match the owner
+(\fImsg_perm.uid\fP)  or creator (\fImsg_perm.cuid\fP)  of the message queue, or
+the caller must be privileged.  Appropriate privilege (Linux: the
+\fBCAP_SYS_RESOURCE\fP capability) is required to raise the \fImsg_qbytes\fP value
+beyond the system parameter \fBMSGMNB\fP.
 .TP 
 \fBIPC_RMID\fP
 メッセージキューをただちに削除する。 同時にその構造体の読み書きの待ち状態にあったプロセスに通知する (エラーが返り、 \fIerrno\fP が
@@ -125,9 +176,9 @@ struct ipc_perm {
 システム全体でのメッセージキューの制限とパラメーターに関する情報を、 \fIbuf\fP が指す構造体に入れて返す。 この構造体は \fImsginfo\fP
 型である (そのためキャストが必要である)。 \fImsginfo\fP は \fB_GNU_SOURCE\fP 機能検査マクロが定義された場合に
 \fI<sys/msg.h>\fP で以下のように定義される:
-.nf
+.IP
 .in +4n
-
+.EX
 struct msginfo {
     int msgpool; /* メッセージデータの保持に使用される
                     バッファープールの大きさ (1024 バイト単位);
@@ -144,12 +195,12 @@ struct msginfo {
                     カーネル内では未使用 */
     int msgtql;  /* システム上の全キューの最大メッセージ数;
                     カーネル内では未使用 */
-    unsigned short int msgseg;
+    unsigned short msgseg;
                  /* 最大セグメント数; カーネル内では未使用 */
 };
-
+.EE
 .in
-.fi
+.IP
 設定 \fImsgmni ,\fP \fImsgmax ,\fP \fImsgmnb\fP は \fI/proc\fP にある同じ名前のファイル経由で変更可能である。 詳しくは
 \fBproc\fP(5)  を参照。
 .TP 
@@ -162,20 +213,30 @@ struct msginfo {
 \fBMSG_STAT\fP (Linux 固有)
 \fBIPC_STAT\fP と同じく \fImsqid_ds\fP 構造体を返す。 但し、 \fImsqid\fP
 引き数は、キュー識別子ではなく、システム上の全てのメッセージキュー に関する情報を管理するカーネルの内部配列へのインデックスである。
+.TP 
+\fBMSG_STAT_ANY\fP (Linux 固有, Linux 4.17 以降)
+Return a \fImsqid_ds\fP structure as for \fBMSG_STAT\fP.  However,
+\fImsg_perm.mode\fP is not checked for read access for \fImsqid\fP meaning that
+any user can employ this operation (just as any user may read
+\fI/proc/sysvipc/msg\fP to obtain the same information).
 .SH 返り値
-成功すると、 \fBIPC_STAT\fP, \fBIPC_SET\fP, \fBIPC_RMID\fP は 0 を返す。 \fBIPC_INFO\fP と
-\fBMSG_INFO\fP 操作は、成功すると、全てのメッセージキューに関する情報を 管理しているカーネルの内部配列の使用中エントリーのインデックスの
-うち最大値を返す (この情報は、システムの全てのメッセージキューに関する情報を 取得するために、 \fBMSG_STAT\fP
-操作を繰り返し実行する際に使用できる)。 \fBMSG_STAT\fP 操作は、成功すると、 \fImsqid\fP
-で指定されたインデックスを持つメッセージキューの識別子を返す。
-
+On success, \fBIPC_STAT\fP, \fBIPC_SET\fP, and \fBIPC_RMID\fP return 0.  A successful
+\fBIPC_INFO\fP or \fBMSG_INFO\fP operation returns the index of the highest used
+entry in the kernel's internal array recording information about all message
+queues.  (This information can be used with repeated \fBMSG_STAT\fP or
+\fBMSG_STAT_ANY\fP operations to obtain information about all queues on the
+system.)  A successful \fBMSG_STAT\fP or \fBMSG_STAT_ANY\fP operation returns the
+identifier of the queue whose index was given in \fImsqid\fP.
+.PP
 エラーの場合は \-1 を返し、 \fIerrno\fP を適切に設定する。
 .SH エラー
 失敗した場合、 \fIerrno\fP は以下の値の中のどれか一つに設定される:
 .TP 
 \fBEACCES\fP
-引き数 \fIcmd\fP が \fBIPC_STAT\fP または \fBMSG_STAT\fP に等しいが、呼び出したプロセスがメッセージキュー \fImsqid\fP
-に対する読み込み許可を持っておらず、かつ \fBCAP_IPC_OWNER\fP ケーパビリティを持っていない。
+The argument \fIcmd\fP is equal to \fBIPC_STAT\fP or \fBMSG_STAT\fP, but the calling
+process does not have read permission on the message queue \fImsqid\fP, and
+does not have the \fBCAP_IPC_OWNER\fP capability in the user namespace that
+governs its IPC namespace.
 .TP 
 \fBEFAULT\fP
 引き数 \fIcmd\fP が \fBIPC_SET\fP か \fBIPC_STAT\fP で、ポインター \fIbuf\fP で指されているアドレスがアクセス可能でない。
@@ -198,25 +259,24 @@ struct msginfo {
 ケーパビリティを持っていなかった)。
 .SH 準拠
 .\" SVID does not document the EIDRM error condition.
-SVr4, POSIX.1\-2001.
+POSIX.1\-2001, POSIX.1\-2008, SVr4.
 .SH 注意
 .\" Like Linux, the FreeBSD man pages still document
 .\" the inclusion of these header files.
 Linux や POSIX の全てのバージョンでは、 \fI<sys/types.h>\fP と \fI<sys/ipc.h>\fP
 のインクルードは必要ない。しかしながら、いくつかの古い実装ではこれらのヘッダーファイルのインクルードが必要であり、 SVID
 でもこれらのインクルードをするように記載されている。このような古いシステムへの移植性を意図したアプリケーションではこれらのファイルをインクルードする必要があるかもしれない。
-
+.PP
 \fBIPC_INFO\fP, \fBMSG_STAT\fP, \fBMSG_INFO\fP 操作は、 \fBipcs\fP(1)
 プログラムで割り当て済の資源に関する情報を提供するために 使用されている。将来、これらの操作は変更されたり、 \fI/proc\fP
 ファイルシステムのインターフェースに移動されるかもしれない。
-
+.PP
 \fIstruct msqid_ds\fP 内の多くのフィールドは、 Linux 2.2 では \fIshort\fP だったが、Linux 2.4 では
 \fIlong\fP になった。 この利点を生かすには、glibc\-2.1.91 以降の環境下で 再コンパイルすれば十分である。
 (カーネルは新しい形式の呼び出しと古い形式の呼び出しを \fIcmd\fP 内の \fBIPC_64\fP フラグで区別する。)
 .SH 関連項目
 \fBmsgget\fP(2), \fBmsgrcv\fP(2), \fBmsgsnd\fP(2), \fBcapabilities\fP(7),
-\fBmq_overview\fP(7), \fBsvipc\fP(7)
+\fBmq_overview\fP(7), \fBsysvipc\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

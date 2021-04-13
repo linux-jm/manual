@@ -39,41 +39,41 @@
 .\"         by NAKANO Takeo <nakano@apm.seikei.ac.jp>
 .\" Updated Sat Oct 11 JST 2003 by Kentaro Shirakata <argrath@ub32.org>
 .\"
-.TH REBOOT 2 2015\-02\-01 Linux "Linux Programmer's Manual"
+.TH REBOOT 2 2019\-03\-06 Linux "Linux Programmer's Manual"
 .SH 名前
 reboot \- 再起動する。または Ctrl\-Alt\-Delを有効・無効にする
 .SH 書式
-/* libc4 と libc5 でのライブラリコールとシステムコールは同じである。
-   またカーネル 2.1.30 以降では、定数としてシンボリックな名前
+/* カーネル 2.1.30 以降では、定数としてシンボリックな名前
    LINUX_REBOOT_* が定義されており、呼び出しの第 4 引数として
    指定することができる。*/
-.sp
+.PP
 \fB#include <unistd.h>\fP
 .br
 \fB#include <linux/reboot.h>\fP
-.sp
+.PP
 \fBint reboot(int \fP\fImagic\fP\fB, int \fP\fImagic2\fP\fB, int \fP\fIcmd\fP\fB, void
 *\fP\fIarg\fP\fB);\fP
-.sp
-/* glibc では、関連する定数に RB_* というシンボリックな名前が付け
-   られている。ライブラリ関数の引数は 1 つで、3 引数のシステムコールの
-   ラッパ (wrapper) となっている。 */
-.sp
+
+/* Under glibc and most alternative libc's (including uclibc, dietlibc,
+   musl and a few others), some of the constants involved have gotten
+   symbolic names RB_*, and the library call is a 1\-argument
+   wrapper around the system call: */
+.PP
 \fB#include <unistd.h>\fP
 .br
 \fB#include <sys/reboot.h>\fP
-.sp
+.PP
 \fBint reboot(int \fP\fIcmd\fP\fB);\fP
 .SH 説明
 \fBreboot\fP()  はシステムを再起動する。または再起動のキーストロークである Ctrl\-Alt\-Delete (CAD) を有効/無効にする。
 このキーストロークは \fBloadkeys\fP(1)  によって変更できる。
 .PP
 \fImagic\fP が \fBLINUX_REBOOT_MAGIC1\fP (値は 0xfee1dead) であり、かつ \fImagic2\fP が
-\fBLINUX_REBOOT_MAGIC2\fP (672274793) でなければこのシステムコールは失敗し、 \fBEINVAL\fP が返される。 しかし
-2.1.17 からは \fBLINUX_REBOOT_MAGIC2A\fP (85072278) が、 また 2.1.97 からは
+\fBLINUX_REBOOT_MAGIC2\fP (672274793) でなければ、このシステムコールは (エラー \fBEINVAL\fP で) 失敗する。
+しかし 2.1.17 からは \fBLINUX_REBOOT_MAGIC2A\fP (85072278) が、 また 2.1.97 からは
 \fBLINUX_REBOOT_MAGIC2B\fP (369367448) が、 2.5.71 からは \fBLINUX_REBOOT_MAGIC2C\fP
 (537993216) が \fImagic2\fP の値として指定できるようになった (これらの定数の 16 進での 表記にはちょっとした意味がある)。
-
+.PP
 \fIcmd\fP 引数には以下の値を指定できる。
 .TP 
 \fBLINUX_REBOOT_CMD_CAD_OFF\fP
@@ -112,20 +112,35 @@ reboot \- 再起動する。または Ctrl\-Alt\-Delを有効・無効にする
 \fBLINUX_REBOOT_CMD_SW_SUSPEND\fP
 (\fBRB_SW_SUSPEND\fP, 0xd000fce1; Linux 2.5.18 以降). システムがディスクにサスペンド (ハイバネーション)
 される。このオプションはカーネルで \fBCONFIG_HIBERNATION\fP が有効になっている場合にのみ利用できる。
-.LP
+.PP
 スーパーユーザーだけが \fBreboot\fP()  を呼び出すことができる。
-.LP
+.PP
+.\"
 上述のアクションの実際の効果はアーキテクチャーに依存する。 i386 アーキテクチャーでは、現在のところ (2.1.122) 付加引数は
 何も行わないが、再起動のタイプをカーネルのコマンドライン引数 ("reboot=...") によって定めることができる。 これには warm または
 cold と、 hard または BIOS 経由の再起動を 設定できる。
 .SS "PID 名前空間内での動作"
 .\" commit cf3f89214ef6a33fad60856bc5ffd7bb2fc4709b
 .\" see also commit 923c7538236564c46ee80c253a416705321f13e3
-Linux 3.4 以降では、 \fBreboot\fP() が最初の PID 名前空間以外の PID 名前空間 (\fBpid_namespaces\fP(7)
-参照) から呼び出された場合、 呼び出しの効果として、 名前空間の "init" プロセスへシグナルが送信される。
-\fBLINUX_REBOOT_CMD_RESTART\fP と\fBLINUX_REBOOT_CMD_RESTART2\fP の場合、 \fBSIGHUP\fP
-シグナルが送信される。 \fBLINUX_REBOOT_CMD_POWER_OFF\fP と \fBLINUX_REBOOT_CMD_HALT\fP の場合、
-\fBSIGINT\fP シグナルが送信される。
+Since Linux 3.4, if \fBreboot\fP()  is called from a PID namespace other than
+the initial PID namespace with one of the \fIcmd\fP values listed below, it
+performs a "reboot" of that namespace: the "init" process of the PID
+namespace is immediately terminated, with the effects described in
+\fBpid_namespaces\fP(7).
+.PP
+The values that can be supplied in \fIcmd\fP when calling \fBreboot\fP()  in this
+case are as follows:
+.TP 
+\fBLINUX_REBOOT_CMD_RESTART\fP, \fBLINUX_REBOOT_CMD_RESTART2\fP
+The "init" process is terminated, and \fBwait\fP(2)  in the parent process
+reports that the child was killed with a \fBSIGHUP\fP signal.
+.TP 
+\fBLINUX_REBOOT_CMD_POWER_OFF\fP, \fBLINUX_REBOOT_CMD_HALT\fP
+The "init" process is terminated, and \fBwait\fP(2)  in the parent process
+reports that the child was killed with a \fBSIGINT\fP signal.
+.PP
+For the other \fIcmd\fP values, \fBreboot\fP()  returns \-1 and \fIerrno\fP is set to
+\fBEINVAL\fP.
 .SH 返り値
 \fIcmd\fP がシステムの停止や再起動を表す値の場合、呼び出しが成功すると \fBreboot\fP()  は返らない。 \fIcmd\fP
 が他の値の場合には、成功すると 0 が返る。 \fIcmd\fP の値に関わらず、失敗の場合には \-1 が返り、 \fIerrno\fP が適切に設定される。
@@ -138,13 +153,14 @@ Linux 3.4 以降では、 \fBreboot\fP() が最初の PID 名前空間以外の 
 magic の数字か \fIcmd\fP が間違っている。
 .TP 
 \fBEPERM\fP
-呼び出し元プロセスに \fBreboot\fP()  を呼び出すのに十分な権限がなかった。 \fBCAP_SYS_BOOT\fP ケーパビリティが必要である。
+The calling process has insufficient privilege to call \fBreboot\fP(); the
+caller must have the \fBCAP_SYS_BOOT\fP inside its user namespace.
 .SH 準拠
 \fBreboot\fP()  は Linux に特有であり、移植を考慮したプログラムでは用いるべきではない。
 .SH 関連項目
-\fBkexec_load\fP(2), \fBsync\fP(2), \fBbootparam\fP(7), \fBcapabilities\fP(7),
-\fBctrlaltdel\fP(8), \fBhalt\fP(8), \fBreboot\fP(8)
+\fBsystemctl\fP(1), \fBsystemd\fP(1), \fBkexec_load\fP(2), \fBsync\fP(2),
+\fBbootparam\fP(7), \fBcapabilities\fP(7), \fBctrlaltdel\fP(8), \fBhalt\fP(8),
+\fBshutdown\fP(8)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

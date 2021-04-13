@@ -29,44 +29,44 @@
 .\" Updated 2008-11-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.13
 .\" Updated 2009-02-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.18
 .\"
-.TH SIGNALFD 2 2014\-07\-08 Linux "Linux Programmer's Manual"
+.TH SIGNALFD 2 2020\-11\-01 Linux "Linux Programmer's Manual"
 .SH 名前
 signalfd \- シグナル受け付け用のファイルディスクリプターを生成する
 .SH 書式
 \fB#include <sys/signalfd.h>\fP
-.sp
+.PP
 \fBint signalfd(int \fP\fIfd\fP\fB, const sigset_t *\fP\fImask\fP\fB, int \fP\fIflags\fP\fB);\fP
 .SH 説明
 \fBsignalfd\fP()  は、呼び出し元宛てのシグナルを受け付けるために使用されるファイル ディスクリプターを生成する。
 この方法はシグナルハンドラーや \fBsigwaitinfo\fP(2)  を用いる方法の代わりとなるものであり、このファイルディスクリプターを
 \fBselect\fP(2), \fBpoll\fP(2), \fBepoll\fP(7)  で監視できるという利点がある。
-
+.PP
 \fImask\fP 引き数には、呼び出し元がこのファイルディスクリプター経由で受け付けたい
 シグナル集合を指定する。この引き数で指定するシグナル集合の内容は、 \fBsigsetops\fP(3)
 で説明されているマクロを使って初期化することができる。 通常、ファイルディスクリプター経由で受信するシグナル集合は、
 そのシグナルがデフォルトの配送方法に基いて処理されるのを防ぐために、 \fBsigprocmask\fP(2)  を使ってブロックしておくべきである。
 シグナル \fBSIGKILL\fP と \fBSIGSTOP\fP を signalfd ファイルディスクリプター経由で受信することはできない。
 これらのシグナルが \fImask\fP で指定された場合には黙って無視される。
-
+.PP
 \fIfd\fP 引き数が \-1 の場合、 \fBsignalfd\fP()  は新しいファイルディスクリプターを生成し、 \fImask\fP
 で指定されたシグナル集合をそのファイルディスクリプターに関連付ける。 \fIfd\fP 引き数が \-1 以外の場合、 \fIfd\fP には有効な既存の
 signalfd ファイルディスクリプターを指定しなければならず、 そのディスクリプターに関連付けられているシグナル集合は \fImask\fP
 を使って置き換えられる。
-
+.PP
 Linux 2.6.27 以降では、 以下の値のいくつかをビット単位の論理和 (OR) で指定することで、 \fBsignalfd\fP()
 の振舞いを変更することができる。
 .TP  14
 \fBSFD_NONBLOCK\fP
-新しく生成されるオープンファイル記述 (open file description) の \fBO_NONBLOCK\fP
-ファイルステータスフラグをセットする。 このフラグを使うことで、 \fBO_NONBLOCK\fP をセットするために \fBfcntl\fP(2)
-を追加で呼び出す必要がなくなる。
+Set the \fBO_NONBLOCK\fP file status flag on the open file description (see
+\fBopen\fP(2))  referred to by the new file descriptor.  Using this flag saves
+extra calls to \fBfcntl\fP(2)  to achieve the same result.
 .TP 
 \fBSFD_CLOEXEC\fP
 新しいファイルディスクリプターに対して close\-on\-exec (\fBFD_CLOEXEC\fP)  フラグをセットする。
 このフラグが役に立つ理由については、 \fBopen\fP(2)  の \fBO_CLOEXEC\fP フラグの説明を参照のこと。
 .PP
 バージョン 2.6.26 以前の Linux では、 \fIflags\fP 引き数は未使用であり、0 を指定しなければならない。
-
+.PP
 \fBsignalfd\fP()  が返すファイルディスクリプターは以下の操作をサポートしている。
 .TP 
 \fBread\fP(2)
@@ -95,37 +95,37 @@ signalfd ファイルディスクリプターは、これ以外のファイル�
 .SS "signalfd_siginfo 構造体"
 signalfd ファイルディスクリプターからの \fBread\fP(2)  で返される \fIsignalfd_siginfo\fP
 構造体のフォーマットは以下の通りである。
+.PP
 .in +4n
-.nf
-
+.EX
 .\" ssi_trapno is unused on most arches
-.\" FIXME Since Linux 2.6.37 there is 'uint16_t ssi_addr_lsb'
-.\" in the signalfd_siginfo structure. This needs to be documented.
+.\" ssi_addr_lsb: commit b8aeec34175fc8fe8b0d40efea4846dfc1ba663e
 struct signalfd_siginfo {
-struct signalfd_siginfo {
-    uint32_t ssi_signo;   /* シグナル番号 */
-    int32_t  ssi_errno;   /* エラー番号 (未使用) */
-    int32_t  ssi_code;    /* シグナルコード */
-    uint32_t ssi_pid;     /* 送信元の PID */
-    uint32_t ssi_uid;     /* 送信元の実 UID */
-    int32_t  ssi_fd;      /* ファイルディスクリプター (SIGIO) */
-    uint32_t ssi_tid;     /* カーネルタイマー ID (POSIX タイマー)
-    uint32_t ssi_band;    /* Band イベント (SIGIO) */
-    uint32_t ssi_overrun; /* POSIX タイマーのオーバーラン回数 */
-    uint32_t ssi_trapno;  /* シグナルの原因となったトラップ番号 */
-    int32_t  ssi_status;  /* 終了ステータスかシグナル (SIGCHLD) */
-    int32_t  ssi_int;     /* sigqueue(3) から送られた整数 */
-    uint64_t ssi_ptr;     /* sigqueue(3) から送られたポインター */
-    uint64_t ssi_utime;   /* 消費したユーザー CPU 時間 (SIGCHLD) */
-    uint64_t ssi_stime;   /* 消費したシステム CPU 時間 (SIGCHLD) */
-    uint64_t ssi_addr;    /* シグナルを生成したアドレス
-                             (ハードウェアが生成したシグナルの場合) */
-    uint8_t  pad[\fIX\fP];      /* pad の大きさは 128 バイト
-                             (将来のフィールド追加用の場所の確保) */
+    uint32_t ssi_signo;    /* シグナル番号 */
+    int32_t  ssi_errno;    /* エラー番号 (未使用) */
+    int32_t  ssi_code;     /* シグナルコード */
+    uint32_t ssi_pid;      /* 送信元の PID */
+    uint32_t ssi_uid;      /* 送信元の実 UID */
+    int32_t  ssi_fd;       /* ファイルディスクリプター (SIGIO) */
+    uint32_t ssi_tid;      /* カーネルタイマー ID (POSIX タイマー)
+    uint32_t ssi_band;     /* Band イベント (SIGIO) */
+    uint32_t ssi_overrun;  /* POSIX タイマーのオーバーラン回数 */
+    uint32_t ssi_trapno;   /* シグナルの原因となったトラップ番号 */
+    int32_t  ssi_status;   /* 終了ステータスかシグナル (SIGCHLD) */
+    int32_t  ssi_int;      /* sigqueue(3) から送られた整数 */
+    uint64_t ssi_ptr;      /* sigqueue(3) から送られたポインター */
+    uint64_t ssi_utime;    /* 消費したユーザー CPU 時間 (SIGCHLD) */
+    uint64_t ssi_stime;    /* 消費したシステム CPU 時間 (SIGCHLD) */
+    uint64_t ssi_addr;     /* シグナルを生成したアドレス
+                              (ハードウェアが生成したシグナルの場合) */
+    uint16_t ssi_addr_lsb; /* アドレスの最下位ビット (LSB)
+                              (SIGBUS; Linux 2.6.37 以降) */
+    uint8_t  pad[\fIX\fP];    /* pad の大きさは 128 バイト
+                              (将来のフィールド追加用の場所の確保) */
 };
-
-.fi
+.EE
 .in
+.PP
 \fIsignalfd_siginfo\fP 構造体の各フィールドは、 \fIsiginfo_t\fP 構造体の同じような名前のフィールドと同様である。
 \fIsiginfo_t\fP 構造体については \fBsigaction\fP(2)  に説明がある。 返された \fIsignalfd_siginfo\fP
 構造体の全てのフィールドがあるシグナルに対して有効なわけではない。 どのフィールドが有効かは、 \fIssi_code\fP
@@ -134,6 +134,11 @@ struct signalfd_siginfo {
 .SS "fork(2) での扱い"
 \fBfork\fP(2)  が行われると、子プロセスは signalfd ファイルディスクリプターのコピーを 継承する。
 子プロセスでこのファイルディスクリプターから \fBread\fP(2)  を行うと、子プロセスに対するキューに入っているシグナルに関する 情報が返される。
+.SS "Semantics of file descriptor passing"
+As with other file descriptors, signalfd file descriptors can be passed to
+another process via a UNIX domain socket (see \fBunix\fP(7)).  In the receiving
+process, a \fBread\fP(2)  from the received file descriptor will return
+information about signals queued to that process.
 .SS "execve(2) での扱い"
 他のファイルディスクリプターと全く同様に、 signalfd ファイルディスクリプターも \fBexecve\fP(2)
 の前後でオープンされたままとなる。但し、そのファイルディスクリプターに close\-on\-exec のマーク (\fBfcntl\fP(2)  参照)
@@ -141,9 +146,23 @@ struct signalfd_siginfo {
 でも引き続き読み出し可能である (これは伝統的なシグナルの扱いと同じであり、 処理待ちのブロックされたシグナルは \fBexecve\fP(2)
 の前後で処理待ちのままとなる)。
 .SS スレッドでの扱い
+.\"
 マルチスレッドプログラムにおける signalfd ファイルディスクリプターの扱いは シグナルの標準的な扱いと全く同じである。
 言い換えると、あるスレッドが signalfd ファイルディスクリプターから 読み出しを行うと、そのスレッド自身宛てのシグナルとプロセス (すなわち
 スレッドグループ全体) 宛てのシグナルが読み出される。 (スレッドは同じプロセスの他のスレッド宛てのシグナルを読み出すことはできない。)
+.SS "epoll(7) semantics"
+If a process adds (via \fBepoll_ctl\fP(2))  a signalfd file descriptor to an
+\fBepoll\fP(7)  instance, then \fBepoll_wait\fP(2)  returns events only for
+signals sent to that process.  In particular, if the process then uses
+\fBfork\fP(2)  to create a child process, then the child will be able to
+\fBread\fP(2)  signals that are sent to it using the signalfd file descriptor,
+but \fBepoll_wait\fP(2)  will \fBnot\fP indicate that the signalfd file descriptor
+is ready.  In this scenario, a possible workaround is that after the
+\fBfork\fP(2), the child process can close the signalfd file descriptor that it
+inherited from the parent process and then create another signalfd file
+descriptor and add it to the epoll instance.  Alternatively, the parent and
+the child could delay creating their (separate) signalfd file descriptors
+and adding them to the epoll instance until after the call to \fBfork\fP(2).
 .SH 返り値
 成功すると、 \fBsignalfd\fP()  は signalfd ファイルディスクリプターを返す。 返されるファイルディスクリプターは、 \fIfd\fP が
 \-1 の場合は新規のファイルディスクリプターであり、 \fIfd\fP が有効な signalfd ファイルディスクリプターだった場合は \fIfd\fP
@@ -188,11 +207,37 @@ struct signalfd_siginfo {
 異なるシグナルが到着すると、異なるファイルディスクリプターが利用可能に なるからだ)。 一つのシグナルが二つ以上のファイルディスクリプターの
 \fImask\fP に含まれている場合、そのシグナルの発生はそのシグナルを \fImask\fP
 に含むファイルディスクリプターのうちいずれか一つから読み出すことができる。
-.SS "C ライブラリとカーネル ABI の違い"
+.PP
+Attempts to include \fBSIGKILL\fP and \fBSIGSTOP\fP in \fImask\fP are silently
+ignored.
+.PP
+.\"
+The signal mask employed by a signalfd file descriptor can be viewed via the
+entry for the corresponding file descriptor in the process's
+\fI/proc/[pid]/fdinfo\fP directory.  See \fBproc\fP(5)  for further details.
+.SS Limitations
+The signalfd mechanism can't be used to receive signals that are
+synchronously generated, such as the \fBSIGSEGV\fP signal that results from
+accessing an invalid memory address or the \fBSIGFPE\fP signal that results
+from an arithmetic error.  Such signals can be caught only via signal
+handler.
+.PP
+.\"
+As described above, in normal usage one blocks the signals that will be
+accepted via \fBsignalfd\fP().  If spawning a child process to execute a helper
+program (that does not need the signalfd file descriptor), then, after the
+call to \fBfork\fP(2), you will normally want to unblock those signals before
+calling \fBexecve\fP(2), so that the helper program can see any signals that it
+expects to see.  Be aware, however, that this won't be possible in the case
+of a helper program spawned behind the scenes by any library function that
+the program may call.  In such cases, one must fall back to using a
+traditional signal handler that writes to a file descriptor monitored by
+\fBselect\fP(2), \fBpoll\fP(2), or \fBepoll\fP(7).
+.SS "C ライブラリとカーネルの違い"
 実際の Linux のシステムコールでは \fIsize_t sizemask\fP という引き数が追加で必要である。この引き数で \fImask\fP
 のサイズを指定する。 glibc の \fBsignalfd\fP()  ラッパー関数にはこの引き数は含まれず、
 ラッパー関数が必要な値を計算して内部で呼び出すシステムコールに提供する。
-
+.PP
 下層にある Linux システムコールは二種類あり、 \fBsignalfd\fP()  と、もっと新しい \fBsignalfd4\fP()  である。
 \fBsignalfd\fP()  は \fIflags\fP 引き数を実装していない。 \fBsignalfd4\fP()  では上記の値の \fIflags\fP
 が実装されている。 glibc 2.9 以降では、 \fBsignalfd\fP()  のラッパー関数は、 \fBsignalfd4\fP()
@@ -204,22 +249,22 @@ struct signalfd_siginfo {
 .SH 例
 下記のプログラムは、シグナル \fBSIGINT\fP と \fBSIGQUIT\fP を signalfd ファイルディスクリプター経由で受信する。 シグナル
 \fBSIGQUIT\fP 受信後にプログラムは終了する。 以下に示すシェルセッションにこのプログラムの使い方を示す。
+.PP
 .in +4n
-.nf
-
+.EX
 $\fB ./signalfd_demo\fP
-\fB^C\fP                   # Control\-C generates SIGINT
+\fB\(haC\fP                   # Control\-C generates SIGINT
 Got SIGINT
-\fB^C\fP
+\fB\(haC\fP
 Got SIGINT
-\fB^\e\fP                    # Control\-\e generates SIGQUIT
+\fB\(ha\e\fP                    # Control\-\e generates SIGQUIT
 Got SIGQUIT
 $
-.fi
+.EE
 .in
 .SS プログラムのソース
 \&
-.nf
+.EX
 #include <sys/signalfd.h>
 #include <signal.h>
 #include <unistd.h>
@@ -252,8 +297,8 @@ main(int argc, char *argv[])
         handle_error("signalfd");
 
     for (;;) {
-        s = read(sfd, &fdsi, sizeof(struct signalfd_siginfo));
-        if (s != sizeof(struct signalfd_siginfo))
+        s = read(sfd, &fdsi, sizeof(fdsi));
+        if (s != sizeof(fdsi))
             handle_error("read");
 
         if (fdsi.ssi_signo == SIGINT) {
@@ -266,11 +311,11 @@ main(int argc, char *argv[])
         }
     }
 }
-.fi
+.EE
 .SH 関連項目
 \fBeventfd\fP(2), \fBpoll\fP(2), \fBread\fP(2), \fBselect\fP(2), \fBsigaction\fP(2),
 \fBsigprocmask\fP(2), \fBsigwaitinfo\fP(2), \fBtimerfd_create\fP(2), \fBsigsetops\fP(3),
 \fBsigwait\fP(3), \fBepoll\fP(7), \fBsignal\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部である。
-プロジェクトの説明とバグ報告に関する情報は \%http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

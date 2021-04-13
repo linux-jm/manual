@@ -1,3 +1,4 @@
+
 .\" Copyright (C) 2013, Heinrich Schuchardt <xypron.glpk@gmx.de>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
@@ -26,14 +27,14 @@
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH FANOTIFY_INIT 2 2014\-10\-02 Linux "Linux Programmer's Manual"
+.TH FANOTIFY_INIT 2 2020\-11\-01 Linux "Linux Programmer's Manual"
 .SH 名前
 fanotify_init \- fanotify グループを作成し、初期化する
 .SH 書式
 \fB#include <fcntl.h>\fP
 .br
 \fB#include <sys/fanotify.h>\fP
-.sp
+.PP
 \fBint fanotify_init(unsigned int \fP\fIflags\fP\fB, unsigned int
 \fP\fIevent_f_flags\fP\fB);\fP
 .SH 説明
@@ -43,7 +44,7 @@ fanotify API の概要については \fBfanotify\fP(7) を参照。
 このグループに関連付けられたイベントキューに対するファイルディスクリプターを返す。
 .PP
 このファイルディスクリプターは、 \fBfanotify_mark\fP(2) の呼び出しで fanotify イベントが作成されるファイル、 ディレクトリ、
-マウントを指定するのに使用できる。 \fBfanotify_mark\fP(2) で指定したファイル、 これらのイベントは、
+マウント、ファイルシステムを指定するのに使用できる。 \fBfanotify_mark\fP(2) で指定したファイル、 これらのイベントは、
 このファイルディスクリプターからの読み出しで受信する。 いくつかのイベントは、 ファイルがアクセスされたことを示す単なる情報である。
 他のいくつかのイベントは、 別のアプリケーションがファイルやディレクトリにアクセスする許可を与えるかを判定するのに使用される。
 ファイルシステムオブジェクトへのアクセス許可イベントについては、 承認結果をこのファイルディスクリプターに書き込む。
@@ -95,6 +96,89 @@ close\-on\-exec フラグ (\fBFD_CLOEXEC\fP) を新しいファイルディス�
 .TP 
 \fBFAN_UNLIMITED_MARKS\fP
 8192 マークの上限を削除する。 このフラグを使用するには \fBCAP_SYS_ADMIN\fP ケーパビリティーが必要である。
+.TP 
+\fBFAN_REPORT_TID\fP (Linux 4.20 以降)
+.\" commit d0a6a87e40da49cfc7954c491d3065a25a641b29
+Report thread ID (TID) instead of process ID (PID)  in the \fIpid\fP field of
+the \fIstruct fanotify_event_metadata\fP supplied to \fBread\fP(2)  (see
+\fBfanotify\fP(7)).
+.TP 
+\fBFAN_REPORT_FID\fP (Linux 5.1 以降)
+.\" commit a8b13aa20afb69161b5123b4f1acc7ea0a03d360
+This value allows the receipt of events which contain additional information
+about the underlying filesystem object correlated to an event.  An
+additional record of type \fBFAN_EVENT_INFO_TYPE_FID\fP encapsulates the
+information about the object and is included alongside the generic event
+metadata structure.  The file descriptor that is used to represent the
+object correlated to an event is instead substituted with a file handle.  It
+is intended for applications that may find the use of a file handle to
+identify an object more suitable than a file descriptor.  Additionally, it
+may be used for applications monitoring a directory or a filesystem that are
+interested in the directory entry modification events \fBFAN_CREATE\fP,
+\fBFAN_DELETE\fP, and \fBFAN_MOVE\fP, or in events such as \fBFAN_ATTRIB\fP,
+\fBFAN_DELETE_SELF\fP, and \fBFAN_MOVE_SELF\fP.  All the events above require an
+fanotify group that identifies filesystem objects by file handles.  Note
+that for the directory entry modification events the reported file handle
+identifies the modified directory and not the created/deleted/moved child
+object.  The use of \fBFAN_CLASS_CONTENT\fP or \fBFAN_CLASS_PRE_CONTENT\fP is not
+permitted with this flag and will result in the error \fBEINVAL\fP.  See
+\fBfanotify\fP(7)  for additional details.
+.TP 
+\fBFAN_REPORT_DIR_FID\fP (Linux 5.9 以降)
+Events for fanotify groups initialized with this flag will contain (see
+exceptions below) additional information about a directory object correlated
+to an event.  An additional record of type \fBFAN_EVENT_INFO_TYPE_DFID\fP
+encapsulates the information about the directory object and is included
+alongside the generic event metadata structure.  For events that occur on a
+non\-directory object, the additional structure includes a file handle that
+identifies the parent directory filesystem object.  Note that there is no
+guarantee that the directory filesystem object will be found at the location
+described by the file handle information at the time the event is received.
+When combined with the flag \fBFAN_REPORT_FID\fP, two records may be reported
+with events that occur on a non\-directory object, one to identify the
+non\-directory object itself and one to identify the parent directory
+object.  Note that in some cases, a filesystem object does not have a
+parent, for example, when an event occurs on an unlinked but open file.  In
+that case, with the \fBFAN_REPORT_FID\fP flag, the event will be reported with
+only one record to identify the non\-directory object itself, because there
+is no directory associated with the event.  Without the \fBFAN_REPORT_FID\fP
+flag, no event will be reported.  See \fBfanotify\fP(7)  for additional
+details.
+.TP 
+\fBFAN_REPORT_NAME\fP (Linux 5.9 以降)
+Events for fanotify groups initialized with this flag will contain
+additional information about the name of the directory entry correlated to
+an event.  This flag must be provided in conjunction with the flag
+\fBFAN_REPORT_DIR_FID\fP.  Providing this flag value without
+\fBFAN_REPORT_DIR_FID\fP will result in the error \fBEINVAL\fP.  This flag may be
+combined with the flag \fBFAN_REPORT_FID\fP.  An additional record of type
+\fBFAN_EVENT_INFO_TYPE_DFID_NAME\fP, which encapsulates the information about
+the directory entry, is included alongside the generic event metadata
+structure and substitutes the additional information record of type
+\fBFAN_EVENT_INFO_TYPE_DFID\fP.  The additional record includes a file handle
+that identifies a directory filesystem object followed by a name that
+identifies an entry in that directory.  For the directory entry modification
+events \fBFAN_CREATE\fP, \fBFAN_DELETE\fP, and \fBFAN_MOVE\fP, the reported name is
+that of the created/deleted/moved directory entry.  For other events that
+occur on a directory object, the reported file handle is that of the
+directory object itself and the reported name is '.'.  For other events that
+occur on a non\-directory object, the reported file handle is that of the
+parent directory object and the reported name is the name of a directory
+entry where the object was located at the time of the event.  The rationale
+behind this logic is that the reported directory file handle can be passed
+to \fBopen_by_handle_at\fP(2)  to get an open directory file descriptor and
+that file descriptor along with the reported name can be used to call
+\fBfstatat\fP(2).  The same rule that applies to record type
+\fBFAN_EVENT_INFO_TYPE_DFID\fP also applies to record type
+\fBFAN_EVENT_INFO_TYPE_DFID_NAME\fP: if a non\-directory object has no parent,
+either the event will not be reported or it will be reported without the
+directory entry information.  Note that there is no guarantee that the
+filesystem object will be found at the location described by the directory
+entry information at the time the event is received.  See \fBfanotify\fP(7)
+for additional details.
+.TP 
+\fBFAN_REPORT_DFID_NAME\fP
+This is a synonym for (\fBFAN_REPORT_DIR_FID\fP|\fBFAN_REPORT_NAME\fP).
 .PP
 \fIevent_f_flags\fP 引き数は fanotify イベントが作成されるオープンファイル記述にセットされるファイル状態フラグを定義する。
 これらのフラグの詳細については \fBopen\fP(2) の \fIflags\fP 値の説明を参照のこと。 \fIevent_f_flags\fP
@@ -112,10 +196,11 @@ close\-on\-exec フラグ (\fBFD_CLOEXEC\fP) を新しいファイルディス�
 他のビットも \fIevent_f_flags\fP もセットすることができる。 役立つであろう値は以下である。
 .TP 
 \fBO_LARGEFILE\fP
-2 GB を超えるファイルのサポートを有効にする。 このフラグのセットに失敗すると、 32 ビットシステムで fanotify
+2\ GB を超えるファイルのサポートを有効にする。 このフラグのセットに失敗すると、 32 ビットシステムで fanotify
 グループが監視するラージファイルをオープンしようとした際に \fBEOVERFLOW\fP エラーとなる。
 .TP 
-\fBO_CLOEXEC\fP
+\fBO_CLOEXEC\fP (Linux 3.18 以降)
+.\" commit 0b37e097a648aa71d4db1ad108001e95b69a2da4
 このファイルディスクリプターで close\-on\-exec フラグを有効にする。 このフラグが役立つ理由については \fBopen\fP(2) の
 \fBO_CLOEXEC\fP フラグの説明を参照。
 .PP
@@ -127,11 +212,17 @@ close\-on\-exec フラグ (\fBFD_CLOEXEC\fP) を新しいファイルディス�
 .SH エラー
 .TP 
 \fBEINVAL\fP
-\fIflags\fP か \fIevent_f_flags\fP に無効な値が渡された。 \fBFAN_ALL_INIT_FLAGS\fP で \fIflags\fP
-に指定できる全ビットが定義されている。
+.\" commit 23c9deeb3285d34fd243abb3d6b9f07db60c3cf4
+An invalid value was passed in \fIflags\fP or \fIevent_f_flags\fP.
+\fBFAN_ALL_INIT_FLAGS\fP (deprecated since Linux kernel version 4.20)  defines
+all allowable bits for \fIflags\fP.
 .TP 
 \fBEMFILE\fP
 このユーザーの fanotify グループ数が 128 を超過した。
+.TP 
+\fBEMFILE\fP
+The per\-process limit on the number of open file descriptors has been
+reached.
 .TP 
 \fBENOMEM\fP
 通知グループへのメモリー割り当てが失敗した。
@@ -147,9 +238,9 @@ close\-on\-exec フラグ (\fBFD_CLOEXEC\fP) を新しいファイルディス�
 .SH 準拠
 このシステムコールは Linux 独自である。
 .SH バグ
-Linux 3.17 時点では、 以下のバグが存在する。
+The following bug was present in Linux kernels before version 3.18:
 .IP * 3
-.\" FIXME . Patch proposed: https://lkml.org/lkml/2014/9/24/967
+.\" Fixed by commit 0b37e097a648aa71d4db1ad108001e95b69a2da4
 \fBO_CLOEXEC\fP が \fIevent_f_flags\fP に指定された場合、 無視される。
 .PP
 バージョン 3.14 より前の Linux カーネルには以下のバグが存在する。
@@ -161,6 +252,5 @@ Linux 3.17 時点では、 以下のバグが存在する。
 .SH 関連項目
 \fBfanotify_mark\fP(2), \fBfanotify\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

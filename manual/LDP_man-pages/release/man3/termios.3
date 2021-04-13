@@ -1,6 +1,6 @@
-.\" Copyright (c) 1993 Michael Haardt
-.\" (michael@moria.de)
+.\" Copyright (c) 1993 Michael Haardt (michael@moria.de)
 .\" Fri Apr  2 11:32:09 MET DST 1993
+.\" Copyright (c) 2006-2015, Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(GPLv2+_DOC_FULL)
 .\" This is free documentation; you can redistribute it and/or
@@ -55,7 +55,7 @@
 .\" Updated 2007-05-01, Akihiro MOTOKI, LDP v2.46
 .\" Updated 2007-09-06, Akihiro MOTOKI, LDP v2.64
 .\"
-.TH TERMIOS 3 2015\-02\-01 Linux "Linux Programmer's Manual"
+.TH TERMIOS 3 2020\-08\-13 Linux "Linux Programmer's Manual"
 .SH 名前
 termios, tcgetattr, tcsetattr, tcsendbreak, tcdrain, tcflush, tcflow,
 cfmakeraw, cfgetospeed, cfgetispeed, cfsetispeed, cfsetospeed, cfsetspeed \-
@@ -63,55 +63,58 @@ cfmakeraw, cfgetospeed, cfgetispeed, cfsetispeed, cfsetospeed, cfsetspeed \-
 .SH 書式
 .nf
 \fB#include <termios.h>\fP
-.br
 \fB#include <unistd.h>\fP
-.sp
+.PP
 \fBint tcgetattr(int \fP\fIfd\fP\fB, struct termios *\fP\fItermios_p\fP\fB);\fP
-.sp
+.PP
 \fBint tcsetattr(int \fP\fIfd\fP\fB, int \fP\fIoptional_actions\fP\fB,\fP
 \fB              const struct termios *\fP\fItermios_p\fP\fB);\fP
-.sp
+.PP
 \fBint tcsendbreak(int \fP\fIfd\fP\fB, int \fP\fIduration\fP\fB);\fP
-.sp
+.PP
 \fBint tcdrain(int \fP\fIfd\fP\fB);\fP
-.sp
+.PP
 \fBint tcflush(int \fP\fIfd\fP\fB, int \fP\fIqueue_selector\fP\fB);\fP
-.sp
+.PP
 \fBint tcflow(int \fP\fIfd\fP\fB, int \fP\fIaction\fP\fB);\fP
-.sp
+.PP
 \fBvoid cfmakeraw(struct termios *\fP\fItermios_p\fP\fB);\fP
-.sp
+.PP
 \fBspeed_t cfgetispeed(const struct termios *\fP\fItermios_p\fP\fB);\fP
-.sp
+.PP
 \fBspeed_t cfgetospeed(const struct termios *\fP\fItermios_p\fP\fB);\fP
-.sp
+.PP
 \fBint cfsetispeed(struct termios *\fP\fItermios_p\fP\fB, speed_t \fP\fIspeed\fP\fB);\fP
-.sp
+.PP
 \fBint cfsetospeed(struct termios *\fP\fItermios_p\fP\fB, speed_t \fP\fIspeed\fP\fB);\fP
-.sp
+.PP
 \fBint cfsetspeed(struct termios *\fP\fItermios_p\fP\fB, speed_t \fP\fIspeed\fP\fB);\fP
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
-\fBcfsetspeed\fP(), \fBcfmakeraw\fP(): _BSD_SOURCE
+.RE
+.PP
+\fBcfsetspeed\fP(),
+\fBcfmakeraw\fP():
+    glibc 2.19 以降:
+        _DEFAULT_SOURCE
+    glibc 2.19 以前:
+        _BSD_SOURCE
 .SH 説明
 termios 関数群は、非同期通信ポートを制御するための汎用 ターミナルインターフェースである。
 .SS "termios 構造体"
-.LP
 ここに示されている関数の多くは、引き数に \fItermios_p\fP を用いる。 この引き数は \fItermios\fP 構造体へのポインターである。
 この構造体には少なくとも以下に示すメンバが含まれる:
-.sp
+.PP
 .in +4n
-.nf
+.EX
 tcflag_t c_iflag;      /* input modes */
 tcflag_t c_oflag;      /* output modes */
 tcflag_t c_cflag;      /* control modes */
 tcflag_t c_lflag;      /* local modes */
 cc_t     c_cc[NCCS];   /* special characters */
-.fi
+.EE
 .in
 .PP
 以下に、これらのフィールドに割り当て可能な値について説明する。 最初の 4 つのビットマスクフィールドでは、
@@ -137,9 +140,16 @@ POSIX.1\-2001 の XSI 拡張で 規定されていることを意味する。
 フレームエラーおよびパリティエラーを無視する。
 .TP 
 \fBPARMRK\fP
-\fBIGNPAR\fP が設定されていない場合、パリティエラーあるいはフレームエラー の発生した文字の前に \e377 \e0
-を付加する。\fBIGNPAR\fP も \fBPARMRK\fP も 設定されていない場合、パリティエラーあるいはフレームエラーの発生した文字を \e0
-として読み込む。
+If this bit is set, input bytes with parity or framing errors are marked
+when passed to the program.  This bit is meaningful only when \fBINPCK\fP is
+set and \fBIGNPAR\fP is not set.  The way erroneous bytes are marked is with
+two preceding bytes, \e377 and \e0.  Thus, the program actually reads three
+bytes for one erroneous byte received from the terminal.  If a valid byte
+has the value \e377, and \fBISTRIP\fP (see below) is not set, the program might
+confuse it with the prefix that marks a parity error.  Therefore, a valid
+byte \e377 is passed to the program as two bytes, \e377 \e377, in this case.
+.IP
+\fBIGNPAR\fP も \fBPARMRK\fP も 設定されていない場合、パリティエラーあるいはフレームエラーの発生した文字を \e0 として読み込む。
 .TP 
 \fBINPCK\fP
 入力のパリティチェックを有効にする。
@@ -212,9 +222,10 @@ CR の遅延を設定する。値は \fBCR0\fP (遅延なし), \fBCR1\fP, \fBCR2
 \fB_SVID_SOURCE\fP か \fB_XOPEN_SOURCE\fP が必要]
 .TP 
 \fBTABDLY\fP
-水平タブ (horizontal tab) の遅延を設定する。 値は \fBTAB0\fP (遅延なし), \fBTAB1\fP, \fBTAB2\fP, \fBTAB3\fP
-(\fBXTABS\fP) である。 [\fB_BSD_SOURCE\fP か \fB_SVID_SOURCE\fP か \fB_XOPEN_SOURCE\fP が必要]
-XTAB3 (これは XTABS と同じである) の値はタブをスペース何個に変換するかを示す (タブは 8 桁毎に止まる)。
+水平タブ (horizontal tab) の遅延を設定する。 値は \fBTAB0\fP, \fBTAB1\fP, \fBTAB2\fP, \fBTAB3\fP (または
+\fBXTABS\fP; ただし「バグ」を参照) である。 [\fB_BSD_SOURCE\fP か \fB_SVID_SOURCE\fP か
+\fB_XOPEN_SOURCE\fP が必要] XTAB3 (これは XTABS と同じである) の値はタブをスペース何個に変換するかを示す (タブは 8
+桁毎に止まる)。
 .TP 
 \fBBSDLY\fP
 後退 (backspace) の遅延を設定する。 値は \fBBS0\fP (遅延なし) あるいは \fBBS1\fP である。 (実装されたことはない)
@@ -235,7 +246,7 @@ XTAB3 (これは XTABS と同じである) の値はタブをスペース何個�
 \fBCBAUDEX\fP
 (POSIX にはない) 追加のボーレートマスク (1 ビット)。 \fBCBAUD\fP に含まれている。 [\fB_BSD_SOURCE\fP か
 \fB_SVID_SOURCE\fP が必要]
-.sp
+.IP
 (POSIX では、 \fItermios\fP 構造体に格納されたボーレートは正確なものではなく、 ボーレートを操作するために
 \fBcfgetispeed\fP()  と \fBcfsetispeed\fP()  が提供されている。 \fIc_cflag\fP 内の \fBCBAUD\fP
 で選択されたビットを使うシステムもあれば、 \fIsg_ispeed\fP や \fIsg_ospeed\fP といった独立したフィールドを使うものもある。)
@@ -310,11 +321,9 @@ INTR, QUIT, SUSP, DSUSP の文字を受信した時、対応するシグナル�
 \fBICANON\fP も同時に設定された場合、 ECHO が設定されていなくても NL 文字をエコーする。
 .TP 
 \fBECHOCTL\fP
-(POSIX にはない) \fBECHO\fP も同時に設定された場合、TAB, NL, START, STOP 以外の
-端末特殊文字が \fB^X\fP としてエコーされる。
-X は特殊文字に ASCII コードで 0x40 を足した文字である。
-例えば文字 0x08 (BS) は \fB^H\fP とエコーされる。
-[\fB_BSD_SOURCE\fP か \fB_SVID_SOURCE\fP が必要]
+(POSIX にはない) \fBECHO\fP も同時に設定された場合、TAB, NL, START, STOP 以外の端末特殊文字が \fB\(haX\fP
+としてエコーされる。 X は特殊文字に ASCII コードで 0x40 を足した文字である。例えば文字 0x08 (BS) は \fB\(haH\fP
+とエコーされる。 [\fB_BSD_SOURCE\fP か \fB_SVID_SOURCE\fP が必要]
 .TP 
 \fBECHOPRT\fP
 (POSIX にはない) \fBICANON\fP および \fBECHO\fP が同時に設定されている場合、
@@ -440,19 +449,18 @@ System V で (シェルのジョブ制御の前にあった) \fIshell layers\fP 
 \fBVWERASE\fP
 (POSIX にはない; 027, ETB, Ctrl\-W)  単語消去 (WERASE)。
 \fBICANON\fP と \fBIEXTEN\fP がセットされている場合に認識し、入力には渡されない。
-.LP
+.PP
 対応する \fIc_cc\fP 要素の値を \fB_POSIX_VDISABLE\fP に設定することで、
 それぞれの端末制御文字を無効にすることができる。
-.LP
+.PP
 上記のシンボルの示す値は全て異なる。ただし、 \fBVTIME\fP, \fBVMIN\fP はそれぞれ
 \fBVEOL\fP, \fBVEOF\fP と同じ値である。 非カノニカルモードでは、特殊文字の意味は
 タイムアウトの意味に変わる。 \fBVMIN\fP と \fBVTIME\fP の説明については、
 下記の非カノニカルモードの説明を参照のこと。
 .SS 端末の設定の取得と変更
-.PP
 \fBtcgetattr\fP()  は \fIfd\fP に関するパラメーターを取得し、\fItermios_p\fP が参照する構 造体 \fItermios\fP
 に設定する。この関数はバックグラウンドプロセスから 呼ばれることもあるが、この場合、端末の属性はフォアグラウンドプロセス によって変化することもある。
-.LP
+.PP
 \fBtcsetattr\fP()  は端末に関連したパラメーターを設定する (ハードウェアの設定に必要で、ここで 設定できないものを除く)。設定には
 \fItermios_p\fP が参照する \fItermios\fP 構造体を用いる。 \fIoptional_actions\fP
 には変更が有効となるタイミングを設定する:
@@ -466,7 +474,7 @@ System V で (シェルのジョブ制御の前にあった) \fIshell layers\fP 
 \fIc_lflag\fP の \fBICANON\fP フラグの設定により、端末がカノニカルモードで動作するかが決定される。 \fBICANON\fP
 がセットされた場合、カノニカルモード (canonical mode) となり、 セットされない場合、非カノニカルモード (noncanonical
 mode) となる。 デフォルトでは、 \fBICANON\fP はセットされる。
-
+.PP
 カノニカルモードでは、以下のような動作となる。
 .IP * 2
 入力は行単位に行われる。 行区切り文字が打ち込まれた時点で、入力行が利用可能となる。 行区切り文字は NL, EOL, EOL2 および行頭での EOF
@@ -476,10 +484,21 @@ mode) となる。 デフォルトでは、 \fBICANON\fP はセットされる�
 LNEXT も効果を持つ)。 \fBread\fP(2)  は最大でも 1行の入力しか返さない。 \fBread\fP(2)
 が要求したバイト数が現在の入力行のバイト数よりも少ない場合、 要求したのと同じバイト数だけが読み込まれ、 残りの文字は次回の \fBread\fP(2)
 で読み込まれる。
+.IP * 2
+The maximum line length is 4096 chars (including the terminating newline
+character); lines longer than 4096 chars are truncated.  After 4095
+characters, input processing (e.g., \fBISIG\fP and \fBECHO*\fP processing)
+continues, but any input data after 4095 characters up to (but not
+including) any terminating newline is discarded.  This ensures that the
+terminal can always receive more input until at least one line can be read.
 .PP
-非カノニカルモードでは、入力は即座に利用可能となり (ユーザーは行区切り文字を打ち込む必要はない)、入力処理は実行されず、行編集は無効となる。 MIN
-(\fIc_cc[VMIN]\fP) と TIME (\fIc_cc[VTIME]\fP) の設定により、 \fBread\fP(2)
-が完了する条件が決定される。4種類の場合がある:
+In noncanonical mode input is available immediately (without the user having
+to type a line\-delimiter character), no input processing is performed, and
+line editing is disabled.  The read buffer will only accept 4095 chars; this
+provides the necessary space for a newline char if the input mode is
+switched to canonical.  The settings of MIN (\fIc_cc[VMIN]\fP)  and TIME
+(\fIc_cc[VTIME]\fP)  determine the circumstances in which a \fBread\fP(2)
+completes; there are four distinct cases:
 .TP 
 MIN == 0, TIME == 0 (ポーリングリード)
 データが利用可能であれば、 \fBread\fP(2) はすぐに返る。このときの返り値は、そのとき利用可能なバイト数か \fBread\fP(2)
@@ -517,28 +536,29 @@ POSIX では、 \fBO_NONBLOCK\fP ファイル状態フラグが MIN や TIME の
 また、利用可能なデータがない場合、 POSIX では、は非カノニカルモードの \fBread\fP(2) が 0 を返す方法も、 \fIerrno\fP に
 \fBEAGAIN\fP を設定して \-1 を返すことも認められている。
 .SS "Raw mode"
-.LP
 \fBcfmakeraw\fP()  は、端末を昔の Version 7 端末ドライバの "raw" モードのように設定する。
 入力は文字単位に可能であり、エコーが無効となり、 端末の入出力文字に対する特殊処理はすべて無効となる。 端末の属性は以下のように設定される:
-.nf
-
-    termios_p\->c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP
-                    | INLCR | IGNCR | ICRNL | IXON);
-    termios_p\->c_oflag &= ~OPOST;
-    termios_p\->c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-    termios_p\->c_cflag &= ~(CSIZE | PARENB);
-    termios_p\->c_cflag |= CS8;
-.fi
+.PP
+.in +4n
+.EX
+termios_p\->c_iflag &= \(ti(IGNBRK | BRKINT | PARMRK | ISTRIP
+                | INLCR | IGNCR | ICRNL | IXON);
+termios_p\->c_oflag &= \(tiOPOST;
+termios_p\->c_lflag &= \(ti(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+termios_p\->c_cflag &= \(ti(CSIZE | PARENB);
+termios_p\->c_cflag |= CS8;
+.EE
+.in
+.\"
 .SS ライン制御
-.LP
 \fBtcsendbreak\fP()  は端末が非同期のシリアルデータ転送を用いている場合に、 連続した0のビット列を一定間隔で転送する。
 \fIduration\fP が 0 の場合は、0 のビットを 0.25 秒以上、 0.5 秒以下の間隔で転送する。 \fIduration\fP が 0
 でない場合は、 0 のビットを実装依存の時間間隔で送る。
-.LP
+.PP
 端末が非同期のシリアルデータ転送モードでない場合、 \fBtcsendbreak\fP()  は何も行わずに戻る。
-.LP
+.PP
 \fBtcdrain\fP()  は \fIfd\fP が行っている出力の転送が完了するまで待つ。
-.LP
+.PP
 \fBtcflush\fP()  は \fIfd\fP が行っているデータの出力でまだ転送されていないもの、あるいは受信し
 たがまだ入力していないものを破棄する。いずれを行うかは \fIqueue_selector\fP の値で定める:
 .IP \fBTCIFLUSH\fP
@@ -547,7 +567,7 @@ POSIX では、 \fBO_NONBLOCK\fP ファイル状態フラグが MIN や TIME の
 書いたが送信していないデータをフラッシュする。
 .IP \fBTCIOFLUSH\fP
 受信したが読んでいないデータ・書いたが送信していないデータ両方 をフラッシュする。
-.LP
+.PP
 \fBtcflow\fP()  は \fIfd\fP で指定されたオブジェクトにおけるデータの送信あるいは受信を一時的に中断する。 送信と受信のどちらかは、
 \fIaction\fPで決まる:
 .IP \fBTCOOFF\fP
@@ -558,23 +578,23 @@ POSIX では、 \fBO_NONBLOCK\fP ファイル状態フラグが MIN や TIME の
 STOP 文字の送信。 STOP 文字は端末デバイスからシステムへのデータ送信を停止する。
 .IP \fBTCION\fP
 START 文字の送信。 START 文字は端末デバイスからシステムへのデータ送信を開始する。
-.LP
+.PP
 端末ファイルがオープンされたときのデフォルトでは、 入力も出力も中断されていない。
 .SS ライン速度
 ボーレート関数は \fItermios\fP 構造体中の入出力ボーレートを 取得、設定するために提供される。 設定された値は \fBtcsetattr\fP()
 の呼び出しが成功するまでは有効ではない。
-
+.PP
 速度を \fBB0\fP に設定した場合、モデムは停止 (hang up) する。 \fBB38400\fP に該当する実際のビットレートは
 \fBsetserial\fP(8)  で 変更できる。
-.LP
+.PP
 入力および出力ボーレートは \fItermios\fP 構造体に格納される。
-.LP
+.PP
 \fBcfgetospeed\fP()  は \fItermios_p\fP が示している \fItermios\fP 構造体に格納されている 出力ボーレートを返す。
-.LP
+.PP
 \fBcfsetospeed\fP()  は \fItermios_p\fP で示されている \fItermios\fP 構造体中の出力ボーレートを \fIspeed\fP
 に設定する。値は以下のいずれかでなければならない:
+.PP
 .nf
-
 \fB	B0
 	B50
 	B75
@@ -594,51 +614,79 @@ START 文字の送信。 START 文字は端末デバイスからシステムへ�
 	B57600
 	B115200
 	B230400\fP
-
 .fi
+.PP
 0ボー (\fBB0\fP) は接続の中断に用いられる。 B0が指定された場合、モデムの制御線は使用されない状態になり、一般にはこれで 接続が切断される。
 \fBCBAUDEX\fP はPOSIX.1で定義されている速度の範囲外 (57600 およびそれ以上)  を設定する。すなわち例えば \fBB57600\fP &
 \fBCBAUDEX\fP は 0 でない。
-.LP
+.PP
 \fBcfgetispeed\fP()  は \fItermios\fP 構造体中の入力ボーレートを返す。
-.LP
+.PP
 \fBcfsetispeed\fP()  は \fItermios\fP 構造体中の入力ボーレートを \fIspeed\fP に設定する。 \fIspeed\fP には、上述の
 \fBcfsetospeed\fP()  のボーレート定数 \fBBnnn\fP のいずれか一つを指定しなければならない。 入力ボーレートが 0
 に設定された場合、入力ボーレートは出力ボーレート と同じ値となる。
-.LP
+.PP
 \fBcfsetspeed\fP()  は 4.4BSD による拡張である。この関数は \fBcfsetispeed\fP()
 と同じ引き数をとり、入出力両方の速度を設定する。
 .SH 返り値
-.LP
 \fBcfgetispeed\fP()  は \fItermios\fP 構造体中の入力ボーレートを返す。
-.LP
+.PP
 \fBcfgetospeed\fP()  は \fItermios\fP 構造体中の出力ボーレートを返す。
-.LP
+.PP
 他のすべての関数の戻り値:
 .IP 0
 実行成功。
 .IP \-1
 実行失敗。 \fIerrno\fP がエラーの種類を示す。
-.LP
+.PP
 \fBtcsetattr\fP()  は \fIなんらかの\fP 変更要求が成功した場合に成功を返すことに注意。 従って、複数の変更を行った場合には、引き続いて
 \fBtcgetattr\fP()  を呼び出して全ての変更が実行されているかを確認する必要があるかもしれない。
 .SH 属性
-.SS "マルチスレッディング (pthreads(7) 参照)"
-関数 \fBtcgetattr\fP(), \fBtcsetattr\fP(), \fBtcsendbreak\fP(), \fBtcdrain\fP(),
-\fBtcflush\fP(), \fBtcflow\fP(), \fBcfmakeraw\fP(), \fBcfgetispeed\fP(),
-\fBcfgetospeed\fP(), \fBcfsetispeed\fP(), \fBcfsetospeed\fP(), \fBcfsetspeed\fP()
-はスレッドセーフである。
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.nh
+.ad l
+.TS
+allbox;
+lbw36 lb lb
+l l l.
+インターフェース	属性	値
+T{
+\fBtcgetattr\fP(),
+\fBtcsetattr\fP(),
+\fBtcdrain\fP(),
+\fBtcflush\fP(),
+\fBtcflow\fP(),
+\fBtcsendbreak\fP(),
+\fBcfmakeraw\fP(),
+\fBcfgetispeed\fP(),
+\fBcfgetospeed\fP(),
+\fBcfsetispeed\fP(),
+\fBcfsetospeed\fP(),
+\fBcfsetspeed\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.\" FIXME: The markings are different from that in the glibc manual.
+.\" markings in glibc manual are more detailed:
+.\"
+.\"     tcsendbreak: MT-Unsafe race:tcattr(filedes)/bsd
+.\"     tcflow: MT-Unsafe race:tcattr(filedes)/bsd
+.\"
+.\" glibc manual says /bsd indicate the preceding marker only applies
+.\" when the underlying kernel is a BSD kernel.
+.\" So, it is safety in Linux kernel.
+.ad
+.hy
 .SH 準拠
 \fBtcgetattr\fP(), \fBtcsetattr\fP(), \fBtcsendbreak\fP(), \fBtcdrain\fP(),
 \fBtcflush\fP(), \fBtcflow\fP(), \fBcfgetispeed\fP(), \fBcfgetospeed\fP(),
 \fBcfsetispeed\fP(), \fBcfsetospeed\fP()  は POSIX.1\-2001 で規定されている。
-
+.PP
 \fBcfmakeraw\fP()  と \fBcfsetspeed\fP()  は非標準だが、BSD では利用可能である。
 .SH 注意
 UNIX\ V7 とその後のいくつかのシステムでは、ボーレートの 14 個のリストである B0, ..., B9600 の後ろに EXTA, EXTB
 ("External A" と "External B") の 2 つを 追加している。
 多くのシステムではさらに高速なボーレートのためにリストを拡張している。
-.LP
+.PP
 .\" libc4 until 4.7.5, glibc for sysv: EINVAL for duration > 0.
 .\" libc4.7.6, libc5, glibc for unix: duration in ms.
 .\" glibc for bsd: duration in us
@@ -648,10 +696,16 @@ UNIX\ V7 とその後のいくつかのシステムでは、ボーレートの 1
 DU, Tru64 は \fIduration\fP ミリ秒のブレークを送信する。 FreeBSD, NetBSD, HP\-UX, MacOS は
 \fIduration\fP の値を無視する。 Solaris と UnixWare では、非ゼロの \fIduration\fP を指定した
 \fBtcsendbreak\fP()  の振る舞いは \fBtcdrain\fP()  と同様である。
+.SH バグ
+.\" kernel 77e5bff1640432f28794a00800955e646dcd7455
+.\" glibc 573963e32ffac46d9891970ddebde2ac3212c5c0
+On the Alpha architecture before Linux 4.16 (and glibc before 2.28), the
+\fBXTABS\fP value was different from \fBTAB3\fP and it was ignored by the \fBN_TTY\fP
+line discipline code of the terminal driver as a result (because as it
+wasn't part of the \fBTABDLY\fP mask).
 .SH 関連項目
-\fBreset\fP(1), \fBsetterm\fP(1), \fBstty\fP(1), \fBtput\fP(1), \fBtset\fP(1),
-\fBconsole_ioctl\fP(4), \fBtty_ioctl\fP(4), \fBsetserial\fP(8)
+\fBreset\fP(1), \fBsetterm\fP(1), \fBstty\fP(1), \fBtput\fP(1), \fBtset\fP(1), \fBtty\fP(1),
+\fBioctl_console\fP(2), \fBioctl_tty\fP(2), \fBsetserial\fP(8)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

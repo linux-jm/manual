@@ -85,47 +85,46 @@
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-07-22, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH GETRLIMIT 2 2015\-01\-22 Linux "Linux Programmer's Manual"
+.TH GETRLIMIT 2 2020\-11\-01 Linux "Linux Programmer's Manual"
 .SH 名前
 getrlimit, setrlimit, prlimit \- 資源の制限を取得/設定する
 .SH 書式
 \fB#include <sys/time.h>\fP
 .br
 \fB#include <sys/resource.h>\fP
-.sp
+.PP
 \fBint getrlimit(int \fP\fIresource\fP\fB, struct rlimit *\fP\fIrlim\fP\fB);\fP
 .br
 \fBint setrlimit(int \fP\fIresource\fP\fB, const struct rlimit *\fP\fIrlim\fP\fB);\fP
-.sp
+.PP
 \fBint prlimit(pid_t \fP\fIpid\fP\fB, int \fP\fIresource\fP\fB, const struct rlimit
 *\fP\fInew_limit\fP\fB,\fP
 .br
 \fB struct rlimit *\fP\fIold_limit\fP\fB);\fP
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
-\fBprlimit\fP(): _GNU_SOURCE && _FILE_OFFSET_BITS == 64
+.RE
+.PP
+\fBprlimit\fP(): _GNU_SOURCE
 .SH 説明
-\fBgetrlimit\fP() と \fBsetrlimit\fP() はそれぞれ資源 (resource) の制限
-(limit) の設定と取得を行う。 各リソースには、それに対応するソフトリミッ
-トとハードリミットがあり、 \fIrlimit\fP 構造体で定義される:
+\fBgetrlimit\fP() と \fBsetrlimit\fP() は、資源 (resource) の制限 (limit) の設定と取得を行う。
+各リソースには、それに対応するソフトリミットとハードリミットがあり、 \fIrlimit\fP 構造体で定義される:
 .PP
 .in +4n
-.nf
+.EX
 struct rlimit {
     rlim_t rlim_cur;  /* ソフトリミット */
     rlim_t rlim_max;  /* ハードリミット
                          (rlim_cur より小さくない) */
 };
-
-.fi
+.EE
 .in
+.PP
 ソフトリミットは、カーネルが対応するリソースに対して課す制限値である。 ハードリミットはソフトリミットの上限として働く。
 特権を持たないプロセスは、ソフトリミットの値を 0 からハードリミットの範囲に設定することと、 ハードリミットを下げることのみができる
-(一度下げたハードリミットは上げられない)。 特権プロセス (Linux では \fBCAP_SYS_RESOURCE\fP ケーパビリティ
-(capability) を持つプロセス) は ソフトリミットとハードリミットを自由に変更できる。
+(一度下げたハードリミットは上げられない)。 特権プロセス (Linux では初期ユーザー名前空間で \fBCAP_SYS_RESOURCE\fP
+ケーパビリティ (capability) を持つプロセス) は ソフトリミットとハードリミットを自由に変更できる。
 .PP
 値 \fBRLIM_INFINITY\fP はリソースに制限がないことを表す (この値は \fBgetrlimit\fP()  が返す構造体と
 \fBsetrlimit\fP()  に渡す構造体の両方で使用される)。
@@ -134,105 +133,146 @@ struct rlimit {
 .TP 
 \fBRLIMIT_AS\fP
 .\" since 2.0.27 / 2.1.12
-プロセスの仮想メモリー (アドレス空間) の最大サイズ (バイト単位)。 この制限は \fBbrk\fP(2), \fBmmap\fP(2),
-\fBmremap\fP(2)  の呼び出しに影響し、この制限を超えた場合は エラー \fBENOMEM\fP で失敗する。 また自動的なスタック拡張にも失敗する
-(さらに \fBsigaltstack\fP(2)  を使った代替スタックを利用可能にしていなかった場合には、 \fBSIGSEGV\fP を生成してそのプロセスを
-kill する)。 この値は \fIlong\fP 型なので、32 ビットの \fIlong\fP 型を持つマシンでは、 この制限は最大で 2 GiB
-になるか、この資源が無制限になる。
+This is the maximum size of the process's virtual memory (address space).
+The limit is specified in bytes, and is rounded down to the system page
+size.  This limit affects calls to \fBbrk\fP(2), \fBmmap\fP(2), and \fBmremap\fP(2),
+which fail with the error \fBENOMEM\fP upon exceeding this limit.  In addition,
+automatic stack expansion fails (and generates a \fBSIGSEGV\fP that kills the
+process if no alternate stack has been made available via
+\fBsigaltstack\fP(2)).  Since the value is a \fIlong\fP, on machines with a 32\-bit
+\fIlong\fP either this limit is at most 2\ GiB, or this resource is unlimited.
 .TP 
 \fBRLIMIT_CORE\fP
-\fIcore\fP ファイルの最大サイズ (\fBcore\fP(5) 参照)。 0 の場合、core ファイルは生成されない。 0
-以外の場合、このサイズより大きいダンプは切り詰められる。
+This is the maximum size of a \fIcore\fP file (see \fBcore\fP(5))  in bytes that
+the process may dump.  When 0 no core dump files are created.  When nonzero,
+larger dumps are truncated to this size.
 .TP 
 \fBRLIMIT_CPU\fP
-CPU 時間の上限 (秒数)。プロセスがソフトリミットに達した場合に、
-\fBSIGXCPU\fP シグナルを送る。このシグナルに対するデフォルトの動作は、
-プロセスの終了である。ただし、シグナルをキャッチして、ハンドラーがメイン
-プログラムに制御を返すこともできる。プロセスが CPU 時間を使い続けた
-場合は、ハードリミットに達するまで 1 秒毎にプロセスに \fBSIGXCPU\fP を送り、
-ハードリミットに達すると \fBSIGKILL\fP を送る。
-(ソフトリミットを超過したときの動作は、 Linux における動作である。ソフ
-トリミットを超えて CPU 時間を使い続けるプロセスの扱い方についての実装は
-変化してきている。 このシグナルをキャッチする必要のある 移植性を考えた
-アプリケーションでは、 最初に \fBSIGXCPU\fP を受け取った時点で正しく終了
-すべきである。)
+This is a limit, in seconds, on the amount of CPU time that the process can
+consume.  When the process reaches the soft limit, it is sent a \fBSIGXCPU\fP
+signal.  The default action for this signal is to terminate the process.
+However, the signal can be caught, and the handler can return control to the
+main program.  If the process continues to consume CPU time, it will be sent
+\fBSIGXCPU\fP once per second until the hard limit is reached, at which time it
+is sent \fBSIGKILL\fP.  (This latter point describes Linux behavior.
+Implementations vary in how they treat processes which continue to consume
+CPU time after reaching the soft limit.  Portable applications that need to
+catch this signal should perform an orderly termination upon first receipt
+of \fBSIGXCPU\fP.)
 .TP 
 \fBRLIMIT_DATA\fP
-プロセスのデータセグメント (初期化されたデータ・初期化されていないデータ・ヒープ) の最大値。 このリミットは \fBbrk\fP(2)  と
-\fBsbrk\fP(2)  の呼び出しに影響する。 これらの関数は、このリソースのソフトリミットに達すると、 エラー \fBENOMEM\fP で失敗する。
+.\" commits 84638335900f1995495838fe1bd4870c43ec1f67
+.\" ("mm: rework virtual memory accounting"),
+.\" f4fcd55841fc9e46daac553b39361572453c2b88
+.\" (mm: enable RLIMIT_DATA by default with workaround for valgrind).
+This is the maximum size of the process's data segment (initialized data,
+uninitialized data, and heap).  The limit is specified in bytes, and is
+rounded down to the system page size.  This limit affects calls to
+\fBbrk\fP(2), \fBsbrk\fP(2), and (since Linux 4.7)  \fBmmap\fP(2), which fail with
+the error \fBENOMEM\fP upon encountering the soft limit of this resource.
 .TP 
 \fBRLIMIT_FSIZE\fP
-プロセスが作成できるファイルサイズの最大値。 このサイズを超えてファイルを拡張すると、 \fBSIGXFSZ\fP シグナルを送る。
-デフォルトでは、このシグナルはプロセスを終了する。 プロセスをキャッチすることもできるが、 関連するシステムコール (\fBwrite\fP(2),
-\fBtruncate\fP(2)  など) はエラー \fBEFBIG\fP で失敗する。
+これはプロセスが作成できるファイルサイズの最大値 (バイト単位) である。 このサイズを超えてファイルを拡張すると、 \fBSIGXFSZ\fP
+シグナルを送る。 デフォルトでは、このシグナルはプロセスを終了する。 プロセスをキャッチすることもできるが、 関連するシステムコール
+(\fBwrite\fP(2), \fBtruncate\fP(2)  など) はエラー \fBEFBIG\fP で失敗する。
 .TP 
-\fBRLIMIT_LOCKS\fP (初期の Linux 2.4 のみ)
+\fBRLIMIT_LOCKS\fP (Linux 2.4.0 から 2.4.24 まで)
 .\" to be precise: Linux 2.4.0-test9; no longer in 2.4.25 / 2.5.65
-このプロセスが実行できる \fBflock\fP(2)  ロック数と \fBfcntl\fP(2)  リース数の合計値を制限する。
+このプロセスが実行できる \fBflock\fP(2)  ロック数と \fBfcntl\fP(2)  リース数の合計値の上限である。
 .TP 
 \fBRLIMIT_MEMLOCK\fP
-RAM 内にロックできるメモリーの最大バイト数。 実際には、この制限はシステムページサイズの最も近い倍数に 切り捨てて丸められる。 この制限は
-\fBmlock\fP(2), \fBmlockall\fP(2), \fBmmap\fP(2)  の \fBMAP_LOCKED\fP 操作に影響する。 Linux
-2.6.9 以降では \fBshmctl\fP(2)  \fBSHM_LOCK\fP 操作にも影響する。 この操作は呼び出し元プロセスの実 (real) ユーザー
-ID にロックされる 共有メモリーセグメント (\fBshmget\fP(2)  を参照) の合計バイト数の最大値を設定する。 \fBshmctl\fP(2)
-\fBSHM_LOCK\fP によるロックは、 \fBmlock\fP(2), \fBmlockall\fP(2), \fBmmap\fP(2)  の
-\fBMAP_LOCKED\fP によって確立されるプロセス毎のメモリーロックとは分けて数える。 1 つのプロセスはこの制限までのバイトをロックできる。
-この制限には 2 つの種類がある。 2.6.9 より前の Linux カーネル では、
-この制限は特権プロセスによってロックされるメモリーの合計を制御していた。 Linux 2.6.9
-以降では、特権プロセスがロックするメモリーの合計に制限はなく、 代わりにこの制限は非特権プロセスがロックするメモリーの合計に 適用されるようになった。
+This is the maximum number of bytes of memory that may be locked into RAM.
+This limit is in effect rounded down to the nearest multiple of the system
+page size.  This limit affects \fBmlock\fP(2), \fBmlockall\fP(2), and the
+\fBmmap\fP(2)  \fBMAP_LOCKED\fP operation.  Since Linux 2.6.9, it also affects the
+\fBshmctl\fP(2)  \fBSHM_LOCK\fP operation, where it sets a maximum on the total
+bytes in shared memory segments (see \fBshmget\fP(2))  that may be locked by
+the real user ID of the calling process.  The \fBshmctl\fP(2)  \fBSHM_LOCK\fP
+locks are accounted for separately from the per\-process memory locks
+established by \fBmlock\fP(2), \fBmlockall\fP(2), and \fBmmap\fP(2)  \fBMAP_LOCKED\fP; a
+process can lock bytes up to this limit in each of these two categories.
+.IP
+In Linux kernels before 2.6.9, this limit controlled the amount of memory
+that could be locked by a privileged process.  Since Linux 2.6.9, no limits
+are placed on the amount of memory that a privileged process may lock, and
+this limit instead governs the amount of memory that an unprivileged process
+may lock.
 .TP 
 \fBRLIMIT_MSGQUEUE\fP (Linux 2.6.8 以降)
-呼び出し元プロセスの実ユーザー ID に対して、 POSIX メッセージキューのために確保できるバイト数の制限を指定する。 この制限は
-\fBmq_open\fP(3)  に対して適用される。 ユーザーが作成した各々のメッセージキューのバイト数は
-以下の式により計算され、(そのキューが削除されるまでの間)  この制限の計算対象に含められる。
-.nf
-
-    Linux 3.5 以降:
+This is a limit on the number of bytes that can be allocated for POSIX
+message queues for the real user ID of the calling process.  This limit is
+enforced for \fBmq_open\fP(3).  Each message queue that the user creates counts
+(until it is removed)  against this limit according to the formula:
+.IP
+    Since Linux 3.5:
+.IP
+.EX
         bytes = attr.mq_maxmsg * sizeof(struct msg_msg) +
                 min(attr.mq_maxmsg, MQ_PRIO_MAX) *
                       sizeof(struct posix_msg_tree_node)+
                                 /* オーバーヘッド分 */
                 attr.mq_maxmsg * attr.mq_msgsize;
                                 /* メッセージデータ分 */
-
-    Linux 3.4 以前:
+.EE
+.IP
+    Linux 3.4 and earlier:
+.IP
+.EX
         bytes = attr.mq_maxmsg * sizeof(struct msg_msg *) +
                                 /* オーバーヘッド分 */
                 attr.mq_maxmsg * attr.mq_msgsize;
                                 /* メッセージデータ分 */
-
-.fi
+.EE
+.IP
 ここで \fIattr\fP は \fImq_attr\fP 構造体であり、 \fBmq_open\fP(3)  の第 4 引き数として指定される。 また、構造体
 \fImsg_msg\fP と \fIposix_msg_tree_node\fP はカーネル内部の構造体である。
-
+.IP
 上記の式での「オーバーヘッド」加算分は、実装において必要となるオーバーヘッドを考慮したものである。 また、これにより、ユーザーが長さ 0
 のメッセージを無制限に作れないことが保証される (このようなメッセージであっても、 記録のためのオーバーヘッドでシステムメモリーを消費する)。
 .TP 
 \fBRLIMIT_NICE\fP (Linux 2.6.12 以降, 下記の「バグ」の節も参照)
-\fBsetpriority\fP(2)  や \fBnice\fP(2)  を使って引き上げられるプロセスの nice 値の上限を指定する。 nice
-値の実際の上限は \fI20\ \-\ rlim_cur\fP で計算される (このような変な状況は、リソース制限値として負の数を指定できないため
-発生する。通常、負の値は特別な意味を持っているからである。 例えば、通常は \fBRLIM_INFINITY\fP の値は \-1 である)。
+This specifies a ceiling to which the process's nice value can be raised
+using \fBsetpriority\fP(2)  or \fBnice\fP(2).  The actual ceiling for the nice
+value is calculated as \fI20\ \-\ rlim_cur\fP.  The useful range for this limit
+is thus from 1 (corresponding to a nice value of 19) to 40 (corresponding to
+a nice value of \-20).  This unusual choice of range was necessary because
+negative numbers cannot be specified as resource limit values, since they
+typically have special meanings.  For example, \fBRLIM_INFINITY\fP typically is
+the same as \-1.  For more detail on the nice value, see \fBsched\fP(7).
 .TP 
 \fBRLIMIT_NOFILE\fP
 このプロセスがオープンできるファイルディスクリプター数の最大値より 1 大きい値を指定する。 (\fBopen\fP(2), \fBpipe\fP(2),
 \fBdup\fP(2)  などにより) この上限を超えようとした場合、エラー \fBEMFILE\fP が発生する (歴史的に、BSD ではこの上限は
 \fBRLIMIT_OFILE\fP という名前となっている)。
+.IP
+Since Linux 4.5, this limit also defines the maximum number of file
+descriptors that an unprivileged process (one without the
+\fBCAP_SYS_RESOURCE\fP capability) may have "in flight" to other processes, by
+being passed across UNIX domain sockets.  This limit applies to the
+\fBsendmsg\fP(2)  system call.  For further details, see \fBunix\fP(7).
 .TP 
 \fBRLIMIT_NPROC\fP
-呼び出したプロセスの実ユーザー ID で作成できる最大プロセス数 (より正確には Linux ではスレッド数)。 この上限に達すると、
-\fBfork\fP(2)  はエラー \fBEAGAIN\fP で失敗する。 この上限値は、ケーパビリティ \fBCAP_SYS_ADMIN\fP か
-\fBCAP_SYS_RESOURCE\fP のどちらかを持つプロセスには適用されない。
+This is a limit on the number of extant process (or, more precisely on
+Linux, threads)  for the real user ID of the calling process.  So long as
+the current number of processes belonging to this process's real user ID is
+greater than or equal to this limit, \fBfork\fP(2)  fails with the error
+\fBEAGAIN\fP.
+.IP
+The \fBRLIMIT_NPROC\fP limit is not enforced for processes that have either the
+\fBCAP_SYS_ADMIN\fP or the \fBCAP_SYS_RESOURCE\fP capability.
 .TP 
 \fBRLIMIT_RSS\fP
 .\" As at kernel 2.6.12, this limit still does nothing in 2.6 though
 .\" talk of making it do something has surfaced from time to time in LKML
 .\"       -- MTK, Jul 05
-プロセスの resident set (RAM 上に存在する仮想ページの数) の 上限を (ページ数で) 指定する。 この制限は 2.4.30
+プロセスの resident set (RAM 上に存在する仮想ページの数) の 上限である (バイト単位)。 この制限は 2.4.30
 より前でしか影響がなく、 \fBmadvise\fP(2)  に \fBMADV_WILLNEED\fP を指定した関数コールにしか影響しない。
 .TP 
 \fBRLIMIT_RTPRIO\fP (Linux 2.6.12 以降, バグの節も参照)
 \fBsched_setscheduler\fP(2)  や \fBsched_setparam\fP(2)
 を使って設定できる、そのプロセスのリアルタイム優先度の上限を指定する。
+.IP
+For further details on real\-time scheduling policies, see \fBsched\fP(7)
 .TP 
 \fBRLIMIT_RTTIME\fP (Linux 2.6.25 以降)
 リアルタイムスケジューリング方針でスケジューリングされるプロセスが ブロッキング型のシステムコールを呼び出さずに消費することのできる CPU
@@ -240,12 +280,14 @@ ID にロックされる 共有メモリーセグメント (\fBshmget\fP(2)  を
 CPU 時間のカウントは 0 にリセットされる。 プロセスが CPU を使い続けようとしたが他のプロセスに置き換えられた (preempted)
 場合や、そのプロセスのタイムスライスが満了した場合、 そのプロセスが \fBsched_yield\fP(2)  を呼び出した場合は、CPU
 時間のカウントはリセットされない。
-
+.IP
 ソフトリミットに達すると、そのプロセスに \fBSIGXCPU\fP シグナルが送られる。そのプロセスがこのシグナルを捕捉するか 無視して、CPU
 時間を消費し続けた場合には、 ハードリミットに達するまで 1 秒に 1 回 \fBSIGXCPU\fP が生成され続けることになる。
 ハードリミットに達した時点で、そのプロセスには \fBSIGKILL\fP シグナルが送られる。
-
+.IP
 この上限を意図的に使用するのは、暴走したリアルタイムプロセスを 停止して、システムが動かなくなるのを避ける場合である。
+.IP
+For further details on real\-time scheduling policies, see \fBsched\fP(7)
 .TP 
 \fBRLIMIT_SIGPENDING\fP (Linux 2.6.8 以降)
 .\" This replaces the /proc/sys/kernel/rtsig-max system-wide limit
@@ -260,7 +302,7 @@ CPU 時間のカウントは 0 にリセットされる。 プロセスが CPU �
 \fBRLIMIT_STACK\fP
 プロセススタックの最大サイズをバイト単位で指定する。 この上限に達すると、 \fBSIGSEGV\fP シグナルが生成される。 このシグナルを扱うためには、
 プロセスは代りのシグナルスタック (\fBsigaltstack\fP(2))  を使用しなければならない。
-
+.IP
 Linux 2.6.23 以降では、この制限はプロセスのコマンドライン引き数と環境変数
 に使用される空間の合計サイズの上限の決定にも使用される。詳細については \fBexecve\fP(2)  を参照。
 .SS prlimit()
@@ -278,22 +320,25 @@ Linux 2.6.23 以降では、この制限はプロセスのコマンドライン�
 .\"
 Linux 固有の \fBprlimit\fP() システムコールは、 \fBsetrlimit\fP() と \fBgetrlimit\fP
 の機能を合わせて拡張したものである。 このシステムコールを使って、任意のプロセスのリソース上限の設定と取得を行うことができる。
-
+.PP
 \fIresource\fP 引き数は \fBsetrlimit\fP() や \fBgetrlimit\fP() と同じ意味である。
-
+.PP
 \fInew_limit\fP 引き数が NULL 以外の場合、 \fInew_limit\fP が指す \fIrlimit\fP 構造体を使って \fIresource\fP
 のソフトリミットとハードリミットの新しい値が設定される。 \fIold_limit\fP 引き数が NULL 以外の場合、 \fBprlimit\fP()
 の呼び出しが成功すると、 \fIresource\fP の直前のソフトリミットとハードリミットが \fIold_limit\fP が指す \fIrlimit\fP
 構造体に格納される。
-
+.PP
 .\" FIXME . this permission check is strange
 .\" Asked about this on LKML, 7 Nov 2010
 .\"     "Inconsistent credential checking in prlimit() syscall"
-\fIpid\fP 引き数は呼び出しの操作対象となるプロセス ID を指定する。 \fIpid\fP が 0
-の場合、呼び出しは呼び出し元プロセスに対して適用される。 自分以外のプロセスのリソースの設定と取得を行うためには、 呼び出し元プロセスが
-\fBCAP_SYS_RESOURCE\fP ケーパビリティを持っているか、 対象となるプロセスの実ユーザー ID、 実効ユーザー ID、 保存
-set\-user\-ID が呼び出し元プロセスの実ユーザー ID と一致し、 かつ、 対象となるプロセスの実グループ ID、 実効グループ ID、 保存
-set\-group\-ID が呼び出し元プロセスの実グループ ID と一致していなければならない。
+The \fIpid\fP argument specifies the ID of the process on which the call is to
+operate.  If \fIpid\fP is 0, then the call applies to the calling process.  To
+set or get the resources of a process other than itself, the caller must
+have the \fBCAP_SYS_RESOURCE\fP capability in the user namespace of the process
+whose resource limits are being changed, or the real, effective, and saved
+set user IDs of the target process must match the real user ID of the caller
+\fIand\fP the real, effective, and saved set group IDs of the target process
+must match the real group ID of the caller.
 .SH 返り値
 成功した場合、これらのシステムコールは 0 を返す。
 エラーの場合は \-1 が返され、 \fIerrno\fP が適切に設定される。
@@ -322,53 +367,70 @@ set\-group\-ID が呼び出し元プロセスの実グループ ID と一致し�
 .SH バージョン
 \fBprlimit\fP() システムコールは Linux 2.6.36 以降で利用できる。 ライブラリのサポートは glibc 2.13
 以降で利用できる。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbw35 lb lb
+l l l.
+インターフェース	属性	値
+T{
+\fBgetrlimit\fP(),
+\fBsetrlimit\fP(),
+\fBprlimit\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.sp 1
 .SH 準拠
-\fBgetrlimit\fP(), \fBsetrlimit\fP(): SVr4, 4.3BSD, POSIX.1\-2001.
-.br
+\fBgetrlimit\fP(), \fBsetrlimit\fP(): POSIX.1\-2001, POSIX.1\-2008, SVr4, 4.3BSD.
+.PP
 \fBprlimit\fP(): Linux 固有。
-
-\fBRLIMIT_MEMLOCK\fP と \fBRLIMIT_NPROC\fP は BSD から派生し、
-POSIX.1\-2001 には指定されていない。
-これらは BSD 系と Linux に存在するが、他の実装は少ない。
-\fBRLIMIT_RSS\fP は BSD から派生し、POSIX.1\-2001 には指定されていない。
-それにも関わらず多くの実装で存在する。
-\fBRLIMIT_MSGQUEUE\fP, \fBRLIMIT_NICE\fP, \fBRLIMIT_RTPRIO\fP, \fBRLIMIT_RTTIME\fP,
-\fBRLIMIT_SIGPENDING\fP は Linux 固有のものである。
+.PP
+\fBRLIMIT_MEMLOCK\fP と \fBRLIMIT_NPROC\fP は BSD から派生し、 POSIX.1 には指定されていない。これらは BSD
+系と Linux に存在するが、他の実装は少ない。 \fBRLIMIT_RSS\fP は BSD から派生し、POSIX.1
+には指定されていない。それにも関わらず多くの実装で存在する。 \fBRLIMIT_MSGQUEUE\fP, \fBRLIMIT_NICE\fP,
+\fBRLIMIT_RTPRIO\fP, \fBRLIMIT_RTTIME\fP, \fBRLIMIT_SIGPENDING\fP は Linux 固有のものである。
 .SH 注意
 \fBfork\fP(2)  で作成された作成された子プロセスは、 親プロセスのリソース制限を継承する。 \fBexecve\fP(2)
 の前後でリソース制限は保存される。
-
+.PP
+Resource limits are per\-process attributes that are shared by all of the
+threads in a process.
+.PP
 リソースのソフトリミットをそのプロセスが現在のリソース使用量より小さい値に設定することはできる
 (但し、そのプロセスはそれ以降そのリソースの使用量を増やすことができなくなる)。
-
+.PP
 シェルのリソース制限は、シェルの組み込みコマンドである \fIulimit\fP (\fBcsh\fP(1)  では \fIlimit )\fP
 を使って設定することができる。 このシェルのリソース制限は、コマンドを実行してシェルが生成するプロセス に引き継がれる。
-
+.PP
 Linux 2.6.24 以降では、 プロセスのリソース上限は \fI/proc/[pid]/limits\fP で知ることができる。 \fBproc\fP(5)
 参照。
-
+.PP
 古いシステムでは、 \fBsetrlimit\fP()  と同様の目的を持つ関数 \fBvlimit\fP()  が提供されていた。 後方互換性のため、glibc
 でも \fBvlimit\fP()  を提供している。 全ての新しいアプリケーションでは、 \fBsetrlimit\fP()  を使用すべきである。
 .SS "C ライブラリとカーネル ABI の違い"
 バージョン 2.13 以降では、 glibc の \fBgetrlimit\fP() と \fBsetrlimit\fP()
 のラッパー関数はもはや対応するシステムコールを呼び出さず、 代わりに「バグ」の節で説明されている理由から \fBprlimit\fP() を利用している。
+.PP
+The name of the glibc wrapper function is \fBprlimit\fP(); the underlying
+system call is \fBprlimit64\fP().
 .SH バグ
 以前の Linux カーネルでは、プロセスがソフトまたはハード \fBRLIMIT_CPU\fP リミットに達した場合に送られる \fBSIGXCPU\fP と
 \fBSIGKILL\fP シグナルが、本来送られるべき時点の 1 (CPU) 秒後に送られてしまう。 これはカーネル 2.6.8 で修正された。
-
+.PP
 .\" see http://marc.theaimsgroup.com/?l=linux-kernel&m=114008066530167&w=2
 2.6.17 より前の 2.6.x カーネルでは、 \fBRLIMIT_CPU\fP リミットが 0 の場合、 (\fBRLIM_INFINITY\fP
 と同じように) 「制限なし」と間違って解釈されていた。 Linux 2.6.17 以降では、リミットを 0 に設定した場合にも
 効果を持つようになっているが、実際にはリミットの値は 1 秒となる。
-
+.PP
 .\" See https://lwn.net/Articles/145008/
 カーネル 2.6.12 には、 \fBRLIMIT_RTPRIO\fP が動作しないというバグがある。この問題はカーネル 2.6.13 で修正されている。
-
+.PP
 .\" see http://marc.theaimsgroup.com/?l=linux-kernel&m=112256338703880&w=2
 カーネル 2.6.12 では、 \fBgetpriority\fP(2)  と \fBRLIMIT_NICE\fP
 が返す優先度の範囲が一つずれていた。このため、nice 値の実際の上限が \fI19\ \-\ rlim_cur\fP
 になってしまうという影響があった。これはカーネル 2.6.13 で修正された。
-
+.PP
 .\" The relevant patch, sent to LKML, seems to be
 .\" http://thread.gmane.org/gmane.linux.kernel/273462
 .\" From: Roland McGrath <roland <at> redhat.com>
@@ -382,30 +444,32 @@ CPU 時間を消費し続けている限り、 ハードリミットに達する
 される。 他の実装では、上記のような \fBRLIMIT_CPU\fP ソフトリミットの変更は行われず、 おそらく Linux の動作は標準に準拠していない。
 移植性が必要なアプリケーションではこの Linux 固有の動作を前提にするのは避けるべきである。 Linux 固有の上限
 \fBRLIMIT_RTTIME\fP でも、 ソフトリミットに達した場合に同じ動作となる。
-
-.\"
+.PP
+.\" d3561f78fd379a7110e46c87964ba7aa4120235c
 2.4.22 より前のカーネルでは、 \fIrlim\->rlim_cur\fP が \fIrlim\->rlim_max\fP より大きかった場合、
 \fBsetrlimit\fP()  での \fBEINVAL\fP エラーを検出できない。
+.PP
+.\"
+Linux doesn't return an error when an attempt to set \fBRLIMIT_CPU\fP has
+failed, for compatibility reasons.
 .SS "32 ビットプラットフォームにおける「大きな」リソース上限値の表現"
+.\" Linux still uses long for limits internally:
+.\" c022a0acad534fd5f5d5f17280f6d4d135e74e81
+.\" kernel/sys.c:do_prlimit() still uses struct rlimit which
+.\" uses kernel_ulong_t for its members, i.e. 32-bit  on 32-bit kernel.
 .\" https://bugzilla.kernel.org/show_bug.cgi?id=5042
 .\" http://sources.redhat.com/bugzilla/show_bug.cgi?id=12201
 glibc の \fBgetrlimit\fP() と \fBsetrlimit\fP() ラッパー関数は、32 ビットプラットフォームであっても 64 ビットの
 \fIrlim_t\fP データ型を使用する。 しかし、 \fBgetrlimit\fP() と \fBsetrlimit\fP() システムコールで使用される
-\fIrlim_t\fP データ型は (32 ビットの) \fIunsigned long\fP である。 さらに、 2.6.36 より前の Linux では、
-カーネルは 32 ビットプラットフォームではリソース上限を \fIunsigned long\fP として表現している。 しかしながら、 32
+\fIrlim_t\fP データ型は (32 ビットの) \fIunsigned long\fP である。 さらに、 Linux では、 カーネルは 32
+ビットプラットフォームではリソース上限を \fIunsigned long\fP として表現している。 しかしながら、 32
 ビットデータ型は十分な大きさではない。 ここで最も関係がある上限値は \fBRLIMIT_FSIZE\fP である。
 この上限はファイルサイズの最大値であり、実用性の面からは、 この上限をファイルオフセットを表現するのに使用されている型、 つまり 64 ビットの
 \fBoff_t\fP (\fI_FILE_OFFSET_BITS=64\fP でコンパイルしたプログラムの場合)、 と同じ幅を持つ型、を使って表現すべきである。
-
+.PP
 カーネルのこの制限に対する対策として、 プログラムがリソース上限を 32 ビットの \fIunsigned long\fP
 で表現できる値よりも大きな値に設定しようとした際には、 glibc の \fBsetrlimit\fP() ラッパー関数はこの上限値を黙って
 \fBRLIM_INFINITY\fP に変換していた。 言い換えると、指定されたリソース上限値は黙って無視されていた。
-
-この問題は Linux 2.6.36 での以下の主な変更により解決された。
-.IP * 3
-32 ビットプラットフォームであっても 64 ビットを使用するリソース上限の新しいカーネルでの表現方法の追加。
-.IP *
-リソース上限の引き数として 64 ビット値を取る \fBprlimit\fP() システムコールの追加。
 .PP
 .\" https://www.sourceware.org/bugzilla/show_bug.cgi?id=12201
 バージョン 2.13 以降の glibc では、 \fBgetrlimit\fP() と \fBsetrlimit\fP()
@@ -414,16 +478,17 @@ glibc の \fBgetrlimit\fP() と \fBsetrlimit\fP() ラッパー関数は、32 ビ
 .SH 例
 以下のプログラムに \fBprlimit\fP() の使用例を示す。
 .PP
-.nf
+.EX
 #define _GNU_SOURCE
 #define _FILE_OFFSET_BITS 64
+#include <stdint.h>
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/resource.h>
 
-#define errExit(msg) 	do { perror(msg); exit(EXIT_FAILURE); \e
+#define errExit(msg) do { perror(msg); exit(EXIT_FAILURE); \e
                         } while (0)
 
 int
@@ -453,25 +518,24 @@ main(int argc, char *argv[])
 
     if (prlimit(pid, RLIMIT_CPU, newp, &old) == \-1)
         errExit("prlimit\-1");
-    printf("Previous limits: soft=%lld; hard=%lld\en",
-            (long long) old.rlim_cur, (long long) old.rlim_max);
+    printf("Previous limits: soft=%jd; hard=%jd\en",
+            (intmax_t) old.rlim_cur, (intmax_t) old.rlim_max);
 
     /* Retrieve and display new CPU time limit */
 
     if (prlimit(pid, RLIMIT_CPU, NULL, &old) == \-1)
         errExit("prlimit\-2");
-    printf("New limits: soft=%lld; hard=%lld\en",
-            (long long) old.rlim_cur, (long long) old.rlim_max);
+    printf("New limits: soft=%jd; hard=%jd\en",
+            (intmax_t) old.rlim_cur, (intmax_t) old.rlim_max);
 
-    exit(EXIT_FAILURE);
+    exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SH 関連項目
 \fBprlimit\fP(1), \fBdup\fP(2), \fBfcntl\fP(2), \fBfork\fP(2), \fBgetrusage\fP(2),
 \fBmlock\fP(2), \fBmmap\fP(2), \fBopen\fP(2), \fBquotactl\fP(2), \fBsbrk\fP(2),
 \fBshmctl\fP(2), \fBmalloc\fP(3), \fBsigqueue\fP(3), \fBulimit\fP(3), \fBcore\fP(5),
-\fBcapabilities\fP(7), \fBsignal\fP(7)
+\fBcapabilities\fP(7), \fBcgroups\fP(7), \fBcredentials\fP(7), \fBsignal\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -39,25 +39,28 @@
 .\" Modified Sun Mar 21 17:23:27 JST 1999
 .\"         by HANATAKA Shinya <hanataka@abyss.rim.or.jp>
 .\"
-.TH TIME 2 2011\-09\-09 Linux "Linux Programmer's Manual"
+.TH TIME 2 " 2017\-09\-15" Linux "Linux Programmer's Manual"
 .SH 名前
 time \- 秒単位の時間を得る
 .SH 書式
 \fB#include <time.h>\fP
-.sp
-\fBtime_t time(time_t *\fP\fIt\fP\fB);\fP
+.PP
+ \fBtime_t time(time_t *\fP\fItloc\fP\fB);\fP
 .SH 説明
 \fBtime\fP()  は、紀元 (Epoch; 1970\-01\-01 00:00:00 (UTC)) からの秒数で返す。
-
-もし \fIt\fP が NULL でなかったら返り値は \fIt\fP の指しているメモリーにも格納される。
+.PP
+もし \fItloc\fP が NULL でなかったら返り値は \fItloc\fP の指しているメモリーにも格納される。
 .SH 返り値
 成功した場合、紀元(the Epoch)からの経過秒数を返す。エラーの場合は \fI((time_t)\ \-1)\fP を返し、\fIerrno\fP を設定する。
 .SH エラー
 .TP 
 \fBEFAULT\fP
-\fIt\fP がアクセス可能なアドレス空間の外を指している。
+\fItloc\fP がアクセス可能なアドレス空間の外を指している (ただし「バグ」を参照)。
+.IP
+On systems where the C library \fBtime\fP()  wrapper function invokes an
+implementation provided by the \fBvdso\fP(7)  (so that there is no trap into
+the kernel), an invalid address may instead trigger a \fBSIGSEGV\fP signal.
 .SH 準拠
-.\" .br
 .\" Under 4.3BSD, this call is obsoleted by
 .\" .BR gettimeofday (2).
 SVr4, 4.3BSD, C89, C99, POSIX.1\-2001.  POSIX にはエラー状態の規定はない。
@@ -71,9 +74,29 @@ POSIX.1 では、指定した時刻と紀元との間の秒数を近似する変
 に同期させる必要もないからである。
 この定義の目的は、紀元からの経過秒数の解釈に一貫性を持たせることになる。
 より詳しい原理は POSIX.1 Rationale A.4.15 を参照すること。
+.PP
+On Linux, a call to \fBtime\fP()  with \fItloc\fP specified as NULL cannot fail
+with the error \fBEOVERFLOW\fP, even on ABIs where \fItime_t\fP is a signed 32\-bit
+integer and the clock ticks past the time 2**31 (2038\-01\-19 03:14:08 UTC,
+ignoring leap seconds).  (POSIX.1 permits, but does not require, the
+\fBEOVERFLOW\fP error in the case where the seconds since the Epoch will not
+fit in \fItime_t\fP.)  Instead, the behavior on Linux is undefined when the
+system time is out of the \fItime_t\fP range.  Applications intended to run
+after 2038 should use ABIs with \fItime_t\fP wider than 32 bits.
+.SH バグ
+Error returns from this system call are indistinguishable from successful
+reports that the time is a few seconds \fIbefore\fP the Epoch, so the C library
+wrapper function never sets \fIerrno\fP as a result of this call.
+.PP
+.\"
+The \fItloc\fP argument is obsolescent and should always be NULL in new code.
+When \fItloc\fP is NULL, the call cannot fail.
+.SS "C library/kernel differences"
+On some architectures, an implementation of \fBtime\fP()  is provided in the
+\fBvdso\fP(7).
 .SH 関連項目
-\fBdate\fP(1), \fBgettimeofday\fP(2), \fBctime\fP(3), \fBftime\fP(3), \fBtime\fP(7)
+ \fBdate\fP(1), \fBgettimeofday\fP(2), \fBctime\fP(3), \fBftime\fP(3), \fBtime\fP(7),
+\fBvdso\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

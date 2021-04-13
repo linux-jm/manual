@@ -1,4 +1,5 @@
 .\" Copyright (c) 1999 Andries Brouwer (aeb@cwi.nl), 1 Nov 1999
+.\" and Copyright 2006, 2012, 2017 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -39,20 +40,20 @@
 .\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH VFORK 2 2012\-08\-05 Linux "Linux Programmer's Manual"
+.TH VFORK 2 2017\-09\-15 Linux "Linux Programmer's Manual"
 .SH 名前
 vfork \- 子プロセスを生成し親プロセスを停止させる
 .SH 書式
 \fB#include <sys/types.h>\fP
 .br
 \fB#include <unistd.h>\fP
-.sp
+.PP
 \fBpid_t vfork(void);\fP
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 \fBvfork\fP():
 .ad l
 .RS 4
@@ -60,13 +61,14 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 .TP  4
 glibc 2.12 以降:
 .nf
-_BSD_SOURCE ||
-    (_XOPEN_SOURCE\ >=\ 500 ||
-        _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED) &&
-    !(_POSIX_C_SOURCE\ >=\ 200809L || _XOPEN_SOURCE\ >=\ 700)
-.TP  4
+(_XOPEN_SOURCE\ >=\ 500) && ! (_POSIX_C_SOURCE\ >=\ 200809L)
+    || /* glibc 2.19 以降: */ _DEFAULT_SOURCE
+    || /* glibc 2.19 以前: */ _BSD_SOURCE
 .fi
-glibc 2.12 より前: _BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+.TP  4
+glibc 2.12 より前:
+.\"     || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+ _BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500
 .PD
 .RE
 .ad b
@@ -83,19 +85,20 @@ glibc 2.12 より前: _BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _XOPEN_SOURCE\ &&
 \fBvfork\fP()  は \fBclone\fP(2)  の特殊な場合である。 親プロセスのページテーブルのコピーを行わずに新しいプロセスを
 作成するために使用する。これは性能に敏感なアプリケーションにおいて 子プロセスを生成してすぐに \fBexecve\fP(2)  する場合に有用かもしれない。
 .PP
-\fBvfork\fP() は \fBfork\fP(2) と違い、子プロセスが終了するか、
-\fBexecve\fP(2) をコールするまで呼び出し元のスレッドを停止 (suspend) させる。
-子プロセスの終了は、\fB_exit\fP(2) の呼び出しによる通常終了、致命的なシグナルの
-配送後の異常終了の二つのケースがある。
-この時点までは、子プロセスはスタックを含む全てのメモリーを親プロセスと共有する。
-子プロセスは現在の関数から return してはならず、
-\fBexit\fP(3) もコールしてはならないが、\fB_exit\fP(2) ならばコールしてもよい。
-
+\fBvfork\fP()  differs from \fBfork\fP(2)  in that the calling thread is suspended
+until the child terminates (either normally, by calling \fB_exit\fP(2), or
+abnormally, after delivery of a fatal signal), or it makes a call to
+\fBexecve\fP(2).  Until that point, the child shares all memory with its
+parent, including the stack.  The child must not return from the current
+function or call \fBexit\fP(3)  (which would have the effect of calling exit
+handlers established by the parent process and flushing the parent's
+\fBstdio\fP(3)  buffers), but may call \fB_exit\fP(2).
+.PP
 \fBfork\fP(2) と同様に、 \fBvfork\fP() で作成された子プロセスは、
 (ファイルディスクリプター、シグナル配送定義、カレントワーキングディレクトリなどの)
 呼び出し元のプロセスの各種の属性を継承する。
 \fBvfork\fP() では、上で説明した仮想アドレス空間の扱いだけが異なる。
-
+.PP
 親プロセスへ送られたシグナルは、子プロセスが親プロセスのメモリーを解放した後
 (すなわち、子プロセスが終了するか \fBexecve\fP(2) を呼んだ後) に到着する。
 .SS 歴史的な説明
@@ -110,7 +113,7 @@ exit が起きるまで親プロセスのメモリーと制御スレッド を�
 .SH 準拠
 4.3BSD; POSIX.1\-2001 (廃止予定とされている)。
 POSIX.1\-2008 では \fBvfork\fP() の規定が削除されている。
-
+.PP
 .\" In AIXv3.1 vfork is equivalent to fork.
 \fBvfork\fP() コールは他のオペレーティングシステムの同名のコールと ちょっと似
 ているかもしれない。規格が \fBvfork\fP() に要求していることは、 \fBfork\fP(2) に要
@@ -119,7 +122,6 @@ POSIX.1\-2008 では \fBvfork\fP() の規定が削除されている。
 \fBexecve\fP(2) を呼び出すまで親プロセスが停止していることや、メモリーを共有するこ
 とによる特殊な動作をあてにすべきではない。
 .SH 注意
-.PP
 \fBvfork\fP() の動作は構造的な欠陥と考える人もいるだろうし、
 BSD のマニュアルには、「このシステムコールは妥当なシステム共有機構が実装さ
 れた場合には削除される。ユーザーは \fBvfork\fP() のメモリー共有機能に依存するべき
@@ -135,20 +137,56 @@ BSD のマニュアルには、「このシステムコールは妥当なシス�
 .\" http://stackoverflow.com/questions/4259629/what-is-the-difference-between-fork-and-vfork
 .\" http://developers.sun.com/solaris/articles/subprocess/subprocess.html
 .\" http://mailman.uclinux.org/pipermail/uclinux-dev/2009-April/000684.html
+.\"
 \fBvfork\fP() はメモリー管理ユニット (MMU) を持たないシステムでも実装すること
 ができるが、そのようなシステムで \fBfork\fP(2) を実装することはできない。
 (POSIX.1\-2008 では \fBvfork\fP() が標準から削除された。
 \fBposix_spawn\fP(3) 関数の POSIX の原理 (rationale) には、
 \fBfork\fP(2)+\fBexec\fP(3) と等価な機能を提供する \fBposix_spawn\fP(3) は、
 MMU を持たないシステムでも実装できるように設計されたとの注記がある。)
+.IP *
+.\"
+On systems where memory is constrained, \fBvfork\fP()  avoids the need to
+temporarily commit memory (see the description of
+\fI/proc/sys/vm/overcommit_memory\fP in \fBproc\fP(5))  in order to execute a new
+program.  (This can be especially beneficial where a large parent process
+wishes to execute a small helper program in a child process.)  By contrast,
+using \fBfork\fP(2)  in this scenario requires either committing an amount of
+memory equal to the size of the parent process (if strict overcommitting is
+in force)  or overcommitting memory with the risk that a process is
+terminated by the out\-of\-memory (OOM) killer.
+.SS Caveats
+The child process should take care not to modify the memory in unintended
+ways, since such changes will be seen by the parent process once the child
+terminates or executes another program.  In this regard, signal handlers can
+be especially problematic: if a signal handler that is invoked in the child
+of \fBvfork\fP()  changes memory, those changes may result in an inconsistent
+process state from the perspective of the parent process (e.g., memory
+changes would be visible in the parent, but changes to the state of open
+file descriptors would not be visible).
+.PP
+.\"
+When \fBvfork\fP()  is called in a multithreaded process, only the calling
+thread is suspended until the child terminates or executes a new program.
+This means that the child is sharing an address space with other running
+code.  This can be dangerous if another thread in the parent process changes
+credentials (using \fBsetuid\fP(2)  or similar), since there are now two
+processes with different privilege levels running in the same address
+space.  As an example of the dangers, suppose that a multithreaded program
+running as root creates a child using \fBvfork\fP().  After the \fBvfork\fP(), a
+thread in the parent process drops the process to an unprivileged user in
+order to run some untrusted code (e.g., perhaps via plug\-in opened with
+\fBdlopen\fP(3)).  In this case, attacks are possible where the parent process
+uses \fBmmap\fP(2)  to map in code that will be executed by the privileged
+child process.
 .SS "Linux での注意"
 \fBpthread_atfork\fP(3)  を使って設定された fork ハンドラーは NPTL
 スレッドライブラリコールを採用したマルチスレッドプログラムでは 呼び出されない。一方、LinuxThreads スレッドライブラリを使った
 プログラムでは、fork ハンドラーは呼び出される。 (Linux のスレッドライブラリの説明は \fBpthreads\fP(7)  を参照。)
-
+.PP
 \fBvfork\fP() の呼び出しは、以下の \fIflags\fP を指定して \fBclone\fP(2) を呼び出す
 のと等価である。
-
+.PP
      CLONE_VM | CLONE_VFORK | SIGCHLD
 .SS 歴史
 .\" In the release notes for 4.2BSD Sam Leffler wrote: `vfork: Is still
@@ -161,7 +199,6 @@ MMU を持たないシステムでも実装できるように設計されたと�
 Linux では 2.2.0\-pre6 あたりまでは \fBfork\fP(2)  と等価であった。(i386 では) 2.2.0\-pre9 から
 (他のアーキテクチャーでは 少し遅れて) 独立したシステムコールとなった。 glibc でのサポートは glibc\-2.0.112 で追加された。
 .SH バグ
-.PP
 .\"
 .\" As far as I can tell, the following is not true in 2.6.19:
 .\" Currently (Linux 2.3.25),
@@ -175,6 +212,5 @@ Linux では 2.2.0\-pre6 あたりまでは \fBfork\fP(2)  と等価であった
 .SH 関連項目
 \fBclone\fP(2), \fBexecve\fP(2), \fBfork\fP(2), \fBunshare\fP(2), \fBwait\fP(2)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

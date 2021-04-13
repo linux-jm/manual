@@ -52,29 +52,44 @@
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-07-24, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SYSCALL 2 2015\-01\-22 Linux "Linux Programmer's Manual"
+.TH SYSCALL 2 2020\-06\-09 Linux "Linux Programmer's Manual"
 .SH 名前
 syscall \- 間接システムコール
 .SH 書式
 .nf
-\fB#define _GNU_SOURCE\fP         /* feature_test_macros(7) 参照 */
 \fB#include <unistd.h>\fP
 \fB#include <sys/syscall.h>   \fP/* SYS_xxx の定義用 */
-
+.PP
 \fBlong syscall(long \fP\fInumber\fP\fB, ...);\fP
 .fi
+.PP
+.RS -4
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.RE
+ \fBsyscall\fP():
+.PD 0
+.ad l
+.RS 4
+.TP  4
+glibc 2.19 以降:
+ _DEFAULT_SOURCE
+.TP 
+glibc 2.19 より前:
+ _BSD_SOURCE || _SVID_SOURCE
+.RE
+.ad
+.PD
 .SH 説明
 \fBsyscall\fP() は、システムコールを起動する小さなライブラリ関数で、 \fInumber\fP
 で指定されたアセンブリ言語インターフェースのシステムコールを、指定された引き数をつけて実行する。 \fBsyscall\fP() が役に立つのは、例えば C
 ライブラリにラッパー関数が存在しないシステムコールを呼び出したい場合である。
-
+.PP
 \fBsyscall\fP() は、システムコールを行う前に CPU
-レジスターを保存し、システムコールから返った際にレジスターを復元し、エラーが発生した場合はシステムコールが返したエラーコードを \fBerrno\fP(3)
-に格納する。
-
+レジスターを保存し、システムコールから返った際にレジスターを復元し、システムコールが返したエラーを \fBerrno\fP(3) に格納する。
+.PP
 システムコールのシンボル定数は、ヘッダーファイル \fI<sys/syscall.h>\fP に書かれている。
 .SH 返り値
-返り値は呼び出されたシステムコールによって定義される。 一般に、返り値 0 は成功を表す。 \-1 はエラーを表し、エラーコードは \fIerrno\fP
+返り値は呼び出されたシステムコールによって定義される。 一般に、返り値 0 は成功を表す。 \-1 はエラーを表し、エラー番号は \fIerrno\fP
 に入れられる。
 .SH 注意
 \fBsyscall\fP()  は 4BSD で最初に登場した。
@@ -84,64 +99,141 @@ syscall \- 間接システムコール
 が詳細を処理し、アーキテクチャーに応じた方法で引き数が適切なレジスターにコピーされる。 しかし、 システムコールを呼び出すのに \fBsyscall\fP()
 を使う場合には、 呼び出し側でアーキテクチャー依存の詳細を処理しなければならない場合がある。 これはいくつかの 32
 ビットアーキテクチャーでは非常によくあることだ。
-
-例えば、ARM アーキテクチャーの Embedded ABI (EABI) では、 (\fIlong long\fP などの) 64
-ビット値は偶数番地のレジスターのペアに境界があっていなければならない。したがって、 glibc が提供するラッパー関数ではなく \fBsyscall\fP()
-を使う場合には、 \fBreadahead\fP() システムコールは ARM アーキテクチャーの EABI では以下のようにして起動されることになる。
-
+.PP
+For example, on the ARM architecture Embedded ABI (EABI), a 64\-bit value
+(e.g., \fIlong long\fP)  must be aligned to an even register pair.  Thus, using
+\fBsyscall\fP()  instead of the wrapper provided by glibc, the \fBreadahead\fP(2)
+system call would be invoked as follows on the ARM architecture with the
+EABI in little endian mode:
+.PP
 .in +4n
-.nf
-syscall(SYS_readahead, fd, 0,
-        (unsigned int) (offset >> 32),
+.EX
+ syscall(SYS_readahead, fd, 0,
         (unsigned int) (offset & 0xFFFFFFFF),
+        (unsigned int) (offset >> 32),
         count);
-.fi
+.EE
 .in
 .PP
-オフセット引き数は 64 ビットで、最初の引き数 (\fIfd\fP) は \fIr0\fP で渡されるので、呼び出し側では手動で 64
-ビット値を分割して境界を合わせて、 64 ビット値が \fIr2\fP/\fIr3\fP レジスターペアで渡されるようにしなければならない。このため、 \fIr1\fP
-(2 番目の引数 0) としてダミー値を挿入している。
-
+Since the offset argument is 64 bits, and the first argument (\fIfd\fP)  is
+passed in \fIr0\fP, the caller must manually split and align the 64\-bit value
+so that it is passed in the \fIr2\fP/\fIr3\fP register pair.  That means inserting
+a dummy value into \fIr1\fP (the second argument of 0).  Care also must be
+taken so that the split follows endian conventions (according to the C ABI
+for the platform).
+.PP
 .\" Mike Frysinger: this issue ends up forcing MIPS
 .\" O32 to take 7 arguments to syscall()
-同様のことが、 MIPS の O32 ABI、 PowerPC の 32 ビット ABI や Xtensa でも起こりうる。
-
+Similar issues can occur on MIPS with the O32 ABI, on PowerPC and parisc
+with the 32\-bit ABI, and on Xtensa.
+.PP
+.\" See arch/parisc/kernel/sys_parisc.c.
+Note that while the parisc C ABI also uses aligned register pairs, it uses a
+shim layer to hide the issue from user space.
+.PP
 次のシステムコールに影響がある: \fBfadvise64_64\fP(2), \fBftruncate64\fP(2), \fBposix_fadvise\fP(2),
 \fBpread64\fP(2), \fBpwrite64\fP(2), \fBreadahead\fP(2), \fBsync_file_range\fP(2),
 \fBtruncate64\fP(2)
+.PP
+.\" You need to look up the syscalls directly in the kernel source to see if
+.\" they should be in this list.  For example, look at fs/read_write.c and
+.\" the function signatures that do:
+.\" ..., unsigned long, pos_l, unsigned long, pos_h, ...
+.\" If they use off_t, then they most likely do not belong in this list.
+This does not affect syscalls that manually split and assemble 64\-bit values
+such as \fB_llseek\fP(2), \fBpreadv\fP(2), \fBpreadv2\fP(2), \fBpwritev\fP(2), and
+\fBpwritev2\fP(2).  Welcome to the wonderful world of historical baggage.
 .SS アーキテクチャー毎の呼び出し規約
 各アーキテクチャーには、それぞれ独自のシステムコール起動方法とカーネルへの引き数の渡し方がある。 各種のアーキテクチャーの詳細を以下の 2
 つの表にまとめる。
-
-最初の表は、 カーネルモードに遷移するのに使用される命令、 システムコール番号を示すのに使用されるレジスター、
-システムコールの結果を返すのに使用されるレジスターの一覧である (なお、 ここに載っているカーネルモードに遷移するのに使用される命令は、
-カーネルモードに遷移する最速や最善の方法でない場合もあるので、 \fBvdso\fP(7) を参照する必要があるかもしれない)。
+.PP
+The first table lists the instruction used to transition to kernel mode
+(which might not be the fastest or best way to transition to the kernel, so
+you might have to refer to \fBvdso\fP(7)), the register used to indicate the
+system call number, the register(s) used to return the system call result,
+and the register used to signal an error.
 .if  t \{\
 .ft CW
 \}
 .TS
-l l1 l l1 l.
-arch/ABI	instruction	syscall #	retval	Notes
+l2	l2	l2	l2	l1	l2	l.
+ Arch/ABI	Instruction	System	Ret	Ret	Error	備考
+		call #	val	val2
 _
-arm/OABI	swi NR	\-	a1	NR はシステムコール番号
-arm/EABI	swi 0x0	r7	r0
-arm64	svc #0	x8	x0
-blackfin	excpt 0x0	P0	R0
-i386	int $0x80	eax	eax
-ia64	break 0x100000	r15	r8	下記参照
-mips	syscall	v0	v0	下記参照
-parisc	ble 0x100(%sr2, %r0)	r20	r28
-s390	svc 0	r1	r2	下記参照
-s390	svc 0	r1	r2	下記参照
-sparc/32	t 0x10	g1	o0
-sparc/64	t 0x6d	g1	o0
-x86_64	syscall	rax	rax
+alpha	callsys	v0	v0	a4	a3	1, 6
+arc	trap0	r8	r0	\-	\-
+arm/OABI	swi NR	\-	r0	\-	\-	 2
+arm/EABI	swi 0x0	r7	r0	r1	\-
+arm64	svc #0	w8	x0	x1	\-
+blackfin	excpt 0x0	P0	R0	\-	\-
+i386	int $0x80	eax	eax	edx	\-
+ia64	break 0x100000	r15	r8	r9	r10	1, 6
+m68k	trap #0	d0	d0	\-	\-
+microblaze	brki r14,8	 r12	r3	\-	\-
+mips	syscall	v0	v0	v1	a3	1, 6
+nios2	trap	r2	r2	\-	r7
+parisc	ble 0x100(%sr2, %r0)	r20	r28	\-	\-
+powerpc	sc	r0	r3	\-	r0	 1
+powerpc64	sc	r0	r3	\-	cr0.SO	 1
+ riscv	 ecall	 a7	a0	a1	\-
+s390	svc 0	r1	r2	r3	\-	 3
+s390x	svc 0	r1	r2	r3	\-	 3
+superh	trap #0x17	r3	r0	r1	\-	4, 6
+sparc/32	t 0x10	g1	o0	o1	psr/csr	1, 6
+sparc/64	t 0x6d	g1	o0	o1	psr/csr	1, 6
+tile	swint1	 R10	 R00	\-	 R01	 1
+x86\-64	syscall	rax	rax	rdx	\-	 5
+ x32	syscall	rax	rax	rdx	\-	 5
+xtensa	syscall	a2	a2	\-	\-
 .TE
 .PP
-s390 と s390x では、 NR (システムコール番号) が 256 未満の場合 "svc NR" で NR が直接渡される場合がある。
-
-少ないがいくつかのアーキテクチャーでは、 システムコールの失敗を示す単純な真偽値がレジスターを使って通知される。この用途に ia64 は \fIr10\fP
-を使用し、 mips は \fIa3\fP を使用する。
+Notes:
+.IP [1] 4
+On a few architectures, a register is used as a boolean (0 indicating no
+error, and \-1 indicating an error) to signal that the system call failed.
+The actual error value is still contained in the return register.  On sparc,
+the carry bit (\fIcsr\fP)  in the processor status register (\fIpsr\fP)  is used
+instead of a full register.  On powerpc64, the summary overflow bit (\fISO\fP)
+in field 0 of the condition register (\fIcr0\fP)  is used.
+.IP [2]
+\fINR\fP is the system call number.
+.IP [3]
+s390 と s390x では、 \fINR\fP (システムコール番号) が 256 未満の場合 \fIsvc\ NR\fP で NR が直接渡される場合がある。
+.IP [4]
+On SuperH, the trap number controls the maximum number of arguments passed.
+A \fItrap\ #0x10\fP can be used with only 0\-argument system calls, a \fItrap\ #0x11\fP can be used with 0\- or 1\-argument system calls, and so on up to
+\fItrap #0x17\fP for 7\-argument system calls.
+.IP [5]
+The x32 ABI shares syscall table with x86\-64 ABI, but there are some
+nuances:
+.RS
+.IP \(bu 3
+In order to indicate that a system call is called under the x32 ABI, an
+additional bit, \fB__X32_SYSCALL_BIT\fP, is bitwise\-ORed with the system call
+number.  The ABI used by a process affects some process behaviors, including
+signal handling or system call restarting.
+.IP \(bu
+Since x32 has different sizes for \fIlong\fP and pointer types, layouts of some
+(but not all; \fIstruct timeval\fP or \fIstruct rlimit\fP are 64\-bit, for example)
+structures are different.  In order to handle this, additional system calls
+are added to the system call table, starting from number 512 (without the
+\fB__X32_SYSCALL_BIT\fP).  For example, \fB__NR_readv\fP is defined as 19 for the
+x86\-64 ABI and as \fI__X32_SYSCALL_BIT\fP | \fB515\fP for the x32 ABI.  Most of
+these additional system calls are actually identical to the system calls
+used for providing i386 compat.  There are some notable exceptions, however,
+such as \fBpreadv2\fP(2), which uses \fIstruct iovec\fP entities with 4\-byte
+pointers and sizes ("compat_iovec" in kernel terms), but passes an 8\-byte
+\fIpos\fP argument in a single register and not two, as is done in every other
+ABI.
+.RE
+.IP [6]
+Some architectures (namely, Alpha, IA\-64, MIPS, SuperH, sparc/32, and
+sparc/64)  use an additional register ("Retval2" in the above table)  to
+pass back a second return value from the \fBpipe\fP(2)  system call; Alpha uses
+this technique in the architecture\-specific \fBgetxpid\fP(2), \fBgetxuid\fP(2),
+and \fBgetxgid\fP(2)  system calls as well.  Other architectures do not use the
+second return value register in the system call interface, even if it is
+defined in the System V ABI.
 .if  t \{\
 .in
 .ft P
@@ -152,25 +244,39 @@ s390 と s390x では、 NR (システムコール番号) が 256 未満の場�
 .ft CW
 \}
 .TS
-l l2 l2 l2 l2 l2 l2 l2 l.
-arch/ABI	arg1	arg2	arg3	arg4	arg5	arg6	arg7	備考
+l	l2	l2	l2	l2	l2	l2	l2	l.
+ Arch/ABI	arg1	arg2	arg3	arg4	arg5	arg6	arg7	備考
 _
-arm/OABI	a1	a2	a3	a4	v1	v2	v3
+alpha	a0	a1	a2	a3	a4	a5	\-
+arc	r0	r1	r2	r3	r4	r5	\-
+arm/OABI	r0	r1	r2	r3	r4	r5	r6
 arm/EABI	r0	r1	r2	r3	r4	r5	r6
 arm64	x0	x1	x2	x3	x4	x5	\-
 blackfin	R0	R1	R2	R3	R4	R5	\-
 i386	ebx	ecx	edx	esi	edi	ebp	\-
 ia64	out0	out1	out2	out3	out4	out5	\-
-mips/o32	a0	a1	a2	a3	\-	\-	\-	下記参照
+m68k	d1	d2	d3	d4	d5	a0	\-
+microblaze	r5	r6	r7	r8	r9	r10	\-
+mips/o32	a0	a1	a2	a3	\-	\-	\-	 1
 mips/n32,64	a0	a1	a2	a3	a4	a5	\-
+nios2	r4	r5	r6	r7	r8	r9	\-
 parisc	r26	r25	r24	r23	r22	r21	\-
+powerpc	r3	r4	r5	r6	r7	r8	r9
+powerpc64	r3	r4	r5	r6	r7	r8	\-
+ riscv	a0	a1	a2	a3	a4	a5	\-
 s390	r2	r3	r4	r5	r6	r7	\-
 s390x	r2	r3	r4	r5	r6	r7	\-
+superh	r4	r5	r6	r7	r0	r1	r2
 sparc/32	o0	o1	o2	o3	o4	o5	\-
 sparc/64	o0	o1	o2	o3	o4	o5	\-
-x86_64	rdi	rsi	rdx	r10	r8	r9	\-
+tile	 R00	 R01	 R02	 R03	 R04	 R05	\-
+x86\-64	rdi	rsi	rdx	r10	r8	r9	\-
+ x32	rdi	rsi	rdx	r10	r8	r9	\-
+xtensa	 a6	a3	a4	a5	a8	a9	\-
 .TE
 .PP
+Notes:
+.IP [1] 4
 mips/o32 のシステムコールの規約では、 ユーザースタックに引き数を 5 個から 8 個渡す。
 .if  t \{\
 .in
@@ -180,7 +286,7 @@ mips/o32 のシステムコールの規約では、 ユーザースタックに�
 これらの表にはすべての呼び出し規約が記載されているわけではない点に注意すること \(em
 アーキテクチャーによっては、ここに記載されていない他のレジスターが見境なく上書きされる場合もある。
 .SH 例
-.nf
+.EX
 #define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -192,13 +298,12 @@ main(int argc, char *argv[])
 {
     pid_t tid;
 
-    tid = syscall(SYS_gettid);
-    tid = syscall(SYS_tgkill, getpid(), tid, SIGHUP);
+     tid = syscall(SYS_gettid);
+    syscall(SYS_tgkill, getpid(), tid, SIGHUP);
 }
-.fi
+.EE
 .SH 関連項目
 \fB_syscall\fP(2), \fBintro\fP(2), \fBsyscalls\fP(2), \fBerrno\fP(3), \fBvdso\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

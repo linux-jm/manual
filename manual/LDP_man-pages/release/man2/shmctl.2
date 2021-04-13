@@ -41,6 +41,7 @@
 .\" 2005-04-25, mtk -- noted aberrant Linux behavior w.r.t. new
 .\"	attaches to a segment that has already been marked for deletion.
 .\" 2005-08-02, mtk: Added IPC_INFO, SHM_INFO, SHM_STAT descriptions.
+.\" 2018-03-20, dbueso: Added SHM_STAT_ANY description.
 .\"
 .\"*******************************************************************
 .\"
@@ -58,7 +59,7 @@
 .\" Updated 2006-07-21, Akihiro MOTOKI, LDP v2.36
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SHMCTL 2 2014\-02\-07 Linux "Linux Programmer's Manual"
+.TH SHMCTL 2 2020\-12\-21 Linux "Linux Programmer's Manual"
 .SH 名前
 shmctl \- System V 共有メモリー (shared memory) を制御する
 .SH 書式
@@ -66,7 +67,7 @@ shmctl \- System V 共有メモリー (shared memory) を制御する
 \fB#include <sys/ipc.h>\fP
 .br
 \fB#include <sys/shm.h>\fP
-.sp
+.PP
 \fBint shmctl(int \fP\fIshmid\fP\fB, int \fP\fIcmd\fP\fB, struct shmid_ds *\fP\fIbuf\fP\fB);\fP
 .ad b
 .SH 説明
@@ -77,25 +78,55 @@ shmctl \- System V 共有メモリー (shared memory) を制御する
 で以下のように定義されている
 .PP
 .in +4n
-.nf
+.EX
 struct shmid_ds {
     struct ipc_perm shm_perm;    /* 所有権と許可 */
     size_t          shm_segsz;   /* セグメントのサイズ (バイト) */
     time_t          shm_atime;   /* 最後の付加 (attach) の時刻 */
     time_t          shm_dtime;   /* 最後の分離 (detach) の時刻 */
-    time_t          shm_ctime;   /* 最後に変更が行われた時刻 */
+    time_t          shm_ctime;   /* 作成時刻 / shmctl() による
+                                    最後の変更時刻 */
     pid_t           shm_cpid;    /* 作成者 (creator) の PID */
     pid_t           shm_lpid;    /* 最後の shmat(2)/shmdt(2) の PID */
     shmatt_t        shm_nattch;  /* 現在付加されている数 */
     ...
 };
-.fi
+.EE
 .in
+.PP
+\fIshmid_ds\fP 構造体のフィールドは以下の通りである。
+.TP  12
+\fIshm_perm\fP
+This is an \fIipc_perm\fP structure (see below) that specifies the access
+permissions on the shared memory segment.
+.TP 
+\fIshm_segsz\fP
+共有メモリーセグメントのサイズ (バイト単位)。
+.TP 
+\fIshm_atime\fP
+Time of the last \fBshmat\fP(2)  system call that attached this segment.
+.TP 
+\fIshm_dtime\fP
+Time of the last \fBshmdt\fP(2)  system call that detached tgis segment.
+.TP 
+\fIshm_ctime\fP
+Time of creation of segment or time of the last \fBshmctl\fP()  \fBIPC_SET\fP
+operation.
+.TP 
+\fIshm_cpid\fP
+その共有メモリーセグメントを作成したプロセスの ID。
+.TP 
+\fIshm_lpid\fP
+ID of the last process that executed a \fBshmat\fP(2)  or \fBshmdt\fP(2)  system
+call on this segment.
+.TP 
+\fIshm_nattch\fP
+Number of processes that have this segment attached.
 .PP
 \fIipc_perm\fP 構造体は以下のように定義されている (強調されたフィールドは \fBIPC_SET\fP を使って設定可能である):
 .PP
 .in +4n
-.nf
+.EX
 struct ipc_perm {
     key_t          __key;    /* shmget(2) に与えられるキー */
     uid_t          \fBuid\fP;      /* 所有者の実効 UID */
@@ -106,22 +137,43 @@ struct ipc_perm {
                                 SHM_LOCKED フラグ */
     unsigned short __seq;    /* シーケンス番号 */
 };
-.fi
+.EE
 .in
 .PP
+The least significant 9 bits of the \fImode\fP field of the \fIipc_perm\fP
+structure define the access permissions for the shared memory segment.  The
+permission bits are as follows:
+.TS
+l l.
+0400	Read by user
+0200	Write by user
+0040	Read by group
+0020	Write by group
+0004	Read by others
+0002	Write by others
+.TE
+.PP
+Bits 0100, 0010, and 0001 (the execute bits) are unused by the system.  (It
+is not necessary to have execute permission on a segment in order to perform
+a \fBshmat\fP(2)  call with the \fBSHM_EXEC\fP flag.)
+.PP
 \fIcmd\fP として有効な値は以下の通り:
-.br
-.TP  10
+.TP 
 \fBIPC_STAT\fP
 \fIshmid\fP に関連づけられたカーネルデータ構造体の情報を \fIbuf\fP で指された \fIshmid_ds\fP 構造体にコピーする。
 呼び出し元は共有メモリーセグメントに対する 読み込み許可を持たなければならない。
 .TP 
 \fBIPC_SET\fP
-\fIbuf\fP によって指される \fIshmid_ds\fP 構造体のいくつかのメンバーの値を、
-この共有メモリーセグメントに関連づけられたカーネルデータ構造体に書き込み、 \fIshm_ctime\fP メンバーも更新する。
-以下のフィールドは変更できる。 \fIshm_perm.uid\fP, \fIshm_perm.gid\fP, \fIshm_perm.mode\fP (の最下位 9
-ビット)。 呼び出したプロセスの実効 UID が所有者 (\fIshm_perm.uid\fP)  または作成者 (\fIshm_perm.cuid\fP)
-と一致するか、呼び出し元が特権を持たなければならない。
+Write the values of some members of the \fIshmid_ds\fP structure pointed to by
+\fIbuf\fP to the kernel data structure associated with this shared memory
+segment, updating also its \fIshm_ctime\fP member.
+.IP
+以下のフィールドが更新される: \fIshm_perm.uid\fP, \fIshm_perm.gid\fP および \fIshm_perm.mode\fP (の下位 9
+ビット)。
+.IP
+The effective UID of the calling process must match the owner
+(\fIshm_perm.uid\fP)  or creator (\fIshm_perm.cuid\fP)  of the shared memory
+segment, or the caller must be privileged.
 .TP 
 \fBIPC_RMID\fP
 セグメントに破棄済みのマークを付ける。 セグメントは、実際には最後プロセスがセグメントを分離した (関連する \fIshmid_ds\fP 構造体の
@@ -135,14 +187,14 @@ struct ipc_perm {
 (swap) に残り続ける。
 .IP
 \fBproc\fP(5) の \fI/proc/sys/kernel/shm_rmid_forced\fP の説明も参照のこと。
-.TP  10
+.TP 
 \fBIPC_INFO\fP (Linux 固有)
 システム全体での共有メモリーの制限とパラメーターに関する情報を、 \fIbuf\fP が指す構造体に入れて返す。 この構造体は \fIshminfo\fP 型である
 (そのためキャストが必要である)。 \fIshminfo\fP は \fB_GNU_SOURCE\fP 機能検査マクロが定義された場合に
 \fI<sys/shm.h>\fP で以下のように定義される:
-.nf
+.IP
 .in +4n
-
+.EX
 struct  shminfo {
     unsigned long shmmax; /* 最大セグメントサイズ */
     unsigned long shmmin; /* 最小セグメントサイズ。
@@ -154,18 +206,18 @@ struct  shminfo {
     unsigned long shmall; /* 共有メモリーの最大ページ数。
                              システム全体での値 */
 };
-
+.EE
 .in
-.fi
+.IP
 設定 \fIshmmni\fP, \fIshmmax\fP, \fIshmall\fP は \fI/proc\fP にある同じ名前のファイル経由で変更可能である。 詳しくは
 \fBproc\fP(5)  を参照。
 .TP 
 \fBSHM_INFO\fP (Linux 固有)
 共有メモリーが消費しているシステム資源に関する情報を 格納した \fIshm_info\fP 構造体を返す。 この構造体は、 \fB_GNU_SOURCE\fP
 機能検査マクロが定義された場合に \fI<sys/shm.h>\fP で以下のように定義される:
-.nf
+.IP
 .in +4n
-
+.EX
 struct shm_info {
     int           used_ids; /* 現在存在するセグメント数 */
     unsigned long shm_tot;  /* 共有メモリーのページ総数 */
@@ -178,16 +230,21 @@ struct shm_info {
     unsigned long swap_successes;
                             /* Linux 2.4 以降では未使用 */
 };
+.EE
 .in
-.fi
 .TP 
 \fBSHM_STAT\fP (Linux 固有)
 \fBIPC_STAT\fP と同じく \fIshmid_ds\fP 構造体を返す。 但し、 \fIshmid\fP
 引き数は、セグメント識別子ではなく、システム上の全ての共有メモリー セグメントに関する情報を管理するカーネルの内部配列へのインデックス である。
+.TP 
+\fBSHM_STAT_ANY\fP (Linux\-specific, Linux 4.17 以降)
+Return a \fIshmid_ds\fP structure as for \fBSHM_STAT\fP.  However,
+\fIshm_perm.mode\fP is not checked for read access for \fIshmid\fP, meaning that
+any user can employ this operation (just as any user may read
+\fI/proc/sysvipc/shm\fP to obtain the same information).
 .PP
 呼び出し元は、\fIcmd\fP に以下の値を指定することで、共有メモリーセグメントが スワップされることを防止したり、許可したりできる:
-.br
-.TP  10
+.TP 
 \fBSHM_LOCK\fP (Linux 固有)
 共有メモリーセグメントをスワップすることを防止する。 ロックが有効になった後、呼び出し元は、
 存在することが要求された全てのページをフォールトさせなければならない。 セグメントがロックされると、 関連するデータ構造体において
@@ -208,16 +265,17 @@ struct shm_info {
 .SH 返り値
 \fBIPC_INFO\fP と \fBSHM_INFO\fP 操作は、成功すると、全ての共有メモリーセグメントに関する情報を
 管理しているカーネルの内部配列の使用中エントリーのインデックスの うち最大値を返す (この情報は、システムの全ての共有メモリーセグメントに関する情報を
-取得するために、 \fBSHM_STAT\fP 操作を繰り返し実行する際に使用できる)。 \fBSHM_STAT\fP 操作は、成功すると、 \fIshmid\fP
-で指定されたインデックスを持つ共有メモリーセグメントの識別子を返す。 他の操作は、成功の場合 0 を返す。
-
+取得するために、操作 \fBSHM_STAT\fP か \fBSHM_STAT_ANY\fP を繰り返し実行する際に使用できる)。 \fBSHM_STAT\fP
+操作は、成功すると、 \fIshmid\fP で指定されたインデックスを持つ共有メモリーセグメントの識別子を返す。 他の操作は、成功の場合 0 を返す。
+.PP
 エラーの場合は \-1 を返し、 \fIerrno\fP を適切に設定する。
 .SH エラー
 .TP 
 \fBEACCES\fP
-\fBIPC_STAT\fP または \fBSHM_STAT\fP が要求され、 \fIshm_perm.mode\fP が \fIshmid\fP
-への読み込みアクセスを許しておらず、 かつ呼び出したプロセスが \fBCAP_IPC_OWNER\fP ケーパビリティ (capability)
-を持っていない。
+\fBIPC_STAT\fP or \fBSHM_STAT\fP is requested and \fIshm_perm.mode\fP does not allow
+read access for \fIshmid\fP, and the calling process does not have the
+\fBCAP_IPC_OWNER\fP capability in the user namespace that governs its IPC
+namespace.
 .TP 
 \fBEFAULT\fP
 \fIcmd\fP 引き数に \fBIPC_SET\fP か \fBIPC_STAT\fP が指定されたが \fIbuf\fP で指されているアドレスにアクセスできない。
@@ -226,8 +284,8 @@ struct shm_info {
 \fIshmid\fP が削除 (remove) された識別子 (identifier) を指している。
 .TP 
 \fBEINVAL\fP
-\fIshmid\fP が有効な識別子でないか、 \fIcmd\fP が有効なコマンドでない。 もしくは、 \fBSHM_STAT\fP 操作の場合に、 \fIshmid\fP
-で指定されたインデックス値が現在未使用の配列のスロットを参照していた。
+\fIshmid\fP が有効な識別子でないか、 \fIcmd\fP が有効なコマンドでない。 もしくは、操作 \fBSHM_STAT\fP か
+\fBSHM_STAT_ANY\fP の場合に、 \fIshmid\fP で指定されたインデックス値が現在未使用の配列のスロットを参照していた。
 .TP 
 \fBENOMEM\fP
 (2.6.9 以降のカーネルにおいて)  \fBSHM_LOCK\fP が指定され、 ロックされる予定のセグメントのサイズ
@@ -241,7 +299,7 @@ struct shm_info {
 \fBIPC_SET\fP か \fBIPC_RMID\fP が試みられ、 呼び出したプロセスの実効ユーザー ID が作成者 (\fIshm_perm.cuid\fP)
 でも所有者 (\fIshm_perm.uid\fP)  でもなく、プロセスが特権を持たない (Linux では \fBCAP_SYS_ADMIN\fP
 ケーパビリティを持たない)。
-
+.IP
 または (2.6.9 より前のカーネルで)  \fBSHM_LOCK\fP または \fBSHM_UNLOCK\fP が指定されているが、プロセスが特権を持たない
 (Linux では \fBCAP_IPC_LOCK\fP ケーパビリティを持たない)。 (Linux 2.6.9 以降では、
 \fBRLIMIT_MEMLOCK\fP が 0 で呼び出し元が特権を持たない場合にも、このエラーが起こる。)
@@ -249,29 +307,28 @@ struct shm_info {
 .\" SVr4 documents additional error conditions EINVAL,
 .\" ENOENT, ENOSPC, ENOMEM, EEXIST.  Neither SVr4 nor SVID documents
 .\" an EIDRM error condition.
-SVr4, POSIX.1\-2001.
+POSIX.1\-2001, POSIX.1\-2008, SVr4.
 .SH 注意
 .\" Like Linux, the FreeBSD man pages still document
 .\" the inclusion of these header files.
 Linux や POSIX の全てのバージョンでは、 \fI<sys/types.h>\fP と \fI<sys/ipc.h>\fP
 のインクルードは必要ない。しかしながら、いくつかの古い実装ではこれらのヘッダーファイルのインクルードが必要であり、 SVID
 でもこれらのインクルードをするように記載されている。このような古いシステムへの移植性を意図したアプリケーションではこれらのファイルをインクルードする必要があるかもしれない。
-
+.PP
 \fBIPC_INFO\fP, \fBSHM_STAT\fP, \fBSHM_INFO\fP 操作は、 \fBipcs\fP(1)
 プログラムで割り当て済の資源に関する情報を提供するために 使用されている。将来、これらの操作は変更されたり、 \fI/proc\fP
 ファイルシステムのインターフェースに移動されるかもしれない。
-
+.PP
 Linux では、 \fIshmctl(IPC_RMID)\fP を使ってすでに削除マークがつけられている共有メモリーセグメントを あるプロセスが付加
 (attach)  (\fBshmat\fP(2))  することを許可している。 この機能は他の UNIX の実装では利用できない。
 移植性を考慮したアプリケーションではこれに依存しないようにすべきである。
-
+.PP
 \fI構造体 shmid_ds\fP 内の多くのフィールドは、 Linux 2.2 では \fIshort\fP 型だったが、Linux 2.4 では
 \fIlong\fP 型になった。 この利点を生かすには、glibc\-2.1.91 以降の環境下で 再コンパイルすれば十分である。
 カーネルは新しい形式の呼び出しと古い形式の呼び出しを \fIcmd\fP 内の \fBIPC_64\fP フラグで区別する。
 .SH 関連項目
 \fBmlock\fP(2), \fBsetrlimit\fP(2), \fBshmget\fP(2), \fBshmop\fP(2), \fBcapabilities\fP(7),
-\fBshm_overview\fP(7), \fBsvipc\fP(7)
+\fBsysvipc\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

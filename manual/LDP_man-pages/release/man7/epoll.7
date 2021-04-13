@@ -35,39 +35,55 @@
 .\" Updated 2008-04-08, Akihiro MOTOKI, LDP v2.79
 .\" Updated 2009-02-23, Akihiro MOTOKI, LDP v3.19
 .\"
-.TH EPOLL 7 2015\-01\-10 Linux "Linux Programmer's Manual"
+.TH EPOLL 7 2019\-03\-06 Linux "Linux Programmer's Manual"
 .SH 名前
 epoll \- I/O イベント通知機能
 .SH 書式
 \fB#include <sys/epoll.h>\fP
 .SH 説明
-\fBepoll\fP API は \fBpoll\fP(2) と同様の処理を行う、つまり、複数のファイルディスク
-リプタを監視し、その中のいずれかが入出力可能な状態であるかを確認する。
-\fBepoll\fP API は、エッジトリガーインターフェースとレベルトリガーインターフェースの
-いずれとしても使用することができ、監視するファイルディスクリプターの数が多い
-場合にも使用できる。 \fBepoll\fP インスタンスの作成や管理を行うために
-以下のシステムコールが提供されている:
-.IP * 3
-\fBepoll_create\fP(2) は \fBepoll\fP インスタンスを作成し、そのインスタンスを参照する
+\fBepoll\fP API は \fBpoll\fP(2)
+と同様の処理を行う、つまり、複数のファイルディスクリプタを監視し、その中のいずれかが入出力可能な状態であるかを確認する。 \fBepoll\fP API
+は、エッジトリガーインターフェースとレベルトリガーインターフェースのいずれとしても使用することができ、監視するファイルディスクリプターの数が多い場合にも使用できる。
+.PP
+The central concept of the \fBepoll\fP API is the \fBepoll\fP \fIinstance\fP, an
+in\-kernel data structure which, from a user\-space perspective, can be
+considered as a container for two lists:
+.IP \(bu 2
+The \fIinterest\fP list (sometimes also called the \fBepoll\fP set): the set of
+file descriptors that the process has registered an interest in monitoring.
+.IP \(bu
+The \fIready\fP list: the set of file descriptors that are "ready" for I/O.
+The ready list is a subset of (or, more precisely, a set of references to)
+the file descriptors in the interest list.  The ready list is dynamically
+populated by the kernel as a result of I/O activity on those file
+descriptors.
+.PP
+The following system calls are provided to create and manage an \fBepoll\fP
+instance:
+.IP \(bu 2
+\fBepoll_create\fP(2) は新規の \fBepoll\fP インスタンスを作成し、そのインスタンスを参照する
 ファイルディスクリプターを返す。(もっと新しい \fBepoll_create1\fP(2) では、
 \fBepoll_create\fP(2) の機能が拡張されている)。
-.IP *
-特定のファイルディスクリプターに対する監視内容を \fBepoll_ctl\fP(2)  で登録する。 \fBepoll\fP
-インスタンスに現在登録されているファイルディスクリプターの集合は \fIepoll\fP 集合と呼ばれることもある。
-.IP *
-\fBepoll_wait\fP(2) は I/O イベントを待つ。
-現在利用可能な状態のイベントがなければ、呼び出したスレッドを停止する。
+.IP \(bu
+Interest in particular file descriptors is then registered via
+\fBepoll_ctl\fP(2), which adds items to the interest list of the \fBepoll\fP
+instance.
+.IP \(bu
+.\"
+\fBepoll_wait\fP(2)  waits for I/O events, blocking the calling thread if no
+events are currently available.  (This system call can be thought of as
+fetching items from the ready list of the \fBepoll\fP instance.)
 .SS レベルトリガーとエッジトリガー
 \fBepoll\fP イベント配送 (distribution) インターフェースは、 エッジトリガー (ET) としてもレベルトリガー (LT)
 としても動作させることができる。 二つの配送機構の違いは、次のように説明できる。 このようなシナリオが起こったとしよう:
 .IP 1. 3
 パイプの読み込み側を表すファイルディスクリプター (\fIrfd\fP)  が \fBepoll\fP インスタンスに登録される。
 .IP 2.
-パイプへ書き込むプログラムが 2 kB のデータをパイプの書き込み側へ書き込む。
+パイプへ書き込むプログラムが 2\ kB のデータをパイプの書き込み側へ書き込む。
 .IP 3.
 \fBepoll_wait\fP(2)  を呼び出すと、読み込み可能 (ready) なファイルディスクリプターとして \fIrfd\fP が返る。
 .IP 4.
-パイプから読み出すプログラムが、1 kB のデータを \fIrfd\fP から読み出す。
+パイプから読み出すプログラムが、1\ kB のデータを \fIrfd\fP から読み出す。
 .IP 5.
 \fBepoll_wait\fP(2)  の呼び出しが行われる。
 .PP
@@ -79,35 +95,40 @@ epoll \- I/O イベント通知機能
 で行われた書き込みによって \fIrfd\fP に関するイベントが生成され、 \fB3\fP でイベントが消費 (consume) される。 \fB4\fP
 で行われる読み込み操作では、全部のバッファーデータを消費しないので、 ステップ \fB5\fP で行われる \fBepoll_wait\fP(2)  の呼び出しが
 無期限に停止 (block) するかもしれない。
-
+.PP
 \fBEPOLLET\fP フラグを採用するアプリケーションでは、 インターフェースはブロックしない (nonblocking) ファイルディスクリプターを
 使うべきである。 これは、ブロックされる読み込みや書き込みによって、 複数のファイルディスクリプターを扱うタスクが 停止してしまうのを避けるためである。
 \fBepoll\fP をエッジトリガー (\fBEPOLLET\fP)  インターフェースとして使うために提案される方法は以下の通りである。
-.RS
-.TP  4
-\fBi\fP
+.IP a) 3
 ブロックしないファイルディスクリプターと共に使う。
-.TP 
-\fBii\fP
+.IP b)
 \fBread\fP(2)  または \fBwrite\fP(2)  が \fBEAGAIN\fP を返した後でのみ、イベントを待つ。
-.RE
 .PP
 一方、レベルトリガーインターフェースとして使う場合
  (こちらがデフォルトである、
 \fBEPOLLET\fP が指定されなかった場合)、
 \fBepoll\fP は単に高速な \fBpoll\fP(2) であり、使い方が同じなので、
 \fBpoll\fP(2) が使われているところではどこでも使用することができる。
-
+.PP
 エッジトリガーを使った場合でも、複数のデータを受信すると複数の \fBepoll\fP イベントが生成されるので、 呼び出し側には
 \fBEPOLLONESHOT\fP フラグを指定するオプションがある。 このフラグは \fBepoll\fP に対して、 \fBepoll_wait\fP(2)
 によるイベントを受信した後で、関連するファイルディスクリプターを無効にさせる。 \fBEPOLLONESHOT\fP フラグが指定された場合、
 \fBepoll_ctl\fP(2)  に \fBEPOLL_CTL_MOD\fP を指定してファイルディスクリプターを再度使用できるようにするのは、
 呼び出し側の責任である。
+.PP
+.\"
+If multiple threads (or processes, if child processes have inherited the
+\fBepoll\fP file descriptor across \fBfork\fP(2))  are blocked in \fBepoll_wait\fP(2)
+waiting on the same epoll file descriptor and a file descriptor in the
+interest list that is marked for edge\-triggered (\fBEPOLLET\fP)  notification
+becomes ready, just one of the threads (or processes) is awoken from
+\fBepoll_wait\fP(2).  This provides a useful optimization for avoiding
+"thundering herd" wake\-ups in some scenarios.
 .SS "autosleep との関係"
 システムが \fI/sys/power/autosleep\fP 経由で \fBautosleep\fP モードになっていて、
 デバイスをスリープ状態から起こすイベントが発生した場合、 デバイスドライバーはデバイスを起こしておくのはそのイベントがキューに入るまでだけである。
-イベントが処理されるまでデバイスを起こしたままにしておくには、 \fBepoll\fP(7) \fBEPOLLWAKEUP\fP フラグを使う必要がある。
-
+イベントが処理されるまでデバイスを起こしたままにしておくには、 \fBepoll_ctl\fP(2) \fBEPOLLWAKEUP\fP フラグを使う必要がある。
+.PP
 \fBEPOLLWAKEUP\fP フラグが \fIstruct epoll_event\fP の \fBevents\fP フィールドでセットされた場合、
 イベントがキューに入った瞬間から、\fBepoll_wait\fP(2) がそのイベントを返し次の \fBepoll_wait\fP(2)
 の呼び出しが行われるまでの間、システムは起きたままの状態になる。
@@ -135,9 +156,9 @@ epoll が消費するカーネルメモリーの量を制限するために、 �
 が返されるまでは、新しい準備済みのファイルディスクリプターを使う。 イベント駆動ステートマシンアプリケーションは、 \fBEAGAIN\fP
 を受信した後、カレントの状態を記録しておくべきである。 これにより、次の \fIdo_use_fd()\fP 呼び出しのときに、以前に停止したところから
 \fBread\fP(2)  または \fBwrite\fP(2)  を継続することができる。
-
+.PP
 .in +4n
-.nf
+.EX
 #define MAX_EVENTS 10
 struct epoll_event ev, events[MAX_EVENTS];
 int listen_sock, conn_sock, nfds, epollfd;
@@ -161,14 +182,14 @@ if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == \-1) {
 for (;;) {
     nfds = epoll_wait(epollfd, events, MAX_EVENTS, \-1);
     if (nfds == \-1) {
-        perror("epoll_pwait");
+        perror("epoll_wait");
         exit(EXIT_FAILURE);
     }
 
     for (n = 0; n < nfds; ++n) {
         if (events[n].data.fd == listen_sock) {
             conn_sock = accept(listen_sock,
-                            (struct sockaddr *) &local, &addrlen);
+                               (struct sockaddr *) &addr, &addrlen);
             if (conn_sock == \-1) {
                 perror("accept");
                 exit(EXIT_FAILURE);
@@ -186,113 +207,104 @@ for (;;) {
         }
     }
 }
-.fi
+.EE
 .in
-
+.PP
 エッジトリガーインターフェースとして使う場合、性能上の理由により、 一度 (\fBEPOLLIN\fP|\fBEPOLLOUT\fP)  を指定してから
 (\fBEPOLL_CTL_ADD\fP で) ファイルディスクリプターを \fBepoll\fP インターフェースに追加することができる。 これにより、
 \fBepoll_ctl\fP(2)  に \fBEPOLL_CTL_MOD\fP を指定して呼び出すことで \fBEPOLLIN\fP と \fBEPOLLOUT\fP
 の連続的な切り替えが避けられる。
 .SS 質問と解答
-.TP  4
-\fBQ0\fP
-\fBepoll\fP 集合内の登録されたファイルディスクリプターを区別するには、 何をキーとして使えばよいか？
-.TP 
-\fBA0\fP
+.IP 0. 4
+What is the key used to distinguish the file descriptors registered in an
+interest list?
+.IP
 キーはファイルディスクリプター番号とオープンファイル記述 (open file description) の組である (オープンファイル記述は
 "open file handle" とも 呼ばれ、オープンされたファイルのカーネルの内部表現である)。
-.TP 
-\fBQ1\fP
+.IP 1.
 1 つの \fBepoll\fP インスタンスに同じファイルディスクリプターを 2 回登録するとどうなるか？
-.TP 
-\fBA1\fP
-.\" But a descriptor duplicated by fork(2) can't be added to the
+.IP
+.\" But a file descriptor duplicated by fork(2) can't be added to the
 .\" set, because the [file *, fd] pair is already in the epoll set.
 .\" That is a somewhat ugly inconsistency.  On the one hand, a child process
 .\" cannot add the duplicate file descriptor to the epoll set.  (In every
-.\" other case that I can think of, descriptors duplicated by fork have
-.\" similar semantics to descriptors duplicated by dup() and friends.)  On
+.\" other case that I can think of, file descriptors duplicated by fork have
+.\" similar semantics to file descriptors duplicated by dup() and friends.)  On
 .\" the other hand, the very fact that the child has a duplicate of the
-.\" descriptor means that even if the parent closes its descriptor, then
-.\" epoll_wait() in the parent will continue to receive notifications for
-.\" that descriptor because of the duplicated descriptor in the child.
+.\" file descriptor means that even if the parent closes its file descriptor,
+.\" then epoll_wait() in the parent will continue to receive notifications for
+.\" that file descriptor because of the duplicated file descriptor in the child.
 .\"
 .\" See http://thread.gmane.org/gmane.linux.kernel/596462/
 .\" "epoll design problems with common fork/exec patterns"
 .\"
 .\" mtk, Feb 2008
 たぶん \fBEEXIST\fP を受け取るだろう。 しかしながら、同じ \fBepoll\fP
-インスタンスに対して複製されたディスクリプターを追加することは可能である (\fBdup\fP(2), \fBdup2\fP(2), \fBfcntl\fP(2)
+インスタンスに対して複製されたファイルディスクリプターを追加することは可能である (\fBdup\fP(2), \fBdup2\fP(2), \fBfcntl\fP(2)
 \fBF_DUPFD\fP など)。 複製したファイルディスクリプターを異なる \fIevents\fP マスクで登録すれば、イベントをフィルタリングするのに
 この機能は有用な手法である。
-.TP 
-\fBQ2\fP
+.IP 2.
 2 つの \fBepoll\fP インスタンスが同じファイルディスクリプターを待ち受けることは可能か？ もし可能であれば、イベントは両方の \fBepoll\fP
 ファイルディスクリプターに報告されるか？
-.TP 
-\fBA2\fP
+.IP
 イベントは両方に報告される。 しかしながら、これを正しく扱うには注意深くプログラミングする必要が あるかもしれない。
-.TP 
-\fBQ3\fP
+.IP 3.
 \fBepoll\fP ファイルディスクリプター自身は poll/epoll/select が可能か？
-.TP 
-\fBA3\fP
+.IP
 可能である。 \fBepoll\fP ファイルディスクリプターに処理待ちのイベントがある場合は、 読み出し可能だと通知されることだろう。
-.TP 
-\fBQ4\fP
+.IP 4.
 \fBepoll\fP ファイルディスクリプターを自身のファイルディスクリプター集合に 入れようとするとどうなるか？
-.TP 
-\fBA4\fP
-\fBepoll_ctl\fP(2)  の呼び出しは (\fBEINVAL\fP で) 失敗するだろう。 ただし \fBepoll\fP ファイルディスクリプターを他の
+.IP
+\fBepoll_ctl\fP(2)  の呼び出しは (\fBEINVAL\fP で) 失敗する。 ただし \fBepoll\fP ファイルディスクリプターを他の
 \fBepoll\fP ファイルディスクリプター集合の内部に追加することは可能である。
-.TP 
-\fBQ5\fP
+.IP 5.
 \fBepoll\fP ファイルディスクリプターを UNIX ドメインソケットで他のプロセスに送ることは可能か？
-.TP 
-\fBA5\fP
-可能だが、これをすることに意味はない。 なぜなら、受信側のプロセスが \fBepoll\fP
-集合内のファイルディスクリプターのコピーを持っていないからである。
-.TP 
-\fBQ6\fP
-ファイルディスクリプターをクローズすると、そのファイルディスクリプターは全ての \fBepoll\fP 集合から自動的に削除されるか？
-.TP 
-\fBA6\fP
-削除されるが、以下の点に注意が必要である。 ファイルディスクリプターはオープンファイル記述 (\fBopen\fP(2)  参照) への参照である。
-ディスクリプターの複製を \fBdup\fP(2), \fBdup2\fP(2), \fBfcntl\fP(2)  の \fBF_DUPFD\fP や \fBfork\fP(2)
-経由で行う度に、同じオープンファイル記述を参照する新規のファイル ディスクリプターが生成される。
-オープンファイル記述自体は、自身を参照する全てのファイルディスクリプター がクローズされるまで存在し続ける。 ファイルディスクリプターが
-\fBepoll\fP 集合から削除されるのは、対応するオープンファイル記述を参照している 全てのファイルディスクリプターがクローズされた後である
-(\fBepoll_ctl\fP(2)  \fBEPOLL_CTL_DEL\fP を使ってそのディスクリプターを明示的に削除した場合にも削除される)。 このことは、
-\fBepoll\fP 集合に属しているあるファイルディスクリプターをクローズした後であっても、
-同じファイル記述を参照する他のファイルディスクリプターがオープンされている間は、
-クローズしたファイルディスクリプター宛にイベントが報告される可能性があると いうことを意味する。
-.TP 
-\fBQ7\fP
+.IP
+Yes, but it does not make sense to do this, since the receiving process
+would not have copies of the file descriptors in the interest list.
+.IP 6.
+Will closing a file descriptor cause it to be removed from all \fBepoll\fP
+interest lists?
+.IP
+Yes, but be aware of the following point.  A file descriptor is a reference
+to an open file description (see \fBopen\fP(2)).  Whenever a file descriptor is
+duplicated via \fBdup\fP(2), \fBdup2\fP(2), \fBfcntl\fP(2)  \fBF_DUPFD\fP, or
+\fBfork\fP(2), a new file descriptor referring to the same open file
+description is created.  An open file description continues to exist until
+all file descriptors referring to it have been closed.
+.IP
+A file descriptor is removed from an interest list only after all the file
+descriptors referring to the underlying open file description have been
+closed.  This means that even after a file descriptor that is part of an
+interest list has been closed, events may be reported for that file
+descriptor if other file descriptors referring to the same underlying file
+description remain open.  To prevent this happening, the file descriptor
+must be explicitly removed from the interest list (using \fBepoll_ctl\fP(2)
+\fBEPOLL_CTL_DEL\fP)  before it is duplicated.  Alternatively, the application
+must ensure that all file descriptors are closed (which may be difficult if
+file descriptors were duplicated behind the scenes by library functions that
+used \fBdup\fP(2)  or \fBfork\fP(2)).
+.IP 7.
 2 つ以上のイベントが \fBepoll_wait\fP(2)  コールの間に発生した場合、それらはまとめて報告されるか、 それとも別々に報告されるか？
-.TP 
-\fBA7\fP
+.IP
 まとめて報告されるだろう。
-.TP 
-\fBQ8\fP
+.IP 8.
 ファイルディスクリプターに対する操作は、 既に集められているがまだ報告されていないイベントに影響するか？
-.TP 
-\fBA8\fP
+.IP
 既存のファイルディスクリプターに対して 2 つの操作を行うことができる。 この場合、削除には意味がない。 変更すると、使用可能な I/O
 が再び読み込まれる。
-.TP 
-\fBQ9\fP
+.IP 9.
 \fBEPOLLET\fP フラグ (エッジトリガー動作) を使っている場合、 \fBEAGAIN\fP を受け取るまで、
 継続してファイルディスクリプターを読み書きする必要があるか？
-.TP 
-\fBA9\fP
+.IP
 \fBepoll_wait\fP(2)  からイベントを受け取ることは、 そのファイルディスクリプターが要求された I/O 操作に対して準備済みである、
 ということをユーザーに示すものである。 次の (ブロックしない) read/write で \fBEAGAIN\fP
 を受け取るまではファイルディスクリプターは準備済みであると 考えなければならない。 そのファイルディスクリプターをいつどのように使うかは、
 全くユーザーに任されてる。
-.sp
+.IP
 パケット指向やトークン指向のファイル (例えば、データグラムソケット、 canonical モードの端末) では、 読み込み用 / 書き込み用の I/O
 空間の末尾を検知する唯一の方法は \fBEAGAIN\fP になるまで read/write を行うことである。
-.sp
+.IP
 ストリーム指向のファイル (例えば、パイプ、FIFO、ストリームソケット) では、 読み込み用 / 書き込み用の I/O 空間が使い尽くされた状態は、
 対象となるファイルディスクリプターから読み込んだデータ量または 書き込んだデータ量をチェックすることでも検知できる。
 例えば、ある特定の量のデータを読み込むために \fBread\fP(2)  を呼んだときに、 \fBread\fP(2)
@@ -328,9 +340,17 @@ for (;;) {
 .SH 準拠
 \fBepoll\fP API は Linux 固有である。 他のシステムでも同様の機構が提供されている場合がある。 例えば、FreeBSD の
 \fIkqueue\fP や Solaris の \fI/dev/poll\fP などである。
+.SH 注意
+The set of file descriptors that is being monitored via an epoll file
+descriptor can be viewed via the entry for the epoll file descriptor in the
+process's \fI/proc/[pid]/fdinfo\fP directory.  See \fBproc\fP(5)  for further
+details.
+.PP
+The \fBkcmp\fP(2)  \fBKCMP_EPOLL_TFD\fP operation can be used to test whether a
+file descriptor is present in an epoll instance.
 .SH 関連項目
-\fBepoll_create\fP(2), \fBepoll_create1\fP(2), \fBepoll_ctl\fP(2), \fBepoll_wait\fP(2)
+\fBepoll_create\fP(2), \fBepoll_create1\fP(2), \fBepoll_ctl\fP(2), \fBepoll_wait\fP(2),
+\fBpoll\fP(2), \fBselect\fP(2)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

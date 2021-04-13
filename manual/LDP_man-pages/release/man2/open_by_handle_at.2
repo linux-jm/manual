@@ -27,7 +27,7 @@
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH OPEN_BY_HANDLE_AT 2 2014\-06\-13 Linux "Linux Programmer's Manual"
+.TH OPEN_BY_HANDLE_AT 2 2020\-11\-01 Linux "Linux Programmer's Manual"
 .SH 名前
 name_to_handle_at, open_by_handle_at \- パス名に対するハンドルの取得とハンドルによるファイルのオープン
 .SH 書式
@@ -36,11 +36,11 @@ name_to_handle_at, open_by_handle_at \- パス名に対するハンドルの取�
 \fB#include <sys/types.h>\fP
 \fB#include <sys/stat.h>\fP
 \fB#include <fcntl.h>\fP
-
+.PP
 \fBint name_to_handle_at(int \fP\fIdirfd\fP\fB, const char *\fP\fIpathname\fP\fB,\fP
 \fB                      struct file_handle *\fP\fIhandle\fP\fB,\fP
 \fB                      int *\fP\fImount_id\fP\fB, int \fP\fIflags\fP\fB);\fP
-
+.PP
 \fBint open_by_handle_at(int \fP\fImount_fd\fP\fB, struct file_handle *\fP\fIhandle\fP\fB,\fP
 \fB                      int \fP\fIflags\fP\fB);\fP
 .fi
@@ -55,35 +55,44 @@ name_to_handle_at, open_by_handle_at \- パス名に対するハンドルの取�
 \fBname_to_handle_at\fP() システムコールは、 引き数 \fIdirfd\fP と \fIpathname\fP
 で指定されるファイルに対応するファイルハンドルとマウント ID を返す。 ファイルハンドルは引き数 \fIhandle\fP で返される。 \fIhandle\fP
 は以下の形式の構造体へのポインターである。
-
+.PP
 .in +4n
-.nf
+.EX
 struct file_handle {
     unsigned int  handle_bytes;   /* Size of f_handle [in, out] */
     int           handle_type;    /* Handle type [out] */
     unsigned char f_handle[0];    /* File identifier (sized by
                                      caller) [out] */
 };
-.fi
+.EE
 .in
 .PP
-\fIf_handle\fP で返されるハンドルを保持するのに十分な大きさの構造体を確保するのは、 呼び出し元が責任をもって行う必要がある。 呼び出し前に、
-\fIhandle_bytes\fP フィールドは \fIf_handle\fP 用に格納されたサイズで初期化すべきである
-(\fI<fcntl.h>\fP で定義されている定数 \fBMAX_HANDLE_SZ\fP でファイルハンドルの最大サイズが規定されている)。
-呼び出しが成功でリターンする際、 \fIhandle_bytes\fP フィールドは \fIf_handle\fP に実際に書き込まれたバイト数に更新される。
-
-呼び出し元では、 \fIhandle\->handle_bytes\fP を 0 に設定して呼び出しを行うことで、 \fIfile_handle\fP
-構造体に必要なサイズを知ることができる。 この場合、 この呼び出しはエラー \fBEOVERFLOW\fP で失敗し、
-\fIhandle\->handle_bytes\fP に必要なサイズが設定される。
-呼び出し元はこの情報を使って、正しいサイズの構造体を割り当てることができる (下記の「例」を参照)。
-
+It is the caller's responsibility to allocate the structure with a size
+large enough to hold the handle returned in \fIf_handle\fP.  Before the call,
+the \fIhandle_bytes\fP field should be initialized to contain the allocated
+size for \fIf_handle\fP.  (The constant \fBMAX_HANDLE_SZ\fP, defined in
+\fI<fcntl.h>\fP, specifies the maximum expected size for a file
+handle.  It is not a guaranteed upper limit as future filesystems may
+require more space.)  Upon successful return, the \fIhandle_bytes\fP field is
+updated to contain the number of bytes actually written to \fIf_handle\fP.
+.PP
+The caller can discover the required size for the \fIfile_handle\fP structure
+by making a call in which \fIhandle\->handle_bytes\fP is zero; in this case,
+the call fails with the error \fBEOVERFLOW\fP and \fIhandle\->handle_bytes\fP
+is set to indicate the required size; the caller can then use this
+information to allocate a structure of the correct size (see EXAMPLES
+below).  Some care is needed here as \fBEOVERFLOW\fP can also indicate that no
+file handle is available for this particular name in a filesystem which does
+normally support file\-handle lookup.  This case can be detected when the
+\fBEOVERFLOW\fP error is returned without \fIhandle_bytes\fP being increased.
+.PP
 \fIhandle_bytes\fP フィールドを使用する以外は、 呼び出し元は \fIfile_handle\fP 構造体の内容を意識せずに扱うべきである。
 フィールド \fIhandle_type\fP と \fIf_handle\fP は後で \fBopen_by_handle_at\fP()
 を呼び出す場合にだけ必要である。
-
+.PP
 \fIflags\fP 引き数は、 下記の \fBAT_EMPTY_PATH\fP と \fBAT_SYMLINK_FOLLOW\fP のうち 0
 個以上の論理和を取って構成されるビットマスクである。
-
+.PP
 引き数 \fIpathname\fP と \fIdirfd\fP はその組み合わせでハンドルを取得するファイルを指定する。 以下の 4 つのパターンがある。
 .IP * 3
 \fIpathname\fP が空でない文字列で絶対パス名を含む場合、 このパス名が参照するファイルに対するハンドルが返される。
@@ -99,38 +108,49 @@ struct file_handle {
 には任意の種別のファイルを参照するオープンされたファイルディスクリプターか \fBAT_FDCWD\fP (カレントワーキングディレクトリを意味する)
 を指定でき、 \fIdirfd\fP が参照するファイルに対するハンドルが返される。
 .PP
-\fImount_id\fP 引き数は、 \fIpathname\fP に対応するファイルシステムのマウントの識別子を返す。 この識別子は
-\fI/proc/self/mountinfo\fP のいずれかのレコードの最初のフィールドに対応する。 対応するレコードの 5
-番目のフィールドのパス名をオープンすると、 このマウントポイントのファイルディスクリプターが得られる。 このファイルディスクリプターはこの後の
-\fBopen_by_handle_at\fP() の呼び出しで使用できる。
-
+The \fImount_id\fP argument returns an identifier for the filesystem mount that
+corresponds to \fIpathname\fP.  This corresponds to the first field in one of
+the records in \fI/proc/self/mountinfo\fP.  Opening the pathname in the fifth
+field of that record yields a file descriptor for the mount point; that file
+descriptor can be used in a subsequent call to \fBopen_by_handle_at\fP().
+\fImount_id\fP is returned both for a successful call and for a call that
+results in the error \fBEOVERFLOW\fP.
+.PP
 デフォルトでは、 \fBname_to_handle_at\fP() は \fIpathname\fP がシンボリックリンクの場合にその展開
 (dereference) を行わず、 リンク自身に対するハンドルを返す。 \fBAT_SYMLINK_FOLLOW\fP が \fIflags\fP
 に指定されると、 \fIpathname\fP がシンボリックリンクの場合にリンクの展開が行われる (リンクが参照するファイルに対するハンドルが返される)。
+.PP
+.\" commit 20fa19027286983ab2734b5910c4a687436e0c31
+\fBname_to_handle_at\fP()  does not trigger a mount when the final component of
+the pathname is an automount point.  When a filesystem supports both file
+handles and automount points, a \fBname_to_handle_at\fP()  call on an automount
+point will return with error \fBEOVERFLOW\fP without having increased
+\fIhandle_bytes\fP.  This can happen since Linux 4.13 with NFS when accessing a
+directory which is on a separate filesystem on the server.  In this case,
+the automount can be triggered by adding a "/" to the end of the pathname.
 .SS open_by_handle_at()
 \fBopen_by_handle_at\fP() システムコールは \fIhandle\fP が参照するファイルをオープンする。 \fIhandle\fP は
 前に呼び出した \fBname_to_handle_at\fP() が返したファイルハンドルである。
-
+.PP
 \fImount_fd\fP 引き数は、 \fIhandle\fP がそのファイルシステムに関連すると解釈されるマウントされたファイルシステム内の任意のオブジェクト
 (ファイル、 ディレクトリなど) のファイルディスクリプターである。 特別な値 \fBAT_FDCWD\fP も指定できる。
 この値は呼び出し元のカレントワーキングディレクトリを意味する。
-
+.PP
 引き数 \fIflags\fP は \fBopen\fP(2) と同じである。 \fIhandle\fP がシンボリックリンクを参照している場合、 呼び出し元は
 \fBO_PATH\fP フラグを指定しなければならず、 そのシンボリックリンクは展開されない。 \fBO_NOFOLLOW\fP が指定された場合は、
 \fBO_NOFOLLOW\fP は無視される。
-
-
+.PP
 \fBopen_by_handle_at\fP() を呼び出すには、 呼び出し元が \fBCAP_DAC_READ_SEARCH\fP
 ケーパビリティーを持っていなければならない。
 .SH 返り値
-成功すると、 \fBname_to_handle_at\fP() は 0 を返し、 \fBopen_by_handle_at\fP()
-は負でないファイルディスクリプターを返す。
-
+成功すると、 \fBname_to_handle_at\fP() は 0 を返し、 \fBopen_by_handle_at\fP() はファイルディスクリプター
+(非負の整数) を返す。
+.PP
 エラーの場合、 どちらのシステムコールも \-1 を返し、 \fIerrno\fP にエラーの原因を示す値を設定する。
 .SH エラー
 \fBname_to_handle_at\fP() と \fBopen_by_handle_at\fP() は \fBopenat\fP(2) と同じエラーで失敗する。
 また、 これらのシステムコールは以下のエラーで失敗することもある。
-
+.PP
 \fBname_to_handle_at\fP() は以下のエラーで失敗することがある。
 .TP 
 \fBEFAULT\fP
@@ -182,25 +202,25 @@ struct file_handle {
 で提供されている。
 .SH 準拠
 これらのシステムコールは非標準の Linux の拡張である。
-
+.PP
 FreeBSD には \fBgetfh\fP() と \fBopenfh\fP() というほとんど同じ機能のシステムコールのペアが存在する。
 .SH 注意
 あるプロセスで \fBname_to_handle_at\fP() を使ってファイルハンドルを生成して、 そのハンドルを別のプロセスの
 \fBopen_by_handle_at\fP() で使用することができる。
-
+.PP
 いくつかのファイルシステムでは、 パス名からファイルハンドルへの変換がサポートされていない。 例えば、 \fI/proc\fP, \fI/sys\fP
 や種々のネットワークファイルシステムなどである。
-
+.PP
 ファイルハンドルは、 ファイルが削除されたり、 その他のファイルシステム固有の理由で、 無効 ("stale") になる場合がある。
 無効なハンドルであることは、 \fBopen_by_handle_at\fP() からエラー \fBESTALE\fP が返ることで通知される。
-
+.PP
 .\" https://lwn.net/Articles/375888/
 .\"	"Open by handle" - Jonathan Corbet, 2010-02-23
 これらのシステムコールは、 ユーザー空間のファイルサーバーでの使用を意図して設計されている。 例えば、 ユーザー空間 NFS
 サーバーがファイルハンドルを生成して、 そのハンドルを NFS クライアントに渡すことができる。 その後、
 クライアントがファイルをオープンしようとした際に、 このハンドルをサーバーに送り返すことができる。 このような機能により、
 ユーザー空間ファイルサーバーは、 そのサーバーが提供するファイルに関してステートレスで (状態を保持せずに) 動作することができる。
-
+.PP
 .\" commit bcda76524cd1fa32af748536f27f674a13e56700
 \fIpathname\fP がシンボリックリンクを参照していて、 \fIflags\fP に \fBAT_SYMLINK_FOLLOW\fP が指定されていない場合、
 \fBname_to_handle_at\fP() は (シンボリックが参照するファイルではなく) リンクに対するハンドルを返す。
@@ -212,7 +232,7 @@ FreeBSD には \fBgetfh\fP() と \fBopenfh\fP() というほとんど同じ機�
 ファイルシステムのアンマウント、マウントが行われるに連れて再利用されることがある。 したがって、 \fBname_to_handle_at\fP() (の
 \fI*mount_id\fP) で返されたマウント ID は対応するマウントされたファイルシステムを表す永続的な ID と考えるべきではない。 ただし、
 アプリケーションは、 マウント ID に対応する  \fImountinfo\fP レコードの情報を使うことで、 永続的な ID を得ることができる。
-
+.PP
 .\" e.g., http://stackoverflow.com/questions/6748429/using-libblkid-to-find-uuid-of-a-partition
 例えば、 \fImountinfo\fP レコードの 5 番目のフィールドのデバイス名を使って、 \fI/dev/disks/by\-uuid\fP
 のシンボリックリンク経由で対応するデバイス UUID を検索できる。 (UUID を取得するもっと便利な方法は \fBlibblkid\fP(3)
@@ -223,48 +243,48 @@ FreeBSD には \fBgetfh\fP() と \fBopenfh\fP() というほとんど同じ機�
 の使用例を示したものである。 最初のプログラム (\fIt_name_to_handle_at.c\fP) は \fBname_to_handle_at\fP()
 を使用して、 コマンドライン引き数で指定されたファイルに対応するファイルハンドルとマウント ID を取得する。 ハンドルとマウント ID
 は標準出力に出力される。
-
+.PP
 2 つ目のプログラム (\fIt_open_by_handle_at.c\fP) は、 標準入力からマウント ID とファイルハンドルを読み込む。 それから、
 \fBopen_by_handle_at\fP() を利用して、 そのハンドルを使ってファイルをオープンする。 追加のコマンドライン引き数が指定された場合は、
 \fBopen_by_handle_at\fP() の \fImount_fd\fP 引き数は、 この引き数で渡された名前のディレクトリをオープンして取得する。
 それ以外の場合、 \fI/proc/self/mountinfo\fP からスキャンして標準入力から読み込んだマウント ID に一致するマウント ID
 を検索し、 そのレコードで指定されているマウントディレクトリをオープンして、 \fImount_fd\fP を入手する。 (これらのプログラムではマウント
 ID が永続的ではない点についての対処は行わない。)
-
+.PP
 以下のシェルセッションは、これら 2 つのプログラムの使用例である。
-
+.PP
 .in +4n
-.nf
-$ \fBecho 'Can you please think about it?' > cecilia.txt\fP
+.EX
+$ \fBecho \(aqCan you please think about it?\(aq > cecilia.txt\fP
 $ \fB./t_name_to_handle_at cecilia.txt > fh\fP
 $ \fB./t_open_by_handle_at < fh\fP
 open_by_handle_at: Operation not permitted
 $ \fBsudo ./t_open_by_handle_at < fh\fP      # Need CAP_SYS_ADMIN
 Read 31 bytes
 $ \fBrm cecilia.txt\fP
-.fi
+.EE
 .in
-
+.PP
 .\" Christoph Hellwig: That's why the file handles contain a generation
 .\" counter that gets incremented in this case.
 ここで、 ファイルを削除し (すぐに) 再作成する。 同じ内容で (運がよければ) 同じ inode になる。 この場合でも、
 \fBopen_by_handle_at\fP() はこのファイルハンドルが参照する元のファイルがすでに存在しないことを認識する。
-
+.PP
 .in +4n
-.nf
+.EX
 $ \fBstat \-\-printf="%i\en" cecilia.txt\fP     # Display inode number
 4072121
 $ \fBrm cecilia.txt\fP
-$ \fBecho 'Can you please think about it?' > cecilia.txt\fP
+$ \fBecho \(aqCan you please think about it?\(aq > cecilia.txt\fP
 $ \fBstat \-\-printf="%i\en" cecilia.txt\fP     # Check inode number
 4072121
 $ \fBsudo ./t_open_by_handle_at < fh\fP
 open_by_handle_at: Stale NFS file handle
-.fi
+.EE
 .in
 .SS "プログラムのソース: t_name_to_handle_at.c"
 \&
-.nf
+.EX
 #define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -282,7 +302,7 @@ int
 main(int argc, char *argv[])
 {
     struct file_handle *fhp;
-    int mount_id, fhsize, flags, dirfd, j;
+    int mount_id, fhsize, flags, dirfd;
     char *pathname;
 
     if (argc != 2) {
@@ -313,7 +333,7 @@ main(int argc, char *argv[])
 
     /* file_handle 構造体を正しいサイズに確保し直す */
 
-    fhsize = sizeof(struct file_handle) + fhp\->handle_bytes;
+    fhsize = sizeof(*fhp) + fhp\->handle_bytes;
     fhp = realloc(fhp, fhsize);         /* Copies fhp\->handle_bytes */
     if (fhp == NULL)
         errExit("realloc");
@@ -327,17 +347,17 @@ main(int argc, char *argv[])
        ファイルハンドルのサイズ、ファイルハンドルを標準出力に書き出す */
 
     printf("%d\en", mount_id);
-    printf("%d %d   ", fhp\->handle_bytes, fhp\->handle_type);
-    for (j = 0; j < fhp\->handle_bytes; j++)
+    printf("%u %d   ", fhp\->handle_bytes, fhp\->handle_type);
+    for (int j = 0; j < fhp\->handle_bytes; j++)
         printf(" %02x", fhp\->f_handle[j]);
     printf("\en");
 
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SS "プログラムのソース: t_open_by_handle_at.c"
 \&
-.nf
+.EX
 #define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -403,7 +423,7 @@ int
 main(int argc, char *argv[])
 {
     struct file_handle *fhp;
-    int mount_id, fd, mount_fd, handle_bytes, j;
+    int mount_id, fd, mount_fd, handle_bytes;
     ssize_t nread;
     char buf[1000];
 #define LINE_SIZE 100
@@ -434,7 +454,7 @@ main(int argc, char *argv[])
     /* handle_bytes があれば、
        file_handle 構造体をここで割り当てできる */
 
-    fhp = malloc(sizeof(struct file_handle) + handle_bytes);
+    fhp = malloc(sizeof(*fhp) + handle_bytes);
     if (fhp == NULL)
         errExit("malloc");
 
@@ -442,7 +462,7 @@ main(int argc, char *argv[])
 
     fhp\->handle_type = strtoul(nextp, &nextp, 0);
 
-    for (j = 0; j < fhp\->handle_bytes; j++)
+    for (int j = 0; j < fhp\->handle_bytes; j++)
         fhp\->f_handle[j] = strtoul(nextp, &nextp, 16);
 
     /* マウントポイントのファイルディスクリプターを取得する。
@@ -474,15 +494,14 @@ main(int argc, char *argv[])
 
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SH 関連項目
 \fBopen\fP(2), \fBlibblkid\fP(3), \fBblkid\fP(8), \fBfindfs\fP(8), \fBmount\fP(8)
-
+.PP
 .UR https://www.kernel.org/pub/linux/utils/util\-linux/
 .UE
 で入手できる最新の
 \fIutil\-linux\fP リリースの \fIlibblkid\fP と \fIlibmount\fP のドキュメント。
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

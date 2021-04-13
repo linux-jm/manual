@@ -1,4 +1,5 @@
 .\" Copyright (C) 1997 Andries Brouwer (aeb@cwi.nl)
+.\" and Copyright (C) 2005, 2010, 2014, 2015, Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -38,37 +39,37 @@
 .\" Updated & Modified 2005-11-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SETRESUID 2 2014\-09\-21 Linux "Linux Programmer's Manual"
+.TH SETRESUID 2 2017\-09\-15 Linux "Linux Programmer's Manual"
 .SH 名前
 setresuid, setresgid \- ユーザーやグループの 実、実効、保存 ID を設定する
 .SH 書式
 \fB#define _GNU_SOURCE\fP /* feature_test_macros(7) 参照 */
 .br
 \fB#include <unistd.h>\fP
-.sp
+.PP
 \fBint setresuid(uid_t \fP\fIruid\fP\fB, uid_t \fP\fIeuid\fP\fB, uid_t \fP\fIsuid\fP\fB);\fP
 .br
 \fBint setresgid(gid_t \fP\fIrgid\fP\fB, gid_t \fP\fIegid\fP\fB, gid_t \fP\fIsgid\fP\fB);\fP
 .SH 説明
 \fBsetresuid\fP()  は呼び出し元のプロセスの実 (real) ユーザーID、実効 (effective) ユーザーID、 保存
 set\-user\-ID を設定する。
-
-非特権ユーザーのプロセスは、その実 UID、実効 UID、保存 set\-user\-ID を、 現在の実 UID、現在の実効 UID、現在の保存
+.PP
+非特権プロセスは、その実 UID、実効 UID、保存 set\-user\-ID を、 現在の実 UID、現在の実効 UID、現在の保存
 set\-user\-ID のどれかに変更することができる:
-
-特権プロセス (Linux では \fBCAP_SETUID\fP ケーパビリティ (capability) を持つ プロセス) は、実 UID、実効
+.PP
+特権プロセス (Linux では \fBCAP_SETUID\fP ケーパビリティ (capability) を持つ プロセス) は、自身の実 UID、実効
 UID、保存 set\-user\-ID を任意の値に設定できる。
-
+.PP
 引き数のどれかが \-1 の場合はその値は変更されずに残される。
-
+.PP
 実 UID、実効 UID、保存 set\-user\-ID にどんな変更が行われたかに関わらず、 ファイルシステム UID は常に実効 UID
 (可能であれば変更後の新しい実効 UID)  と同じ値に設定される。
-
+.PP
 全く同じように、 \fBsetresgid\fP()  は呼び出し元のプロセスの実 GID、実効 GID、保存 set\-group\-ID を設定する
 (さらにファイルシステム GID を実効 GID と同じ値に修正する)。 非特権プロセスは同様の制限を受ける。
 .SH 返り値
 成功した場合は 0 が返される。エラーの場合は \-1 が返され、 \fIerrno\fP が適切に設定される。
-
+.PP
 \fI注意\fP: 呼び出し元が UID 0 であっても \fBsetresuid\fP() が失敗する場合がある。 \fBsetresuid\fP()
 からのリターンが失敗かどうかの確認を省略することは重大なセキュリティ上のエラーとなる。
 .SH エラー
@@ -86,7 +87,10 @@ UID、保存 set\-user\-ID を任意の値に設定できる。
 対象のユーザー ID やグループ ID のうち 1 つ以上がこのユーザー名前空間で有効ではない。
 .TP 
 \fBEPERM\fP
-呼び出したプロセスが特権を持たないのに (\fBCAP_SETUID\fP ケーパビリティを持たないのに)、 ID を許されていない値に変更しようとした。
+The calling process is not privileged (did not have the necessary capability
+in its user namespace)  and tried to change the IDs to values that are not
+permitted.  For \fBsetresuid\fP(), the necessary capability is \fBCAP_SETUID\fP;
+for \fBsetresgid\fP(), it is \fBCAP_SETGID\fP.
 .SH バージョン
 Linux ではバージョン 2.1.44 より利用可能になった。
 .SH 準拠
@@ -94,18 +98,27 @@ Linux ではバージョン 2.1.44 より利用可能になった。
 .SH 注意
 HP\-UX や FreeBSD では \fI<unistd.h>\fP にプロトタイプが存在する。
 Linux では、glibc 2.3.2 以降で プロトタイプが提供されている。
-
+.PP
+.\"
 元々の Linux の \fBsetresuid\fP() と \fBsetresgid\fP() システムコールは
 16 ビットのグループ ID だけに対応していた。
 その後、Linux 2.4 で、32 ビットの ID に対応した
 \fBsetresuid32\fP() と \fBsetresgid32\fP() が追加された。
 glibc の \fBsetresuid\fP() と \fBsetresgid\fP() のラッパー関数は
 カーネルバージョンによるこの違いを吸収している。
+.SS "C ライブラリとカーネルの違い"
+At the kernel level, user IDs and group IDs are a per\-thread attribute.
+However, POSIX requires that all threads in a process share the same
+credentials.  The NPTL threading implementation handles the POSIX
+requirements by providing wrapper functions for the various system calls
+that change process UIDs and GIDs.  These wrapper functions (including those
+for \fBsetresuid\fP()  and \fBsetresgid\fP())  employ a signal\-based technique to
+ensure that when one thread changes credentials, all of the other threads in
+the process also change their credentials.  For details, see \fBnptl\fP(7).
 .SH 関連項目
 \fBgetresuid\fP(2), \fBgetuid\fP(2), \fBsetfsgid\fP(2), \fBsetfsuid\fP(2),
 \fBsetreuid\fP(2), \fBsetuid\fP(2), \fBcapabilities\fP(7), \fBcredentials\fP(7),
 \fBuser_namespaces\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

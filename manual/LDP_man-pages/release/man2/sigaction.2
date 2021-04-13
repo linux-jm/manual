@@ -1,4 +1,3 @@
-.\" t
 .\" Copyright (c) 1994,1995 Mike Battersby <mib@deakin.edu.au>
 .\" and Copyright 2004, 2005 Michael Kerrisk <mtk.manpages@gmail.com>
 .\" based on work by faith@cs.unc.edu
@@ -65,24 +64,24 @@
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-07-22, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SIGACTION 2 2015\-01\-22 Linux "Linux Programmer's Manual"
+.TH SIGACTION 2 2020\-12\-21 Linux "Linux Programmer's Manual"
 .SH 名前
-sigaction \- シグナルの動作の確認と変更
+sigaction, rt_sigaction \- シグナルの動作の確認と変更
 .SH 書式
 .nf
 \fB#include <signal.h>\fP
-.sp
+.PP
 \fBint sigaction(int \fP\fIsignum\fP\fB, const struct sigaction *\fP\fIact\fP\fB,\fP
 \fB              struct sigaction *\fP\fIoldact\fP\fB);\fP
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 .ad l
-\fBsigaction\fP(): _POSIX_C_SOURCE\ >=\ 1 || _XOPEN_SOURCE || _POSIX_SOURCE
-
+\fBsigaction\fP(): _POSIX_C_SOURCE
+.PP
 \fIsiginfo_t\fP: _POSIX_C_SOURCE >= 199309L
 .ad b
 .SH 説明
@@ -95,9 +94,9 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 \fIoldact\fP が NULL でなければ、今までの動作が \fIoldact\fP に格納される。
 .PP
 \fIsigaction\fP 構造体は以下のような感じに定義される。
-.sp
+.PP
 .in +4n
-.nf
+.EX
 struct sigaction {
     void     (*sa_handler)(int);
     void     (*sa_sigaction)(int, siginfo_t *, void *);
@@ -105,7 +104,7 @@ struct sigaction {
     int        sa_flags;
     void     (*sa_restorer)(void);
 };
-.fi
+.EE
 .in
 .PP
 アーキテクチャーによっては共用体 (union) が用いられており、その場合には \fIsa_handler\fP と \fIsa_sigaction\fP
@@ -114,15 +113,19 @@ struct sigaction {
 \fIsa_restorer\fP はアプリケーションが使用することを意図したフィールドではない (POSIX は \fIsa_restorer\fP
 フィールドを規定していない)。 このフィールドの詳細な目的については \fBsigreturn\fP(2) に書かれている。
 .PP
-\fIsa_handler\fP は \fIsignum\fP に対応する動作を指定するもので、 デフォルトの動作を行う \fBSIG_DFL\fP、
-そのシグナルを無視する \fBSIG_IGN\fP、 シグナルハンドラー関数へのポインターが設定できる。
-シグナルハンドラー関数の引き数は一つであり、シグナル番号が引き数として 渡される。
+\fIsa_handler\fP specifies the action to be associated with \fIsignum\fP and is be
+one of the following:
+.IP * 2
+\fBSIG_DFL\fP for the default action.
+.IP *
+\fBSIG_IGN\fP to ignore this signal.
+.IP *
+A pointer to a signal handling function.  This function receives the signal
+number as its only argument.
 .PP
-\fIsa_flags\fP に \fBSA_SIGINFO\fP が指定された場合、 (\fIsa_handler\fP ではなく) \fIsa_sigaction\fP
-により \fIsignum\fP に対応するシグナルハンドラー関数が指定される。指定される関数は、最初の引き数としてシグナル番号を、二番目の引き数として
-\fIsiginfo_t\fP へのポインターを、三番目の引き数として (\fIvoid\ *\fP にキャストした) \fIucontext_t\fP
-へのポインターを受けとる。 (一般的には、ハンドラー関数の三番目の引き数が使用されない。\fIucontext_t\fP についての詳しい情報は
-\fBgetcontext\fP(3) を参照。)
+If \fBSA_SIGINFO\fP is specified in \fIsa_flags\fP, then \fIsa_sigaction\fP (instead
+of \fIsa_handler\fP)  specifies the signal\-handling function for \fIsignum\fP.
+This function receives three arguments, as described below.
 .PP
 \fIsa_mask\fP は、シグナルハンドラー実行中に禁止 (block) すべきシグナルのマスクを指定する
 (ハンドラー実行中のシグナルの禁止は、シグナルハンドラーが起動されたスレッド のシグナルのマスクに追加することで行われる)。 さらに、
@@ -130,7 +133,6 @@ struct sigaction {
 .PP
 \fIsa_flags\fP はシグナルハンドラーの動作を変更するためのフラグの集合を指定する。 \fIsa_flags\fP には、以下に示すフラグの (0
 個以上の) 論理和をとったものを指定する。
-.RS 4
 .TP 
 \fBSA_NOCLDSTOP\fP
 \fIsignum\fP が \fBSIGCHLD\fP の場合、 子プロセスが停止したり (子プロセスが \fBSIGSTOP\fP, \fBSIGTSTP\fP,
@@ -142,22 +144,29 @@ struct sigaction {
 (Linux 2.6 以降)  \fIsignum\fP が \fBSIGCHLD\fP の場合、子プロセスが終了したときに
 子プロセスをゾンビプロセスに変化させない (\fBwaitpid\fP(2)  も参照)。 このフラグは、 \fBSIGCHLD\fP
 に対してハンドラーを設定する際、もしくはそのシグナルの処理方法を \fBSIG_DFL\fP に設定する際にのみ意味を持つ。
-
+.IP
 \fBSIGCHLD\fP に対してハンドラーを設定する際に \fBSA_NOCLDWAIT\fP フラグをセットした場合、 子プロセスが終了した際に
 \fBSIGCHLD\fP シグナルが生成されるかどうかは、 POSIX.1 では規定されていない。 Linux では、この状況で \fBSIGCHLD\fP
 シグナルは生成される。 いくつかの他の実装では生成されない。
 .TP 
 \fBSA_NODEFER\fP
-それ自身のシグナルハンドラーの内部にいる時でも そのシグナルをマスクしないようにする。 このフラグはシグナルハンドラーを設定する際にのみ意味を持つ。
-\fBSA_NOMASK\fP はこのフラグと同じ意味だが、廃止されており、非標準である。
+Do not add the signal to the thread's signal mask while the handler is
+executing, unless the signal is specified in \fIact.sa_mask\fP.  Consequently,
+a further instance of the signal may be delivered to the thread while it is
+executing the handler.  This flag is meaningful only when establishing a
+signal handler.
+.IP
+\fBSA_NOMASK\fP is an obsolete, nonstandard synonym for this flag.
 .TP 
 \fBSA_ONSTACK\fP
 \fBsigaltstack\fP(2)  で提供される別のシグナルスタックでシグナルハンドラーを呼び出す。
 別のシグナルスタックが利用可能でなければ、デフォルトのスタックが 使用される。 このフラグはシグナルハンドラーを設定する際にのみ意味を持つ。
 .TP 
 \fBSA_RESETHAND\fP
-シグナルハンドラーを設定する際に、シグナルの動作をデフォルトに戻す。 このフラグはシグナルハンドラーを設定する際にのみ意味を持つ。
-\fBSA_ONESHOT\fP はこのフラグと同じ意味だが、廃止されており、非標準である。
+Restore the signal action to the default upon entry to the signal handler.
+This flag is meaningful only when establishing a signal handler.
+.IP
+\fBSA_ONESHOT\fP is an obsolete, nonstandard synonym for this flag.
 .TP 
 \fBSA_RESTART\fP
 いくつかのシステムコールをシグナルの通知の前後で再開できるようにして、 BSD シグナル方式 (semantics) と互換性のある動作を提供する。
@@ -171,17 +180,49 @@ trampoline" のアドレスが入っていることを示すために使用さ�
 .\" (The
 .\" .I sa_sigaction
 .\" field was added in Linux 2.1.86.)
+.\"
 シグナルハンドラーは一つではなく、三つの引き数を持つ。この場合は \fIsa_handler\fP のかわりに \fIsa_sigaction\fP
 を設定しなければならない このフラグはシグナルハンドラーを設定する際にのみ意味を持つ。
-.RE
+.SS "The siginfo_t argument to a SA_SIGINFO handler"
+When the \fBSA_SIGINFO\fP flag is specified in \fIact.sa_flags\fP, the signal
+handler address is passed via the \fIact.sa_sigaction\fP field.  This handler
+takes three arguments, as follows:
 .PP
-\fIsa_sigaction\fP のパラメーター \fIsiginfo_t\fP は以下のフィールドを持つ構造体である:
-.sp
 .in +4n
-.nf
+.EX
+void
+handler(int sig, siginfo_t *info, void *ucontext)
+{
+    ...
+}
+.EE
+.in
+.PP
+These three arguments are as follows
+.TP 
+\fIsig\fP
+The number of the signal that caused invocation of the handler.
+.TP 
+\fIinfo\fP
+A pointer to a \fIsiginfo_t\fP, which is a structure containing further
+information about the signal, as described below.
+.TP 
+\fIucontext\fP
+This is a pointer to a \fIucontext_t\fP structure, cast to \fIvoid\ *\fP.  The
+structure pointed to by this field contains signal context information that
+was saved on the user\-space stack by the kernel; for details, see
+\fBsigreturn\fP(2).  Further information about the \fIucontext_t\fP structure can
+be found in \fBgetcontext\fP(3)  and \fBsignal\fP(7).  Commonly, the handler
+function doesn't make any use of the third argument.
+.PP
+The \fIsiginfo_t\fP data type is a structure with the following fields:
+.PP
+.in +4n
+.EX
 .\" FIXME
-.\" The siginfo_t 'si_trapno' field seems to be used only on SPARC and Alpha;
-.\" this page could use a little more detail on its purpose there.
+.\" The siginfo_t 'si_trapno' field seems to be used
+.\" only on SPARC and Alpha; this page could use
+.\" a little more detail on its purpose there.
 .\" In the kernel: si_tid
 siginfo_t {
     int      si_signo;     /* Signal number */
@@ -195,7 +236,7 @@ siginfo_t {
     int      si_status;    /* Exit value or signal */
     clock_t  si_utime;     /* User time consumed */
     clock_t  si_stime;     /* System time consumed */
-    sigval_t si_value;     /* Signal value */
+    union sigval si_value; /* Signal value */
     int      si_int;       /* POSIX.1b signal */
     void    *si_ptr;       /* POSIX.1b signal */
     int      si_overrun;   /* Timer overrun count;
@@ -207,6 +248,12 @@ siginfo_t {
     int      si_fd;        /* File descriptor */
     short    si_addr_lsb;  /* Least significant bit of address
                               (since Linux 2.6.32) */
+    void    *si_lower;     /* Lower bound when address violation
+                              occurred (since Linux 3.19) */
+    void    *si_upper;     /* Upper bound when address violation
+                              occurred (since Linux 3.19) */
+    int      si_pkey;      /* Protection key on PTE that caused
+                              fault (since Linux 4.6) */
     void    *si_call_addr; /* Address of system call instruction
                               (since Linux 3.5) */
     int      si_syscall;   /* Number of attempted system call
@@ -214,9 +261,9 @@ siginfo_t {
     unsigned int si_arch;  /* Architecture of attempted system call
                               (since Linux 3.5) */
 }
-.fi
+.EE
 .in
-
+.PP
 \fIsi_signo\fP, \fIsi_errno\fP, \fIsi_code\fP は全てのシグナルに対して定義されている (\fIsi_errno\fP は
 Linux では一般的には使用されない)。 構造体の残りの部分は、共用体 (union) になっているかもしれない。
 その場合は該当するシグナルにおいて意味のあるフィールドのみを読み込む ことができる。
@@ -239,7 +286,7 @@ POSIX.1b タイマー (Linux 2.6 以降) は \fIsi_overrun\fP と \fIsi_timerid\
 .\" measurement unit was HZ, which was the same as clock ticks
 .\" (sysconf(_SC_CLK_TCK)).  In 2.6, HZ became configurable, and
 .\" was *still* used as the unit to return the info these fields,
-.\" with the result that the field values depended on the the
+.\" with the result that the field values depended on the
 .\" configured HZ.  Of course, the should have been measured in
 .\" USER_HZ instead, so that sysconf(_SC_CLK_TCK) could be used to
 .\" convert to seconds.  I have a queued patch to fix this:
@@ -260,6 +307,7 @@ jiffy であった (\fBtime\fP(7) 参照)。
 .IP *
 \fBSIGILL\fP, \fBSIGFPE\fP, \fBSIGSEGV\fP, \fBSIGBUS\fP, \fBSIGTRAP\fP では、 \fIsi_addr\fP に
 fault が発生したアドレスが設定される。 いくつかのアーキテクチャーでは、 これらのシグナルは \fIsi_trapno\fP フィールドにも設定される。
+.IP
 \fBSIGBUS\fP が発生するエラーのいくつか、特に \fBBUS_MCEERR_AO\fP と \fBBUS_MCEERR_AR\fP では、
 \fIsi_addr_lsb\fP も設定される。 このフィールドは報告されるアドレスの最下位ビットを示し、 これによりメモリー破壊の程度を知ることができる。
 例えば、ページ全体が壊れている場合には \fIsi_addr_lsb\fP には \fIlog2(sysconf(_SC_PAGESIZE))\fP が入る。
@@ -267,23 +315,50 @@ fault が発生したアドレスが設定される。 いくつかのアーキ�
 は設定されないが、 \fIsi_pid\fP と \fIsi_uid\fP にはトラップの配送に責任を負うプロセス ID とユーザー ID がそれぞれ格納される。
 \fBseccomp\fP(2) の場合、 トレース対象はイベントを配送した元として示される。 \fBBUS_MCEERR_*\fP と
 \fIsi_addr_lsb\fP は Linux 固有の拡張である。
+.IP
+The \fBSEGV_BNDERR\fP suberror of \fBSIGSEGV\fP populates \fIsi_lower\fP and
+\fIsi_upper\fP.
+.IP
+The \fBSEGV_PKUERR\fP suberror of \fBSIGSEGV\fP populates \fIsi_pkey\fP.
 .IP *
 \fBSIGIO\fP/\fBSIGPOLL\fP (2 つの名前は Linux では同義語) では \fIsi_band\fP と \fIsi_fd\fP が設定される。
 \fIsi_band\fP イベントは、 \fBpoll\fP(2) が \fIrevents\fP フィールドに設定するのと同じ値が入ったビットマスクである。
-\fIsi_fd\fP フィールドは I/O イベントが発生したファイルディスクリプターを示す。
+\fIsi_fd\fP フィールドは I/O イベントが発生したファイルディスクリプターを示す。詳細については \fBfcntl\fP(2) の
+\fBF_SETSIG\fP の説明を参照のこと。
 .IP *
 .\" commit a0727e8ce513fe6890416da960181ceb10fbfae6
+.\"
 seccomp フィルターが \fBSECCOMP_RET_TRAP\fP を返す際に (Linux 3.5 以降で) 生成される \fBSIGSYS\fP
 シグナルでは、 \fIsi_call_addr\fP, \fIsi_syscall\fP, \fIsi_arch\fP, \fIsi_arch\fP や
 \fBseccomp\fP(2) で説明されている他のフィールドが設定される。
+.SS "The si_code field"
+The \fIsi_code\fP field inside the \fIsiginfo_t\fP argument that is passed to a
+\fBSA_SIGINFO\fP signal handler is a value (not a bit mask)  indicating why
+this signal was sent.  For a \fBptrace\fP(2)  event, \fIsi_code\fP will contain
+\fBSIGTRAP\fP and have the ptrace event in the high byte:
 .PP
-\fIsi_code\fP は、そのシグナルが送信された理由を示す値である (ビットマスクではない)。 \fBptrace\fP(2) イベントでは、
-\fIsi_code\fP には \fBSIGTRAP\fP が入り、 上位バイトには ptrace イベントが入る。
-
-.nf
-    (SIGTRAP | PTRACE_EVENT_foo << 8).
-.fi
-
+.in +4n
+.EX
+(SIGTRAP | PTRACE_EVENT_foo << 8).
+.EE
+.in
+.PP
+For a non\-\fBptrace\fP(2)  event, the values that can appear in \fIsi_code\fP are
+described in the remainder of this section.  Since glibc 2.20, the
+definitions of most of these symbols are obtained from \fI<signal.h>\fP
+by defining feature test macros (before including \fIany\fP header file) as
+follows:
+.IP * 3
+\fB_XOPEN_SOURCE\fP with the value 500 or greater;
+.IP *
+\fB_XOPEN_SOURCE\fP and \fB_XOPEN_SOURCE_EXTENDED\fP; or
+.IP *
+\fB_POSIX_C_SOURCE\fP with the value 200809L or greater.
+.PP
+For the \fBTRAP_*\fP constants, the symbol definitions are provided only in the
+first two cases.  Before glibc 2.20, no feature test macros were required to
+obtain these symbols.
+.PP
 通常のシグナルの場合には、 以下のリストに示す値がどのシグナルの場合でも \fIsi_code\fP に入りうる。シグナルが生成された理由も記載している。
 .RS 4
 .TP 
@@ -380,6 +455,15 @@ POSIX メッセージキューの状態が変化した; \fBmq_notify\fP(3) 参�
 .TP 
 \fBSEGV_ACCERR\fP
 マッピングされたオブジェクトに対するアクセス許可がない
+.TP 
+\fBSEGV_BNDERR\fP (Linux 3.19 以降)
+.\" commit ee1b58d36aa1b5a79eaba11f5c3633c88231da83
+Failed address bound checks.
+.TP 
+\fBSEGV_PKUERR\fP (Linux 4.6 以降)
+.\" commit cd0ea35ff5511cde299a61c21a95889b4a71464e
+Access was denied by memory protection keys.  See \fBpkeys\fP(7).  The
+protection key which applied to this access is available via \fIsi_pkey\fP.
 .RE
 .PP
 \fBSIGBUS\fP シグナルの場合、 \fIsi_code\fP には以下の値が入る可能性がある:
@@ -410,10 +494,10 @@ POSIX メッセージキューの状態が変化した; \fBmq_notify\fP(3) 参�
 \fBTRAP_TRACE\fP
 プロセスのトレーストラップ
 .TP 
-\fBTRAP_BRANCH\fP (Linux 2.4 以降)
+\fBTRAP_BRANCH\fP (Linux 2.4 以降, IA64 のみ)
 プロセスのブランチトラップ
 .TP 
-\fBTRAP_HWBKPT\fP (Linux 2.4 以降)
+\fBTRAP_HWBKPT\fP (Linux 2.4 以降, IA64 のみ)
 ハードウェアのブレークポイント/ウォッチポイント
 .RE
 .PP
@@ -479,24 +563,25 @@ I/O エラー
 に対する動作を変更しようとした場合にも発生する。
 .SH 準拠
 .\" SVr4 does not document the EINTR condition.
-POSIX.1\-2001, SVr4.
+POSIX.1\-2001, POSIX.1\-2008, SVr4.
 .SH 注意
 \fBfork\fP(2) 経由で作成された子プロセスは、親プロセスのシグナルの処理方法の コピーを継承する。 \fBexecve\fP(2)
 の前後で、ハンドラーが設定されているシグナルの処理方法はデフォルトにリセットされ、 無視が設定されているシグナルの処理方法は変更されずそのままとなる。
-
+.PP
 POSIX では、 \fBkill\fP(2)  や \fBraise\fP(3)  で生成できないシグナル \fBSIGFPE\fP, \fBSIGILL\fP,
 \fBSIGSEGV\fP を無視 (ignore) した場合、その後の動作は未定義である。 ゼロによる整数割り算の結果は未定義となる。
 アーキテクチャーによっては、このとき \fBSIGFPE\fP シグナルが生成される。 (同様に負の最大整数を \-1 で割ると \fBSIGFPE\fP
 が生成されるかもしれない)  このシグナルを無視すると無限ループに陥るかもしれない。
 .PP
 POSIX.1\-1990 では \fBSIGCHLD\fP に \fBSIG_IGN\fP を設定することを認めていない。 POSIX.1\-2001
-では認められており、 \fBSIGCHLD\fP を無視することでゾンビプロセスの生成を防止することができる (\fBwait\fP(2)  を参照)。
+とそれ以降では認められており、 \fBSIGCHLD\fP を無視することでゾンビプロセスの生成を防止することができる (\fBwait\fP(2)  を参照)。
 さらに、BSD と System\ V では \fBSIGCHLD\fP を無視した際の動作が異なっている。
 そのため、完全に移植性がある方法で、終了した子プロセスがゾンビにならないこと を保証するには、 \fBSIGCHLD\fP シグナルを補足し、
 \fBwait\fP(2)  などを実行するしかない。
 .PP
 POSIX.1\-1990 の仕様では \fBSA_NOCLDSTOP\fP のみが定義されている。 POSIX.1\-2001 では
-\fBSA_NOCLDWAIT\fP, \fBSA_RESETHAND\fP, \fBSA_NODEFER\fP, \fBSA_SIGINFO\fP が追加された。 UNIX
+\fBSA_NOCLDSTOP\fP, \fBSA_NOCLDWAIT\fP, \fBSA_NODEFER\fP, \fBSA_ONSTACK\fP,
+\fBSA_RESETHAND\fP, \fBSA_RESTART\fP, \fBSA_SIGINFO\fP が追加された。 UNIX
 の古い実装で動かすアプリケーションで、 他の \fIsa_flags\fP フラグを使用すると移植性が下がる。
 .PP
 \fBSA_RESETHAND\fP フラグは SVr4 の同じ名前のフラグと互換性がある。
@@ -512,24 +597,57 @@ POSIX.1\-1990 の仕様では \fBSA_NOCLDSTOP\fP のみが定義されている�
 .PP
 シグナル集合の操作に関する詳細は \fBsigsetops\fP(3)  を参照のこと。
 .PP
+.\"
 シグナルハンドラー内から安全に呼び出すことができる、 async\-signal\-safe functions (非同期シグナルで安全な関数) の
-リストについては \fBsignal\fP(7)  を参照。
+リストについては \fBsignal\-safety\fP(7)  を参照。
+.SS "C ライブラリとカーネルの違い"
+The glibc wrapper function for \fBsigaction\fP()  gives an error (\fBEINVAL\fP)
+on attempts to change the disposition of the two real\-time signals used
+internally by the NPTL threading implementation.  See \fBnptl\fP(7)  for
+details.
+.PP
+On architectures where the signal trampoline resides in the C library, the
+glibc wrapper function for \fBsigaction\fP()  places the address of the
+trampoline code in the \fIact.sa_restorer\fP field and sets the \fBSA_RESTORER\fP
+flag in the \fIact.sa_flags\fP field.  See \fBsigreturn\fP(2).
+.PP
+.\"
+The original Linux system call was named \fBsigaction\fP().  However, with the
+addition of real\-time signals in Linux 2.2, the fixed\-size, 32\-bit
+\fIsigset_t\fP type supported by that system call was no longer fit for
+purpose.  Consequently, a new system call, \fBrt_sigaction\fP(), was added to
+support an enlarged \fIsigset_t\fP type.  The new system call takes a fourth
+argument, \fIsize_t sigsetsize\fP, which specifies the size in bytes of the
+signal sets in \fIact.sa_mask\fP and \fIoldact.sa_mask\fP.  This argument is
+currently required to have the value \fIsizeof(sigset_t)\fP (or the error
+\fBEINVAL\fP results).  The glibc \fBsigaction\fP()  wrapper function hides these
+details from us, transparently calling \fBrt_sigaction\fP()  when the kernel
+provides it.
 .SS 非公式
-\fBSA_SIGINFO\fP が導入される前は、 \fIstruct sigcontext\fP 型の二番目の引き数と一緒に \fIsa_handler\fP
-を使用することで、 いくつかの追加の情報を入手することができた。 詳細については Linux カーネルソースの関連部分を見てほしい。
-現在はこの使用法は廃止されている。
+Before the introduction of \fBSA_SIGINFO\fP, it was also possible to get some
+additional information about the signal.  This was done by providing an
+\fIsa_handler\fP signal handler with a second argument of type \fIstruct
+sigcontext\fP, which is the same structure as the one that is passed in the
+\fIuc_mcontext\fP field of the \fIucontext\fP structure that is passed (via a
+pointer) in the third argument of the \fIsa_sigaction\fP handler.  See the
+relevant Linux kernel sources for details.  This use is obsolete now.
 .SH バグ
+When delivering a signal with a \fBSA_SIGINFO\fP handler, the kernel does not
+always provide meaningful values for all of the fields of the \fIsiginfo_t\fP
+that are relevant for that signal.
+.PP
+.\" commit 69be8f189653cd81aae5a74e26615b12871bb72e
 2.6.13 以前のカーネルでは、 \fIsa_flags\fP に \fBSA_NODEFER\fP を指定した場合、
 ハンドラーが実行中に配送されたシグナル自身がマスクされなくなるだけでなく、 \fIsa_mask\fP に指定されたシグナルもマスクされなくなる。
 このバグは、カーネル 2.6.14 で修正された。
 .SH 例
 \fBmprotect\fP(2)  参照。
 .SH 関連項目
-\fBkill\fP(1), \fBkill\fP(2), \fBkillpg\fP(2), \fBpause\fP(2), \fBrestart_syscall\fP(2),
-\fBseccomp\fP(2)  \fBsigaltstack\fP(2), \fBsignal\fP(2), \fBsignalfd\fP(2),
-\fBsigpending\fP(2), \fBsigreturn\fP(2), \fBsigprocmask\fP(2), \fBsigsuspend\fP(2),
-\fBwait\fP(2), \fBraise\fP(3), \fBsiginterrupt\fP(3), \fBsigqueue\fP(3),
-\fBsigsetops\fP(3), \fBsigvec\fP(3), \fBcore\fP(5), \fBsignal\fP(7)
+\fBkill\fP(1), \fBkill\fP(2), \fBpause\fP(2), \fBpidfd_send_signal\fP(2),
+\fBrestart_syscall\fP(2), \fBseccomp\fP(2), \fBsigaltstack\fP(2), \fBsignal\fP(2),
+\fBsignalfd\fP(2), \fBsigpending\fP(2), \fBsigprocmask\fP(2), \fBsigreturn\fP(2),
+\fBsigsuspend\fP(2), \fBwait\fP(2), \fBkillpg\fP(3), \fBraise\fP(3), \fBsiginterrupt\fP(3),
+\fBsigqueue\fP(3), \fBsigsetops\fP(3), \fBsigvec\fP(3), \fBcore\fP(5), \fBsignal\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部である。
-プロジェクトの説明とバグ報告に関する情報は \%http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

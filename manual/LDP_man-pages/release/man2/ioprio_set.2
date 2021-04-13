@@ -33,7 +33,7 @@
 .\" Updated 2008-08-06, Akihiro MOTOKI, LDP v3.05
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH IOPRIO_SET 2 2013\-02\-12 Linux "Linux Programmer's Manual"
+.TH IOPRIO_SET 2 2019\-03\-06 Linux "Linux Programmer's Manual"
 .SH 名前
 ioprio_get, ioprio_set \- I/O スケジューリングクラスと優先度の設定/取得
 .SH 書式
@@ -41,12 +41,12 @@ ioprio_get, ioprio_set \- I/O スケジューリングクラスと優先度の�
 \fBint ioprio_get(int \fP\fIwhich\fP\fB, int \fP\fIwho\fP\fB);\fP
 \fBint ioprio_set(int \fP\fIwhich\fP\fB, int \fP\fIwho\fP\fB, int \fP\fIioprio\fP\fB);\fP
 .fi
-
+.PP
 \fI注意\fP: これらのシステムコールには glibc ラッパー関数は存在しない。 「注意」の節を参照。
 .SH 説明
 システムコール \fBioprio_get\fP()  / \fBioprio_set\fP()  は、(1つ以上の) スレッドの I/O スケジューリングクラスと
 優先度の取得/設定を行う。
-
+.PP
 \fIwhich\fP と \fIwho\fP 引き数でシステムコールの操作対象となるスレッドを指示する。 \fIwhich\fP 引き数は、 \fIwho\fP
 をどのように解釈するかを決めるもので、以下のいずれか一つを指定する。
 .TP 
@@ -68,7 +68,7 @@ ioprio_get, ioprio_set \- I/O スケジューリングクラスと優先度の�
 優先度が高いとは、より高い優先度クラスに属している (\fBIOPRIO_CLASS_RT\fP が最も高い優先度クラスで、
 \fBIOPRIO_CLASS_IDLE\fP が最も低い)、もしくは 同じ優先度クラスに属しているが優先度レベルが高い
 (優先度番号が小さい方が優先度レベルが高いことを意味する)、 ということである。
-
+.PP
 \fBioprio_set\fP()  に渡す \fIioprio\fP 引き数は、対象となるプロセスに割り当てるスケジューリングクラスと
 優先度の両方を指定するビットマスクである。 \fIioprio\fP の値を組み立てたり解釈するのに、以下のマクロが利用できる。
 .TP 
@@ -83,8 +83,9 @@ ioprio_get, ioprio_set \- I/O スケジューリングクラスと優先度の�
 \fBIOPRIO_PRIO_DATA(\fP\fImask\fP\fB)\fP
 \fImask\fP (\fIioprio\fP 値) を与えると、このマクロは優先度 (\fIdata\fP)  要素を返す。
 .PP
-スケジューリングクラスと優先度に関する詳しい情報は、 「備考」の節を参照のこと。
-
+See the NOTES section for more information on scheduling classes and
+priorities, as well as the meaning of specifying \fIioprio\fP as 0.
+.PP
 I/O 優先度は読み出しと同期書き込み (\fBO_DIRECT\fP, \fBO_SYNC\fP)  に対応している。 I/O
 優先度は非同期書き込みには対応していない。なぜなら、 非同期書き込みはメモリー書き換えを行うプログラムの動作 (context) とは
 関係なく発行され、そのためプログラム単位の優先度は適用されないから である。
@@ -111,39 +112,48 @@ I/O 優先度は読み出しと同期書き込み (\fBO_DIRECT\fP, \fBO_SYNC\fP)
 これらのシステムコールは Linux 独自である。
 .SH 注意
 glibc はこれらのシステムコールに対するラッパー関数を提供していない。 \fBsyscall\fP(2)  を使って呼び出すこと。
-
+.PP
 複数のプロセスやスレッドが一つの I/O コンテキストを共有する場合がある。 \fBclone\fP(2) を \fBCLONE_IO\fP
 フラグ付きで呼び出した場合にはこの状況となる。 しかしながら、デフォルトでは、一つのプロセスの個々のスレッドは I/O コンテキストを共有「しない」。
 したがって、 プロセス内のすべてのスレッドの I/O 優先度を変更したい場合には、 それぞれのスレッドに対して \fBioprio_set\fP()
 を呼び出す必要がある。 この操作を行うのに必要となるスレッド ID には \fBgettid\fP(2) か \fBclone\fP(2) が返す値を指定する。
-
+.PP
 これらのシステムコールは、I/O 優先度に対応した I/O スケジューラと 組み合わせて使用された場合にのみ効果を持つ。 カーネル 2.6.17
 では、この条件を満たすスケジューラは Completely Fair Queuing (CFQ) I/O スケジューラだけである。
+.PP
+.\" commit 8ec680e4c3ec818efd1652f15199ed1c216ab550
+If no I/O scheduler has been set for a thread, then by default the I/O
+priority will follow the CPU nice value (\fBsetpriority\fP(2)).  In Linux
+kernels before version 2.6.24, once an I/O priority had been set using
+\fBioprio_set\fP(), there was no way to reset the I/O scheduling behavior to
+the default.  Since Linux 2.6.24, specifying \fIioprio\fP as 0 can be used to
+reset to the default I/O scheduling behavior.
 .SS "I/O スケジューラの選択"
 I/O スケジューラの選択はデバイス単位に行われ、その選択は スペシャルファイル
 \fI/sys/block/<device>/queue/scheduler\fP 経由で行われる。
-
+.PP
 現在の I/O スケジューラは \fI/sys\fP ファイルシステム経由で参照できる。例えば、以下のコマンドを実行すると、
 現在カーネルでロードされているスケジューラの全リストが表示される。
-.sp
-.RS
-.nf
-$\fB cat /sys/block/hda/queue/scheduler\fP
+.PP
+.in +4n
+.EX
+$\fB cat /sys/block/sda/queue/scheduler\fP
 noop anticipatory deadline [cfq]
-.fi
-.RE
-.sp
-括弧で囲まれたスケジューラがそのデバイス (上の例では \fIhda\fP)  について実際に使用されているスケジューラである。
-別のスケジューラを設定するには、このファイルに新しいスケジューラ名を 書き込めばよい。例えば、以下のコマンドを実行すると、デバイス \fIhda\fP
+.EE
+.in
+.PP
+括弧で囲まれたスケジューラがそのデバイス (上の例では \fIsda\fP)  について実際に使用されているスケジューラである。
+別のスケジューラを設定するには、このファイルに新しいスケジューラ名を 書き込めばよい。例えば、以下のコマンドを実行すると、デバイス \fIsda\fP
 のスケジューラとして \fIcfq\fP が設定される。
-.sp
-.RS
-.nf
+.PP
+.in +4n
+.EX
 $\fB su\fP
 Password:
-#\fB echo cfq > /sys/block/hda/queue/scheduler\fP
-.fi
-.RE
+#\fB echo cfq > /sys/block/sda/queue/scheduler\fP
+.EE
+.in
+.\"
 .SS "Completely Fair Queuing (CFQ) I/O スケジューラ"
 バージョン 3 (別名 CFQ Time Sliced) 以降、 CPU スケジューリングと同様の I/O nice レベルが CFQ
 に実装されている。 これらの nice レベルは 3つのスケジューリングクラスに分類でき、 各スケジューリングクラスにつき
@@ -168,10 +178,10 @@ nice 値 (\fBgetpriority\fP(2)  参照) と同様のものである。 優先度
 時間を取得する。 idle クラスには class data (優先度) は用意されていない。 プロセスにこの優先度を割り当てる際には注意が必要である。
 なぜなら、優先度の高いプロセスが常にディスクにアクセスしている場合には ディスクにアクセスできなくなる可能性があるからだ。
 .PP
-CFQ I/O スケジューラの更なる情報とサンプルプログラムについては \fIDocumentation/block/ioprio.txt\fP
-を参照のこと。
+CFQ I/O スケジューラの更なる情報とサンプルプログラムについては、カーネルのソースファイル
+\fIDocumentation/block/ioprio.txt\fP を参照のこと。
 .SS "I/O 優先度の設定に必要な許可"
-プロセスの優先度を変更する許可が得られるかどうかは 以下の 2つの条件に基いて決定される。
+プロセスの優先度を変更する許可が得られるかどうかは 以下の 2 つの基準に基いて決定される。
 .TP 
 \fBプロセスの所有権\fP
 非特権プロセスは、プロセスの実 UID が呼び出し元プロセスの実 UID もしくは 実効 UID と一致するプロセスの I/O 優先度のみを設定できる。
@@ -191,10 +201,10 @@ CFQ I/O スケジューラの更なる情報とサンプルプログラムにつ
 glibc は、このページに記載された関数プロトタイプやマクロを定義する 適切なヘッダーファイルをまだ提供していない。 必要な定義については
 \fIlinux/ioprio.h\fP を見ればよい。
 .SH 関連項目
-\fBionice\fP(1), \fBgetpriority\fP(2), \fBopen\fP(2), \fBcapabilities\fP(7)
-
+\fBionice\fP(1), \fBgetpriority\fP(2), \fBopen\fP(2), \fBcapabilities\fP(7),
+\fBcgroups\fP(7)
+.PP
 Linux カーネルソース内の \fIDocumentation/block/ioprio.txt\fP
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

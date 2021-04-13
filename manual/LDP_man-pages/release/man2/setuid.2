@@ -1,4 +1,5 @@
 .\" Copyright (C), 1994, Graeme W. Wilford (Wilf).
+.\" and Copyright (C) 2010, 2014, 2015, Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -45,33 +46,35 @@
 .\" Updated 2010-04-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.24
 .\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SETUID 2 2014\-09\-21 Linux "Linux Programmer's Manual"
+.TH SETUID 2 2019\-03\-06 Linux "Linux Programmer's Manual"
 .SH 名前
 setuid \- ユーザー識別 (identity) を設定する
 .SH 書式
 \fB#include <sys/types.h>\fP
 .br
 \fB#include <unistd.h>\fP
-.sp
+.PP
 \fBint setuid(uid_t \fP\fIuid\fP\fB);\fP
 .SH 説明
-\fBsetuid\fP()  は呼び出し元のプロセスの実効 (effective) ユーザー ID を設定する。 もし呼び出し元プロセスの実効 UID が
-root ならば、 実 (real) UID と保存 (saved) set\-user\-ID も設定される。
+\fBsetuid\fP()  sets the effective user ID of the calling process.  If the
+calling process is privileged (more precisely: if the process has the
+\fBCAP_SETUID\fP capability in its user namespace), the real UID and saved
+set\-user\-ID are also set.
 .PP
 Linux では、 \fBsetuid\fP()  は \fB_POSIX_SAVED_IDS\fP をもった POSIX 版のように実装されている。 これは
 (ルート以外の) set\-user\-ID プログラムにそのユーザーの特権を 全て与え、特権の必要ない仕事をし、本来の実効ユーザー ID に
 安全な方法で再び戻すことを許す。
 .PP
 ユーザーが root またはプログラムが root に set\-user\-ID されているならば、 特別の注意が払われる。 \fBsetuid\fP()
-関数は呼び出し者の実効ユーザー ID をチェックし、 それがスーパーユーザーならば、 プロセスに関連する全てのユーザー ID に \fIuid\fP
-を設定する。 これが行なわれた後にはプログラムが再びルートの特権を得ることはできない。
+は呼び出し者の実効ユーザー ID をチェックし、 それがスーパーユーザーならば、 プロセスに関連する全てのユーザー ID に \fIuid\fP を設定する。
+これが行なわれた後にはプログラムが再びルートの特権を得ることはできない。
 .PP
 したがって、set\-user\-ID\-root プログラムで、一時的にルート特権を解除し、
 非特権ユーザーであるかのように振舞い、後でルート権限をもう一度得ようと する場合には、 \fBsetuid\fP()  を使うことができない。その場合には、
 \fBseteuid\fP(2)  を使う必要がある。
 .SH 返り値
 成功した場合は 0 が返される。エラーの場合は \-1 が返され、 \fIerrno\fP が適切に設定される。
-
+.PP
 \fI注意\fP: 呼び出し元が UID 0 であっても \fBsetuid\fP() が失敗する場合がある。 \fBsetuid\fP()
 からのリターンが失敗かどうかの確認を省略することは重大なセキュリティ上のエラーとなる。
 .SH エラー
@@ -89,12 +92,12 @@ Linux では、 \fBsetuid\fP()  は \fB_POSIX_SAVED_IDS\fP をもった POSIX �
 \fIuid\fP で指定されたユーザー ID がこのユーザー名前空間では有効ではない。
 .TP 
 \fBEPERM\fP
-ユーザーが特権を持たず (Linux では \fBCAP_SETUID\fP ケーパビリティ (capability) を持たず)、 \fIuid\fP
-が呼び出し元プロセスの実 UID または保存 set\-user\-ID と一致しない。
+ユーザーが特権を持たず (Linux ではそのユーザー名前空間で \fBCAP_SETUID\fP ケーパビリティ (capability) を持たず)、
+\fIuid\fP が呼び出し元プロセスの実 UID または保存 set\-user\-ID と一致しない。
 .SH 準拠
 .\" SVr4 documents an additional EINVAL error condition.
-SVr4, POSIX.1\-2001.  4.4BSD のコールとは完全な互換性はない、 BSD のコールは実 (real)、保存 (saved)、実効
-(effective) ID の全てを設定する。
+POSIX.1\-2001, POSIX.1\-2008, SVr4.  4.4BSD のコールとは完全な互換性はない、 BSD のコールは実
+(real)、保存 (saved)、実効 (effective) ID の全てを設定する。
 .SH 注意
 Linux はファイルシステムユーザー ID の概念を持つ。
 通常、これは実効ユーザー ID に等しい。
@@ -104,17 +107,26 @@ Linux はファイルシステムユーザー ID の概念を持つ。
 .PP
 \fIuid\fP が前の実効 UID と異っていた場合、
 プロセスはコアダンプすることを禁止される。
-
+.PP
+.\"
 元々の Linux の \fBsetuid\fP() システムコールは
 16 ビットのグループ ID だけに対応していた。
 その後、Linux 2.4 で、32 ビットの ID に対応した
 \fBsetuid32\fP() が追加された。
 glibc の \fBsetuid\fP() のラッパー関数は
 カーネルバージョンによるこの違いを吸収している。
+.SS "C ライブラリとカーネルの違い"
+At the kernel level, user IDs and group IDs are a per\-thread attribute.
+However, POSIX requires that all threads in a process share the same
+credentials.  The NPTL threading implementation handles the POSIX
+requirements by providing wrapper functions for the various system calls
+that change process UIDs and GIDs.  These wrapper functions (including the
+one for \fBsetuid\fP())  employ a signal\-based technique to ensure that when
+one thread changes credentials, all of the other threads in the process also
+change their credentials.  For details, see \fBnptl\fP(7).
 .SH 関連項目
 \fBgetuid\fP(2), \fBseteuid\fP(2), \fBsetfsuid\fP(2), \fBsetreuid\fP(2),
 \fBcapabilities\fP(7), \fBcredentials\fP(7), \fBuser_namespaces\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

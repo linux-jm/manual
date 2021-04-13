@@ -61,27 +61,27 @@
 .\" Updated 2012-05-08, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH FOPEN 3 2012\-04\-22 GNU "Linux Programmer's Manual"
+.TH FOPEN 3 2020\-12\-21 GNU "Linux Programmer's Manual"
 .SH 名前
 fopen, fdopen, freopen \- ストリームを開く関数
 .SH 書式
 .nf
 \fB#include <stdio.h>\fP
-.sp
-\fBFILE *fopen(const char *\fP\fIpath\fP\fB, const char *\fP\fImode\fP\fB);\fP
-
+.PP
+\fBFILE *fopen(const char *\fP\fIpathname\fP\fB, const char *\fP\fImode\fP\fB);\fP
+.PP
 \fBFILE *fdopen(int \fP\fIfd\fP\fB, const char *\fP\fImode\fP\fB);\fP
-
-\fBFILE *freopen(const char *\fP\fIpath\fP\fB, const char *\fP\fImode\fP\fB, FILE *\fP\fIstream\fP\fB);\fP
+.PP
+\fBFILE *freopen(const char *\fP\fIpathname\fP\fB, const char *\fP\fImode\fP\fB, FILE *\fP\fIstream\fP\fB);\fP
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
-\fBfdopen\fP(): _POSIX_C_SOURCE\ >=\ 1 || _XOPEN_SOURCE || _POSIX_SOURCE
+.RE
+.PP
+\fBfdopen\fP(): _POSIX_C_SOURCE
 .SH 説明
-\fBfopen\fP()  関数は、 \fIpath\fP で指定された名前のファイルを開き、ストリームと結びつける。
+\fBfopen\fP()  関数は、 \fIpathname\fP で指定された名前のファイルを開き、ストリームと結びつける。
 .PP
 引数 \fImode\fP は、以下に続く文字のひとつから始まる文字列へのポインターであ
 る (以下の述べる、追加の文字が後に続くこともある):
@@ -104,8 +104,12 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 追加 (ファイルの最後に書き込む) のために開く。 ファイルが存在していない場合には新たに作成する。 ストリームはファイルの最後に位置される。
 .TP 
 \fBa+\fP
-読み出しおよび追加 (ファイルの最後に書き込む) のために開く。 ファイルが存在していない場合には新たに作成する。
-読み出しの初期ファイル位置はファイルの先頭であるが、 書き込みは常にファイルの最後に追加される。
+Open for reading and appending (writing at end of file).  The file is
+created if it does not exist.  Output is always appended to the end of the
+file.  POSIX is silent on what the initial read position is when using this
+mode.  For glibc, the initial file position for reading is at the beginning
+of the file, but for Android/BSD/MacOS, the initial file position for
+reading is at the end of the file.
 .PP
 \fImode\fP 文字列には文字 \(aqb\(aq を追加指定することができ、 \fImode\fP 文字列の最後の文字として指定する。 上記のうち 2
 文字のモードの場合には 2 つの文字の間に指定することもできる。 これは C89 との互換性のためだけに用意された
@@ -129,22 +133,56 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 ファイルを追加モード (\fImode\fP の最初の文字を \fBa\fP にする) で開くと、
 このストリームに対する書き込み操作は全て (先に以下の呼び出しを行った
 かのように) ファイルの末尾で行われる。
-.nf
-
-    fseek(stream, 0, SEEK_END);
-.fi
 .PP
+.in +4n
+.EX
+fseek(stream, 0, SEEK_END);
+.EE
+.in
+.PP
+The file descriptor associated with the stream is opened as if by a call to
+\fBopen\fP(2)  with the following flags:
+.RS
+.TS
+allbox;
+lb lb
+c l.
+fopen() モード	open() フラグ
+\fIr\fP	O_RDONLY
+\fIw\fP	O_WRONLY | O_CREAT | O_TRUNC
+\fIa\fP	O_WRONLY | O_CREAT | O_APPEND
+\fIr+\fP	O_RDWR
+\fIw+\fP	O_RDWR | O_CREAT | O_TRUNC
+\fIa+\fP	O_RDWR | O_CREAT | O_APPEND
+.TE
+.RE
+.\"
+.SS fdopen()
+.\"
 \fBfdopen\fP()  関数は、既存のファイルディスクリプター \fIfd\fP にストリームを結びつける。 ストリームの \fImode\fP ("r",
 "r+", "w", "w+", "a", "a+" のいずれか) は ファイルディスクリプターのモードと互換のものでなければならない。
 新しいストリームのファイル位置指示子は \fIfd\fP に属している値に設定される。 error と end\-of\-file の各指示子はクリアされる。
 "w" および "w+" モードでのファイルの切り詰めは行われない。 ファイルディスクリプターの複製は行なわれない。 \fBfdopen\fP()
 で作成されたストリームが閉じられたときにファイルディスクリプターも 閉じられる。 共有メモリーのオブジェクトへ \fBfdopen\fP()
 を行ったときの結果は定義されていない。
-.PP
+.SS freopen()
 \fBfreopen\fP()  関数は \fIpath\fP で名前が指定されたファイルを開き、 \fIstream\fP
 で指定されたストリームに、そのファイルを結びつける。 もとのストリームは (もし存在する場合には) 閉じられる。 \fImode\fP 引数は
-\fBfopen\fP()  関数と同じ形で使われる。 \fBfreopen\fP()  関数の主な用途は、標準テキストストリーム (\fIstderr\fP,
-\fIstdin\fP, \fIstdout\fP)  と対応付けられているファイルを変更することである。
+\fBfopen\fP()  関数と同じ形で使われる。
+.PP
+If the \fIpathname\fP argument is a null pointer, \fBfreopen\fP()  changes the
+mode of the stream to that specified in \fImode\fP; that is, \fBfreopen\fP()
+reopens the pathname that is associated with the stream.  The specification
+for this behavior was added in the C99 standard, which says:
+.PP
+.RS
+In this case, the file descriptor associated with the stream need not be
+closed if the call to \fBfreopen\fP()  succeeds.  It is implementation\-defined
+which changes of mode are permitted (if any), and under what circumstances.
+.RE
+.PP
+\fBfreopen\fP() 関数の主な用途は、標準テキストストリーム (\fIstderr\fP, \fIstdin\fP, \fIstdout\fP)
+と対応付けられているファイルを変更することである。
 .SH 返り値
 \fBfopen\fP(), \fBfdopen\fP(), \fBfreopen\fP()  は成功すると \fIFILE\fP 型のポインターを返す。 失敗すると NULL
 が返され、 \fIerrno\fP がエラーを示す値にセットされる。
@@ -164,9 +202,23 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 .PP
 \fBfreopen\fP()  関数は \fBopen\fP(2), \fBfclose\fP(3), \fBfflush\fP(3)
 各ルーチンで規定されているエラーでも失敗することがあり、 その時は対応する値に \fIerrno\fP をセットする。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbw28 lb lb
+l l l.
+インターフェース	属性	値
+T{
+\fBfopen\fP(),
+\fBfdopen\fP(),
+\fBfreopen\fP()
+T}	Thread safety	MT\-Safe
+.TE
 .SH 準拠
-\fBfopen\fP()  関数と \fBfreopen\fP()  関数は C89に準拠している。 \fBfdopen\fP()  関数は POSIX.1\-1990
-に準拠している。
+\fBfopen\fP(), \fBfreopen\fP(): POSIX.1\-2001, POSIX.1\-2008, C89, C99.
+.PP
+\fBfdopen\fP(): POSIX.1\-2001, POSIX.1\-2008.
 .SH 注意
 .SS "glibc での注意"
 GNU C ライブラリでは、 \fImode\fP に指定できる文字列として、以下の拡張が行われている:
@@ -194,9 +246,9 @@ I/O システムコール (\fBread\fP(2), \fBwrite\fP(2))  ではなく、 \fBmm
 上記の文字に加えて、
 \fBfopen\fP() と \fBfreopen\fP() では \fImode\fP に
 以下の書式を 指定することができる。
-
+.PP
 \fB ,ccs=\fP\fIstring\fP
-
+.PP
 指定された \fIstring\fP は、符号化文字集合の名前と解釈され、
 ストリームではワイド文字のストリームとして扱われる。
 内部変換関数で入出力時に文字集合 \fIstring\fP との変換が行われる。
@@ -215,8 +267,8 @@ glibc の \fBfopen\fP() と \fBfreopen\fP() の実装では、
 6 文字では "rb+cmxe" などの指定を行うには不十分であった)。
 \fBfdopen\fP() の現在の実装では最大 5 文字の \fImode\fP しか解釈されない。
 .SH 関連項目
-\fBopen\fP(2), \fBfclose\fP(3), \fBfileno\fP(3), \fBfmemopen\fP(3), \fBfopencookie\fP(3)
+\fBopen\fP(2), \fBfclose\fP(3), \fBfileno\fP(3), \fBfmemopen\fP(3), \fBfopencookie\fP(3),
+\fBopen_memstream\fP(3)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

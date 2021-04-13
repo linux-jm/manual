@@ -42,36 +42,41 @@
 .\" Updated 2002-01-06, NAKANO Takeo
 .\" Updated 2007-01-07, Akihiro MOTOKI, catch up to LDP v2.43
 .\"
-.TH TZSET 3 2015\-01\-30 "" "Linux Programmer's Manual"
+.TH TZSET 3 " 2017\-09\-15" "" "Linux Programmer's Manual"
 .SH 名前
 tzset, tzname, timezone, daylight \- 時刻の変換情報を初期化する
 .SH 書式
 .nf
 \fB#include <time.h>\fP
-.sp
+.PP
 \fBvoid tzset (void);\fP
-.sp
+.PP
 \fBextern char *\fP\fItzname\fP\fB[2];\fP
 \fBextern long \fP\fItimezone\fP\fB;\fP
 \fBextern int \fP\fIdaylight\fP\fB;\fP
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
-\fBtzset\fP(): _POSIX_C_SOURCE\ >=\ 1 || _XOPEN_SOURCE || _POSIX_SOURCE
+.RE
+.PP
+ \fBtzset\fP(): _POSIX_C_SOURCE
 .br
-\fItzname\fP: _POSIX_C_SOURCE\ >=\ 1 || _XOPEN_SOURCE || _POSIX_SOURCE
+ \fItzname\fP: _POSIX_C_SOURCE
 .br
-\fItimezone\fP: _SVID_SOURCE || _XOPEN_SOURCE
-.br
-\fIdaylight\fP: _SVID_SOURCE || _XOPEN_SOURCE
+\fItimezone\fP,
+\fIdaylight\fP:
+_XOPEN_SOURCE
+    || /* Glibc since 2.19: */ _DEFAULT_SOURCE
+    || /* Glibc versions <= 2.19: */ _SVID_SOURCE
 .SH 説明
-\fBtzset\fP()  関数は \fBTZ\fP 環境変数を用いて \fItzname\fP 変数を初期化する。
-この関数は、タイムゾーンに依存する他の時刻変換関数から自動的に呼び出される。 System V 的な環境では、この関数は変数 \fItimezone\fP
-(UTC からの西向きの秒数) と \fIdaylight\fP (このタイムゾーンにサマータイムに関するルールがなければ 0、
-サマータイム期間が一年のどこかにあれば 0 以外) も設定する。
+The \fBtzset\fP()  function initializes the \fItzname\fP variable from the \fBTZ\fP
+environment variable.  This function is automatically called by the other
+time conversion functions that depend on the timezone.  In a System\-V\-like
+environment, it will also set the variables \fItimezone\fP (seconds West of
+UTC) and \fIdaylight\fP (to 0 if this timezone does not have any daylight
+saving time rules, or to nonzero if there is a time, past, present or future
+when daylight saving time applies).
 .PP
 \fBTZ\fP 環境変数が設定されていない場合には、 システムのタイムゾーンが使用される。 ステムのタイムゾーンを設定するには、 \fBtzfile\fP(5)
 形式のファイルを \fI/etc/localtime\fP にコピーしたりリンクしたりする。
@@ -81,16 +86,28 @@ glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参
 Universal Time: UTC) が用いられる。
 .PP
 \fBTZ\fP の値は以下の 2 つの形式のいずれかを取ることができる。 最初の形式は、 使用するタイムゾーンを表す文字列を直接指定する方法である。
-.sp
-.RS
-std offset \fIdst\fP[\fIoffset\fP][,\fIstart\fP[\fI/time\fP],\fIend\fP[\fI/time\fP]]
-.RE
-.sp
-この指定方法ではスペースは一切使用しない。 \fIstd\fP 文字列はタイムゾーンの名前を指定する。 アルファベットからなる 3
-文字以上の文字列でなければならない。 \fIoffset\fP 文字列は \fIstd\fP の直後に続き、 協定世界時 (UTC) を得るために
-ローカルな時刻に加えなければならない時間を指定する。 \fIoffset\fP は、ローカルタイムゾーンがグリニッジ子午線 (Prime Meridian)
-の西なら正の値、東なら負の値を取る。 時間 (hour) は 0 から 24 の間でなければならない。 分 (minute) と秒 (second) は
-0 から 59 の間でなければならない。
+.PP
+.in +4n
+.EX
+ \fIstd offset\fP[\fIdst\fP[\fIoffset\fP][,\fIstart\fP[\fI/time\fP],\fIend\fP[\fI/time\fP]]]
+.EE
+.in
+.PP
+There are no spaces in the specification.  The \fIstd\fP string specifies an
+abbreviation for the timezone and must be three or more alphabetic
+characters.  When enclosed between the less\-than (<) and greater\-than
+(>) signs, the characters set is expanded to include the plus (+) sign,
+the minus (\-)  sign, and digits.  The \fIoffset\fP string immediately follows
+\fIstd\fP and specifies the time value to be added to the local time to get
+Coordinated Universal Time (UTC).  The \fIoffset\fP is positive if the local
+timezone is west of the Prime Meridian and negative if it is east.  The hour
+must be between 0 and 24, and the minutes and seconds 00 and 59:
+.PP
+.in +4n
+.EX
+[\fI+\fP|\fI\-\fP]\fIhh\fP[\fI:mm\fP[\fI:ss\fP]]
+.EE
+.in
 .PP
 \fIdst\fP 文字列と \fIoffset\fP は、 対応するサマータイムゾーンの名前とオフセットを指定する。
 オフセットが省略されると、デフォルトでは標準の一時間前となる。
@@ -116,31 +133,37 @@ M\fIm\fP.\fIw\fP.\fId\fP
 .PP
 \fItime\fP フィールドは、ローカルタイムを切り替える時刻を、 変更前のローカルタイムで表したものである。 省略された場合のデフォルトは
 02:00:00 である。
-
+.PP
 ニュージーランドの例である。 ニュージーランドでは、標準のタイムゾーン (NZST) は UTC より 12時間進んでおり、 サマータイム (NZDT)
 は UTC の 13時間進んでいる。 サマータイムは 10月の第一日曜から 3月の第三日曜までであり、 ローカルタイムの切り替えはデフォルトの
 02:00:00 に行われる。
-.nf
-
-    TZ="NZST\-12:00:00NZDT\-13:00:00,M10.1.0,M3.3.0"
-.fi
+.PP
+.in +4n
+.EX
+ TZ="NZST\-12:00:00NZDT\-13:00:00,M10.1.0,M3.3.0"
+.EE
+.in
 .PP
 2 番目の形式は、タイムゾーンの情報をファイルから読み込むように指定する。
-.sp
-.RS
-:[filespec]
-.RE
-.sp
+.PP
+.in +4n
+.EX
+ :[filespec]
+.EE
+.in
+.PP
 ファイルの指定 \fIfilespec\fP が省略された場合、 もしくは指定された値が解釈できない場合、 協定標準時 (UTC; Coordinated
 Universal Time) が使用される。 指定された場合、 \fIfilespec\fP はタイムゾーン情報を読み出す \fBtzfile\fP(5)
 形式のファイルを指定する。 \fIfilespec\fP が \(aq/\(aq で始まっていない場合には、 システムタイムゾーンディレクトリからの相対パスで
 ファイルが指定されたことになる。 コロンが省略された場合には、 上記の \fBTZ\fP の各形式での解釈を試みる。
 .PP
 例を挙げておく。もう一度ニュージーランドの例である。
-.nf
-
-    TZ=":Pacific/Auckland"
-.fi
+.PP
+.in +4n
+.EX
+ TZ=":Pacific/Auckland"
+.EE
+.in
 .SH 環境変数
 .TP 
 \fBTZ\fP
@@ -150,25 +173,32 @@ Universal Time) が使用される。 指定された場合、 \fIfilespec\fP �
 この変数が設定された場合、 その値がシステムで設定されたタイムゾーンデータベースのディレクトリパスより優先して使用される。
 .SH ファイル
 .TP 
-\fB/etc/localtime\fP
+ \fI/etc/localtime\fP
 システムのタイムゾーンファイル。
 .TP 
-\fB/usr/share/zoneinfo/\fP
+ \fI/usr/share/zoneinfo/\fP
 システムのタイムゾーンデータベースのディレクトリ。
 .TP 
-\fB/usr/share/zoneinfo/posixrules\fP
+ \fI/usr/share/zoneinfo/posixrules\fP
 TZ 文字列で dst タイムゾーンが他に何の指定なしで単独で指定された場合、 このファイルが start/end のルールに使用される。
 このファイルは \fBtzfile\fP(5) 形式である。 デフォルトでは、 ゾーン情報の Makefile でこのファイルは
 \fIAmerica/New_York\fP にハードリンクされる。
 .PP
 上記は現在の標準のファイルの場所だが、 glibc のコンパイル時に変更できる。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lb lb lb
+l l l.
+インターフェース	属性	値
+T{
+ \fBtzset\fP()
+T}	Thread safety	MT\-Safe env locale
+.TE
 .SH 準拠
-SVr4, POSIX.1\-2001, 4.3BSD.
+ POSIX.1\-2001, POSIX.1\-2008, SVr4, 4.3BSD.
 .SH 注意
-\fIdaylight\fP 変数は、現在がサマータイムであるかどうかを示しているのではない。 これはいくつかあるアルゴリズムのうちの番号を与える
-(アルゴリズムについては \fBgettimeofday\fP(2)  の \fItz_dsttime\fP 変数を見よ)。
-これはもう何年も使われていないが、SUSv2 では必要とされている。
-.LP
 4.3BSD には \fBchar *timezone(\fP\fIzone\fP\fB, \fP\fIdst\fP\fB)\fP というルーチンがあり、これは 最初の引数 (UTC
 からの西向きの分数) に対応するタイムゾーンの名前を返す。 二番目の引数が 0 の場合は標準の名前が用いられ、
 それ以外はサマータイム版の名前が用いられる。
@@ -176,6 +206,5 @@ SVr4, POSIX.1\-2001, 4.3BSD.
 \fBdate\fP(1), \fBgettimeofday\fP(2), \fBtime\fP(2), \fBctime\fP(3), \fBgetenv\fP(3),
 \fBtzfile\fP(5)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -1,4 +1,3 @@
-.\" t
 .\" Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
@@ -32,7 +31,7 @@
 .\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI all rights reserved.
 .\" Translated 2006-04-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\"
-.TH MQ_OPEN 3 2014\-12\-31 Linux "Linux Programmer's Manual"
+.TH MQ_OPEN 3 2020\-08\-13 Linux "Linux Programmer's Manual"
 .SH 名前
 mq_open \- メッセージキューをオープンする
 .SH 書式
@@ -40,17 +39,17 @@ mq_open \- メッセージキューをオープンする
 \fB#include <fcntl.h>\fP           /* For O_* constants */
 \fB#include <sys/stat.h>\fP        /* For mode constants */
 \fB#include <mqueue.h>\fP
-.sp
+.PP
 \fBmqd_t mq_open(const char *\fP\fIname\fP\fB, int \fP\fIoflag\fP\fB);\fP
 \fBmqd_t mq_open(const char *\fP\fIname\fP\fB, int \fP\fIoflag\fP\fB, mode_t \fP\fImode\fP\fB,\fP
 \fB              struct mq_attr *\fP\fIattr\fP\fB);\fP
 .fi
-.sp
+.PP
 \fI\-lrt\fP でリンクする。
 .SH 説明
 \fBmq_open\fP()  は、新しい POSIX メッセージキューを作成するか、既存のキューを オープンする。キューは \fIname\fP で識別される。
 \fIname\fP の構成の詳細については \fBmq_overview (7)\fP を参照。
-
+.PP
 \fIoflag\fP 引き数には、関数呼び出しの操作を制御するフラグを指定する (oflag の値の定義は \fI<fcntl.h>\fP
 のインクルードにより得られる)。 \fIoflag\fP には、以下のうちいずれか一つを必ず指定しなければならない。
 .TP 
@@ -85,9 +84,27 @@ mq_open \- メッセージキューをオープンする
 \fIoflag\fP に \fBO_CREAT\fP を指定する場合、追加で 2つの引き数を与える必要がある。 \fImode\fP
 引き数は、新しいキューに適用される許可設定 (permission) を、 \fBopen\fP(2)  と同じように指定する (許可ビットのシンボル定義は
 \fI<sys/stat.h>\fP のインクルードにより得られる)。 許可設定はプロセスの umask でマスクされる。
-
-\fIattr\fP 引き数は、キューの属性を指定する。詳細は、 \fBmq_getattr\fP(3)  を参照。 \fIattr\fP が NULL
-の場合、キューは実装で定義されたデフォルト属性で作成される。 Linux 3.5 以降では、2 つの \fI/proc\fP
+.PP
+The fields of the \fIstruct mq_attr\fP pointed to \fIattr\fP specify the maximum
+number of messages and the maximum size of messages that the queue will
+allow.  This structure is defined as follows:
+.PP
+.in +4n
+.EX
+struct mq_attr {
+    long mq_flags;       /* フラグ (mq_open() では無視される) */
+    long mq_maxmsg;      /* キューの最大メッセージ数 */
+    long mq_msgsize;     /* 最大メッセージサイズ (バイト単位) */
+    long mq_curmsgs;     /* キューに現在入っているメッセージ数
+                            (mq_open() では無視される) */
+};
+.EE
+.in
+.PP
+Only the \fImq_maxmsg\fP and \fImq_msgsize\fP fields are employed when calling
+\fBmq_open\fP(); the values in the remaining fields are ignored.
+.PP
+\fIattr\fP が NULL の場合、キューは実装で定義されたデフォルト属性で作成される。 Linux 3.5 以降では、2 つの \fI/proc\fP
 ファイルがあり、これらのデフォルト値を制御できる。 詳細は \fBmq_overview\fP(7) を参照。
 .SH 返り値
 成功すると、 \fBmq_open\fP()  はメッセージキュー記述子 (message queue descriptor) を返す。
@@ -106,6 +123,11 @@ mq_open \- メッセージキューをオープンする
 \fIoflag\fP に \fBO_CREAT\fP と \fBO_EXCL\fP の両方が指定されたが、指定された名前 \fIname\fP を持つキューがすでに存在する。
 .TP 
 \fBEINVAL\fP
+.\" glibc checks whether the name starts with a "/" and if not,
+.\" gives this error
+\fIname\fP doesn't follow the format in \fBmq_overview\fP(7).
+.TP 
+\fBEINVAL\fP
 \fIoflag\fP に \fBO_CREAT\fP が指定され、かつ \fIattr\fP が NULL 以外だが、 \fIattr\->mq_maxmsg\fP か
 \fIattr\->mq_msqsize\fP が不正であった。 これらのフィールドは両方とも 0 より大きくなければならない。
 プロセスが特権を持たない (\fBCAP_SYS_RESOURCE\fP ケーパビリティを持たない) 場合、 \fIattr\->mq_maxmsg\fP と
@@ -114,13 +136,15 @@ mq_open \- メッセージキューをオープンする
 (これらの上限に関する詳細は \fBmq_overview\fP(7)  を参照。)
 .TP 
 \fBEMFILE\fP
-そのプロセスがオープンしているファイルとメッセージキューの数が プロセス毎の上限に達している。
+The per\-process limit on the number of open file and message queue
+descriptors has been reached (see the description of \fBRLIMIT_NOFILE\fP in
+\fBgetrlimit\fP(2)).
 .TP 
 \fBENAMETOOLONG\fP
 \fIname\fP が長過ぎる。
 .TP 
 \fBENFILE\fP
-システム全体でオープンしているファイルとメッセージキューの合計数が システム上限に達している。
+システム全体でオープンしているファイルとメッセージキューの合計数がシステム全体の上限に達している。
 .TP 
 \fBENOENT\fP
 \fBO_CREAT\fP フラグが \fIoflag\fP に指定されなかったが、指定された名前 \fIname\fP を持つキューが存在しない。
@@ -136,16 +160,31 @@ mq_open \- メッセージキューをオープンする
 新しいメッセージキューを作成するのに十分な空間がない。 このエラーはおそらく \fIqueues_max\fP 上限に抵触したため起こったのだろう。
 \fBmq_overview\fP(7)  を参照。
 .SH 属性
-.SS "マルチスレッディング (pthreads(7) 参照)"
-関数 \fBmq_open\fP() はスレッドセーフである。
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lb lb lb
+l l l.
+インターフェース	属性	値
+T{
+\fBmq_open\fP()
+T}	Thread safety	MT\-Safe
+.TE
 .SH 準拠
-POSIX.1\-2001.
+POSIX.1\-2001, POSIX.1\-2008.
+.SH 注意
+.SS "C ライブラリとカーネルの違い"
+The \fBmq_open\fP()  library function is implemented on top of a system call of
+the same name.  The library function performs the check that the \fIname\fP
+starts with a slash (/), giving the \fBEINVAL\fP error if it does not.  The
+kernel system call expects \fIname\fP to contain no preceding slash, so the C
+library function passes \fIname\fP without the preceding slash (i.e.,
+\fIname+1\fP)  to the system call.
 .SH バグ
 2.6.14 より前のカーネルには、 プロセスの umask が \fImode\fP で指定された許可設定に適用されなかった。
 .SH 関連項目
 \fBmq_close\fP(3), \fBmq_getattr\fP(3), \fBmq_notify\fP(3), \fBmq_receive\fP(3),
 \fBmq_send\fP(3), \fBmq_unlink\fP(3), \fBmq_overview\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

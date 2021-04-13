@@ -26,20 +26,20 @@
 .\" This file was generated with po4a. Translate the source file.
 .\"
 .\"*******************************************************************
-.TH FANOTIFY_MARK 2 2014\-10\-02 Linux "Linux Programmer's Manual"
+.TH FANOTIFY_MARK 2 2020\-11\-01 Linux "Linux Programmer's Manual"
 .SH 名前
 fanotify_mark \- ファイルシステムオブジェクトへの fanotify マークの追加、削除、変更
 .SH 書式
 .nf
 \fB#include <sys/fanotify.h>\fP
-.sp
+.PP
 \fBint fanotify_mark(int \fP\fIfanotify_fd\fP\fB, unsigned int \fP\fIflags\fP\fB,\fP
 \fB                  uint64_t \fP\fImask\fP\fB, int \fP\fIdirfd\fP\fB, const char *\fP\fIpathname\fP\fB);\fP
 .fi
 .SH 説明
 fanotify API の概要については \fBfanotify\fP(7) を参照。
 .PP
-\fBfanotify_mark\fP(2) はファイルシステムオブジェクトに対する fanotify マークの追加、削除、変更を行う。
+\fBfanotify_mark\fP() はファイルシステムオブジェクトに対する fanotify マークの追加、削除、変更を行う。
 呼び出し元はマークを付けるファイルシステムオブジェクトに対する読み出し許可を持っていなければならない。
 .PP
 \fIfanotify_fd\fP 引き数は \fBfanotify_init\fP(2) で返されたファイルディスクリプターである。
@@ -55,10 +55,14 @@ fanotify API の概要については \fBfanotify\fP(7) を参照。
 空の場合はエラー \fBEINVAL\fPが発生する。
 .TP 
 \fBFAN_MARK_FLUSH\fP
-fanotify グループから全てのマウント mark か全てのマウント以外の mark を削除する。 \fIflag\fP に
-\fBFAN_MARK_MOUNT\fP が含まれる場合、 マウントに対する全ての mark がそのグループから削除される。 含まれない場合は、
-ディレクトリとファイルに対する全ての mark が削除される。 \fBFAN_MARK_MOUNT\fP 以外のフラグを \fBFAN_MARK_FLUSH\fP
-と組み合わせて使うことはできない。 \fImask\fP は無視される。
+Remove either all marks for filesystems, all marks for mounts, or all marks
+for directories and files from the fanotify group.  If \fIflags\fP contains
+\fBFAN_MARK_MOUNT\fP, all marks for mounts are removed from the group.  If
+\fIflags\fP contains \fBFAN_MARK_FILESYSTEM\fP, all marks for filesystems are
+removed from the group.  Otherwise, all marks for directories and files are
+removed.  No flag other than and at most one of the flags \fBFAN_MARK_MOUNT\fP
+or \fBFAN_MARK_FILESYSTEM\fP can be used in conjunction with
+\fBFAN_MARK_FLUSH\fP.  \fImask\fP is ignored.
 .PP
 上記のどの値も指定されなかった場合、 または 2 つ以上の値が指定された場合、 呼び出しはエラー \fBEINVAL\fP で失敗する。
 .PP
@@ -72,9 +76,20 @@ fanotify グループから全てのマウント mark か全てのマウント�
 マークが付けられたファイルシステムオブジェクトがディレクトリでない場合、 エラー \fBENOTDIR\fP が発生する。
 .TP 
 \fBFAN_MARK_MOUNT\fP
-\fIpathname\fP で指定されたマウントポイントにマークを付ける。 \fIpathname\fP がマウントポイント自身ではない場合、
-\fIpathname\fP を含むマウントポイントがマークされる。 マウントポイントに含まれる全てのディレクトリ、 サブディレクトリ、
-その中のファイルが監視される。
+Mark the mount point specified by \fIpathname\fP.  If \fIpathname\fP is not itself
+a mount point, the mount point containing \fIpathname\fP will be marked.  All
+directories, subdirectories, and the contained files of the mount point will
+be monitored.  The events which require that filesystem objects are
+identified by file handles, such as \fBFAN_CREATE\fP, \fBFAN_ATTRIB\fP,
+\fBFAN_MOVE\fP, and \fBFAN_DELETE_SELF\fP, cannot be provided as a \fImask\fP when
+\fIflags\fP contains \fBFAN_MARK_MOUNT\fP.  Attempting to do so will result in the
+error \fBEINVAL\fP being returned.
+.TP 
+\fBFAN_MARK_FILESYSTEM\fP (Linux 4.20 以降)
+.\" commit d54f4fba889b205e9cd8239182ca5d27d0ac3bc2
+Mark the filesystem specified by \fIpathname\fP.  The filesystem containing
+\fIpathname\fP will be marked.  All the contained files and directories of the
+filesystem from any mount point will be monitored.
 .TP 
 \fBFAN_MARK_IGNORED_MASK\fP
 \fImask\fP のイベントの ignore マスクへの追加、もしくは削除を行う。
@@ -100,27 +115,96 @@ ignore マスクは変更イベントが発生しても残り続ける。 この
 \fBFAN_OPEN\fP
 ファイルやディレクトリがオープンされた際にイベントを作成する。
 .TP 
+\fBFAN_OPEN_EXEC\fP (Linux 5.0 以降)
+.\" commit 9b076f1c0f4869b838a1b7aa0edb5664d47ec8aa
+Create an event when a file is opened with the intent to be executed.  See
+NOTES for additional details.
+.TP 
+\fBFAN_ATTRIB\fP (Linux 5.1 以降)
+.\" commit 235328d1fa4251c6dcb32351219bb553a58838d2
+Create an event when the metadata for a file or directory has changed.  An
+fanotify group that identifies filesystem objects by file handles is
+required.
+.TP 
+\fBFAN_CREATE\fP (Linux 5.1 以降)
+.\" commit 235328d1fa4251c6dcb32351219bb553a58838d2
+Create an event when a file or directory has been created in a marked parent
+directory.  An fanotify group that identifies filesystem objects by file
+handles is required.
+.TP 
+\fBFAN_DELETE\fP (Linux 5.1 以降)
+.\" commit 235328d1fa4251c6dcb32351219bb553a58838d2
+Create an event when a file or directory has been deleted in a marked parent
+directory.  An fanotify group that identifies filesystem objects by file
+handles is required.
+.TP 
+\fBFAN_DELETE_SELF\fP (Linux 5.1 以降)
+.\" commit 235328d1fa4251c6dcb32351219bb553a58838d2
+Create an event when a marked file or directory itself is deleted.  An
+fanotify group that identifies filesystem objects by file handles is
+required.
+.TP 
+\fBFAN_MOVED_FROM\fP (Linux 5.1 以降)
+.\" commit 235328d1fa4251c6dcb32351219bb553a58838d2
+Create an event when a file or directory has been moved from a marked parent
+directory.  An fanotify group that identifies filesystem objects by file
+handles is required.
+.TP 
+\fBFAN_MOVED_TO\fP (Linux 5.1 以降)
+.\" commit 235328d1fa4251c6dcb32351219bb553a58838d2
+Create an event when a file or directory has been moved to a marked parent
+directory.  An fanotify group that identifies filesystem objects by file
+handles is required.
+.TP 
+\fBFAN_MOVE_SELF\fP (Linux 5.1 以降)
+.\" commit 235328d1fa4251c6dcb32351219bb553a58838d2
+Create an event when a marked file or directory itself has been moved.  An
+fanotify group that identifies filesystem objects by file handles is
+required.
+.TP 
 \fBFAN_OPEN_PERM\fP
 ファイルやディレクトリをオープンするアクセス許可が要求された際にイベントを作成する。 fanotify ファイルディスクリプターが
 \fBFAN_CLASS_PRE_CONTENT\fP か \fBFAN_CLASS_CONTENT\fP を指定されて作成されている必要がある。
+.TP 
+\fBFAN_OPEN_EXEC_PERM\fP (since Linux 5.0)
+.\" commit 66917a3130f218dcef9eeab4fd11a71cd00cd7c9
+Create an event when a permission to open a file for execution is
+requested.  An fanotify file descriptor created with
+\fBFAN_CLASS_PRE_CONTENT\fP or \fBFAN_CLASS_CONTENT\fP is required.  See NOTES for
+additional details.
 .TP 
 \fBFAN_ACCESS_PERM\fP
 ファイルやディレクトリを読み出すアクセス許可が要求された際にイベントを作成する。 fanotify ファイルディスクリプターが
 \fBFAN_CLASS_PRE_CONTENT\fP か \fBFAN_CLASS_CONTENT\fP を指定されて作成されている必要がある。
 .TP 
 \fBFAN_ONDIR\fP
-ディレクトリに対するイベントを作成する。 例えば \fBopendir\fP(3)、 \fBreaddir\fP(3) (ただし「バグ」も参照)、
-\fBclosedir\fP(3) が呼び出された場合。 このフラグが指定されなかった場合、 ファイルに対するイベントだけが作成される。
+Create events for directories\(emfor example, when \fBopendir\fP(3),
+\fBreaddir\fP(3)  (but see BUGS), and \fBclosedir\fP(3)  are called.  Without this
+flag, events are created only for files.  In the context of directory entry
+events, such as \fBFAN_CREATE\fP, \fBFAN_DELETE\fP, \fBFAN_MOVED_FROM\fP, and
+\fBFAN_MOVED_TO\fP, specifying the flag \fBFAN_ONDIR\fP is required in order to
+create events when subdirectory entries are modified (i.e., \fBmkdir\fP(2)/
+\fBrmdir\fP(2)).
 .TP 
 \fBFAN_EVENT_ON_CHILD\fP
-マークされたディレクトリの直下のエントリーに対してイベントを作成する。 このフラグはマウントにマークを付ける際には効果はない。
-マークされたディレクトリのサブディレクトリのエントリーに対してはイベントが作成されない点に注意すること。 ディレクトリツリー全体を監視するには、
-関連するマウントにマークを付ける必要がある。
+Events for the immediate children of marked directories shall be created.
+The flag has no effect when marking mounts and filesystems.  Note that
+events are not generated for children of the subdirectories of marked
+directories.  More specifically, the directory entry modification events
+\fBFAN_CREATE\fP, \fBFAN_DELETE\fP, \fBFAN_MOVED_FROM\fP, and \fBFAN_MOVED_TO\fP are not
+generated for any entry modifications performed inside subdirectories of
+marked directories.  Note that the events \fBFAN_DELETE_SELF\fP and
+\fBFAN_MOVE_SELF\fP are not generated for children of marked directories.  To
+monitor complete directory trees it is necessary to mark the relevant mount
+or filesystem.
 .PP
-以下の組み合わせ値が定義されている。
+The following composed values are defined:
 .TP 
 \fBFAN_CLOSE\fP
 ファイルがクローズされた (\fBFAN_CLOSE_WRITE\fP|\fBFAN_CLOSE_NOWRITE\fP)。
+.TP 
+\fBFAN_MOVE\fP
+A file or directory has been moved (\fBFAN_MOVED_FROM\fP|\fBFAN_MOVED_TO\fP).
 .PP
 マークを付けるファイルシステムオブジェクトは、 ファイルディスクリプター \fIdirfd\fP と \fIpathname\fP
 で指定されたパス名から決定される。
@@ -149,8 +233,16 @@ ignore マスクは変更イベントが発生しても残り続ける。 この
 ファイルディスクリプターでなかった。
 .TP 
 \fBEINVAL\fP
-fanotify ファイルディスクリプターが \fBFAN_CLASS_NOTIF\fP でオープンされたが、 アクセス許可イベント
-(\fBFAN_OPEN_PERM\fP か \fBFAN_ACCESS_PERM\fP) のフラグがマスクに含まれている。
+The fanotify file descriptor was opened with \fBFAN_CLASS_NOTIF\fP or the
+fanotify group identifies filesystem objects by file handles and mask
+contains a flag for permission events (\fBFAN_OPEN_PERM\fP or
+\fBFAN_ACCESS_PERM\fP).
+.TP 
+\fBENODEV\fP
+The filesystem object indicated by \fIpathname\fP is not associated with a
+filesystem that supports \fIfsid\fP (e.g., \fBtmpfs\fP(5)).  This error can be
+returned only with an fanotify group that identifies filesystem objects by
+file handles.
 .TP 
 \fBENOENT\fP
 \fIdirfd\fP と \fIpathname\fP で指定されたファイルシステムオブジェクトが存在しない。
@@ -170,10 +262,54 @@ fanotify ファイルディスクリプターが \fBFAN_CLASS_NOTIF\fP でオー
 \fBENOTDIR\fP
 \fIflags\fP に \fBFAN_MARK_ONLYDIR\fP が含まれているが、 \fIdirfd\fP と \fIpathname\fP
 がディレクトリを指定していない。
+.TP 
+\fBEOPNOTSUPP\fP
+The object indicated by \fIpathname\fP is associated with a filesystem that
+does not support the encoding of file handles.  This error can be returned
+only with an fanotify group that identifies filesystem objects by file
+handles.
+.TP 
+\fBEXDEV\fP
+The filesystem object indicated by \fIpathname\fP resides within a filesystem
+subvolume (e.g., \fBbtrfs\fP(5))  which uses a different \fIfsid\fP than its root
+superblock.  This error can be returned only with an fanotify group that
+identifies filesystem objects by file handles.
 .SH バージョン
 \fBfanotify_mark\fP() は Linux カーネルのバージョン 2.6.36 で導入され、 バージョン 2.6.37 で有効になった。
 .SH 準拠
 このシステムコールは Linux 独自である。
+.SH 注意
+.SS "FAN_OPEN_EXEC と FAN_OPEN_EXEC_PERM"
+When using either \fBFAN_OPEN_EXEC\fP or \fBFAN_OPEN_EXEC_PERM\fP within the
+\fImask\fP, events of these types will be returned only when the direct
+execution of a program occurs.  More specifically, this means that events of
+these types will be generated for files that are opened using \fBexecve\fP(2),
+\fBexecveat\fP(2), or \fBuselib\fP(2).  Events of these types will not be raised
+in the situation where an interpreter is passed (or reads) a file for
+interpretation.
+.PP
+Additionally, if a mark has also been placed on the Linux dynamic linker, a
+user should also expect to receive an event for it when an ELF object has
+been successfully opened using \fBexecve\fP(2)  or \fBexecveat\fP(2).
+.PP
+For example, if the following ELF binary were to be invoked and a
+\fBFAN_OPEN_EXEC\fP mark has been placed on /:
+.PP
+.in +4n
+.EX
+$ /bin/echo foo
+.EE
+.in
+.PP
+The listening application in this case would receive \fBFAN_OPEN_EXEC\fP events
+for both the ELF binary and interpreter, respectively:
+.PP
+.in +4n
+.EX
+/bin/echo
+/lib64/ld\-linux\-x86\-64.so.2
+.EE
+.in
 .SH バグ
 バージョン 3.16 より前の Linux カーネルでは以下のバグが存在した。
 .IP * 3
@@ -185,11 +321,10 @@ fanotify ファイルディスクリプターが \fBFAN_CLASS_NOTIF\fP でオー
 \fBreaddir\fP(2) は \fBFAN_ACCESS\fP イベントを生成しない。
 .IP *
 .\" Fixed by commit cc299a98eb13a9853675a9cbb90b30b4011e1406
-\fBfanotify_mark\fP(2) が \fBFAN_MARK_FLUSH\fP 付きで呼び出された場合、 \fIflags\fP
+\fBfanotify_mark\fP() が \fBFAN_MARK_FLUSH\fP 付きで呼び出された場合、 \fIflags\fP
 の値が無効かはチェックされない。
 .SH 関連項目
 \fBfanotify_init\fP(2), \fBfanotify\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

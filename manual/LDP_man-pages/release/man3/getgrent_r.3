@@ -32,39 +32,41 @@
 .\" Translated Thu Jul 29 02:26:07 JST 2004
 .\"         by Yuichi SATO <ysato444@yahoo.co.jp>
 .\"
-.TH GETGRENT_R 3 2015\-01\-22 GNU "Linux Programmer's Manual"
+.TH GETGRENT_R 3 2020\-11\-01 GNU "Linux Programmer's Manual"
 .SH 名前
 getgrent_r, fgetgrent_r \- グループファイルエントリーをリエントラント (reentrant) に取り出す
 .SH 書式
 .nf
 \fB#include <grp.h>\fP
-.sp
+.PP
 \fBint getgrent_r(struct group *\fP\fIgbuf\fP\fB, char *\fP\fIbuf\fP\fB,\fP
-.br
 \fB               size_t \fP\fIbuflen\fP\fB, struct group **\fP\fIgbufp\fP\fB);\fP
-.sp
+.PP
 \fBint fgetgrent_r(FILE *\fP\fIstream\fP\fB, struct group *\fP\fIgbuf\fP\fB, char *\fP\fIbuf\fP\fB,\fP
-.br
 \fB                size_t \fP\fIbuflen\fP\fB, struct group **\fP\fIgbufp\fP\fB);\fP
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 .\" FIXME . The FTM requirements seem inconsistent here.  File a glibc bug?
 \fBgetgrent_r\fP(): _GNU_SOURCE
 .br
-\fBfgetgrent_r\fP(): _SVID_SOURCE
+\fBfgetgrent_r\fP():
+    glibc 2.19 以降:
+        _DEFAULT_SOURCE
+    glibc 2.19 以前:
+        _SVID_SOURCE
 .SH 説明
 関数 \fBgetgrent_r\fP()  と \fBfgetgrent_r\fP()  は \fBgetgrent\fP(3)  と \fBfgetgrent\fP(3)
 のリエントラント版である。 前者は、 \fBsetgrent\fP(3)  によって初期化されたストリームから、次のグループファイルのエントリーを読み込む。
 後者は、 \fIstream\fP から次のグループファイルのエントリーを読み込む。
 .PP
 \fIgroup\fP 構造体は \fI<grp.h>\fP で以下のように定義されている:
-.sp
+.PP
 .in +4n
-.nf
+.EX
 struct group {
     char   *gr_name;        /* グループ名 */
     char   *gr_passwd;      /* グループのパスワード */
@@ -72,7 +74,7 @@ struct group {
     char  **gr_mem;         /* グループのメンバ名へのポインター
                                の配列 (配列はヌルで終端する) */
 };
-.fi
+.EE
 .in
 .PP
 この構造体のフィールドの詳細は \fBgroup\fP(5)  を参照のこと。
@@ -92,60 +94,81 @@ group\fP を保持できるバッファー \fIgbuf\fP がある。 次にその�
 .TP 
 \fBERANGE\fP
 十分なバッファー空間が与えられていない。 もっと大きなバッファーで再度実行すること。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lb lb lbw27
+l l l.
+インターフェース	属性	値
+T{
+\fBgetgrent_r\fP()
+T}	Thread safety	MT\-Unsafe race:grent locale
+T{
+\fBfgetgrent_r\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.sp 1
+In the above table, \fIgrent\fP in \fIrace:grent\fP signifies that if any of the
+functions \fBsetgrent\fP(3), \fBgetgrent\fP(3), \fBendgrent\fP(3), or \fBgetgrent_r\fP()
+are used in parallel in different threads of a program, then data races
+could occur.
 .SH 準拠
 これらの関数は GNU 拡張であり、POSIX 版の関数 \fBgetpwnam_r\fP(3)  の形式に似せてある。
 他のシステムでは以下のプロトタイプが使われている。
-.sp
-.nf
+.PP
 .in +4n
+.EX
 struct group *getgrent_r(struct group *grp, char *buf,
                          int buflen);
+.EE
 .in
-.fi
-.sp
+.PP
 より良いものでは、以下のようになっている。
-.sp
-.nf
+.PP
 .in +4n
+.EX
 int getgrent_r(struct group *grp, char *buf, int buflen,
                FILE **gr_fp);
+.EE
 .in
-.fi
 .SH 注意
 関数 \fBgetgrent_r\fP()  は本当のリエントラントではない。 なぜなら、ストリームの読み込み位置を
 他の全てのスレッドと共有しているためである。
 .SH 例
-.nf
+.EX
 #define _GNU_SOURCE
 #include <grp.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #define BUFLEN 4096
 
 int
 main(void)
 {
-    struct group grp, *grpp;
+    struct group grp;
+    struct group *grpp;
     char buf[BUFLEN];
     int i;
 
     setgrent();
     while (1) {
-        i = getgrent_r(&grp, buf, BUFLEN, &grpp);
+        i = getgrent_r(&grp, buf, sizeof(buf), &grpp);
         if (i)
             break;
-        printf("%s (%d):", grpp\->gr_name, grpp\->gr_gid);
-        for (i = 0; ; i++) {
-            if (grpp\->gr_mem[i] == NULL)
+        printf("%s (%jd):", grpp\->gr_name, (intmax_t) grpp\->gr_gid);
+        for (int j = 0; ; j++) {
+            if (grpp\->gr_mem[j] == NULL)
                 break;
-            printf(" %s", grpp\->gr_mem[i]);
+            printf(" %s", grpp\->gr_mem[j]);
         }
         printf("\en");
     }
     endgrent();
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .\" perhaps add error checking - should use strerror_r
 .\" #include <errno.h>
 .\" #include <stdlib.h>
@@ -159,6 +182,5 @@ main(void)
 \fBfgetgrent\fP(3), \fBgetgrent\fP(3), \fBgetgrgid\fP(3), \fBgetgrnam\fP(3),
 \fBputgrent\fP(3), \fBgroup\fP(5)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

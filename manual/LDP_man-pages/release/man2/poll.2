@@ -1,5 +1,4 @@
-.\" Copyright (C) 1997 Andries Brouwer (aeb@cwi.nl)
-.\" and Copyright (C) 2006, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright (C) 2006, 2019 Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -47,79 +46,89 @@
 .\" Updated 2012-05-29, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH POLL 2 2014\-09\-06 Linux "Linux Programmer's Manual"
+.TH POLL 2 2020\-04\-11 Linux "Linux Programmer's Manual"
 .SH 名前
 poll, ppoll \- ファイルディスクリプターにおけるイベントを待つ
 .SH 書式
 .nf
 \fB#include <poll.h>\fP
-.sp
+.PP
 \fBint poll(struct pollfd *\fP\fIfds\fP\fB, nfds_t \fP\fInfds\fP\fB, int \fP\fItimeout\fP\fB);\fP
-.sp
+
 \fB#define _GNU_SOURCE\fP         /* feature_test_macros(7) 参照 */
 \fB#include <signal.h>\fP
 \fB#include <poll.h>\fP
-.sp
-\fBint ppoll(struct pollfd *\fP\fIfds\fP\fB, nfds_t \fP\fInfds\fP\fB, \fP
-\fB        const struct timespec *\fP\fItimeout_ts\fP\fB, const sigset_t *\fP\fIsigmask\fP\fB);\fP
+.PP
+\fBint ppoll(struct pollfd *\fP\fIfds\fP\fB, nfds_t \fP\fInfds\fP\fB,\fP
+\fB        const struct timespec *\fP\fItmo_p\fP\fB, const sigset_t *\fP\fIsigmask\fP\fB);\fP
 .fi
 .SH 説明
-\fBpoll\fP()  は \fBselect\fP(2)  と同様の仕事を行う、つまり、ファイルディスクリプター集合のいずれか一つが I/O
-を実行可能な状態になるのを待つ。
-
+\fBpoll\fP()  performs a similar task to \fBselect\fP(2): it waits for one of a
+set of file descriptors to become ready to perform I/O.  The Linux\-specific
+\fBepoll\fP(7)  API performs a similar task, but offers features beyond those
+found in \fBpoll\fP().
+.PP
 監視するファイルディスクリプター集合は、 \fIfds\fP 引き数で指定する。 \fIfds\fP は、以下の型の構造体の配列である。
+.PP
 .in +4n
-.nf
-
+.EX
 struct pollfd {
     int   fd;         /* file descriptor */
     short events;     /* requested events */
     short revents;    /* returned events */
 };
+.EE
 .in
-.fi
 .PP
 \fInfds\fP には、 \fIfds\fP 配列の要素数を指定する。
-
+.PP
 \fIfd\fP フィールドには、オープンされたファイルのファイルディスクリプターが入る。 このフィールドが負の場合、対応する \fIevents\fP
 フィールドは無視され、 \fIrevents\fP には 0 が返される。(この機能により、一つの \fBpoll\fP()
 の呼び出しで簡単にあるファイルディスクリプターを無視することができる。 単に \fIfd\fP フィールドの符号を反転するだけでよい。
 ただし、この方法はファイルディスクリプター 0 を無視するのには使用できない点に注意すること。)
-
+.PP
 構造体の \fIevents\fP 要素は入力パラメーターで、 ファイルディスクリプター \fIfd\fP に関して、
 アプリケーションが興味を持っているイベントのビットマスクを指定する。 このフィールドには 0 を指定することもでき、 その場合 \fIrevents\fP
 で返されるイベントは \fBPOLLHUP\fP, \fBPOLLERR\fP, \fBPOLLNVAL\fP だけである (下記参照)。
-
+.PP
 \fIrevents\fP 要素は出力パラメーターで、実際に起こったイベントがカーネルにより設定される。 \fIrevents\fP で返されるビット列には、
 \fIevents\fP で指定したもののどれか、もしくは \fBPOLLERR\fP, \fBPOLLHUP\fP, \fBPOLLNVAL\fP のうちの一つが含まれる
 (\fBPOLLERR\fP, \fBPOLLHUP\fP, \fBPOLLNVAL\fP の 3つのビットは \fIevents\fP
 に指定しても意味がなく、対応した状態が真の場合に \fIrevents\fP に設定される)。
-
+.PP
 どのファイルディスクリプターにも要求したイベントが発生しておらず、 エラーも起こらない場合、 \fBpoll\fP()
 はイベントのうちいずれか一つが発生するまで停止 (block) する。
-
+.PP
 \fItimeout\fP 引き数は、 ファイルディスクリプターが利用可能になるまで \fBpoll\fP() が停止する時間をミリ秒で指定する。
 \fBpoll\fP() の呼び出しは以下のいずれかになるまで停止する。
-.IP * 3
+.IP \(bu 2
 ファイルディスクリプターが利用可能になる
-.IP *
+.IP \(bu
 呼び出しがシグナルハンドラーにより割り込まれた
-.IP *
+.IP \(bu
 タイムアウトが満了する
 .PP
 \fItimeout\fP 時間はシステムクロックの粒度に切り上げられ、 カーネルのスケジューリング遅延により少しだけ長くなる可能性がある点に注意すること。
 \fItimeout\fP に負の値を指定した場合、タイムアウト時間が無限大を意味する。 \fItimeout\fP を 0 に指定した場合、I/O
 可能なファイルディスクリプターがない場合であっても、 \fBpoll\fP() はすぐに返る。
-
+.PP
 \fIevents\fP に指定したり、 \fIrevents\fP で返されるビットは \fI<poll.h>\fP で定義されている:
-.RS
 .TP 
 \fBPOLLIN\fP
 読み出し可能なデータがある。
 .TP 
 \fBPOLLPRI\fP
-読み出し可能な緊急データ (urgent data) がある (例えば、TCP ソケットの帯域外 (out\-of\-band data)
-データを受信した場合や、 パケットモードの擬似端末のマスタがスレーブ側の変化を見つけたとき)。
+There is some exceptional condition on the file descriptor.  Possibilities
+include:
+.RS
+.IP \(bu 2
+There is out\-of\-band data on a TCP socket (see \fBtcp\fP(7)).
+.IP \(bu
+A pseudoterminal master in packet mode has seen a state change on the slave
+(see \fBioctl_tty\fP(2)).
+.IP \(bu
+A \fIcgroup.events\fP file has been modified (see \fBcgroups\fP(7)).
+.RE
 .TP 
 \fBPOLLOUT\fP
 書き込みが可能になった。ただし、ソケットやパイプで利用可能な空間よりも大きなデータを書き込んだ場合には (\fBO_NONBLOCK\fP
@@ -130,18 +139,23 @@ struct pollfd {
 (「どの」ヘッダーファイルをインクルードするよりも前に)  \fB_GNU_SOURCE\fP 機能検査マクロを定義しなければならない。
 .TP 
 \fBPOLLERR\fP
-エラー状態 (出力の場合のみ)。
+Error condition (only returned in \fIrevents\fP; ignored in \fIevents\fP).  This
+bit is also set for a file descriptor referring to the write end of a pipe
+when the read end has been closed.
 .TP 
 \fBPOLLHUP\fP
-ハングアップした (出力の場合のみ)。
+Hang up (only returned in \fIrevents\fP; ignored in \fIevents\fP).  Note that when
+reading from a channel such as a pipe or a stream socket, this event merely
+indicates that the peer closed its end of the channel.  Subsequent reads
+from the channel will return 0 (end of file)  only after all outstanding
+data in the channel has been consumed.
 .TP 
 \fBPOLLNVAL\fP
-不正な要求: \fIfd\fP がオープンされていない (出力の場合のみ)。
-.RE
+Invalid request: \fIfd\fP not open (only returned in \fIrevents\fP; ignored in
+\fIevents\fP).
 .PP
 \fB_XOPEN_SOURCE\fP を定義してコンパイルした場合には、以下の定義も行われる。
 ただし、上記のリストにあるビット以上の情報が得られる訳ではない。
-.RS
 .TP 
 \fBPOLLRDNORM\fP
 \fBPOLLIN\fP と同じ。
@@ -155,7 +169,6 @@ struct pollfd {
 .TP 
 \fBPOLLWRBAND\fP
 優先帯域データ (priority data) が書き込み可能である。
-.RE
 .PP
 Linux では \fBPOLLMSG\fP も定義されているが、使用されていない。
 .SS ppoll()
@@ -164,50 +177,64 @@ Linux では \fBPOLLMSG\fP も定義されているが、使用されていな�
 もしくはシグナルの捕捉を安全に待つことができる。
 .PP
 \fItimeout\fP 引き数の精度の違いを除くと、以下の \fBppoll\fP()  の呼び出しは、
-.nf
+.PP
+.in +4n
+.EX
+ready = ppoll(&fds, nfds, tmo_p, &sigmask);
+.EE
+.in
+.PP
+次の呼び出しを \fIatomic\fP に実行するのとほぼ等価である。
+.PP
+.in +4n
+.EX
+sigset_t origmask;
+int timeout;
 
-    ready = ppoll(&fds, nfds, timeout_ts, &sigmask);
-
-.fi
-次の呼び出しを \fIatomic\fP に実行するのと等価である。
-.nf
-
-    sigset_t origmask;
-    int timeout;
-
-    timeout = (timeout_ts == NULL) ? \-1 :
-              (timeout_ts.tv_sec * 1000 + timeout_ts.tv_nsec / 1000000);
-    sigprocmask(SIG_SETMASK, &sigmask, &origmask);
-    ready = poll(&fds, nfds, timeout);
-    sigprocmask(SIG_SETMASK, &origmask, NULL);
-.fi
+timeout = (tmo_p == NULL) ? \-1 :
+          (tmo_p\->tv_sec * 1000 + tmo_p\->tv_nsec / 1000000);
+pthread_sigmask(SIG_SETMASK, &sigmask, &origmask);
+ready = poll(&fds, nfds, timeout);
+pthread_sigmask(SIG_SETMASK, &origmask, NULL);
+.EE
+.in
+.PP
+The above code segment is described as \fInearly\fP equivalent because whereas
+a negative \fItimeout\fP value for \fBpoll\fP()  is interpreted as an infinite
+timeout, a negative value expressed in \fI*tmo_p\fP results in an error from
+\fBppoll\fP().
 .PP
 なぜ \fBppoll\fP()  が必要なのかについての説明は \fBpselect\fP(2)  の説明を参照のこと。
-
+.PP
 \fIsigmask\fP 引き数に NULL が指定された場合、シグナルマスクの操作は行われない (したがって、 \fBppoll\fP()  の
 \fBpoll\fP()  との違いは \fItimeout\fP 引き数の精度だけとなる)。
-
-\fItimeout\fP 引き数は \fBppoll\fP()  が停止する時間の上限を指定するものである。
-この引き数には以下の型の構造体へのポインターを指定する。
+.PP
+\fItmo_p\fP 引き数は \fBppoll\fP()  が停止する時間の上限を指定するものである。 この引き数には以下の型の構造体へのポインターを指定する。
+.PP
 .in +4n
-.nf
-
+.EX
 struct timespec {
     long    tv_sec;         /* seconds */
     long    tv_nsec;        /* nanoseconds */
 };
-.fi
+.EE
 .in
-
-\fItimeout_ts\fP に NULL が指定された場合、 \fBppoll\fP は無限に停止することがあり得る。
+.PP
+\fItmo_p\fP に NULL が指定された場合、 \fBppoll\fP は無限に停止することがあり得る。
 .SH 返り値
-成功した場合は正の数を返す。この数は 0 以外の \fIrevents\fP 要素を持つ構造体の数である (別の言い方をすると、これらのディスクリプター
-にはイベントかエラー報告がある)。 値 0 は、タイムアウトとなり、どのファイルディスクリプターでもイベントが 発生しなかったことを示す。エラーの場合は
-\-1 が返され、 \fIerrno\fP が適切に設定される。
+On success, \fBpoll\fP()  returns a nonnegative value which is the number of
+elements in the \fIpollfds\fP whose \fIrevents\fP fields have been set to a
+nonzero value (indicating an event or an error).  A return value of zero
+indicates that the system call timed out before any file descriptors became
+read.
+.PP
+On error, \-1 is returned, and \fIerrno\fP is set to indicate the cause of the
+error.
 .SH エラー
 .TP 
 \fBEFAULT\fP
-引き数として指定した配列が、呼び出したプロセスのアドレス空間に 含まれていない。
+\fIfds\fP points outside the process's accessible address space.  The array
+given as argument was not contained in the calling program's address space.
 .TP 
 \fBEINTR\fP
 要求されたイベントのどれかが起こる前にシグナルが発生した。 \fBsignal\fP(7)  参照。
@@ -215,40 +242,211 @@ struct timespec {
 \fBEINVAL\fP
 \fInfds\fP の値が \fBRLIMIT_NOFILE\fP を超えた。
 .TP 
+\fBEINVAL\fP
+(\fBppoll\fP())  The timeout value expressed in \fI*ip\fP is invalid (negative).
+.TP 
 \fBENOMEM\fP
-ファイルディスクリプターテーブルを確保するためのメモリーがない。
+Unable to allocate memory for kernel data structures.
 .SH バージョン
-.\" library call was introduced in libc 5.4.28
-\fBpoll\fP() システムコールは Linux 2.1.23 で導入された。
-このシステムコールが存在しない古いカーネルでは、
-glibc (や古い Linux libc) は \fBselect\fP(2) を使用して \fBpoll\fP()
-ラッパー関数のエミュレーションを行う。
-
+\fBpoll\fP() システムコールは Linux 2.1.23 で導入された。このシステムコールが存在しない古いカーネルでは、 glibc は
+\fBselect\fP(2) を使用して \fBpoll\fP() ラッパー関数のエミュレーションを行う。
+.PP
 \fBppoll\fP()  システムコールは カーネル 2.6.16 で Linux に追加された。 \fBppoll\fP()  ライブラリコールは glibc
 2.4 に追加された。
 .SH 準拠
+.\" FIXME .
+.\" ppoll() is proposed for inclusion in POSIX:
+.\" https://www.austingroupbugs.net/view.php?id=1263
 .\" NetBSD 3.0 has a pollts() which is like Linux ppoll().
-\fBpoll\fP()  は POSIX.1\-2001 に準拠している。 \fBppoll\fP()  は Linux 固有である。
+\fBpoll\fP() は POSIX.1\-2001 と POSIX.1\-2008 に準拠している。 \fBppoll\fP()  は Linux 固有である。
 .SH 注意
+The operation of \fBpoll\fP()  and \fBppoll\fP()  is not affected by the
+\fBO_NONBLOCK\fP flag.
+.PP
+.\" Darwin, according to a report by Jeremy Sequoia, relayed by Josh Triplett
+On some other UNIX systems, \fBpoll\fP()  can fail with the error \fBEAGAIN\fP if
+the system fails to allocate kernel\-internal resources, rather than
+\fBENOMEM\fP as Linux does.  POSIX permits this behavior.  Portable programs
+may wish to check for \fBEAGAIN\fP and loop, just as with \fBEINTR\fP.
+.PP
 いくつかの実装では、値 \-1 を持った非標準の定数 \fBINFTIM\fP が定義されており、 \fBpoll\fP()  の \fItimeout\fP
 の指定に使用できる。 この定数は glibc では定義されていない。
-
+.PP
 \fBpoll\fP() で監視中のファイルディスクリプターが別のスレッドによってクローズされた場合に何が起こるかの議論については、 \fBselect\fP(2)
 を参照してほしい。
-.SS "C ライブラリとカーネル ABI の違い"
-Linux の \fBppoll\fP()  システムコールは \fItimeout_ts\fP 引き数を変更する。 しかし、glibc
+.SS "C ライブラリとカーネルの違い"
+Linux の \fBppoll\fP()  システムコールは \fItmo_p\fP 引き数を変更する。 しかし、glibc
 のラッパー関数は、システムコールに渡す timeout 引き数 としてローカル変数を使うことでこの動作を隠蔽している。 このため、glibc の
-\fBppoll\fP()  関数では \fItimeout_ts\fP 引き数は変更されない。
-
-素の \fBppoll\fP() システムコールは 5 番目の引き数 \fIsize_t sigsetsize\fP をとる。 この引き数は \fIsigmask\fP
-引き数のバイト単位のサイズを指定する。 glibc の \fBppoll\fP() ラッパー関数は、この引き数に固定値
-(\fIsizeof(sigset_t)\fP と同じ) を指定する。
+\fBppoll\fP()  関数では \fItmo_p\fP 引き数は変更されない。
+.PP
+The raw \fBppoll\fP()  system call has a fifth argument, \fIsize_t sigsetsize\fP,
+which specifies the size in bytes of the \fIsigmask\fP argument.  The glibc
+\fBppoll\fP()  wrapper function specifies this argument as a fixed value (equal
+to \fIsizeof(kernel_sigset_t)\fP).  See \fBsigprocmask\fP(2)  for a discussion on
+the differences between the kernel and the libc notion of the sigset.
 .SH バグ
 \fBselect\fP(2)  の「バグ」の節に書かれている、誤った準備完了通知 (spurious readiness notifications)
 についての議論を参照のこと。
+.SH 例
+The program below opens each of the files named in its command\-line
+arguments and monitors the resulting file descriptors for readiness to read
+(\fBPOLLIN\fP).  The program loops, repeatedly using \fBpoll\fP()  to monitor the
+file descriptors, printing the number of ready file descriptors on return.
+For each ready file descriptor, the program:
+.IP \(bu 2
+displays the returned \fIrevents\fP field in a human\-readable form;
+.IP \(bu
+if the file descriptor is readable, reads some data from it, and displays
+that data on standard output; and
+.IP \(bu
+if the file descriptors was not readable, but some other event occurred
+(presumably \fBPOLLHUP\fP), closes the file descriptor.
+.PP
+Suppose we run the program in one terminal, asking it to open a FIFO:
+.PP
+.in +4n
+.EX
+$ \fBmkfifo myfifo\fP
+$ \fB./poll_input myfifo\fP
+.EE
+.in
+.PP
+In a second terminal window, we then open the FIFO for writing, write some
+data to it, and close the FIFO:
+.PP
+.in +4n
+.EX
+$ \fBecho aaaaabbbbbccccc > myfifo\fP
+.EE
+.in
+.PP
+In the terminal where we are running the program, we would then see:
+.PP
+.in +4n
+.EX
+Opened "myfifo" on fd 3
+About to poll()
+Ready: 1
+  fd=3; events: POLLIN POLLHUP
+    read 10 bytes: aaaaabbbbb
+About to poll()
+Ready: 1
+  fd=3; events: POLLIN POLLHUP
+    read 6 bytes: ccccc
+
+About to poll()
+Ready: 1
+  fd=3; events: POLLHUP
+    closing fd 3
+All file descriptors closed; bye
+.EE
+.in
+.PP
+In the above output, we see that \fBpoll\fP()  returned three times:
+.IP \(bu 2
+On the first return, the bits returned in the \fIrevents\fP field were
+\fBPOLLIN\fP, indicating that the file descriptor is readable, and \fBPOLLHUP\fP,
+indicating that the other end of the FIFO has been closed.  The program then
+consumed some of the available input.
+.IP \(bu
+The second return from \fBpoll\fP()  also indicated \fBPOLLIN\fP and \fBPOLLHUP\fP;
+the program then consumed the last of the available input.
+.IP \(bu
+.\"
+On the final return, \fBpoll\fP()  indicated only \fBPOLLHUP\fP on the FIFO, at
+which point the file descriptor was closed and the program terminated.
+.SS プログラムのソース
+\&
+.EX
+/* poll_input.c
+
+   Licensed under GNU General Public License v2 or later.
+*/
+#include <poll.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
+                        } while (0)
+
+int
+main(int argc, char *argv[])
+{
+    int nfds, num_open_fds;
+    struct pollfd *pfds;
+
+    if (argc < 2) {
+       fprintf(stderr, "Usage: %s file...\en", argv[0]);
+       exit(EXIT_FAILURE);
+    }
+
+    num_open_fds = nfds = argc \- 1;
+    pfds = calloc(nfds, sizeof(struct pollfd));
+    if (pfds == NULL)
+        errExit("malloc");
+
+    /* Open each file on command line, and add it \(aqpfds\(aq array */
+
+    for (int j = 0; j < nfds; j++) {
+        pfds[j].fd = open(argv[j + 1], O_RDONLY);
+        if (pfds[j].fd == \-1)
+            errExit("open");
+
+        printf("Opened \e"%s\e" on fd %d\en", argv[j + 1], pfds[j].fd);
+
+        pfds[j].events = POLLIN;
+    }
+
+    /* Keep calling poll() as long as at least one file descriptor is
+       open */
+
+    while (num_open_fds > 0) {
+        int ready;
+
+        printf("About to poll()\en");
+        ready = poll(pfds, nfds, \-1);
+        if (ready == \-1)
+            errExit("poll");
+
+        printf("Ready: %d\en", ready);
+
+        /* Deal with array returned by poll() */
+
+        for (int j = 0; j < nfds; j++) {
+            char buf[10];
+
+            if (pfds[j].revents != 0) {
+                printf("  fd=%d; events: %s%s%s\en", pfds[j].fd,
+                        (pfds[j].revents & POLLIN)  ? "POLLIN "  : "",
+                        (pfds[j].revents & POLLHUP) ? "POLLHUP " : "",
+                        (pfds[j].revents & POLLERR) ? "POLLERR " : "");
+
+                if (pfds[j].revents & POLLIN) {
+                    ssize_t s = read(pfds[j].fd, buf, sizeof(buf));
+                    if (s == \-1)
+                        errExit("read");
+                    printf("    read %zd bytes: %.*s\en",
+                            s, (int) s, buf);
+                } else {                /* POLLERR | POLLHUP */
+                    printf("    closing fd %d\en", pfds[j].fd);
+                    if (close(pfds[j].fd) == \-1)
+                        errExit("close");
+                    num_open_fds\-\-;
+                }
+            }
+        }
+    }
+
+    printf("All file descriptors closed; bye\en");
+    exit(EXIT_SUCCESS);
+}
+.EE
 .SH 関連項目
-\fBrestart_syscall\fP(2), \fBselect\fP(2), \fBselect_tut\fP(2), \fBtime\fP(7)
+\fBrestart_syscall\fP(2), \fBselect\fP(2), \fBselect_tut\fP(2), \fBepoll\fP(7),
+\fBtime\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -41,120 +41,27 @@
 .\" Updated 2006-07-21, Akihiro MOTOKI, LDP v2.36
 .\" Updated 2009-02-13, Akihiro MOTOKI, LDP v3.18
 .\"
-.TH SELECT_TUT 2 2013\-12\-30 Linux "Linux Programmer's Manual"
+.TH SELECT_TUT 2 2020\-04\-11 Linux "Linux Programmer's Manual"
 .SH 名前
-select, pselect, FD_CLR, FD_ISSET, FD_SET, FD_ZERO \- 同期 I/O の多重化
+select, pselect \- 同期 I/O の多重化
 .SH 書式
-.nf
-/* POSIX.1\-2001 に従う場合 */
-.br
-\fB#include <sys/select.h>\fP
-.sp
-/* 以前の規格に従う場合 */
-.br
-\fB#include <sys/time.h>\fP
-.br
-\fB#include <sys/types.h>\fP
-.br
-\fB#include <unistd.h>\fP
-.sp
-\fBint select(int \fP\fInfds\fP\fB, fd_set *\fP\fIreadfds\fP\fB, fd_set *\fP\fIwritefds\fP\fB,\fP
-\fB           fd_set *\fP\fIexceptfds\fP\fB, struct timeval *\fP\fIutimeout\fP\fB);\fP
-.sp
-\fBvoid FD_CLR(int \fP\fIfd\fP\fB, fd_set *\fP\fIset\fP\fB);\fP
-.br
-\fBint  FD_ISSET(int \fP\fIfd\fP\fB, fd_set *\fP\fIset\fP\fB);\fP
-.br
-\fBvoid FD_SET(int \fP\fIfd\fP\fB, fd_set *\fP\fIset\fP\fB);\fP
-.br
-\fBvoid FD_ZERO(fd_set *\fP\fIset\fP\fB);\fP
-.sp
-\fB#include <sys/select.h>\fP
-.sp
-\fBint pselect(int \fP\fInfds\fP\fB, fd_set *\fP\fIreadfds\fP\fB, fd_set *\fP\fIwritefds\fP\fB,\fP
-\fB            fd_set *\fP\fIexceptfds\fP\fB, const struct timespec *\fP\fIntimeout\fP\fB,\fP
-\fB            const sigset_t *\fP\fIsigmask\fP\fB);\fP
-.fi
-.sp
-.in -4n
-glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
-\fBpselect\fP(): _POSIX_C_SOURCE\ >=\ 200112L || _XOPEN_SOURCE\ >=\ 600
+\fBselect\fP(2)  参照。
 .SH 説明
-\fBselect\fP()  (や \fBpselect\fP())  を使うと、効率的に複数のファイルディスクリプターを監視し、
+システムコール \fBselect\fP() や \fBpselect\fP() を使うと、効率的に複数のファイルディスクリプターを監視し、
 そのファイルディスクリプターのいずれかが 「ready (準備ができた)」状態、つまり I/O (入出力) が可能になっているかや、
 ファイルディスクリプターのいずれかが 「例外状態 (exceptional condition)」が発生したか、を調べることができる。
-
-この関数の主要な引き数は、3種類のファイルディスクリプターの「集合」 \fIreadfds\fP, \fIwritefds\fP, \fIexceptfds\fP
-である。 各々の集合は \fBfd_set\fP として宣言され、その内容は \fBFD_CLR\fP(), \fBFD_ISSET\fP(), \fBFD_SET\fP(),
-\fBFD_ZERO\fP()  といったマクロによって操作できる。 新しく宣言された集合は、まず最初に \fBFD_ZERO\fP()
-を使ってクリアすべきである。 \fBselect\fP()  はこれらの集合の内容を、以降に述べる規則に従って修正する。 \fBselect\fP()
-を呼んだ後、ファイルディスクリプターがまだ集合に存在しているかどうかは、 \fBFD_ISSET\fP()  マクロによって調べることができる。
-\fBFD_ISSET\fP()  は指定されたディスクリプターが集合に存在していれば 0 以外の値を返し、 存在しなければ 0 を返す。
-\fBFD_CLR\fP()  は集合からのファイルディスクリプターの削除を行う。
-.SS 引き数
-.TP 
-\fIreadfds\fP
-この集合に含まれるいずれかのファイルディスクリプターで、 データの読み込みが可能になったかどうかを監視する。 \fBselect\fP()
-から戻る時に、\fIreadfds\fP のうち、 直ちに読み込み可能なファイルディスクリプター以外は 集合から削除される。
-.TP 
-\fIwritefds\fP
-この集合に含まれるいずれかのファイルディスクリプターで、 データを書き込むスペースがあるかどうかを監視する。 \fBselect\fP()
-から戻る時に、\fIwritefds\fP のうち、 直ちに書き込み可能なファイルディスクリプター以外は 集合から削除される。
-.TP 
-\fIexceptfds\fP
-この集合に含まれるいずれかのファイルディスクリプターで、 「例外状態 (exceptional condition)」が発生したかどうかを監視する。
-実際の動作では、普通に起こり得る例外状態は一つだけであり、 それは TCP ソケットで \fI帯域外 (out\-of\-band; OOB)\fP データが
-読み込み可能な場合である。 OOB データの詳細については、 \fBrecv\fP(2), \fBsend\fP(2), \fBtcp\fP(7)  を参照のこと。
-(これ以外では、まれなことだが、 パケットモードの擬似端末 (pseudoterminals) で \fBselect\fP()
-が例外状態を示すことがある。)  \fBselect\fP()  が返る時に、\fIexceptfds\fP のうち、
-例外状態が発生したディスクリプター以外は集合から削除される。
-.TP 
-\fInfds\fP
-全ての集合に含まれるファイルディスクリプターのうち、 値が最大のものに 1 を足した整数である。
-すなわち、ファイルディスクリプターを各集合に加える作業の途中で、 全てのファイルディスクリプターを見て最大値を求め、 それに 1 を加えて
-\fInfds\fP として渡さないといけない、ということだ。
-.TP 
-\fIutimeout\fP
-(何も起こらなかった場合に)  \fBselect\fP()  が戻る前に待つ最大時間である。 この値に NULL を渡すと、 \fBselect\fP()
-はファイルディスクリプターのいずれかが ready (準備ができた) 状態に なるまで待ち続けてずっと停止する。 \fIutimeout\fP は 0
-秒にすることもでき、 この場合 \fBselect\fP()  は直ちに返り、呼び出し時点のファイルディスクリプターの状態に 関する情報が返される。 構造体
-\fIstruct timeval\fP は次のように定義されている:
-.IP
-.in +4n
-.nf
-struct timeval {
-    time_t tv_sec;    /* seconds */
-    long tv_usec;     /* microseconds */
-};
-.fi
-.in
-.TP 
-\fIntimeout\fP
-\fBpselect\fP()  のこの引き数は \fIutimeout\fP と同じ意味を持つが、 \fIstruct timespec\fP
-は次に示すようにナノ秒の精度を持つ。
-.IP
-.in +4n
-.nf
-struct timespec {
-    long tv_sec;    /* seconds */
-    long tv_nsec;   /* nanoseconds */
-};
-.fi
-.in
-.TP 
-\fIsigmask\fP
-この引き数は、呼び出し側が \fBpselect\fP()  内部で停止している間に、カーネルが通知を許可すべきシグナル集合
-(すなわち、呼び出したスレッドのシグナルマスクから削除すべきシグナル集合)  を保持する (\fBsigaddset\fP(3)  と
-\fBsigprocmask\fP(2)  を参照)。 この引き数は NULL にすることもでき、その場合はこの関数へ
-入るとき・出るときにシグナルマスクを変更しない。 この場合、 \fBpselect\fP()  は \fBselect\fP()  と全く同じ動作となる。
+.PP
+.\"
+This page provides background and tutorial information on the use of these
+system calls.  For details of the arguments and semantics of \fBselect\fP()
+and \fBpselect\fP(), see \fBselect\fP(2).
 .SS シグナルとデータイベントを組み合わせる
 ファイルディスクリプターが I/O 可能な状態になるのと同時に シグナルも待ちたい場合には、 \fBpselect\fP()  が便利である。
 シグナルを受信するプログラムは、通常は、 シグナルハンドラーをグローバルなフラグを立てるためだけに使う。 このグローバルなフラグは、
 そのイベントをプログラムのメインループで 処理しなければならないことを示す。 シグナルを受けると \fBselect\fP()  (や
 \fBpselect\fP())  は \fIerrno\fP に \fBEINTR\fP をセットして戻ることになる。
 シグナルがプログラムのメインループで処理されるためにはこの動作が不可欠で、 これがないと \fBselect\fP()  は永遠に停止し続けることになる。
+.PP
 さて、メインループのどこかにこのグローバルフラグをチェックする 条件文があるとしよう。ここで少し考えてみないといけない。 「シグナルが条件文の後、しかし
 \fBselect\fP()  コールの前に到着したら どうなるのか？」 答えは「その \fBselect\fP()
 は、たとえ解決待ちのイベントがあったとしても、 永遠に停止する」である。 この競合状態は \fBpselect\fP()  コールによって解決できる。
@@ -163,7 +70,7 @@ struct timespec {
 \fBsigprocmask\fP(2)  でブロックする。 \fBpselect\fP()  コールでは \fBSIGCHLD\fP
 を、もともとのシグナルマスクを使って有効にするのだ。 このプログラムは次のようになる。
 .PP
-.nf
+.EX
 static volatile sig_atomic_t got_SIGCHLD = 0;
 
 static void
@@ -217,14 +124,15 @@ main(int argc, char *argv[])
         /* main body of program */
     }
 }
-.fi
+.EE
 .SS 実例
-実際のところ \fBselect\fP()  の大事な点は何なのか？ ディスクリプターは好きなときに読み書きできるんじゃないの？ \fBselect\fP()
-の重要なところは、複数のディスクリプターを同時に監視でき、 なんの動きもなければプロセスを適切にスリープ状態に移行するところにあるのだ。 UNIX
-プログラマは、 複数のファイルディスクリプターの入出力を同時に扱わねばならず、 しかもデータの流れは間欠的である、という状況によく出会う。 単に
-\fBread\fP(2)  や \fBwrite\fP(2)  コールのシーケンスを作るだけでは、それらのコールのどれかが
-ファイルディスクリプターからのデータを待ってブロックしており、 別のファイルディスクリプターには I/O が可能なのに使えない、
-ということになってしまうだろう。 \fBselect\fP()  を使うとこの状況に効果的に対処できる。
+実際のところ \fBselect\fP()  の大事な点は何なのか？ ファイルディスクリプターは好きなときに読み書きできるんじゃないの？
+\fBselect\fP()  の重要なところは、複数のディスクリプターを同時に監視でき、
+なんの動きもなければプロセスを適切にスリープ状態に移行するところにあるのだ。 UNIX プログラマは、
+複数のファイルディスクリプターの入出力を同時に扱わねばならず、 しかもデータの流れは間欠的である、という状況によく出会う。 単に \fBread\fP(2)
+や \fBwrite\fP(2)  コールのシーケンスを作るだけでは、それらのコールのどれかが ファイルディスクリプターからのデータを待ってブロックしており、
+別のファイルディスクリプターには I/O が可能なのに使えない、 ということになってしまうだろう。 \fBselect\fP()
+を使うとこの状況に効果的に対処できる。
 .SS "SELECT の掟"
 \fBselect\fP()  を使おうとした多くの人は、理解しにくい挙動に出くわし、結果的に
 できたものは移植性がないか、よくてもギリギリのものになってしまう。 例えば、上記のプログラムは、 集合に含まれるファイルディスクリプターを非停止
@@ -258,11 +166,13 @@ main(int argc, char *argv[])
 .TP 
 7.
 .\" Nonetheless, you should still cope with these errors for completeness.
-\fBread\fP(2), \fBrecv\fP(2), \fBwrite\fP(2), \fBsend\fP(2)  などの関数や \fBselect\fP()  コールは、
-\fIerrno\fP を \fBEINTR や EAGAIN\fP (\fBEWOULDBLOCK\fP)  にして \-1 を返すことがある。
-このような結果に対して適切に対応してやらなければならない (上記の例ではしていない)。 書いているプログラムがシグナルを受ける予定がなければ、
-\fBEINTR\fP が返されることはあまり考えられない。 書いているプログラムで非ブロック I/O をセットしていない場合は、 \fBEAGAIN\fP
-が返されることはないだろう。
+Calls to \fBread\fP(2), \fBrecv\fP(2), \fBwrite\fP(2), \fBsend\fP(2), and \fBselect\fP()
+can fail with the error \fBEINTR\fP, and calls to \fBread\fP(2), \fBrecv\fP(2)
+\fBwrite\fP(2), and \fBsend\fP(2)  can fail with \fIerrno\fP set to \fBEAGAIN\fP
+(\fBEWOULDBLOCK\fP).  These results must be properly managed (not done properly
+above).  If your program is not going to receive any signals, then it is
+unlikely you will get \fBEINTR\fP.  If your program does not set nonblocking
+I/O, you will not get \fBEAGAIN\fP.
 .TP 
 8.
 決して、引き数に長さ 0 のバッファーを指定して \fBread\fP(2), \fBrecv\fP(2), \fBwrite\fP(2), \fBsend\fP(2)
@@ -270,8 +180,8 @@ main(int argc, char *argv[])
 .TP 
 9.
 \fBread\fP(2), \fBrecv\fP(2), \fBwrite\fP(2), \fBsend\fP(2)  が \fB7.\fP に示した以外のエラーで失敗した場合や、
-入力系の関数の一つがファイル末尾を表す 0 を返した場合は、 そのディスクリプターをもう一度 select に渡しては\fIならない\fP。
-下記の例では、そのディスクリプターをただちにクローズし、 そこには \-1 をセットして、 それが集合に含まれ続けるのを許さないようにしている。
+入力系の関数の一つがファイル末尾を表す 0 を返した場合は、 そのファイルディスクリプターをもう一度 select に渡しては\fIならない\fP。
+下記の例では、そのファイルディスクリプターをただちにクローズし、 そこには \-1 をセットして、 それが集合に含まれ続けるのを許さないようにしている。
 .TP 
 10.
 タイムアウトの値は \fBselect\fP()  を呼ぶたびに初期化すべきである。 OS によっては timeout
@@ -292,27 +202,8 @@ main(int argc, char *argv[])
 .\" (See further on.)
 \fBselect\fP()  はファイルディスクリプター集合を変更するので、 \fBselect\fP()
 がループの中で使用されている場合には、呼び出しを行う前に毎回 ディスクリプター集合を初期化し直さなければならない。
-.SS "usleep エミュレーション"
-\fBusleep\fP(3)  関数を持たないシステムでは、 有限のタイムアウトを指定し、ファイルディスクリプターを全くセットせずに \fBselect\fP()
-を呼び出すことで、これを代用できる。 以下のようにする。
-.PP
-.nf
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 200000;  /* 0.2 seconds */
-    select(0, NULL, NULL, NULL, &tv);
-.fi
-.PP
-但し、これが動くと保証されているのは UNIX システムに限られる。
 .SH 返り値
-成功すると、 \fBselect\fP()  はファイルディスクリプター集合に残っている ファイルディスクリプターの総数を返す。
-
-\fBselect\fP()  がタイムアウトすると、返り値は 0 になる。 その時、ファイルディスクリプター集合はすべて空である
-(しかしそうならないシステムもある)。
-
-返り値が \-1 の場合はエラーを意味し、 \fIerrno\fP が適切にセットされる。エラーが起こった場合、 返された集合の内容や構造体 \fIstruct
-timeout\fP の内容は 未定義となっており、使用すべきではない。 しかし \fBpselect\fP()  は決して \fIntimeout\fP
-を変更しない。
+\fBselect\fP(2)  参照。
 .SH 注意
 一般的に言って、ソケットをサポートする全てのオペレーティングシステムは \fBselect\fP()  もサポートしている。 \fBselect\fP()
 を使うと、プログラマがスレッド、フォーク、IPC、シグナル、メモリー共有、 等々を使ってもっと複雑な方法で解決しようとする多くの問題が、
@@ -327,12 +218,11 @@ Linux 独自の \fBepoll\fP(7)  API は、多数のファイルディスクリ�
 \fBselect\fP()  の本当に便利な点を示す、よい例を紹介する。 以下のリストは、ある TCP ポートから別のポートへ転送を行う TCP
 フォワードプログラムである。
 .PP
-.nf
+.EX
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/time.h>
-#include <sys/types.h>
+#include <sys/select.h>
 #include <string.h>
 #include <signal.h>
 #include <sys/socket.h>
@@ -348,64 +238,67 @@ static int forward_port;
 static int
 listen_socket(int listen_port)
 {
-    struct sockaddr_in a;
-    int s;
+    struct sockaddr_in addr;
+    int lfd;
     int yes;
 
-    if ((s = socket(AF_INET, SOCK_STREAM, 0)) == \-1) {
+    lfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (lfd == \-1) {
         perror("socket");
         return \-1;
     }
+
     yes = 1;
-    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
+    if (setsockopt(lfd, SOL_SOCKET, SO_REUSEADDR,
             &yes, sizeof(yes)) == \-1) {
         perror("setsockopt");
-        close(s);
+        close(lfd);
         return \-1;
     }
-    memset(&a, 0, sizeof(a));
-    a.sin_port = htons(listen_port);
-    a.sin_family = AF_INET;
-    if (bind(s, (struct sockaddr *) &a, sizeof(a)) == \-1) {
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_port = htons(listen_port);
+    addr.sin_family = AF_INET;
+    if (bind(lfd, (struct sockaddr *) &addr, sizeof(addr)) == \-1) {
         perror("bind");
-        close(s);
+        close(lfd);
         return \-1;
     }
+
     printf("accepting connections on port %d\en", listen_port);
-    listen(s, 10);
-    return s;
+    listen(lfd, 10);
+    return lfd;
 }
 
 static int
 connect_socket(int connect_port, char *address)
 {
-    struct sockaddr_in a;
-    int s;
+    struct sockaddr_in addr;
+    int cfd;
 
-    s = socket(AF_INET, SOCK_STREAM, 0);
-    if (s == \-1) {
+    cfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (cfd == \-1) {
         perror("socket");
-        close(s);
         return \-1;
     }
 
-    memset(&a, 0, sizeof(a));
-    a.sin_port = htons(connect_port);
-    a.sin_family = AF_INET;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_port = htons(connect_port);
+    addr.sin_family = AF_INET;
 
-    if (!inet_aton(address, (struct in_addr *) &a.sin_addr.s_addr)) {
-        perror("bad IP address format");
-        close(s);
+    if (!inet_aton(address, (struct in_addr *) &addr.sin_addr.s_addr)) {
+        fprintf(stderr, "inet_aton(): bad IP address format\en");
+        close(cfd);
         return \-1;
     }
 
-    if (connect(s, (struct sockaddr *) &a, sizeof(a)) == \-1) {
+    if (connect(cfd, (struct sockaddr *) &addr, sizeof(addr)) == \-1) {
         perror("connect()");
-        shutdown(s, SHUT_RDWR);
-        close(s);
+        shutdown(cfd, SHUT_RDWR);
+        close(cfd);
         return \-1;
     }
-    return s;
+    return cfd;
 }
 
 #define SHUT_FD1 do {                                \e
@@ -432,8 +325,8 @@ main(int argc, char *argv[])
     int h;
     int fd1 = \-1, fd2 = \-1;
     char buf1[BUF_SIZE], buf2[BUF_SIZE];
-    int buf1_avail, buf1_written;
-    int buf2_avail, buf2_written;
+    int buf1_avail = 0, buf1_written = 0;
+    int buf2_avail = 0, buf2_written = 0;
 
     if (argc != 4) {
         fprintf(stderr, "Usage\en\etfwd <listen\-port> "
@@ -450,139 +343,138 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
 
     for (;;) {
-        int r, nfds = 0;
-        fd_set rd, wr, er;
+        int ready, nfds = 0;
+        ssize_t nbytes;
+        fd_set readfds, writefds, exceptfds;
 
-        FD_ZERO(&rd);
-        FD_ZERO(&wr);
-        FD_ZERO(&er);
-        FD_SET(h, &rd);
+        FD_ZERO(&readfds);
+        FD_ZERO(&writefds);
+        FD_ZERO(&exceptfds);
+        FD_SET(h, &readfds);
         nfds = max(nfds, h);
-        if (fd1 > 0 && buf1_avail < BUF_SIZE) {
-            FD_SET(fd1, &rd);
-            nfds = max(nfds, fd1);
-        }
-        if (fd2 > 0 && buf2_avail < BUF_SIZE) {
-            FD_SET(fd2, &rd);
-            nfds = max(nfds, fd2);
-        }
-        if (fd1 > 0 && buf2_avail \- buf2_written > 0) {
-            FD_SET(fd1, &wr);
-            nfds = max(nfds, fd1);
-        }
-        if (fd2 > 0 && buf1_avail \- buf1_written > 0) {
-            FD_SET(fd2, &wr);
-            nfds = max(nfds, fd2);
-        }
+
+        if (fd1 > 0 && buf1_avail < BUF_SIZE)
+            FD_SET(fd1, &readfds);
+            /* Note: nfds is updated below, when fd1 is added to
+               exceptfds. */
+        if (fd2 > 0 && buf2_avail < BUF_SIZE)
+            FD_SET(fd2, &readfds);
+
+        if (fd1 > 0 && buf2_avail \- buf2_written > 0)
+            FD_SET(fd1, &writefds);
+        if (fd2 > 0 && buf1_avail \- buf1_written > 0)
+            FD_SET(fd2, &writefds);
+
         if (fd1 > 0) {
-            FD_SET(fd1, &er);
+            FD_SET(fd1, &exceptfds);
             nfds = max(nfds, fd1);
         }
         if (fd2 > 0) {
-            FD_SET(fd2, &er);
+            FD_SET(fd2, &exceptfds);
             nfds = max(nfds, fd2);
         }
 
-        r = select(nfds + 1, &rd, &wr, &er, NULL);
+        ready = select(nfds + 1, &readfds, &writefds, &exceptfds, NULL);
 
-        if (r == \-1 && errno == EINTR)
+        if (ready == \-1 && errno == EINTR)
             continue;
 
-        if (r == \-1) {
+        if (ready == \-1) {
             perror("select()");
             exit(EXIT_FAILURE);
         }
 
-        if (FD_ISSET(h, &rd)) {
-            unsigned int l;
-            struct sockaddr_in client_address;
+        if (FD_ISSET(h, &readfds)) {
+            socklen_t addrlen;
+            struct sockaddr_in client_addr;
+            int fd;
 
-            memset(&client_address, 0, l = sizeof(client_address));
-            r = accept(h, (struct sockaddr *) &client_address, &l);
-            if (r == \-1) {
+            addrlen = sizeof(client_addr);
+            memset(&client_addr, 0, addrlen);
+            fd = accept(h, (struct sockaddr *) &client_addr, &addrlen);
+            if (fd == \-1) {
                 perror("accept()");
             } else {
                 SHUT_FD1;
                 SHUT_FD2;
                 buf1_avail = buf1_written = 0;
                 buf2_avail = buf2_written = 0;
-                fd1 = r;
+                fd1 = fd;
                 fd2 = connect_socket(forward_port, argv[3]);
                 if (fd2 == \-1)
                     SHUT_FD1;
                 else
                     printf("connect from %s\en",
-                            inet_ntoa(client_address.sin_addr));
+                            inet_ntoa(client_addr.sin_addr));
+
+                /* Skip any events on the old, closed file
+                   descriptors. */
+
+                continue;
             }
         }
 
-        /* NB: read oob data before normal reads */
+        /* NB: read OOB data before normal reads */
 
-        if (fd1 > 0)
-            if (FD_ISSET(fd1, &er)) {
-                char c;
+        if (fd1 > 0 && FD_ISSET(fd1, &exceptfds)) {
+            char c;
 
-                r = recv(fd1, &c, 1, MSG_OOB);
-                if (r < 1)
-                    SHUT_FD1;
-                else
-                    send(fd2, &c, 1, MSG_OOB);
-            }
-        if (fd2 > 0)
-            if (FD_ISSET(fd2, &er)) {
-                char c;
+            nbytes = recv(fd1, &c, 1, MSG_OOB);
+            if (nbytes < 1)
+                SHUT_FD1;
+            else
+                send(fd2, &c, 1, MSG_OOB);
+        }
+        if (fd2 > 0 && FD_ISSET(fd2, &exceptfds)) {
+            char c;
 
-                r = recv(fd2, &c, 1, MSG_OOB);
-                if (r < 1)
-                    SHUT_FD2;
-                else
-                    send(fd1, &c, 1, MSG_OOB);
-            }
-        if (fd1 > 0)
-            if (FD_ISSET(fd1, &rd)) {
-                r = read(fd1, buf1 + buf1_avail,
-                          BUF_SIZE \- buf1_avail);
-                if (r < 1)
-                    SHUT_FD1;
-                else
-                    buf1_avail += r;
-            }
-        if (fd2 > 0)
-            if (FD_ISSET(fd2, &rd)) {
-                r = read(fd2, buf2 + buf2_avail,
-                          BUF_SIZE \- buf2_avail);
-                if (r < 1)
-                    SHUT_FD2;
-                else
-                    buf2_avail += r;
-            }
-        if (fd1 > 0)
-            if (FD_ISSET(fd1, &wr)) {
-                r = write(fd1, buf2 + buf2_written,
-                           buf2_avail \- buf2_written);
-                if (r < 1)
-                    SHUT_FD1;
-                else
-                    buf2_written += r;
-            }
-        if (fd2 > 0)
-            if (FD_ISSET(fd2, &wr)) {
-                r = write(fd2, buf1 + buf1_written,
-                           buf1_avail \- buf1_written);
-                if (r < 1)
-                    SHUT_FD2;
-                else
-                    buf1_written += r;
-            }
+            nbytes = recv(fd2, &c, 1, MSG_OOB);
+            if (nbytes < 1)
+                SHUT_FD2;
+            else
+                send(fd1, &c, 1, MSG_OOB);
+        }
+        if (fd1 > 0 && FD_ISSET(fd1, &readfds)) {
+            nbytes = read(fd1, buf1 + buf1_avail,
+                      BUF_SIZE \- buf1_avail);
+            if (nbytes < 1)
+                SHUT_FD1;
+            else
+                buf1_avail += nbytes;
+        }
+        if (fd2 > 0 && FD_ISSET(fd2, &readfds)) {
+            nbytes = read(fd2, buf2 + buf2_avail,
+                      BUF_SIZE \- buf2_avail);
+            if (nbytes < 1)
+                SHUT_FD2;
+            else
+                buf2_avail += nbytes;
+        }
+        if (fd1 > 0 && FD_ISSET(fd1, &writefds) && buf2_avail > 0) {
+            nbytes = write(fd1, buf2 + buf2_written,
+                       buf2_avail \- buf2_written);
+            if (nbytes < 1)
+                SHUT_FD1;
+            else
+                buf2_written += nbytes;
+        }
+        if (fd2 > 0 && FD_ISSET(fd2, &writefds) && buf1_avail > 0) {
+            nbytes = write(fd2, buf1 + buf1_written,
+                       buf1_avail \- buf1_written);
+            if (nbytes < 1)
+                SHUT_FD2;
+            else
+                buf1_written += nbytes;
+        }
 
-        /* check if write data has caught read data */
+        /* Check if write data has caught read data */
 
         if (buf1_written == buf1_avail)
             buf1_written = buf1_avail = 0;
         if (buf2_written == buf2_avail)
             buf2_written = buf2_avail = 0;
 
-        /* one side has closed the connection, keep
+        /* One side has closed the connection, keep
            writing to the other side until empty */
 
         if (fd1 < 0 && buf1_avail \- buf1_written == 0)
@@ -592,24 +484,21 @@ main(int argc, char *argv[])
     }
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .PP
 上記のプログラムは、ほとんどの種類の TCP 接続をフォワードする。 \fBtelnet\fP サーバによって中継される OOB シグナルデータも扱える。
 このプログラムは、データフローを双方向に同時に送るという、 ややこしい問題も処理できる。 \fBfork\fP(2)
 コールを使って、各ストリームごとに専用のスレッドを用いるほうが効率的だ、 という人もいるかもしれない。しかし、これは考えているよりずっとややこしい。
 あるいは、 \fBfcntl\fP(2)  を使って非ブロック I/O をセットすれば良い、というアイデアもあるだろう。
 これにも実際には問題があり、タイムアウトが非効率的に起こってしまう。
-
+.PP
 このプログラムは一度にひとつ以上の同時接続を扱うことはできないが、 その様に拡張するのは簡単で、バッファーのリンクリストを (接続ごとにひとつずつ)
 使えばよい。 現時点のものでは、新しい接続がくると古い接続は落ちてしまう。
 .SH 関連項目
 .\" .SH AUTHORS
 .\" This man page was written by Paul Sheer.
-\fBaccept\fP(2), \fBconnect\fP(2), \fBioctl\fP(2), \fBpoll\fP(2), \fBread\fP(2),
-\fBrecv\fP(2), \fBselect\fP(2), \fBsend\fP(2), \fBsigprocmask\fP(2), \fBwrite\fP(2),
-\fBsigaddset\fP(3), \fBsigdelset\fP(3), \fBsigemptyset\fP(3), \fBsigfillset\fP(3),
-\fBsigismember\fP(3), \fBepoll\fP(7)
+\fBaccept\fP(2), \fBconnect\fP(2), \fBpoll\fP(2), \fBread\fP(2), \fBrecv\fP(2),
+\fBselect\fP(2), \fBsend\fP(2), \fBsigprocmask\fP(2), \fBwrite\fP(2), \fBepoll\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

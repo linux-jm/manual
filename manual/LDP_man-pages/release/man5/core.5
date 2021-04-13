@@ -39,7 +39,7 @@
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-07-24, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH CORE 5 2014\-08\-19 Linux "Linux Programmer's Manual"
+.TH CORE 5 " 2020\-11\-01" Linux "Linux Programmer's Manual"
 .SH 名前
 core \- コアダンプファイル
 .SH 説明
@@ -47,10 +47,10 @@ core \- コアダンプファイル
 file)\fP を生成することである。コアダンプファイルは、ディスク上に生成される 終了時のプロセスのメモリーイメージを内容とするファイルである。
 このイメージをデバッガ (例えば \fBgdb\fP(1))  に読み込んで、 プログラムが終了した時点のプログラムの状態を検査することができる。
 どのシグナルを受けたときにプロセスがコアダンプを生成するかのリストは \fBsignal\fP(7)  に書かれている。
-
+.PP
 プロセスはソフトリソース制限 \fBRLIMIT_CORE\fP を設定することで、「コアダンプ」シグナルを受信した際に生成される
 コアダンプファイルのサイズに上限を課すことができる。詳細は \fBgetrlimit\fP(2)  を参照。
-
+.PP
 コアダンプファイルが生成されない状況がいくつかある:
 .IP * 3
 プロセスがコアファイルを書き込む許可を持たない場合 (デフォルトでは、コアファイルは \fIcore\fP か \fIcore.pid\fP (\fIpid\fP
@@ -69,19 +69,37 @@ file)\fP を生成することである。コアダンプファイルは、デ�
 に設定されている場合。 \fBgetrlimit\fP(2)  やシェルの \fIulimit\fP コマンドのドキュメント (\fBcsh\fP(1)  の
 \fIlimit\fP)  を参照。
 .IP *
-プロセスが実行したバイナリファイルの読み出し許可が有効になっていない場合。
+The binary being executed by the process does not have read permission
+enabled.  (This is a security measure to ensure that an executable whose
+contents are not readable does not produce a\(empossibly readable\(emcore
+dump containing an image of the executable.)
 .IP *
 .\" FIXME . Perhaps relocate discussion of /proc/sys/fs/suid_dumpable
 .\" and PR_SET_DUMPABLE to this page?
-プロセスが実行している set\-user\-ID (set\-group\-ID) プログラムの所有者の ユーザー (グループ) が、プロセスの実 UID
-(実 GID) と異なる場合 (但し、 \fBprctl\fP(2)  \fBPR_SET_DUMPABLE\fP 操作の説明と、 \fBproc\fP(5)  の
-\fI/proc/sys/fs/suid_dumpable\fP ファイルの説明も参照のこと)。
+The process is executing a set\-user\-ID (set\-group\-ID) program that is owned
+by a user (group) other than the real user (group)  ID of the process, or
+the process is executing a program that has file capabilities (see
+\fBcapabilities\fP(7)).  (However, see the description of the \fBprctl\fP(2)
+\fBPR_SET_DUMPABLE\fP operation, and the description of the
+\fI/proc/sys/fs/suid_dumpable\fP file in \fBproc\fP(5).)
+.IP *
+\fI/proc/sys/kernel/core_pattern\fP is empty and
+\fI/proc/sys/kernel/core_uses_pid\fP contains the value 0.  (These files are
+described below.)  Note that if \fI/proc/sys/kernel/core_pattern\fP is empty
+and \fI/proc/sys/kernel/core_uses_pid\fP contains the value 1, core dump files
+will have names of the form \fI.pid\fP, and such files are hidden unless one
+uses the \fBls\fP(1)  \fI\-a\fP option.
 .IP *
 .\" commit 046d662f481830e652ac34cd112249adde16452a
 (Linux 3.7 以降) カーネルの設定で \fBCONFIG_COREDUMP\fP オプションが有効になっていない。
 .PP
 上記に加えて、 \fBmadvise\fP(2) の \fBMADV_DONTDUMP\fP
 フラグが使用されている場合、プロセスのアドレス空間の一部がコアダンプから除外される場合がある。
+.PP
+.\"
+On systems that employ \fBsystemd\fP(1)  as the \fIinit\fP framework, core dumps
+may instead be placed in a location determined by \fBsystemd\fP(1).  See below
+for further details.
 .SS コアダンプファイルの名前
 デフォルトでは、コアダンプファイルの名前は \fIcore\fP となるが、コアダンプファイルの名前を決めるのに使われるテンプレートを
 \fI/proc/sys/kernel/core_pattern\fP ファイルに定義することで、ファイル名を変更することができる
@@ -92,42 +110,54 @@ file)\fP を生成することである。コアダンプファイルは、デ�
 .PD 0
 .TP  4
 %%
-1 つの % 文字
+1 つの % 文字。
 .TP 
 %c
-クラッシュしたプロセスのコアファイルのサイズに関するソフトリソース上限 (Linux 2.6.24 以降)
+クラッシュしたプロセスのコアファイルのサイズに関するソフトリソース上限 (Linux 2.6.24 以降)。
 .TP 
 %d
 .\" Added in git commit 12a2b4b2241e318b4f6df31228e4272d2c2968a1
-ダンプモード \(em \fBprctl\fP(2) \fBPR_GET_DUMPABLE\fP が返す値と同じ (Linux 3.7 以降)
+ダンプモード \(em \fBprctl\fP(2) \fBPR_GET_DUMPABLE\fP が返す値と同じ (Linux 3.7 以降)。
 .TP 
 %e
-実行ファイル名 (パス名のプレフィックスは含まれない)
+The process or thread's \fIcomm\fP value, which typically is the same as the
+executable filename (without path prefix, and truncated to a maximum of 15
+characters), but may have been modified to be something different; see the
+discussion of \fI/proc/[pid]/comm\fP and \fI/proc/[pid]/task/[tid]/comm\fP in
+\fBproc\fP(5).
 .TP 
 %E
 実行ファイルのパス名。スラッシュ (\(aq/\(aq) は感嘆符 (\(aq!\(aq) に置き換えられる。 (Linux 3.0 以降)
 .TP 
 %g
-ダンプされたプロセスの実グループ ID (real GID)
+ダンプされたプロセスの実グループ ID (real GID) の数値。
 .TP 
 %h
-ホスト名 (\fBuname\fP(2) で返される \fInodename\fP と同じ)
+ホスト名 (\fBuname\fP(2) で返される \fInodename\fP と同じ)。
+.TP 
+%i
+.\" commit b03023ecbdb76c1dec86b41ed80b123c22783220
+コアダンプのきっかけとなったスレッドの TID; そのスレッドが属している PID 名前空間での TID (Linux 3.18 以降)。
+.TP 
+%I
+.\" commit b03023ecbdb76c1dec86b41ed80b123c22783220
+コアダンプのきっかけとなったスレッドの TID; そのスレッドの初期 PID 名前空間での TID (Linux 3.18 以降)。
 .TP 
 %p
-ダンプされるプロセスの PID; そのプロセスが属している PID 名前空間での PID
+ダンプされるプロセスの PID; そのプロセスが属している PID 名前空間での PID。
 .TP 
 %P
 .\" Added in git commit 65aafb1e7484b7434a0c1d4c593191ebe5776a2f
-ダンプされるプロセスの PID; 元の PID 名前空間での値 (Linux 3.12 以降)
+ダンプされるプロセスの PID; 初期 PID 名前空間での PID (Linux 3.12 以降)。
 .TP 
 %s
-ダンプを引き起こしたシグナルの番号
+ダンプを引き起こしたシグナルの番号。
 .TP 
 %t
 ダンプ時刻、紀元 (Epoch; 1970\-01\-01 00:00:00 +0000 (UTC))  からの秒数。
 .TP 
 %u
-ダンプされたプロセスの実ユーザー ID (real UID)
+ダンプされたプロセスの実ユーザー ID (real UID) の数値。
 .PD
 .RE
 .PP
@@ -135,14 +165,19 @@ file)\fP を生成することである。コアダンプファイルは、デ�
 と文字の組み合わせがあった場合も同様である。 テンプレートにおける他の文字は、 コアファイル名としてそのまま使われる。 テンプレートには
 \(aq/\(aq 文字を入れることができ、 ディレクトリ名の区切り文字と解釈される。 結果として生成されるコアファイル名の最大サイズは 128
 バイトである (2.6.19 より前のカーネルでは 64 バイト)。 このファイルのデフォルト値は "core" である。 以前のものとの互換性のため、
-\fI/proc/sys/kernel/core_pattern\fP に "%p" が含まれず、 かつ
+\fI/proc/sys/kernel/core_pattern\fP に \fI%p\fP が含まれず、 かつ
 \fI/proc/sys/kernel/core_uses_pid\fP (下記参照) が 0 でない場合は、.PID がコアファイル名に追加される。
-
+.PP
+Paths are interpreted according to the settings that are active for the
+crashing process.  That means the crashing process's mount namespace (see
+\fBmount_namespaces\fP(7)), its current working directory (found via
+\fBgetcwd\fP(2)), and its root directory (see \fBchroot\fP(2)).
+.PP
 バージョン 2.4 以降の Linux では コアダンプファイルの名前を制御する原始的な方法も提供されている。
 \fI/proc/sys/kernel/core_uses_pid\fP ファイルに値 0 が書かれている場合、コアダンプファイルは単純に \fIcore\fP
 という名前になる。このファイルに 0 以外の値が書かれている場合、 コアダンプファイルは \fIcore.PID\fP
 という形式の名前になり、ファイル名にプロセス ID が含まれる。
-
+.PP
 .\" 9520628e8ceb69fa9a4aee6b57f22675d9e1b709
 Linux 3.6 以降では、\fI/proc/sys/fs/suid_dumpable\fP が 2 ("suidsafe")
 に設定されている場合、テンプレートは、絶対パス名 (先頭に \(aq/\(aq 文字があるパス名) かパイプ (以下で説明)
@@ -150,23 +185,80 @@ Linux 3.6 以降では、\fI/proc/sys/fs/suid_dumpable\fP が 2 ("suidsafe")
 .SS コアダンプのプログラムへのパイプ
 カーネル 2.6.19 以降では、Linux は \fI/proc/sys/kernel/core_pattern\fP
 ファイルの別の構文をサポートしている。 このファイルの最初の文字がパイプ記号 (\fB|\fP) であれば、
-その行の残りの部分は実行するプログラムとして解釈される。 コアダンプは、ディスク上のファイルに書き込まれるのではなく、
-プログラムの標準入力として渡される。 以下の点に注意すること。
+その行の残りの部分は実行されるユーザー空間プログラムのコマンドラインとして解釈される。
+.PP
+.\" commit 315c69261dd3fa12dbc830d4fa00d1fad98d3b03
+Since kernel 5.3.0, the pipe template is split on spaces into an argument
+list \fIbefore\fP the template parameters are expanded.  In earlier kernels,
+the template parameters are expanded first and the resulting string is split
+on spaces into an argument list.  This means that in earlier kernels
+executable names added by the \fI%e\fP and \fI%E\fP template parameters could get
+split into multiple arguments.  So the core dump handler needs to put the
+executable names as the last argument and ensure it joins all parts of the
+executable name using spaces.  Executable names with multiple spaces in them
+are not correctly represented in earlier kernels, meaning that the core dump
+handler needs to use mechanisms to find the executable name.
+.PP
+コアダンプは、ファイルに書き込まれるのではなく、 プログラムの標準入力として渡される。 以下の点に注意すること。
 .IP * 3
 プログラムは絶対パス名 (もしくはルートディレクトリ \fI/\fP からの 相対パス名) で指定されなければならない。 また、'|'
 文字の直後から始めなければならない。
 .IP *
+コマンドライン引き数には、上記のリストにある % 指示子を含めることができる。 例えば、ダンプされるプロセスの PID を渡すには、 引き数に
+\fI%p\fP を指定する。
+.IP *
 プログラムを実行するために生成されるプロセスは、 ユーザー、グループとも \fIroot\fP として実行される。
+.IP *
+Running as \fIroot\fP does not confer any exceptional security bypasses.
+Namely, LSMs (e.g., SELinux) are still active and may prevent the handler
+from accessing details about the crashed process via \fI/proc/[pid]\fP.
+.IP *
+The program pathname is interpreted with respect to the initial mount
+namespace as it is always executed there.  It is not affected by the
+settings (e.g., root directory, mount namespace, current working directory)
+of the crashing process.
+.IP *
+The process runs in the initial namespaces (PID, mount, user, and so on)
+and not in the namespaces of the crashing process.  One can utilize
+specifiers such as \fI%P\fP to find the right \fI/proc/[pid]\fP directory and
+probe/enter the crashing process's namespaces if needed.
+.IP *
+The process starts with its current working directory as the root
+directory.  If desired, it is possible change to the working directory of
+the dumping process by employing the value provided by the \fI%P\fP specifier
+to change to the location of the dumping process via \fI/proc/[pid]/cwd\fP.
 .IP *
 コマンドライン引き数をプログラムに与えることができ (Linux 2.6.24 以降)、 引き数はホワイトスペースで区切る (1行の最大長は 128
 バイトが上限である)。
 .IP *
-コマンドライン引き数には、上記のリストにある % 指示子を含めることができる。 例えば、ダンプされるプロセスの PID を渡すには、 引き数に
-\fI%p\fP を指定する。
+.\"
+The \fBRLIMIT_CORE\fP limit is not enforced for core dumps that are piped to a
+program via this mechanism.
+.SS " /proc/sys/kernel/core_pipe_limit"
+When collecting core dumps via a pipe to a user\-space program, it can be
+useful for the collecting program to gather data about the crashing process
+from that process's \fI/proc/[pid]\fP directory.  In order to do this safely,
+the kernel must wait for the program collecting the core dump to exit, so as
+not to remove the crashing process's \fI/proc/[pid]\fP files prematurely.  This
+in turn creates the possibility that a misbehaving collecting program can
+block the reaping of a crashed process by simply never exiting.
+.PP
+.\" commit a293980c2e261bd5b0d2a77340dd04f684caff58
+Since Linux 2.6.32, the \fI/proc/sys/kernel/core_pipe_limit\fP can be used to
+defend against this possibility.  The value in this file defines how many
+concurrent crashing processes may be piped to user\-space programs in
+parallel.  If this value is exceeded, then those crashing processes above
+this value are noted in the kernel log and their core dumps are skipped.
+.PP
+.\"
+A value of 0 in this file is special.  It indicates that unlimited processes
+may be captured in parallel, but that no waiting will take place (i.e., the
+collecting program is not guaranteed access to
+\fI/proc/<crashing\-PID>\fP).  The default value for this file is 0.
 .SS どのマッピングをコアダンプに書き込むかを制御する
-カーネル 2.6.23 以降では、Linux 固有のファイル \fI/proc/PID/coredump_filter\fP を使って、対応するプロセス ID
-を持つプロセスに対してコアダンプが行われる 際に、どのメモリーセグメントをコアダンプファイルに書き込むかを制御できる。
-
+カーネル 2.6.23 以降では、Linux 固有のファイル \fI/proc/[pid]/coredump_filter\fP を使って、対応するプロセス
+ID を持つプロセスに対してコアダンプが行われる 際に、どのメモリーセグメントをコアダンプファイルに書き込むかを制御できる。
+.PP
 このファイルの値はメモリーマッピング種別 (\fBmmap\fP(2)  参照) のビットマスクである。
 マスク内のあるビットがセットされると、そのビットに対応する種別の メモリーマッピングがダンプされる。セットされていないものはダンプされない。
 このファイルの各ビットは以下の意味を持つ。
@@ -196,32 +288,111 @@ bit 5 (Linux 2.6.28 以降)
 .TP 
 bit 6 (Linux 2.6.28 以降)
 共有されたヒュージページ (shared huge page) をダンプする。
+.TP 
+bit 7 (Linux 4.4 以降)
+.\" commit ab27a8d04b32b6ee8c30c14c4afd1058e8addc82
+プライベートな DAX ページをダンプする。
+.TP 
+bit 8 (Linux 4.4 以降)
+.\" commit ab27a8d04b32b6ee8c30c14c4afd1058e8addc82
+共有された DAX ページをダンプする。
 .RE
 .PD
 .PP
 デフォルトでは、ビット 0, 1, 4, 5 がセットされる。 (ビット 4 がセットされるのは、カーネルが設定オプション
-\fBCONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS\fP を有効にして作成された場合である)。 このファイルの値は 16
-進形式で表示される (したがって、デフォルト値は 33 と表示される)。
-
+\fBCONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS\fP を有効にして作成された場合である)。このデフォルト値は
+\fIcoredump_filter\fP ブートオプションを使うことで起動時に変更できる。
+.PP
+The value of this file is displayed in hexadecimal.  (The default value is
+thus displayed as 33.)
+.PP
 \fIcoredump_filter\fP の値に関わらず、フレームバッファーなどの memory\-mapped I/O に関する
-ページは決してダンプされず、仮想 DSO ページは常にダンプされる。
-
+ページは決してダンプされず、仮想 DSO ページ (\fBvdso\fP(7)) は常にダンプされる。
+.PP
 \fBfork\fP(2)  で作成される子プロセスは親プロセスの \fIcoredump_filter\fP の値を継承する。 \fBexecve\fP(2)
 の前後で \fIcoredump_filter\fP の値は保持される。
-
+.PP
 例のように、プログラムを実行する前に親シェルの \fIcoredump_filter\fP を設定しておくと役立つことがある。
-
+.PP
 .in +4n
-.nf
+.EX
 $\fB echo 0x7 > /proc/self/coredump_filter\fP
 $\fB ./some_program\fP
-.fi
+.EE
 .in
 .PP
+.\"
 このファイルが提供されるのは、カーネルが設定オプション \fBCONFIG_ELF_CORE\fP を有効にして作成された場合だけである。
+.SS "Core dumps and systemd"
+On systems using the \fBsystemd\fP(1)  \fIinit\fP framework, core dumps may be
+placed in a location determined by \fBsystemd\fP(1).  To do this, \fBsystemd\fP(1)
+employs the \fIcore_pattern\fP feature that allows piping core dumps to a
+program.  One can verify this by checking whether core dumps are being piped
+to the \fBsystemd\-coredump\fP(8)  program:
+.PP
+.in +4n
+.EX
+$ \fBcat /proc/sys/kernel/core_pattern\fP
+|/usr/lib/systemd/systemd\-coredump %P %u %g %s %t %c %e
+.EE
+.in
+.PP
+In this case, core dumps will be placed in the location configured for
+\fBsystemd\-coredump\fP(8), typically as \fBlz4\fP(1)  compressed files in the
+directory \fI/var/lib/systemd/coredump/\fP.  One can list the core dumps that
+have been recorded by \fBsystemd\-coredump\fP(8)  using \fBcoredumpctl\fP(1):
+.PP
+.EX
+$ \fBcoredumpctl list | tail \-5\fP
+Wed 2017\-10\-11 22:25:30 CEST  2748 1000 1000 3 present  /usr/bin/sleep
+Thu 2017\-10\-12 06:29:10 CEST  2716 1000 1000 3 present  /usr/bin/sleep
+Thu 2017\-10\-12 06:30:50 CEST  2767 1000 1000 3 present  /usr/bin/sleep
+Thu 2017\-10\-12 06:37:40 CEST  2918 1000 1000 3 present  /usr/bin/cat
+Thu 2017\-10\-12 08:13:07 CEST  2955 1000 1000 3 present  /usr/bin/cat
+.EE
+.PP
+The information shown for each core dump includes the date and time of the
+dump, the PID, UID, and GID of the dumping process, the signal number that
+caused the core dump, and the pathname of the executable that was being run
+by the dumped process.  Various options to \fBcoredumpctl\fP(1)  allow a
+specified coredump file to be pulled from the \fBsystemd\fP(1)  location into a
+specified file.  For example, to extract the core dump for PID 2955 shown
+above to a file named \fIcore\fP in the current directory, one could use:
+.PP
+.in +4n
+.EX
+$ \fBcoredumpctl dump 2955 \-o core\fP
+.EE
+.in
+.PP
+For more extensive details, see the \fBcoredumpctl\fP(1)  manual page.
+.PP
+To (persistently) disable the \fBsystemd\fP(1)  mechanism that archives core
+dumps, restoring to something more like traditional Linux behavior, one can
+set an override for the \fBsystemd\fP(1)  mechanism, using something like:
+.PP
+.in +4n
+.EX
+# \fBecho "kernel.core_pattern=core.%p" > \e\fP
+               \fB/etc/sysctl.d/50\-coredump.conf\fP
+# \fB/lib/systemd/systemd\-sysctl\fP
+.EE
+.in
+.PP
+It is also possible to temporarily (i.e., until the next reboot) change the
+\fIcore_pattern\fP setting using a command such as the following (which causes
+the names of core dump files to include the executable name as well as the
+number of the signal which triggered the core dump):
+.PP
+.in +4n
+.EX
+# \fBsysctl \-w kernel.core_pattern="%e\-%s.core"\fP
+.EE
+.in
+.\"
 .SH 注意
 \fBgdb\fP(1)  の \fIgcore\fP コマンドを使用すると、実行中のプロセスのコアダンプを取得できる。
-
+.PP
 .\" Changed with commit 6409324b385f3f63a03645b4422e3be67348d922
 .\" Always including the PID in the name of the core file made
 .\" sense for LinuxThreads, where each thread had a unique PID,
@@ -233,7 +404,7 @@ $\fB ./some_program\fP
 .\" application is using). -- mtk, April 2006
 バージョン 2.6.27 以前の Linux では、 マルチスレッドプロセス (より正確には、 \fBclone\fP(2)  の \fBCLONE_VM\fP
 で生成された別プロセスとメモリーを共有しているプロセス)  がコアダンプを生成する場合、 コアファイル名にプロセス ID が必ず付加される。 ただし、
-\fI/proc/sys/kernel/core_pattern\fP の %p 指定によりコアファイル名のどこか他の場所にプロセス ID が
+\fI/proc/sys/kernel/core_pattern\fP の \fI%p\fP 指定によりコアファイル名のどこか他の場所にプロセス ID が
 すでに含まれている場合は、プロセス ID が末尾に付加されない。 (この機能が主に役に立つのはすでに使われなくなった LinuxThreads
 実装を利用している場合である。 LinuxThreads 実装では、プロセス内の個々のスレッドは異なるプロセス ID を持つ。)
 .SH 例
@@ -242,15 +413,15 @@ $\fB ./some_program\fP
 という名前の実行ファイルを作成している)。
 .PP
 .in +4n
-.nf
-$\fB cc \-o core_pattern_pipe_test core_pattern_pipe_test.c\fP
+.EX
+ $\fB cc \-o core_pattern_pipe_test core_pattern_pipe_test.c\fP
 $\fB su\fP
 Password:
 #\fB echo "|$PWD/core_pattern_pipe_test %p UID=%u GID=%g sig=%s" > \e\fP
 \fB/proc/sys/kernel/core_pattern\fP
 #\fB exit\fP
 $\fB sleep 100\fP
-\fB^\e\fP                     # type control\-backslash
+\fB\(ha\e\fP                     # type control\-backslash
 Quit (core dumped)
 $\fB cat core.info\fP
 argc=5
@@ -260,11 +431,11 @@ argc[2]=<UID=1000>
 argc[3]=<GID=100>
 argc[4]=<sig=3>
 Total bytes in core dump: 282624
-.fi
+.EE
 .in
 .SS プログラムのソース
 \&
-.nf
+.EX
 /* core_pattern_pipe_test.c */
 
 #define _GNU_SOURCE
@@ -277,11 +448,10 @@ Total bytes in core dump: 282624
 
 #define BUF_SIZE 1024
 
-int
+ int
 main(int argc, char *argv[])
 {
-    int tot, j;
-    ssize_t nread;
+    ssize_t nread, tot;
     char buf[BUF_SIZE];
     FILE *fp;
     char cwd[PATH_MAX];
@@ -301,25 +471,25 @@ main(int argc, char *argv[])
     /* Display command\-line arguments given to core_pattern
        pipe program */
 
-    fprintf(fp, "argc=%d\en", argc);
-    for (j = 0; j < argc; j++)
+     fprintf(fp, "argc=%d\en", argc);
+    for (int j = 0; j < argc; j++)
         fprintf(fp, "argc[%d]=<%s>\en", j, argv[j]);
 
     /* Count bytes in standard input (the core dump) */
 
-    tot = 0;
+     tot = 0;
     while ((nread = read(STDIN_FILENO, buf, BUF_SIZE)) > 0)
         tot += nread;
-    fprintf(fp, "Total bytes in core dump: %d\en", tot);
+    fprintf(fp, "Total bytes in core dump: %zd\en", tot);
 
     fclose(fp);
     exit(EXIT_SUCCESS);
 }
-.fi
+.EE
 .SH 関連項目
-\fBbash\fP(1), \fBgdb\fP(1), \fBgetrlimit\fP(2), \fBmmap\fP(2), \fBprctl\fP(2),
-\fBsigaction\fP(2), \fBelf\fP(5), \fBproc\fP(5), \fBpthreads\fP(7), \fBsignal\fP(7)
+ \fBbash\fP(1), \fBcoredumpctl\fP(1), \fBgdb\fP(1), \fBgetrlimit\fP(2), \fBmmap\fP(2),
+\fBprctl\fP(2), \fBsigaction\fP(2), \fBelf\fP(5), \fBproc\fP(5), \fBpthreads\fP(7),
+\fBsignal\fP(7), \fBsystemd\-coredump\fP(8)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

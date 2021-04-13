@@ -41,29 +41,51 @@
 .\" Updated 2012-05-01, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH MLOCK 2 2014\-04\-14 Linux "Linux Programmer's Manual"
+.TH MLOCK 2 2020\-04\-11 Linux "Linux Programmer's Manual"
 .SH 名前
-mlock \- メモリーのロックとロック解除を行う
+mlock, mlock2, munlock, mlockall, munlockall \- メモリーのロックとロック解除を行う
 .SH 書式
 .nf
 \fB#include <sys/mman.h>\fP
-.sp
+.PP
 \fBint mlock(const void *\fP\fIaddr\fP\fB, size_t \fP\fIlen\fP\fB);\fP
+\fBint mlock2(const void *\fP\fIaddr\fP\fB, size_t \fP\fIlen\fP\fB, int \fP\fIflags\fP\fB);\fP
 \fBint munlock(const void *\fP\fIaddr\fP\fB, size_t \fP\fIlen\fP\fB);\fP
-.sp
+.PP
 \fBint mlockall(int \fP\fIflags\fP\fB);\fP
 \fBint munlockall(void);\fP
 .fi
 .SH 説明
-\fBmlock\fP()  と \fBmlockall\fP()  はそれぞれ、呼び出し元プロセスの仮想アドレス空間の一部または全部を RAM
-上にロックし、メモリーがスワップエリアにページングされるのを防ぐ。 \fBmunlock\fP()  と \fBmunlockall\fP()
-は逆の操作で、それぞれ呼び出し元プロセスの仮想アドレス空間の一部または全部を ロック解除する。つまり、指定された仮想アドレス範囲のページは
-カーネルメモリーマネージャーから要求されればスワップアウトするようになる。 メモリーのロックとロック解除はページ単位で行われる。
-.SS "mlock() と munlock()"
+\fBmlock\fP() と \fBmlockall\fP() は、呼び出し元プロセスの仮想アドレス空間の一部または全部を RAM
+上にロックし、メモリーがスワップエリアにページングされるのを防ぐ。
+.PP
+\fBmunlock\fP()  と \fBmunlockall\fP()  は逆の操作で、それぞれ呼び出し元プロセスの仮想アドレス空間の一部または全部を
+ロック解除する。つまり、指定された仮想アドレス範囲のページは カーネルメモリーマネージャーから要求されればスワップアウトするようになる。
+メモリーのロックとロック解除はページ単位で行われる。
+.PP
+メモリーのロックとロック解除はページ単位で行われる。
+.SS "mlock(), mlock2(), munlock()"
 \fBmlock\fP()  は \fIaddr\fP から始まる長さ \fIlen\fP バイトのアドレス範囲のページをロックする。 呼び出しが成功した場合には、
 指定されたアドレス範囲を含む全てのページは RAM に残り続けることが保証される。 これらのページは後でロック解除されるまで RAM
 に残り続けることが保証される。
-
+.PP
+.\" commit a8ca5d0ecbdde5cc3d7accacbd69968b0c98764e
+.\" commit de60f5f10c58d4f34b68622442c0e04180367f3f
+.\" commit b0f205c2a3082dd9081f9a94e50658c5fa906ff1
+\fBmlock2\fP()  also locks pages in the specified range starting at \fIaddr\fP and
+continuing for \fIlen\fP bytes.  However, the state of the pages contained in
+that range after the call returns successfully will depend on the value in
+the \fIflags\fP argument.
+.PP
+The \fIflags\fP argument can be either 0 or the following constant:
+.TP 
+\fBMLOCK_ONFAULT\fP
+Lock pages that are currently resident and mark the entire range so that the
+remaining nonresident pages are locked when they are populated by a page
+fault.
+.PP
+If \fIflags\fP is 0, \fBmlock2\fP()  behaves exactly the same as \fBmlock\fP().
+.PP
 \fBmunlock\fP()  は、 \fIaddr\fP から始まる長さ \fIlen\fP バイトのアドレス範囲のページのロックを解除する。
 この呼び出しを行った後は、カーネルが、指定されたメモリー範囲を含む 全てのページを外部のスワップ空間に移動できるようになる。
 .SS "mlockall() と munlockall()"
@@ -71,20 +93,30 @@ mlock \- メモリーのロックとロック解除を行う
 各セグメント、共有ライブラリ、カーネルのユーザー空間データ、 共有メモリー、メモリーマップされたファイルが含まれる。
 システムコールが成功した場合には全てのマップされたページは RAM に 残ることを保証される。 これらのページは後でロック解除されるまで RAM
 に残り続けることが保証される。
-
+.PP
 \fIflags\fP 引数は以下の内容の一つまたは複数のビット OR から構成される:
-.TP  1.2i
+.TP 
 \fBMCL_CURRENT\fP
 現在、プロセスのアドレス空間にマップされている全てのページをロックする。
 .TP 
 \fBMCL_FUTURE\fP
 将来、プロセスのアドレス空間にマップされる全てのページをロックする。 例えば、ヒープ (heap) やスタックの成長により新しく必要になったページだけで
 なく、新しくメモリーマップされたファイルや共有メモリー領域もロックされる。
+.TP 
+\fBMCL_ONFAULT\fP (Linux 4.4 以降)
+Used together with \fBMCL_CURRENT\fP, \fBMCL_FUTURE\fP, or both.  Mark all current
+(with \fBMCL_CURRENT\fP)  or future (with \fBMCL_FUTURE\fP)  mappings to lock
+pages when they are faulted in.  When used with \fBMCL_CURRENT\fP, all present
+pages are locked, but \fBmlockall\fP()  will not fault in non\-present pages.
+When used with \fBMCL_FUTURE\fP, all future mappings will be marked to lock
+pages when they are faulted in, but they will not be populated by the lock
+when the mapping is created.  \fBMCL_ONFAULT\fP must be used with either
+\fBMCL_CURRENT\fP or \fBMCL_FUTURE\fP or both.
 .PP
 \fBMCL_FUTURE\fP が指定されていると、以後のシステムコール (例えば、 \fBmmap\fP(2), \fBsbrk\fP(2),
 \fBmalloc\fP(3))  は、ロックするバイト数が許可された最大値 (下記参照) を超えた場合に 失敗する可能性がある。
 同様に、スタックの成長も失敗する可能性がある。 その場合、カーネルはスタックの拡張を拒否し、 \fBSIGSEGV\fP をプロセスに送る。
-
+.PP
 \fBmunlockall\fP()  は、呼び出し元プロセスのアドレス空間にマッピングされている 全てのページをロック解除する。
 .SH 返り値
 成功した場合は、これらのシステムコールはゼロを返す。 エラーの場合は \-1 が返され、 \fIerrno\fP
@@ -111,39 +143,57 @@ mlock \- メモリーのロックとロック解除を行う
 .\"SVr4 documents an additional EAGAIN error code.
 呼び出し側が特権を持っていないが、
 要求された操作を実行するには特権 (\fBCAP_IPC_LOCK\fP) が必要である。
-.LP
-\fBmlock\fP()  と \fBmunlock\fP()  用として:
+.PP
+For \fBmlock\fP(), \fBmlock2\fP(), and \fBmunlock\fP():
 .TP 
 \fBEAGAIN\fP
 指定されたアドレス範囲の一部または全てをロックすることができなかった。
 .TP 
 \fBEINVAL\fP
-\fIstart\fP+\fIlen\fP の加算の結果が \fIstart\fP よりも小さかった
-(例えば、加算でオーバーフローが発生したなど)。
+\fIaddr\fP+\fIlen\fP の加算の結果が \fIaddr\fP よりも小さかった (例えば、加算でオーバーフローが発生したなど)。
 .TP 
 \fBEINVAL\fP
 (Linux ではこの意味で使われない)  \fIaddr\fP がページサイズの倍数ではない。
 .TP 
 \fBENOMEM\fP
 指定されたアドレス範囲がプロセスのアドレス空間にマップされたページと 一致しない。
-.LP
-\fBmlockall\fP()  用として:
+.TP 
+\fBENOMEM\fP
+.\" I.e., the number of VMAs would exceed the 64kB maximum
+Locking or unlocking a region would result in the total number of mappings
+with distinct attributes (e.g., locked versus unlocked)  exceeding the
+allowed maximum.  (For example, unlocking a range in the middle of a
+currently locked mapping would result in three mappings: two locked mappings
+at each end and an unlocked mapping in the middle.)
+.PP
+For \fBmlock2\fP():
 .TP 
 \fBEINVAL\fP
 未知の \fIflags\fP が指定された。
-.LP
+.PP
+\fBmlockall\fP()  用として:
+.TP 
+\fBEINVAL\fP
+Unknown \fIflags\fP were specified or \fBMCL_ONFAULT\fP was specified without
+either \fBMCL_FUTURE\fP or \fBMCL_CURRENT\fP.
+.PP
 \fBmunlockall\fP()  用として:
 .TP 
 \fBEPERM\fP
 (Linux 2.6.8 以前) 呼び出し元が権限 (\fBCAP_IPC_LOCK\fP)  を持っていない。
+.SH バージョン
+\fBmlock2\fP()  is available since Linux 4.4; glibc support was added in
+version 2.27.
 .SH 準拠
-POSIX.1\-2001, SVr4.
-.SH 可用性
+POSIX.1\-2001, POSIX.1\-2008, SVr4.
+.PP
+\fBmlock2\fP() は Linux 固有である。
+.PP
 \fBmlock\fP()  と \fBmunlock\fP()  が使用可能な POSIX システムでは \fB_POSIX_MEMLOCK_RANGE\fP が
 \fI<unistd.h>\fP で定義されている。 また、ページあたりのバイト数は、 \fI<limits.h>\fP
 で定義される定数 \fBPAGESIZE\fP から (定義されている場合)、もしくは \fIsysconf(_SC_PAGESIZE)\fP
 を呼び出すことで決定できる。
-
+.PP
 .\" POSIX.1-2001: It shall be defined to -1 or 0 or 200112L.
 .\" -1: unavailable, 0: ask using sysconf().
 .\" glibc defines it to 1.
@@ -157,42 +207,73 @@ POSIX.1\-2001, SVr4.
 スワップ用の固定媒体に転送されるかもしれない。そして、セキュリティ ソフトウェアが RAM 上の秘密を削除して終了したずっと後になっても、
 このスワップされたデータには敵がアクセスできる可能性がある (しかし、ラップトップといくつかのデスクトップコンピュータの サスペンドモードはシステムの
 RAM の内容をメモリーのロックに関わらず ディスクに保存することに注意)。
-
+.PP
 リアルタイムプロセスが \fBmlockall\fP()  を使ってページフォールトによる遅延を防ごうとする場合、
 関数呼び出しによってページフォールトが発生しないように、 時間制限の厳しい部分 (time\-critical section) に入る前に
 十分な量のロックされたスタックを確保しておく必要がある。 これを実現するには、十分な大きさの自動変数 (の配列) を確保し、
 これらのスタック用のページがメモリー上に確保されるようにこの配列に 書き込みを行う関数を用意し、これを呼び出せばよい。こうすることで、
 十分な量のページがスタックにマッピングされ、RAM にロックされる。 ダミーの書き込みを行うことによって、 時間制限の厳しい部分 (critical
 section) 内では書き込み時コピーによる ページフォールトさえも発生しないことが保証される。
-
-メモリーロックは \fBfork\fP(2)  で作成された子プロセスには継承されず、 \fBexecve\fP(2)  が呼ばれたり、プロセスが終了した場合は
-自動的に削除される (ロック解除される)。 \fBmlockall\fP() の \fBMCL_FUTURE\fP 設定は \fBfork\fP(2)
-で作成された子プロセスには継承されず、 \fBexecve\fP(2) の中でクリアされる。
-
+.PP
+Memory locks are not inherited by a child created via \fBfork\fP(2)  and are
+automatically removed (unlocked) during an \fBexecve\fP(2)  or when the process
+terminates.  The \fBmlockall\fP()  \fBMCL_FUTURE\fP and \fBMCL_FUTURE |
+MCL_ONFAULT\fP settings are not inherited by a child created via \fBfork\fP(2)
+and are cleared during an \fBexecve\fP(2).
+.PP
+Note that \fBfork\fP(2)  will prepare the address space for a copy\-on\-write
+operation.  The consequence is that any write access that follows will cause
+a page fault that in turn may cause high latencies for a real\-time process.
+Therefore, it is crucial not to invoke \fBfork\fP(2)  after an \fBmlockall\fP()
+or \fBmlock\fP()  operation\(emnot even from a thread which runs at a low
+priority within a process which also has a thread running at elevated
+priority.
+.PP
 あるアドレス範囲に対するメモリーロックは、そのアドレス範囲が \fBmunmap\fP(2)  によってアンマップされた場合は削除される。
-
-メモリーのロックは累積しない。 すなわち複数回 \fBmlock\fP()  や \fBmlockall\fP()  を呼び出してロックされたページでも、
-対応する範囲に対して \fBmunlock\fP()  を 1 回呼び出したり \fBmunlockall\fP()  を呼び出したりするだけでロック解除される。
-複数の場所や複数のプロセスにマップされているページは、少なくとも一つの場所、 一つのプロセスでロックされている限りは RAM に残り続ける。
+.PP
+メモリーのロックは累積しない。 すなわち複数回 \fBmlock\fP(), \fBmlock2\fP(), \fBmlockall\fP()
+を呼び出してロックされたページでも、 対応する範囲に対して \fBmunlock\fP()  を 1 回呼び出したり \fBmunlockall\fP()
+を呼び出したりするだけでロック解除される。 複数の場所や複数のプロセスにマップされているページは、少なくとも一つの場所、
+一つのプロセスでロックされている限りは RAM に残り続ける。
+.PP
+If a call to \fBmlockall\fP()  which uses the \fBMCL_FUTURE\fP flag is followed by
+another call that does not specify this flag, the changes made by the
+\fBMCL_FUTURE\fP call will be lost.
+.PP
+The \fBmlock2\fP()  \fBMLOCK_ONFAULT\fP flag and the \fBmlockall\fP()  \fBMCL_ONFAULT\fP
+flag allow efficient memory locking for applications that deal with large
+mappings where only a (small) portion of pages in the mapping are touched.
+In such cases, locking all of the pages in a mapping would incur a
+significant penalty for memory locking.
 .SS "Linux での注意"
-Linux では、 \fBmlock\fP()  と \fBmunlock\fP()  は自動的に \fIaddr\fP
-を端数切り捨てにより一番近いページ境界へと丸める。 しかし POSIX.1\-2001 は \fIaddr\fP
-がページ境界に合っていることを要求する実装も許している。 そのため移植性を意図したアプリケーションではきちんと境界に合わせた方が良い。
-
-Linux 固有の \fI/proc/PID/status\fP ファイルの \fIVmLck\fP フィールドには、
-\fBmlock\fP(), \fBmlockall\fP() および \fBmmap\fP(2) \fBMAP_LOCKED\fP を使って、
-ID が \fIPID\fP のプロセスがロックしているメモリー量 (キロバイト単位) が
-表示される。
+Linux では、 \fBmlock\fP(), \fBmlock2\fP(), \fBmunlock\fP() は自動的に \fIaddr\fP
+を端数切り捨てにより一番近いページ境界へと丸める。 しかし POSIX.1 仕様の \fBmlock\fP() と \fBmunlock\fP() は
+\fIaddr\fP がページ境界に合っていることを要求する実装も許している。 そのため移植性を意図したアプリケーションではきちんと境界に合わせた方が良い。
+.PP
+Linux 固有の \fI/proc/[pid]/status\fP ファイルの \fIVmLck\fP フィールドには、 \fBmlock\fP(),
+\fBmlock2\fP(), \fBmlockall\fP() および \fBmmap\fP(2) \fBMAP_LOCKED\fP を使って、 ID が \fIPID\fP
+のプロセスがロックしているメモリー量 (キロバイト単位) が表示される。
 .SS 制限と権限
 Linux 2.6.8 以前では、メモリーをロックするためには特権 (\fBCAP_IPC_LOCK\fP)  が必要で、 ソフト資源制限
 \fBRLIMIT_MEMLOCK\fP はプロセスがどれだけのメモリーをロックできるかの制限を定義する。
-
+.PP
 Linux 2.6.9 以降では、特権を持つプロセスがロックできるメモリー量は無制限となり、 代わりにソフト資源制限 \fBRLIMIT_MEMLOCK\fP
 は特権を持たないプロセスがロックできるメモリー量の制限を定義する。
 .SH バグ
+.\" commit 0cf2f6f6dc605e587d2c1120f295934c77e810e8
+In Linux 4.8 and earlier, a bug in the kernel's accounting of locked memory
+for unprivileged processes (i.e., without \fBCAP_IPC_LOCK\fP)  meant that if
+the region specified by \fIaddr\fP and \fIlen\fP overlapped an existing lock, then
+the already locked bytes in the overlapping region were counted twice when
+checking against the limit.  Such double accounting could incorrectly
+calculate a "total locked memory" value for the process that exceeded the
+\fBRLIMIT_MEMLOCK\fP limit, with the result that \fBmlock\fP()  and \fBmlock2\fP()
+would fail on requests that should have succeeded.  This bug was fixed in
+Linux 4.9.
+.PP
 2.4.17 までの 2.4 シリーズの Linux カーネルには、 \fBmlockall\fP()  \fBMCL_FUTURE\fP フラグが
 \fBfork\fP(2)  で継承されると言うバグがある。 これはカーネル 2.4.18 で修正された。
-
+.PP
 .\" See the following LKML thread:
 .\" http://marc.theaimsgroup.com/?l=linux-kernel&m=113801392825023&w=2
 .\" "Rationale for RLIMIT_MEMLOCK"
@@ -201,9 +282,8 @@ Linux 2.6.9 以降では、特権を持つプロセスがロックできるメ�
 実効 UID を 0 以外の値に変更するなどにより、 \fBCAP_IPC_LOCK\fP ケーパビリティを失った場合)、リソース上限
 \fBRLIMIT_MEMLOCK\fP に達すると、それ以降のメモリー割り当て (例えば \fBmmap\fP(2), \fBbrk\fP(2))  は失敗する。
 .SH 関連項目
-\fBmmap\fP(2), \fBsetrlimit\fP(2), \fBshmctl\fP(2), \fBsysconf\fP(3), \fBproc\fP(5),
-\fBcapabilities\fP(7)
+\fBmincore\fP(2), \fBmmap\fP(2), \fBsetrlimit\fP(2), \fBshmctl\fP(2), \fBsysconf\fP(3),
+\fBproc\fP(5), \fBcapabilities\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

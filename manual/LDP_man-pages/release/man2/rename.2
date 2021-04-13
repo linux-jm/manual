@@ -48,40 +48,45 @@
 .\" Updated 2013-05-01, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH RENAME 2 2014\-08\-19 Linux "Linux Programmer's Manual"
+.TH RENAME 2 2020\-06\-09 Linux "Linux Programmer's Manual"
 .SH 名前
 rename, renameat, renameat2 \- ファイルの名前や位置を変更する
 .SH 書式
 .nf
 \fB#include <stdio.h>\fP
-.sp
+.PP
 \fBint rename(const char *\fP\fIoldpath\fP\fB, const char *\fP\fInewpath\fP\fB);\fP
-.sp
+
 \fB#include <fcntl.h>           \fP/* AT_* 定数の定義 */
 \fB#include <stdio.h>\fP
-.sp
+.PP
 \fBint renameat(int \fP\fIolddirfd\fP\fB, const char *\fP\fIoldpath\fP\fB,\fP
 \fB             int \fP\fInewdirfd\fP\fB, const char *\fP\fInewpath\fP\fB);\fP
-
+.PP
 \fBint renameat2(int \fP\fIolddirfd\fP\fB, const char *\fP\fIoldpath\fP\fB,\fP
 \fB              int \fP\fInewdirfd\fP\fB, const char *\fP\fInewpath\fP\fB, unsigned int \fP\fIflags\fP\fB);\fP
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 \fBrenameat\fP():
 .PD 0
 .ad l
 .RS 4
 .TP  4
 glibc 2.10 以降:
-_XOPEN_SOURCE\ >=\ 700 || _POSIX_C_SOURCE\ >=\ 200809L
+_POSIX_C_SOURCE\ >=\ 200809L
 .TP 
 glibc 2.10 より前:
-.\" FIXME . need to define FTMs for renameat2(), once it hits glibc
 _ATFILE_SOURCE
+.RE
+.PP
+\fBrenameat2\fP():
+.RS 4
+.TP 
+_GNU_SOURCE
 .RE
 .ad
 .PD
@@ -89,52 +94,127 @@ _ATFILE_SOURCE
 \fBrename\fP()  はファイルの名前を変更し、必要ならばディレクトリ間の移動を行なう。 そのファイルに対する (\fBlink\fP(2)
 を使用して作られた) 他のハードリンク (hard link) には影響はない。 オープン済の \fIoldpath\fP
 に対するファイルディスクリプターにも影響はない。
-
-\fInewpath\fP が既に存在する場合、それは不可分操作で (atomically) 置き換えられる (ただし、いくつかの条件がある;
-以下の「エラー」のセクションを参照)。 そのため、 \fInewpath\fP にアクセスしようとしている他のプロセスがファイルを見失うことはない (訳註:
-常にアクセス可能である)。
-
+.PP
+Various restrictions determine whether or not the rename operation succeeds:
+see ERRORS below.
+.PP
+If \fInewpath\fP already exists, it will be atomically replaced, so that there
+is no point at which another process attempting to access \fInewpath\fP will
+find it missing.  However, there will probably be a window in which both
+\fIoldpath\fP and \fInewpath\fP refer to the file being renamed.
+.PP
 \fIoldpath\fP と \fInewpath\fP がどちらも既存のハードリンクで、同じファイルを参照している場合、 \fBrename\fP()
 は何も行わず、ステータスとして成功を返す。
-
+.PP
 \fInewpath\fP が存在し、何らかの理由で操作が失敗した場合、 \fBrename\fP()  は \fInewpath\fP
 の実体を元のまま残すことを保証する。
-
+.PP
 \fIoldpath\fP にはディレクトリを指定することもできる。 この場合、 \fInewpath\fP は存在しないか、空のディレクトリでなければならない。
-
-一方で、上書きを行なう場合は、rename が行なわれるファイルを \fIoldpath\fP と \fInewpath\fP
-の両方で参照できる瞬間がおそらく存在する。
-
+.PP
 \fIoldpath\fP がシンボリックリンク (symbolic link) を参照している場合は、 リンクの名前が変更される。 また、
 \fInewpath\fP がシンボリックリンクを参照している場合は、リンクが上書きされる。
 .SS renameat()
 \fBrenameat\fP() システムコールは \fBrename\fP() と全く同様に動作するが、以下で説明する点が異なる。
-
+.PP
 \fIoldpath\fP で指定されたパス名が相対パスの場合、このパス名はファイルディスクリプター \fIolddirfd\fP
 が参照するディレクトリに対する相対パスと解釈される (\fBrename\fP(2)
 に相対パス名を渡した場合のように、呼び出したプロセスのカレントワーキングディレクトリに対する相対パスではない)。
-
+.PP
 \fIoldpath\fP で指定されたパス名が相対パスで、 \fIolddirfd\fP が特別な値 \fBAT_FDCWD\fP の場合、 (\fBrename\fP(2)
 と同様に) \fIoldpath\fP は呼び出したプロセスのカレントワーキングディレクトリに対する相対パスと解釈される。
-
+.PP
 \fIoldpath\fP で指定されたパス名が絶対パスの場合、 \fIolddirfd\fP は無視される。
-
+.PP
 \fInewpath\fP の解釈は \fIoldpath\fP と同じである。 相対パスのパス名がファイルディスクリプター \fInewdirfd\fP
 が参照するディレクトリと解釈される点だけが異なる。
-
+.PP
 \fBrenameat\fP() の必要性についての説明については \fBopenat\fP(2) を参照。
 .SS renameat2()
 \fBrenameat2\fP() には追加の \fIflags\fP 引き数がある。 \fIflags\fP 引き数が 0 の \fBrenameat2\fP()
 の呼び出しは \fBrenameat\fP() と等価である。
-
+.PP
 \fIflags\fP 引き数は、以下のフラグの 0 個以上のビットマスクである。
-.TP 
-\fBRENAME_NOREPLACE\fP
-rename の \fInewpath\fP を上書きしない。 \fInewpath\fP がすでに存在する場合エラーを返す。
 .TP 
 \fBRENAME_EXCHANGE\fP
 \fIoldpath\fP と \fInewpath\fP をアトミックに入れ換える。 両方のパス名が存在しなければならないが、 ファイル種別は異なっていてもよい
 (例えば、一方は空でないディレクトリで、もう一方はシンボリックリンクであるなど)。
+.TP 
+\fBRENAME_NOREPLACE\fP
+rename の \fInewpath\fP を上書きしない。 \fInewpath\fP がすでに存在する場合エラーを返す。
+.IP
+\fBRENAME_NOREPLACE\fP can't be employed together with \fBRENAME_EXCHANGE\fP.
+.IP
+\fBRENAME_NOREPLACE\fP requires support from the underlying filesystem.
+Support for various filesystems was added as follows:
+.RS
+.IP * 3
+.\" ext4: commit 0a7c3937a1f23f8cb5fc77ae01661e9968a51d0c
+ ext4 (Linux 3.15);
+.IP *
+ btrfs, shmem, cifs (Linux 3.17);
+.IP *
+.\" btrfs: commit 80ace85c915d0f41016f82917218997b72431258
+.\" shmem: commit 3b69ff51d087d265aa4af3a532fc4f20bf33e718
+.\" cifs: commit 7c33d5972ce382bcc506d16235f1e9b7d22cbef8
+.\"
+.\" gfs2 in 4.2?
+ xfs (Linux 4.0);
+.IP *
+.\" Also affs, bfs, exofs, hfs, hfsplus, jffs2, logfs, msdos,
+.\" nilfs2, omfs, sysvfs, ubifs, udf, ufs
+.\" hugetlbfs, ramfs
+.\" local filesystems: commit f03b8ad8d38634d13e802165cc15917481b47835
+.\" libfs: commit e0e0be8a835520e2f7c89f214dfda570922a1b90
+Support for many other filesystems was added in Linux 4.9, including ext2,
+minix, reiserfs, jfs, vfat, and bpf.
+.RE
+.TP 
+\fBRENAME_WHITEOUT\fP (Linux 3.18 以降)
+.\" commit 0d7a855526dd672e114aff2ac22b60fc6f155b08
+.\" commit 787fb6bc9682ec7c05fb5d9561b57100fbc1cc41
+This operation makes sense only for overlay/union filesystem
+implementations.
+.IP
+Specifying \fBRENAME_WHITEOUT\fP creates a "whiteout" object at the source of
+the rename at the same time as performing the rename.  The whole operation
+is atomic, so that if the rename succeeds then the whiteout will also have
+been created.
+.IP
+A "whiteout" is an object that has special meaning in union/overlay
+filesystem constructs.  In these constructs, multiple layers exist and only
+the top one is ever modified.  A whiteout on an upper layer will effectively
+hide a matching file in the lower layer, making it appear as if the file
+didn't exist.
+.IP
+When a file that exists on the lower layer is renamed, the file is first
+copied up (if not already on the upper layer)  and then renamed on the
+upper, read\-write layer.  At the same time, the source file needs to be
+"whiteouted" (so that the version of the source file in the lower layer is
+rendered invisible).  The whole operation needs to be done atomically.
+.IP
+.\" https://www.freebsd.org/cgi/man.cgi?query=mount_unionfs&manpath=FreeBSD+11.0-RELEASE
+When not part of a union/overlay, the whiteout appears as a character device
+with a {0,0} device number.  (Note that other union/overlay implementations
+may employ different methods for storing whiteout entries; specifically, BSD
+union mount employs a separate inode type, \fBDT_WHT\fP, which, while supported
+by some filesystems available in Linux, such as CODA and XFS, is ignored by
+the kernel's whiteout support code, as of Linux 4.19, at least.)
+.IP
+\fBRENAME_WHITEOUT\fP requires the same privileges as creating a device node
+(i.e., the \fBCAP_MKNOD\fP capability).
+.IP
+\fBRENAME_WHITEOUT\fP can't be employed together with \fBRENAME_EXCHANGE\fP.
+.IP
+.\" tmpfs: commit 46fdb794e3f52ef18b859ebc92f0a9d7db21c5df
+.\" ext4: commit cd808deced431b66b5fa4e5c193cb7ec0059eaff
+.\" XFS: commit 7dcf5c3e4527cfa2807567b00387cf2ed5e07f00
+.\" f2fs: commit 7e01e7ad746bc8198a8b46163ddc73a1c7d22339
+.\" btrfs: commit cdd1fedf8261cd7a73c0596298902ff4f0f04492
+.\" ubifs: commit 9e0a1fff8db56eaaebb74b4a3ef65f86811c4798
+\fBRENAME_WHITEOUT\fP requires support from the underlying filesystem.  Among
+the filesystems that provide that support are tmpfs (since Linux 3.18), ext4
+(since Linux 3.18), XFS (since Linux 4.1), f2fs (since Linux 4.2), btrfs
+(since Linux 4.7), and ubifs (since Linux 4.9).
 .SH 返り値
 成功した場合は 0 が返される。エラーの場合は \-1 が返され、 \fIerrno\fP が適切に設定される。
 .SH エラー
@@ -223,26 +303,35 @@ rename の \fInewpath\fP を上書きしない。 \fInewpath\fP がすでに存�
 \fIflags\fP に \fBRENAME_NOREPLACE\fP が指定されているが、 \fInewpath\fP がすでに存在する。
 .TP 
 \fBEINVAL\fP
-\fIflags\fP に無効なフラグが指定された。 \fBRENAME_NOREPLACE\fP と \fBRENAME_EXCHANGE\fP の両方が指定された。
+無効なフラグ値が \fIflags\fP に指定された。
+.TP 
+\fBEINVAL\fP
+\fBRENAME_NOREPLACE\fP と \fBRENAME_EXCHANGE\fP の両方が \fIflags\fP に指定された。
+.TP 
+\fBEINVAL\fP
+Both \fBRENAME_WHITEOUT\fP and \fBRENAME_EXCHANGE\fP were specified in \fIflags\fP.
 .TP 
 \fBEINVAL\fP
 \fIflags\fP にファイルシステムでサポートされていないフラグが指定された。
 .TP 
 \fBENOENT\fP
 \fIflags\fP に \fBRENAME_EXCHANGE\fP が指定されたが、 \fInewpath\fP が存在しない。
+.TP 
+\fBEPERM\fP
+\fBRENAME_WHITEOUT\fP が \fIflags\fP に指定されたが、呼び出し元が \fBCAP_MKNOD\fP ケーパビリティを持っていない。
 .SH バージョン
 \fBrenameat\fP()  はカーネル 2.6.16 で Linux に追加された。 ライブラリによるサポートはバージョン 2.4 で glibc
 に追加された。
-
-.\" FIXME . glibc support is pending.
-\fBrenameat2\fP()  はカーネル 2.6.16 で Linux に追加された。
+.PP
+\fBrenameat2\fP()  はカーネル 3.15 で Linux に追加された。 ライブラリによるサポートは glibc 2.28 で追加された。
 .SH 準拠
 \fBrename\fP(): 4.3BSD, C89, C99, POSIX.1\-2001, POSIX.1\-2008.
-
+.PP
 \fBrenameat\fP(): POSIX.1\-2008.
-
+.PP
 \fBrenameat2\fP()  は Linux 固有である。
 .SH 注意
+.\"
 .SS "glibc での注意"
 \fBrenameat\fP() が利用できない古いカーネルでは、 glibc ラッパー関数は \fBrename\fP() を使用するモードにフォールバックする。
 \fIoldpath\fP と \fInewpath\fP が相対パスの場合、 glibc は \fIolddirfd\fP と \fInewdirfd\fP 引き数に対応する
@@ -252,9 +341,8 @@ NFS ファイルシステムでは、操作が失敗したからといって、 
 操作を終えてからクラッシュした場合、 サーバが再び立ち上がったときに、 再送信された RPC が処理されるが、これは失敗となる。
 アプリケーションはこの問題を正しく取り扱うことが期待されている。 同様の問題について \fBlink\fP(2)  にも書かれている。
 .SH 関連項目
-\fBmv\fP(1), \fBchmod\fP(2), \fBlink\fP(2), \fBsymlink\fP(2), \fBunlink\fP(2),
-\fBpath_resolution\fP(7), \fBsymlink\fP(7)
+ \fBmv\fP(1), \fBrename\fP(1), \fBchmod\fP(2), \fBlink\fP(2), \fBsymlink\fP(2),
+\fBunlink\fP(2), \fBpath_resolution\fP(7), \fBsymlink\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

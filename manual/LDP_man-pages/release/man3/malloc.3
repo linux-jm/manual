@@ -1,4 +1,5 @@
 .\" Copyright (c) 1993 by Thomas Koenig (ig25@rz.uni-karlsruhe.de)
+.\" and Copyright i2007, 2012, 2018, Michael Kerrisk <mtk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -45,20 +46,32 @@
 .\" Modified 2005-03-15, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\" Modified 2007-10-12, Akihiro MOTOKI, LDP v2.66
 .\"
-.TH MALLOC 3 2014\-05\-21 GNU "Linux Programmer's Manual"
+.TH MALLOC 3 2020\-06\-09 GNU "Linux Programmer's Manual"
 .SH 名前
-malloc, free, calloc, realloc \- 動的なメモリーの割り当てと解放を行う
+malloc, free, calloc, realloc, reallocarray \- 動的なメモリーの割り当てと解放を行う
 .SH 書式
 .nf
 \fB#include <stdlib.h>\fP
-.sp
+.PP
 \fBvoid *malloc(size_t \fP\fIsize\fP\fB);\fP
 \fBvoid free(void \fP\fI*ptr\fP\fB);\fP
 \fBvoid *calloc(size_t \fP\fInmemb\fP\fB, size_t \fP\fIsize\fP\fB);\fP
 \fBvoid *realloc(void \fP\fI*ptr\fP\fB, size_t \fP\fIsize\fP\fB);\fP
+\fBvoid *reallocarray(void \fP\fI*ptr\fP\fB, size_t \fP\fInmemb\fP\fB, size_t \fP\fIsize\fP\fB);\fP
 .fi
-.SH 説明
 .PP
+.RS -4
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.RE
+.PP
+\fBreallocarray\fP():
+.ad l
+    glibc 2.29 以降:
+        _DEFAULT_SOURCE
+    glibc 2.28 以前:
+        _GNU_SOURCE
+.ad
+.SH 説明
 .\" glibc does this:
 \fBmalloc\fP() 関数は \fIsize\fP バイトを割り当て、 割り当てられたメモリーに対する
 ポインターを返す。\fIメモリーの内容は初期化されない\fP。 \fIsize\fP が 0 の場合、
@@ -72,11 +85,21 @@ malloc, free, calloc, realloc \- 動的なメモリーの割り当てと解放�
 \fIptr\fP が NULL の場合には、何の動作も行われない。
 .PP
 .\" glibc does this:
-\fBcalloc\fP() 関数は \fIsize\fP バイトの要素 \fInmemb\fP 個からなる配列にメモリーを
-割り当て、割り当てられたメモリーに対するポインターを返す。 メモリーの内容は数値ゼロ
-(全ビットが 0 のバイト) にセットされる。 \fInmemb\fP か \fIsize\fP が 0 の場合、
-\fBcalloc\fP() は NULL または \fBfree\fP() に後で渡しても問題の起こらない一意な
-ポインター値を返す。
+The \fBcalloc\fP()  function allocates memory for an array of \fInmemb\fP elements
+of \fIsize\fP bytes each and returns a pointer to the allocated memory.  The
+memory is set to zero.  If \fInmemb\fP or \fIsize\fP is 0, then \fBcalloc\fP()
+returns either NULL, or a unique pointer value that can later be
+successfully passed to \fBfree\fP().  If the multiplication of \fInmemb\fP and
+\fIsize\fP would result in integer overflow, then \fBcalloc\fP()  returns an
+error.  By contrast, an integer overflow would not be detected in the
+following call to \fBmalloc\fP(), with the result that an incorrectly sized
+block of memory would be allocated:
+.PP
+.in +4n
+.EX
+malloc(nmemb * size);
+.EE
+.in
 .PP
 \fBrealloc\fP() は、ポインター \fIptr\fP が示すメモリーブロックのサイズを \fIsize\fP バイト
 に変更する。領域の先頭から、新旧のサイズの小さい方の位置までの範囲の内容は
@@ -87,6 +110,19 @@ malloc, free, calloc, realloc \- 動的なメモリーの割り当てと解放�
 \fIptr\fP が NULL 以外の場合、 \fIptr\fP は以前に呼び出された \fBmalloc\fP(), \fBcalloc\fP(),
 \fBrealloc\fP() のいずれかが返した値でなければならない。
 \fIptr\fP が指す領域が移動されていた場合は \fIfree(ptr)\fP が実行される。
+.PP
+The \fBreallocarray\fP()  function changes the size of the memory block pointed
+to by \fIptr\fP to be large enough for an array of \fInmemb\fP elements, each of
+which is \fIsize\fP bytes.  It is equivalent to the call
+.PP
+.in +4n
+    realloc(ptr, nmemb * size);
+.in
+.PP
+However, unlike that \fBrealloc\fP()  call, \fBreallocarray\fP()  fails safely in
+the case where the multiplication would overflow.  If such an overflow
+occurs, \fBreallocarray\fP()  returns NULL, sets \fIerrno\fP to \fBENOMEM\fP, and
+leaves the original block of memory unchanged.
 .SH 返り値
 関数 \fBcalloc\fP() と \fBmalloc\fP() は、割り当てられたメモリーへのポインターを返す。
 割り当てられたメモリーは、あらゆる組み込み型に対応できるようにアラインメントされる。 エラーの場合、これらの関数は NULL を返す。 \fIsize\fP
@@ -95,27 +131,62 @@ NULL が返される。
 .PP
 \fBfree\fP() 関数は値を返さない。
 .PP
-\fBrealloc\fP() 関数は新たに割り当てられたメモリーへのポインターを返す。 これはあらゆる組み込み型に対応できるようにアラインメントされており、
-\fIptr\fP とは異なることもある。割り当て要求に失敗した場合は NULL が返る。 \fIsize\fP が 0 の場合には、NULL もしくは
-\fBfree\fP() に渡すことができるポインターが返る。 \fBrealloc\fP() が失敗した場合には、元のブロックは変更されない。
-つまり、解放されたり移動されたりはしない。
+The \fBrealloc\fP()  function returns a pointer to the newly allocated memory,
+which is suitably aligned for any built\-in type, or NULL if the request
+failed.  The returned pointer may be the same as \fIptr\fP if the allocation
+was not moved (e.g., there was room to expand the allocation in\-place), or
+different from \fIptr\fP if the allocation was moved to a new address.  If
+\fIsize\fP was equal to 0, either NULL or a pointer suitable to be passed to
+\fBfree\fP()  is returned.  If \fBrealloc\fP()  fails, the original block is left
+untouched; it is not freed or moved.
+.PP
+On success, the \fBreallocarray\fP()  function returns a pointer to the newly
+allocated memory.  On failure, it returns NULL and the original block of
+memory is left untouched.
+.SH エラー
+\fBcalloc\fP(), \fBmalloc\fP(), \fBrealloc\fP(), \fBreallocarray\fP() は以下のエラーで失敗することがある。
+.TP 
+\fBENOMEM\fP
+Out of memory.  Possibly, the application hit the \fBRLIMIT_AS\fP or
+\fBRLIMIT_DATA\fP limit described in \fBgetrlimit\fP(2).
+.SH バージョン
+\fBreallocarray\fP() は glibc 2.26 で初めて登場した。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbw20 lb lb
+l l l.
+インターフェース	属性	値
+T{
+\fBmalloc\fP(),
+\fBfree\fP(),
+.br
+\fBcalloc\fP(),
+\fBrealloc\fP()
+T}	Thread safety	MT\-Safe
+.TE
 .SH 準拠
-C89, C99.
+\fBmalloc\fP(), \fBfree\fP(), \fBcalloc\fP(), \fBrealloc\fP(): POSIX.1\-2001,
+POSIX.1\-2008, C89, C99.
+.PP
+\fBreallocarray\fP() は非標準の拡張で、 OpenBSD 5.6 と FreeBSD 11.0 で初めて登場した。
 .SH 注意
-デフォルトでは、Linux は楽観的メモリー配置戦略を用いている。つまり、
-\fBmalloc\fP() が NULL でない値を返しても、そのメモリーが実際に利用可能であること
-が保証されない。システムがメモリー不足状態になったとき、メモリー不足解決器 (OOM
-killer) によって一つまたは複数のプロセスが削除される。
-詳しい情報は、\fBproc\fP(5) の \fI/proc/sys/vm/overcommit_memory\fP と
-\fIproc/sys/vm/oom_adj\fP、および Linux カーネルのソースファイルの
-\fIDocumentation/vm/overcommit\-accounting\fP を参照のこと。
-
-通常、 \fBmalloc\fP()  は、ヒープからメモリーを割り当て、必要に応じてヒープのサイズを \fBsbrk\fP(2)  を使って調節する。
-\fBMMAP_THRESHOLD\fP バイトよりも大きなメモリーブロックを割り当てる場合、 glibc の \fBmalloc\fP()  実装は
-\fBmmap\fP(2)  を使ってプライベートな無名マッピング (anonymous mapping) として メモリーを割り当てる。 デフォルトでは
-\fBMMAP_THRESHOLD\fP は 128 kB だが、 \fBmallopt\fP(3)  を使って調整できる。 \fBmmap\fP(2)
-を使って行われたメモリー割り当ては \fBRLIMIT_DATA\fP リソース上限の影響を受けない (\fBgetrlimit\fP(2)  参照)。
-
+デフォルトでは、Linux は楽観的メモリー配置戦略を用いている。つまり、 \fBmalloc\fP() が NULL
+でない値を返しても、そのメモリーが実際に利用可能であることが保証されない。システムがメモリー不足状態になったとき、メモリー不足解決器 (OOM
+killer) によって一つまたは複数のプロセスが削除される。詳しい情報は、\fBproc\fP(5) の
+\fI/proc/sys/vm/overcommit_memory\fP と \fIproc/sys/vm/oom_adj\fP、および Linux
+カーネルのソースファイルの \fIDocumentation/vm/overcommit\-accounting.rst\fP を参照のこと。
+.PP
+Normally, \fBmalloc\fP()  allocates memory from the heap, and adjusts the size
+of the heap as required, using \fBsbrk\fP(2).  When allocating blocks of memory
+larger than \fBMMAP_THRESHOLD\fP bytes, the glibc \fBmalloc\fP()  implementation
+allocates the memory as a private anonymous mapping using \fBmmap\fP(2).
+\fBMMAP_THRESHOLD\fP is 128\ kB by default, but is adjustable using
+\fBmallopt\fP(3).  Prior to Linux 4.7 allocations performed using \fBmmap\fP(2)
+were unaffected by the \fBRLIMIT_DATA\fP resource limit; since Linux 4.7, this
+limit is also enforced for allocations performed using \fBmmap\fP(2).
+.PP
 マルチスレッドアプリケーションでのデータ破損を回避するため、内部では mutexを
 使用して、これらの関数で利用されるメモリー管理用のデータ構造を保護している。
 複数のスレッドが同時にメモリーの確保や解放を行うようなマルチスレッドアプリケー
@@ -124,12 +195,12 @@ killer) によって一つまたは複数のプロセスが削除される。
 衝突が検出された際には追加の \fIメモリー割り当て領域\fP を作成する。
 追加領域の各々は、(\fBbrk\fP(2) や \fBmmap\fP(2) を使って) システムにより内部的に
 割り当てられた大きな領域で、それぞれ独自の mutex により管理されている。
-
-UNIX 98 標準では、 \fBmalloc\fP(), \fBcalloc\fP(), \fBrealloc\fP() は実行に失敗したときに \fIerrno\fP を
+.PP
+SUSv2 では、 \fBmalloc\fP(), \fBcalloc\fP(), \fBrealloc\fP() は実行に失敗したときに \fIerrno\fP を
 \fBENOMEM\fP に設定することになっている。 Glibc ではこれが守られていることを仮定している (またこれらのルーチンの glibc
 バージョンはこのことを守っている)。 個人的に別の malloc の実装を使っていて、その malloc が\fIerrno\fP
 を設定しない場合には、失敗した際に \fIerrno\fP にエラーの理由を設定しないライブラリルーチンがあるかもしれない。
-.LP
+.PP
 \fBmalloc\fP(), \fBcalloc\fP(), \fBrealloc\fP(), \fBfree\fP()  における事故は、 ほとんどの場合はヒープの破壊
 (corruption) が原因である。 例えば、割り当てられた領域をオーバーフローする、 同じポインターに二度 free する、などがこれにあたる。
 .PP
@@ -147,10 +218,13 @@ UNIX 98 標準では、 \fBmalloc\fP(), \fBcalloc\fP(), \fBrealloc\fP() は実�
 .\"
 .ad l
 .nh
-\fBbrk\fP(2), \fBmmap\fP(2), \fBalloca\fP(3), \fBmalloc_get_state\fP(3),
+\fBvalgrind\fP(1), \fBbrk\fP(2), \fBmmap\fP(2), \fBalloca\fP(3), \fBmalloc_get_state\fP(3),
 \fBmalloc_info\fP(3), \fBmalloc_trim\fP(3), \fBmalloc_usable_size\fP(3),
 \fBmallopt\fP(3), \fBmcheck\fP(3), \fBmtrace\fP(3), \fBposix_memalign\fP(3)
+.PP
+For details of the GNU C library implementation, see
+.UR https://sourceware.org/glibc/wiki/MallocInternals
+.UE .
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

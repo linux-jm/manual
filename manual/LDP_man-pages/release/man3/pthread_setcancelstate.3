@@ -33,17 +33,17 @@
 .\"         all rights reserved.
 .\" Translated 2012-05-31, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH PTHREAD_SETCANCELSTATE 3 2014\-05\-13 Linux "Linux Programmer's Manual"
+.TH PTHREAD_SETCANCELSTATE 3 2020\-06\-09 Linux "Linux Programmer's Manual"
 .SH 名前
 pthread_setcancelstate, pthread_setcanceltype \- cancelability state と
 cancelability type を設定する
 .SH 書式
 .nf
 \fB#include <pthread.h>\fP
-
+.PP
 \fBint pthread_setcancelstate(int \fP\fIstate\fP\fB, int *\fP\fIoldstate\fP\fB);\fP
 \fBint pthread_setcanceltype(int \fP\fItype\fP\fB, int *\fP\fIoldtype\fP\fB);\fP
-.sp
+.PP
 \fI\-pthread\fP でコンパイルしてリンクする。
 .fi
 .SH 説明
@@ -75,6 +75,10 @@ cancelability type に \fItype\fP で指定された値を設定する。
 呼び出すまで取り消し要求が遅延される。これが全ての新しく作成される
 スレッドでのデフォルトの cancelability type である。
 これには最初のスレッドも含まれる。
+.IP
+Even with deferred cancellation, a cancellation point in an asynchronous
+signal handler may still be acted upon and the effect is as if it was an
+asynchronous cancellation.
 .TP 
 \fBPTHREAD_CANCEL_ASYNCHRONOUS\fP
 スレッドはいつでも取り消すことができる (通常はすぐにキャンセルされるが、
@@ -99,14 +103,34 @@ cancelability type に \fItype\fP で指定された値を設定する。
 .\" Available since glibc 2.0
 \fItype\fP に無効な値が指定された。
 .SH 属性
-.SS "マルチスレッディング (pthreads(7) 参照)"
-関数 \fBpthread_setcancelstate\fP() と \fBpthread_setcanceltype\fP() はスレッドセーフである。
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.ad l
+.TS
+allbox;
+lb lb lb
+lw25 l l.
+インターフェース	属性	値
+T{
+\fBpthread_setcancelstate\fP(),
+\fBpthread_setcanceltype\fP()
+T}	Thread safety	T{
+MT\-Safe
+T}
+T{
+\fBpthread_setcancelstate\fP(),
+\fBpthread_setcanceltype\fP()
+T}	Async\-cancel\-safety	T{
+AC\-Safe
+T}
+.TE
+.ad
+.hy
 .SH 準拠
-POSIX.1\-2001.
+POSIX.1\-2001, POSIX.1\-2008.
 .SH 注意
 スレッドが取り消された場合に何が起こるかの詳細については
 \fBpthread_cancel\fP(3) を参照。
-
+.PP
 取り消し要求により中断されてはならない重要なアクションをスレッドが
 実行する場合、短い時間だけ cancelability を無効にするのは有用である。
 長い時間 cancelability を無効にしたり、長い時間停止 (block) される
@@ -120,30 +144,26 @@ cancelability type を \fBPTHREAD_CANCEL_ASYNCHRONOUS\fP
 mutex、セマフォ、ロックなどの獲得を行うことができない。アプリケーションは、スレッドがキャンセルされる際に、これらのリソースがどのような状態にあるかを知る術はないので、リソースの確保が安全ではなくなる。つまり、キャンセルが起こったのが、リソースの確保前なのか、確保中なのか、確保後なのかが分からない。さらに、関数呼び出しの最中にキャンセルが発生すると、いくつかの内部データ構造
 (例えば、\fBmalloc\fP(3) 関連の関数が管理している未使用ブロックのリンクリスト)
 が一貫性のない状態のままになってしまう可能性がある。その結果、クリーンアップハンドラーが役に立たないものになってしまう。
-
-非同期で安全にキャンセルできる関数は \fIasync\-cancel\-safe functions\fP と呼ばれる。 POSIX.1\-2001
-で、非同期で安全にキャンセルできるように求められている関数は \fBpthread_cancel\fP(3),
+.PP
+非同期で安全にキャンセルできる関数は \fIasync\-cancel\-safe functions\fP と呼ばれる。 POSIX.1\-2001 と
+POSIX.1\-2008 で、非同期で安全にキャンセルできるように求められている関数は \fBpthread_cancel\fP(3),
 \fBpthread_setcancelstate\fP(), \fBpthread_setcanceltype\fP() だけである。
 一般的には、それ以外のライブラリ関数は、非同期にキャンセルできるスレッドから安全に呼び出すことはできない。
-
+.PP
 非同期でのキャンセルが有効な数少ない状況としては、純粋に計算だけを行うループに入っているスレッドをキャンセルするといった場面がある。
 .SS 移植性に関する注意
 .\" It looks like at least Solaris, FreeBSD and Tru64 support this.
-Linux のスレッド実装では、 \fBpthread_setcancelstate\fP() の \fIoldstate\fP
-引き数に NULL を指定することを認めている。 NULL が指定された場合、
-変更前の cancelability state の情報が呼び出し側に返されない。
-他の多くの実装でも \fIoldstate\fP 引き数に NULL を指定することを認めて
-いるが、 POSIX.1\-2001 ではこの点については規定されていない。
-したがって、移植性が必要なアプリケーションでは常に \fIoldstate\fP に
-NULL 以外の値を指定するようにすべきである。
-\fBpthread_setcanceltype\fP() の \fIoldtype\fP 引き数についても、
-全く同じことが言える。
+Linux のスレッド実装では、 \fBpthread_setcancelstate\fP() の \fIoldstate\fP 引き数に NULL
+を指定することを認めている。 NULL が指定された場合、変更前の cancelability state
+の情報が呼び出し側に返されない。他の多くの実装でも \fIoldstate\fP 引き数に NULL を指定することを認めているが、 POSIX.1
+ではこの点については規定されていない。したがって、移植性が必要なアプリケーションでは常に \fIoldstate\fP に NULL
+以外の値を指定するようにすべきである。 \fBpthread_setcanceltype\fP() の \fIoldtype\fP
+引き数についても、全く同じことが言える。
 .SH 例
 \fBpthread_cancel\fP(3) を参照。
 .SH 関連項目
 \fBpthread_cancel\fP(3), \fBpthread_cleanup_push\fP(3), \fBpthread_testcancel\fP(3),
 \fBpthreads\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

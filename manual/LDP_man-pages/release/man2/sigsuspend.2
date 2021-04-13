@@ -35,32 +35,31 @@
 .\" Japanese Version Copyright (c) 2005 Akihiro MOTOKI all rights reserved.
 .\" Translated 2005-10-03, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\"
-.TH SIGSUSPEND 2 2013\-04\-19 Linux "Linux Programmer's Manual"
+.TH SIGSUSPEND 2 2019\-03\-06 Linux "Linux Programmer's Manual"
 .SH 名前
-sigsuspend \- シグナルを待つ
+sigsuspend, rt_sigsuspend \- シグナルを待つ
 .SH 書式
 \fB#include <signal.h>\fP
-.sp
+.PP
 \fBint sigsuspend(const sigset_t *\fP\fImask\fP\fB);\fP
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 .ad l
-\fBsigsuspend\fP(): _POSIX_C_SOURCE\ >=\ 1 || _XOPEN_SOURCE ||
-_POSIX_SOURCE
+\fBsigsuspend\fP(): _POSIX_C_SOURCE
 .ad b
 .SH 説明
-\fBsigsuspend\fP()  は、呼び出し元プロセスのシグナルマスクを \fImask\fP で指定されたマスクに一時的に置き換え、
-シグナルハンドラーの起動もしくはプロセスの終了がアクションとして 設定されたシグナルが配送されるまで、そのプロセスを停止する。
-
+\fBsigsuspend\fP()  は、呼び出し元スレッドのシグナルマスクを \fImask\fP で指定されたマスクに一時的に置き換え、
+シグナルハンドラーの起動もしくはプロセスの終了がアクションとして 設定されたシグナルが配送されるまで、そのスレッドを停止する。
+.PP
 シグナルがプロセスを終了させるものの場合、 \fBsigsuspend\fP()  は返らない。シグナルが捕捉された場合、
 シグナルハンドラーの処理が終わった後に \fBsigsuspend\fP()  は返り、シグナルマスクは \fBsigsuspend\fP()
 が呼び出される前の状態に復元される。
-
+.PP
 \fBSIGKILL\fP と \fBSIGSTOP\fP を禁止 (block) することはできない; これらのシグナルを \fImask\fP
-に指定しても、プロセスのシグナルマスクは影響を受けない。
+に指定しても、そのスレッドのシグナルマスクは影響を受けない。
 .SH 返り値
 \fBsigsuspend\fP() は常に \-1 を返し、 \fIerrno\fP にエラーの原因を示す値 (通常は \fBEINTR\fP) を設定する。
 .SH エラー
@@ -69,21 +68,33 @@ _POSIX_SOURCE
 \fImask\fP が指しているメモリーが、プロセスのアドレス空間の有効な部分ではない。
 .TP 
 \fBEINTR\fP
-システムコールはシグナルにより割り込まれた。
+システムコールはシグナルにより割り込まれた。 \fBsignal\fP(7) を参照。
 .SH 準拠
-POSIX.1\-2001.
+POSIX.1\-2001, POSIX.1\-2008.
 .SH 注意
-.PP
 \fBsigsuspend\fP()  は、通常、クリティカルコードセクション (critical code section) の
 実行中にシグナルが配送されるのを防止するために、 \fBsigprocmask\fP(2)  と組み合わせて使用される。 まず最初に、呼び出し元は
 \fBsigprocmask\fP(2)  を使ってシグナルを禁止する。 クリティカルコードが完了すると、呼び出し元は \fBsigprocmask\fP(2)
 が (\fIoldset\fP 引き数で) 返すシグナルマスクを指定して \fBsigsuspend\fP()
 を呼び出すことで、クリティカルコード実行中に発生した シグナルを待つことができる。
 .PP
+.\"
 シグナル集合の操作に関する詳細は \fBsigsetops\fP(3)  を参照のこと。
+.SS "C ライブラリとカーネルの違い"
+.\"
+The original Linux system call was named \fBsigsuspend\fP().  However, with the
+addition of real\-time signals in Linux 2.2, the fixed\-size, 32\-bit
+\fIsigset_t\fP type supported by that system call was no longer fit for
+purpose.  Consequently, a new system call, \fBrt_sigsuspend\fP(), was added to
+support an enlarged \fIsigset_t\fP type.  The new system call takes a second
+argument, \fIsize_t sigsetsize\fP, which specifies the size in bytes of the
+signal set in \fImask\fP.  This argument is currently required to have the
+value \fIsizeof(sigset_t)\fP (or the error \fBEINVAL\fP results).  The glibc
+\fBsigsuspend\fP()  wrapper function hides these details from us, transparently
+calling \fBrt_sigsuspend\fP()  when the kernel provides it.
 .SH 関連項目
 \fBkill\fP(2), \fBpause\fP(2), \fBsigaction\fP(2), \fBsignal\fP(2), \fBsigprocmask\fP(2),
 \fBsigwaitinfo\fP(2), \fBsigsetops\fP(3), \fBsigwait\fP(3), \fBsignal\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部である。
-プロジェクトの説明とバグ報告に関する情報は \%http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

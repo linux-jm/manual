@@ -1,5 +1,6 @@
 .\" This manpage is Copyright (C) 1992 Drew Eckhardt;
-.\"             and Copyright (C) 1993 Michael Haardt, Ian Jackson.
+.\"  and Copyright (C) 1993 Michael Haardt, Ian Jackson.
+.\"  and Copyright (C) 2009-2015 Michael Kerrisk, <mtk.manpages.gmail.com>
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" Permission is granted to make and distribute verbatim copies of this
@@ -50,38 +51,41 @@
 .\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH READ 2 2014\-05\-04 Linux "Linux Programmer's Manual"
+.TH READ 2 2018\-02\-02 Linux "Linux Programmer's Manual"
 .SH 名前
 read \- ファイルディスクリプターから読み込む
 .SH 書式
 .nf
 \fB#include <unistd.h>\fP
-.sp
+.PP
 \fBssize_t read(int \fP\fIfd\fP\fB, void *\fP\fIbuf\fP\fB, size_t \fP\fIcount\fP\fB);\fP
 .fi
 .SH 説明
 \fBread\fP()  はファイルディスクリプター (file descriptor)  \fIfd\fP から最大 \fIcount\fP バイトを \fIbuf\fP
 で始まるバッファーへ読み込もうとする。
-
+.PP
 seek に対応しているファイルでは、read
-は現在のファイルオフセットから行われ、ファイルオフセットは読み込んだバイト数分だけ進められる。現在のファイルオフセットがファイル末尾かそれより先の場合は、読み出しは行われず、
+はファイルオフセットから行われ、ファイルオフセットは読み込んだバイト数分だけ進められる。ファイルオフセットがファイル末尾かそれより先の場合は、読み出しは行われず、
 \fBread\fP() は 0 を返す。
-
+.PP
 \fIcount\fP が 0 の場合、 \fBread\fP() は以下で説明するエラーを検出する\fI場合がある\fP。 どのエラーもなかった場合、もしくは
 \fBread\fP() がエラーのチェックを行わない場合、 \fIcount\fP が 0 で呼び出された \fBread\fP() は 0 を返し、何も行わない。
-
-\fIcount\fP が \fBSSIZE_MAX\fP より大きければ、結果は規定できない。
+.PP
+According to POSIX.1, if \fIcount\fP is greater than \fBSSIZE_MAX\fP, the result
+is implementation\-defined; see NOTES for the upper limit on Linux.
 .SH 返り値
 成功した場合、読み込んだバイト数を返す (0 はファイルの終りを意味する)。 ファイル位置はこの数だけ進められる。
 この数が要求した数より小さかったとしてもエラーではない; 例えば今すぐには実際にそれだけの数しかない場合 (ファイルの最後に近いのかも
 しれないし、パイプ (pipe) や端末 (terminal) から読み込んでいるかもしれない) や \fBread\fP()  がシグナル (signal)
-によって割り込まれた場合にこれは起こりえる。 エラーの場合は、\-1 が返され、 \fIerrno\fP
-が適切に設定される。この場合はファイル位置が変更されるかどうかは 不定である。
+によって割り込まれた場合にこれは起こりえる。
+.PP
+エラーの場合は、\-1 が返され、 \fIerrno\fP が適切に設定される。この場合はファイル位置が変更されるかどうかは 不定である。
 .SH エラー
 .TP 
 \fBEAGAIN\fP
 ファイルディスクリプター \fIfd\fP がソケット以外のファイルを参照していて、 非停止 (nonblocking) モード
-(\fBO_NONBLOCK\fP)  に設定されており、読み込みを行うと停止する状況にある。
+(\fBO_NONBLOCK\fP)  に設定されており、読み込みを行うと停止する状況にある。 \fBO_NONBLOCK\fP フラグの詳細は
+\fBopen\fP(2) を参照。
 .TP 
 \fBEAGAIN\fP または \fBEWOULDBLOCK\fP
 .\" Actually EAGAIN on Linux
@@ -100,39 +104,51 @@ seek に対応しているファイルでは、read
 .TP 
 \fBEINVAL\fP
 \fIfd\fP は読み込みに適していないオブジェクトを参照している。 もしくは、ファイルが \fBO_DIRECT\fP フラグを指定してオープンされているが、
-\fIbuf\fP に指定されたアドレス、 \fIcount\fP に指定された値、 現在のファイルオフセットのいずれかの アラインメントが不適切である。
+\fIbuf\fP に指定されたアドレス、 \fIcount\fP に指定された値、 ファイルオフセットのいずれかの アラインメントが不適切である。
 .TP 
 \fBEINVAL\fP
 \fIfd\fP が \fBtimerfd_create\fP(2)  の呼び出しで作成されたが、 \fBread\fP()  に間違ったサイズのバッファーが渡された。
 さらなる情報は \fBtimerfd_create\fP(2)  を参照のこと。
 .TP 
 \fBEIO\fP
-I/O エラー。これは例えばプロセスがバックグランドプロセスグループで、それを制御している端末から読み込もうとし、 \fBSIGTTIN\fP が無視
-(ignore) または禁止 (blocking) されている場合や、 そのプロセスグループが孤立 (orphan) している場合に起こる。
-またディスクやテープを読んでいる時に低レベル I/O エラー が発生した場合にも起こる。
+I/O error.  This will happen for example when the process is in a background
+process group, tries to read from its controlling terminal, and either it is
+ignoring or blocking \fBSIGTTIN\fP or its process group is orphaned.  It may
+also occur when there is a low\-level I/O error while reading from a disk or
+tape.  A further possible cause of \fBEIO\fP on networked filesystems is when
+an advisory lock had been taken out on the file descriptor and this lock has
+been lost.  See the \fILost locks\fP section of \fBfcntl\fP(2)  for further
+details.
 .TP 
 \fBEISDIR\fP
 \fIfd\fP がディレクトリを参照している。
 .PP
-\fIfd\fP が接続しているオブジェクトによっては他のエラーも起こりえる。 POSIX では、 いくらかのデータを読んだ後に割り込みが起こった場合、
-\fBread\fP()  は (\fIerrno\fP に \fBEINTR\fP を設定して) \-1 を返してもよいし、 既に読み込んだバイト数を返してもよい。
+\fIfd\fP に接続されたオブジェクトによっては、他のエラーが起こるかもしれない。
 .SH 準拠
 SVr4, 4.3BSD, POSIX.1\-2001.
 .SH 注意
+The types \fIsize_t\fP and \fIssize_t\fP are, respectively, unsigned and signed
+integer data types specified by POSIX.1.
+.PP
+.\" commit e28cc71572da38a5a12c1cfe4d7032017adccf69
+On Linux, \fBread\fP()  (and similar system calls) will transfer at most
+0x7ffff000 (2,147,479,552) bytes, returning the number of bytes actually
+transferred.  (This is true on both 32\-bit and 64\-bit systems.)
+.PP
 NFS において。少量のデータを読み込む場合、最初の時のみにタイム スタンプが更新され、続くコールでは更新されないだろう。
-これはクライアント側で属性のキャッシングを行なうためである。 なぜならば、もし全ての NFS クライアントが st_atime
+これはクライアント側で属性のキャッシングを行なうためである。 なぜならば、もし全ての NFS クライアントが \fIst_atime\fP
 (最終ファイルアクセス時刻)  の更新をサーバーに送らず、クライアント側でキャッシュを読むことに満足して いれば、サーバー側での read
-は発生しないので st_atime の更新は行なわれからだ。 UNIX の方式では、クライアント側の属性のキャッシングを無効にすることで、
+は発生しないので \fIst_atime\fP の更新は行なわれからだ。 UNIX の方式では、クライアント側の属性のキャッシングを無効にすることで、
 これを得ることができる。しかしほとんどの状況ではこれは続くサーバーの 負荷を増加させ、パフォーマンスの低下をもたらす。
 .SH バグ
 POSIX.1\-2008/SUSv4 セクション XSI 2.9.7 ("Thread Interactions with Regular File
 Operations") によると、
-
+.PP
 .RS 4
 以下のすべての関数では、 通常ファイルもしくはシンボリックリンクに対する操作では POSIX.1\-2008
 で規定された効果が互いにアトミックに行われなければならない: ...
 .RE
-
+.PP
 .\" http://thread.gmane.org/gmane.linux.kernel/1649458
 .\"    From: Michael Kerrisk (man-pages <mtk.manpages <at> gmail.com>
 .\"    Subject: Update of file offset on write() etc. is non-atomic with I/O
@@ -153,6 +169,5 @@ Operations") によると、
 \fBreaddir\fP(2), \fBreadlink\fP(2), \fBreadv\fP(2), \fBselect\fP(2), \fBwrite\fP(2),
 \fBfread\fP(3)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

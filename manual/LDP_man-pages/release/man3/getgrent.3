@@ -39,37 +39,47 @@
 .\" Updated & Modified 2004-05-30, Yuichi SATO <ysato444@yahoo.co.jp>
 .\" Updated & Modified 2005-09-06, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
 .\"
-.TH GETGRENT 3 2014\-10\-02 "" "Linux Programmer's Manual"
+.TH GETGRENT 3 2017\-09\-15 "" "Linux Programmer's Manual"
 .SH 名前
 getgrent, setgrent, endgrent \- グループファイルエントリーの取得
 .SH 書式
 .nf
 \fB#include <sys/types.h>\fP
 \fB#include <grp.h>\fP
-.sp
+.PP
 \fBstruct group *getgrent(void);\fP
-.sp
+.PP
 \fBvoid setgrent(void);\fP
-.sp
+.PP
 \fBvoid endgrent(void);\fP
 .fi
-.sp
-.in -4n
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 .PD 0
 .ad l
 \fBsetgrent\fP():
 .RS 4
-_SVID_SOURCE || _BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED ||
-.br
-/* Since glibc 2.12: */ _POSIX_C_SOURCE\ >=\ 200809L
+.\"    || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+_XOPEN_SOURCE\ >=\ 500
+    || /* glibc 2.19 以降: */ _DEFAULT_SOURCE
+    || /* glibc 2.19 以前: */ _BSD_SOURCE || _SVID_SOURCE
 .RE
-.sp
+.PP
 \fBgetgrent\fP(), \fBendgrent\fP():
 .RS 4
-_SVID_SOURCE || _BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+.\"        || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+glibc 2.22 以降:
+    _XOPEN_SOURCE\ >=\ 500 ||
+        _DEFAULT_SOURCE
+.br
+.\"        || _XOPEN_SOURCE\ &&\ _XOPEN_SOURCE_EXTENDED
+Glibc 2.21 and earlier
+    _XOPEN_SOURCE\ >=\ 500
+        || /* glibc 2.12 以降: */ _POSIX_C_SOURCE\ >=\ 200809L
+        || /* glibc 2.19 以前: */ _BSD_SOURCE || _SVID_SOURCE
 .RE
 .PD
 .ad b
@@ -83,9 +93,9 @@ _SVID_SOURCE || _BSD_SOURCE || _XOPEN_SOURCE\ >=\ 500 || _XOPEN_SOURCE\ &&\ _XOP
 \fBendgrent\fP()  関数は、全ての処理が終わった後にグループ データベースをクローズする。
 .PP
 \fIgroup\fP 構造体は \fI<grp.h>\fP で以下のように定義されている:
-.sp
+.PP
 .in +4n
-.nf
+.EX
 struct group {
     char   *gr_name;        /* グループ名 */
     char   *gr_passwd;      /* グループのパスワード */
@@ -93,17 +103,17 @@ struct group {
     char  **gr_mem;         /* グループのメンバ名へのポインター
                                の配列 (配列はヌルで終端する) */
 };
-.fi
+.EE
 .in
 .PP
 この構造体のフィールドの詳細は \fBgroup\fP(5)  を参照のこと。
 .SH 返り値
 \fBgetgrent\fP()  関数は \fIgroup\fP 構造体へのポインターを返す。 これ以上エントリーが無いか、エラーが発生した場合は NULL
 を返す。
-.LP
+.PP
 エラーが発生すると、 \fIerrno\fP が適切に設定される。 この関数の呼び出し後に \fIerrno\fP をチェックしたい場合は、呼び出し前に
 \fIerrno\fP を 0 に設定しておかないといけない。
-
+.PP
 返り値は静的な領域を指しており、その後の \fBgetgrent\fP(), \fBgetgrgid\fP(3), \fBgetgrnam\fP(3)
 の呼び出しで上書きされるかもしれない。 (返されたポインターを \fBfree\fP(3)  に渡さないこと。)
 .SH エラー
@@ -113,16 +123,16 @@ struct group {
 では、バックエンドとの通信中に一時的なエラーが発生したことを示す。 このエラーは直るかもしれないので、あとでもう一度試すよう提案している。
 .TP 
 \fBEINTR\fP
-シグナルが捕捉された。
+シグナルが捕捉された。\fBsignal\fP(7) 参照。
 .TP 
 \fBEIO\fP
 I/O エラー。
 .TP 
 \fBEMFILE\fP
-呼び出したプロセスが既にファイルをオープンし過ぎている。
+オープンされたファイルディスクリプター数がプロセス毎の上限に達している。
 .TP 
 \fBENFILE\fP
-システム上にオープンされたファイルが多過ぎる。
+オープンされたファイルの総数がシステム全体の上限に達している。
 .TP 
 .\" not in POSIX
 \fBENOENT\fP
@@ -139,16 +149,33 @@ I/O エラー。
 \fI/etc/group\fP
 ローカルのグループデータベースファイル
 .SH 属性
-.SS "マルチスレッディング (pthreads(7) 参照)"
-\fBgetgrent\fP() 関数はスレッドセーフではない。
-.LP
-関数 \fBsetgrent\fP() と \fBendgrent\fP() はスレッドセーフである。
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbw11 lb lb
+l l l.
+インターフェース	属性	値
+T{
+\fBgetgrent\fP()
+T}	Thread safety	T{
+MT\-Unsafe race:grent
+.br
+race:grentbuf locale
+T}
+T{
+\fBsetgrent\fP(),
+\fBendgrent\fP()
+T}	Thread safety	MT\-Unsafe race:grent locale
+.TE
+.PP
+In the above table, \fIgrent\fP in \fIrace:grent\fP signifies that if any of the
+functions \fBsetgrent\fP(), \fBgetgrent\fP(), or \fBendgrent\fP()  are used in
+parallel in different threads of a program, then data races could occur.
 .SH 準拠
-SVr4, 4.3BSD, POSIX.1\-2001.
+POSIX.1\-2001, POSIX.1\-2008, SVr4, 4.3BSD.
 .SH 関連項目
 \fBfgetgrent\fP(3), \fBgetgrent_r\fP(3), \fBgetgrgid\fP(3), \fBgetgrnam\fP(3)
 \fBgetgrouplist\fP(3), \fBputgrent\fP(3), \fBgroup\fP(5)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

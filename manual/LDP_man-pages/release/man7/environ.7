@@ -48,20 +48,22 @@
 .\" Updated Sat Mar 23 JST 2002 by Kentaro Shirakata <argrath@ub32.org>
 .\" Updated 2010-04-11, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.24
 .\"
-.TH ENVIRON 7 2014\-08\-19 Linux "Linux Programmer's Manual"
+.TH ENVIRON 7 " 2020\-08\-13" Linux "Linux Programmer's Manual"
 .SH 名前
 environ \- ユーザー環境
 .SH 書式
 .nf
 \fBextern char **\fP\fIenviron\fP\fB;\fP
-.br
 .fi
 .SH 説明
-変数 \fIenviron\fP は「環境 (environment)」と呼ばれる文字列へのポインターの配列である。 この配列の最後のポインターの値は
-NULL である。 (この変数はユーザープログラムで宣言しなければならないが、 機能検査マクロ \fB_GNU_SOURCE\fP
-が定義されていればヘッダーファイル \fI<unistd.h>\fP で宣言される)。 この文字列配列は、 プロセスを起動する
-\fBexec\fP(3)  によって、その起動されたプロセスで利用できるようになる。
-
+The variable \fIenviron\fP points to an array of pointers to strings called the
+"environment".  The last pointer in this array has the value NULL.  (This
+variable must be declared in the user program, but is declared in the header
+file \fI<unistd.h>\fP if the \fB_GNU_SOURCE\fP feature test macro is
+defined.)  This array of strings is made available to the process by the
+\fBexec\fP(3)  call that started the process.  When a child process is created
+via \fBfork\fP(2), it inherits a \fIcopy\fP of its parent's environment.
+.PP
 通例では、 \fIenviron\fP の文字列は "\fIname\fP\fB=\fP\fIvalue\fP" という書式をとる。 よく用いられる例を以下に示す。
 .TP 
 \fBUSER\fP
@@ -99,45 +101,65 @@ NULL である。 (この変数はユーザープログラムで宣言しなけ�
 .\" .TP
 .\" .B BROWSER
 .\" The user's preferred utility to browse URLs. Sequence of colon-separated
-.\" browser commands. See http://www.catb.org/~esr/BROWSER/ .
+.\" browser commands. See http://www.catb.org/\(tiesr/BROWSER/ .
 テキストファイルを編集するユーテリティ。ユーザーが好みのものを設定する。
 .PP
-環境に名前を追加する場合には、 \fBsh\fP(1)  では \fIexport\fP コマンドと "name=value" を使用する。 \fBcsh\fP(1)
-では \fIsetenv\fP コマンドを使用する。 \fBexec\fP(3)  の引数としても環境を設定することができる。 C プログラムからは、
-\fBgetenv\fP(3), \fBputenv\fP(3), \fBsetenv\fP(3), \fBunsetenv\fP(3)
-などの関数を用いて環境を扱うことができる。
-
-プログラムやライブラリルーチンの多くは、それぞれ適当な環境変数の存在 や値によって、動作に影響を受けることがある。以下、適宜挙げてみよう。
-.LP
+Names may be placed in the shell's environment by the \fIexport\fP command in
+\fBsh\fP(1), or by the \fIsetenv\fP command if you use \fBcsh\fP(1).
+.PP
+The initial environment of the shell is populated in various ways, such as
+definitions from \fI/etc/environment\fP that are processed by \fBpam_env\fP(8)
+for all users at login time (on systems that employ \fBpam\fP(8)).  In
+addition, various shell initialization scripts, such as the system\-wide
+\fI/etc/profile\fP script and per\-user initializations script may include
+commands that add variables to the shell's environment; see the manual page
+of your preferred shell for details.
+.PP
+Bourne\-style shells support the syntax
+.PP
+    NAME=value command
+.PP
+to create an environment variable definition only in the scope of the
+process that executes \fIcommand\fP.  Multiple variable definitions, separated
+by white space, may precede \fIcommand\fP.
+.PP
+\fBexec\fP(3)  の引数としても環境を設定することができる。 C プログラムからは、 \fBgetenv\fP(3), \fBputenv\fP(3),
+\fBsetenv\fP(3), \fBunsetenv\fP(3)  などの関数を用いて環境を扱うことができる。
+.PP
+Note that the behavior of many programs and library routines is influenced
+by the presence or value of certain environment variables.  Examples include
+the following:
+.IP * 3
 \fBLANG\fP, \fBLANGUAGE\fP, \fBNLSPATH\fP, \fBLOCPATH\fP, \fBLC_ALL\fP, \fBLC_MESSAGES\fP,
 などの変数は、ロケールの扱いに影響する。 \fBcatopen\fP(3), \fBgettext\fP(3), \fBlocale\fP(5) を参照。
-.LP
-\fBTMPDIR\fP は、 \fBtmpnam\fP(3) などのルーチンによって作成されるファイル名や \fBsort\fP(1)
+.IP *
+\fBTMPDIR\fP は、 \fBtempnam\fP(3) などのルーチンによって作成されるファイル名や \fBsort\fP(1)
 や他のプログラムが使用する一時ディレクトリに前置されるパスに影響する。
-.LP
-\fBLD_LIBRARY_PATH\fP, \fBLD_PRELOAD\fP などの LD_* 変数はダイナミックローダーリンカーの動作に影響する。
-.LP
+.IP *
+\fBLD_LIBRARY_PATH\fP, \fBLD_PRELOAD\fP などの \fBLD_*\fP 変数はダイナミックローダーリンカーの動作に影響する。
+.IP *
 \fBPOSIXLY_CORRECT\fP が指定されると、ある種のプログラムやライブラリルーチンは POSIX の規定に従うようになる。
-.LP
+.IP *
 \fBmalloc\fP(3)  の動作は \fBMALLOC_*\fP 変数によって影響される。
-.LP
+.IP *
 \fBHOSTALIAS\fP 変数は、 \fBgethostbyname\fP(3)  が用いるエイリアスが書かれているファイル名を与える。
-.LP
+.IP *
 \fBTZ\fP と \fBTZDIR\fP は \fBtzset\fP(3)  および、この関数を使う \fBctime\fP(3), \fBlocaltime\fP(3),
 \fBmktime\fP(3), \fBstrftime\fP(3)  といった関数で用いられるタイムゾーンの情報を与える。 \fBtzselect\fP(8)
 も参照のこと。
-.LP
+.IP *
 \fBTERMCAP\fP は、現在の端末情報の取得先 (あるいはそのような情報が書かれているファイル名) を与える。
-.LP
+.IP *
 \fBCOLUMNS\fP と \fBLINES\fP アプリケーションにウインドウのサイズを伝える。 実際のサイズとは違う値を与えることもできる。
-.LP
+.IP *
 \fBPRINTER\fP または \fBLPDEST\fP 用いたいプリンタを指定する。 \fBlpr\fP(1)  を参照のこと。
-.LP
-などなど...
+.SH 注意
+The \fBprctl\fP(2)  \fBPR_SET_MM_ENV_START\fP and \fBPR_SET_MM_ENV_END\fP operations
+can be used to control the location of the process's environment.
 .SH バグ
 これらの中には、明らかにセキュリティ上の危険が存在する。 ユーザーが \fBIFS\fP や \fBLD_LIBRARY_PATH\fP
 に異常な値を与えたことによって、 これまで多くのシステムコマンドがだまされて、 システムをひどい目にあわせてきた。
-
+.PP
 名前空間が汚染される危険性も存在する。 \fImake\fP や \fIautoconf\fP のようなプログラムでは、デフォルトのユーティリティを
 環境にある似たような名前の変数で上書きすることができる (通常はすべて大文字の変数を用いる)。 すなわち、利用したい C コンパイラは \fBCC\fP
 で選択できる。また同様に \fBMAKE\fP, \fBAR\fP, \fBAS\fP, \fBFC\fP, \fBLD\fP, \fBLEX\fP, \fBRM\fP, \fBYACC\fP
@@ -146,10 +168,10 @@ NULL である。 (この変数はユーザープログラムで宣言しなけ�
 新しいプログラムでは避けるべきである。 \fIgzip\fP の作者たちは、オプションを与える環境変数を \fBGZIP_OPT\fP
 に改名することを考えるほうがよい。
 .SH 関連項目
-\fBenv\fP(1), \fBbash\fP(1), \fBcsh\fP(1), \fBlogin\fP(1), \fBprintenv\fP(1), \fBsh\fP(1),
+\fBbash\fP(1), \fBcsh\fP(1), \fBenv\fP(1), \fBlogin\fP(1), \fBprintenv\fP(1), \fBsh\fP(1),
 \fBtcsh\fP(1), \fBexecve\fP(2), \fBclearenv\fP(3), \fBexec\fP(3), \fBgetenv\fP(3),
-\fBputenv\fP(3), \fBsetenv\fP(3), \fBunsetenv\fP(3), \fBlocale\fP(7), \fBld.so\fP(8)
+\fBputenv\fP(3), \fBsetenv\fP(3), \fBunsetenv\fP(3), \fBlocale\fP(7), \fBld.so\fP(8),
+\fBpam_env\fP(8)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

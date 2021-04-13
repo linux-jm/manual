@@ -37,27 +37,36 @@
 .\" Updated 2012-05-04, Akihiro MOTOKI <amotoki@gmail.com>
 .\" Updated 2013-07-22, Akihiro MOTOKI <amotoki@gmail.com>
 .\"
-.TH SIGPROCMASK 2 2013\-04\-19 Linux "Linux Programmer's Manual"
+.TH SIGPROCMASK 2 2017\-09\-15 Linux "Linux Programmer's Manual"
 .SH 名前
-sigprocmask \- 禁止するシグナルの確認と変更
+sigprocmask, rt_sigprocmask \- 禁止するシグナルの確認と変更
 .SH 書式
 \fB#include <signal.h>\fP
-.sp
-\fBint sigprocmask(int \fP\fIhow\fP\fB, const sigset_t *\fP\fIset\fP\fB,\fP \fBsigset_t
-*\fP\fIoldset\fP\fB);\fP
-.sp
-.in -4n
+.PP
+.nf
+/* Prototype for the glibc wrapper function */
+\fBint sigprocmask(int \fP\fIhow\fP\fB, const sigset_t *\fP\fIset\fP\fB, sigset_t *\fP\fIoldset\fP\fB);\fP
+.PP
+/* Prototype for the underlying system call */
+\fBint rt_sigprocmask(int \fP\fIhow\fP\fB, const kernel_sigset_t *\fP\fIset\fP\fB,\fP
+\fB                   kernel_sigset_t *\fP\fIoldset\fP\fB, size_t \fP\fIsigsetsize\fP\fB);\fP
+.PP
+/* Prototype for the legacy system call (deprecated) */
+\fBint sigprocmask(int \fP\fIhow\fP\fB, const old_kernel_sigset_t *\fP\fIset\fP\fB,\fP
+\fB                old_kernel_sigset_t *\fP\fIoldset\fP\fB);\fP
+.fi
+.PP
+.RS -4
 glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
-.in
-.sp
+.RE
+.PP
 .ad l
-\fBsigprocmask\fP(): _POSIX_C_SOURCE\ >=\ 1 || _XOPEN_SOURCE ||
-_POSIX_SOURCE
+\fBsigprocmask\fP(): _POSIX_C_SOURCE
 .ad b
 .SH 説明
 \fBsigprocmask\fP()  を使うと、呼び出したスレッドのシグナルマスクの取得/変更ができる。
 シグナルマスクは、呼び出し元に対して現在配送が禁止されているシグナルの 集合のことである (詳細については \fBsignal\fP(7)  も参照のこと)。
-
+.PP
 このコールの動作は \fIhow\fP の値によって決まる:
 .TP 
 \fBSIG_BLOCK\fP
@@ -70,10 +79,13 @@ _POSIX_SOURCE
 禁止されているシグナルの集合に \fIset\fP 引き数を設定する。
 .PP
 \fIoldset\fP が NULL でなければ、シグナルマスクの今までの値を \fIoldset\fP に格納する。
-
+.PP
 \fIset\fP が NULL であれば、シグナルマスクは変更されない (すなわち、 \fIhow\fP は無視される)。 \fIset\fP
 の値にかかわらず、現在のシグナルマスクの値は \fIoldset\fP に入れて返される (但し、 \fIoldset\fP が NULL でない場合)。
-
+.PP
+A set of functions for modifying and inspecting variables of type
+\fIsigset_t\fP ("signal sets") is described in \fBsigsetops\fP(3).
+.PP
 マルチスレッドのプロセスで \fBsigprocmask\fP()  を使用した場合の動作は規定されていない。 \fBpthread_sigmask\fP(3)
 を参照のこと。
 .SH 返り値
@@ -84,25 +96,56 @@ _POSIX_SOURCE
 引き数 \fIset\fP か \fIoldset\fP がプロセスに割り当てられたアドレス空間の外を指している。
 .TP 
 \fBEINVAL\fP
-\fIhow\fP に指定された値が有効ではない。
+Either the value specified in \fIhow\fP was invalid or the kernel does not
+support the size passed in \fIsigsetsize.\fP
 .SH 準拠
-POSIX.1\-2001.
+POSIX.1\-2001, POSIX.1\-2008.
 .SH 注意
 \fBSIGKILL\fP や \fBSIGSTOP\fP を禁止することはできない。 禁止しようとしても黙って無視される。
-
+.PP
 プロセス内の各スレッドはそれぞれ専用のシグナルマスクを持つ。
-
+.PP
 \fBfork\fP(2)  経由で作成された子プロセスは親プロセスのシグナルマスクのコピーを継承する。 \fBexecve\fP(2)
 の前後でシグナルマスクは保持される。
-
+.PP
 シグナル \fBSIGBUS\fP, \fBSIGFPE\fP, \fBSIGILL\fP, \fBSIGSEGV\fP が禁止されている間に生成された場合で、 そのシグナルが
 \fBkill\fP(2), \fBsigqueue\fP(3), \fBraise\fP(3)  によって生成されたものでないときには、 その後の動作は未定義である。
 .PP
 シグナル集合の操作に関する詳細は \fBsigsetops\fP(3)  を参照のこと。
+.PP
+.\"
+Note that it is permissible (although not very useful) to specify both
+\fIset\fP and \fIoldset\fP as NULL.
+.SS "C ライブラリとカーネルの違い"
+The kernel's definition of \fIsigset_t\fP differs in size from that used by the
+C library.  In this manual page, the former is referred to as
+\fIkernel_sigset_t\fP (it is nevertheless named \fIsigset_t\fP in the kernel
+sources).
+.PP
+The glibc wrapper function for \fBsigprocmask\fP()  silently ignores attempts
+to block the two real\-time signals that are used internally by the NPTL
+threading implementation.  See \fBnptl\fP(7)  for details.
+.PP
+.\" sizeof(kernel_sigset_t) == _NSIG / 8,
+.\" which equals to 8 on most architectures, but e.g. on MIPS it's 16.
+The original Linux system call was named \fBsigprocmask\fP().  However, with
+the addition of real\-time signals in Linux 2.2, the fixed\-size, 32\-bit
+\fIsigset_t\fP (referred to as \fIold_kernel_sigset_t\fP in this manual page)
+type supported by that system call was no longer fit for purpose.
+Consequently, a new system call, \fBrt_sigprocmask\fP(), was added to support
+an enlarged \fIsigset_t\fP type (referred to as \fIkernel_sigset_t\fP in this
+manual page).  The new system call takes a fourth argument, \fIsize_t
+sigsetsize\fP, which specifies the size in bytes of the signal sets in \fIset\fP
+and \fIoldset\fP.  This argument is currently required to have a fixed
+architecture specific value (equal to \fIsizeof(kernel_sigset_t)\fP).
+.PP
+.\"
+The glibc \fBsigprocmask\fP()  wrapper function hides these details from us,
+transparently calling \fBrt_sigprocmask\fP()  when the kernel provides it.
 .SH 関連項目
 \fBkill\fP(2), \fBpause\fP(2), \fBsigaction\fP(2), \fBsignal\fP(2), \fBsigpending\fP(2),
 \fBsigsuspend\fP(2), \fBpthread_sigmask\fP(3), \fBsigqueue\fP(3), \fBsigsetops\fP(3),
 \fBsignal\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部である。
-プロジェクトの説明とバグ報告に関する情報は \%http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006, 2008, Michael Kerrisk (mtk.manpages@gmail.com)
+.\" Copyright (c) 2006, 2008, Michael Kerrisk <mtk.manpages@gmail.com>
 .\" (A few fragments remain from an earlier (1992) version written in
 .\" 1992 by Drew Eckhardt <drew@cs.colorado.edu>.)
 .\"
@@ -45,49 +45,74 @@
 .\" Updated 2006-07-21, Akihiro MOTOKI, LDP v2.36
 .\" Updated 2008-02-10, Akihiro MOTOKI, LDP v2.77
 .\"
-.TH UMASK 2 2008\-01\-09 Linux "Linux Programmer's Manual"
+.TH UMASK 2 " 2020\-08\-13" Linux "Linux Programmer's Manual"
 .SH 名前
 umask \- ファイルモード作成マスクを設定する
 .SH 書式
 \fB#include <sys/types.h>\fP
 .br
 \fB#include <sys/stat.h>\fP
-.sp
+.PP
 \fBmode_t umask(mode_t \fP\fImask\fP\fB);\fP
 .SH 説明
 \fBumask\fP()  は、呼び出し元プロセスのファイルモード作成マスク (umask) を \fImask\fP & 0777 に設定し (\fIumask\fP
 のファイル許可に対応するビットのみを使用する)、 変更前のマスク値を返す。
-
+.PP
 .\" e.g., mkfifo(), creat(), mknod(), sem_open(), mq_open(), shm_open()
 .\" but NOT the System V IPC *get() calls
 umask は、 \fBopen\fP(2), \fBmkdir\fP(2)  やファイル作成を行うその他のシステムコールで、
 新しく作成されるファイルやディレクトリの許可 (permission) を 修正するために使用される。 具体的には umask に設定されている許可が
 \fBopen\fP(2)  や \fBmkdir\fP(2)  の \fImode\fP 引き数から取り消される。
-
-\fImask\fP に指定するのに使用すべき定数については \fBstat\fP(2)  で説明されている。
-
+.PP
+Alternatively, if the parent directory has a default ACL (see \fBacl\fP(5)),
+the umask is ignored, the default ACL is inherited, the permission bits are
+set based on the inherited ACL, and permission bits absent in the \fImode\fP
+argument are turned off.  For example, the following default ACL is
+equivalent to a umask of 022:
+.PP
+    u::rwx,g::r\-x,o::r\-x
+.PP
+Combining the effect of this default ACL with a \fImode\fP argument of 0666
+(rw\-rw\-rw\-), the resulting file permissions would be 0644 (rw\-r\-\-r\-\-).
+.PP
+\fImask\fP に指定するのに使用すべき定数については \fBinode\fP(7) で説明されている。
+.PP
 プロセスの umask のよくあるデフォルト値は \fIS_IWGRP\ |\ S_IWOTH\fP (8進で 022) である。
 新しいファイルを作成する際に \fBopen\fP(2)  の \fImode\fP 引き数に
-.nf
-
-    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
-
-.fi
+.PP
+.in +4n
+.EX
+ S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
+.EE
+.in
+.PP
 を指定するというよくあるケースでは、作成されたファイルは
-.nf
-
-    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH
-
-.fi
-という許可を持つことになる (なぜなら 0666 & ~022 = 0644、つまり rw\-r\-\-r\-\-)。
+.PP
+.in +4n
+.EX
+ S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH
+.EE
+.in
+.PP
+(because 0666 & \(ti022 = 0644; i.e., rw\-r\-\-r\-\-).
 .SH 返り値
 このシステムコールは必ず成功し、以前の umask 値を返す。
 .SH 準拠
-SVr4, 4.3BSD, POSIX.1\-2001.
+ POSIX.1\-2001, POSIX.1\-2008, SVr4, 4.3BSD.
 .SH 注意
 \fBfork\fP(2)  で作成された子プロセスは、親プロセスの umask を継承する。 \fBexecve\fP(2)  によって umask
 は変更されない。
-
+.PP
+It is impossible to use \fBumask\fP()  to fetch a process's umask without at
+the same time changing it.  A second call to \fBumask\fP()  would then be
+needed to restore the umask.  The nonatomicity of these two steps provides
+the potential for races in multithreaded programs.
+.PP
+Since Linux 4.7, the umask of any process can be viewed via the \fIUmask\fP
+field of \fI/proc/[pid]/status\fP.  Inspecting this field in
+\fI/proc/self/status\fP allows a process to retrieve its umask without at the
+same time changing it.
+.PP
 umask の設定は、そのプロセスが生成する POSIX IPC オブジェクト (\fBmq_open\fP(3), \fBsem_open\fP(3),
 \fBshm_open\fP(3))  や FIFO (\fBmkfifo\fP(3))、 UNIX ドメインソケット (\fBunix\fP(7))
 に設定される許可にも影響を与える。 一方、umask は、そのプロセスが (\fBmsgget\fP(2), \fBsemget\fP(2),
@@ -95,6 +120,5 @@ umask の設定は、そのプロセスが生成する POSIX IPC オブジェク
 .SH 関連項目
 \fBchmod\fP(2), \fBmkdir\fP(2), \fBopen\fP(2), \fBstat\fP(2), \fBacl\fP(5)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。

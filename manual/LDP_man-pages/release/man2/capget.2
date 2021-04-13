@@ -1,4 +1,5 @@
-.\" written by Andrew Morgan <morgan@kernel.org>
+.\" Copyright: written by Andrew Morgan <morgan@kernel.org>
+.\" and Copyright 2006, 2008, Michael Kerrisk <tmk.manpages@gmail.com>
 .\"
 .\" %%%LICENSE_START(GPL_NOVERSION_ONELINE)
 .\" may be distributed as per GPL
@@ -27,41 +28,42 @@
 .\" Updated & Modified 2008-08-11, Akihiro MOTOKI, LDP v3.05
 .\" Updated 2009-02-24, Akihiro MOTOKI, LDP v3.19
 .\"
-.TH CAPGET 2 2013\-03\-11 Linux "Linux Programmer's Manual"
+.TH CAPGET 2 2020\-02\-09 Linux "Linux Programmer's Manual"
 .SH 名前
 capget, capset \- スレッドのケーパビリティを設定/取得する
 .SH 書式
 \fB#include <sys/capability.h>\fP
-.sp
+.PP
 \fBint capget(cap_user_header_t \fP\fIhdrp\fP\fB, cap_user_data_t \fP\fIdatap\fP\fB);\fP
-.sp
+.PP
 \fBint capset(cap_user_header_t \fP\fIhdrp\fP\fB, const cap_user_data_t
 \fP\fIdatap\fP\fB);\fP
 .SH 説明
-Linux 2.2 で、スーパーユーザー (root) の権限は、個別のケーパビリティ (capabilities)
-へと分割され、その集合として表現されるようになった。 各スレッドは「実効ケーパビリティ (effective capability) の集合」を持ち、
-それによって現在どの操作が実行可能かを識別できる。 また、各スレッドは、 「継承可能ケーパビリティ (inheritable capability)
-の集合」と 「許可ケーパビリティ (permitted capability) の集合」を持つ。 「継承可能ケーパビリティの集合」は
-\fBexecve\fP(2)  を通じて渡すことができるケーパビリティの集合であり、 「許可ケーパビリティ (permitted capability)
-の集合」は 実効ケーパビリティや継承可能ケーパビリティとして有効にできる ケーパビリティを規定するものである。
-.PP
 この二つのシステムコールはスレッドのケーパビリティを取得したり設定したりするための 生のカーネルインターフェースである。 これらのシステムコールは
 Linux 特有であるというだけでなく、 カーネル API は変更されるかもしれず、これらのシステムコールの使用法 (特に
 \fIcap_user_*_t\fP 型という書式) はカーネルのリビジョン毎に拡張されるかもしれないが、 以前のプログラムはそのまま動作する。
-.sp
+.PP
+.\"
 移植性のあるインターフェースは \fBcap_set_proc\fP(3)  と \fBcap_get_proc\fP(3)  である。
-可能ならばアプリケーションはこれらの関数を使用すべきである。 アプリケーションに Linux 拡張を使用したい場合には、より簡単に
-使えるインターフェースである \fBcapsetp\fP(3)  と \fBcapgetp\fP(3)  を使用すべきである。
+可能ならばアプリケーションはこれらの関数を使用すべきである。
 .SS 現在の詳細
 現在のカーネルの詳細について注意を述べておく。 構造体は以下のように定義される。
-.sp
-.nf
+.PP
 .in +4n
+.EX
 #define _LINUX_CAPABILITY_VERSION_1  0x19980330
 #define _LINUX_CAPABILITY_U32S_1     1
 
+.\" commit e338d263a76af78fe8f38a72131188b58fceb591
+.\" Added 64 bit capability support
+        /* V2 added in Linux 2.6.25; deprecated */
 #define _LINUX_CAPABILITY_VERSION_2  0x20071026
 #define _LINUX_CAPABILITY_U32S_2     2
+
+.\" commit ca05a99a54db1db5bca72eccb5866d2a86f8517f
+        /* V3 added in Linux 2.6.26 */
+#define _LINUX_CAPABILITY_VERSION_3  0x20080522
+#define _LINUX_CAPABILITY_U32S_3     2
 
 typedef struct __user_cap_header_struct {
    __u32 version;
@@ -73,44 +75,57 @@ typedef struct __user_cap_data_struct {
    __u32 permitted;
    __u32 inheritable;
 } *cap_user_data_t;
-.fi
-.in -4n
-.sp
+.EE
+.in
+.PP
 フィールド \fIeffective\fP, \fIpermitted\fP, \fIinheritable\fP は、 \fBcapabilities\fP(7)
 で定義されるケーパビリティのビットマスクである。 \fICAP_*\fP はビット番号を表すインデックス値であり、 ビットフィールドに OR を行う前に
 \fICAP_*\fP の値の分だけビットシフトを行う必要がある。 typedef の方はポインターなので、 このシステムコールに渡す構造体を定義するには、
 \fIstruct __user_cap_header_struct\fP と \fIstruct __user_cap_data_struct\fP
 という名前を使用しなければならない。
-
-カーネル 2.6.25 より前では、バージョン \fB_LINUX_CAPABILITY_VERSION_1\fP の 32
-ビットケーパビリティが推奨である。 カーネル 2.6.25 以降では、バージョン \fB_LINUX_CAPABILITY_VERSION_2\fP の 64
-ビットケーパビリティが推奨である。 64 ビットケーパビリティでは \fIdatap\fP[0] と \fIdatap\fP[1] が使用されるのに対し、 32
-ビットケーパビリティでは \fIdatap\fP[0] だけが使用される。
-.sp
-これらのシステムコールの挙動に影響があるもう一つの変更点は、 ファイルケーパビリティ (file capabilities) のカーネルによるサポート
-(VFS ケーパビリティのサポート) である。 VFS ケーパビリティのサポートは現在のところコンパイル時のオプションである (カーネル 2.6.24
-で追加された)。
-.sp
+.PP
+Kernels prior to 2.6.25 prefer 32\-bit capabilities with version
+\fB_LINUX_CAPABILITY_VERSION_1\fP.  Linux 2.6.25 added 64\-bit capability sets,
+with version \fB_LINUX_CAPABILITY_VERSION_2\fP.  There was, however, an API
+glitch, and Linux 2.6.26 added \fB_LINUX_CAPABILITY_VERSION_3\fP to fix the
+problem.
+.PP
+Note that 64\-bit capabilities use \fIdatap[0]\fP and \fIdatap[1]\fP, whereas
+32\-bit capabilities use only \fIdatap[0]\fP.
+.PP
+On kernels that support file capabilities (VFS capabilities support), these
+system calls behave slightly differently.  This support was added as an
+option in Linux 2.6.24, and became fixed (nonoptional) in Linux 2.6.33.
+.PP
 \fBcapget\fP()  では、 \fIhdrp\->pid\fP のフィールド値にケーパビリティを知りたいプロセスのプロセス ID を
 指定することで、任意のプロセスのケーパビリティを調べることができる。
-.SS "VFS ケーパビリティがサポートされている場合"
-VFS ケーパビリティのサポートでは、特権実行ファイルにケーパビリティを 追加するためのファイル属性メソッドが作成された。
-この特権モデルの導入により、あるプロセスにより別のプロセスのケーパビリティ を非同期に設定する機能のカーネルによるサポートは廃止される。 つまり、VFS
-サポートでは、 \fBcapset\fP()  を呼び出す際に \fIhdrp\->pid\fP の値として許されるのは 0 と \fBgetpid\fP(2)
-が返す値だけとなる (どちらの値でも等価である)。
-.SS "VFS ケーパビリティがサポートされていない場合"
-カーネルが VFS ケーパビリティをサポートしていない場合、 \fIhdrp\fP の \fIpid\fP フィールドが 0 以外であれば、 \fBcapset\fP()
-の操作対象は \fIpid\fP で指定されたスレッドのケーパビリティになる。 \fIpid\fP が 0
-の場合は呼び出し元のスレッドのケーパビリティが操作対象となる。 \fIpid\fP がシングルスレッドプロセスを参照している場合、 \fIpid\fP
-は以前から使われているプロセスID を使って指定できる。 マルチスレッドプロセス内のあるスレッドを対象にする場合は、 \fBgettid\fP(2)
-が返すスレッドID を用いて指定する必要がある。 また、 \fBcapset\fP()  では \-1 や \-1 より小さな値を指定することもできる。 \-1
-は呼び出し元と \fBinit\fP(1)  を除く全てのスレッドを対象として変更を行うことを、 \-1 より小さな値は ID が \-\fIpid\fP
-のプロセスグループの全メンバ を対象として変更を行うことを意味する。
-
+.PP
+.\"
 このデータの詳細は \fBcapabilities\fP(7)  を参照すること。
+.SS "VFS ケーパビリティがサポートされている場合"
+.\"
+VFS capabilities employ a file extended attribute (see \fBxattr\fP(7))  to
+allow capabilities to be attached to executables.  This privilege model
+obsoletes kernel support for one process asynchronously setting the
+capabilities of another.  That is, on kernels that have VFS capabilities
+support, when calling \fBcapset\fP(), the only permitted values for
+\fIhdrp\->pid\fP are 0 or, equivalently, the value returned by \fBgettid\fP(2).
+.SS "VFS ケーパビリティがサポートされていない場合"
+On older kernels that do not provide VFS capabilities support \fBcapset\fP()
+can, if the caller has the \fBCAP_SETPCAP\fP capability, be used to change not
+only the caller's own capabilities, but also the capabilities of other
+threads.  The call operates on the capabilities of the thread specified by
+the \fIpid\fP field of \fIhdrp\fP when that is nonzero, or on the capabilities of
+the calling thread if \fIpid\fP is 0.  If \fIpid\fP refers to a single\-threaded
+process, then \fIpid\fP can be specified as a traditional process ID; operating
+on a thread of a multithreaded process requires a thread ID of the type
+returned by \fBgettid\fP(2).  For \fBcapset\fP(), \fIpid\fP can also be: \-1, meaning
+perform the change on all threads except the caller and \fBinit\fP(1); or a
+value less than \-1, in which case the change is applied to all members of
+the process group whose ID is \-\fIpid\fP.
 .SH 返り値
 成功した場合は 0 が返される。エラーの場合は \-1 が返され、 \fIerrno\fP が適切に設定される。
-
+.PP
 \fIhdrp\fP のフィールド \fIversion\fP にサポートされていない値が指定された場合、 呼び出しはエラー \fBEINVAL\fP で失敗し、
 \fIversion\fP にカーネル推奨の \fB_LINUX_CAPABILITY_VERSION_?\fP を設定する。
 このようにして、現在の推奨ケーパビリティリビジョンが何かを 調べることができる。
@@ -124,8 +139,18 @@ VFS ケーパビリティのサポートでは、特権実行ファイルにケ�
 引き数のどれかが無効である。
 .TP 
 \fBEPERM\fP
-「許可ケーパビリティセット」にケーパビリティを追加しようとしているか、 もしくは「許可ケーパビリティセット」に含まれないケーパビリティを
-「実効ケーパビリティセット」や「継承可能ケーパビリティセット」に セットしようとしている。
+An attempt was made to add a capability to the permitted set, or to set a
+capability in the effective set that is not in the permitted set.
+.TP 
+\fBEPERM\fP
+An attempt was made to add a capability to the inheritable set, and either:
+.RS
+.IP * 3
+that capability was not in the caller's bounding set; or
+.IP *
+the capability was not in the caller's permitted set and the caller lacked
+the \fBCAP_SETPCAP\fP capability in its effective set.
+.RE
 .TP 
 \fBEPERM\fP
 呼び出し元が自分以外のスレッドのケーパビリティを \fBcapset\fP()  を使って修正しようとしたが、十分な特権がなかった。 VFS
@@ -147,6 +172,5 @@ VFS ケーパビリティのサポートでは、特権実行ファイルにケ�
 .SH 関連項目
 \fBclone\fP(2), \fBgettid\fP(2), \fBcapabilities\fP(7)
 .SH この文書について
-この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 3.79 の一部
-である。プロジェクトの説明とバグ報告に関する情報は
-http://www.kernel.org/doc/man\-pages/ に書かれている。
+この man ページは Linux \fIman\-pages\fP プロジェクトのリリース 5.10 の一部である。プロジェクトの説明とバグ報告に関する情報は
+\%https://www.kernel.org/doc/man\-pages/ に書かれている。
