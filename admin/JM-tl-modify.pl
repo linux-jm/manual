@@ -15,6 +15,7 @@ my $update_timestamp = 1;
 my $update_translator = 1;
 my $backup = 0;
 my $clear_entry = 0;
+my $reset_old_translated_ver = 0;
 my %opts;
 
 BEGIN{
@@ -26,7 +27,7 @@ BEGIN{
 use strict 'vars';
 use JMtl ('line2hash', 'hash2line');
 
-getopts("tTuUn:e:cb", \%opts);
+getopts("tTuUn:e:crb", \%opts);
 $update_timestamp = 1 if $opts{"t"};
 $update_timestamp = 0 if $opts{"T"};
 $update_translator = 1 if $opts{"u"};
@@ -34,12 +35,22 @@ $update_translator = 0 if $opts{"U"};
 $backup = 1 if $opts{"b"};
 
 $clear_entry = 1 if $opts{"c"};
+$reset_old_translated_ver = 1 if $opts{"r"};
 $ARGV[2] = "_DUMMY_" if $clear_entry;
 
 if ($#ARGV < 2) {
     print STDERR "Usage: JM-tl-modify.pl [OPTIONS] translation_list pagename new_status\n";
     print STDERR "    pagename = name.[1-9]\n";
-    print STDERR "    new_status = TR DO DP PR RO RR\n";
+    print STDERR "    new_status = TR DO DP PR RO RR UN\n";
+    print STDERR "\n";
+    print STDERR "Status:\n";
+    print STDERR "  TR : Translation Reservation\n";
+    print STDERR "  DO : Draft Only\n";
+    print STDERR "  DP : Draft & Proof Reservation\n";
+    print STDERR "  PR : Proof Reservation\n";
+    print STDERR "  RO : Release Only\n";
+    print STDERR "  RR : Release and update Reservation\n";
+    print STDERR "  UN : UNassign\n";
     print STDERR "\n";
     print STDERR "OPTIONS:\n";
     print STDERR "    -t : Update timestamp (default)\n";
@@ -50,6 +61,7 @@ if ($#ARGV < 2) {
     print STDERR "    -e MAIL : Update mail field [JM_USER_MAIL]\n";
     print STDERR "    -c : Clear entry of specified pagename\n";
     print STDERR "         (new_status is not required when -c is specified.)\n";
+    print STDERR "    -r : Clear old translated version\n";
     print STDERR "    -b : Create backup of translation_list\n";
     exit 0;
 }
@@ -113,6 +125,7 @@ while (<TLO>) {
 	$ti{'stat'} = "upd_";
     }
   SW1: {
+      if ($new_status{'stat'} =~ /^UN/){$ti{'stat'} .= 'non'; last SW1;}
       if ($new_status{'stat'} =~ /^TR/){$ti{'stat'} .= 'rsv'; last SW1;}
       if ($new_status{'stat'} =~ /^DO/){$ti{'stat'} .= 'dft'; last SW1;}
       if ($new_status{'stat'} =~ /^DP/){$ti{'stat'} .= 'prf'; last SW1;}
@@ -128,6 +141,10 @@ while (<TLO>) {
 	$ti{'rver'} = $ti{'over'};
 	$ti{'dver'} = $ti{'over'};
 #	$ti{'newsec'} = $ti{'sec'};
+    }
+    if ($reset_old_translated_ver){
+	$ti{'rver'} = $ti{'over'};
+	$ti{'dver'} = $ti{'over'};
     }
 
 #    $ti{'tdat'}  = $new_status{'date'};

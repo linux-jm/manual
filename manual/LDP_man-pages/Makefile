@@ -54,10 +54,17 @@ clean-stats:
 update-tl-finish:
 	@cat stats/* | grep -v '^#' | cut -d , -f 1 | sort > _stats.txt
 	@grep '^[×☆]' translation_list | cut -d : -f 5-6 | sed -e 's/:/./' | sort > _tr_todo.txt
+	@find draft -type f | cut -d / -f 3 | sort > _all_drafts.txt
 	@for p in `comm -23 _tr_todo.txt _stats.txt`; do \
 	  ../../admin/JM-tl-modify.pl -U translation_list $$p RO; \
 	done
-	@$(RM) _stats.txt _tr_todo.txt
+	@# 翻訳が完了していないが公開の基準を満たす翻訳率のページは
+	@# translation_list で ☆ マークで、バージョンは最新版のみを表示
+	@# ウェブページでは古いバージョンのものは括弧付きで表示される。
+	@for p in `comm -12 _tr_todo.txt _all_drafts.txt`; do \
+	  ../../admin/JM-tl-modify.pl -r -T -U translation_list $$p UN; \
+	done
+	@$(RM) _stats.txt _tr_todo.txt _all_drafts.txt
 
 check-tl-nofinish:
 	@cat stats/* | grep -v '^#' | cut -d , -f 1 | sort > _stats.txt

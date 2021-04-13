@@ -84,6 +84,9 @@ foreach $sec (sort keys %tl){
 	my $pkg  = $ti{'pkg'};
 	my $dir  = $pkg; $dir =~ s/ /_/eg;
 	my $name = $ti{'fname'};
+	my $over = $ti{'over'};
+	my $dver = $ti{'dver'};
+	my $rver = $ti{'rver'};
 
 	my $hlc = substr($name, 0, 1);
 	if ($hlc gt $hl) {
@@ -105,7 +108,11 @@ foreach $sec (sort keys %tl){
 	if ($stat =~ /up2/ || $stat eq "cnt_upd"){
 	    $fname = "<STRONG>$name.$sec</STRONG>";
 	} elsif ($stat =~ /upd/) {
-	    $fname = "$name.$sec";
+	    if ($over == $rver) {
+		$fname = "$name.$sec";
+	    } else {
+		$fname = "($name.$sec)";
+	    }
 	}
 	
 	my $htmlpath = "$dir/man$sec/$name.$sec.html";
