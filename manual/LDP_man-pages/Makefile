@@ -17,7 +17,7 @@ translate:	translate-pages update-stats
 release: 	release-pages update-tl-finish check-tl-nofinish
 
 translate-pages:	$(patsubst %, stamp/%, $(PO4A_SUBDIRS))
-stamp/%:	stamp-setup po4a/%/po/ja.po
+stamp/%:	stamp-setup po4a/%/po/ja.po po4a/%/*.cfg
 	@echo "*************** translate: $* ***************"
 	mkdir -p stamp
 	po4a $(PO4AFLAGS) --variable langs='$(LANGS)' --previous --srcdir . --destdir . po4a/$*/$*.cfg
@@ -35,7 +35,7 @@ untrans.html:	$(patsubst %, stats/%, $(PO4A_SUBDIRS))
 	  ./tools/generate-list.pl -e EXCLUDED_PAGES.txt $^ > untrans-partial.html; \
 	fi
 
-stats/%:	stamp-setup po4a/%/po/ja.po
+stats/%:	stamp-setup po4a/%/po/ja.po po4a/%/*.cfg
 	@echo "*************** stats: $* ***************"
 	mkdir -p stats
 	mkdir -p _transtmp
