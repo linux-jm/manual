@@ -29,14 +29,14 @@ GNU coreutils のマニュアルは ``help2man`` を使って生成されてい�
 翻訳を始める前に
 ----------------
 
-``make all`` を実行すると ``GNU coreutils`` のソースが ``source`` 以下に展開され、
+``make`` を実行すると ``GNU coreutils`` のソースが ``source`` 以下に展開され、
 man page の自動生成の環境が整います。
 
 .. code-block:: console
 
    $ cd <JM repo top>
    $ cd manual/GNU_coreutils
-   $ make all
+   $ make
 
 補足事項
 
@@ -44,6 +44,34 @@ man page の自動生成の環境が整います。
 * ``make clean`` で ``help2man.ja/*.1`` を削除できます。
 * トップディレクトリで ``make install`` を実行すると、
   ``help2man.ja/*.1`` が ``draft/man1`` にコピーされる。
+
+翻訳作業
+--------
+
+``source/po/ja.po`` と ``help2man.ja/*.x`` を編集して翻訳を行います。
+ファイルの詳細は :ref:`下記 <coreutils-files>` を参照のこと。
+
+これらのファイルに変更を加えた場合、 ``make`` を実行すると、
+対応するページが ``help2man.ja/*.1`` に生成されます。
+生成されたファイルを確認しながら、翻訳作業を繰り返します。
+
+翻訳校正
+--------
+
+.. warning::
+
+   暫定ルールです。方法が定まってきたらここに反映しましょう。
+
+以下をメーリングリストに投稿します。
+
+* 生成された manpage
+* 対応する ``*.x`` ファイル
+* coreutils の ``ja.po`` を変更した場合は ``ja.po`` の差分
+
+.. _coreutils-files:
+
+ファイルの説明
+==============
 
 coreutils の ja.po
 ------------------
@@ -54,12 +82,25 @@ coreutils の ja.po
 管理されています。
 
 変更が必要な場合は上記で展開された ``source/po/ja.po`` を編集します。
-変更後に上記の ``make all`` を実行すると、
+変更後に上記の ``make`` を実行すると、
 ``help2man.ja/`` 以下に ``*.1`` が生成されます。
 
-変更を行ったものは基本的に
-`Translation Project <http://translationproject.org/team/ja.html>`_
-に反映するのが筋だと思います。
+変更を行った場合は、編集した ``source/po/ja.po`` を
+``ja.po/ja.po.<VERSION>`` にコピーしておきます。
+すでに ``ja.po/ja.po.<VERSION>`` が存在している場合は、
+「翻訳を始める前に」の ``make`` の中で、
+``source/po/ja.po`` は ``ja.po/ja.po.<VERSION>`` へのシンボリックリンク
+になっているため、上記のコピーは不要です。
+
+.. note::
+
+   なお、 ``ja.po`` に変更を行った場合は、基本的に
+   `Translation Project <http://translationproject.org/team/ja.html>`_
+   に反映するのが筋だと思います。これにより、次回以降の GNU coreutils
+   のリリースに変更が反映されます。
+   ただし、今のリリースバージョンへの反映はできないため、
+   JM リポジトリで ``ja.po/ja.po.<VERSION>`` を管理するのは
+   一定程度意味があると思われる。
 
 help2man.ja/\*.x
 ----------------
@@ -67,21 +108,9 @@ help2man.ja/\*.x
 ``help2man.ja/\*.x`` は help2man が生成する man page に組み込まれます。
 
 ``help2man.ja`` の翻訳では、
-原文は roff の場合と同じく ``.\"O`` で始めるものとします。
+原文は roff の場合と同じく ``.\"O`` でコメントアウトするものとします。
 
-変更の翻訳への反映方法は ``ja.po`` の場合と同じく
-``make html`` を実行します。
+すでにファイルがある場合は、
+``help2man.orig`` 内の対応するファイルの内容が ``help2man.ja`` の方にも
+反映されているかを確認すること。
 
-翻訳校正 (暫定ルール)
-=====================
-
-.. note::
-
-   レビュー方法は改善の余地がいろいろあると思います。
-
-* ``*.x`` を投稿する。
-  original の翻訳者が manpage も投稿してもよい。
-
-* JM git repo に登録時に manpage を committer が生成する。
-  mandiff.py などで HTML を生成して、original と翻訳の比較ができるようにする。
-  Makefile のルールを追加しておきたい。

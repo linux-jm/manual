@@ -7,7 +7,7 @@ GNU coreutils 管理ガイド
 準備
 ====
 
-:ref:`coreutils_preparation` を参照してください。
+:ref:`翻訳ガイド <coreutils_preparation>` を参照してください。
 
 
 原文の更新
@@ -16,32 +16,54 @@ GNU coreutils 管理ガイド
 (1) Makefile のバージョン更新
 ------------------------------
 
-* Makefile の V = <version> を更新するバージョンに変更する
-* make clean-setup
-* make source
+Makefile の V = <version> を更新するバージョンに変更する。
+
+.. code-block::
+   :caption: Makefile
+
+   V = 8.32
+
+以前のバージョンの coreutils に対するパッチ
+``patch-$(VERSION).diff`` の内容を確認し、
+不要な場合は以前のパッチファイルを削除する。
+バージョン更新後も必要な場合や新たにパッチが必要な場合は、
+新しいバージョン番号で ``patch-$(VERSION).diff`` を作成
+(or ファイル名変更) する。
+
+その後、以下のコマンドを実行し、
+
+.. code-block:: console
+
+   $ make clean-setup
+   $ make source
 
 (2) ファイルのコピー
 --------------------
 
 .. code-block:: console
 
-   rm -f original/man1/* help2man.orig/*
-   cp -p source/man/*.1 original/man1/
-   cp -p source/man/*.x help2man.orig/
+   $ rm -f original/man1/* help2man.orig/*
+   $ cp -p source/man/*.1 original/man1/
+   $ cp -p source/man/*.x help2man.orig/
 
 (3) translation_list の更新
 ---------------------------
 
-git で add/remove を行う。
-
+原文の変更に関して git で add/remove を行う。
 
 .. code-block:: console
 
-   git status | ../../admin/git2upd > upd.txt
+   $ git add original help2man.orig
+   $ git status original > git.txt
 
-   (edit upd.txt)
+   (必要であれば下記の警告にあるように空行の追加を行う)
 
-   ../../admin/upd_tl.perl translation_list upd.txt VERSION
+   $ ../../admin/git2upd < git.txt > upd.txt
+
+   (edit upd.txt; 通常は更新日付の手動修正と不要な行の削除くらい)
+
+   $ ../../admin/upd_tl.perl translation_list upd.txt <VERSION>
+   $ mv translation_list.<VERSION> translation_list
 
 .. warning::
 
@@ -49,17 +71,20 @@ git で add/remove を行う。
    :doc:`upstream_update` の ``git2upd`` に関する注意を参照し、
    必要な場合は ``git status`` の出力を加工すること。
 
-(4) help2man.ja の更新
-----------------------
+(4) マニュアル生成の動作確認
+----------------------------
 
-help2man.orig 側でのファイルの add/update/remove を反映する。
+念のため、新しいバージョンの coreutils で help2man でのマニュアル生成が
+正常に行われることを確認する。
 
-``original/man1/*.1`` が更新されるのは、以下の二つのケースがある。
+.. code-block:: console
 
-* ``*.x`` が更新された場合
-* help message が更新された場合
+   $ make build-man
 
-  * ``SOURCE/po/ja.po`` を修正して Translation Project へ。
+上記を実行すると ``help2man.ja`` ディレクトリに ``*.1`` ファイルが
+生成される。適当に数個生成された ``*.1`` ファイルを確認する。
+原文が更新されていることがあるので、英語が残っている点に
+ついては気にしなくてよい。
 
 独自管理パッチ
 ==============
