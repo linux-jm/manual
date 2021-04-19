@@ -3,7 +3,8 @@
 date \- システムの日付や時刻の表示、設定を行う
 [説明]
 .\" Add any additional description here
-[DATE STRING]
+.\"O [DATE STRING]
+[日付文字列]
 .\" NOTE: keep this paragraph in sync with the one in touch.x
 .\"O The --date=STRING is a mostly free format human readable date string
 .\"O such as "Sun, 29 Feb 2004 16:21:42 -0800" or "2004-02-29 16:21:42" or

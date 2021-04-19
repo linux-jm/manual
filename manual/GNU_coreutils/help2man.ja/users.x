@@ -3,5 +3,5 @@
 users \- このホストに現在ログインしているユーザの名前を表示する
 [説明]
 .\" Add any additional description here
-[SEE ALSO]
+[関連項目]
 getent(1), who(1)

@@ -1,7 +1,7 @@
-'\" Copyright (C) 1998-2016 Free Software Foundation, Inc.
+'\" Copyright (C) 1998-2020 Free Software Foundation, Inc.
 '\"
 '\" This is free software.  You may redistribute copies of it under the terms
-'\" of the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+'\" of the GNU General Public License <https://www.gnu.org/licenses/gpl.html>.
 '\" There is NO WARRANTY, to the extent permitted by law.
 [名前]
 .\"O chmod \- change file mode bits
@@ -152,14 +152,22 @@ set\-group\-ID ビットが無視される場合があります。どのよう�
 裏で呼び出される \fBchmod\fP システムコールのポリシーや機能に依存します。
 疑わしい点がある場合は、動作しているシステムの動作を確認して下さい。
 .PP
+.\"O+ For directories
 .\"O .B chmod
-.\"O preserves a directory's set-user-ID and set-group-ID bits unless you
+.\"O- preserves a directory's set-user-ID and set-group-ID bits unless you
+.\"O+ preserves set-user-ID and set-group-ID bits unless you
 .\"O explicitly specify otherwise.  You can set or clear the bits with
 .\"O symbolic modes like
 .\"O .B u+s
 .\"O and
-.\"O .BR g\-s ,
-.\"O and you can set (but not clear) the bits with a numeric mode.
+.\"O- .BR g\-s ,
+.\"O- and you can set (but not clear) the bits with a numeric mode.
+.\"O+ .BR g\-s .
+.\"O+ To clear these bits for directories with a numeric mode requires
+.\"O+ an additional leading zero, or leading = like
+.\"O+ .B 00755
+.\"O+ , or
+.\"O+ .B =755
 \fBchmod\fP は、明示的に指定した場合を除き、ディレクトリの set\-user\-ID ビットと
 set\-group\-ID ビットを保持します。
 これらのビットの設定や解除を行うには、

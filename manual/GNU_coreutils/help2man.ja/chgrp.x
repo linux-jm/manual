@@ -2,5 +2,5 @@
 chgrp \- グループの所有権を変更する
 [説明]
 .\" Add any additional description here
-[SEE ALSO]
+[関連項目]
 chown(1), chown(2)

@@ -3,5 +3,5 @@
 sort \- テキストファイルの行の並び替えを行う
 [説明]
 .\" Add any additional description here
-[SEE ALSO]
+[関連項目]
 shuf(1), uniq(1)

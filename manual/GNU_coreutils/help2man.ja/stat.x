@@ -4,4 +4,4 @@ stat \- ファイルやファイルシステムの状態を表示する
 [説明]
 .\" Add any additional description here
 [関連項目]
-stat(2)
+stat(2), statfs(2), statx(2)
