@@ -49,8 +49,10 @@ stamp-build:	stamp-configure
 	@(cd source \
 	 && make \
 	 && make src/arch \
+	 && make src/coreutils \
 	 && make src/hostname \
 	 && make man/arch.1 \
+	 && make man/coreutils.1 \
 	 && make man/hostname.1 \
 	)
 	touch $@
