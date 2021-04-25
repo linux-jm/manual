@@ -1,7 +1,7 @@
-'\" Copyright (C) 2009-2016 Free Software Foundation, Inc.
+'\" Copyright (C) 2009-2020 Free Software Foundation, Inc.
 '\"
 '\" This is free software.  You may redistribute copies of it under the terms
-'\" of the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+'\" of the GNU General Public License <https://www.gnu.org/licenses/gpl.html>.
 '\" There is NO WARRANTY, to the extent permitted by law.
 [名前]
 .\"O stdbuf \-
@@ -12,7 +12,7 @@ stdbuf \- 標準入出力ストリームのバッファ動作を変更して、C
 [例]
 .B tail -f access.log | stdbuf -oL cut -d \(aq \(aq -f1 | uniq
 .br
-.\"O This will immedidately display unique entries from access.log
+.\"O This will immediately display unique entries from access.log
 このコマンドでは access.log の一意なエントリがあると直ちに出力されます。
 [バグ]
 .\"O On GLIBC platforms, specifying a buffer size, i.e., using fully buffered mode

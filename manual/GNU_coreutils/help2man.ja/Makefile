@@ -2,7 +2,7 @@ PACKAGE_STRING = GNU coreutils
 srcdir = ../source
 DEST = ../draft/man1
 
-FILES = $(wildcard *.x)
+FILES = $(sort $(wildcard *.x))
 MANPAGES = $(patsubst %.x,%.1,$(FILES))
 
 LANG = ja_JP.UTF-8

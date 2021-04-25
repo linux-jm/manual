@@ -3,7 +3,7 @@
 od \- ファイルを 8 進数やその他の形式でダンプする
 [説明]
 .\" Add any additional description here
-[EXAMPLES]
+.\"O [EXAMPLES]
 [例]
 .TP
 .B od -A x -t x1z -v

@@ -1,7 +1,7 @@
-'\" Copyright (C) 1998-2016 Free Software Foundation, Inc.
+'\" Copyright (C) 1998-2020 Free Software Foundation, Inc.
 '\"
 '\" This is free software.  You may redistribute copies of it under the terms
-'\" of the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+'\" of the GNU General Public License <https://www.gnu.org/licenses/gpl.html>.
 '\" There is NO WARRANTY, to the extent permitted by law.
 [名前]
 .\"O df \- report file system disk space usage

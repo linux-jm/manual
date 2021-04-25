@@ -1,4 +1,4 @@
-[NAME]
+[名前]
 base32 \- データを base32 エンコード/デコードして標準出力に表示する
-[DESCRIPTION]
+[説明]
 .\" Add any additional description here
