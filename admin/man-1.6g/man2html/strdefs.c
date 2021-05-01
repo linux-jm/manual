@@ -225,6 +225,7 @@ static STRDEF standardchar[] = {
     { V('f','m'), 1, "&#180;", NULL  },
     { V('f','o'), 1, "&lsaquo;", NULL  },
     { V('g','a'), 1, "`", NULL  },
+    { V('h','a'), 1, "^", NULL  },
     { V('h','A'), 1, "&hArr;", NULL },
     { V('h','y'), 1, "-", NULL  },
     { V('i','f'), 1, "&infin;", NULL },
