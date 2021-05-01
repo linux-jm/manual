@@ -11,7 +11,10 @@ PACKAGE_NAME = GNU $(NAME)
 PACKAGE_VERSION = $(V)
 PACKAGE_STRING = $(PACKAGE_NAME) $(PACKAGE_VERSION)
 
-all:	build-man
+.PHONY: all setup source build-man tarball catalog clean clean-build clean-setup realclean
+
+all:	install
+setup:  source
 source:	stamp-build
 
 #------------------------------------------------------------
