@@ -15,6 +15,25 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+ <H2><A NAME="20210501">2021/05/01</A></H2>
+ <P>
+ _LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils の翻訳)を 8.32 に更新しました。
+ </P>
+
+ <H2><A NAME="20210413">2021/04/13</A></H2>
+ <P>
+ _LINK(../INDEX/ldp.html,LDP man-pages 5.10 対応版)を公開しました。
+ </P>
+
+ <H2><A NAME="20210303">2021/03/03</A></H2>
+ <DL>
+  <DT>_LINK(../INDEX/linux.html,util-linux 2.36 の dmesg.1 setterm.1 のマニュアル)を公開しました。</DT>
+  <DD>
+   _UPD_PAGE(util-linux, dmesg.1)
+   _UPD_PAGE(util-linux, setterm.1)
+  </DD>
+ </DL>
+
  <H2><A NAME="20210303">2021/03/03</A></H2>
  <DL>
   <DT>_LINK(../INDEX/linux.html,util-linux 2.36 の dmesg.1 setterm.1 のマニュアル)を公開しました。</DT>
@@ -164,7 +183,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20150812">2015/08/12</A></H2>
  <P>
- _LINK(download.html#INFO_MANUAL, GNU coreutils 8.22 の info 版マニュアルの翻訳をダウンロード)できるようにしました。
+ _LINK(../download.html#INFO_MANUAL, GNU coreutils 8.22 の info 版マニュアルの翻訳をダウンロード)できるようにしました。
  </P>
 
  <H2><A NAME="20150205">2015/02/05</A></H2>

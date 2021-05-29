@@ -36,6 +36,12 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
+ <LI>_LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils の翻訳)を 8.32 に更新しました。
+ <SMALL>(2021/05/01)</SMALL>
+
+ <LI>_LINK(../INDEX/ldp.html,LDP man-pages 5.10 対応版)を公開しました。
+ <SMALL>(2021/04/13)</SMALL>
+
  <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.36 の dmesg.1 setterm.1 の man pages の翻訳)を公開しました。
  <SMALL>(2021/03/03)</SMALL>
 
@@ -44,30 +50,6 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 
  <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.36 の logger.1 renice.1 wall.1 の man pages の翻訳)を公開しました。
  <SMALL>(2020/12/22)</SMALL>
-
- <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.36 の script.1 scriptreplay.1 scriptlive.1 の man pages の翻訳)を公開しました。
- <SMALL>(2020/11/20)</SMALL>
-
- <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.35.2 の chfn.1 chsh.1 last.1 の man pages の翻訳)を公開しました。
- <SMALL>(2020/10/19)</SMALL>
-
- <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.35.2 の blkid.8 と 2.34 の lsblk.8 の man pages の翻訳)を公開しました。
- <SMALL>(2020/10/14)</SMALL>
-
- <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.35.2 の blockdev.8 partx.8 wipefs.8 の man pages の翻訳)を公開しました。
- <SMALL>(2020/08/24)</SMALL>
-
- <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.35.2 の fdisk.8 cfdisk.8 sfdisk.8 の man pages の翻訳)を公開しました。
- <SMALL>(2020/07/14)</SMALL>
-
- <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.34 の getopt.1 と hexdump.1 の man pages の翻訳)を公開しました。
- <SMALL>(2020/04/22)</SMALL>
-
- <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.34 の cal.1 と column.1 の man pages の翻訳)を公開しました。
- <SMALL>(2020/03/14)</SMALL>
-
- <LI>_LINK(INDEX/gnu.html#GNU_tar, GNU_tar 1.32 の man page の翻訳)を公開しました。
- <SMALL>(2020/02/27)</SMALL>
 
 </UL>
 
