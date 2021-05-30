@@ -36,10 +36,10 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
- <LI>_LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils の翻訳)を 8.32 に更新しました。
+ <LI>_LINK(INDEX/gnu.html#GNU_coreutils,GNU coreutils の翻訳)を 8.32 に更新しました。
  <SMALL>(2021/05/01)</SMALL>
 
- <LI>_LINK(../INDEX/ldp.html,LDP man-pages 5.10 対応版)を公開しました。
+ <LI>_LINK(INDEX/ldp.html,LDP man-pages 5.10 対応版)を公開しました。
  <SMALL>(2021/04/13)</SMALL>
 
  <LI>_LINK(INDEX/linux.html#util-linux, util-linux 2.36 の dmesg.1 setterm.1 の man pages の翻訳)を公開しました。
