@@ -43,8 +43,8 @@ my $jamanfile   = shift;
 my $draftfile   = shift;
 
 # origmanfile, jamanfile を読み込み専用で開く
-open (my $fhorig, '<'.$origmanfile) or "Error: file not found: ".$origmanfile;
-open (my $fhja,   '<'.$jamanfile)   or "Error: file not found: ".$jamanfile;
+open (my $fhorig, '<', $origmanfile) or die "Error: file not found: ".$origmanfile;
+open (my $fhja,   '<', $jamanfile)   or die "Error: file not found: ".$jamanfile;
 
 # do_proc_for 呼び出しを行って @origmanarray、@jamanarray をそれぞれ取得
 my @origmanarray = &do_proc_for($fhorig);
@@ -74,7 +74,7 @@ if ($len_orig_elements != $len_ja_elements) {
 #}
 
 # 出力 draftfile を開く
-open (my $fhdraft,   '>'.$draftfile) or "Error: file not created: ".$draftfile;
+open (my $fhdraft, '>', $draftfile) or die "Error: file not created: ".$draftfile;
 
 &output_proc;
 
