@@ -47,8 +47,8 @@ open (my $fhorig, '<', $origmanfile) or die "Error: file not found: ".$origmanfi
 open (my $fhja,   '<', $jamanfile)   or die "Error: file not found: ".$jamanfile;
 
 # do_proc_for 呼び出しを行って @origmanarray、@jamanarray をそれぞれ取得
-my @origmanarray = &do_proc_for($fhorig);
-my @jamanarray   = &do_proc_for($fhja);
+my @origmanarray = &do_proc_for($fhorig, 0);
+my @jamanarray   = &do_proc_for($fhja,   1);
 
 close($fhja);
 close($fhorig);
@@ -98,6 +98,7 @@ sub do_proc_for {
   my $paragraph = "";
 
   my $fh = $_[0];
+  my $extra = $_[1];
   my @array = ();
   my @subarray;
 
@@ -115,7 +116,8 @@ sub do_proc_for {
 
       # '\fR' + '空行' となる特殊ケースを処理
       # これを行わないと、最終的な生成配列の数が不一致となるため。
-      if ($currentline =~ /^(\s*)$/) {
+      # $extra = 1 を受け取ることにより、jaman のみを処理する。
+      if ($currentline =~ /^(\s*)$/ && $extra == 1) {
         my $laststr = substr($paragraph, -4, 3);
         if ($laststr eq "\\fR") {
           # 前処理の最後が "\\fR" で終わっていて、次に空行がきた場合
