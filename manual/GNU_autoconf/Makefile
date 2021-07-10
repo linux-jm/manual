@@ -1,28 +1,23 @@
-#
-# Copyright (c) 2021 Linux JM project
-#         all rights reserved.
-#
-PACKAGE_NAME    = autoconf
-PACKAGE_VERSION = 2.71
-PACKAGE_DATE    = 2021/01/29
-
-AUTHOR_NAME  = "Linux JM project"
-AUTHOR_EMAIL = "linuxjm-discuss@lists.osdn.me"
-
+PACKAGE_NAME = autoconf
 man_numbers = 1
-man1_sources =     \
-	autoconf   \
-	autoheader \
-	autom4te   \
-	autoreconf \
-	autoscan   \
-	autoupdate \
-	ifnames
 
 THRESH = 100
 EXTFLAGS =
-PO4A_FLAGS  = -M UTF-8 -k $(THRESH)
-PO4A_FLAGS += $(EXTFLAGS)
+PO4AFLAGS += -M UTF-8 -k $(THRESH) $(EXTFLAGS)
 LANGS = ja
 
-include po4a.mk
+target-mans = $(addprefix man,$(man_numbers))
+po_dirs     = $(addprefix po4a/,$(target-mans))
+po_files    = $(addsuffix /ja.po,$(po_dirs))
+
+all:	translate
+translate: $(target-mans)
+$(target-mans): man%:
+	po4a $(PO4AFLAGS) -v --variable langs='$(LANGS)' \
+	  --previous po4a/man$*/$(PACKAGE_NAME)-man$*.cfg
+
+stat:
+	@for po in $(po_files); do \
+	  echo -n $$po": "; \
+	  msgfmt --statistics -o /dev/null $$po; \
+	done

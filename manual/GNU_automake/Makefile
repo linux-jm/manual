@@ -1,25 +1,23 @@
-#
-# Copyright (c) 2021 Linux JM project
-#         all rights reserved.
-#
-PACKAGE_NAME    = automake
-PACKAGE_VERSION = 1.16.3
-PACKAGE_DATE    = 2020/11/19
-
-AUTHOR_NAME  = "Linux JM project"
-AUTHOR_EMAIL = "linuxjm-discuss@lists.osdn.me"
-
+PACKAGE_NAME = automake
 man_numbers = 1
-man1_sources = \
-	aclocal-1.16  \
-	aclocal       \
-	automake-1.16 \
-	automake
 
 THRESH = 100
 EXTFLAGS =
-PO4A_FLAGS  = -M UTF-8 -k $(THRESH)
-PO4A_FLAGS += $(EXTFLAGS)
+PO4AFLAGS += -M UTF-8 -k $(THRESH) $(EXTFLAGS)
 LANGS = ja
 
-include po4a.mk
+target-mans = $(addprefix man,$(man_numbers))
+po_dirs     = $(addprefix po4a/,$(target-mans))
+po_files    = $(addsuffix /ja.po,$(po_dirs))
+
+all:	translate
+translate: $(target-mans)
+$(target-mans): man%:
+	po4a $(PO4AFLAGS) -v --variable langs='$(LANGS)' \
+	  --previous po4a/man$*/$(PACKAGE_NAME)-man$*.cfg
+
+stat:
+	@for po in $(po_files); do \
+	  echo -n $$po": "; \
+	  msgfmt --statistics -o /dev/null $$po; \
+	done
