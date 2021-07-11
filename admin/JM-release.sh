@@ -1,9 +1,5 @@
 #!/bin/sh
 
-RM=/bin/rm
-MV=/bin/mv
-SED=/bin/sed
-
 usage() {
     echo "Usage: `basename $0` <draft file> <release directory>"
     echo "Options:"
@@ -76,7 +72,7 @@ if [ -f $RELEASE -a $FORCE -ne 1 ]; then
   read ret
   if [ "$ret" = "y" -o "$ret" = "Y" ]; then
     echo "Remove $RELEASE"
-    $RM $RELEASE
+    rm $RELEASE
   else
     echo "Can't overwrite $RELEASE. Aborted"
     exit 1
@@ -89,7 +85,7 @@ if [ $COPY -eq 1 ]; then
   fi
   cp -fp $OPT_V $DRAFT $RELEASE
 else
-  $SED -e '/^\.\\\"O /d' $DRAFT > $RELEASE
+  sed -e '/^\.\\\"O /d' $DRAFT > $RELEASE
   if [ $QUIET -eq 0 ]; then
     echo "$DRAFT -> $RELEASE"
   fi
