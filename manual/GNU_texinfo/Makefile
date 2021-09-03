@@ -1,30 +1,23 @@
+PACKAGE_NAME = texinfo
+man_numbers = 1 5
+
 THRESH = 100
 EXTFLAGS =
-PO4AFLAGS += -k $(THRESH) $(EXTFLAGS)
-
+PO4AFLAGS += -M UTF-8 -k $(THRESH) $(EXTFLAGS)
 LANGS = ja
-PACKAGE = texinfo
-PO4ACFG = po4a/$(PACKAGE).cfg
 
-WORK_DIR = .
+target-mans = $(addprefix man,$(man_numbers))
+po_dirs     = $(addprefix po4a/,$(target-mans))
+po_files    = $(addsuffix /ja.po,$(po_dirs))
 
 all:	translate
-
-translate:
+translate: $(target-mans)
+$(target-mans): man%:
 	po4a $(PO4AFLAGS) -v --variable langs='$(LANGS)' \
-	  --previous --srcdir $(WORK_DIR) --destdir $(WORK_DIR) $(PO4ACFG)
+	  --previous po4a/man$*/$(PACKAGE_NAME)-man$*.cfg
 
 stat:
-	@for l in $(LANGS); do \
-	  echo -n "$$l: "; \
-	  msgfmt --statistics -o /dev/null po4a/$$l.po; \
+	@for po in $(po_files); do \
+	  echo -n $$po": "; \
+	  msgfmt --statistics -o /dev/null $$po; \
 	done
-
-page-stat:
-	@LC_ALL=C po4a $(PO4AFLAGS) --force -v -k 0 --variable langs='$(LANGS)' \
-	  --previous --srcdir $(WORK_DIR) --destdir $(WORK_DIR) $(PO4ACFG) | \
-	  grep translated | \
-	  sed -e 's/(\([1-9][0-9]*\) strings)/(\1 of \1 strings)/' \
-	      -e 's/[()]//g' \
-	      -e 's/^draft\/man[1-9]\///' | \
-	  awk '{printf("%-15s: %7s (%3s/%3s)\n",$$1,$$3,$$5,$$7);}'
