@@ -1,0 +1,77 @@
+#
+# This is a temporary Makefile for util-linux
+#
+
+PACKAGE_NAME = util-linux
+
+THRESH = 0
+EXTFLAGS =
+PO4AFLAGS += -M UTF-8 -k $(THRESH) $(EXTFLAGS)
+LANGS = ja
+
+PO4A     = po4a
+PO_FILES = $(wildcard *.po)
+PO_LANGS = $(PO_FILES:.po=)
+THRESH = 0
+EXTFLAGS =
+PO4AFLAGS += -M UTF-8 -k $(THRESH) $(EXTFLAGS)
+
+ADOC_FILES = $(wildcard ja/*.adoc)
+PO_STAMPS = po4a-gen.stamp
+MAN_SECTIONS = 1 3 5 8
+
+abs_builddir = .
+
+asciidoc_man_cmd = asciidoctor \
+	-b manpage \
+	-a 'VERSION=$(VERSION)' \
+	-a 'ADJTIME_PATH=$(ADJTIME_PATH)'
+
+all:	translate
+translate: gen-mans
+
+$(PO_STAMPS): $(PO_FILES)
+	@echo 'po4a: generate man-pages translations'
+	$(AM_V_GEN) $(PO4A) $(PO4AFLAGS) -v --previous po4a.cfg
+	@touch $@
+
+gen-trans: $(PO_STAMPS)
+
+gen-mans: gen-trans gen-mans.stamp 
+gen-mans.stamp: $(ADOC_FILES)
+	@for l in $(PO_LANGS); do \
+	  gendir="$(abs_builddir)/$$l"; \
+	  genfiles=`echo $${gendir}/*.adoc`; \
+	  if test "$$genfiles" != '$${gendir}/*.adoc'; then \
+	    for file in $${genfiles}; do \
+	      manname=`echo $$file | sed -e 's|^.*/||' -e 's|\.adoc||'`;  \
+	      test -f $${gendir}/$${manname} || { \
+		   echo "  GEN     " $$l ": " $$manname && \
+	           $(asciidoc_man_cmd) \
+		      --base-dir=$${gendir} \
+		      --destination-dir $${gendir} $${file}; \
+	      }; \
+	    done; \
+	  fi; \
+	done
+	@touch $@
+
+# man ベースの ja.po の内容を、 asciidoc ベースの ja.po へ
+# マージする。本 Makefile.ja の呼び出しは、po4a/ascdoc
+# ディレクトリ (つまり当 makefile があるディレクトリ) が
+# カレントであることを前提にしている。
+msgmerge: $(PO_STAMPS)
+	@cp -p ja.po{,.tmp}
+	msgmerge ../man1/ja.po ja.po.tmp -o ja.po
+	msgmerge ../man3/ja.po ja.po.tmp -o ja.po
+	msgmerge ../man5/ja.po ja.po.tmp -o ja.po
+	msgmerge ../man8/ja.po ja.po.tmp -o ja.po
+	@rm -f ja.po.tmp
+
+stat:
+	@for po in $(PO_FILES); do \
+	  echo -n $$po": "; \
+	  msgfmt --statistics -o /dev/null $$po; \
+	done
+
+.PHONY: adoc gen-trans gen-mans msgmerge stat
