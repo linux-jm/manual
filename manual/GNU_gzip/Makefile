@@ -1,17 +1,15 @@
+PACKAGE = gzip
+
 THRESH = 100
 EXTFLAGS =
-PO4AFLAGS += -k $(THRESH) $(EXTFLAGS)
-
+PO4AFLAGS += -M UTF-8 -k $(THRESH) $(EXTFLAGS)
+PO4ACFG = po4a/$(PACKAGE).cfg
 LANGS = ja
-PO4ACFG = po4a/gzip.cfg
-
-WORK_DIR = .
 
 all:	translate
 
 translate:
-	po4a $(PO4AFLAGS) -v --variable langs='$(LANGS)' \
-	  --previous --srcdir $(WORK_DIR) --destdir $(WORK_DIR) $(PO4ACFG)
+	po4a $(PO4AFLAGS) -v --previous $(PO4ACFG)
 
 stat:
 	@for l in $(LANGS); do \
