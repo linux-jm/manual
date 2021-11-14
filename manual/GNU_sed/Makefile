@@ -1,55 +1,33 @@
+PACKAGE_NAME = sed
+man_numbers = 1
+
 THRESH = 100
 EXTFLAGS =
 PO4AFLAGS += -k $(THRESH) $(EXTFLAGS)
 
-MASTER_ROFFS = $(wildcard original/*/*.[1-8])
-TRANS_ROFFS = $(patsubst original/%,draft/%,$(MASTER_ROFFS))
-POFILES = $(patsubst original/%,po4a/%.ja.po,$(MASTER_ROFFS))
-POTFILES = $(patsubst original/%,po4a/%.pot,$(MASTER_ROFFS))
-MSGMERGE_OPTS = --no-wrap --no-location
+target-mans = $(addprefix man,$(man_numbers))
+po_dirs     = $(addprefix po4a/,$(target-mans))
+po_files    = $(addsuffix /ja.po,$(po_dirs))
 
-WORK_DIR = .
+all: translate
 
-all:	translate
+translate: $(target-mans)
 
-translate:	$(TRANS_ROFFS)
-
-draft/%:	po4a/%.ja.po
-	po4a-translate $(PO4AFLAGS) -f man -p $< -l $@ -m original/$* \
-	  --addendum po4a/add_ja/copyright/$(notdir $*).txt
-
-updatepo:	$(patsubst %,updatepo-%,$(notdir $(MASTER_ROFFS)))
-
-updatepo-%:
-	@set -e; for target in $*; do \
-	  p=$$(echo $* | sed -e 's|.*\.\([1-8]\)|man\1/\0|'); \
-	  pofile=po4a/$$p.ja.po; \
-	  potfile=po4a/$$p.pot; \
-	  master=original/$$p; \
-	  if [ -f $$pofile ]; then \
-	    echo "po4a-updatepo $$pofile <- $$master"; \
-	    po4a-updatepo -f man --previous --msgmerge-opt='$(MSGMERGE_OPTS)' \
-	      -p $$pofile -m $$master; \
-	  else \
-	    echo "po4a-gettextize $$pofile <- $$master"; \
-	    mkdir -p $$(dirname $$pofile); \
-	    po4a-gettextize -f man -p $$pofile -m $$master; \
-	    cp $$pofile $$potfile; \
-	    msgmerge $(MSGMERGE_OPTS) -o $$pofile $$pofile $$potfile; \
-	    $(RM) $$potfile; \
-	  fi; \
-	done
+$(target-mans): man%:
+	po4a $(PO4AFLAGS) po4a/man$*/$(PACKAGE_NAME)-man$*.cfg
 
 stat:
-	@for po in $(POFILES); do \
-	  echo -n $$(basename $$po)": "; \
-	  msgfmt --statistics -o /dev/null $$po; \
+	@for po in $(po_files); do \
+	  msgfmt -v --statistics -o /dev/null $$po; \
 	done
 
-pot:	$(POTFILES)
+page-stat:
+	@for n in $(man_numbers); do \
+	  if test -f po4a/man$$n/$(PACKAGE_NAME)-man$$n.cfg; then \
+	    echo po4a/man$$n/$(PACKAGE_NAME)-man$$n.cfg: ;\
+	    po4a --force --no-update -k 0 po4a/man$$n/$(PACKAGE_NAME)-man$$n.cfg | \
+	      sed "s/^/  /g" ;\
+	  fi \
+	done
 
-po4a/%.pot:
-	po4a-gettextize -f man -p $@ -m original/$*
-
-pot-clean:
-	$(RM) -v $(POTFILES)
+.PHONY: all translate stat page-stat
