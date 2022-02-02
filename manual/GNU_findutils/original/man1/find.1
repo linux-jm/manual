@@ -79,6 +79,11 @@ prevent that wildcard patterns expanded by the calling shell are not mistakenly
 treated as expression arguments, it is generally safer to prefix wildcards or
 dubious path names with either `./' or to use absolute path names starting
 with '/'.
+Alternatively, it is generally safe though non-portable to use the GNU option
+.B \-files0\-from
+to pass arbitrary starting points to
+.BR find .
+
 .IP \-P
 Never follow symbolic links.  This is the default behaviour.  When
 .B find
@@ -476,11 +481,11 @@ if standard input is a tty, and to
 otherwise.  If a warning message relating to command-line usage is
 produced, the exit status of
 .B find
-is not affected.  If the POSIXLY_CORRECT environment variable is set,
-and
+is not affected.  If the
+.B POSIXLY_CORRECT
+environment variable is set, and
 .B \-warn
-is also used, it is not specified which, if any,
-warnings will be active.
+is also used, it is not specified which, if any, warnings will be active.
 
 .SS GLOBAL OPTIONS
 Global options always return true.
@@ -505,6 +510,63 @@ MacOS X and OpenBSD.
 Process each directory's contents before the directory itself.  The
 \-delete action also implies
 .BR \-depth .
+
+.IP "\-files0\-from \fIfile\fR"
+Read the starting points from \fIfile\fR instead of getting them on the
+command line.
+In contrast to the known limitations of passing starting points via arguments
+on the command line, namely the limitation of the amount of file names,
+and the inherent ambiguity of file names clashing with option names,
+using this option allows to safely pass an arbitrary number of starting points
+to \fBfind\fR.
+
+Using this option and passing starting points on the command line is mutually
+exclusive, and is therefore not allowed at the same time.
+
+The \fIfile\fR argument is mandatory.
+One can use
+.B \-files0\-from\ \-
+to read the list of starting points from the \fIstandard input\fR stream,
+and e.g. from a pipe.
+In this case, the actions
+.B \-ok
+and
+.B \-okdir
+are not allowed, because they would obviously interfere with reading from
+\fIstandard input\fR in order to get a user confirmation.
+
+The starting points in \fIfile\fR have to be separated by ASCII NUL characters.
+Two consecutive NUL characters, i.e., a starting point with a Zero-length
+file name is not allowed and will lead to an error diagnostic followed by
+a non-Zero exit code later.
+
+In the case the given \fIfile\fR is empty, \fBfind\fR does not process any
+starting point and therefore will exit immediately after parsing the program
+arguments.
+This is unlike the standard invocation where \fBfind\fR assumes the current
+directory as starting point if no path argument is passed.
+
+The processing of the starting points is otherwise as usual, e.g.
+.B find
+will recurse into subdirectories unless otherwise prevented.
+To process only the starting points, one can additionally pass
+.BR \-maxdepth\ 0 .
+
+Further notes:
+if a file is listed more than once in the input file, it is unspecified
+whether it is visited more than once.
+If the \fIfile\fR is mutated during the operation of
+.BR find ,
+the result is unspecified as well.
+Finally, the seek position within the named \fIfile\fR at the time
+.B find
+exits, be it with
+.B \-quit
+or in any other way, is also unspecified.
+By "unspecified" here is meant that it may or may not work or do any specific
+thing, and that the behavior may change from platform to platform, or from
+.B findutils
+release to release.
 
 .IP "\-help, \-\-help"
 Print a summary of the command-line usage of
@@ -794,7 +856,9 @@ will never include a slash, so `\-name a/b' will never match anything
 .B \-path
 instead).
 A warning is issued if you try to do this,
-unless the environment variable POSIXLY_CORRECT is set.
+unless the environment variable
+.B POSIXLY_CORRECT
+is set.
 The metacharacters (`*', `?',
 and `[]') match a `.\&' at the start of the base name (this is a change
 in findutils-4.2.2; see section STANDARDS CONFORMANCE below).  To ignore a
@@ -1103,42 +1167,47 @@ does not check.
 
 .SS ACTIONS
 .IP "\-delete\fR"
-Delete files; true if removal succeeded.  If the removal failed, an
-error message is issued.
-If
-.B \-delete
-fails,
+Delete files or directories; true if removal succeeded.
+If the removal failed, an error message is issued and
 .BR find 's
-exit status will be nonzero
-(when it eventually exits).
-Use of
-.B \-delete
-automatically turns on the
-.RB ` \-depth '
-option.
+exit status will be nonzero (when it eventually exits).
 
-.BR Warnings :
-Don't forget that the find command line is
-evaluated as an expression, so putting
+.BR Warning :
+Don't forget that
+.B find
+evaluates the command line as an
+expression, so putting
 .B \-delete
 first will make
 .B find
 try to delete everything below the starting points you specified.
-When testing a
-.B find
-command line that you later intend to use with
-.BR \-delete ,
-you should explicitly specify
+
+The use of the
+.B \-delete
+action on the command line automatically turns on the
 .B \-depth
-in order to avoid later surprises.  Because
-.B \-delete
-implies
-.BR \-depth ,
-you cannot usefully use
+option.
+As in turn
+.B \-depth
+makes
 .B \-prune
-and
+ineffective, the
 .B \-delete
-together.
+action cannot usefully be combined with
+.BR \-prune .
+
+Often, the user might want to test a find command line with
+.B \-print
+prior to adding
+.B \-delete
+for the actual removal run.
+To avoid surprising results, it is usually best to remember to use
+.B \-depth
+explicitly during those earlier test runs.
+
+The
+.B \-delete
+action will fail to remove a directory unless it is empty.
 
 Together with the
 .B \-ignore_readdir_race
@@ -1147,9 +1216,11 @@ option,
 will ignore errors of the
 .B \-delete
 action in the case the file has disappeared since the parent directory was
-read: it will not output an error diagnostic, and the return code of the
+read: it will not output an error diagnostic, not change the exit code to
+nonzero, and the return code of the
 .B \-delete
 action will be true.
+
 
 .IP "\-exec \fIcommand\fR ;"
 Execute
@@ -1228,13 +1299,13 @@ invocation of
 .I command
 will only list files that exist in the same subdirectory.  If you use
 this option, you must ensure that your
-.B $PATH
+.B PATH
 environment variable does not reference `.';
 otherwise, an attacker can run any commands they like by leaving an
 appropriately-named file in a directory in which you will run
 .BR \-execdir .
 The same applies to having entries in
-.B $PATH
+.B PATH
 which are empty or which are not absolute directory names.  If
 any invocation with the `+' form returns a non-zero value as exit status,
 then
@@ -1309,7 +1380,8 @@ True; list current file in
 .B ls \-dils
 format on standard output.
 The block counts are of 1\ KB blocks, unless the environment variable
-POSIXLY_CORRECT is set, in which case 512-byte blocks are used.
+.B POSIXLY_CORRECT
+is set, in which case 512-byte blocks are used.
 See the
 .B UNUSUAL FILENAMES
 section for information about how unusual characters in filenames are handled.
@@ -1321,21 +1393,27 @@ but ask the user first.  If the user agrees, run the command.  Otherwise
 just return false.  If the command is run, its standard input is redirected
 from
 .IR /dev/null .
+This action may not be specified together with the
+.B \-files0\-from
+option.
 
 .IP
 The response to the prompt is matched against a pair of regular
 expressions to determine if it is an affirmative or negative
 response.  This regular expression is obtained from the system if the
-`POSIXLY_CORRECT' environment variable is set, or otherwise from
+.B POSIXLY_CORRECT
+environment variable is set, or otherwise from
 .BR find 's
 message translations.  If the system has no suitable
 definition,
 .BR find 's
 own definition will be used.
 In either case, the interpretation of the regular expression itself
-will be affected by the environment variables 'LC_CTYPE'
-(character classes) and 'LC_COLLATE' (character ranges and equivalence
-classes).
+will be affected by the environment variables
+.B LC_CTYPE
+(character classes) and
+.B LC_COLLATE
+(character ranges and equivalence classes).
 
 
 
@@ -1347,6 +1425,10 @@ but ask the user first in the same way as for
 If the user does not agree, just return false.
 If the command is run, its standard input is redirected from
 .IR /dev/null .
+This action may not be specified together with the
+.B \-files0\-from
+option.
+
 
 .IP \-print
 True; print the full file name on the standard output, followed by a
@@ -1460,7 +1542,8 @@ time, 24-hour (hh:mm:ss.xxxxxxxxxx)
 .IP +
 Date and time, separated by `+', for example
 `2004\-04\-28+22:22:05.0'.  This is a GNU extension.  The time is
-given in the current timezone (which may be affected by setting the TZ
+given in the current timezone (which may be affected by setting the
+.B TZ
 environment variable).  The seconds field includes a fractional part.
 .IP X
 locale's time representation (H:M:S).  The seconds field includes a
@@ -1512,6 +1595,14 @@ year (1970...\&)
 The amount of disk space used for this file in 512-byte blocks.  Since disk
 space is allocated in multiples of the filesystem block size this is usually
 greater than %s/512, but it can also be smaller if the file is a sparse file.
+
+.IP %B\fIk\fP
+File's birth time, i.e., its creation time, in the format specified by
+.IR k ,
+which is the same as for %A.
+This directive produces an empty string if the underlying operating system or
+filesystem does not support birth times.
+
 .IP %c
 File's last status change time in the format returned by the C
 .BR ctime (3)
@@ -1820,8 +1911,9 @@ If you are able to decide what format to use for the output of
 .B find
 then it is normally better to use `\e0' as a terminator
 than to use newline, as file names can contain white space and newline
-characters.  The setting of the `LC_CTYPE' environment
-variable is used to determine which characters need to be quoted.
+characters.  The setting of the
+.B LC_CTYPE
+environment variable is used to determine which characters need to be quoted.
 
 .IP "\-print, \-fprint"
 Quoting is handled in the same way as for
@@ -1844,8 +1936,10 @@ actions print the current filename as-is.  This may change in a future release.
 .
 .SH "STANDARDS CONFORMANCE"
 For closest compliance to the POSIX standard, you should set the
-POSIXLY_CORRECT environment variable.  The following options are
-specified in the POSIX standard (IEEE Std 1003.1-2008, 2016 Edition):
+.B POSIXLY_CORRECT
+environment variable.
+The following options are specified in the POSIX standard
+(IEEE Std 1003.1-2008, 2016 Edition):
 
 .IP \fB\-H\fR
 This option is supported.
@@ -1872,14 +1966,19 @@ comma-separated list.
 .IP \fB\-ok\fR
 Supported.
 Interpretation of the response is according to the `yes' and `no'
-patterns selected by setting the `LC_MESSAGES' environment variable.
-When the `POSIXLY_CORRECT' environment variable is set, these patterns
-are taken system's definition of a positive (yes) or negative (no)
-response.  See the system's
-documentation for
+patterns selected by setting the
+.B LC_MESSAGES
+environment variable.
+When the
+.B POSIXLY_CORRECT
+environment variable is set, these patterns are taken system's definition
+of a positive (yes) or negative (no) response.
+See the system's documentation for
 .BR nl_langinfo (3),
 in particular YESEXPR and NOEXPR.
-When `POSIXLY_CORRECT' is not set, the patterns are instead taken from
+When
+.B POSIXLY_CORRECT
+is not set, the patterns are instead taken from
 .BR find 's
 own message catalogue.
 
@@ -1890,7 +1989,9 @@ take the relevant time from the symbolic link; see the HISTORY section
 below.
 
 .IP \fB\-perm\fR
-Supported.  If the POSIXLY_CORRECT environment variable is not set,
+Supported.  If the
+.B POSIXLY_CORRECT
+environment variable is not set,
 some mode arguments (for example +a+x) which are not valid in POSIX
 are supported for backward-compatibility.
 
@@ -1975,8 +2076,9 @@ but you should use the POSIX-compliant option
 .B \-depth
 instead.
 .P
-The POSIXLY_CORRECT environment variable does not affect the behaviour
-of the
+The
+.B POSIXLY_CORRECT
+environment variable does not affect the behaviour of the
 .B \-regex
 or
 .B \-iregex
@@ -1999,15 +2101,18 @@ matching to be used for the
 option.
 GNU find uses the
 .BR fnmatch (3)
-library function, and so support for `LC_COLLATE' depends on the
-system library.
+library function, and so support for
+.B LC_COLLATE
+depends on the system library.
 This variable also affects the interpretation of the response to
 .BR \-ok ;
-while the `LC_MESSAGES' variable selects the actual pattern used to
-interpret the response to
+while the
+.B LC_MESSAGES
+variable selects the actual pattern used to interpret the response to
 .BR \-ok ,
 the interpretation of any bracket expressions in the pattern will be
-affected by `LC_COLLATE'.
+affected by
+.BR LC_COLLATE .
 
 .IP LC_CTYPE
 This variable affects the treatment of character classes used in
@@ -2020,14 +2125,17 @@ library function supports this.  This variable also affects the
 interpretation of any character classes in the regular expressions
 used to interpret the response to the prompt issued by
 .BR \-ok .
-The `LC_CTYPE' environment variable will
-also affect which characters are considered to be unprintable when
-filenames are printed; see the section UNUSUAL FILENAMES.
+The
+.B LC_CTYPE
+environment variable will also affect which characters are considered
+to be unprintable when filenames are printed;
+see the section UNUSUAL FILENAMES.
 
 .IP LC_MESSAGES
-Determines the locale to be used for internationalised messages.  If
-the `POSIXLY_CORRECT' environment variable is set, this also
-determines the interpretation of the response to the prompt made by the
+Determines the locale to be used for internationalised messages.  If the
+.B POSIXLY_CORRECT
+environment variable is set, this also determines the interpretation of
+the response to the prompt made by the
 .B \-ok
 action.
 
@@ -2061,15 +2169,21 @@ the output for
 all messages printed on stderr are diagnostics and must result in a
 non-zero exit status.
 .IP
-When POSIXLY_CORRECT is not set,
+When
+.B POSIXLY_CORRECT
+is not set,
 .B "\-perm \fI+zzz\fR"
 is treated just like
 .B "\-perm \fI/zzz\fR"
 if
-\fI+zzz\fR is not a valid symbolic mode.  When POSIXLY_CORRECT is set, such
+\fI+zzz\fR is not a valid symbolic mode.  When
+.B POSIXLY_CORRECT
+is set, such
 constructs are treated as an error.
 .IP
-When POSIXLY_CORRECT is set, the response to the prompt made by the
+When
+.B POSIXLY_CORRECT
+is set, the response to the prompt made by the
 .B \-ok
 action is interpreted according to the system's message catalogue, as
 opposed to according to
@@ -2120,7 +2234,7 @@ The
 test comes before the
 .B \-type
 test in order to avoid having to call
-.B stat(2)
+.BR stat (2)
 on every file.
 .PP
 Note that there is still a race between the time
@@ -2129,7 +2243,27 @@ traverses the hierarchy printing the matching filenames, and the time the
 process executed by
 .B xargs
 works with that file.
-
+.
+.SS Processing arbitrary starting points
+.IP \[bu]
+Given that another program \fIproggy\fR pre-filters and creates a huge
+NUL-separated list of files, process those as starting points, and find
+all regular, empty files among them:
+.nf
+\&
+.in +4m
+.B $ proggy | find \-files0\-from \- \-maxdepth 0 \-type f \-empty
+.in
+\&
+.fi
+The use of
+.B `\-files0\-from\ \-`
+means to read the names of the starting points from \fIstandard input\fR,
+i.e., from the pipe; and
+.B \-maxdepth\ 0
+ensures that only explicitly those entries are examined without recursing
+into directories (in the case one of the starting points is one).
+.
 .SS
 Executing a command for each file
 .IP \[bu]
@@ -2311,10 +2445,8 @@ to
 .IR /dest-dir ,
 but omit files and directories named
 .I .snapshot
-(and anything in them).  It also omits files or directories whose name
-ends in
-.IR '\(ti' ,
-but not their contents.
+(and anything in them).  It also omits files or directories whose name ends in
+`\(ti', but not their contents.
 .nf
 \&
 .in +4m
@@ -2496,6 +2628,7 @@ exit status was unaffected by the failure of
 .TS
 l l l .
 Feature	Added in	Also occurs in
+\-files0\-from	4.9.0
 \-newerXY	4.3.3	BSD
 \-D	4.3.1
 \-O	4.3.1
@@ -2592,7 +2725,7 @@ should be used instead.
 .
 .P
 The environment variable
-.B  LC_COLLATE
+.B LC_COLLATE
 has no effect on the
 .B \-ok
 action.
@@ -2614,7 +2747,7 @@ mailing list:
 .RE
 .
 .SH COPYRIGHT
-Copyright \(co 1990-2021 Free Software Foundation, Inc.
+Copyright \(co 1990-2022 Free Software Foundation, Inc.
 License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
 .br
 This is free software: you are free to change and redistribute it.
