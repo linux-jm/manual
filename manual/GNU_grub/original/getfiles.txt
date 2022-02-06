@@ -1,0 +1,79 @@
+#------------------------------
+# ソース tarball 入手と伸長
+#------------------------------
+$ cd ~/src
+$ wget -N https://ftp.gnu.org/gnu/grub/grub-2.06.tar.xz
+$ tar xf grub-2.06.tar.xz
+$ ls
+grub-2.06
+
+#------------------------------
+# man ページ生成
+#  依存パッケージ: help2man,unifont,fuse3
+#------------------------------
+
+$ cd ~/src/grub-2.06
+$ patch -Np1 -i /path/to/grub-2.06-fuse3.patch
+$ autoreconf
+$ ./configure --prefix=/usr   \
+            --sysconfdir=/etc \
+            --disable-efiemu       \
+            --enable-grub-mkfont   \
+            --enable-grub-mount    \
+            --with-platform=efi
+
+	# help2man 処理において ja.po 反映するには
+	# 以下を実行して Makefile を書き換える：
+	# (本パッケージでは ja.po を用いる意味薄し)
+	$ sed -i.orig -e "s/^HELP2MAN.*/& -Lja_JP.utf8/" Makefile
+
+$ make
+
+# grub-macho2img.1 は mac/darwin 上においてビルド可能である
+# 模様(?)。本書作成者は x86_64 であるためビルド不能。
+# そこで強引に Makefile を書き換えてビルドしてしまう。
+$ sed -i -e "s/^#\(am__append_10\)/\1/" \
+         -e "s/^#\(am__append_11\)/\1/" \
+         -e "s/^#\(am__append_12\)/\1/" \
+         -e "s/^#\(am__EXEEXT_1\)/\1/" \
+         -e "s/^#\(am_grub_macho2img_OBJECTS\)/\1/" \
+         -e "s/^#\(grub_macho2img_SOURCES\)/\1/" \
+         -e "s/^#\(grub_macho2img_CFLAGS\)/\1/" \
+         -e "s/^#\(grub_macho2img_LDFLAGS\)/\1/" \
+         -e "s/^#\(grub_macho2img_CPPFLAGS\)/\1/" \
+         -e "s/^#\(grub_macho2img_CCASFLAGS\)/\1/" \
+         -e "s/^#\(grub-macho2img\.1\)/\1/" \
+         -e "s/^#\(\tchmod a+x grub-macho2img\)/\1/" \
+         -e "s/^#\(\tPATH=\$(builddir)\)/\1/" \
+    Makefile
+
+$ make
+$ make DESTDIR=. install-man
+
+#------------------------------
+# 当プロジェクトへの man ページのコピー
+#------------------------------
+
+$ cd $(JMTOP)/manual/GNU_grub/original
+$ cat > getfiles.sh <<"EOF"
+#!/bin/sh
+
+SRCDIR=~/src/grub-2.06
+abs_SRCDIR=`(cd $SRCDIR && pwd | sed -e 's/-/\\\\\\\\-/g')`
+
+rm -fr man{1,8}
+mkdir  man{1,8}
+
+# man ファイルにビルドディレクトリが含まれるため
+# sed 変換しつつ、当プロジェクトにコピー
+for n in 1 8; do
+  for f in `ls $SRCDIR/usr/share/man/man$n`; do
+    sed -e "s|$abs_SRCDIR||" $SRCDIR/usr/share/man/man$n/$f > man$n/$f
+  done
+done
+
+# grub-mknetdir.1 に typo があるため修正
+sed -i -e "s|\x0B||" man1/grub-mknetdir.1
+EOF
+
+$ sh getfiles.sh
