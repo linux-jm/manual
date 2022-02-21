@@ -25,7 +25,7 @@ po4a を利用しているので、インストールしておきます。
 
    * po4a 0.57 (Ubuntu 20.04 focal)
    * po4a 0.55 (Debian 10 buster)
-   * po4a 0.52 (Ubuntu 18.04 focal)
+   * po4a 0.52 (Ubuntu 18.04 focal/openSUSE 15.3)
 
 翻訳更新の動作確認を行っておきます。
 全ファイルを処理するので多少時間がかかります (2〜3分くらい)。
