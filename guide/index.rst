@@ -38,6 +38,7 @@ Linux JM プロジェクトガイド
 
    git_repository.rst
    upstream_update.rst
+   sysadmin/transproc_cheatsheet.rst
    LDP_man-pages_update.rst
    GNU_coreutils_update.rst
    translation_list.rst
