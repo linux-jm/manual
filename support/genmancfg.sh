@@ -220,7 +220,7 @@ opt_proc_man() {
   # (3) untranslated 処理
 
   # "-o untranslated" を宣言すべきコマンド候補リストを定義する。
-  UNTRANS_CANDIDATES="\.\. \.\\\\} 'br\\\\} \.als \.bP \.cp \.de1 \.do \.el \.el\\\\{. \.FT \.ie \.INDENT \.LI \.MTO \.NE \.NOP \.NS \.PE \.PS \.Quoted \.rm \.rr \.Sp \.Vb \.UNINDENT \.Ve \.Xw"
+  UNTRANS_CANDIDATES="\.\. \.\\\\} 'br\\\\} \.als \.bP \.cc \.cp \.de1 \.do \.el \.el\\\\{. \.end \.FT \.i \.ie \.INDENT \.it \.LI \.MTO \.NE \.NOP \.NS \.PE \.PS \.Quoted \.rm \.rr \.Sp \.Vb \.UNINDENT \.URL \.Ve \.Xw"
 
   # 上のコマンド候補リストのそれぞれがカレントな man ファイルに
   # 含まれているかどうかを順に grep 検索して、含まれていれば cfg ファイルに
