@@ -54,6 +54,9 @@ while(<RL>){
     unless(/.*manual\/([^\/]*)\/translation_list/){next;}
     my $pkg=$1;
 
+    # release または contrib ディレクトリを持たないパッケージは処理対象としない
+    if (! -d "$CVSROOT/manual/$pkg/release" && ! -d "$CVSROOT/manual/$pkg/contrib") {next;}
+
     system "mkdir -p $DISTROOT/manual/$pkg/";
     system "cp $tl $DISTROOT/manual/$pkg";
 
