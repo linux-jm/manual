@@ -17,7 +17,7 @@ Buildroot: /var/tmp/%{name}-root
 # in debian, the following line blocks the build process
 # BuildRequires: man, perl, %{compress}
 Summary: Man (manual) pages from JM project
-Summary(ja): Linux ÆüËÜ¸ì man ¥Ú¡¼¥¸
+Summary(ja): Linux æ—¥æœ¬èª man ãƒšãƒ¼ã‚¸
 
 %description
 Japanese Manual Pages by JM-Project (Japanese Manual Project). See
@@ -37,26 +37,26 @@ in English. So if unsure reading Japanese manual, please see
 %{_defaultdocdir}/%{name}-%{version}/translation_list/ and try other formats.
 
 %description -l ja
-JM-Project (Japanese Manual Project)¤Ë¤è¤ë, ÆüËÜ¸ì¥Ş¥Ë¥å¥¢¥ë¡¦¥Ú¡¼¥¸¤Ç¤¹.
-JM-Project¤Ë¤Ä¤¤¤Æ¤Ï, http://www.linux.or.jp/JM/ ¤ò¸æÍ÷¤¯¤À¤µ¤¤.
-¤Ş¤¿¡¢rpm ¤Ë´Ø¤¹¤ë man ¥Ú¡¼¥¸¤âÄÉ²Ã¤·¤Æ¤¤¤Ş¤¹.
+JM-Project (Japanese Manual Project)ã«ã‚ˆã‚‹, æ—¥æœ¬èªãƒãƒ‹ãƒ¥ã‚¢ãƒ«ãƒ»ãƒšãƒ¼ã‚¸ã§ã™.
+JM-Projectã«ã¤ã„ã¦ã¯, http://www.linux.or.jp/JM/ ã‚’å¾¡è¦§ãã ã•ã„.
+ã¾ãŸã€rpm ã«é–¢ã™ã‚‹ man ãƒšãƒ¼ã‚¸ã‚‚è¿½åŠ ã—ã¦ã„ã¾ã™.
 
-³Æ¾Ï¤Î¹½À®¤Ï±Ñ¸ìÈÇ¤ÈÆ±¤¸¤¯°Ê²¼¤Î¤è¤¦¤Ë¤Ê¤Ã¤Æ¤¤¤Ş¤¹¡£
+å„ç« ã®æ§‹æˆã¯è‹±èªç‰ˆã¨åŒã˜ãä»¥ä¸‹ã®ã‚ˆã†ã«ãªã£ã¦ã„ã¾ã™ã€‚
 
-  Âè 1 ¾Ï = ¥æ¡¼¥¶¡¼¥³¥Ş¥ó¥É
-  Âè 2 ¾Ï = ¥·¥¹¥Æ¥à¥³¡¼¥ë
-  Âè 3 ¾Ï = C ¸À¸ì¥é¥¤¥Ö¥é¥ê
-  Âè 4 ¾Ï = ¥¹¥Ú¥·¥ã¥ë¥Õ¥¡¥¤¥ë (Îã: hd, sd)
-  Âè 5 ¾Ï = ¥Õ¥¡¥¤¥ë¥Õ¥©¡¼¥Ş¥Ã¥È¤È¥×¥í¥È¥³¥ë (Îã: wtmp, /etc/passwd, nfs)
-  Âè 6 ¾Ï = ¥²¡¼¥à
-  Âè 7 ¾Ï = ÌóÂ«»ö, ¥Ş¥¯¥í¥Ñ¥Ã¥±¡¼¥¸¤Ê¤É (Îã: nroff, ascii)
-  Âè 8 ¾Ï = ¥·¥¹¥Æ¥à´ÉÍı
+  ç¬¬ 1 ç«  = ãƒ¦ãƒ¼ã‚¶ãƒ¼ã‚³ãƒãƒ³ãƒ‰
+  ç¬¬ 2 ç«  = ã‚·ã‚¹ãƒ†ãƒ ã‚³ãƒ¼ãƒ«
+  ç¬¬ 3 ç«  = C è¨€èªãƒ©ã‚¤ãƒ–ãƒ©ãƒª
+  ç¬¬ 4 ç«  = ã‚¹ãƒšã‚·ãƒ£ãƒ«ãƒ•ã‚¡ã‚¤ãƒ« (ä¾‹: hd, sd)
+  ç¬¬ 5 ç«  = ãƒ•ã‚¡ã‚¤ãƒ«ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã¨ãƒ—ãƒ­ãƒˆã‚³ãƒ« (ä¾‹: wtmp, /etc/passwd, nfs)
+  ç¬¬ 6 ç«  = ã‚²ãƒ¼ãƒ 
+  ç¬¬ 7 ç«  = ç´„æŸäº‹, ãƒã‚¯ãƒ­ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ãªã© (ä¾‹: nroff, ascii)
+  ç¬¬ 8 ç«  = ã‚·ã‚¹ãƒ†ãƒ ç®¡ç†
 
-¤Ê¤ª¡¢ÆüËÜ¸ìÈÇ¥Ş¥Ë¥å¥¢¥ë¤¬¡¢±Ñ¸ìÈÇ¥Ş¥Ë¥å¥¢¥ë¤ä Texinfo ·Á¼°¤Î¥Ş¥Ë¥å¥¢¥ë¤Ë
-ÄÉ½¾¤Ç¤­¤Æ¤¤¤Ê¤¤¾ì¹ç¤¬¤¢¤ê¤Ş¤¹¡£
+ãªãŠã€æ—¥æœ¬èªç‰ˆãƒãƒ‹ãƒ¥ã‚¢ãƒ«ãŒã€è‹±èªç‰ˆãƒãƒ‹ãƒ¥ã‚¢ãƒ«ã‚„ Texinfo å½¢å¼ã®ãƒãƒ‹ãƒ¥ã‚¢ãƒ«ã«
+è¿½å¾“ã§ãã¦ã„ãªã„å ´åˆãŒã‚ã‚Šã¾ã™ã€‚
 
-%{_defaultdocdir}/%{name}-%{version}/translation_list/ °Ê²¼¤Ë¥¤¥ó¥¹¥È¡¼¥ë¤µ¤ì¤ëËİÌõ
-¿Ê¹Ô¾õ¶·¥ê¥¹¥È¤ò¸«¤Æ¡¢Å¬µ¹Â¾¤Î·Á¼°¤Î¥Ş¥Ë¥å¥¢¥ë¤Î¸¶Ê¸¤ËÅö¤¿¤Ã¤Æ¤¯¤À¤µ¤¤¡£
+%{_defaultdocdir}/%{name}-%{version}/translation_list/ ä»¥ä¸‹ã«ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã•ã‚Œã‚‹ç¿»è¨³
+é€²è¡ŒçŠ¶æ³ãƒªã‚¹ãƒˆã‚’è¦‹ã¦ã€é©å®œä»–ã®å½¢å¼ã®ãƒãƒ‹ãƒ¥ã‚¢ãƒ«ã®åŸæ–‡ã«å½“ãŸã£ã¦ãã ã•ã„ã€‚
 
 %prep
 [ "%{buildroot}" != "/" ] && rm -rf %{buildroot}
