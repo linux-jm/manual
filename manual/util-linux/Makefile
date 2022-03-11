@@ -1,5 +1,5 @@
 PACKAGE_NAME = util-linux
-man_numbers =1 3 5 8
+man_numbers = 1 3 5 8
 
 THRESH = 0
 EXTFLAGS =
