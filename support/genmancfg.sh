@@ -332,13 +332,13 @@ create_cfg() {
             mkdir -p po4a/add_ja/copyright/$d
 
             # コマンド .TH または .Dd が存在するかどうかを取得する。
-            FIRST=`grep "^\.TH" original/$d/$f >/dev/null 2>&1 && echo "^.TH"`
+            FIRST=`grep "^\.TH" original/$d/$f >/dev/null 2>&1 && echo "^\\\\\\\\.TH"`
             if test -z $FIRST; then
-              FIRST=`grep "^\.Dd" original/$d/$f >/dev/null 2>&1 && echo "^.Dd"`
+              FIRST=`grep "^\.Dd" original/$d/$f >/dev/null 2>&1 && echo "^\\\\\\\\.Dd"`
             fi
 
             # 上で .TH または .Dd が取得できなかった場合は先頭行を取得。
-            if test $FIRST != "^.TH" && test $FIRST != "^.Dd"; then
+            if test $FIRST != "^\\\\.TH" && test $FIRST != "^\\\\.Dd"; then
               FIRST=`head -1 original/$d/$f`
             fi
 
@@ -350,6 +350,7 @@ PO4A-HEADER: mode=before; position=__FIRST__
 .\"    by __USERNAME__ <__EMAILADDR__>
 .\"
 EOF
+
             # 上記生成ファイルに対して変数部分を置換する。
             sed -i -e "s/__FIRST__/$FIRST/" \
                    -e "s/__DATE__/$THISDATE/" \
