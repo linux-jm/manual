@@ -40,10 +40,10 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
  <LI>_LINK(INDEX/gnu.html#GNU_dejagnu, GNU dejagnu の dejagnu-help.1 , dejagnu-report-card.1 , dejagnu.1 , runtest.1 の man pages の翻訳)を公開しました。
  <SMALL>(2022/04/07)</SMALL>
  
- <LI>_LINK(INDEX/gnu.html#GNU_ed, GNU ed の ed.1 の man pages の翻訳)を公開しました。
+ <LI>_LINK(INDEX/gnu.html#GNU_ed, GNU ed の ed.1 の man pages の翻訳)を更新しました。
  <SMALL>(2022/04/03)</SMALL>
 
- <LI>_LINK(INDEX/linux.html#at, at-3.2.4 の at.1 の man pages の翻訳)を公開しました。なお、at の最新版は 3.2.5 ですが、3.2.4 のマニュアルはそのままお使いいただけます。
+ <LI>_LINK(INDEX/linux.html#at, at-3.2.4 の at.1 の man pages の翻訳)を更新しました。なお、at の最新版は 3.2.5 ですが、3.2.4 のマニュアルはそのままお使いいただけます。
  <SMALL>(2022/03/31)</SMALL>
 
  <LI>_LINK(INDEX/ldp.html,LDP man-pages 5.10 対応版)を更新しました。
