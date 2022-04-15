@@ -37,6 +37,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+ <LI>_LINK(INDEX/gnu.html#GNU_automake, GNU automake の automake-1.16.1,automake.1,aclocal-1.16.1,aclocal.1 の翻訳)を更新しました。
+ <SMALL>(2022/04/15)</SMALL>
+
  <LI>_LINK(INDEX/gnu.html#GNU_dejagnu, GNU dejagnu の dejagnu-help.1 , dejagnu-report-card.1 , dejagnu.1 , runtest.1 の man pages の翻訳)を公開しました。
  <SMALL>(2022/04/07)</SMALL>
  
