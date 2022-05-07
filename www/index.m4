@@ -37,6 +37,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+ <LI>_LINK(INDEX/gnu.html#GNU_m4, GNU m4 の m4.1 の翻訳)を追加しました。
+ <SMALL>(2022/05/07)</SMALL>
+
  <LI>_LINK(INDEX/gnu.html#GNU_Findutils, GNU findutils の find:1 locate:1 updatedb:1 xargs:1 locatedb:5 の翻訳)を追加しました。
  <SMALL>(2022/04/29)</SMALL>
 
