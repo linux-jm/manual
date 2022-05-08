@@ -13,6 +13,7 @@ touch $LOGFILE
 
 echo "===== git pull =====" >> $LOGFILE 2>&1
 cd $JMHOME/jm.git
+umask 002
 git pull >> $LOGFILE 2>&1
 git submodule update --init --recursive >> $LOGFILE 2>&1
 
