@@ -57,7 +57,7 @@ clean:
 	make -C announcement/ clean
 
 install: all
-	$(RSYNC) -a --delete -v \
+	$(RSYNC) -a --delete --omit-dir-times -v \
 	--exclude='bin' \
 	--exclude='*.m4' \
 	--exclude='*.perl' \
