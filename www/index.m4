@@ -37,13 +37,16 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
- <LI>_LINK(INDEX/gnu.html#GNU_difftils, GNU diffutils の cmp:1 diff:1 diff3:1 sdiff:1 の翻訳)を追加しました。
+ <LI>_LINK(INDEX/gnu.html#GNU_Make, GNU Make の make.1 の翻訳)を追加しました。
+ <SMALL>(2022/5/11)</SMALL>
+
+ <LI>_LINK(INDEX/gnu.html#GNU_difftils, GNU diffutils の cmp.1 diff.1 diff3.1 sdiff.1 の翻訳)を追加しました。
  <SMALL>(2022/5/10)</SMALL>
 
 <LI>_LINK(INDEX/gnu.html#GNU_m4, GNU m4 の m4.1 の翻訳)を追加しました。
  <SMALL>(2022/05/07)</SMALL>
 
- <LI>_LINK(INDEX/gnu.html#GNU_Findutils, GNU findutils の find:1 locate:1 updatedb:1 xargs:1 locatedb:5 の翻訳)を追加しました。
+ <LI>_LINK(INDEX/gnu.html#GNU_Findutils, GNU findutils の find.1 locate.1 updatedb11 xargs.1 locatedb.5 の翻訳)を追加しました。
  <SMALL>(2022/04/29)</SMALL>
 
  <LI>_LINK(INDEX/gnu.html#GNU_bison, GNU bison の bison.1 yacc.1 の翻訳)を追加しました。
