@@ -48,9 +48,9 @@ roff: stamp/www-roff-modified
 
 stamp/www-roff-modified: stamp/cvs-status-modified
 	@mkdir -p $(WWWROFF)
-	$(RSYNC) -a --delete -v $(ROFFSRC)/ $(WWWROFF)
+	$(RSYNC) -a --delete --omit-dir-times -v $(ROFFSRC)/ $(WWWROFF)
 	@mkdir -p $(WWWPOD)
-	$(RSYNC) -a --delete -v $(PODSRC)/ $(WWWPOD)
+	$(RSYNC) -a --delete --omit-dir-times -v $(PODSRC)/ $(WWWPOD)
 	touch $@
 
 #
