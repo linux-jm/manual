@@ -37,6 +37,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+ <LI>_LINK(INDEX/gnu.html#GNU_tar, GNU tar の tar.1 rmt.8 の翻訳)を追加しました。
+ <SMALL>(2022/5/12)</SMALL>
+
  <LI>_LINK(INDEX/gnu.html#GNU_Make, GNU Make の make.1 の翻訳)を追加しました。
  <SMALL>(2022/5/11)</SMALL>
 
