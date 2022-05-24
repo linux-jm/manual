@@ -37,7 +37,10 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
- <LI>_LINK(INDEX/gnu.html#GNU_sed, GNU sed の sed.1 の翻訳)を追加しました。
+ <LI>_LINK(INDEX/linux.html#bzip, bzip の bzdiff.1 bzgrep.1 bzip2.1 bzmore.1 の翻訳)を更新しました。
+ <SMALL>(2022/05/25)</SMALL>
+
+<LI>_LINK(INDEX/gnu.html#GNU_sed, GNU sed の sed.1 の翻訳)を追加しました。
  <SMALL>(2022/5/13)</SMALL>
 
  <LI>_LINK(INDEX/gnu.html#GNU_tar, GNU tar の tar.1 rmt.8 の翻訳)を追加しました。
