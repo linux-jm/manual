@@ -40,7 +40,7 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
  <LI>_LINK(INDEX/misc.html#flex, flex の flex.1 の翻訳)を更新しました。
  <SMALL>(2022/05/26)</SMALL>
 
- <LI>_LINK(INDEX/misc.html#bzip, bzip の bzdiff.1 bzgrep.1 bzip2.1 bzmore.1 の翻訳)を更新しました。
+ <LI>_LINK(INDEX/misc.html#bzip2, bzip2 の bzdiff.1 bzgrep.1 bzip2.1 bzmore.1 の翻訳)を更新しました。
  <SMALL>(2022/05/25)</SMALL>
 
 <LI>_LINK(INDEX/gnu.html#GNU_sed, GNU sed の sed.1 の翻訳)を追加しました。
