@@ -37,6 +37,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+ <LI>_LINK(INDEX/misc.html#xz, xz 5.2.5 の lzmainfo.1  xz.1  xzdec.1  xzdiff.1  xzgrep.1  xzless.1  xzmore.1 の翻訳)を追加しました。
+ <SMALL>(2022/05/29)</SMALL>
+
  <LI>_LINK(INDEX/misc.html#itstool, itstool 2.0.7 の itstool.1 の翻訳)を追加しました。
  <SMALL>(2022/05/28)</SMALL>
 
