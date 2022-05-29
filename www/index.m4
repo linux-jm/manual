@@ -37,6 +37,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+ <LI>_LINK(INDEX/misc.html#nginx, nginx 1.21.6 の nginx.8 の翻訳)を追加しました。
+ <SMALL>(2022/05/30)</SMALL>
+
  <LI>_LINK(INDEX/misc.html#xz, xz 5.2.5 の lzmainfo.1  xz.1  xzdec.1  xzdiff.1  xzgrep.1  xzless.1  xzmore.1 の翻訳)を追加しました。
  <SMALL>(2022/05/29)</SMALL>
 
