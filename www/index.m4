@@ -55,6 +55,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
  <LI>_LINK(INDEX/misc.html#bzip2, bzip2 の bzdiff.1 bzgrep.1 bzip2.1 bzmore.1 の翻訳)を更新しました。
  <SMALL>(2022/05/25)</SMALL>
 
+ <LI>_LINK(INDEX/misc.html#subversion, subversion 1.14.2 の svn.1  svnadmin.1  svndumpfilter.1  svnlook.1  svnmucc.1  svnrdump.1  svnsync.1  svnversion.1 svnserve.conf.5 svnserve.8 の翻訳)を追加しました。
+ <SMALL>(2022/05/18)</SMALL>
+
 <LI>_LINK(INDEX/gnu.html#GNU_sed, GNU sed の sed.1 の翻訳)を追加しました。
  <SMALL>(2022/5/13)</SMALL>
 
