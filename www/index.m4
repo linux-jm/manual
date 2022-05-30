@@ -37,6 +37,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+ <LI>_LINK(INDEX/misc.html#meson, meson 0.62.1 の meson.1 の翻訳)を追加しました。
+ <SMALL>(2022/05/31)</SMALL>
+
  <LI>_LINK(INDEX/misc.html#nginx, nginx 1.21.6 の nginx.8 の翻訳)を追加しました。
  <SMALL>(2022/05/30)</SMALL>
 
