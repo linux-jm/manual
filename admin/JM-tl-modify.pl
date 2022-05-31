@@ -8,7 +8,7 @@
 
 use Getopt::Std;
 
-my $DEBUG = 1;
+my $DEBUG = "no";
 my %new_status;
 my $tlist_body = "";
 my $update_timestamp = 1;
@@ -27,12 +27,13 @@ BEGIN{
 use strict 'vars';
 use JMtl ('line2hash', 'hash2line');
 
-getopts("tTuUn:e:crb", \%opts);
+getopts("tTuUn:e:crbd", \%opts);
 $update_timestamp = 1 if $opts{"t"};
 $update_timestamp = 0 if $opts{"T"};
 $update_translator = 1 if $opts{"u"};
 $update_translator = 0 if $opts{"U"};
 $backup = 1 if $opts{"b"};
+$DEBUG = "yes" if $opts{"d"};
 
 $clear_entry = 1 if $opts{"c"};
 $reset_old_translated_ver = 1 if $opts{"r"};
@@ -63,6 +64,7 @@ if ($#ARGV < 2) {
     print STDERR "         (new_status is not required when -c is specified.)\n";
     print STDERR "    -r : Clear old translated version\n";
     print STDERR "    -b : Create backup of translation_list\n";
+    print STDERR "    -d : Debug mode\n";
     exit 0;
 }
 
