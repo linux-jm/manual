@@ -37,6 +37,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+<LI>_LINK(INDEX/gnu.html#GNU_autoconf, GNU autoconf 2.71 の autoconf.1 autoheader.1 autom4te.1 autoreconf.1 autoscan.1 autoupdate.1 ifnames.1 の翻訳)を追加しました。
+ <SMALL>(2022/6/4)</SMALL>
+
  <LI>_LINK(INDEX/misc.html#meson, meson 0.62.1 の meson.1 の翻訳)を追加しました。
  <SMALL>(2022/05/31)</SMALL>
 
