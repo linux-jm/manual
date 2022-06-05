@@ -37,6 +37,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+<LI>_LINK(INDEX/gnu.html#GNU_gsl, GNU gsl の gsl-config.1 gsl-histogram.1 gsl-randist.1 gsl.3 の翻訳)を追加しました。
+ <SMALL>(2022/6/6)</SMALL>
+
  <LI>_LINK(INDEX/misc.html#dblatex, dblatex 0.3.12 の dblatex.1 の翻訳)を追加しました。
  <SMALL>(2022/6/5)</SMALL>
 
