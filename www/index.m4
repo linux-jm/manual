@@ -37,7 +37,10 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
- <LI>_LINK(INDEX/linux.html#kmod, kmod 29 の depmod.d.5 modprobe.d.5 modules.dep.5 modules.dep.bin.5 depmod.8 insmod.8 kmod.8 lsmod.8 modinfo.8 modprobe.8 rmmod.8 の翻訳)を追加しました。
+<LI>_LINK(INDEX/gnu.html#GNU_gdb, GNU gdb の gdbserver.1 gdb.1 gdb-add-index.1 gcore.1 gdbinit.5 の翻訳)を追加/更新しました。
+ <SMALL>(2022/6/11)</SMALL>
+
+<LI>_LINK(INDEX/linux.html#kmod, kmod 29 の depmod.d.5 modprobe.d.5 modules.dep.5 modules.dep.bin.5 depmod.8 insmod.8 kmod.8 lsmod.8 modinfo.8 modprobe.8 rmmod.8 の翻訳)を追加しました。
  <SMALL>(2022/6/7)</SMALL>
 
 <LI>_LINK(INDEX/gnu.html#GNU_gsl, GNU gsl の gsl-config.1 gsl-histogram.1 gsl-randist.1 gsl.3 の翻訳)を追加しました。
