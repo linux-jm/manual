@@ -37,6 +37,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+<LI>_LINK(INDEX/misc.html#qpdf, qpdf 10.6.3 の fix-qdf.1 qpdf.1 zlib-flate.1 の翻訳)を追加しました。
+ <SMALL>(2022/6/14)</SMALL>
+
 <LI>_LINK(INDEX/linux.html#upower, upower 0.99.17 の upower.1 UPower.7 upowerd.8 の翻訳)を追加しました。
  <SMALL>(2022/6/13)</SMALL>
 
