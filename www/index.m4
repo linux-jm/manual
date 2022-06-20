@@ -38,34 +38,34 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <UL>
 
 <LI>_LINK(INDEX/misc.html#qpdf, qpdf 10.6.3 の fix-qdf.1 qpdf.1 zlib-flate.1 の翻訳)を追加しました。
- <SMALL>(2022/6/14)</SMALL>
+<SMALL>(2022/6/14)</SMALL>
 
 <LI>_LINK(INDEX/linux.html#upower, upower 0.99.17 の upower.1 UPower.7 upowerd.8 の翻訳)を追加しました。
- <SMALL>(2022/6/13)</SMALL>
+<SMALL>(2022/6/13)</SMALL>
 
 <LI>_LINK(INDEX/gnu.html#GNU_grub, GNU grub 2.06 の grub-editenv.1 grub-file.1 grub-fstest.1 grub-glue-efi.1 grub-kbdcomp.1 grub-macho2img.1 grub-menulst2cfg.1 grub-mkfont.1 grub-mkimage.1 grub-mklayout.1 grub-mknetdir.1 grub-mkpasswd-pbkdf2.1 grub-mkrelpath.1 grub-mkrescue.1 grub-mkstandalone.1 grub-mount.1 grub-render-label.1 grub-script-check.1 grub-syslinux2cfg.1 grub-bios-setup.8 grub-install.8 grub-macbless.8 grub-mkconfig.8 grub-ofpathname.8 grub-probe.8 grub-reboot.8 grub-set-default.8 grub-sparc64-setup.8 の翻訳)を追加/更新しました。
- <SMALL>(2022/6/12)</SMALL>
+<SMALL>(2022/6/12)</SMALL>
 
 <LI>_LINK(INDEX/gnu.html#GNU_gdb, GNU gdb 11.2 の gdbserver.1 gdb.1 gdb-add-index.1 gcore.1 gdbinit.5 の翻訳)を追加/更新しました。
- <SMALL>(2022/6/11)</SMALL>
+<SMALL>(2022/6/11)</SMALL>
 
 <LI>_LINK(INDEX/linux.html#kmod, kmod 29 の depmod.d.5 modprobe.d.5 modules.dep.5 modules.dep.bin.5 depmod.8 insmod.8 kmod.8 lsmod.8 modinfo.8 modprobe.8 rmmod.8 の翻訳)を追加しました。
- <SMALL>(2022/6/7)</SMALL>
+<SMALL>(2022/6/7)</SMALL>
 
 <LI>_LINK(INDEX/gnu.html#GNU_gsl, GNU gsl の gsl-config.1 gsl-histogram.1 gsl-randist.1 gsl.3 の翻訳)を追加しました。
- <SMALL>(2022/6/6)</SMALL>
+<SMALL>(2022/6/6)</SMALL>
 
- <LI>_LINK(INDEX/misc.html#dblatex, dblatex 0.3.12 の dblatex.1 の翻訳)を追加しました。
- <SMALL>(2022/6/5)</SMALL>
+<LI>_LINK(INDEX/misc.html#dblatex, dblatex 0.3.12 の dblatex.1 の翻訳)を追加しました。
+<SMALL>(2022/6/5)</SMALL>
 
 <LI>_LINK(INDEX/gnu.html#GNU_autoconf, GNU autoconf 2.71 の autoconf.1 autoheader.1 autom4te.1 autoreconf.1 autoscan.1 autoupdate.1 ifnames.1 の翻訳)を追加しました。
- <SMALL>(2022/6/4)</SMALL>
+<SMALL>(2022/6/4)</SMALL>
 
- <LI>_LINK(INDEX/misc.html#meson, meson 0.62.1 の meson.1 の翻訳)を追加しました。
- <SMALL>(2022/05/31)</SMALL>
+<LI>_LINK(INDEX/misc.html#meson, meson 0.62.1 の meson.1 の翻訳)を追加しました。
+<SMALL>(2022/05/31)</SMALL>
 
- <LI>_LINK(INDEX/misc.html#nginx, nginx 1.21.6 の nginx.8 の翻訳)を追加しました。
- <SMALL>(2022/05/30)</SMALL>
+<LI>_LINK(INDEX/misc.html#nginx, nginx 1.21.6 の nginx.8 の翻訳)を追加しました。
+<SMALL>(2022/05/30)</SMALL>
 
 </UL>
 
