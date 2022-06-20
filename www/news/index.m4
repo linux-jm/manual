@@ -37,7 +37,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220612">2022/6/12</A></H2>
  <DL>
- <DT>_LINK(INDEX/gnu.html#GNU_grub, GNU grub 2.06 の翻訳)を追加/更新しました。</DT>
+ <DT>_LINK(INDEX/gnu.html#GNU_grub, GNU grub 2.06 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(GNU_grub, grub-editenv.1)
    _NEW_PAGE(GNU_grub, grub-file.1)
@@ -102,7 +102,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220606">2022/6/6</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_gsl, GNU gsl の翻訳)を追加しました。</DT>
+  <DT>_LINK(INDEX/gnu.html#GNU_gsl, GNU gsl 2.7.1 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(GNU_gsl, gsl-config.1)
    _NEW_PAGE(GNU_gsl, gsl-histogram.1)
@@ -225,7 +225,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220512">2022/5/12</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_tar, GNU tar の翻訳)を追加しました。</DT>
+  <DT>_LINK(INDEX/gnu.html#GNU_tar, GNU tar の翻訳)を更新しました。</DT>
   <DD>
    _UPD_PAGE(GNU_tar, tar.1)
    _UPD_PAGE(GNU_tar, rmt.8)
@@ -234,7 +234,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220511">2022/5/11</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_make, GNU make の翻訳)を追加しました。</DT>
+  <DT>_LINK(INDEX/gnu.html#GNU_make, GNU make の翻訳)を更新しました。</DT>
   <DD>
    _UPD_PAGE(GNU_make, make.1)
   </DD>
@@ -261,7 +261,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220429">2022/04/29</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_findutils, GNU findutils の翻訳)を追加しました。</DT>
+  <DT>_LINK(INDEX/gnu.html#GNU_findutils, GNU findutils の翻訳)を更新しました。</DT>
   <DD>
    _UPD_PAGE(GNU_findutils, find.1)
    _UPD_PAGE(GNU_findutils, locate.1)
@@ -282,7 +282,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220415">2022/04/15</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_automake, GNU automake の翻訳)を更新しました。</DT>
+  <DT>_LINK(INDEX/gnu.html#GNU_automake, GNU automake の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(GNU_automake, automake-1.16.1)
    _NEW_PAGE(GNU_automake, automake.1)
@@ -311,7 +311,13 @@ m4_dnl ML2CVS ADD HERE
  </DL>
 
  <H2><A NAME="20220331">2022/03/31</A></H2>
-  <P>_LINK(INDEX/linux.html#at, at-3.2.4 の at.1 の man pages の翻訳)を更新しました。なお、at の最新版は 3.2.5 ですが、3.2.4 のマニュアルはそのままお使いいただけます。</P>
+  <DL>
+  <DT>_LINK(INDEX/linux.html#at, at 3.2.4 の at.1 の man pages の翻訳)を更新しました。
+  なお、at の最新版は 3.2.5 ですが、3.2.4 のマニュアルはそのままお使いいただけます。</DT>
+  <DD>
+   _UPD_PAGE(at, at.1)
+  </DD>
+ </DL>
 
  <H2><A NAME="20210713">2021/07/13</A></H2>
  <DL>
