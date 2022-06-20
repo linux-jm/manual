@@ -17,7 +17,7 @@ m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2><A NAME="20220614">2022/6/14</A></H2>
   <DL>
-  <DT>_LINK(INDEX/misc.html#qpdf, qpdf 10.6.3 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/misc.html#qpdf, qpdf 10.6.3 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(qpdf, fix-qdf.1)
    _NEW_PAGE(qpdf, qpdf.1)
@@ -27,7 +27,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220613">2022/6/13</A></H2>
   <DL>
-  <DT>_LINK(INDEX/linux.html#upower, upower 0.99.17 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/linux.html#upower, upower 0.99.17 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(upower, upower.1)
    _NEW_PAGE(upower, UPower.7)
@@ -37,7 +37,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220612">2022/6/12</A></H2>
  <DL>
- <DT>_LINK(INDEX/gnu.html#GNU_grub, GNU grub 2.06 の翻訳)を追加しました。</DT>
+ <DT>_LINK(../INDEX/gnu.html#GNU_grub, GNU grub 2.06 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(GNU_grub, grub-editenv.1)
    _NEW_PAGE(GNU_grub, grub-file.1)
@@ -72,7 +72,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220611">2022/6/11</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_gdb, GNU gdb 11.2 の翻訳)を追加/更新しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_gdb, GNU gdb 11.2 の翻訳)を追加/更新しました。</DT>
   <DD>
    _UPD_PAGE(GNU_gdb, gdbserver.1)
    _UPD_PAGE(GNU_gdb, gdb.1)
@@ -84,7 +84,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220607">2022/6/7</A></H2>
  <DL>
-  <DT>_LINK(INDEX/linux.html#kmod, kmod 29 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/linux.html#kmod, kmod 29 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(kmod, depmod.d.5)
    _NEW_PAGE(kmod, modprobe.d.5)
@@ -102,7 +102,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220606">2022/6/6</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_gsl, GNU gsl 2.7.1 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_gsl, GNU gsl 2.7.1 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(GNU_gsl, gsl-config.1)
    _NEW_PAGE(GNU_gsl, gsl-histogram.1)
@@ -113,7 +113,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220605">2022/6/5</A></H2>
   <DL>
-  <DT>_LINK(INDEX/misc.html#dblatex, dblatex 0.3.12 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/misc.html#dblatex, dblatex 0.3.12 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(dblatex, dblatex.1)
   </DD>
@@ -121,7 +121,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220604">2022/6/4</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_autoconf, GNU autoconf 2.71 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_autoconf, GNU autoconf 2.71 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(GNU_autoconf, autoconf.1)
    _NEW_PAGE(GNU_autoconf, autoheader.1)
@@ -135,7 +135,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220531">2022/05/31</A></H2>
   <DL>
-  <DT>_LINK(INDEX/misc.html#meson, meson 0.62.1 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/misc.html#meson, meson 0.62.1 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(meson, meson.1)
   </DD>
@@ -143,7 +143,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220530">2022/05/30</A></H2>
   <DL>
-  <DT>_LINK(INDEX/misc.html#nginx, nginx 1.21.6 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/misc.html#nginx, nginx 1.21.6 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(nginx, nginx.8)
   </DD>
@@ -151,7 +151,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220529">2022/05/29</A></H2>
   <DL>
-  <DT>_LINK(INDEX/misc.html#xz, xz 5.2.5 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/misc.html#xz, xz 5.2.5 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(xz, lzmainfo.1)
    _NEW_PAGE(xz, xz.1)
@@ -165,7 +165,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220528">2022/05/28</A></H2>
   <DL>
-  <DT>_LINK(INDEX/misc.html#itstool, itstool 2.0.7 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/misc.html#itstool, itstool 2.0.7 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(itstool, itstool.1)
   </DD>
@@ -173,7 +173,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220527">2022/5/27</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_which, GNU which の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_which, GNU which の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(GNU_which, which.1)
   </DD>
@@ -181,7 +181,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220526">2022/05/26</A></H2>
   <DL>
-  <DT>_LINK(INDEX/misc.html#flex, flex 2.6.4 の翻訳)を更新しました。</DT>
+  <DT>_LINK(../INDEX/misc.html#flex, flex 2.6.4 の翻訳)を更新しました。</DT>
   <DD>
    _UPD_PAGE(flex, flex.1)
   </DD>
@@ -189,7 +189,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220525">2022/05/25</A></H2>
  <DL>
-  <DT>_LINK(INDEX/misc.html#bzip2, bzip2 の翻訳)を更新しました。</DT>
+  <DT>_LINK(../INDEX/misc.html#bzip2, bzip2 の翻訳)を更新しました。</DT>
   <DD>
    _UPD_PAGE(bzip2, bzdiff.1)
    _UPD_PAGE(bzip2, bzgrep.1)
@@ -200,7 +200,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220518">2022/05/18</A></H2>
  <DL>
-  <DT>_LINK(INDEX/misc.html#subversion, subversion 1.14.2 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/misc.html#subversion, subversion 1.14.2 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(subversion, svn.1)
    _NEW_PAGE(subversion, svnadmin.1)
@@ -217,7 +217,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220513">2022/5/13</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_sed, GNU sed の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_sed, GNU sed の翻訳)を追加しました。</DT>
   <DD>
    _UPD_PAGE(GNU_sed, sed.1)
   </DD>
@@ -225,7 +225,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220512">2022/5/12</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_tar, GNU tar の翻訳)を更新しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_tar, GNU tar の翻訳)を更新しました。</DT>
   <DD>
    _UPD_PAGE(GNU_tar, tar.1)
    _UPD_PAGE(GNU_tar, rmt.8)
@@ -234,7 +234,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220511">2022/5/11</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_make, GNU make の翻訳)を更新しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_make, GNU make の翻訳)を更新しました。</DT>
   <DD>
    _UPD_PAGE(GNU_make, make.1)
   </DD>
@@ -242,7 +242,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220510">2022/5/10</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_diffutils, GNU diffutils の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_diffutils, GNU diffutils の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(GNU_diffutils, cmp.1)
    _NEW_PAGE(GNU_diffutils, diff.1)
@@ -253,7 +253,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220507">2022/05/07</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_m4, GNU m4 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_m4, GNU m4 の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(GNU_m4, m4.1)
   </DD>
@@ -261,7 +261,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220429">2022/04/29</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_findutils, GNU findutils の翻訳)を更新しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_findutils, GNU findutils の翻訳)を更新しました。</DT>
   <DD>
    _UPD_PAGE(GNU_findutils, find.1)
    _UPD_PAGE(GNU_findutils, locate.1)
@@ -273,7 +273,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220422">2022/04/22</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_bison, GNU bison の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_bison, GNU bison の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(GNU_bison, bison.1)
    _NEW_PAGE(GNU_bison, yacc.1)
@@ -282,7 +282,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220415">2022/04/15</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_automake, GNU automake の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_automake, GNU automake の翻訳)を追加しました。</DT>
   <DD>
    _NEW_PAGE(GNU_automake, automake-1.16.1)
    _NEW_PAGE(GNU_automake, automake.1)
@@ -293,7 +293,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220407">2022/04/07</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_dejagnu, GNU dejagnu の翻訳)を公開しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_dejagnu, GNU dejagnu の翻訳)を公開しました。</DT>
   <DD>
    _NEW_PAGE(GNU_dejagnu, dejagnu-help.1)
    _NEW_PAGE(GNU_dejagnu, dejagnu-report-card.1)
@@ -304,7 +304,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220403">2022/04/03</A></H2>
   <DL>
-  <DT>_LINK(INDEX/gnu.html#GNU_ed, GNU ed の man pages の翻訳)を更新しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_ed, GNU ed の man pages の翻訳)を更新しました。</DT>
   <DD>
    _UPD_PAGE(GNU_ed, ed.1)
   </DD>
@@ -312,7 +312,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20220331">2022/03/31</A></H2>
   <DL>
-  <DT>_LINK(INDEX/linux.html#at, at 3.2.4 の at.1 の man pages の翻訳)を更新しました。
+  <DT>_LINK(../INDEX/linux.html#at, at 3.2.4 の at.1 の man pages の翻訳)を更新しました。
   なお、at の最新版は 3.2.5 ですが、3.2.4 のマニュアルはそのままお使いいただけます。</DT>
   <DD>
    _UPD_PAGE(at, at.1)
