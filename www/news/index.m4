@@ -15,7 +15,7 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
- <H2><A NAME="2022614">2022/6/14</A></H2>
+ <H2><A NAME="20220614">2022/6/14</A></H2>
   <DL>
   <DT>_LINK(INDEX/misc.html#qpdf, qpdf 10.6.3 の翻訳)を追加しました。</DT>
   <DD>
@@ -25,7 +25,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="2022613">2022/6/13</A></H2>
+ <H2><A NAME="20220613">2022/6/13</A></H2>
   <DL>
   <DT>_LINK(INDEX/linux.html#upower, upower 0.99.17 の翻訳)を追加しました。</DT>
   <DD>
@@ -35,7 +35,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="2022612">2022/6/12</A></H2>
+ <H2><A NAME="20220612">2022/6/12</A></H2>
  <DL>
  <DT>_LINK(INDEX/gnu.html#GNU_grub, GNU grub 2.06 の翻訳)を追加/更新しました。</DT>
   <DD>
@@ -70,7 +70,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="2022611">2022/6/11</A></H2>
+ <H2><A NAME="20220611">2022/6/11</A></H2>
   <DL>
   <DT>_LINK(INDEX/gnu.html#GNU_gdb, GNU gdb 11.2 の翻訳)を追加/更新しました。</DT>
   <DD>
@@ -82,7 +82,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="202267">2022/6/7</A></H2>
+ <H2><A NAME="20220607">2022/6/7</A></H2>
  <DL>
   <DT>_LINK(INDEX/linux.html#kmod, kmod 29 の翻訳)を追加しました。</DT>
   <DD>
@@ -100,7 +100,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="202266">2022/6/6</A></H2>
+ <H2><A NAME="20220606">2022/6/6</A></H2>
   <DL>
   <DT>_LINK(INDEX/gnu.html#GNU_gsl, GNU gsl の翻訳)を追加しました。</DT>
   <DD>
@@ -111,7 +111,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="202265">2022/6/5</A></H2>
+ <H2><A NAME="20220605">2022/6/5</A></H2>
   <DL>
   <DT>_LINK(INDEX/misc.html#dblatex, dblatex 0.3.12 の翻訳)を追加しました。</DT>
   <DD>
@@ -119,7 +119,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="202264">2022/6/4</A></H2>
+ <H2><A NAME="20220604">2022/6/4</A></H2>
   <DL>
   <DT>_LINK(INDEX/gnu.html#GNU_autoconf, GNU autoconf 2.71 の翻訳)を追加しました。</DT>
   <DD>
@@ -171,7 +171,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="2022527">2022/5/27</A></H2>
+ <H2><A NAME="20220527">2022/5/27</A></H2>
   <DL>
   <DT>_LINK(INDEX/gnu.html#GNU_which, GNU which の翻訳)を追加しました。</DT>
   <DD>
@@ -215,7 +215,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="2022513">2022/5/13</A></H2>
+ <H2><A NAME="20220513">2022/5/13</A></H2>
   <DL>
   <DT>_LINK(INDEX/gnu.html#GNU_sed, GNU sed の翻訳)を追加しました。</DT>
   <DD>
@@ -223,7 +223,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="2022512">2022/5/12</A></H2>
+ <H2><A NAME="20220512">2022/5/12</A></H2>
   <DL>
   <DT>_LINK(INDEX/gnu.html#GNU_tar, GNU tar の翻訳)を追加しました。</DT>
   <DD>
@@ -232,7 +232,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="2022511">2022/5/11</A></H2>
+ <H2><A NAME="20220511">2022/5/11</A></H2>
   <DL>
   <DT>_LINK(INDEX/gnu.html#GNU_make, GNU make の翻訳)を追加しました。</DT>
   <DD>
@@ -240,7 +240,7 @@ m4_dnl ML2CVS ADD HERE
   </DD>
  </DL>
 
- <H2><A NAME="2022510">2022/5/10</A></H2>
+ <H2><A NAME="20220510">2022/5/10</A></H2>
   <DL>
   <DT>_LINK(INDEX/gnu.html#GNU_diffutils, GNU diffutils の翻訳)を追加しました。</DT>
   <DD>
