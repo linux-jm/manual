@@ -37,6 +37,10 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+<LI>_LINK(INDEX/gnu.html#GNU_gzip, GNU gzip 1.12 の翻訳)を追加しました。
+詳細は_LINK(news/index.html#20220624,こちら)。
+<SMALL>(2022/6/24)</SMALL>
+
 <LI>_LINK(INDEX/misc.html#qpdf, qpdf 10.6.3 の翻訳)を追加しました。
 <SMALL>(2022/6/14)</SMALL>
 

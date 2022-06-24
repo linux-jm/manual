@@ -15,6 +15,22 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+ <H2><A NAME="20220624">2022/6/24</A></H2>
+  <DL>
+  <DT>_LINK(../INDEX/gnu.html#GNU_gzip, GNU gzip 1.12 の翻訳)を追加しました。</DT>
+  <DD>
+   _UPD_PAGE(GNU_gzip, gzexe.1)
+   _UPD_PAGE(GNU_gzip, gzip.1)
+   _UPD_PAGE(GNU_gzip, zdiff.1)
+   _UPD_PAGE(GNU_gzip, zforce.1)
+   _UPD_PAGE(GNU_gzip, zgrep.1)
+   _UPD_PAGE(GNU_gzip, znew.1)
+   _UPD_PAGE(GNU_gzip, zless.1)
+   _UPD_PAGE(GNU_gzip, zmore.1)
+   _UPD_PAGE(GNU_gzip, znew.1)
+  </DD>
+ </DL>
+
  <H2><A NAME="20220614">2022/6/14</A></H2>
   <DL>
   <DT>_LINK(../INDEX/misc.html#qpdf, qpdf 10.6.3 の翻訳)を追加しました。</DT>
