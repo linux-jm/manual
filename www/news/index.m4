@@ -17,7 +17,7 @@ m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2><A NAME="20220624">2022/6/24</A></H2>
   <DL>
-  <DT>_LINK(../INDEX/gnu.html#GNU_gzip, GNU gzip 1.12 の翻訳)を追加しました。</DT>
+  <DT>_LINK(../INDEX/gnu.html#GNU_gzip, GNU gzip 1.12 の翻訳)を更新しました。</DT>
   <DD>
    _UPD_PAGE(GNU_gzip, gzexe.1)
    _UPD_PAGE(GNU_gzip, gzip.1)
