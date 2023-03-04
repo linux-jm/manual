@@ -47,9 +47,15 @@ m4_define(`_EDIT_WARNING',`
   ====================================================================
  -->')
 
+m4_dnl -------------------------
+m4_dnl URLを //linuxjm.osdn.jp/cgi-bin/man.cgi などとするとドコモの
+m4_dnl ガラケーが正しく認識してくれない。少なくともガラケーのサポート期限
+m4_dnl （ドコモ2026年3月末、ソフトバンク2024年1月半ば）まではこの形で
+m4_dnl 維持すべきかと。
+m4_dnl -------------------------
 
-m4_define(`_MANCGI',`http://linuxjm.osdn.jp/cgi-bin/man.cgi')
-m4_define(`_NAMAZU',`http://linuxjm.osdn.jp/cgi-bin/namazu.cgi')
+m4_define(`_MANCGI',`/cgi-bin/man.cgi')
+m4_define(`_NAMAZU',`/cgi-bin/namazu.cgi')
 
 m4_define(`_EMAIL_ADDRESS',linuxjm-discuss@lists.osdn.me)
 
@@ -112,25 +118,26 @@ m4_define(`_LABEL',<A NAME="$1"><H2>$1</H2></A>)
 
 m4_define(`_LINK_TO_LABEL', _LOCALLINK($1,$1))
 
-m4_define(`_PLUG',
-  _LINK(http://www.ssc.com/linux/,
-    _IMAGE(_HOMEPAGE/powered.gif,196,49))<BR>
-`If you are wondering, Linux is a free, non-commercial
-operating system for computers. It happens to be a hobby of
-mine and might well interest other hackers. Click on the logo
-to learn more...')
+m4_dnl m4_define(`_PLUG',
+m4_dnl   _LINK(http://www.ssc.com/linux/,
+m4_dnl     _IMAGE(_HOMEPAGE/powered.gif,196,49))<BR>
+m4_dnl `If you are wondering, Linux is a free, non-commercial
+m4_dnl operating system for computers. It happens to be a hobby of
+m4_dnl mine and might well interest other hackers. Click on the logo
+m4_dnl to learn more...')
 
 m4_define(`_HEADER', `
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN"
   "http://www.w3.org/TR/REC-html40/loose.dtd">
 <HTML LANG="ja" DIR="LTR">
 <HEAD>
+ <META NAME="viewport" CONTENT="width=device-width">
  <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
  <TITLE>$1 (Japanese)</TITLE>
  <META NAME="DESCRIPTION" CONTENT="JM: $1">
- <META NAME="author" LANG="en" CONTENT="JM Project Members">
- <META NAME="copyright" CONTENT="(C) 1999 JM Project.">
- <META NAME="keywords" CONTENT="JM, Linux, Japanese, Manual">
+ <META NAME="author"      CONTENT="JM Project Members" LANG="en">
+ <META NAME="copyright"   CONTENT="(C) 1999 JM Project.">
+ <META NAME="keywords"    CONTENT="JM, Linux, Japanese, Manual">
  <LINK REV="made" HREF="mailto:linuxjm-discuss@lists.osdn.me">
  <LINK REL="stylesheet" TYPE="text/css" HREF="_CSS">
 </HEAD>
@@ -140,13 +147,13 @@ m4_define(`_HEADER', `
  <H1>$1</H1>
 ')
 
-m4_define(`_MIRROR_LIST',`
- <DIV CLASS="mirror-navigator">mirror server: [
-  <A HREF="http://www.linux.or.jp/JM/$1">primary</A> |
-  <A HREF="http://ktarn.www.linux.or.jp/JM/$1">ktarn</A> |
-  <A HREF="http://osaka-sandai.www.linux.or.jp/JM/$1">osaka-sandai</A>
-  ]</DIV>
-')
+m4_dnl m4_define(`_MIRROR_LIST',`
+m4_dnl  <DIV CLASS="mirror-navigator">mirror server: [
+m4_dnl   <A HREF="http://www.linux.or.jp/JM/$1">primary</A> |
+m4_dnl   <A HREF="http://ktarn.www.linux.or.jp/JM/$1">ktarn</A> |
+m4_dnl   <A HREF="http://osaka-sandai.www.linux.or.jp/JM/$1">osaka-sandai</A>
+m4_dnl   ]</DIV>
+m4_dnl ')
 
 m4_define(`_CREDITS',`
  <HR><!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
