@@ -44,12 +44,14 @@ pkg-install:
 	tar czf $(INFODEST).tar.gz $(INFODEST); \
 	cp -p $(INFODEST).tar.gz $(INFOPKGWWW)
 
-# 上記 pkg-install ターゲットの最後の cp では、info マニュアルの
-# タールボールを jm.git/www/info-pkg ディレクトリにコピーしている。
-# こうしておくと、後で jm.git/www/Makefile が実行されるときに、
-# install ターゲット中で "$(RSYNC) ... * ... $(WWWROOT)" が行われるが、
-# このワイルドカード "*" に info-pkg ディレクトリも含まれることになるので、
-# info-pkg/* も $(WWWROOT)=$(ROOT)/htdocs にコピーされるのである。
-# もっと単純に書くべきだったかもしれない。
-
 install:	html-install pkg-install
+
+# 上記 pkg-install ターゲットの最後の cp では、info マニュアルの
+# タールボールを $(INFOTMPDIR) から jm.git/www/info-pkg/ ディレクトリに
+# コピーしている。こうしておくと、後で jm.git/www/Makefile が実行される際に、
+# その download.html ターゲット中で本マニュアル・パッケージを公開リストに
+# 登録する処理が行われることになる。さらに、同 Makefile の install 
+# ターゲット中で "$(RSYNC) ... * ... $(WWWROOT)" が行われて、
+# (このワイルドカード "*" に info-pkg ディレクトリも含まれるので) 
+# jm.git/www 中の info-pkg/* も $(WWWROOT)=$(ROOT)/htdocs、
+# すなわち、JM の公開ディレクトリにコピーされるのである。
