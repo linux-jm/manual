@@ -260,7 +260,7 @@ perkamon について
 perkamon は LDP man-pages の po4a への変換を支援するスクリプトです。
 
 po4a で翻訳する際に、オプション、変換ルール、対象となるファイルなどを
-po4a の cfg (`具体例 <https://osdn.net/projects/linuxjm/scm/git/jm/blobs/master/manual/LDP_man-pages/po4a/aio/aio.cfg>`__)
+po4a の cfg (`具体例 <https://github.com/linux-jm/manual/blob/master/manual/LDP_man-pages/po4a/aio/aio.cfg>`__)
 として書いておいて、以下のような形で一括で変換することができます。
 
 .. code-block:: console

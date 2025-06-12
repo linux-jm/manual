@@ -21,13 +21,13 @@ JM のリポジトリをローカルにコピーしておく必要がありま�
 
 .. code-block:: console
 
-    $ git clone https://scn.osdn.jp/linuxjm/jm.git
+    $ git clone https://github.com/linux-jm/manual.git
 
 ``git clone`` に指定する URL は、どのプロトコルを使用するかで異なります。
 読み出し専用なら git と http が使えます。
 読み書き両用には https か ssh を使用します。
 具体的な URL は
-https://osdn.net/projects/linuxjm/scm/git/jm/ で確認してください。
+https://github.com/linux-jm/manual で確認してください。
 
 日本語 man ページの確認
 -----------------------
