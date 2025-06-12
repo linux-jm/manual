@@ -48,8 +48,8 @@ JM Project の用いている git リポジトリのディレクトリ構成は 
        ├── news
        └── rpm
 
-このうちの manual/ 以下が、本サイトの
-`manual ディレクトリ <http://linuxjm.osdn.jp/manual/>`_
+このうちの manual/ 以下が、GitHub の
+`manual ディレクトリ <https://github.com/linux-jm/manual>`_
 以下にミラーされています。
 このディレクトリには、 マニュアルの一次ソースとなるアーカイブパッケージ (例えば ``util-linux-2.9v.tar.gz`` など)
 の ``basename`` と同名のサブディレクトリ (``util-linux``) を設けます。

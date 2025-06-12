@@ -2,10 +2,10 @@
 Linux JM プロジェクトガイド
 ===========================
 
-`JM ホームページ <http://linuxjm.osdn.jp/>`__ |
-`Git リポジトリ <https://osdn.jp/projects/linuxjm/scm/git/jm/>`__ |
-`メーリングリスト <https://osdn.jp/projects/linuxjm/lists/archive/discuss/>`__ |
-`Wiki <https://osdn.jp/projects/linuxjm/wiki/FrontPage>`__
+`JM ホームページ <https://linuxjm.sourceforge.io/>`__ |
+`Git リポジトリ <https://github.com/linux-jm/manual>`__ |
+`メーリングリスト <https://sourceforge.net/p/linuxjm/mailman/linuxjm-discuss/>`__ |
+`Wiki <https://github.com/linux-jm/manual/wiki>`__
 
 はじめに
 ========

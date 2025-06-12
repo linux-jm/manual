@@ -11,7 +11,7 @@ git リポジトリを操作するシステム操作者（翻訳者自身を含�
 1. 対象パッケージが未翻訳／翻訳済みであるかどうかの確認。
 
    * ``jm.git/manual/<パッケージ名>`` の存在確認。
-   * `JM インデックス (作業状況) <http://linuxjm.osdn.jp/INDEX/progress.html>`_ の確認。
+   * `JM インデックス (作業状況) <https://linuxjm.sourceforge.io/INDEX/>`_ の確認。
 
 2. 翻訳済みである場合のステータス確認（翻訳終了かどうかの確認）。
 
@@ -104,7 +104,7 @@ git リポジトリを操作するシステム操作者（翻訳者自身を含�
           original   \
           translation_list
 
-2. `JM discuss メーリングリスト <linuxjm-discuss@lists.osdn.me>`_ への翻訳予約メール送信。
+2. `JM discuss メーリングリスト <linuxjm-discuss@lists.sourceforge.net>`_ への翻訳予約メール送信。
 
    ``TR`` は翻訳の予約（Translation Reservation）
 
@@ -196,7 +196,7 @@ git リポジトリを操作するシステム操作者（翻訳者自身を含�
           po4a       \
           translation_list
 
-2. `JM discuss メーリングリスト <linuxjm-discuss@lists.osdn.me>`_ への校正依頼メール送信。
+2. `JM discuss メーリングリスト <linuxjm-discuss@lists.sourceforge.net>`_ への校正依頼メール送信。
 
    ``DP`` はドラフトの投稿。引き続き自分で校正を行う。（Draft and Proof reservation）
 
@@ -223,7 +223,7 @@ git リポジトリを操作するシステム操作者（翻訳者自身を含�
 7. 校正作業
 ===========
 
-`JM discuss メーリングリスト <linuxjm-discuss@lists.osdn.me>`_ 上において、メンバーを交えた校正作業。
+`JM discuss メーリングリスト <linuxjm-discuss@lists.sourceforge.net>`_ 上において、メンバーを交えた校正作業。
 
 適宜応答と、指摘内容への討議、検討、翻訳内容への反映等。
 
@@ -266,7 +266,7 @@ git リポジトリを操作するシステム操作者（翻訳者自身を含�
         release    \
         translation_list
 
-2. `JM discuss メーリングリスト <linuxjm-discuss@lists.osdn.me>`_ へのリリース報告メール送信。
+2. `JM discuss メーリングリスト <linuxjm-discuss@lists.sourceforge.net>`_ へのリリース報告メール送信。
 
    ``RO`` はリリースの投稿。(Release Only）
 
