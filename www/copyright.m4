@@ -29,7 +29,7 @@ _HEADER(`免責・著作権について')
   JM Project に帰属するが、入手・修正・配布に制限を設けない。</LI>
  <LI>出版など何らかの形で入金があった場合には、
   JM Project が使い道を決定する。</LI>
- <LI>JM Project は JM メーリングリスト (linuxjm-discuss@lists.osdn.me)
+ <LI>JM Project は JM メーリングリスト (linuxjm-discuss@lists.sourceforge.net)
   の参加者で構成され、その多数決で意思決定される。</LI>
 </OL>
 
@@ -39,7 +39,7 @@ _HEADER(`免責・著作権について')
  それらを他のパッケージに含めて再配布してもかまいません。
  ただしその際には、
  当該ページの出所が JM Project であること、
- JM Project の連絡先が linuxjm-discuss@lists.osdn.me であることを配布の一部に明記し、
+ JM Project の連絡先が linuxjm-discuss@lists.sourceforge.net であることを配布の一部に明記し、
  ページに対するフィードバックが
  JM Project に送られるようにしてください。
 </P>

@@ -57,7 +57,7 @@ m4_dnl -------------------------
 m4_define(`_MANCGI',`/cgi-bin/man.cgi')
 m4_define(`_NAMAZU',`/cgi-bin/namazu.cgi')
 
-m4_define(`_EMAIL_ADDRESS',linuxjm-discuss@lists.osdn.me)
+m4_define(`_EMAIL_ADDRESS',linuxjm-discuss@lists.sourceforge.net)
 
 m4_define(`_JM_',`JM Project')
 
@@ -138,7 +138,7 @@ m4_define(`_HEADER', `
  <META NAME="author"      CONTENT="JM Project Members" LANG="en">
  <META NAME="copyright"   CONTENT="(C) 1999 JM Project.">
  <META NAME="keywords"    CONTENT="JM, Linux, Japanese, Manual">
- <LINK REV="made" HREF="mailto:linuxjm-discuss@lists.osdn.me">
+ <LINK REV="made" HREF="mailto:linuxjm-discuss@lists.sourceforge.net">
  <LINK REL="stylesheet" TYPE="text/css" HREF="_CSS">
 </HEAD>
 
@@ -159,7 +159,7 @@ m4_define(`_CREDITS',`
  <HR><!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
  <ADDRESS>
   _JM_ や配布マニュアルページに関わるご意見ご要望は
-  _EMAILME(linuxjm-discuss@lists.osdn.me)
+  _EMAILME(linuxjm-discuss@lists.sourceforge.net)
   までお願いします。
  </ADDRESS>
  <HR><!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
