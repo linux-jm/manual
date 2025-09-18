@@ -173,6 +173,7 @@ foreach my $fkey (sort keys %roff_hash){
 
     while(<M2H>){
 	if($. < 2){next;};	
+	if(/^Time:/){next;};
 
 #	s/(\&\#([0-9]+)\;)/pack("C",$1)/ge;
 	s///g;
