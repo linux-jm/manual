@@ -52,7 +52,7 @@ my (%roff_hash, %page_name, %link_hash, %cont_link);
 # $MANROOT/$pkg/translation_list の scan.
 #
 print "scanning translation_list's...\n";
-open RL,"find $MANROOT -name translation_list|";
+open RL,"find $MANROOT -name translation_list|sort|";
 while(<RL>){
     print;
     chomp;
