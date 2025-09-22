@@ -9,7 +9,6 @@ m4_include(../news_macro.m4)
 _EDIT_WARNING(index)
 _HEADER(`JM 新着情報 (2011 年分)')
 
-_MODTIME
 _NEWS_INDEX
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.

@@ -9,10 +9,6 @@ m4_include(../news_macro.m4)
 _EDIT_WARNING(index)
 _HEADER(JM 新着情報)
 
- <DIV CLASS="copyright">
-  m4_esyscmd(`date')
- </DIV>
-
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2><A NAME="20220624">2022/6/24</A></H2>
