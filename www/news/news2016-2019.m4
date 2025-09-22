@@ -7,7 +7,7 @@ m4_define(`_SUB_ONE',1)m4_dnl
 m4_include(../jm_www.m4)
 m4_include(../news_macro.m4)
 _EDIT_WARNING(index)
-_HEADER(`JM ¿·Ãå¾ğÊó (2016-2019Ç¯Ê¬)')
+_HEADER(`JM æ–°ç€æƒ…å ± (2016-2019å¹´åˆ†)')
 
 _MODTIME
 _NEWS_INDEX
@@ -16,7 +16,7 @@ m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2><A NAME="20180314">2018/03/14</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/gnu.html,GNU_findutils 4.6.0 ¤Î¥Ş¥Ë¥å¥¢¥ë)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/gnu.html,GNU_findutils 4.6.0 ã®ãƒãƒ‹ãƒ¥ã‚¢ãƒ«)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
    _UPD_PAGE(GNU_findutils, find.1)
    _UPD_PAGE(GNU_findutils, xargs.1)
@@ -25,7 +25,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20170326">2017/03/26</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/info.html,GNU_coreutils 8.26 ¤Î info ÈÇ¥Ş¥Ë¥å¥¢¥ë)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/info.html,GNU_coreutils 8.26 ã® info ç‰ˆãƒãƒ‹ãƒ¥ã‚¢ãƒ«)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
    _UPD_PAGE(../info/GNU_coreutils, coreutils-ja)
   </DD>
@@ -33,7 +33,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20170314">2017/03/14</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/gnu.html,GNU_grep 2.27 ¤Î¥Ş¥Ë¥å¥¢¥ë)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/gnu.html,GNU_grep 2.27 ã®ãƒãƒ‹ãƒ¥ã‚¢ãƒ«)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
    _UPD_PAGE(GNU_grep, grep.1)
   </DD>
@@ -41,7 +41,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20160920">2016/09/20</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/misc.html,sudo 1.8.17 ¤Î¥Ş¥Ë¥å¥¢¥ë)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/misc.html,sudo 1.8.17 ã®ãƒãƒ‹ãƒ¥ã‚¢ãƒ«)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
    _UPD_PAGE(sudo, sudo.8)
    _UPD_PAGE(sudo, sudoers.5)
@@ -54,7 +54,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20160219">2016/02/19</A></H2>
  <P>
- _LINK(../INDEX/gnu.html,GNU coreutils ¤ÎËİÌõ)¤ò 8.25 ¤Ë¹¹¿·¤·¤Ş¤·¤¿¡£
+ _LINK(../INDEX/gnu.html,GNU coreutils ã®ç¿»è¨³)ã‚’ 8.25 ã«æ›´æ–°ã—ã¾ã—ãŸã€‚
  </P>
 
   _CREDITS

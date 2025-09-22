@@ -7,7 +7,7 @@ m4_define(`_SUB_ONE',1)m4_dnl
 m4_include(../jm_www.m4)
 m4_include(../news_macro.m4)
 _EDIT_WARNING(index)
-_HEADER(`JM ¿·Ãå¾ğÊó (2013 Ç¯Ê¬)')
+_HEADER(`JM æ–°ç€æƒ…å ± (2013 å¹´åˆ†)')
 
 _MODTIME
 _NEWS_INDEX
@@ -16,11 +16,11 @@ m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2>2013/10/14</H2>
  <P>
- _LINK(../INDEX/ldp.html,LDP man-pages 3.54 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£
+ _LINK(../INDEX/ldp.html,LDP man-pages 3.54 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚
  </P>
  <H2>2013/08/16</H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.53 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.53 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
    _NEW_PAGE(LDP_man-pages, kcmp.2)
    _NEW_PAGE(LDP_man-pages, CPU_SET.3)
@@ -36,15 +36,15 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2013/05/01</H2>
  <P>
- _LINK(../INDEX/ldp.html,LDP man-pages 3.51 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£
+ _LINK(../INDEX/ldp.html,LDP man-pages 3.51 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚
  </P>
 
  <H2>2013/04/30</H2>
  <P>
-  °Ê²¼¤Î¥Õ¥¡¥¤¥ë¤òÄÉ²Ã¡¦¹¹¿·¤·¤Ş¤·¤¿¡£
+  ä»¥ä¸‹ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‚’è¿½åŠ ãƒ»æ›´æ–°ã—ã¾ã—ãŸã€‚
  </P>
  <DL>
-  <DT>GNU_sed (sed 4.2.2 ¤Ø¤Î¹¹¿·)</DT>
+  <DT>GNU_sed (sed 4.2.2 ã¸ã®æ›´æ–°)</DT>
   <DD>
    _UPD_PAGE(GNU_sed, sed.1)
   </DD>
@@ -52,7 +52,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2013/03/25</H2>
  <P>
- _LINK(../INDEX/ldp.html,LDP man-pages 3.50 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£
+ _LINK(../INDEX/ldp.html,LDP man-pages 3.50 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚
  </P>
  
   _CREDITS

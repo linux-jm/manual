@@ -7,7 +7,7 @@ m4_define(`_SUB_ONE',1)m4_dnl
 m4_include(../jm_www.m4)
 m4_include(../news_macro.m4)
 _EDIT_WARNING(index)
-_HEADER(`JM ¿·Ãå¾ğÊó (2014 Ç¯Ê¬)')
+_HEADER(`JM æ–°ç€æƒ…å ± (2014 å¹´åˆ†)')
 
 _MODTIME
 _NEWS_INDEX
@@ -16,12 +16,12 @@ m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2><A NAME="20141125">2014/11/25</A></H2>
  <P>
- _LINK(/info/GNU_coreutils/coreutils-ja.html,GNU coreutils info)¤ÎËİÌõ¤ò 8.22 ¤Ë¹¹¿·¤·¤Ş¤·¤¿¡£
+ _LINK(/info/GNU_coreutils/coreutils-ja.html,GNU coreutils info)ã®ç¿»è¨³ã‚’ 8.22 ã«æ›´æ–°ã—ã¾ã—ãŸã€‚
  </P>
 
  <H2><A NAME="20140608">2014/06/08</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.68 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.68 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
     _UPD_PAGE(LDP_man-pages, fork.2)
     _UPD_PAGE(LDP_man-pages, getrlimit.2)
@@ -33,7 +33,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20140607">2014/06/07</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.67 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.67 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
     _UPD_PAGE(LDP_man-pages, bind.2)
     _UPD_PAGE(LDP_man-pages, chown.2)
@@ -92,17 +92,17 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2014/05/05</H2>
  <P>
-  _LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.22 ¤ÎËİÌõ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£
+  _LINK(../INDEX/gnu.html#GNU_coreutils,GNU coreutils 8.22 ã®ç¿»è¨³)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚
  </P>
 
  <H2><A NAME="20140427">2014/04/27</A></H2>
  <P>
- _LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils ¤Î info)¤ÎËİÌõ¤ò¸ø³«¤·¤Ş¤·¤¿¡£
+ _LINK(info/GNU_coreutils/coreutils-ja.html,GNU coreutils ã® info)ã®ç¿»è¨³ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚
  </P>
 
  <H2><A NAME="20140427">2014/04/27</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.65 ÂĞ±şÈÇ)¤ÎËİÌõ¤òÄÉ²Ã¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.65 å¯¾å¿œç‰ˆ)ã®ç¿»è¨³ã‚’è¿½åŠ ã—ã¾ã—ãŸã€‚</DT>
   <DD>
    _UPD_PAGE(LDP_man-pages, fallocate.2)
    _UPD_PAGE(LDP_man-pages, intro.2)
@@ -122,7 +122,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20140424">2014/04/24</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.65 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.65 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
    _UPD_PAGE(LDP_man-pages, fcntl.2)
    _UPD_PAGE(LDP_man-pages, mlock.2)
@@ -149,7 +149,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20140420">2014/04/20</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.64 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.64 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
    _UPD_PAGE(LDP_man-pages, clock_getres.2)
    _UPD_PAGE(LDP_man-pages, fallocate.2)
@@ -196,7 +196,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20140414">2014/04/14</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.63 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.63 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
    _UPD_PAGE(LDP_man-pages, access.2)
    _UPD_PAGE(LDP_man-pages, alarm.2)
@@ -268,7 +268,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2>2014/04/13</H2>
  <DL>
-  <DT>ebtables 2.0.10-4 ¤ÎËİÌõ¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>ebtables 2.0.10-4 ã®ç¿»è¨³ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>_NEW_PAGE(ebtables, ebtables.8)</DD>
  </DL>
 

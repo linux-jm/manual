@@ -7,7 +7,7 @@ m4_define(`_SUB_ONE',1)m4_dnl
 m4_include(../jm_www.m4)
 m4_include(../news_macro.m4)
 _EDIT_WARNING(index)
-_HEADER(`JM ¿·Ãå¾ğÊó (2015 Ç¯Ê¬)')
+_HEADER(`JM æ–°ç€æƒ…å ± (2015 å¹´åˆ†)')
 
 _MODTIME
 _NEWS_INDEX
@@ -16,12 +16,12 @@ m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2><A NAME="20150812">2015/08/12</A></H2>
  <P>
- _LINK(../download.html#INFO_MANUAL, GNU coreutils 8.22 ¤Î info ÈÇ¥Ş¥Ë¥å¥¢¥ë¤ÎËİÌõ¤ò¥À¥¦¥ó¥í¡¼¥É)¤Ç¤­¤ë¤è¤¦¤Ë¤·¤Ş¤·¤¿¡£
+ _LINK(../download.html#INFO_MANUAL, GNU coreutils 8.22 ã® info ç‰ˆãƒãƒ‹ãƒ¥ã‚¢ãƒ«ã®ç¿»è¨³ã‚’ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰)ã§ãã‚‹ã‚ˆã†ã«ã—ã¾ã—ãŸã€‚
  </P>
 
  <H2><A NAME="20150205">2015/02/05</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.79 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.79 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
         _NEW_PAGE(LDP_man-pages, sprof.1)
         _NEW_PAGE(LDP_man-pages, add_key.2)
@@ -44,7 +44,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20150126">2015/01/26</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.78 ÂĞ±şÈÇ)¤ò¹¹¿·¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.78 å¯¾å¿œç‰ˆ)ã‚’æ›´æ–°ã—ã¾ã—ãŸã€‚</DT>
   <DD>
     _NEW_PAGE(LDP_man-pages, locale.1)
     _NEW_PAGE(LDP_man-pages, execveat.2)
@@ -72,7 +72,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20150125">2015/01/25</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.78 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.78 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
     _UPD_PAGE(LDP_man-pages, dup.2)
     _UPD_PAGE(LDP_man-pages, execve.2)
@@ -110,7 +110,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20150118">2015/01/18</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.77 ÂĞ±şÈÇ)¤ò¹¹¿·¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.77 å¯¾å¿œç‰ˆ)ã‚’æ›´æ–°ã—ã¾ã—ãŸã€‚</DT>
   <DD>
     _NEW_PAGE(LDP_man-pages, iconv.1)
     _UPD_PAGE(LDP_man-pages, adjtimex.2)
@@ -125,7 +125,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20150112">2015/01/12</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.77 ÂĞ±şÈÇ)¤ò¹¹¿·¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.77 å¯¾å¿œç‰ˆ)ã‚’æ›´æ–°ã—ã¾ã—ãŸã€‚</DT>
   <DD>
     _NEW_PAGE(LDP_man-pages, memusage.1)
     _NEW_PAGE(LDP_man-pages, memusagestat.1)
@@ -141,7 +141,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20150111">2015/01/11</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.77 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.77 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
     _NEW_PAGE(LDP_man-pages, fanotify_init.2)
     _UPD_PAGE(LDP_man-pages, posix_fadvise.2)
@@ -162,7 +162,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20150109">2015/01/09</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.76 ÂĞ±şÈÇ)¤ò¹¹¿·¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.76 å¯¾å¿œç‰ˆ)ã‚’æ›´æ–°ã—ã¾ã—ãŸã€‚</DT>
   <DD>
     _UPD_PAGE(LDP_man-pages, getrlimit.2)
     _UPD_PAGE(LDP_man-pages, open.2)
@@ -181,7 +181,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="20150107">2015/01/07</A></H2>
  <DL>
-  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.76 ÂĞ±şÈÇ)¤ò¸ø³«¤·¤Ş¤·¤¿¡£</DT>
+  <DT>_LINK(../INDEX/ldp.html,LDP man-pages 3.76 å¯¾å¿œç‰ˆ)ã‚’å…¬é–‹ã—ã¾ã—ãŸã€‚</DT>
   <DD>
     _NEW_PAGE(LDP_man-pages, group_member.3)
     _NEW_PAGE(LDP_man-pages, isfdtype.3)
