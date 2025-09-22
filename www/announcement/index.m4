@@ -3,10 +3,6 @@ m4_include(../jm_www.m4)m4_dnl
 _EDIT_WARNING(previous_annoucements)
 _HEADER(`JM Project: 過去のお知らせ')
 
- <DIV CLASS="copyright">
-  m4_esyscmd(date)
- </DIV>
-
 <UL>
  <LI>_LINK(../INDEX/ldp.html,LDP man-pages) の公開方針を変更しました。
  <SMALL>(2013/03/25)</SMALL>
