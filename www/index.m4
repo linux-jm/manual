@@ -10,8 +10,6 @@ m4_include(jm_www.m4)
 _EDIT_WARNING(index)
 _HEADER(`JM Project')
 
-_BUILD_DATE
-
 m4_dnl _MIRROR_LIST
 
 JM プロジェクトは、主に Linux 関連のマニュアルページの日本語ページを翻訳・公開しています。
@@ -78,8 +76,7 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <UL>
 m4_dnl m4_esyscmd(`./bin/info-whole-archive.perl')
 
- <LI>_LINK(news/index.html,すべての更新・追加情報)
-   <SMALL>(m4_esyscmd(`./bin/file_date.perl news/index.m4'))</SMALL></LI>
+ <LI>_LINK(news/index.html,すべての更新・追加情報)</LI>
 
  <LI>_LINK(announcement/index.html,以前のお知らせ)
  (マニュアル更新以外のお知らせです)
