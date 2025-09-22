@@ -14,6 +14,7 @@ m4_dnl _MIRROR_LIST
 
 JM プロジェクトは、主に Linux 関連のマニュアルページの日本語ページを翻訳・公開しています。
 
+<!--
 <H2>全文検索</H2>
 <div id="googlesearch">
 <script>
@@ -30,6 +31,7 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 </script>
 <gcse:search></gcse:search>
 </div>
+-->
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
@@ -83,6 +85,7 @@ m4_dnl m4_esyscmd(`./bin/info-whole-archive.perl')
 </UL>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<!--
 <H2><A NAME="SEARCH">man on WWW</A></H2>
 <P>
  man コマンドの簡単な WWW 版です。
@@ -118,6 +121,7 @@ m4_dnl m4_esyscmd(`./bin/info-whole-archive.perl')
 
 </FORM>
 
+-->
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="FILES">JM インデックス</A></H2>
 JM Project で翻訳された_LINK(INDEX/,マニュアルの一覧)です。
