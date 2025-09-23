@@ -73,7 +73,8 @@ stamp/www-html-modified: stamp/cvs-release-modified
 infoman: stamp/www-info-modified
 
 stamp/www-info-modified: stamp/info-release-modified
-	$(MAKE) -C $(INFOSRC) install
+#	temporary disabled (#15)
+#	$(MAKE) -C $(INFOSRC) install
 	touch $@
 
 #
