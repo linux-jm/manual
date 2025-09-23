@@ -92,7 +92,8 @@ cgi:
 
 .PHONY:	guide
 guide:
-	$(MAKE) -C guide/ -f Makefile.venv-wrap install WWWROOT=$(WWWROOT) install
+#	temporary disabled (#14)
+#	$(MAKE) -C guide/ -f Makefile.venv-wrap install WWWROOT=$(WWWROOT) install
 
 .PHONY:	web-extra
 web-extra:
