@@ -161,52 +161,6 @@ JM Project で翻訳された_LINK(INDEX/,マニュアルの一覧)です。
 _LINK(download.html,こちら) からダウンロードができます。
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<!--
-<H2>全文検索</H2>
-<P>
-_LINK(http://www.namazu.org/,Namazu)
-を使った html ページの全文検索です。
-</P>
-
-<FORM METHOD="GET" ACTION="_NAMAZU"> -->
-<!--hidden parameters--> <!--
-<INPUT TYPE="HIDDEN" NAME="whence" VALUE="0">
-<INPUT TYPE="HIDDEN" NAME="sort"   VALUE="score">
-<INPUT TYPE="HIDDEN" NAME="dbname" VALUE="JM">
-
-<TABLE>
- <TR>
-  <TH>検索式</TH>
-  <TD>
-   <INPUT TYPE="TEXT" NAME="key" SIZE="40">
-   <INPUT TYPE="SUBMIT" NAME="submit" VALUE="Search!">
-  </TD>
- </TR>
-
- <TR>
-  <TH>表示件数</TH>
-  <TD>
-   <SELECT NAME="max">
-    <OPTION VALUE="10">10
-    <OPTION SELECTED VALUE="20">20
-    <OPTION VALUE="30">30
-    <OPTION VALUE="50">50
-    <OPTION VALUE="100">100
-   </SELECT>
-
-   <STRONG>要約表示</STRONG>
-   <SELECT NAME="format">
-    <OPTION SELECTED VALUE="long">ON
-    <OPTION VALUE="short">OFF
-   </SELECT>
-   <STRONG>[<A HREF="_NAMAZU?dbname=JM">検索のヒント</A>]</STRONG>
-  </TD>
- </TR>
-</TABLE>
-</FORM>
--->
-
-<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="ABOUTJM">JM Project の活動</A></H2>
 <P>
  翻訳状況、翻訳手順、管理者向け情報などは

@@ -55,7 +55,6 @@ m4_dnl 維持すべきかと。
 m4_dnl -------------------------
 
 m4_define(`_MANCGI',`/cgi-bin/man.cgi')
-m4_define(`_NAMAZU',`/cgi-bin/namazu.cgi')
 
 m4_define(`_EMAIL_ADDRESS',linuxjm-discuss@lists.sourceforge.net)
 
