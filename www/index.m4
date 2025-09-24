@@ -85,44 +85,6 @@ m4_dnl m4_esyscmd(`./bin/info-whole-archive.perl')
 </UL>
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<!--
-<H2><A NAME="SEARCH">man on WWW</A></H2>
-<P>
- man コマンドの簡単な WWW 版です。
- ページ名・セクション番号を選択すると、
- リリース版の html ページへ飛びます。
- 候補が複数ある時は一覧が出ます。
-</P>
-<FORM METHOD="GET" ACTION="_MANCGI">
- <TABLE CLASS="searchbox">
-  <TR>
-   <TH>ページ名</TH>
-   <TD>
-    <INPUT TYPE="TEXT" NAME="Pagename">
-    <INPUT TYPE="SUBMIT" NAME="submit" VALUE="Search!">
-   </TD>
-  </TR>
-
-  <TR>
-   <TH>対象<WBR>セクション</TH>
-   <TD>
-    <NOBR><INPUT TYPE=CHECKBOX NAME="Sec1" CHECKED>1</NOBR>
-    <NOBR><INPUT TYPE=CHECKBOX NAME="Sec2" CHECKED>2</NOBR>
-    <NOBR><INPUT TYPE=CHECKBOX NAME="Sec3" CHECKED>3</NOBR>
-    <NOBR><INPUT TYPE=CHECKBOX NAME="Sec4" CHECKED>4</NOBR>
-    <NOBR><INPUT TYPE=CHECKBOX NAME="Sec5" CHECKED>5</NOBR>
-    <NOBR><INPUT TYPE=CHECKBOX NAME="Sec6" CHECKED>6</NOBR>
-    <NOBR><INPUT TYPE=CHECKBOX NAME="Sec7" CHECKED>7</NOBR>
-    <NOBR><INPUT TYPE=CHECKBOX NAME="Sec8" CHECKED>8</NOBR>
-    ［<STRONG><A HREF="section.html">→セクションとは?</A></STRONG>］
-   </TD>
-  </TR>
- </TABLE>
-
-</FORM>
-
--->
-<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="FILES">JM インデックス</A></H2>
 JM Project で翻訳された_LINK(INDEX/,マニュアルの一覧)です。
 <UL>

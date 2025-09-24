@@ -17,8 +17,7 @@ endif
 	m4 -P -D _WORKDIR=$(WORKDIR) $*.m4 | cat -s | nkf -w > $*.html
 
 CONTENTS = index.html download.html section.html copyright.html \
-	README.html INSTALL.html \
-	missing.html nosuchpage.html manerror.html
+	README.html INSTALL.html
 #
 # rules
 #

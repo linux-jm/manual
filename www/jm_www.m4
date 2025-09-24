@@ -54,8 +54,6 @@ m4_dnl （ドコモ2026年3月末、ソフトバンク2024年1月半ば）まで
 m4_dnl 維持すべきかと。
 m4_dnl -------------------------
 
-m4_define(`_MANCGI',`/cgi-bin/man.cgi')
-
 m4_define(`_EMAIL_ADDRESS',linuxjm-discuss@lists.sourceforge.net)
 
 m4_define(`_JM_',`JM Project')

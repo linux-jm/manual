@@ -29,7 +29,7 @@ JMRPM_BUILD_ROOT=$(TMPDIR)/man-pages-ja-root
 #
 # global rules
 #
-periodic: chkcvs roff infoman html web cgi guide web-extra
+periodic: chkcvs roff infoman html web guide web-extra
 
 all: periodic archive-install 
 
@@ -78,16 +78,11 @@ stamp/www-info-modified: stamp/info-release-modified
 	touch $@
 
 #
-# web & cgi contents
+# web contents
 #
 web:
 	$(MAKE) -C www/\
-		WWWROOT=$(WWWROOT) CGIROOT=$(CGIROOT) WORKDIR=$(TMPDIR)\
-		install
-
-cgi:
-	$(MAKE) -C admin/cgi/\
-		WWWROOT=$(WWWROOT) CGIROOT=$(CGIROOT)\
+		WWWROOT=$(WWWROOT) WORKDIR=$(TMPDIR)\
 		install
 
 .PHONY:	guide
@@ -113,10 +108,10 @@ archive-install: stamp/latest-archive-modified
 	-cp $(RPMROOT)/SRPMS/$(JMRPMDIST).src.rpm www/rpm
 	touch $<
 	make -C www/ DATE=$(JMRELEASE)\
-		WWWROOT=$(WWWROOT) CGIROOT=$(CGIROOT)\
+		WWWROOT=$(WWWROOT)\
 		download.html index.html
 	make -C www/\
-		WWWROOT=$(WWWROOT) CGIROOT=$(CGIROOT)\
+		WWWROOT=$(WWWROOT)\
 		install
 
 stamp/latest-archive-modified: tarball rpm
@@ -183,4 +178,3 @@ tmpclean:
 
 realclean:	clean
 	$(RM) -rf $(WWWROOT)/*
-	$(RM) -rf $(CGIROOT)/*
