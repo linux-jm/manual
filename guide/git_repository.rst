@@ -45,8 +45,7 @@ JM Project の用いている git リポジトリのディレクトリ構成は 
        ├── images
        ├── INDEX
        ├── man-ja
-       ├── news
-       └── rpm
+       └── news
 
 このうちの manual/ 以下が、GitHub の
 `manual ディレクトリ <https://github.com/linux-jm/manual>`_

@@ -21,10 +21,6 @@ JMVER=0.5
 JMRELEASE := $(shell env LANG=C date +"%Y%m%d")
 DIST := man-pages-ja-$(JMRELEASE)
 
-JMRPMDIST := jman_pages-$(JMVER)-$(JMRELEASE)
-JMRPMSRC := $(TMPDIR)/$(DIST).tar.gz
-JMRPMSPEC=jman_pages.spec
-JMRPM_BUILD_ROOT=$(TMPDIR)/man-pages-ja-root
 
 #
 # global rules
@@ -99,13 +95,9 @@ web-extra:
 #
 archive-install: stamp/latest-archive-modified
 	-$(RM) www/man-pages-ja-*.tar.gz www/per-pkg/*.gz
-	-$(RM) www/rpm/*.rpm
 	cp $(TMPDIR)/$(DIST).tar.gz www/
 	mkdir -p www/per-pkg
 	cp $(TMPDIR)/man-pages-ja-*-$(JMRELEASE).tar.gz www/per-pkg
-	mkdir -p www/rpm
-	-cp $(RPMROOT)/RPMS/noarch/$(JMRPMDIST).noarch.rpm www/rpm
-	-cp $(RPMROOT)/SRPMS/$(JMRPMDIST).src.rpm www/rpm
 	touch $<
 	make -C www/ DATE=$(JMRELEASE)\
 		WWWROOT=$(WWWROOT)\
@@ -114,7 +106,7 @@ archive-install: stamp/latest-archive-modified
 		WWWROOT=$(WWWROOT)\
 		install
 
-stamp/latest-archive-modified: tarball rpm
+stamp/latest-archive-modified: tarball
 
 #
 # tarball
@@ -129,37 +121,6 @@ $(TMPDIR)/$(DIST).tar.gz:
 	touch stamp/latest-archive-modified
 
 #
-# rpm
-#
-rpm: $(RPMROOT)/RPMS/noarch/$(JMRPMDIST).noarch.rpm
-
-$(RPMROOT)/RPMS/noarch/$(JMRPMDIST).noarch.rpm: $(JMRPMSRC)
-ifdef NORPM
-else
-	mkdir -p $(RPMROOT)/SOURCES
-	mkdir -p $(RPMROOT)/SPECS
-	mkdir -p $(RPMROOT)/BUILD
-	mkdir -p $(RPMROOT)/RPMS/noarch
-	mkdir -p $(RPMROOT)/SRPMS
-	mkdir -p $(RPMROOT)/db
-	mkdir -p $(RPMROOT)/tmp
-	cp $(JMRPMSRC) $(RPMROOT)/SOURCES/
-	sed     -e "s/@@version@@/$(JMVER)/" \
-		-e "s/@@release@@/$(JMRELEASE)/" \
-		-e "s%@@buildroot@@%$(JMRPM_BUILD_ROOT)%" \
-	    www/rpm/$(JMRPMSPEC) > $(RPMROOT)/SPECS/$(JMRPMSPEC)
-	$(RPM) --dbpath $(RPMROOT)/db --rebuilddb
-	$(RPMB) --define "buildroot $(JMRPM_BUILD_ROOT)" \
-	    --dbpath $(RPMROOT)/db \
-	    --define "_topdir $(RPMROOT)"  \
-	    --define "_tmppath $(RPMROOT)/tmp"  \
-	    --define "_sourcedir $(RPMROOT)/SOURCES" \
-	    --define "_mandir /usr/share/man" -ba \
-	    $(RPMROOT)/SPECS/$(JMRPMSPEC)
-	touch stamp/latest-archive-modified
-endif
-
-#
 # clean
 #
 clean:	tmpclean
@@ -170,11 +131,6 @@ clean:	tmpclean
 
 tmpclean:
 	rm -rf $(TMPDIR)
-	rm -rf $(JMRPM_BUILD_ROOT)
-	rm -rf $(RPMROOT)/BUILD/$(DIST)
-	for i in $(JMRPMSRC); do \
-	    rm -f $(RPMROOT)/SOURCES/`basename $$i` ; \
-	done
 
 realclean:	clean
 	$(RM) -rf $(WWWROOT)/*
