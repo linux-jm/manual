@@ -125,7 +125,6 @@ $(TMPDIR)/$(DIST).tar.gz:
 #
 clean:	tmpclean
 	rm -f stamp/*-modified
-	$(MAKE) -C admin/cgi/ clean
 	$(MAKE) -C www/ clean
 	$(MAKE) -f Makefile.dist clean
 
