@@ -21,6 +21,6 @@ $fname = basename($fpath);
 print " <LI>新アーカイブファイル\n";
 print "  $fname\n";
 print "  及び対応する RPM アーカイブを\n";
-print "  _LINK(download.html,ダウンロードのページ)\n";
+print "  _DOWNLOADLINK(ダウンロードのページ)\n";
 print "  に登録しました。\n";
 print "  <SMALL>($fdate)</SMALL></LI>\n";

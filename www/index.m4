@@ -120,7 +120,7 @@ JM Project で翻訳された_LINK(INDEX/,マニュアルの一覧)です。
 <H2><A NAME="DOWNLOAD">ダウンロード</A></H2>
 
 配布用アーカイブなどは、
-_LINK(https://github.com/linux-jm/manual/releases/latest,GitHub Releases) からダウンロードができます。
+_DOWNLOADLINK(GitHub Releases) からダウンロードができます。
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <H2><A NAME="ABOUTJM">JM Project の活動</A></H2>

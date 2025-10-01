@@ -16,7 +16,7 @@ endif
 .m4.html:
 	m4 -P -D _WORKDIR=$(WORKDIR) $*.m4 | cat -s | nkf -w > $*.html
 
-CONTENTS = index.html download.html section.html copyright.html \
+CONTENTS = index.html section.html copyright.html \
 	README.html INSTALL.html
 #
 # rules
@@ -39,9 +39,6 @@ INSTALL.html: ../dist/INSTALL
 
 ../dist/README ../dist/INSTALL:
 	$(MAKE) -C .. -f Makefile.dist
-
-download.html: download.m4 ../stamp/latest-archive-modified ../stamp/www-info-modified
-	m4 -P -D _WORKDIR=$(WORKDIR) -D _DATE=$(DATE) $< | nkf -w > $@
 
 ../stamp/latest-archive-modified:
 	make -C .. stamp/latest-archive-modified

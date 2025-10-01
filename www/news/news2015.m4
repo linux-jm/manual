@@ -15,7 +15,7 @@ m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
  <H2><A NAME="20150812">2015/08/12</A></H2>
  <P>
- _LINK(../download.html#INFO_MANUAL, GNU coreutils 8.22 の info 版マニュアルの翻訳をダウンロード)できるようにしました。
+ _DOWNLOADLINK( GNU coreutils 8.22 の info 版マニュアルの翻訳をダウンロード)できるようにしました。
  </P>
 
  <H2><A NAME="20150205">2015/02/05</A></H2>

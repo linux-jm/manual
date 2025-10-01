@@ -53,7 +53,7 @@ m4_dnl ML2CVS ADD HERE
  <P>
   新アーカイブ man-pages-ja-20001215.tar.gz と
   対応する RPM アーカイブを
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 
@@ -171,7 +171,7 @@ m4_dnl ML2CVS ADD HERE
   11/15 リリースのバグフィックス版
   man-pages-ja-20001116.tar.gz と
   対応する RPM アーカイブを
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 
@@ -179,7 +179,7 @@ m4_dnl ML2CVS ADD HERE
  <P>
   新アーカイブ man-pages-ja-20001115.tar.gz と
   対応する RPM アーカイブを
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 
@@ -334,7 +334,7 @@ m4_dnl ML2CVS ADD HERE
  <P>
   新アーカイブ man-pages-ja-20001015.tar.gz と
   対応する RPM アーカイブを
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 
@@ -548,7 +548,7 @@ m4_dnl ML2CVS ADD HERE
   9/15 リリースのバグフィックス版
   man-pages-ja-20000919.tar.gz と
   対応する RPM アーカイブを
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 
@@ -556,7 +556,7 @@ m4_dnl ML2CVS ADD HERE
  <P>
   新アーカイブ man-pages-ja-20000915.tar.gz と
   対応する RPM アーカイブを
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 
@@ -651,7 +651,7 @@ m4_dnl ML2CVS ADD HERE
  <P>
   新アーカイブ man-pages-ja-20000815.tar.gz と
   対応する RPM アーカイブを
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 
@@ -873,7 +873,7 @@ m4_dnl ML2CVS ADD HERE
  <P>
   新アーカイブ man-pages-ja-20000715.tar.gz と
   対応する RPM アーカイブを
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 
@@ -968,7 +968,7 @@ m4_dnl ML2CVS ADD HERE
  <P>
   新アーカイブ man-pages-ja-20000615.tar.gz と
   対応する RPM アーカイブを
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
  <P>
@@ -1090,7 +1090,7 @@ m4_dnl ML2CVS ADD HERE
  <P>
   新アーカイブ man-pages-ja-20000515.tar.gz と
   対応する RPM アーカイブを
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 
@@ -1177,7 +1177,7 @@ m4_dnl ML2CVS ADD HERE
  <P>
   新アーカイブ man-pages-ja-20000415.tar.gz と
   対応する RPM アーカイブを
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 
@@ -1286,7 +1286,7 @@ m4_dnl ML2CVS ADD HERE
  <H2>2000/03/15</H2>
  <P>
   新アーカイブ man-pages-ja-20000315.tar.gz を
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
   今回から rpm の配布も開始しました。
  </P>
@@ -1419,7 +1419,7 @@ m4_dnl ML2CVS ADD HERE
  <H2>2000/01/15</H2>
  <P>
   新アーカイブ man-pages-ja-20000115.tar.gz を
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 

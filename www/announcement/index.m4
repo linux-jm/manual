@@ -17,7 +17,7 @@ _HEADER(`JM Project: 過去のお知らせ')
   EUC-JP への変換を行って頂きますようお願い致します。
   <LI>翻訳を行う際に UTF-8 の方が扱いやすいこと、UTF-8 を採用するディストリビューションが
   増えて来たことを考慮し、UTF-8 に変更することとしました。
-  <LI>_LINK(../download.html,ダウンロード) のページで配布している全 tarball が対象となります。
+  <LI>_DOWNLOADLINK(ダウンロード) のページで配布している全 tarball が対象となります。
  </UL>
 
  <LI>JM Project のホームページを osdn.jp に移動しました。

@@ -115,6 +115,8 @@ m4_define(`_LABEL',<A NAME="$1"><H2>$1</H2></A>)
 
 m4_define(`_LINK_TO_LABEL', _LOCALLINK($1,$1))
 
+m4_define(`_DOWNLOADLINK', _LINK(https://github.com/linux-jm/manual/releases/latest,$1))
+
 m4_dnl m4_define(`_PLUG',
 m4_dnl   _LINK(http://www.ssc.com/linux/,
 m4_dnl     _IMAGE(_HOMEPAGE/powered.gif,196,49))<BR>

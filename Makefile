@@ -101,7 +101,7 @@ archive-install: stamp/latest-archive-modified
 	touch $<
 	make -C www/ DATE=$(JMRELEASE)\
 		WWWROOT=$(WWWROOT)\
-		download.html index.html
+		index.html
 	make -C www/\
 		WWWROOT=$(WWWROOT)\
 		install

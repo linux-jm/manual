@@ -53,7 +53,7 @@ m4_dnl ML2CVS ADD HERE
  <H2>1999/12/15</H2>
  <P>
   新アーカイブ man-pages-ja-19991215.tar.gz を
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
   今回から、パッケージ別のアーカイブも用意しました。
  </P>
@@ -142,7 +142,7 @@ m4_dnl ML2CVS ADD HERE
  <H2>1999/11/15</H2>
  <P>
   新アーカイブ man-pages-ja-19991115.tar.gz を
-  _LINK(download.html,ダウンロードのページ)
+  _DOWNLOADLINK(ダウンロードのページ)
   から取得できるようにしました。
  </P>
 
@@ -312,7 +312,7 @@ m4_dnl ML2CVS ADD HERE
   (_LINK(announcement/19991015.html,アナウンス))
   </P>
   <P>
-   _LINK(./download.html,man-pages-ja-991015.tar.gz)
+   _DOWNLOADLINK(man-pages-ja-991015.tar.gz)
    の配布を開始しました。 man-pages-ja-0.4.tar.gz から
    追加・更新されたファイルは以下の通りです。
   </P>
