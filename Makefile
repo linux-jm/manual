@@ -10,7 +10,6 @@ include ./JM.rules
 MKRWWW=bin/mkmanweb.perl
 MKPWWW=bin/mkpodweb.perl
 MKDIST=bin/mkdist.perl
-MKSPDIST=bin/mksplitdist.perl
 CHKCVS=bin/chkcvs.sh
 
 ROFFSRC=./manual
@@ -117,7 +116,6 @@ $(TMPDIR)/$(DIST).tar.gz:
 	$(MKDIST) . $(TMPDIR)/$(DIST) $(POD2MAN)
 	$(MAKE) -f Makefile.dist install
 	(cd $(TMPDIR); tar czf $(DIST).tar.gz $(DIST))
-	$(MKSPDIST) $(TMPDIR)/$(DIST)
 	touch stamp/latest-archive-modified
 
 #
