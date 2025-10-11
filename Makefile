@@ -113,6 +113,7 @@ stamp/latest-archive-modified: tarball
 tarball: $(TMPDIR)/$(DIST).tar.gz
 
 $(TMPDIR)/$(DIST).tar.gz:
+	@mkdir -p $(TMPDIR)
 	$(MKDIST) . $(TMPDIR)/$(DIST) $(POD2MAN)
 	$(MAKE) -f Makefile.dist install
 	(cd $(TMPDIR); tar czf $(DIST).tar.gz $(DIST))
