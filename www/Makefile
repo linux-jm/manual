@@ -31,7 +31,7 @@ contents: $(CONTENTS)
 
 *.html: jm_www.m4
 
-index.html: news/index.m4 ../stamp/latest-archive-modified
+index.html: news/index.m4
 
 README.html: ../dist/README
 
@@ -39,9 +39,6 @@ INSTALL.html: ../dist/INSTALL
 
 ../dist/README ../dist/INSTALL:
 	$(MAKE) -C .. -f Makefile.dist
-
-../stamp/latest-archive-modified:
-	make -C .. stamp/latest-archive-modified
 
 clean:
 	@rm -f $(CONTENTS) *.tar.gz
