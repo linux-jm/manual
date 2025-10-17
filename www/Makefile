@@ -16,8 +16,8 @@ endif
 .m4.html:
 	m4 -P -D _WORKDIR=$(WORKDIR) $*.m4 | cat -s | nkf -w > $*.html
 
-CONTENTS = index.html section.html copyright.html \
-	README.html INSTALL.html
+CONTENTS = index.html section.html copyright.html
+
 #
 # rules
 #
@@ -33,12 +33,13 @@ contents: $(CONTENTS)
 
 index.html: news/index.m4
 
-README.html: ../dist/README
-
-INSTALL.html: ../dist/INSTALL
-
-../dist/README ../dist/INSTALL:
-	$(MAKE) -C .. -f Makefile.dist
+# stop build these when building manual (#20)
+#README.html: ../dist/README
+#
+#INSTALL.html: ../dist/INSTALL
+#
+#../dist/README ../dist/INSTALL:
+#	$(MAKE) -C .. -f Makefile.dist
 
 clean:
 	@rm -f $(CONTENTS) *.tar.gz
