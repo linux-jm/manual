@@ -14,6 +14,8 @@ use strict 'vars';
 
 my ($idx_header, $idx_footer);
 
+my $debug = 0;
+
 #
 # $MANROOT は CVS リポジトリの JM/manual,
 # $WWWROOT は web の html コンテンツのトップ,
@@ -51,7 +53,7 @@ my (%roff_hash, %page_name, %link_hash, %cont_link);
 #
 # $MANROOT/$pkg/translation_list の scan.
 #
-print "scanning translation_list's...\n";
+print "## Scanning translation_list's:\n";
 open RL,"find $MANROOT -name translation_list|sort|";
 while(<RL>){
     print;
@@ -59,6 +61,7 @@ while(<RL>){
     my $tl = $_;
     unless(m|.*manual/([^/]*)/translation_list|){next;}
     my $pkg=$1;
+    my ($rc, $lc, $cc) = (0, 0, 0);
 
     open TL, $tl || die "cannot open $tl";
     while (<TL>){
@@ -72,7 +75,8 @@ while(<RL>){
 	    my $dst = "../man$ti{lsec}/$ti{lname}.$ti{lsec}.html";
 	    $link_hash{"$page"} = $dst;
 	    push @{$page_name{"$name,$sec"}}, "$page";
-	    print "collect link        : $page => $dst\n";
+	    print "collect link        : $page => $dst\n" if $debug;
+	    $lc++;
 	    next;
 	}
 
@@ -80,7 +84,8 @@ while(<RL>){
 	    my $src = "$pkg/release/man$sec/$name.$sec";
 	    $roff_hash{"$page"} = $src;
 	    push @{$page_name{"$name,$sec"}}, "$page";
-	    print "collect roff        : $page <= $src\n";
+	    print "collect roff        : $page <= $src\n" if $debug;
+	    $rc++;
 	    next;
 	}
 
@@ -95,17 +100,20 @@ while(<RL>){
 </DIV>
 EOM
 
-	    print "collect contrib roff: <= $src\n";
+	    print "collect contrib roff: <= $src\n" if $debug;
+	    $cc++;
 	    next;
 	}
     }
+    printf "roff: %d / link: %d / contrib: %d\n", $rc, $lc, $cc;
     close TL;
 }
 close RL;
 
+print "## Counting identical names:\n";
 foreach my $key (sort keys %page_name){
     my $num = $#{$page_name{$key}} + 1;
-    print "$key: $num\n";
+    print "$key: $num\n" if $debug;
 }
 #
 # 変換開始。
@@ -114,7 +122,7 @@ foreach my $key (sort keys %page_name){
 #
 # 重複ページ用の index.
 #
-print "creating index for pages with identical names...\n";
+print "## Creating index for pages with identical names:\n";
 foreach my $fkey (sort keys %page_name){
     if ($#{ $page_name{$fkey} } > 0){
 	my ($name,$sec) = split /,/, $fkey;
@@ -145,6 +153,7 @@ foreach my $fkey (sort keys %page_name){
 #
 # roff -> html
 #
+print "## Converting roff to html:\n";
 foreach my $fkey (sort keys %roff_hash){
     my ($pkg, $name, $sec);
     ($pkg,$name,$sec)=split /,/, $fkey;
@@ -154,7 +163,7 @@ foreach my $fkey (sort keys %roff_hash){
 
     system("mkdir -p $hdir");
 
-    print "converting $pkg/$name.$sec...";
+    print "converting $pkg/$name.$sec..." if $debug;
     my $roffpage = "$MANROOT/$roff_hash{$fkey}";
 
     # roff page への link.
@@ -220,12 +229,13 @@ foreach my $fkey (sort keys %roff_hash){
     }
     close M2H;
     close WL;
-    print "done.\n";
+    print "done.\n" if $debug;
 }
 
 #
 # make symlinks
 #
+print "## Making symlinks:\n";
 foreach my $fkey (sort keys %link_hash){
     my ($pkg, $name, $sec) = split /,/, $fkey;
 
@@ -240,7 +250,7 @@ foreach my $fkey (sort keys %link_hash){
 
     system("cd $hdir; ln -s $dst $name.$sec.html");
 
-    print "$pkg/man$sec/$name.$sec.html: create symlink to $dst\n";
+    print "$pkg/man$sec/$name.$sec.html: create symlink to $dst\n" if $debug;
      next;
 }
 
