@@ -43,9 +43,9 @@ roff: stamp/www-roff-modified
 
 stamp/www-roff-modified: stamp/cvs-status-modified
 	@mkdir -p $(WWWROFF)
-	$(RSYNC) -a --delete --omit-dir-times --stats -I $(ROFFSRC)/ $(WWWROFF)
+	rsync -ac --delete --omit-dir-times --stats -I $(ROFFSRC)/ $(WWWROFF)
 	@mkdir -p $(WWWPOD)
-	$(RSYNC) -a --delete --omit-dir-times --stats -I $(PODSRC)/ $(WWWPOD)
+	rsync -ac --delete --omit-dir-times --stats -I $(PODSRC)/ $(WWWPOD)
 	touch $@
 
 #
@@ -91,7 +91,7 @@ guide:
 
 .PHONY:	web-extra
 web-extra:
-	rsync -av manual/LDP_man-pages/untrans.html $(WWWROOT)/LDP_untrans.html
+	rsync -acv manual/LDP_man-pages/untrans.html $(WWWROOT)/LDP_untrans.html
 
 #
 # archive related rules
