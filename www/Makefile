@@ -23,7 +23,6 @@ CONTENTS = index.html section.html copyright.html
 #
 all: contents
 	make -C INDEX/
-	make -C man-ja/
 	make -C announcement/
 	make -C news/
 
@@ -45,7 +44,6 @@ clean:
 	@rm -f $(CONTENTS) *.tar.gz
 	-$(RM) -rf per-pkg/
 	make -C INDEX/ clean
-	make -C man-ja/ clean
 	make -C announcement/ clean
 
 install: all
