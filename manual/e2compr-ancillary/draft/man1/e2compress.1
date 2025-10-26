@@ -1,0 +1,308 @@
+.\" -*- nroff -*-
+.\"WORD:		user space		ユーザー空間
+.\"WORD:		attribute		アトリビュート
+.\"WORD:		fragment		フラグメント
+.\"WORD:		suffix			サフィックス
+.\"
+.TH E2COMPRESS 1 "April 1997" "E2Compress Utilities"
+
+.\".SH NAME
+.\"e2compress, e2decompress \- compress file in a format readable by the kernel on a Linux second extended file system
+.SH 名前
+e2compress, e2decompress \- Linux 2nd 拡張ファイルシステム上のファイルをカーネルが利用できる形式で圧縮
+
+.\".SH SYNOPSIS
+.\"(N.B. This manual page is not up to date.  The results of `e2compress --help' are reasonably
+.\"correct, as is the information in the Texinfo file: *See
+.\"(e2compr)e2compress.)
+.SH 書式
+このマニュアルページは、更新されていない。`e2compress --help'を実行して
+得られる結果が、正しい。それは、Texinfo ファイルの情報のままである。((e2compr)e2compressを見よ。)
+.B e2compress
+[
+.B \-vf
+]
+[
+.B -m
+algorithm_name
+]
+[
+.B -b
+cluster_size
+]
+[
+.B -S
+suffix
+]
+.I files ...
+.PP
+.B e2decompress
+[
+.B \-vf
+]
+[
+.B -S
+suffix
+]
+.I files ...
+
+.\".SH DESCRIPTION
+.\".B e2compress
+.\"compresses the files directly into the format readable by the kernel
+.\"on a second extended file system.
+.SH 説明
+.B e2compress
+は、Linux 2nd 拡張ファイルシステム上のファイルを、カーネルが読める形式に、
+直接圧縮する。
+
+.\"Unlike 
+.\".B chattr +c,
+.\".B e2compress
+.\"does the compression jobs in the user space.
+.\"This may have some advantages.
+.B chattr +c,
+を使うのと異なり、
+.B e2compress
+は、圧縮作業をユーザー空間(user space)で行う。
+この方法には、いくらかの利点がありうる。
+
+.\".B e2compress
+.\"opens the file it is working on, and creates a new temporary file
+.\"(whose name is derived from the original file by adding 
+.\".B suffix
+.\"(`~z~' by default)) for
+.\"which the automatic compression will be turned off.
+.B e2compress
+は、作業のためにファイルをオープンするとともに、自動圧縮を行わないように
+設定されたテンポラリーファイルを作る。(テンポラリーファイルの名称は、
+元のファイル名に
+.B suffix
+(デフォルトは`~z~')を加えたものである。)
+
+.\"It then reads from the input file, compresses each cluster in memory,
+.\" verifies the compression by decompressing to a work area and comparing
+.\"  with the original, and then writes the compressed data to the temporary
+.\"file, using the lseek() system call to create the necessary holes as it goes.
+それから、入力ファイルを読み、メモリ上でクラスタ(cluster)毎に圧縮し、
+ワークエリアに伸張したものと元のデータを比較することにより圧縮データを検査する。
+こののち、テンポラリーファイルに、lseek()システムコールでうまく動作するように
+すき間を作りながら、圧縮データを書きこむ。
+
+.\"When it is done, automatic compression is turned on again for the
+.\"temporary file, and the temporary file is renamed to replace the
+.\" original file.
+以上が終わったら、テンポラリーファイルを自動圧縮が有効な状態にし、
+最後に、テンポラリーファイルを元のファイルを置き換える形でリネームする。
+
+
+.LP
+.\"When 
+.\".B e2decompress
+.\"or
+.\".B e2compress -d
+.\"is called to decompress a file,
+ファイルを伸張するには、
+.B e2decompress
+または、
+.B e2compress -d
+を使用する。
+
+.\"we create a temporary file, remove the compression attribute,
+.\" attempt to disable automatic decompression 
+.\"on the input file, and do decompression in user space, performing some
+.\"checks on the way.
+テンポラリーファイルを作り、圧縮アトリビュート(attribute)を取り除く。
+次に入力ファイルの自動伸張を無効にするよう試みた後、途中でいくらかのチェックを
+行いながら、ユーザー空間(user space)で伸長を行う。
+
+.LP
+.\"Using 
+.\".B e2compress
+.\"instead of
+.\".B chattr +c
+.\"has some advantages.
+.B chattr +c
+の代わりに、
+.B e2compress
+を使うことには利点がある。
+
+.\"The main one is that the resulting file will not be fragmented as it
+.\"would be with 
+.\".B chattr
+主な利点の一つは、
+.B chattr
+を使った場合と違って、圧縮の結果としてえられるファイルがフラグメント(fragment)
+を起こさない。
+.\": this comes from the fact that 
+.\".B e2compress
+.\"does not free some blocks as the kernel would do.
+.\"Also, the compression is done in the user space.
+: これは、
+カーネルが圧縮を個行った場合と異なり、
+.B e2compress
+はブロックを解放することがない事による。
+.\"Some people may consider it is better.
+この方がより好ましいと考える人もいる。
+
+.\".B e2compress 
+.\"is also more safe, since the compressed data is
+.\"immediatly checked for decompression.
+.B e2compress
+は、圧縮の際に正しく伸張できるか確認するので、より安全である。
+
+.LP
+.\"One disadvantage of using 
+.\".B e2compress
+.\"is that the original file and the temporay must coexist.
+.\"This may be not possible if the file system is completely full.
+.B e2compress
+を使うことの欠点のひとつは、テンポラリーファイルが元のファイルと
+同時に存在してしまうことである。このために、ファイルシステムが完全に
+一杯であるときに、圧縮できなくなる。
+.\".B chattr +c
+.\"will work even on a completely full file system.
+.B chattr +c
+は、ファイルシステムがたとえ完全に一杯であっても動作する。
+
+.\".SH OPTIONS
+.SH オプション
+
+.TP
+.I -m algorithm_name
+.\"Set the algorithm used for compression.
+.\"Valid algorithms are the same as for the
+.\".B chattr
+.\"utility.
+圧縮に使用するアルゴリズムを設定する。有効なアルゴリズムは、
+.B chattr
+ユーティリティと同じである。
+
+.TP
+.I -S suffix
+.\"Uses the provided suffix to create the temporary file, instead of the
+.\"default suffix (which is `~z~').
+テンポラリーファイルを作成する際に、デフォルトのサフィックス(suffix)
+(`~z~')の代わりに指定のサフィックス(suffix)を使う。
+
+.TP
+.I -b cluster_size
+.\"Set the cluster size (measured in filesystem blocks) for compressed files.
+.\"Valid sizes are the same as for the
+.\".B chattr
+.\"utility.
+圧縮ファイルに使用するクラスタ(cluster)サイズ(ファイルシステムのブロック数で
+数える)を設定する。有効なクラスタ(cluster)サイズは、
+.B chattr
+ユーティリティと同じである。
+
+.TP
+.I -c
+.\"Compress files.  This is the default behaviour, unless the program is
+.\"called under the name
+.\".B e2decompress
+ファイルを圧縮する。これは、このプログラムが
+.B e2decompress
+という名前で実行されなかった場合の、デフォルト動作である。
+
+.TP
+.I -d
+.\"Decompress files.
+ファイルを伸張する。
+
+.TP
+.I -f
+.\"Force compression.  If this flag is not used, 
+.\".B e2compress
+.\"will stop if the input file has more than one link, or if the temporary file
+.\"already exists.
+.\"If this flag is used, 
+.\".B e2compress 
+.\"will continue.
+.\"No verification will be performed when you use this flag.
+強制圧縮を行う。このオプションが使われないときは、
+.B e2compress
+は、テンポラリーファイルがすでに存在していたり、入力ファイルのリンク数が2以上
+であった場合、処理を中止する。
+このオプションが指定されたときは、
+.B e2compress 
+は、そのような場合でも処理を続行する。このオプションを指定すると
+照合は行われない。
+
+.TP
+.I -h
+.\"Display a short help message.
+ヘルプメッセージを表示する。
+
+.TP
+.I -v
+.\"Display some statistics about clusters.
+クラスタ(cluster)に関する統計値を表示する。
+
+.\".SH AUTHOR
+.SH 著者
+.\".B e2compress
+.\"was first written by Antoine de Maricourt <dumesnil@etca.fr>, and has
+.\"been extensively modified by Peter Moulder <reiter@netspace.net.au>.
+.B e2compress
+は、最初に、Antoine de Maricourt <dumesnil@etca.fr> によって作成された。
+のちに、 Peter Moulder <reiter@netspace.net.au> によって拡張的な変更が行われた。
+
+.\".SH BUGS AND LIMITATIONS
+.SH バグと制限
+.\"This program still isn't finished -- but it's now ready enough that the author uses it
+.\"to compress directory trees (find DIRS -type f -print0|xargs -0 e2compress -mgzip9 -b32).
+このプログラムはまだ完成していない。しかし、著者がディレクトリツリーを圧縮
+するために使う
+(find DIRS -type f -print0|xargs -0 e2compress -mgzip9 -b32)
+には十分な状態にある。
+
+.LP
+.\"The precise behaviour of this program in certain circumstances has changed.
+.\"This will continue to occur until it is considered `finished' in some sense.
+ある条件下でのこのプログラムの適切な振る舞いは、変更されている。
+このようなことは、何らかの意味で「完成」と思えるようになるまで、起こりうる。
+.LP
+.\"Any writes to the file while e2compress is in action (that is to say
+.\"after e2compress has read the file but before the file is replaced
+.\"with the compressed version) are lost. 
+e2compressが動作している間(言い換えれば、e2compressがファイルを読んだ後、
+圧縮済みの半に置き換えられるまでの間)に行われたファイルへの書き込みは、
+すべて失われる。
+
+.\" (For decompressing, no writes
+.\"are possible because the NOCOMPR flag is set on the input file, which
+.\"prevents any other processes from having the file open.)
+(ちなみに、伸張処理のときは、NOCOMPRフラグが、他のプロセスがファイルを開くのを抑止するため、書き込むことはできない。 )
+.\"  In both
+.\"cases (compressing and decompressing) the results of ,any `chmod', `chown' or
+.\"`touch' operation during this period` will be lost.
+圧縮時にも、伸張時にも、この期間に行われた、`chmod'. `chwon', `touch'等の
+オペレーションの結果は失われる。
+
+.\".SH AVAILABILITY
+.\"The latest release of this program is available from the e2compr home page,
+.\"<http://netspace.net.au/~reiter/e2compr/software.html#ancillary>
+.SH 入手方法
+このプログラムの最新リリースは、e2compr home page 
+<http://netspace.net.au/~reiter/e2compr/software.html#ancillary>
+から入手できる。
+.\".SH SEE ALSO
+.SH 関連項目
+.BR chattr (1)
+,
+.BR e2ratio (1)
+, 
+.BR lsattr (1)
+
+
+
+
+
+
+
+
+
+
+
+
+
