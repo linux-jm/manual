@@ -37,6 +37,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+<LI>_LINK(INDEX/gnu.html#GNU_which, GNU which 2.23 の翻訳)を更新しました。
+<SMALL>(2025/10/27)</SMALL>
+
 <LI>_LINK(INDEX/gnu.html#GNU_binutils, GNU binutils の翻訳)を一部更新しました。
 <SMALL>(2025/10/17)</SMALL>
 
