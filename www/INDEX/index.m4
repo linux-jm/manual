@@ -67,18 +67,6 @@ _HEADER(`JM インデックス')
  </DD>
 </DL>
 
-<H2>POD ページ</H2>
-<DL>
- <DT><A HREF="pod.html">POD pages</A>
-  m4_esyscmd(`../bin/pagesize.perl pod.html')
- </DT>
- <DD>
-  Perl 関連パッケージで良く用いられる、
-  POD (plain old documentation) 形式で書かれたページです。
-  html での閲覧も可能です。
- </DD>
-</DL>
-
  
 <H2>作業用</H2>
 <DL>

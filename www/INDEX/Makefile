@@ -7,7 +7,7 @@ ifndef WORKDIR
 WORKDIR         = /var/tmp/JM
 endif
 
-INDICES = ldp.html linux.html gnu.html misc.html pod.html progress.html info.html
+INDICES = ldp.html linux.html gnu.html misc.html progress.html info.html
 .SUFFIXES: .m4 .html
 
 .m4.html:
@@ -26,8 +26,6 @@ linux.html: ../bin/list.perl linux.list
 
 misc.html: ../bin/list.perl misc.list
 
-pod.html: ../bin/list_pod.perl pod.list
-
 progress.html: ../bin/list_progress.perl
 
 *.html: ../jm_www.m4 ../../stamp/cvs-status-modified
@@ -36,7 +34,7 @@ progress.html: ../bin/list_progress.perl
 	make -C ../.. chkcvs
 
 clean:
-	rm -f index.html ldp.html linux.html gnu.html misc.html pod.html progress.html info.html
+	rm -f index.html ldp.html linux.html gnu.html misc.html progress.html info.html
 
 install: all
 
