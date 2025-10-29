@@ -10,7 +10,6 @@ use strict 'vars';
 
 my $HTML = "../html";
 my $ROFF = "../manual";
-my $POD  = "../pod";
 my %tl;
 
 #
@@ -22,20 +21,6 @@ my $CVSROOT = $ARGV[0];
 unless (-d $CVSROOT) {die "$CVSROOT does not exist\n"};
 
 open TL, "cat `find $CVSROOT/manual -name translation_list` |";
-while (<TL>){
-    chomp;
-    my %ti = line2hash($_);
-    if ($ti{'kind'} ne 'roff') { next;}
-
-    my $stat = $ti{'stat'};
-    if ($stat =~ /^up2/) {next;}
-    if ($stat eq "cnt_upd") {next;}
-
-    push @{ $tl{$ti{'pkg'}} }, $_;
-}
-close TL;
-
-open TL, "cat `find $CVSROOT/pod -name translation_list` |";
 while (<TL>){
     chomp;
     my %ti = line2hash($_);
@@ -78,13 +63,8 @@ foreach $key (sort keys %tl){
 	my $comment = $ti{'comment'};
 
         my ($base, $loc);
-        if ($sec ne "pod"){
-	    $base = $ROFF;
-	    $loc = "man$sec/$name.$sec";
-	} else {
-	    $base = $POD;
-	    $loc = "$name.pod";
-	}
+	$base = $ROFF;
+	$loc = "man$sec/$name.$sec";
 
 	print "<DT>$ti{'mark'}\n";
 	print "<STRONG>$name.$sec</STRONG>\n";

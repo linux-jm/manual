@@ -17,15 +17,12 @@ my ($idx_header, $idx_footer);
 # $CVSROOT は CVS リポジトリの root,
 # $DISTROOT は配布アーカイブイメージの root.
 #
-if (@ARGV < 3) {die "$0 srcroot dstroot pod2man\n"};
+if (@ARGV < 2) {die "$0 srcroot dstroot\n"};
 
 my $CVSROOT = $ARGV[0];
 unless (-d $CVSROOT) {die "$CVSROOT does not exist\n"};
 
 my $DISTROOT = $ARGV[1];
-
-my $POD2MAN = $ARGV[2];
-unless (-x $POD2MAN) {die "$POD2MAN is not executable\n"};
 
 # for debugging purpose:
 #
@@ -123,58 +120,3 @@ foreach my $fkey (sort keys %link_hash){
     print DF "$link_hash{$fkey}\n";
     close DF;
 }
-
-#
-# pod データ収集
-#
-print "TRANSLATING pod -> man\n";
-my (%pod_hash);
-#
-# $CVSROOT/pod/$pkg/translation_list の scan.
-#
-print "scanning translation_list's...\n";
-open RL,"find $CVSROOT/pod -name translation_list|";
-while(<RL>){
-    print;
-    chomp;
-    my $tl = $_;
-
-    unless(/.*pod\/([^\/]*)\/translation_list/){next;}
-    my $pkg=$1;
-
-    system "mkdir -p $DISTROOT/manual/$pkg/";
-    system "cp $tl $DISTROOT/manual/$pkg";
-
-    open TL, $tl || die "cannot open $tl";
-    while (<TL>){
-	chomp;
-	my %ti = line2hash($_);
-	my $name = $ti{fname};
-	my $page = "$pkg,$name";
-
-	if ($ti{kind} eq roff && $ti{stat} =~ /^up/) {
-	    my $src = "$pkg/release/$name.pod";
-	    $pod_hash{"$page"} = $src;
-	    print "collect pod : $page <= $src\n";
-	    next;
-	}
-    }
-    close TL;
-}
-close RL;
-
-#
-# 変換開始
-#
-foreach my $fkey (sort keys %pod_hash){
-    my ($pkg,$name)=split /,/, $fkey;
-
-    my $dstdir = "$DISTROOT/manual/$pkg/man1";
-    my $dstfile = "$dstdir/$name.1";
-    my $srcfile = "$CVSROOT/pod/$pod_hash{$fkey}";
-
-    print "translate $srcfile => $dstfile\n";
-    system "mkdir -p $dstdir";
-    system "$POD2MAN --utf8 $srcfile > $dstfile";
-}
-
