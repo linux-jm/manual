@@ -14,7 +14,7 @@ endif
 .SUFFIXES: .m4 .html
 
 .m4.html:
-	m4 -P -D _WORKDIR=$(WORKDIR) $*.m4 | cat -s | nkf -w > $*.html
+	m4 -P -D _WORKDIR=$(WORKDIR) $*.m4 > $*.html
 
 CONTENTS = index.html section.html copyright.html
 

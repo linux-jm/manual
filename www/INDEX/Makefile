@@ -11,8 +11,7 @@ INDICES = ldp.html linux.html gnu.html misc.html progress.html info.html
 .SUFFIXES: .m4 .html
 
 .m4.html:
-	m4 -P -D _WORKDIR=$(WORKDIR) -D _WWWROOT=$(WWWROOT) $*.m4\
-	| nkf -w > $*.html
+	m4 -P -D _WORKDIR=$(WORKDIR) -D _WWWROOT=$(WWWROOT) $*.m4 > $*.html
 
 all: index.html
 

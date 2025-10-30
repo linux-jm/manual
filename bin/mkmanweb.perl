@@ -132,7 +132,7 @@ foreach my $fkey (sort keys %page_name){
 	print "$name.$sec has $cand candidates..." if $debug;
 
 	system("mkdir -p $WWWROOT/$SELECT/man$sec");
-	open WL, "| nkf -w > $WWWROOT/$SELECT/man$sec/$name.$sec.html";
+	open WL, "> $WWWROOT/$SELECT/man$sec/$name.$sec.html";
 
 	my $header = $idx_header;
 	$header =~ s/_PAGENAME_/$name/ge;
@@ -181,7 +181,7 @@ foreach my $fkey (sort keys %roff_hash){
     }
 
     open M2H, "$MAN2HTML $roffpage |";
-    open WL,"| nkf -w > $hfile";
+    open WL,"> $hfile";
 
     while(<M2H>){
 	if($. < 2){next;};	

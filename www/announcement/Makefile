@@ -7,7 +7,7 @@ OBJS = index.html 19991015.html 20001120.html
 .SUFFIXES: .m4 .html
 
 .m4.html:
-	m4 -P $*.m4 | nkf -w > $*.html
+	m4 -P $*.m4 > $*.html
 
 default: $(OBJS)
 

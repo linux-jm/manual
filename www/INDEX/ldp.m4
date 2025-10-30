@@ -30,7 +30,7 @@ _HEADER(`JM インデックス (LDP man-pages)')
  をご覧ください。
 </P>
 
-m4_esyscmd(../bin/list_ldp.perl ../../manual _WWWROOT | nkf -w)
+m4_esyscmd(../bin/list_ldp.perl ../../manual _WWWROOT)
 
 _CREDITS
 

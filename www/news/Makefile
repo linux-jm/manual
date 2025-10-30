@@ -9,7 +9,7 @@ OBJS = $(patsubst %.m4, %.html, $(SRCS))
 .SUFFIXES: .m4 .html
 
 .m4.html:
-	m4 -P $*.m4 | nkf -w > $*.html
+	m4 -P $*.m4 > $*.html
 
 default: $(OBJS)
 
