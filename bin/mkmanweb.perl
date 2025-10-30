@@ -56,7 +56,7 @@ my (%roff_hash, %page_name, %link_hash, %cont_link);
 print "## Scanning translation_list's:\n";
 open RL,"find $MANROOT -name translation_list|sort|";
 while(<RL>){
-    print;
+    print if $debug;
     chomp;
     my $tl = $_;
     unless(m|.*manual/([^/]*)/translation_list|){next;}
@@ -105,7 +105,7 @@ EOM
 	    next;
 	}
     }
-    printf "roff: %d / link: %d / contrib: %d\n", $rc, $lc, $cc;
+    printf "%-32s roff: %d / link: %d / contrib: %d\n", $pkg, $rc, $lc, $cc;
     close TL;
 }
 close RL;
@@ -123,12 +123,13 @@ foreach my $key (sort keys %page_name){
 # 重複ページ用の index.
 #
 print "## Creating index for pages with identical names:\n";
+my $cnt = 0;
 foreach my $fkey (sort keys %page_name){
     if ($#{ $page_name{$fkey} } > 0){
 	my ($name,$sec) = split /,/, $fkey;
 
 	my $cand = $#{$page_name{$fkey}} + 1;
-	print "$name.$sec has $cand candidates...";
+	print "$name.$sec has $cand candidates..." if $debug;
 
 	system("mkdir -p $WWWROOT/$SELECT/man$sec");
 	open WL, "| nkf -w > $WWWROOT/$SELECT/man$sec/$name.$sec.html";
@@ -146,9 +147,11 @@ foreach my $fkey (sort keys %page_name){
 	}
 	print WL $idx_footer;
 	close WL;
-	print "index created.\n";
+	print "index created.\n" if $debug;
+	$cnt++;
     }
 }
+print "$cnt pages created.\n";
 
 #
 # roff -> html
@@ -183,9 +186,6 @@ foreach my $fkey (sort keys %roff_hash){
     while(<M2H>){
 	if($. < 2){next;};	
 	if(/^Time:/){next;};
-
-#	s/(\&\#([0-9]+)\;)/pack("C",$1)/ge;
-	s///g;
 
 	s|</HEAD><BODY>|$START|ge;
 	s|<A HREF=\"(http://localhost)?/cgi-bin/man/man2html\">Return to Main Contents</A>|$NAVI|ge;
