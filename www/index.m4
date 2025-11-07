@@ -37,6 +37,12 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+<LI>_LINK(INDEX/gnu.html#GNU_diffutils, GNU diffutils 3.12 の翻訳)を更新しました。
+<SMALL>(2025/11/07)</SMALL>
+
+<LI>_LINK(INDEX/gnu.html#GNU_gzip, GNU gzip 1.14 の翻訳)を更新しました。
+<SMALL>(2025/11/05)</SMALL>
+
 <LI>_LINK(INDEX/gnu.html#GNU_which, GNU which 2.23 の翻訳)を更新しました。
 <SMALL>(2025/10/27)</SMALL>
 
