@@ -1,5 +1,5 @@
 NAME = coreutils
-V = 8.32
+V = 9.9
 
 DEST = draft/man1
 
@@ -26,11 +26,11 @@ $(tarball):
 stamp-setup:	$(tarball)
 	tar xJf $^
 	ln -s $(srcdir) source
-	@(cd source \
-	  && git init \
-	  && git add . \
-	  && git commit -m 'Import $(PACKAGE_NAME).' > /dev/null \
-	)
+#	@(cd source \
+#	  && git init \
+#	  && git add . \
+#	  && git commit -m 'Import $(PACKAGE_NAME).' > /dev/null \
+#	)
 	mkdir -p source/locale/ja/LC_MESSAGES
 	@set -e ; if [ -f patch-$(V).diff ]; then \
 	  patch -p0 < patch-$(V).diff; \
