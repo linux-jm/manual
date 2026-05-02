@@ -1,7 +1,7 @@
 PACKAGE_NAME = less
 man_numbers = 1
 
-THRESH = 100
+THRESH = 12
 EXTFLAGS =
 PO4AFLAGS += -k $(THRESH) $(EXTFLAGS)
 
