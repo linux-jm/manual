@@ -1,5 +1,5 @@
 NAME = coreutils
-V = 9.9
+V = 9.11
 
 DEST = draft/man1
 
@@ -54,6 +54,8 @@ stamp-build:	stamp-configure
 	 && make src/arch \
 	 && make src/coreutils \
 	 && make src/hostname \
+	 && make src/kill \
+	 && make src/uptime \
 	 && make man/arch.1 \
 	 && make man/coreutils.1 \
 	 && make man/hostname.1 \
