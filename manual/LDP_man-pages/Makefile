@@ -1,5 +1,5 @@
 # Upstream version
-V = 5.10
+V = 6.18
 
 PERKAMON_DIR = perkamon
 LANGS = ja
