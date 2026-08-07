@@ -7,10 +7,13 @@ m4_define(`_SUB_ONE',1)m4_dnl
 m4_include(../jm_www.m4)
 m4_include(../news_macro.m4)
 _EDIT_WARNING(index)
-_HEADER(JM 新着情報)
+_HEADER(`JM 新着情報 (2022 年分)')
+
+_NEWS_INDEX
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+
  <H2><A NAME="20220624">2022/6/24</A></H2>
   <DL>
   <DT>_LINK(../INDEX/gnu.html#GNU_gzip, GNU gzip 1.12 の翻訳)を更新しました。</DT>
@@ -330,31 +333,6 @@ m4_dnl ML2CVS ADD HERE
    _UPD_PAGE(at, at.1)
   </DD>
  </DL>
-
- <H2><A NAME="OLDNEWS">過去の新着情報</A></H2>
- <UL>
-  <LI>_LINK(news2022.html,2022年)
-  <LI>_LINK(news2021.html,2021年)
-  <LI>_LINK(news2020.html,2020年)
-  <LI>_LINK(news2016-2019.html,2016-2019年)
-  <LI>_LINK(news2015.html,2015年)
-  <LI>_LINK(news2014.html,2014年)
-  <LI>_LINK(news2013.html,2013年)
-  <LI>_LINK(news2012.html,2012年)
-  <LI>_LINK(news2011.html,2011年)
-  <LI>_LINK(news2010.html,2010年)
-  <LI>_LINK(news2009.html,2009年)
-  <LI>_LINK(news2008.html,2008年)
-  <LI>_LINK(news2007.html,2007年)
-  <LI>_LINK(news2006.html,2006年)
-  <LI>_LINK(news2005.html,2005年)
-  <LI>_LINK(news2004.html,2004年)
-  <LI>_LINK(news2003.html,2003年)
-  <LI>_LINK(news2002.html,2002年)
-  <LI>_LINK(news2001.html,2001年)
-  <LI>_LINK(news2000.html,2000年)
-  <LI>_LINK(news1999.html,1999年)
- </UL>
 
   _CREDITS
 
