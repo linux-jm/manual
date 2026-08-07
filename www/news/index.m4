@@ -11,6 +11,21 @@ _HEADER(JM 新着情報)
 
 m4_dnl This is an anchor for ml2cvs. DON'T REMOVE.
 m4_dnl ML2CVS ADD HERE
+
+ <H2><A NAME="2025">2025年</A></H2>
+ <LI>_LINK(INDEX/gnu.html#GNU_diffutils, GNU diffutils 3.12 の翻訳)を更新しました。
+ <SMALL>(2025/11/07)</SMALL>
+
+ <LI>_LINK(INDEX/gnu.html#GNU_gzip, GNU gzip 1.14 の翻訳)を更新しました。
+ <SMALL>(2025/11/05)</SMALL>
+
+ <LI>_LINK(INDEX/gnu.html#GNU_which, GNU which 2.23 の翻訳)を更新しました。
+ <SMALL>(2025/10/27)</SMALL>
+
+ <LI>_LINK(INDEX/gnu.html#GNU_binutils, GNU binutils の翻訳)を一部更新しました。
+ <SMALL>(2025/10/17)</SMALL>
+
+  
  <H2><A NAME="20220624">2022/6/24</A></H2>
   <DL>
   <DT>_LINK(../INDEX/gnu.html#GNU_gzip, GNU gzip 1.12 の翻訳)を更新しました。</DT>
