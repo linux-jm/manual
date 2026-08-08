@@ -21,7 +21,7 @@ source:	stamp-build
 
 tarball:	$(tarball)
 $(tarball):
-	wget http://core.ring.gr.jp/pub/GNU/coreutils/$@
+	wget https://ftp.jaist.ac.jp/pub/GNU/coreutils/$@
 
 stamp-setup:	$(tarball)
 	tar xJf $^
