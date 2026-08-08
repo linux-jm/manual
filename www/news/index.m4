@@ -348,6 +348,7 @@ m4_dnl ML2CVS ADD HERE
 
  <H2><A NAME="OLDNEWS">過去の新着情報</A></H2>
  <UL>
+  <LI>_LINK(news2025.html,2025年)
   <LI>_LINK(news2022.html,2022年)
   <LI>_LINK(news2021.html,2021年)
   <LI>_LINK(news2020.html,2020年)
