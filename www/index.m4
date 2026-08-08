@@ -37,6 +37,23 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+<LI>_LINK(INDEX/ldp.html#LDP_man-pages, LDP_man-pages の、時間関係コマンドやライブラリ等の翻訳)を更新/追加/削除しました。詳しくは同梱の Changelog を参照してください。
+<SMALL>(2026/08/07)</SMALL>
+<DL>
+  <DT>変更分</DT>
+    <DD>time.1</DD>
+    <DD>adjtimex.2,clock_getres.2,clock_nanosleep.2,gettimeofday.2,nanosleep.2,stime.2,time.2,times.2,utime.2,utimensat.2</DD>
+    <DD>adjtime.3,clock.3,clock_getcpuclockid.3,ctime.3,difftime.3,dysize.3,ftime.3,futimes.3,getdate.3,strftime.3,strptime.3,timegm.3,timeradd.3,tzset.3</DD>
+    <DD>tzfile.5</DD>
+    <DD>time.7</DD>
+    <DD>tzselect.8,zdump.8,zic.8</DD>
+  <DT>追加分</DT>
+    <DD>getumask.3,ntp_gettime.3</DD>
+  <DT>削除分</DT>
+    <DD>ioctl_ficlonerange.2,ioctl_fideduperange.2,ioctl_fslabel.2,ioctl_getfsmap.2,ioctl_iflags.2,ioctl_ns.2</DD>
+    <DD>getumask.3</DD>
+</DL>
+</BR>
 <LI>_LINK(INDEX/gnu.html#GNU_bc, GNU bc 1.08.2 の翻訳)を更新しました。
 <SMALL>(2026/06/08)</SMALL>
 
