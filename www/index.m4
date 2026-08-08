@@ -67,42 +67,6 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <LI>_LINK(INDEX/gnu.html#GNU_binutils, GNU binutils の翻訳)を一部更新しました。
 <SMALL>(2025/10/17)</SMALL>
 
-<LI>_LINK(INDEX/gnu.html#GNU_gzip, GNU gzip 1.12 の翻訳)を更新しました。
-詳細は_LINK(news/index.html#20220624,こちら)。
-<SMALL>(2022/6/24)</SMALL>
-
-<LI>_LINK(INDEX/misc.html#qpdf, qpdf 10.6.3 の翻訳)を追加しました。
-<SMALL>(2022/6/14)</SMALL>
-
-<LI>_LINK(INDEX/linux.html#upower, upower 0.99.17 の翻訳)を追加しました。
-<SMALL>(2022/6/13)</SMALL>
-
-<LI>_LINK(INDEX/gnu.html#GNU_grub, GNU grub 2.06 の翻訳)を追加/更新しました。
-詳細は_LINK(news/index.html#20220612,こちら)。
-<SMALL>(2022/6/12)</SMALL>
-
-<LI>_LINK(INDEX/gnu.html#GNU_gdb, GNU gdb 11.2 の翻訳)を追加/更新しました。
-<SMALL>(2022/6/11)</SMALL>
-
-<LI>_LINK(INDEX/linux.html#kmod, kmod 29 の翻訳)を追加しました。
-詳細は_LINK(news/index.html#20220607,こちら)。
-<SMALL>(2022/6/7)</SMALL>
-
-<LI>_LINK(INDEX/gnu.html#GNU_gsl, GNU gsl 2.7.1 の翻訳)を追加しました。
-<SMALL>(2022/6/6)</SMALL>
-
-<LI>_LINK(INDEX/misc.html#dblatex, dblatex 0.3.12 の dblatex.1 の翻訳)を追加しました。
-<SMALL>(2022/6/5)</SMALL>
-
-<LI>_LINK(INDEX/gnu.html#GNU_autoconf, GNU autoconf 2.71 の翻訳)を追加しました。
-<SMALL>(2022/6/4)</SMALL>
-
-<LI>_LINK(INDEX/misc.html#meson, meson 0.62.1 の meson.1 の翻訳)を追加しました。
-<SMALL>(2022/05/31)</SMALL>
-
-<LI>_LINK(INDEX/misc.html#nginx, nginx 1.21.6 の nginx.8 の翻訳)を追加しました。
-<SMALL>(2022/05/30)</SMALL>
-
 </UL>
 
 <UL>
