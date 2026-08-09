@@ -38,13 +38,13 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <UL>
 
 <LI>_LINK(INDEX/ldp.html#LDP_man-pages, LDP_man-pages の、時間関係コマンドやライブラリ等の翻訳)を更新/追加/削除しました。詳しくは同梱の Changelog を参照してください。
-<SMALL>(2026/08/07)</SMALL>
+<SMALL>(2026/08/09)</SMALL>
 <DL>
   <DT>変更分</DT>
     <DD>time.1</DD>
     <DD>adjtimex.2,clock_getres.2,clock_nanosleep.2,gettimeofday.2,nanosleep.2,stime.2,time.2,times.2,utime.2,utimensat.2</DD>
     <DD>adjtime.3,clock.3,clock_getcpuclockid.3,ctime.3,difftime.3,dysize.3,ftime.3,futimes.3,getdate.3,strftime.3,strptime.3,timegm.3,timeradd.3,tzset.3</DD>
-    <DD>tzfile.5</DD>
+    <DD>tzfile.5 (HTML変換に問題があり、Webページでは公開していません)</DD>
     <DD>time.7</DD>
     <DD>tzselect.8,zdump.8,zic.8</DD>
   <DT>追加分</DT>
