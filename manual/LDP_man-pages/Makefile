@@ -6,7 +6,7 @@ LANGS = ja
 THRESH = 80
 THRESH_REL = 80
 FLAGS ?=
-PO4AFLAGS ?= -k $(THRESH) $(FLAGS)
+PO4AFLAGS ?= -k $(THRESH) $(FLAGS) -o groff_code=verbatim
 
 PO4A_SUBDIRS = $(sort $(patsubst %.cfg, %, $(notdir $(wildcard po4a/*/*.cfg))))
 
