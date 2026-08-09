@@ -48,9 +48,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
     <DD>time.7</DD>
     <DD>tzselect.8,zdump.8,zic.8</DD>
   <DT>追加分</DT>
-    <DD>getumask.3,ntp_gettime.3</DD>
+    <DD>ntp_gettime.3</DD>
   <DT>削除分</DT>
-    <DD>ioctl_ficlonerange.2,ioctl_fideduperange.2,ioctl_fslabel.2,ioctl_getfsmap.2,ioctl_iflags.2,ioctl_ns.2</DD>
+    <DD>ioctl_ficlonerange.2,ioctl_fideduperange.2,ioctl_fslabel.2,ioctl_getfsmap.2,ioctl_iflags.2,ioctl_ns.2,getumask.3</DD>
     <DD>getumask.3</DD>
 </DL>
 </BR>
