@@ -40,6 +40,7 @@ Linux JM プロジェクトガイド
    upstream_update.rst
    sysadmin/transproc_cheatsheet.rst
    LDP_man-pages_update.rst
+   help2man.rst
    GNU_coreutils_update.rst
    translation_list.rst
    jmpost_import.rst
