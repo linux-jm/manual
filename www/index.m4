@@ -37,7 +37,7 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
-<LI>_LINK(INDEX/gnu.html#rsync, rsync 3.5.1 の翻訳)を追加しました。
+<LI>_LINK(INDEX/misc.html#rsync, rsync 3.5.1 の翻訳)を追加しました。
 <SMALL>(2026/10/12)</SMALL>
 
 <LI>_LINK(INDEX/ldp.html#LDP_man-pages, LDP_man-pages の、時間関係コマンドやライブラリ等の翻訳)を更新/追加/削除しました。詳しくは同梱の Changelog を参照してください。
