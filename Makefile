@@ -52,6 +52,7 @@ html: stamp/www-html-modified
 stamp/www-html-modified: stamp/cvs-release-modified
 	-$(RM) -rf $(WWWHTML)
 	mkdir -p $(WWWHTML)
+	~/man2html -v|grep man2html
 	$(MKRWWW) $(ROFFSRC) $(WWWHTML) $(MAN2HTML)
 	touch $@
 
