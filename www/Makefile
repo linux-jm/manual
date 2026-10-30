@@ -45,6 +45,7 @@ clean:
 	-$(RM) -rf per-pkg/
 	make -C INDEX/ clean
 	make -C announcement/ clean
+	make -C news/ clean
 
 install: all
 	rsync -acv --delete --omit-dir-times \
