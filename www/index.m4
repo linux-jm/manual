@@ -37,6 +37,9 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
+<LI>_LINK(INDEX/misc.html#sysstat, sysstat 12.8.0 の翻訳)を追加しました。
+<SMALL>(2026/11/02)</SMALL>
+
 <LI>_LINK(INDEX/misc.html#rsync, rsync 3.5.1 の翻訳)を追加しました。
 <SMALL>(2026/10/12)</SMALL>
 
