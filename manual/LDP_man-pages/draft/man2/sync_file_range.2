@@ -1,0 +1,142 @@
+.\" Copyright 2006, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2007 Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2007-01-09, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.43
+.\" Updated 2008-08-06, Akihiro MOTOKI, LDP v3.05
+.\" Updated 2010-04-23, Akihiro MOTOKI, LDP v3.24
+.\" Updated 2012-05-31, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH sync_file_range 2 2026\-02\-08 "Linux man\-pages (unreleased)" 
+.SH 名前
+sync_file_range \- ファイルセグメントをディスクと同期する
+.SH LIBRARY
+Standard C library (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#define _GNU_SOURCE\fP         /* See feature_test_macros(7) */
+\fB#define _FILE_OFFSET_BITS 64\fP
+\fB#include <fcntl.h>\fP
+.P
+\fBint sync_file_range(int \fP\fIfd\fP\fB, off_t \fP\fIoffset\fP\fB, off_t \fP\fInbytes\fP\fB,\fP
+\fB                    unsigned int \fP\fIflags\fP\fB);\fP
+.fi
+.SH 説明
+\fBsync_file_range\fP()  を使うと、ファイルディスクリプター \fIfd\fP
+で参照されるオープンされたファイルのディスクとの同期に関して、 きめ細かな制御が可能となる。
+.P
+\fIoffset\fP は、同期を行うファイルの領域の開始バイトである。 \fInbytes\fP には同期を行う領域の長さをバイト単位で指定する。
+\fInbytes\fP が 0 の場合は、 \fIoffset\fP からファイル末尾までの全バイトを同期する。 同期はシステムのページサイズの単位で行われる。
+\fIoffset\fP はページ境界にあわせて切り下げられ、 \fI(offset+nbytes\-1)\fP はページ境界にあわせて切り上げられる。
+.P
+ビットマスク引数 \fIflags\fP には以下の値を指定することができる:
+.TP 
+\fBSYNC_FILE_RANGE_WAIT_BEFORE\fP
+何らかの書き込みを行う前に、指定された領域のページで 書き出しを行うようにデバイスドライバにすでに要求が発行されている
+ページの書き出しが全て完了するのを待つ。
+.TP 
+\fBSYNC_FILE_RANGE_WRITE\fP
+指定された領域のページで、書き出し要求が発行されていない 全ての dirty (キャッシュだけが変更されている) ページの 書き出しを開始する。
+リクエストキューの大きさより多く書き込もうとした場合には、 この処理は停止 (block) する可能性がある点に注意すること。
+.TP 
+\fBSYNC_FILE_RANGE_WAIT_AFTER\fP
+何らかの書き込み後に、指定された領域の全てのページの 書き出しが行われるのを待つ。
+.P
+\fIflags\fP に 0 を指定した場合、何もしないことを表す。
+.SS 警告
+このシステムコールは非常に危険であり、 移植性が必要なプログラムで使用すべきではない。 これらの操作ではどれもファイルのメタデータの書き出しを行わない。
+したがって、アプリケーションにより作成済みのディスクブロックの 上書きの実行が確実に行われない限り、クラッシュの後でもデータが 利用できる保証はない。
+書き込みが上書きだけであるかを知るためのユーザーインターフェースは存在しない。 (\fIbtrfs\fP などの) copy\-on\-write
+動作を使ったファイルシステムでは、 既存の割り当て済みのブロックに対する上書き自体ができない。 前もって割り当てられた領域に書き込みを行う場合、
+多くのファイルシステムでは block allocator への書き込みも必要となるが、 このシステムコールは block allocator
+のディスクへの同期を行わない。 このシステムコールはディスク書き込みキャッシュのフラッシュを
+行わないので、揮発性のディスク書き込みキャッシュを使ったシステムでは このシステムコールではデータの一貫性を確保できないことになる。
+.SS 詳細
+\fBSYNC_FILE_RANGE_WAIT_BEFORE\fP と \fBSYNC_FILE_RANGE_WAIT_AFTER\fP は I/O エラーや
+\fBENOSPC\fP 状態を検出し、呼び出し元にこれらの情報を返す。
+.P
+\fIflags\fP の役に立つビットの組み合わせを以下に示す:
+.TP 
+\fBSYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE\fP
+指定された範囲内のページで、 \fBsync_file_range\fP()  が呼び出された際に dirty であった全てのページが、
+確実に書き出し対象となるようにする。 これは、start\-write\-for\-data\-integrity 操作
+(データ完全性確保のための書き込み開始の操作) である。
+.TP 
+\fBSYNC_FILE_RANGE_WRITE\fP
+指定された範囲内のページで、現在書き出し中でない全ての dirty ページの 書き出しを開始する。これは非同期のディスクへのフラッシュ
+(flush\-to\-disk)  操作である。データ完全性確保が必要な操作としては適切ではない。
+.TP 
+\fBSYNC_FILE_RANGE_WAIT_BEFORE\fP (or \fBSYNC_FILE_RANGE_WAIT_AFTER\fP)
+指定された範囲内の全てのページの書き出しの完了を待つ。 このフラグは、前に行われた操作 \fBSYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE\fP の後に使用でき、この操作の完了を待ち、結果を取得することができる。
+.TP 
+\fBSYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE | SYNC_FILE_RANGE_WAIT_AFTER\fP
+これは write\-for\-data\-integrity 操作 (データ完全性確保のための書き込み) であり、指定された範囲内の、
+\fBsync_file_range\fP()  が呼ばれた時点で dirty な全てのページが ディスクに格納されることが保証される。
+.SH 返り値
+成功の場合、 \fBsync_file_range\fP()  は 0 を返す。失敗の場合、\-1 を返し、 \fIerrno\fP にエラーを示す値を設定する。
+.SH エラー
+.TP 
+\fBEBADF\fP
+\fIfd\fP が有効なファイルディスクリプターではない。
+.TP 
+\fBEINVAL\fP
+\fIflags\fP に不正なビットが指定されている。または \fIoffset\fP か \fInbytes\fP が不正である。
+.TP 
+\fBEIO\fP
+I/O エラー。
+.TP 
+\fBENOMEM\fP
+メモリー不足である。
+.TP 
+\fBENOSPC\fP
+ディスク領域不足である。
+.TP 
+\fBESPIPE\fP
+\fIfd\fP が、通常のファイル、ブロックデバイス、ディレクトリ以外のものを指している。
+.SH バージョン
+.SS sync_file_range2()
+.\" See kernel commit edd5cd4a9424f22b0fa08bef5e299d41befd5622
+いくつかのアーキテクチャー (例えば、 PowerPC や ARM) では、 64 ビットの引数は適切なレジスターの組に割り当てる必要がある。
+このようなアーキテクチャーでは、 「書式」に書かれている \fBsync_file_range\fP() の呼び出しシグネチャーで、 引数 \fIfd\fP と
+\fIoffset\fP の間のパディング (詰めもの) でレジスターが一つ消費されてしまう (詳細は \fBsyscall\fP(2) 参照)。 そのため、
+これらのアーキテクチャーでは引数が適切な順序になった別のシステムコールが定義されている。
+.P
+.in +4n
+.EX
+\fBint sync_file_range2(int \fP\fIfd\fP\fB, unsigned int \fP\fIflags\fP\fB,\fP
+\fB                     off_t \fP\fIoffset\fP\fB, off_t \fP\fInbytes\fP\fB);\fP
+.EE
+.in
+.P
+上記の点以外は、このシステムコールの動作は \fBsync_file_range\fP() と
+全く同じである。このシステムコールに対するライブラリによるサポートは
+glibc では提供されていない。
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 2.6.17.
+.SS sync_file_range2()
+このバージョンのシステムコールは、Linux 2.6.20 で ARM アーキテクチャーで
+初めて登場し、 \fBarm_sync_file_range\fP() という名前であった。
+Linux 2.6.22 で、同様のシステムコールが PowerPC 用に追加された際に、
+システムコールの名前が変更された。
+glibc によるサポートが提供されているアーキテクチャーでは、
+glibc のラッパー関数は \fBsync_file_range\fP() という名前で
+\fBsync_file_range2\fP() を適切に使用するようになっている。
+.SH 注意
+\fB_FILE_OFFSET_BITS\fP should be defined to be 64 in code that takes the
+address of \fBsync_file_range\fP, if the code is intended to be portable to
+traditional 32\-bit x86 and ARM platforms where \fBoff_t\fP's width defaults to
+32 bits.
+.SH 関連項目
+\fBfdatasync\fP(2), \fBfsync\fP(2), \fBmsync\fP(2), \fBsync\fP(2)
