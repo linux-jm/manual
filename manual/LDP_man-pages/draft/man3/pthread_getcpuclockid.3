@@ -1,0 +1,165 @@
+'\" t
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2012  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2012-05-03, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH pthread_getcpuclockid 3 2025\-08\-20 "Linux man\-pages (未リリース)" 
+.SH 名前
+pthread_getcpuclockid \- スレッドの CPU 時間時計の ID を取得する
+.SH LIBRARY
+POSIX threads library (\fIlibpthread\fP,\~\fI\-lpthread\fP)
+.SH 書式
+.nf
+\fB#include <pthread.h>\fP
+\fB#include <time.h>\fP
+.P
+\fBint pthread_getcpuclockid(pthread_t \fP\fIthread\fP\fB, clockid_t *\fP\fIclockid\fP\fB);\fP
+.fi
+.SH 説明
+.\" The clockid is constructed as follows:
+.\" *clockid = CLOCK_THREAD_CPUTIME_ID | (pd->tid << CLOCK_IDFIELD_SIZE)
+.\" where CLOCK_IDFIELD_SIZE is 3.
+The \fBpthread_getcpuclockid\fP()  function obtains the ID of the CPU\-time
+clock of the thread whose ID is given in \fIthread\fP, and returns it in the
+location pointed to by \fIclockid\fP.
+.SH 返り値
+成功すると、この関数は 0 を返す。
+エラーの場合、 0 以外のエラー番号を返す。
+.SH エラー
+.TP 
+\fBENOENT\fP
+.\" CLOCK_THREAD_CPUTIME_ID not defined
+.\"
+.\" Looking at nptl/pthread_getcpuclockid.c an ERANGE error would
+.\" be possible if kernel thread IDs took more than 29 bits (which
+.\" they currently cannot).
+スレッド単位の CPU 時間時計はこのシステムではサポートされていない。
+.TP 
+\fBESRCH\fP
+ID が \fIthread\fP のスレッドが見つからなかった。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbx lb lb
+l l l.
+インターフェース	属性	値
+T{
+.na
+.nh
+\fBpthread_getcpuclockid\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.SH 標準規格
+POSIX.1\-2008.
+.SH 歴史
+glibc 2.2.  POSIX.1\-2001.
+.SH 注意
+\fIthread\fP が呼び出したスレッドを参照している場合、
+クロック ID \fBCLOCK_THREAD_CPUTIME_ID\fP が指定されていれば、
+\fBclock_gettime\fP(2) と \fBclock_settime\fP(2) が操作するのと同じ時計
+を参照する ID が返される。
+.SH 例
+以下のプログラムは、スレッドを作成し、それから
+\fBclock_gettime\fP(2) を使ってプロセス全体の CPU 時間を取得し、
+\fBpthread_getcpuclockid\fP(3) を使って 2 つのスレッドが消費した
+スレッド毎の CPU 時間を取得する。
+下記のシェルのセッションは実行例である。
+.P
+.in +4n
+.EX
+$\fB ./a.out\fP;
+Main thread sleeping
+Subthread starting infinite loop
+Main thread consuming some CPU time...
+Process total CPU time:    1.368
+Main thread CPU time:      0.376
+Subthread CPU time:        0.992
+.EE
+.in
+.SS プログラムのソース
+.\" SRC BEGIN (pthread_getcpuclockid.c)
+\&
+.EX
+/* Link with "\-lrt" */
+\&
+#include <err.h>
+#include <errno.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <time.h>
+#include <unistd.h>
+\&
+static void *
+thread_start(void *arg)
+{
+    printf("Subthread starting infinite loop\[rs]n");
+    for (;;)
+        continue;
+}
+\&
+static void
+pclock(char *msg, clockid_t cid)
+{
+    struct timespec ts;
+\&
+    printf("%s", msg);
+    if (clock_gettime(cid, &ts) == \-1)
+        err(EXIT_FAILURE, "clock_gettime");
+    printf("%4jd.%03ld\[rs]n", (intmax_t) ts.tv_sec, ts.tv_nsec / 1000000);
+}
+\&
+int
+main(void)
+{
+    pthread_t thread;
+    clockid_t cid;
+    int s;
+\&
+    s = pthread_create(&thread, NULL, thread_start, NULL);
+    if (s != 0)
+        errc(EXIT_FAILURE, s, "pthread_create");
+\&
+    printf("Main thread sleeping\[rs]n");
+    sleep(1);
+\&
+    printf("Main thread consuming some CPU time...\[rs]n");
+    for (unsigned int j = 0; j < 2000000; j++)
+        getppid();
+\&
+    pclock("Process total CPU time: ", CLOCK_PROCESS_CPUTIME_ID);
+\&
+    s = pthread_getcpuclockid(pthread_self(), &cid);
+    if (s != 0)
+        errc(EXIT_FAILURE, s, "pthread_getcpuclockid");
+    pclock("Main thread CPU time:   ", cid);
+\&
+    /* The preceding 4 lines of code could have been replaced by:
+       pclock("Main thread CPU time:   ", CLOCK_THREAD_CPUTIME_ID); */
+\&
+    s = pthread_getcpuclockid(thread, &cid);
+    if (s != 0)
+        errc(EXIT_FAILURE, s, "pthread_getcpuclockid");
+    pclock("Subthread CPU time: 1    ", cid);
+\&
+    exit(EXIT_SUCCESS);         /* Terminates both threads */
+}
+.EE
+.\" SRC END
+.SH 関連項目
+\fBclock_gettime\fP(2), \fBclock_settime\fP(2), \fBtimer_create\fP(2),
+\fBclock_getcpuclockid\fP(3), \fBpthread_self\fP(3), \fBpthreads\fP(7), \fBtime\fP(7)
