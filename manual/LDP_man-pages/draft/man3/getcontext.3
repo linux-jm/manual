@@ -1,0 +1,113 @@
+'\" t
+.\" Copyright 2001, Andries E. Brouwer <aeb@cwi.nl>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2013  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2013-03-25, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH getcontext 3 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+getcontext, setcontext \- ユーザーコンテキストを取得/設定する
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#include <ucontext.h>\fP
+.P
+\fBint getcontext(ucontext_t *\fP\fIucp\fP\fB);\fP
+\fBint setcontext(const ucontext_t *\fP\fIucp\fP\fB);\fP
+.fi
+.SH 説明
+System V 的な環境では、 \fImcontext_t\fP および \fIucontext_t\fP という 2 つの型と、
+\fBgetcontext\fP(), \fBsetcontext\fP(), \fBmakecontext\fP(3), \fBswapcontext\fP(3)  という
+4 つの関数が \fI<ucontext.h>\fP で定義されており、あるプロセス内部で制御下にある複数のスレッド間で、
+ユーザーレベルのコンテキスト切替えができるようになっている。
+.P
+\fImcontext_t\fP 型はマシン依存で、外部からは隠蔽されている。 \fIucontext_t\fP 型は構造体で、少なくとも以下の 4
+つのフィールドを持つ。
+.P
+.in +4n
+.EX
+typedef struct ucontext_t {
+    struct ucontext_t *uc_link;
+    sigset_t          uc_sigmask;
+    stack_t           uc_stack;
+    mcontext_t        uc_mcontext;
+    ...
+} ucontext_t;
+.EE
+.in
+.P
+\fIsigset_t\fP と \fIstack_t\fP は \fI<signal.h>\fP で定義されている。 ここで \fIuc_link\fP は、
+現在のコンテキストが終了したとき、 続いて切り替わるコンテキストへのポインターである (現在のコンテキストが \fBmakecontext\fP(3)
+で生成されたものの場合)。 \fIuc_sigmask\fP はこのコンテキストでブロックされている シグナル群である (\fBsigprocmask\fP(2)
+を見よ)。 \fIuc_stack\fP はこのコンテキストが用いているスタックである (\fBsignalstack\fP(2)  を見よ)。
+\fIuc_mcontext\fP は保存されているコンテキストの マシン特有の表現形式であり、 ここには呼び出したスレッドのマシンレジスターが格納される。
+.P
+\fBgetcontext\fP()  関数は、 ポインター \fIucp\fP が指す構造体を、 現在アクティブなコンテキストに初期化する。
+.P
+The function \fBsetcontext\fP()  restores the user context pointed to by
+\fIucp\fP.  A successful call does not return.  The context should have been
+obtained by a call of \fBgetcontext\fP(), or \fBmakecontext\fP(3), or received as
+the third argument to a signal handler (see the discussion of the
+\fBSA_SIGINFO\fP flag in \fBsigaction\fP(2)).
+.P
+コンテキストが \fBgetcontext\fP()  の呼び出しによって得られていたものの場合は、
+プログラムはこの呼び出しから返った直後からのように実行を継続する。
+.P
+コンテキストが \fBmakecontext\fP(3)  の呼び出しによって得られていたものの場合は、 プログラムの実行はその
+\fBmakecontext\fP(3)  呼び出しの第二引数で指定された関数 \fIfunc\fP を呼び出すかたちで継続する。 \fIfunc\fP から返ると、
+\fBmakecontext\fP(3)  呼び出しの第一引数で指定されていた \fIucp\fP 構造体の \fIuc_link\fP メンバで継続する。 このメンバが
+NULL だった場合は、そのスレッドは終了する。
+.P
+コンテキストがシグナルハンドラーの呼び出しによって得られていたものの場合は、 古い標準によれば
+「プログラムの実行はシグナルによって割り込まれた命令の次の命令から継続される」。 しかしこの文は SUSv2 で削除されたので、
+現在の判断は「結果は定義されていない」である。
+.SH 返り値
+When successful, \fBgetcontext\fP()  returns 0 and \fBsetcontext\fP()  does not
+return.  On error, both return \-1 and set \fIerrno\fP to indicate the error.
+.SH エラー
+定義されていない。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbx lb lb
+l l l.
+インターフェース	属性	値
+T{
+.na
+.nh
+\fBgetcontext\fP(),
+\fBsetcontext\fP()
+T}	Thread safety	MT\-Safe race:ucp
+.TE
+.SH 標準規格
+None.
+.SH 歴史
+SUSv2, POSIX.1\-2001.
+.P
+POSIX.1\-2008 removes these functions, citing portability issues, and
+recommending that applications be rewritten to use POSIX threads instead.
+.SH 注意
+このメカニズムの最古の実装は、 \fBsetjmp\fP(3)/\fBlongjmp\fP(3)  機構であった。
+これらにはシグナルコンテキストの取り扱いが定義されていなかったので、 次の段階では \fBsigsetjmp\fP(3)/\fBsiglongjmp\fP(3)
+のペアが現われた。 現在の機構ではずっと細かな制御ができる。 一方 \fBgetcontext\fP()  から返ったとき、 これが最初の呼び出しであったか、
+それとも \fBsetcontext\fP()  呼び出しからのものであるかを 区別する容易な方法がなくなってしまった。
+ユーザーは「しおり」機構を自分で作らなければならない。 レジスター変数は (レジスターはリストアされてしまうので) これをやってくれない。
+.P
+シグナルが発生すると、 現在のユーザーコンテキストは保存され、 シグナルハンドラー用のコンテキストがカーネルによって生成される。 今後はハンドラーに
+\fBlongjmp\fP(3)  を使わせないこと: この関数のコンテキスト下での動作は定義されていない。 代わりに \fBsiglongjmp\fP(3)  か
+\fBsetcontext\fP()  を使うこと。
+.SH 関連項目
+\fBsigaction\fP(2), \fBsigaltstack\fP(2), \fBsigprocmask\fP(2), \fBlongjmp\fP(3),
+\fBmakecontext\fP(3), \fBsigsetjmp\fP(3), \fBsignal\fP(7)

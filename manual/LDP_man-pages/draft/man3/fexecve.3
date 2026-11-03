@@ -1,0 +1,108 @@
+'\" t
+.\" Copyright 2006-2014, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI all rights reserved.
+.\" Translated 2006-07-31, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2009-02-23, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.18
+.\"
+.TH fexecve 3 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+fexecve \- ファイルディスクリプターで指定されたプログラムを実行する
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#include <unistd.h>\fP
+.P
+\fBint fexecve(int \fP\fIfd\fP\fB, char *const \fP\fIargv\fP\fB[], char *const \fP\fIenvp\fP\fB[]);\fP
+.fi
+.P
+.RS -4
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.RE
+.P
+\fBfexecve\fP():
+.nf
+    Since glibc 2.10:
+        _POSIX_C_SOURCE >= 200809L
+    Before glibc 2.10:
+        _GNU_SOURCE
+.fi
+.SH 説明
+\fBfexecve\fP()  performs the same task as \fBexecve\fP(2), with the difference
+that the file to be executed is specified via a file descriptor, \fIfd\fP,
+rather than via a pathname.  The file descriptor \fIfd\fP must be opened
+read\-only (\fBO_RDONLY\fP)  or with the \fBO_PATH\fP flag and the caller must have
+permission to execute the file that it refers to.
+.SH 返り値
+A successful call to \fBfexecve\fP()  never returns.  On error, the function
+does return, with a result value of \-1, and \fIerrno\fP is set to indicate the
+error.
+.SH エラー
+エラーは \fBexecve\fP(2)  と同じだが、以下のエラーが追加になっている:
+.TP 
+\fBEINVAL\fP
+\fIfd\fP が有効なファイルディスクリプターでない。または \fIargv\fP が NULL である。または \fIenvp\fP が NULL である。
+.TP 
+\fBENOENT\fP
+The close\-on\-exec flag is set on \fIfd\fP, and \fIfd\fP refers to a script.  See
+BUGS.
+.TP 
+\fBENOSYS\fP
+The kernel does not provide the \fBexecveat\fP(2)  system call, and the
+\fI/proc\fP filesystem could not be accessed.
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbx lb lb
+l l l.
+インターフェース	属性	値
+T{
+.na
+.nh
+ \fBfexecve\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.SH 標準規格
+POSIX.1\-2008.
+.SH 歴史
+glibc 2.3.2.
+.P
+.\" glibc commit 43ffc53a352a67672210c9dd4959f6c6b7407e60
+On Linux with glibc versions 2.26 and earlier, \fBfexecve\fP()  is implemented
+using the \fBproc\fP(5)  filesystem, so \fI/proc\fP needs to be mounted and
+available at the time of the call.  Since glibc 2.27, if the underlying
+kernel supports the \fBexecveat\fP(2)  system call, then \fBfexecve\fP()  is
+implemented using that system call, with the benefit that \fI/proc\fP does not
+need to be mounted.
+.SH 注意
+\fBfexecve\fP() の裏にある考えは、呼び出し元が、ファイルを実行する前に実行ファイルの内容を検査 (チェックサムを確認)
+できるようにすることである。単に、ファイルをオープンして内容のチェックサムを検査し、それから \fBexecve\fP(2)
+を行うのは十分ではない。なぜなら、2 つのステップの間で、ファイル名や、パス名のディレクトリの前の方が入れ換えられる可能性があるからだ
+(例えば、シンボリックリンクのリンク先を変更するなど)。\fBfexecve\fP() は、チェックサムの検査と \fBfexecve\fP()
+の呼び出しの間で、ファイルの\fI内容\fPを変更できる可能性があるという問題への対策にはならない。この問題に対する対応策は、確実に、ファイルのアクセス許可を設定し、悪意のあるユーザーがファイルを変更できないようにすることである。
+.P
+\fBfexecve\fP() を使用する際の理にかなった方法は、 \fIfd\fP に close\-on\-exec フラグをセットし、
+実行するプログラムを通じてそのファイルディスクリプターが外部にもれないようにすることである。 この方法は 2 つの理由から理にかなっている。 1
+つ目は、 これにより不必要にファイルディスクリプターが消費されるのを防ぐことができる
+(実行されるプログラムは普通プログラム自身が参照するファイルを参照する必要はない)。 2 つ目は、 \fBfexecve\fP() が再帰的に使用された場合、
+close\-on\-exec フラグを利用することで、 再帰の各ステップで新しいプログラムに一つ余計にファイルディスクリプターが渡されることによる、
+ファイルディスクリプターの枯渇を防ぐことができる (ただし「バグ」を参照)。
+.SH バグ
+\fIfd\fP がスクリプトを参照していて (つまり、 最初の行に文字 \fI#!\fP
+で始まるスクリプトインタープリターの指示がある実行テキストファイルである)、 \fIfd\fP に close\-on\-exec フラグがセットされていた場合、
+\fBfexecve\fP() はエラー \fBENOENT\fP で失敗する。 このエラーが起こるのは、 スクリプトインタープリターが実行される時点までに、
+close\-on\-exec フラグにより \fIfd\fP がすでにクローズされてしまっているからである。 そのため、 スクリプトを参照する場合には、
+close\-on\-exec フラグを \fIfd\fP にセットすることはできず、 「注意」の節で説明されている問題が起こり得る。
+.SH 関連項目
+\fBexecve\fP(2), \fBexecveat\fP(2)
