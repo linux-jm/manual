@@ -1,0 +1,158 @@
+.\" Copyright 2006, Jens Axboe <axboe@kernel.dk>
+.\" Copyright 2006, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2007  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2007-02-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH tee 2 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+tee \- パイプの中身を複製する
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#define _GNU_SOURCE\fP         /* feature_test_macros(7) 参照 */
+\fB#include <fcntl.h>\fP
+.P
+\fBssize_t tee(int \fP\fIfd_in\fP\fB, int \fP\fIfd_out\fP\fB, size_t \fP\fIsize\fP\fB, unsigned int \fP\fIflags\fP\fB);\fP
+.fi
+.\" Return type was long before glibc 2.7
+.SH 説明
+.\" Example programs http://brick.kernel.dk/snaps
+.\"
+.\"
+.\" add a "tee(in, out1, out2)" system call that duplicates the pages
+.\" (again, incrementing their reference count, not copying the data) from
+.\" one pipe to two other pipes.
+\fBtee\fP()  duplicates up to \fIsize\fP bytes of data from the pipe referred to
+by the file descriptor \fIfd_in\fP to the pipe referred to by the file
+descriptor \fIfd_out\fP.  It does not consume the data that is duplicated from
+\fIfd_in\fP; therefore, that data can be copied by a subsequent \fBsplice\fP(2).
+.P
+\fIflags\fP is a bit mask that is composed by ORing together zero or more of
+the following values:
+.TP  1.9i
+\fBSPLICE_F_MOVE\fP
+現在のところ \fBtee\fP()  では何の効果もない。 \fBsplice\fP(2)  参照。
+.TP 
+\fBSPLICE_F_NONBLOCK\fP
+入出力で停止 (block) しない。詳細は \fBsplice\fP(2)  参照。
+.TP 
+\fBSPLICE_F_MORE\fP
+現在のところ \fBtee\fP()  では何の効果もないが、将来的には実装される可能性がある。 \fBsplice\fP(2)  参照。
+.TP 
+\fBSPLICE_F_GIFT\fP
+\fBtee\fP()  では未使用。 \fBvmsplice\fP(2)  参照。
+.SH 返り値
+成功して完了すると、 \fBtee\fP()  は入出力間で複製されたバイト数を返す。 返り値 0 はデータの転送が行われなかったことを示す。
+この場合、処理を停止 (block) しても無意味である。 なぜなら、 \fIfd_in\fP
+が参照するパイプの書き込み側に接続されている者がいないからである。
+.P
+エラーの場合、 \fBtee\fP()  は \-1 を返し、 \fIerrno\fP にエラーを示す値を設定する。
+.SH エラー
+.TP 
+\fBEAGAIN\fP
+\fBSPLICE_F_NONBLOCK\fP was specified in \fIflags\fP or one of the file
+descriptors had been marked as nonblocking (\fBO_NONBLOCK\fP)\fB,\fP and the
+operation would block.
+.TP 
+\fBEINVAL\fP
+\fIfd_in\fP と \fIfd_out\fP のどちらかがパイプを参照していない。もしくは \fIfd_in\fP と \fIfd_out\fP
+が同じパイプを参照している。
+.TP 
+\fBENOMEM\fP
+メモリー不足。
+.SH 標準規格
+Linux.
+.SH 歴史
+Linux 2.6.17, glibc 2.5.
+.SH 注意
+概念としては、 \fBtee\fP()  は二つのパイプ間でデータのコピーを行う。 しかし、実際には実データのコピーは行われない。 内部では、
+\fBtee\fP()  は入力側に対する参照だけを作成することで出力側にデータを 追加する。
+.SH 例
+以下の例は、 \fBtee\fP()  システムコールを使って、 基本的な \fBtee\fP(1)  プログラムを実装したものである。 以下は利用例である。
+.P
+.in +4n
+.EX
+$\fB date | ./a.out out.log | cat\fP;
+Tue Oct 28 10:06:00 CET 2014
+$\fB cat out.log\fP;
+Tue Oct 28 10:06:00 CET 2014
+.EE
+.in
+.SS プログラムのソース
+.\" SRC BEGIN (tee.c)
+\&
+.EX
+#define _GNU_SOURCE
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+\&
+int
+main(int argc, char *argv[])
+{
+    int      fd;
+    ssize_t  size, ssize;
+\&
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <file>\[rs]n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+\&
+    fd = open(argv[1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd == \-1) {
+        perror("open");
+        exit(EXIT_FAILURE);
+    }
+\&
+    for (;;) {
+        /*
+         * tee stdin to stdout.
+         */
+        size = tee(STDIN_FILENO, STDOUT_FILENO,
+                  INT_MAX, SPLICE_F_NONBLOCK);
+        if (size < 0) {
+            if (errno == EAGAIN)
+                continue;
+            perror("tee");
+            exit(EXIT_FAILURE);
+        }
+        if (size == 0)
+            break;
+\&
+        /*
+         * Consume stdin by splicing it to a file.
+         */
+        while (size > 0) {
+            ssize = splice(STDIN_FILENO, NULL, fd, NULL,
+                          size, SPLICE_F_MOVE);
+            if (ssize < 0) {
+                perror("splice");
+                exit(EXIT_FAILURE);
+            }
+            size \-= ssize;
+        }
+    }
+\&
+    close(fd);
+    exit(EXIT_SUCCESS);
+}
+.EE
+.\" SRC END
+.SH 関連項目
+\fBsplice\fP(2), \fBvmsplice\fP(2), \fBpipe\fP(7)
