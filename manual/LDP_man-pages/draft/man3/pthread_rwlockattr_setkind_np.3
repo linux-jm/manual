@@ -1,0 +1,92 @@
+.\" Copyright 2010, Novell, Inc.
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH pthread_rwlockattr_setkind_np 3 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+pthread_rwlockattr_setkind_np, pthread_rwlockattr_getkind_np \-
+スレッドの読み書きロック属性オブジェクトの読み書きロック種別の設定、取得を行う
+.SH ライブラリ
+POSIX スレッドライブラリ (\fIlibpthread\fP,\~\fI\-lpthread\fP)
+.SH 書式
+.nf
+\fB#include <pthread.h>\fP
+.P
+\fBint pthread_rwlockattr_setkind_np(pthread_rwlockattr_t *\fP\fIattr\fP\fB,\fP
+\fB                       int \fP\fIpref\fP\fB);\fP
+\fBint pthread_rwlockattr_getkind_np(\fP
+\fB                       const pthread_rwlockattr_t *restrict \fP\fIattr\fP\fB,\fP
+\fB                       int *restrict \fP\fIpref\fP\fB);\fP
+.P
+.fi
+.RS -4
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.RE
+.P
+\fBpthread_rwlockattr_setkind_np\fP(), \fBpthread_rwlockattr_getkind_np\fP():
+.nf
+    _XOPEN_SOURCE >= 500 || _POSIX_C_SOURCE >= 200809L
+.fi
+.SH 説明
+\fBpthread_rwlockattr_setkind_np\fP() 関数は、 \fIattr\fP が参照する読み書きロック属性オブジェクトの「ロック種別
+(lock kind)」を \fIpref\fP で指定された値に設定する。 引数 \fIpref\fP には以下のいずれか一つを設定できる。
+.TP 
+\fBPTHREAD_RWLOCK_PREFER_READER_NP\fP
+これがデフォルトである。 スレッドは複数の読み出しロックを保持できる。 つまり、読み出しロックは再帰的である。 Single Unix
+Specification では、 読み出し側がロックをかけようとした際に、書き込みロックはないが書き込み側が待っていた場合の、動作は規定されていない。
+\fBPTHREAD_RWLOCK_PREFER_READER_NP\fP に設定し、読み出し側に優先度を与えるということは、
+たとえ書き込み側が待っていたとしても、読み出し側が要求したロックを受け取ることを意味する。 読み出し側がいる限り、書き込み側は待つことになる。
+.TP 
+\fBPTHREAD_RWLOCK_PREFER_WRITER_NP\fP
+.\" ---
+.\" Here is the relevant wording:
+.\"
+.\"     A thread may hold multiple concurrent read locks on rwlock (that is,
+.\"     successfully call the pthread_rwlock_rdlock() function n times).  If
+.\"     so, the thread must perform matching unlocks (that is, it must call
+.\"     the pthread_rwlock_unlock() function n times).
+.\"
+.\" By making write-priority work correctly, I broke the above requirement,
+.\" because I had no clue that recursive read locks are permissible.
+.\"
+.\" If a thread which holds a read lock tries to acquire another read lock,
+.\" and now one or more writers is waiting for a write lock, then the algorithm
+.\" will lead to an obvious deadlock.  The reader will be suspended, waiting for
+.\" the writers to acquire and release the lock, and the writers will be
+.\" suspended waiting for every existing read lock to be released.
+.\" ---
+.\" https://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_rwlock_rdlock.html
+.\" https://sourceware.org/legacy-ml/libc-alpha/2000-01/msg00055.html
+.\" https://sourceware.org/bugzilla/show_bug.cgi?id=7057
+This is intended as the write lock analog of
+\fBPTHREAD_RWLOCK_PREFER_READER_NP\fP.  This is ignored by glibc because the
+POSIX requirement to support recursive read locks would cause this option to
+create trivial deadlocks; instead use
+\fBPTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP\fP which ensures the
+application developer will not take recursive read locks thus avoiding
+deadlocks.
+.TP 
+\fBPTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP\fP
+ロック種別をこの値に設定すると、 読み出しロックが再帰的に行われない限りは、 書き込み側の待ちを避けることができる。
+.P
+\fBpthread_rwlockattr_getkind_np\fP() 関数は、 \fIattr\fP
+が参照する読み書きロック属性オブジェクトのロック種別属性の値をポインター \fIpref\fP に入れて返す。
+.SH 返り値
+成功すると、これらの関数は 0 を返す。 有効なポインター引数が渡された場合、 \fBpthread_rwlockattr_getkind_np\fP()
+は常に成功する。 エラーの場合、 \fBpthread_rwlockattr_setkind_np\fP() は 0 以外のエラー番号を返す。
+.SH エラー
+.TP 
+\fBEINVAL\fP
+\fIpref\fP にサポート外の値が指定された。
+.SH 標準規格
+GNU; hence the suffix "_np" (nonportable) in the names.
+.SH 歴史
+glibc 2.1.
+.SH 関連項目
+\fBpthreads\fP(7)
