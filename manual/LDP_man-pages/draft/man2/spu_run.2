@@ -1,0 +1,186 @@
+.\" Copyright 2006, International Business Machines Corp.
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: GPL-2.0-or-later
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2007  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2007-10-19, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2008-11-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.04
+.\"
+.TH spu_run 2 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+spu_run \- SPU コンテキストを実行する
+.SH LIBRARY
+Standard C library (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#include <sys/spu.h>\fP          /* Definition of \fBSPU_*\fP constants */
+\fB#include <sys/syscall.h>\fP      /* Definition of \fBSYS_*\fP constants */
+\fB#include <unistd.h>\fP
+.P
+\fBint syscall(SYS_spu_run, int \fP\fIfd\fP\fB, uint32_t *\fP\fInpc\fP\fB, uint32_t *\fP\fIevent\fP\fB);\fP
+.fi
+.P
+\fINote\fP: glibc provides no wrapper for \fBspu_run\fP(), necessitating the use
+of \fBsyscall\fP(2).
+.SH 説明
+\fBspu_run\fP()  システムコールは、Cell Broadband Engine アーキテクチャーを実装した PowerPC マシンで
+Synergistic Processor Units (SPU) にアクセスするために 使用される。 \fIfd\fP 引数は、
+\fBspu_create\fP(2)  が返すファイルディスクリプターで、 特定の SPU コンテキストを参照する。 そのコンテキストが物理 SPU
+に割り当てられると、 \fInpc\fP で渡された命令ポインター (instruction pointer) から実行が開始される。
+.P
+SPU コードの実行は同期的 (synchronously) に行われる、つまり SPU が実行中は \fBspu_run\fP()  は停止 (block)
+する。 SPU コードの実行をメイン CPU や他の SPU と並行して行う必要がある場合は、 最初に、その SPU
+コードを実行する新しいスレッドを、(例えば \fBpthread_create\fP(3)  などを使って) 生成しなければならない。
+.P
+\fBspu_run\fP()  が返るときには、SPU のプログラムカウンターの現在値が \fInpc\fP に書き込まれる。 これにより、連続する
+\fBspu_run\fP()  の呼び出しで同じ \fInpc\fP ポインターを使うことができる。
+.P
+\fIevent\fP 引数には、拡張ステータスコード用のバッファーを指定する。 \fBSPU_CREATE_EVENTS_ENABLED\fP フラグ付きで
+SPU コンテキストが作成されると、 \fBspu_run\fP()  が返る前に Linux カーネルによりこのバッファーに
+拡張ステータスコードが格納される。
+.P
+ステータスコードには以下の定数が一つ以上入る。
+.TP 
+\fBSPE_EVENT_DMA_ALIGNMENT\fP
+DMA (direct memory access) のアライメントエラーが発生した。
+.TP 
+\fBSPE_EVENT_INVALID_DMA\fP
+.\" SPE_EVENT_SPE_DATA_SEGMENT is defined, but does not seem to be generated
+.\" at any point (in Linux 5.9 sources).
+無効な MFC (Memory Flow Controller) DMA コマンドを行おうとした。
+.TP 
+\fBSPE_EVENT_SPE_DATA_STORAGE\fP
+DMA ストレージエラーが発生した。
+.TP 
+\fBSPE_EVENT_SPE_ERROR\fP
+不正な命令が実行された。
+.P
+NULL は \fIevent\fP 引数として有効な値である。 この場合、イベントは呼び出し元のプロセスに報告されない。
+.SH 返り値
+On success, \fBspu_run\fP()  returns the value of the \fIspu_status\fP register.
+On failure, it returns \-1 and sets \fIerrno\fP is set to indicate the error.
+.P
+\fIspu_status\fP レジスターの値は、ステータスコードと SPU の \fBstop\-and\-signal\fP 命令が返す 14 ビットのコードの
+ビットマスクで構成される。 後者の 14 ビットのコードはオプションである。 ステータスコードのビットマスクは下記の通りである。
+.TP 
+\fB0x02\fP
+SPU が \fBstop\-and\-signal\fP 命令で停止した。
+.TP 
+\fB0x04\fP
+SPU が \fBhalt (停止)\fP 命令で止まった。
+.TP 
+\fB0x08\fP
+SPU はチャンネルのウェイト中である。
+.TP 
+\fB0x10\fP
+SPU はシングルステップモードであった。
+.TP 
+\fB0x20\fP
+SPU が不正な命令を実行しようとした。
+.TP 
+\fB0x40\fP
+SPU が不正なチャンネルにアクセスしようとした。
+.TP 
+\fB0x3fff0000\fP
+この値のマスクを適用して得られたビット値には、 stop\-and\-signal 命令から返されたコードが入っている。 これらのビットは 0x02
+ビットがセットされている場合にのみ有効である。
+.P
+\fBspu_run\fP()  がエラーを返さなかった場合、下位 8 ビットのうち 1 つ以上は 常にセットされる。
+.SH エラー
+.TP 
+\fBEBADF\fP
+\fIfd\fP が有効なファイルディスクリプターでない。
+.TP 
+\fBEFAULT\fP
+\fInpc\fP が有効なポインターでない。または \fIevent\fP が NULL 以外で、しかも無効なポインターである。
+.TP 
+\fBEINTR\fP
+\fBspu_run\fP()  の実行中にシグナルが発生した。 \fBsignal\fP(7)  参照。 必要であれば、 \fInpc\fP
+の値は新しいプログラムカウンターの値に更新される。
+.TP 
+\fBEINVAL\fP
+\fIfd\fP が \fBspu_create\fP(2)  が返した有効なファイルディスクリプターでない。
+.TP 
+\fBENOMEM\fP
+Memory Flow Controller (MFC) DMA により発生したページフォールトを 処理するのに必要なメモリーがなかった。
+.TP 
+\fBENOSYS\fP
+機能が動作中のシステムで提供されていない。理由は、 ハードウェアで SPU が提供されていないか、 spufs
+モジュールがロードされていないか、のどちらかである。
+.SH STANDARDS
+Linux on PowerPC.
+.SH HISTORY
+Linux 2.6.16.
+.SH 注意
+\fBspu_run\fP()  is meant to be used from libraries that implement a more
+abstract interface to SPUs, not to be used from regular applications.  See
+.UR http:\://www.bsc.es\:/projects\:/deepcomputing\:/linuxoncell/
+.UE
+for the recommended libraries.
+.SH 例
+以下は、簡単な 1 命令の SPU プログラムを \fBspu_run\fP()  システムコールを使って実行させる例である。
+.P
+.\" SRC BEGIN (spu_run.c)
+.EX
+#include <err.h>
+#include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+\&
+int main(void)
+{
+    int       context, fd, spu_status;
+    uint32_t  instruction, npc;
+\&
+    context = syscall(SYS_spu_create, "/spu/example\-context", 0, 0755);
+    if (context == \-1)
+        err(EXIT_FAILURE, "spu_create");
+\&
+    /*
+     * Write a \[aq]stop 0x1234\[aq] instruction to the SPU\[aq]s
+     * local store memory.
+     */
+    instruction = 0x00001234;
+\&
+    fd = open("/spu/example\-context/mem", O_RDWR);
+    if (fd == \-1)
+        err(EXIT_FAILURE, "open");
+    write(fd, &instruction, sizeof(instruction));
+\&
+    /*
+     * set npc to the starting instruction address of the
+     * SPU program.  Since we wrote the instruction at the
+     * start of the mem file, the entry point will be 0x0.
+     */
+    npc = 0;
+\&
+    spu_status = syscall(SYS_spu_run, context, &npc, NULL);
+    if (spu_status == \-1)
+        err(EXIT_FAILURE, "open");
+\&
+    /*
+     * We should see a status code of 0x12340002:
+     *   0x00000002 (spu was stopped due to stop\-and\-signal)
+     * | 0x12340000 (the stop\-and\-signal code)
+     */
+    printf("SPU Status: %#08x\[rs]n", spu_status);
+\&
+    exit(EXIT_SUCCESS);
+}
+.EE
+.\" SRC END
+.\" .SH AUTHORS
+.\" Arnd Bergmann <arndb@de.ibm.com>, Jeremy Kerr <jk@ozlabs.org>
+.SH 関連項目
+\fBclose\fP(2), \fBspu_create\fP(2), \fBcapabilities\fP(7), \fBspufs\fP(7)
