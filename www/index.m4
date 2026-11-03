@@ -37,7 +37,7 @@ JM プロジェクトは、主に Linux 関連のマニュアルページの日�
 <H2><A NAME="WHATSNEW">新着情報</A></H2>
 <UL>
 
-<LI>_LINK(INDEX/misc.html#wsdd, 0.9 の翻訳)を追加しました。
+<LI>_LINK(INDEX/misc.html#wsdd, wsdd 0.9 の翻訳)を追加しました。
 <SMALL>(2026/11/03)</SMALL>
 
 <LI>_LINK(INDEX/misc.html#sysstat, sysstat 12.8.0 の翻訳)を追加しました。
