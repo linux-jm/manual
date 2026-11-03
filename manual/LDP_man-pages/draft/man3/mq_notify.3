@@ -1,0 +1,192 @@
+'\" t
+.\" Copyright 2006, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI all rights reserved.
+.\" Translated 2006-07-31, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2010-04-18, Akihiro MOTOKI, LDP v3.24
+.\" Updated 2010-10-27, Akihiro Motoki, LDP v3.29
+.\"
+.TH mq_notify 3 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+mq_notify \- メッセージ到着時に通知を行うよう登録する
+.SH ライブラリ
+Real\-time library (\fIlibrt\fP,\~\fI\-lrt\fP)
+.SH 書式
+.nf
+\fB#include <mqueue.h>\fP
+\fB#include <signal.h>           \fP/* Definition of SIGEV_* constants */
+.P
+\fBint mq_notify(mqd_t \fP\fImqdes\fP\fB, const struct sigevent *\fP\fInotification\fP\fB);\fP
+.fi
+.SH 説明
+\fBmq_notify\fP()  を使うと、メッセージキューディスクリプター \fImqdes\fP
+で参照される空のメッセージキューに新しくメッセージが到着した時に 非同期の通知 (notification) の配送が行われるように登録したり、
+その解除を行ったりできる。
+.P
+The \fIsevp\fP argument is a pointer to a \fIsigevent\fP structure.  For the
+definition and general details of this structure, see \fBsigevent\fP(3type).
+.P
+\fIsevp\fP が NULL でないポインターであれば、 \fBmq_notify\fP()
+はメッセージ通知を受け取るように呼び出し元のプロセスを登録する。 \fIsevp\fP が指す \fIsigevent\fP 構造体の
+\fIsigev_notify\fP フィールドは、どのような通知を行うのかを指定する。 このフィールドは以下の値のいずれかを持つ。
+.TP 
+\fBSIGEV_NONE\fP
+.\" When is SIGEV_NONE useful?
+「空の (null)」の通知: 呼び出し元のプロセスを通知の宛先として登録するが、 実際にはメッセージが到着した時に通知は送られない。
+.TP 
+\fBSIGEV_SIGNAL\fP
+.\" I don't know of other implementations that set
+.\" si_pid and si_uid -- MTK
+Notify the process by sending the signal specified in \fIsigev_signo\fP.  See
+\fBsigevent\fP(3type)  for general details.  The \fIsi_code\fP field of the
+\fIsiginfo_t\fP structure will be set to \fBSI_MESGQ\fP.  In addition, \fIsi_pid\fP
+will be set to the PID of the process that sent the message, and \fIsi_uid\fP
+will be set to the real user ID of the sending process.
+.TP 
+\fBSIGEV_THREAD\fP
+Upon message delivery, invoke \fIsigev_notify_function\fP as if it were the
+start function of a new thread.  See \fBsigevent\fP(3type)  for details.
+.P
+一つのメッセージキューから通知を受信するように登録できるプロセスは 一つだけである。
+.P
+\fIsevp\fP が NULL で、かつ呼び出し元のプロセスがこのメッセージキューからの 通知を受信するに現在登録している場合、登録を削除する。
+これ以降、別のプロセスがこのメッセージキューから通知を受信するように 登録できるようになる。
+.P
+メッセージ通知は、それまで空のキューに新しいメッセージが到着した 場合にのみ行われる。 \fBmq_notify\fP()
+が呼び出された時にそのキューが空でない場合、 そのキューが空になり、その後新しいメッセージが到着した時に 初めて通知が行われることになる。
+.P
+別のプロセスやスレッドが \fBmq_receive\fP(3)  を使って、空のキューからメッセージの読み出しを待っている場合、
+メッセージ通知の登録は全て無視される。 メッセージは \fBmq_receive\fP(3)  を呼び出しているプロセスやスレッドに配送され、
+メッセージ通知の登録は効力を持ったままとなる。
+.P
+通知は一度だけ行われる。通知が送られた後は、通知要求の登録は削除され、 別のプロセスがメッセージ通知を受信するように登録できるようになる。
+通知を受けたプロセスが次の通知も受信したい場合は、 \fBmq_notify\fP()  を使ってその後の通知も受けるように要求することができる。
+\fBmq_notify\fP()  を再度呼び出すのは、読み出していないメッセージを全部読み出して キューが空になる前にすべきである
+(キューからのメッセージ読み出しをキューが空になった時に 停止 (block) せずに行うには、キューを非停止モード (non\-blocking
+mode)  に設定しておくとよい)。
+.SH 返り値
+成功すると、 \fBmq_notify\fP()  は 0 を返す。エラーの場合、\-1 を返し、 \fIerrno\fP をエラーを示す値に設定する。
+.SH エラー
+.TP 
+\fBEBADF\fP
+\fImqdes\fP に指定されたメッセージキュー記述子が不正である。
+.TP 
+\fBEBUSY\fP
+別のプロセスがすでに このメッセージキューに対する通知を受信するように登録している。
+.TP 
+\fBEINVAL\fP
+\fIsevp\->sigev_notify\fP が許可された値のいずれでもない。もしくは \fIsevp\->sigev_notify\fP が
+\fBSIGEV_SIGNAL\fP だが \fIsevp\->sigev_signo\fP が有効なシグナル番号ではない。
+.TP 
+\fBENOMEM\fP
+十分なメモリーがない。
+.P
+.\" Linux does not do this
+POSIX.1\-2008 では、 \fIsevp\fP が NULL で、呼び出し元のプロセスがキュー \fImqdes\fP
+に関する通知を受信するように登録されていない場合、エラー \fBEINVAL\fP を生成するような実装を行っても「よい」ことになっている。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbx lb lb
+l l l.
+インターフェース	属性	値
+T{
+.na
+.nh
+\fBmq_notify\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.SH VERSIONS
+.SS "C ライブラリとカーネルの違い"
+In the glibc implementation, the \fBmq_notify\fP()  library function is
+implemented on top of the system call of the same name.  When \fIsevp\fP is
+NULL, or specifies a notification mechanism other than \fBSIGEV_THREAD\fP, the
+library function directly invokes the system call.  For \fBSIGEV_THREAD\fP,
+much of the implementation resides within the library, rather than the
+kernel.  (This is necessarily so, since the thread involved in handling the
+notification is one that must be managed by the C library POSIX threads
+implementation.)  The implementation involves the use of a raw \fBnetlink\fP(7)
+socket and creates a new thread for each notification that is delivered to
+the process.
+.SH 標準規格
+POSIX.1\-2008.
+.SH 歴史
+POSIX.1\-2001.
+.SH 例
+以下のプログラムは、 コマンドライン引数で指定された名前のメッセージキューへの 通知要求を登録し、通知はスレッドの作成によって行われる。
+そのスレッドは、そのキューからメッセージを一つ読み出してから、 プロセスを終了する関数を実行する。
+.SS プログラムのソース
+.\" SRC BEGIN (mq_notify.c)
+.EX
+#include <err.h>
+#include <mqueue.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+\&
+static void                     /* Thread start function */
+tfunc(union sigval sv)
+{
+    struct mq_attr attr;
+    ssize_t nr;
+    void *buf;
+    mqd_t mqdes = *((mqd_t *) sv.sival_ptr);
+\&
+    /* Determine max.\& msg size; allocate buffer to receive msg */
+\&
+    if (mq_getattr(mqdes, &attr) == \-1)
+        err(EXIT_FAILURE, "mq_getattr");
+    buf = malloc(attr.mq_msgsize);
+    if (buf == NULL)
+        err(EXIT_FAILURE, "malloc");
+\&
+    nr = mq_receive(mqdes, buf, attr.mq_msgsize, NULL);
+    if (nr == \-1)
+        err(EXIT_FAILURE, "mq_receive");
+\&
+    printf("Read %zd bytes from MQ\[rs]n", nr);
+    free(buf);
+    exit(EXIT_SUCCESS);         /* Terminate the process */
+}
+\&
+int
+main(int argc, char *argv[])
+{
+    mqd_t mqdes;
+    struct sigevent sev;
+\&
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <mq\-name>\[rs]n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+\&
+    mqdes = mq_open(argv[1], O_RDONLY);
+    if (mqdes == (mqd_t) \-1)
+        err(EXIT_FAILURE, "mq_open");
+\&
+    sev.sigev_notify = SIGEV_THREAD;
+    sev.sigev_notify_function = tfunc;
+    sev.sigev_notify_attributes = NULL;
+    sev.sigev_value.sival_ptr = &mqdes;   /* Arg.\& to thread func.  */
+    if (mq_notify(mqdes, &sev) == \-1)
+        err(EXIT_FAILURE, "mq_notify");
+\&
+    pause();    /* Process will be terminated by thread function */
+}
+.EE
+.\" SRC END
+.SH 関連項目
+\fBmq_close\fP(3), \fBmq_getattr\fP(3), \fBmq_open\fP(3), \fBmq_receive\fP(3),
+\fBmq_send\fP(3), \fBmq_unlink\fP(3), \fBmq_overview\fP(7), \fBsigevent\fP(3type)
