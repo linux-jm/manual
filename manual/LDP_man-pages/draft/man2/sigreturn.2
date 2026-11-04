@@ -1,0 +1,91 @@
+.\" Copyright 2008-2014, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-03-03, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2005-09-04, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2008-08-07, Akihiro MOTOKI, LDP v3.05
+.\"
+.TH sigreturn 2 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+sigreturn, rt_sigreturn \- シグナルハンドラーから返り、スタックを掃除する
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fBint sigreturn(...);\fP
+.fi
+.SH 説明
+.\" See arch/x86/kernel/signal.c::__setup_frame() [in Linux 3.17 source code]
+Linux カーネルがプロセスに対してブロックされていないシグナルが処理待ちと判定した場合、 そのプロセスの次回のユーザーモードへの遷移
+(すなわち、システムコールからのリターン時やそのプロセスが CPU
+に再スケジュールされる際)、カーネルはユーザー空間スタックの新しいフレームを作成し、そこにプロセスコンテキストの種々の値
+(プロセッサーのステータスワード、レジスター、シグナルマスク、シグナルスタック設定) を保存する。
+.P
+また、 カーネルは、 ユーザーモードへの遷移時にシグナルハンドラーが呼び出され、 ハンドラーからのリターン時に、 制御が "signal
+trampoline" と呼ばれるユーザー空間コードブロックに渡されるように、準備を行う。 signal trampoline のコードが
+\fBsigreturn\fP() を呼び出す。
+.P
+This \fBsigreturn\fP()  call undoes everything that was done\[em]changing the
+process's signal mask, switching signal stacks (see
+\fBsigaltstack\fP(2))\[em]in order to invoke the signal handler.  Using the
+information that was earlier saved on the user\-space stack \fBsigreturn\fP()
+restores the process's signal mask, switches stacks, and restores the
+process's context (processor flags and registers, including the stack
+pointer and instruction pointer), so that the process resumes execution at
+the point where it was interrupted by the signal.
+.SH 返り値
+\fBsigreturn\fP()  が返ることはない。
+.SH バージョン
+多くの UNIX 系のシステムには \fBsigreturn\fP() システムコールか似たようなシステムコールがある。 しかしながら、 このシステムコールは
+POSIX には規定されておらず、 その動作の詳細はシステムにより異なる。
+.SH 標準規格
+なし。
+.SH 注意
+.\" See sysdeps/unix/sysv/linux/sigreturn.c and
+.\" signal/sigreturn.c in the glibc source
+\fBsigreturn\fP()  exists only to allow the implementation of signal handlers.
+It should \fBnever\fP be called directly.  (Indeed, a simple \fBsigreturn\fP()
+wrapper in the GNU C library simply returns \-1, with \fIerrno\fP set to
+\fBENOSYS\fP.)  Details of the arguments (if any) passed to \fBsigreturn\fP()
+vary depending on the architecture.  (On some architectures, such as x86\-64,
+\fBsigreturn\fP()  takes no arguments, since all of the information that it
+requires is available in the stack frame that was previously created by the
+kernel on the user\-space stack.)
+.P
+.\" See, for example, sysdeps/unix/sysv/linux/i386/sigaction.c and
+.\" sysdeps/unix/sysv/linux/x86_64/sigaction.c in the glibc (2.20) source.
+かつて、 UNIX システムでは signal trampoline コードがユーザースタックに置かれていた。 今日では、
+ユーザースタックのページは保護され、 コードの実行は禁止されている。 したがって、 現代の Linux システムでは、 アーキテクチャー依存ではあるが、
+signal trampoline コードは \fBvdso\fP(7) 内もしくは C ライブラリ内に置かれる。後者の場合、 C ライブラリの
+\fBsigaction\fP(2) のラッパー関数は、 trampoline code の場所をそのアドレスを \fBsigaction\fP(2) 構造体の
+\fIsa_restorer\fP フィールドに設定してカーネルに伝え、 \fIsa_flags\fP フィールドの \fBSA_RESTORER\fP
+フラグをセットする。
+.P
+保存されたプロセスコンテキスト情報は \fIucontext_t\fP構造体に置かれる (\fI<sys/ucontext.h>\fP 参照)。
+この構造体は、 \fBsigaction\fP(2) の \fBSA_SIGINFO\fP フラグで設定されたシグナルハンドラーの第 3
+引数としてシングルハンドラー内で参照できる。
+.P
+.\"
+他のいくつかの UNIX システムでは、 signal trampoline の扱いは少し異なる。 特に、 いくつかのシステムでは、
+ユーザーモードに戻る際に、 カーネルは制御を (シグナルハンドラーではなく) trampoline に渡し、 trampoline
+コードがシグナルハンドラーを呼び出す (その後ハンドラーが返ると \fBsigreturn\fP() を呼び出す)。
+.SS "C ライブラリとカーネルの違い"
+.\"
+The original Linux system call was named \fBsigreturn\fP().  However, with the
+addition of real\-time signals in Linux 2.2, a new system call,
+\fBrt_sigreturn\fP()  was added to support an enlarged \fIsigset_t\fP type.  The
+GNU C library hides these details from us, transparently employing
+\fBrt_sigreturn\fP()  when the kernel provides it.
+.SH 関連項目
+\fBkill\fP(2), \fBrestart_syscall\fP(2), \fBsigaltstack\fP(2), \fBsignal\fP(2),
+\fBgetcontext\fP(3), \fBsignal\fP(7), \fBvdso\fP(7)

@@ -1,0 +1,139 @@
+.\" Copyright 1992, Drew Eckhardt <drew@cs.colorado.edu>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1996 Yosiaki Yanagihara
+.\"         all rights reserved.
+.\" Translated Mon Jun 24 14:29:55 JST 1996
+.\"         by Yosiaki Yanagihara <yosiaki@bsd2.kbnes.nec.co.jp>
+.\" Modified Sat Dec 13 23:29:07 JST 1997
+.\"         by HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated & Modified Fri 6 Apr 2001
+.\"         by NAKANO Takeo <nakano@apm.seikei.ac.jp>
+.\" Updated & Modified Thu Dec 23 10:04:20 JST 2004
+.\"         by Yuichi SATO <ysato444@yahoo.co.jp>
+.\"
+.TH chroot 2 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+chroot \- ルートディレクトリを変更する
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#include <unistd.h>\fP
+.P
+\fBint chroot(const char *\fP\fIpath\fP\fB);\fP
+.fi
+.P
+.RS -4
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.RE
+.P
+\fBchroot\fP():
+.nf
+    Since glibc 2.2.2:
+        _XOPEN_SOURCE && ! (_POSIX_C_SOURCE >= 200112L)
+            || /* Since glibc 2.20: */ _DEFAULT_SOURCE
+            || /* glibc <= 2.19: */ _BSD_SOURCE
+    Before glibc 2.2.2:
+        none
+.fi
+.SH 説明
+\fBchroot\fP()  は、呼び出し元プロセスのルートディレクトリを \fIpath\fP で指定されたディレクトリに変更する。 このディレクトリ以下が
+\fI/\fP から始まるパス名として使われる。 このルートディレクトリは呼び出し元のプロセスの全ての子プロセスに受け継がれる。
+.P
+特権プロセス (Linux では、そのプロセスのユーザー名前空間で \fBCAP_SYS_CHROOT\fP ケーパビリティを持つプロセス) のみが
+\fBchroot\fP()  を呼び出すことができる。
+.P
+This call changes an ingredient in the pathname resolution process and does
+nothing else.  In particular, it is not intended to be used for any kind of
+security purpose, neither to fully sandbox a process nor to restrict
+filesystem system calls.  In the past, \fBchroot\fP()  has been used by daemons
+to restrict themselves prior to passing paths supplied by untrusted users to
+system calls such as \fBopen\fP(2).  However, if a folder is moved out of the
+chroot directory, an attacker can exploit that to get out of the chroot
+directory as well.  The easiest way to do that is to \fBchdir\fP(2)  to the
+to\-be\-moved directory, wait for it to be moved out, then open a path like
+\&../../../etc/passwd.
+.P
+.\" This is how the "slightly trickier variation" works:
+.\" https://github.com/QubesOS/qubes-secpack/blob/master/QSBs/qsb-014-2015.txt#L142
+A slightly trickier variation also works under some circumstances if
+\fBchdir\fP(2)  is not permitted.  If a daemon allows a "chroot directory" to
+be specified, that usually means that if you want to prevent remote users
+from accessing files outside the chroot directory, you must ensure that
+folders are never moved out of it.
+.P
+This call does not change the current working directory, so that after the
+call \[aq]\fI.\fP\[aq] can be outside the tree rooted at \[aq]\fI/\fP\[aq].  In
+particular, the superuser can escape from a "chroot jail" by doing:
+.P
+.in +4n
+.EX
+mkdir foo;
+chroot foo;
+cd ..;
+.EE
+.in
+.P
+このコールはオープンファイルディスクリプターをクローズしないので、 このようなファイルディスクリプターは chroot ツリーの外にある
+ファイルにアクセスできる。
+.SH 返り値
+On success, zero is returned.  On error, \-1 is returned, and \fIerrno\fP is set
+to indicate the error.
+.SH エラー
+ファイルシステムによっては他のエラーが返される事がある。 一般的なエラーを以下に挙げる:
+.TP 
+\fBEACCES\fP
+.\" Also search permission is required on the final component,
+.\" maybe just to guarantee that it is a directory?
+パス名の構成要素に検索許可がない (\fBpath_resolution\fP(7)  も見よ)。
+.TP 
+\fBEFAULT\fP
+\fIpath\fP がアクセスできるアドレス空間外を指している。
+.TP 
+\fBEIO\fP
+I/O エラーが発生した。
+.TP 
+\fBELOOP\fP
+\fIpath\fP を解決する際に遭遇したシンボリックリンクが多過ぎる。
+.TP 
+\fBENAMETOOLONG\fP
+\fIpath\fP が長過ぎる。
+.TP 
+\fBENOENT\fP
+ファイルが存在しない。
+.TP 
+\fBENOMEM\fP
+カーネルに十分なメモリーがない。
+.TP 
+\fBENOTDIR\fP
+\fIpath\fP の構成要素がディレクトリではない。
+.TP 
+\fBEPERM\fP
+呼び出し側に十分な特権がない。
+.SH 標準規格
+なし。
+.SH 歴史
+.\" SVr4 documents additional EINTR, ENOLINK and EMULTIHOP error conditions.
+.\" X/OPEN does not document EIO, ENOMEM or EFAULT error conditions.
+SVr4, 4.4BSD, SUSv1 (marked TO BE WITHDRAWN), SUSv2 (marked LEGACY).  This
+function is not part of POSIX.1\-2001.
+.SH 注意
+\fBfork\fP(2)  で作成された子プロセスは、 親プロセスのルートディレクトリを継承する。 \fBexecve\fP(2)
+の場合も、ルートディレクトリは変更されない。
+.P
+The magic symbolic link, \fI/proc/\fPpid\fI/root\fP, can be used to discover a
+process's root directory; see \fBproc\fP(5)  for details.
+.P
+FreeBSD にはより強力な \fBjail\fP()  システムコールがある。
+.SH 関連項目
+\fBchroot\fP(1), \fBchdir\fP(2), \fBpivot_root\fP(2), \fBpath_resolution\fP(7),
+\fBswitch_root\fP(8)
