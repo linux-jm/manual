@@ -1,0 +1,268 @@
+.\" Copyright 1993, Giorgio Ciucci <giorgio@crcc.it>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1997 HANATAKA Shinya
+.\"         all rights reserved.
+.\" Translated 1997-02-23, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Updated 2003-02-09, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2003-09-12, Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2005-03-01, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2005-04-17, Akihiro MOTOKI
+.\" Updated 2005-09-06, Akihiro MOTOKI
+.\" Updated 2007-05-01, Akihiro MOTOKI, LDP v2.46
+.\" Updated 2012-05-29, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH semop 2 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+semop, semtimedop \- System V セマフォの操作
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#include <sys/sem.h>\fP
+.P
+\fBint semop(int \fP\fIsemid\fP\fB, struct sembuf *\fP\fIsops\fP\fB, size_t \fP\fInsops\fP\fB);\fP
+\fBint semtimedop(int \fP\fIsemid\fP\fB, struct sembuf *\fP\fIsops\fP\fB, size_t \fP\fInsops\fP\fB,\fP
+\fB               const struct timespec *_Nullable \fP\fItimeout\fP\fB);\fP
+.fi
+.P
+.RS -4
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.RE
+.P
+\fBsemtimedop\fP():
+.nf
+    _GNU_SOURCE
+.fi
+.SH 説明
+System\ V セマフォ集合 (semaphore set) のメンバーの各セマフォは 以下の関連情報を持っている:
+.P
+.in +4n
+.EX
+unsigned short  semval;   /* semaphore value */
+unsigned short  semzcnt;  /* # waiting for zero */
+unsigned short  semncnt;  /* # waiting for increase */
+pid_t           sempid;   /* PID of process that last
+                             modified the semaphore value */
+.EE
+.in
+.P
+\fBsemop\fP()  は \fIsemid\fP で指定されたセマフォ集合の選択されたセマフォに対して操作を行う。 \fIsops\fP は \fInsops\fP
+個の要素の配列を指し、配列の各要素は個々のセマフォに対する操作を示す構造体である。その型は \fIstruct sembuf\fP で、次のメンバを持つ:
+.P
+.in +4n
+.EX
+unsigned short sem_num;  /* セマフォ番号 */
+short          sem_op;   /* セマフォ操作 */
+short          sem_flg;  /* 操作フラグ */
+.EE
+.in
+.P
+\fIsem_flg\fP には \fBIPC_NOWAIT\fP と \fBSEM_UNDO\fP が設定できる。 \fBSEM_UNDO\fP
+が指定された操作は、そのプロセスが終了した時に自動的に取り消される。
+.P
+\fIsops\fP に含まれる操作の集合は、 \fI配列の順序\fP で、 \fIアトミックに\fP 実行される。
+すなわち、全ての操作が完全に実行されるか、全く実行されないかの どちらかとなる。 全ての操作が直ちに実行できない場合のこのシステムコールの振る舞いは
+個々の操作の \fIsem_flg\fP フィールドに \fBIPC_NOWAIT\fP が存在するかによって決まり、後述のようになる。
+.P
+それぞれの操作はセマフォ集合の \fIsem_num\fP番目 のセマフォに対して実行される。セマフォ集合の最初のセマフォには 番号 0 が振られる。
+そして操作は三種類あり、 \fIsem_op\fP の値で区別される。
+.P
+If \fIsem_op\fP is a positive integer, the operation adds this value to the
+semaphore value (\fIsemval\fP).  Furthermore, if \fBSEM_UNDO\fP is specified for
+this operation, the system subtracts the value \fIsem_op\fP from the semaphore
+adjustment (\fIsemadj\fP)  value for this semaphore.  This operation can always
+proceed\[em]it never forces a thread to wait.  The calling process must have
+alter permission on the semaphore set.
+.P
+\fIsem_op\fP が 0 の場合、「ゼロまで待つ」操作である。この場合、プロセスは そのセマフォ集合に対する読み込み許可がなければならない。
+\fIsemval\fP が 0 ならば、操作は直ちに行われる。 \fIsemval\fP が 0 でない場合、 \fIsem_flg\fP に
+\fBIPC_NOWAIT\fP が指定されていれば、 \fBsemop\fP()  は失敗し、 \fBerrno\fP に \fBEAGAIN\fP が設定される (このとき
+\fIsops\fP に対する操作は全く実行されない)。 \fIsem_flg\fP に \fBIPC_NOWAIT\fP が指定されていない場合、 \fIsemzcnt\fP
+(セマフォ値が 0 になるのを待っているスレッドの数) を 1 増加させて、 以下のいずれかが起こるまでスレッドを停止 (sleep) する。
+.IP \[bu] 3
+\fIsemval\fP が 0 になった: このとき \fIsemzcnt\fP の値は 1 減算される。
+.IP \[bu]
+セマフォ集合が削除された: このとき \fBsemop\fP()  は失敗し、 \fIerrno\fP に \fBEIDRM\fP が設定される。
+.IP \[bu]
+呼び出し元スレッドがシグナルを捕獲した: このとき \fIsemzcnt\fP の値は 1 減算され、 \fBsemop\fP()  は失敗し \fIerrno\fP に
+\fBEINTR\fP が設定される。
+.P
+\fIsem_op\fP が 0 未満の場合、プロセスにはそのセマフォ集合を変更する許可がなければ ならない。 \fIsemval\fP が \fIsem_op\fP
+の絶対値以上の場合は、操作は直ちに実行される: \fIsemval\fP から \fIsem_op\fP の絶対値を減算し、さらに、この操作に
+\fBSEM_UNDO\fP が指定されている場合は、このセマフォの調整値 (\fIsemadj\fP) に \fIsem_op\fP の絶対値を加算する。
+\fIsemval\fP が \fIsem_op\fP の絶対値より小さく、 \fIsem_flg\fP に \fBIPC_NOWAIT\fP が指定された場合は、
+\fBsemop\fP()  は失敗し、 \fIerrno\fP に \fBEAGAIN\fP が設定される (このとき \fIsops\fP の操作は全く実行されない)。
+\fIsemval\fP が \fIsem_op\fP の絶対値より小さく、 \fBIPC_WAIT\fP が指定されていない場合は、 \fIsemncnt\fP
+(このセマフォの値が増加するのを待っているスレッド数のカウンター)  を 1 増加させて、以下のいずれかが起こるまでスレッドを停止 (sleep)
+する。
+.IP \[bu] 3
+\fIsemval\fP が \fIsem_op\fP の絶対値以上になった。この時点で、操作は上述の通り実行される。
+.IP \[bu]
+セマフォ集合がシステムから削除された: このとき \fBsemop\fP()  は失敗し \fIerrno\fP に \fBEIDRM\fP が設定される。
+.IP \[bu]
+呼び出したスレッドがシグナルを捕獲した: このとき \fIsemncnt\fP が 1 減算され、 \fBsemop\fP()  は失敗し \fIerrno\fP に
+\fBEINTR\fP が設定される。
+.P
+.\" and
+.\" .I sem_ctime
+操作が成功した場合、 \fIsops\fP が指す配列によって操作対象となった各セマフォの \fIsempid\fP メンバーには呼び出し元のプロセス ID
+が設定される。さらに \fIsem_otime\fP に現在時刻が設定される。
+.SS semtimedop()
+\fBsemtimedop\fP() 関数の振る舞いは \fBsemop\fP() と全く同じだが、呼び出し元
+スレッドが停止する場合、停止期間の上限が \fItimeout\fP 引数の指す
+\fItimespec\fP 構造体で指定された時間となる点だけが異なる (この停止期間は
+システムクロックの粒度に切り上げられ、カーネルのスケジューリング遅延に
+より、この停止期間は少しだけ長くなる可能性がある)。
+指定した制限時間に達した場合は、 \fBsemtimedop\fP() は失敗し、 \fIerrno\fP に
+\fBEAGAIN\fP が設定される (このとき \fIsops\fP の操作は実行されない)。
+\fItimeout\fP 引数が NULL の場合、 \fBsemtimedop\fP() 関数の振る舞いは
+\fBsemop\fP() 関数と全く同じになる。
+.P
+\fBsemtimedop\fP() がシグナルにより割り込まれた場合、呼び出しはエラー \fBEINTR\fP で失敗し、 \fItimeout\fP
+の内容は変更されないままとなる点に注意すること。
+.SH 返り値
+On success, \fBsemop\fP()  and \fBsemtimedop\fP()  return 0.  On failure, they
+return \-1, and set \fIerrno\fP to indicate the error.
+.SH エラー
+.TP 
+\fBE2BIG\fP
+\fInsops\fP 引数が \fBSEMOPM\fP より大きい。 \fBSEMOPM\fP は一回のシステムコールで許される操作の最大個数である。
+.TP 
+\fBEACCES\fP
+The calling process does not have the permissions required to perform the
+specified semaphore operations, and does not have the \fBCAP_IPC_OWNER\fP
+capability in the user namespace that governs its IPC namespace.
+.TP 
+\fBEAGAIN\fP
+操作を直ちに処理することができず、かつ \fIsem_flg\fP に \fBIPC_NOWAIT\fP が指定されているか \fItimeout\fP
+で指定された制限時間が経過した。
+.TP 
+\fBEFAULT\fP
+引数 \fIsops\fP か \fItimeout\fP が指しているアドレスにアクセスできない。
+.TP 
+\fBEFBIG\fP
+ある操作で、 \fIsem_num\fP の値が 0 未満か、集合内のセマフォの数以上である。
+.TP 
+\fBEIDRM\fP
+セマフォ集合が削除された。
+.TP 
+\fBEINTR\fP
+このシステムコールで停止している時にスレッドがシグナルを捕獲した。 \fBsingle\fP(7) 参照。
+.TP 
+\fBEINVAL\fP
+セマフォ集合が存在しないか、 \fIsemid\fP が 0 未満であるか、 \fInsops\fP が正の数でない。
+.TP 
+\fBENOMEM\fP
+ある操作で \fIsem_flg\fP に \fBSEM_UNDO\fP が指定されたが、システムにアンドゥ構造体に割り当てる十分なメモリーがない。
+.TP 
+\fBERANGE\fP
+ある操作で \fIsem_op+semval\fP が \fBSEMVMX\fP より大きい。 \fBSEMVMX\fP は \fIsemval\fP
+の最大値で、その値は実装依存である。
+.SH 標準規格
+POSIX.1\-2024.
+.SH 歴史
+.TP 
+\fBsemop\fP()
+SVr4, POSIX.1\-2001.
+.TP 
+\fBsemtimedop\fP()
+.\" SVr4 documents additional error conditions EINVAL, EFBIG, ENOSPC.
+SVr4, Linux 2.5.52 (backported into Linux 2.4.22), glibc 2.3.3.
+.SH 注意
+あるプロセスの \fIsem_undo\fP 構造体は \fBfork\fP(2)  で生成された子プロセスには継承されないが、 \fBexecve\fP(2)
+システムコールの場合は継承される。
+.P
+\fBsemop\fP()  はシグナルハンドラーによって中断された後に、 決して自動的に再開することはない。 たとえシグナルハンドラーの設定時に
+\fBSA_RESTART\fP フラグがセットされていても再開することはない
+.P
+A semaphore adjustment (\fIsemadj\fP)  value is a per\-process, per\-semaphore
+integer that is the negated sum of all operations performed on a semaphore
+specifying the \fBSEM_UNDO\fP flag.  Each process has a list of \fIsemadj\fP
+values\[em]one value for each semaphore on which it has operated using
+\fBSEM_UNDO\fP.  When a process terminates, each of its per\-semaphore \fIsemadj\fP
+values is added to the corresponding semaphore, thus undoing the effect of
+that process's operations on the semaphore (but see BUGS below).  When a
+semaphore's value is directly set using the \fBSETVAL\fP or \fBSETALL\fP request
+to \fBsemctl\fP(2), the corresponding \fIsemadj\fP values in all processes are
+cleared.  The \fBclone\fP(2)  \fBCLONE_SYSVSEM\fP flag allows more than one
+process to share a \fIsemadj\fP list; see \fBclone\fP(2)  for details.
+.P
+あるセマフォの \fIsemval\fP, \fIsempid\fP, \fIsemzcnt\fP, \fIsemnct\fP の値はいずれも、適切な操作を指定して
+\fBsemctl\fP(2)  を呼び出すことで取得できる。
+.SS セマフォの上限
+セマフォ集合のリソースに関する制限のうち、 \fBsemop\fP()  に影響を及ぼすものを以下に挙げる:
+.TP 
+\fBSEMOPM\fP
+.\" commit e843e7d2c88b7db107a86bd2c7145dc715c058f4
+.\" This /proc file is not available in Linux 2.2 and earlier -- MTK
+.\" See comment in Linux 3.19 source file include/uapi/linux/sem.h
+Maximum number of operations allowed for one \fBsemop\fP()  call.  Before Linux
+3.19, the default value for this limit was 32.  Since Linux 3.19, the
+default value is 500.  On Linux, this limit can be read and modified via the
+third field of \fI/proc/sys/kernel/sem\fP.  \fINote\fP: this limit should not be
+raised above 1000, because of the risk of that \fBsemop\fP()  fails due to
+kernel memory fragmentation when allocating memory to copy the \fIsops\fP
+array.
+.TP 
+\fBSEMVMX\fP
+\fIsemval\fP が取り得る最大値: 実装依存 (32767)。
+.P
+以下の値に関しては実装依存の制限はない。 終了時の調整 (adjust on exit) の最大値 (\fBSEMAEM\fP)、
+システム全体のアンドゥ構造体の最大数 (\fBSEMMNU\fP)、 プロセスあたりのアンドゥ構造体の最大数。
+.SH バグ
+プロセスが終了する際、プロセスに対応する \fIsemadj\fP の集合を使って、 \fBSEM_UNDO\fP
+フラグ付きで実行された全てのセマフォ操作の影響を取り消す。 これによりある問題が発生する: これらのセマフォの調整を行っていると、 中にはセマフォの値が
+0 未満の値にしようとする場合が出てくる。 このような場合、どのように実装するべきか? ひとつの考えられる手法は、全てのセマフォ調整が実行されるまで
+停止することである。しかし、この方法ではプロセスの終了が 長時間にわたって停止されることがあるので望ましくない。
+しかもどれくらい長時間になるかは分からない。 別の選択肢として、このようなセマフォ調整を完全に無視してしまう方法がある (これはセマフォ操作として
+\fBIPC_NOWAIT\fP が指定するのと少し似ている)。 Linux は第三の手法を採用している: セマフォの値を出来るだけ (つまり 0 まで)
+減少させて、プロセスの終了を直ちに続行できるようにしている。
+.P
+.\" The bug report:
+.\" http://marc.theaimsgroup.com/?l=linux-kernel&m=110260821123863&w=2
+.\" the fix:
+.\" http://marc.theaimsgroup.com/?l=linux-kernel&m=110261701025794&w=2
+In Linux 2.6.x, x <= 10, there is a bug that in some circumstances
+prevents a thread that is waiting for a semaphore value to become zero from
+being woken up when the value does actually become zero.  This bug is fixed
+in Linux 2.6.11.
+.SH 例
+以下の部分的なコードは、 セマフォ 0 の値が 0 になるのを待ってから、 セマフォの値を 1 加算する処理を、 \fBsemop\fP()
+を使ってアトミック (atomically) に行う。
+.P
+.in +4n
+.EX
+struct sembuf sops[2];
+int semid;
+\&
+/* Code to set \f[I]semid\fR omitted */
+\&
+sops[0].sem_num = 0;        /* Operate on semaphore 0 */
+sops[0].sem_op = 0;         /* Wait for value to equal 0 */
+sops[0].sem_flg = 0;
+\&
+sops[1].sem_num = 0;        /* Operate on semaphore 0 */
+sops[1].sem_op = 1;         /* Increment value by one */
+sops[1].sem_flg = 0;
+\&
+if (semop(semid, sops, 2) == \-1) {
+    perror("semop");
+    exit(EXIT_FAILURE);
+}
+.EE
+.in
+.P
+A further example of the use of \fBsemop\fP()  can be found in \fBshmop\fP(2).
+.SH 関連項目
+\fBclone\fP(2), \fBsemctl\fP(2), \fBsemget\fP(2), \fBsigaction\fP(2),
+\fBcapabilities\fP(7), \fBsem_overview\fP(7), \fBsysvipc\fP(7), \fBtime\fP(7)

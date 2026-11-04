@@ -1,0 +1,294 @@
+'\" t
+.\" Copyright 2008, Michael Kerrisk <tk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: GPL-2.0-or-later
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2008  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2008-04-08, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\" Updated 2008-11-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.13
+.\" Updated 2012-08-05, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH eventfd 2 2026\-02\-16 "Linux man\-pages (未リリース)" 
+.SH 名前
+eventfd \- イベント通知用のファイルディスクリプターを生成する
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#include <sys/eventfd.h>\fP
+.P
+\fBint eventfd(unsigned int \fP\fIinitval\fP\fB, int \fP\fIflags\fP\fB);\fP
+.fi
+.SH 説明
+\fBeventfd\fP()  は "eventfd オブジェクト" を生成する。 eventfd
+オブジェクトはユーザー空間アプリケーションがイベント待ち受け/通知用の 仕組みとして使うことができる。また、カーネルがユーザー空間アプリケーションに
+イベントを通知するためにも使うことができる。 このオブジェクトには、unsigned の 64 ビット整数 (\fIuint64_t\fP)
+型のカウンターが含まれており、このカウンターはカーネルにより管理される。 このカウンターは \fIinitval\fP 引数で指定された値で初期化される。
+.P
+\fBeventfd\fP()  は eventfd オブジェクトを参照するのに使用できる新しいファイルディスクリプターを返す。
+.P
+以下の値のいくつかをビット単位の論理和 (OR) で指定することで、 \fBeventfd\fP() の振舞いを変更することができる。
+.TP 
+\fBEFD_CLOEXEC\fP (Linux 2.6.27 以降)
+新しいファイルディスクリプターに対して close\-on\-exec (\fBFD_CLOEXEC\fP)  フラグをセットする。
+このフラグが役に立つ理由については、 \fBopen\fP(2)  の \fBO_CLOEXEC\fP フラグの説明を参照のこと。
+.TP 
+\fBEFD_NONBLOCK\fP (Linux 2.6.27 以降)
+Set the \fBO_NONBLOCK\fP file status flag on the open file description (see
+\fBopen\fP(2))  referred to by the new file descriptor.  Using this flag saves
+extra calls to \fBfcntl\fP(2)  to achieve the same result.
+.TP 
+\fBEFD_SEMAPHORE\fP (Linux 2.6.30 以降)
+新しいファイルディスクリプターからの読み出しにおいて、セマフォ風の動作を行う。 下記参照。
+.P
+Up to Linux 2.6.26, the \fIflags\fP argument is unused, and must be specified
+as zero.
+.P
+The following operations can be performed on the file descriptor returned by
+\fBeventfd\fP():
+.TP 
+\fBread\fP(2)
+\fBread\fP(2) は成功すると、8 バイトの整数を返す。 渡されたバッファーの大きさが 8 バイト未満の場合、 \fBread\fP(2)  はエラー
+\fBEINVAL\fP で失敗する。
+.IP
+The value returned by \fBread\fP(2)  is in host byte order\[em]that is, the
+native byte order for integers on the host machine.
+.IP
+\fBread\fP(2) の動作は、 eventfd カウンターの現在の値が 0 以外であるかと、 eventfd ファイルディスクリプターを作成する際に
+\fBEFD_SEMAPHORE\fP フラグが指定されたか、により変化する。
+.RS
+.IP \[bu] 3
+\fBEFD_SEMAPHORE\fP が指定されておらず、eventfd カウンターが 0 以外の値の場合、 \fBread\fP(2) はカウンター値を格納した
+8 バイトの値を返し、 カウンター値は 0 にリセットされる。
+.IP \[bu]
+\fBEFD_SEMAPHORE\fP が指定されていて eventfd カウンターが 0 以外の値の場合、 \fBread\fP(2) は値 1 の 8
+バイト値を返し、カウンター値は 1 減算される。
+.IP \[bu]
+\fBread\fP(2) を呼び出した時点で eventfd カウンターが 0 の場合、 \fBread\fP(2) はカウンターが 0 以外になるまで停止
+(block) する (0 以外になった時点で \fBread\fP(2) は上記で述べた通り実行を再開する)、 もしくはファイルディスクリプターが非停止
+(nonblocking) に設定されている場合はエラー \fBEAGAIN\fP で失敗する。
+.RE
+.TP 
+\fBwrite\fP(2)
+\fBwrite\fP(2)  は、引数のバッファーで渡された 8 バイトの整数値をカウンターに加算する。 カウンターに格納可能な最大値は unsigned
+の 64 ビット整数の最大値から 1 を引いた値 (すなわち 0xfffffffffffffffe) である。
+加算を行うとカウンター値が最大値を超過する場合には、 そのファイルディスクリプターに対して \fBread\fP(2)  が実行されるまで、
+\fBwrite\fP(2)  は停止 (block) する、 もしくはファイルディスクリプターが非停止 (nonblocking)
+に設定されている場合はエラー \fBEAGAIN\fP で失敗する。
+.IP
+渡されたバッファーの大きさが 8 バイト未満の場合、もしくは 値 0xffffffffffffffff を書き込もうとした場合、 \fBwrite\fP(2)
+はエラー \fBEINVAL\fP で失敗する。
+.TP 
+\fBpoll\fP(2)
+.TQ
+\fBselect\fP(2)
+.TQ
+(and similar)
+返されたファイルディスクリプターは、 \fBpoll\fP(2)  (\fBepoll\fP(7)  も同じ) や \fBselect\fP(2)
+をサポートしており、以下のような動作をする。
+.RS
+.IP \[bu] 3
+カウンターが 0 より大きい値の場合、 ファイルディスクリプターは読み出し可能となる (\fBselect\fP(2)  の \fIreadfds\fP 引数や
+\fBpoll\fP(2)  の \fBPOLLIN\fP フラグ)。
+.IP \[bu]
+少なくとも値 "1" を、停止 (block) を伴わずに書き込める場合、 ファイルディスクリプターは書き込み可能となる (\fBselect\fP(2)
+の \fIwritefds\fP 引数や \fBpoll\fP(2)  の \fBPOLLOUT\fP フラグ)。
+.IP \[bu]
+If an overflow of the counter value was detected, then \fBselect\fP(2)
+indicates the file descriptor as being both readable and writable, and
+\fBpoll\fP(2)  returns a \fBPOLLERR\fP event.  As noted above, \fBwrite\fP(2)  can
+never overflow the counter.  However an overflow can occur if 2\[ha]64
+eventfd "signal posts" were performed by the KAIO subsystem (theoretically
+possible, but practically unlikely).  If an overflow has occurred, then
+\fBread\fP(2)  will return that maximum \fIuint64_t\fP value (i.e.,
+0xffffffffffffffff).
+.RE
+.IP
+eventfd ファイルディスクリプターは、これ以外のファイルディスクリプター 多重 API である \fBpselect\fP(2) と
+\fBppoll\fP(2) もサポートしている。
+.TP 
+\fBclose\fP(2)
+ファイルディスクリプターがそれ以降は必要なくなった際には、クローズすべきである。 同じ eventfd
+オブジェクトに関連付けられたファイルディスクリプターが全て クローズされると、そのオブジェクト用の資源がカーネルにより解放される。
+.P
+\fBfork\fP(2) で生成された子プロセスは、 \fBeventfd\fP() で生成されたファイルディスクリプターのコピーを継承する。
+複製されたファイルディスクリプターは同じ eventfd オブジェクトに関連付けられる。 close\-on\-exec フラグが設定されていない場合、
+\fBexecve\fP(2) の前後で \fBeventfd\fP() で生成されたファイルディスクリプターは保持される。
+.SH 返り値
+成功すると、 \fBeventfd\fP()  は新規の eventfd ファイルディスクリプターを返す。 エラーの場合、\-1 を返し、 \fIerrno\fP
+にエラーを示す値を設定する。
+.SH エラー
+.TP 
+\fBEINVAL\fP
+\fIflags\fP にサポートされていない値が指定された。
+.TP 
+\fBEMFILE\fP
+オープン済みのファイルディスクリプターの数がプロセスあたりの上限に 達していた。
+.TP 
+\fBENFILE\fP
+オープン済みのファイル総数がシステム全体の上限に達していた。
+.TP 
+\fBENODEV\fP
+.\" Note from Davide:
+.\" The ENODEV error is basically never going to happen if
+.\" the kernel boots correctly.  That error happen only if during
+.\" the kernel initialization, some error occur in the anonymous
+.\" inode source initialization.
+(カーネル内の) 無名 inode デバイスをマウントできなかった。
+.TP 
+\fBENOMEM\fP
+新しい eventfd ファイルディスクリプターを生成するのに十分なメモリーがなかった。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbx lb lb
+l l l.
+インターフェース	属性	値
+T{
+.na
+.nh
+\fBeventfd\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.SH バージョン
+.SS "C ライブラリとカーネルの違い"
+下層にある Linux システムコールは二種類あり、 \fBeventfd\fP()  と、もっと新しい \fBeventfd2\fP()  である。
+\fBeventfd\fP()  は \fIflags\fP 引数を実装していない。 \fBeventfd2\fP()  では上記の値の \fIflags\fP
+が実装されている。 glibc のラッパー関数は、 \fBeventfd2\fP()  が利用可能であれば、これを使用する。
+.SS "glibc の追加機能"
+GNU C ライブラリは、eventfd ファイルディスクリプターの読み出しと書き込みに
+を関する詳細のいくつか抽象化するために、一つの型と、二つの関数を追加で 定義している。
+.P
+.in +4n
+.EX
+typedef uint64_t eventfd_t;
+\&
+int eventfd_read(int fd, eventfd_t *value);
+int eventfd_write(int fd, eventfd_t value);
+.EE
+.in
+.P
+これらの関数は、eventfd ファイルディスクリプターに対する読み出しと 書き込みの操作を実行し、正しいバイト数が転送された場合には 0
+を返し、そうでない場合は \-1 を返す。
+.SH 標準規格
+Linux, GNU.
+.SH 歴史
+.TP 
+\fBeventfd\fP()
+.\" eventfd() is in glibc 2.7, but reportedly does not build
+Linux 2.6.22, glibc 2.8.
+.TP 
+\fBeventfd2\fP()
+Linux 2.6.27 (see VERSIONS).  Since glibc 2.9, the \fBeventfd\fP()  wrapper
+will employ the \fBeventfd2\fP()  system call, if it is supported by the
+kernel.
+.SH 注意
+アプリケーションは、パイプをイベントを通知するためだけに使用している 全ての場面において、パイプの代わりに eventfd ファイルディスクリプターを
+使用することができる。 eventfd ファイルディスクリプターを使う方が、パイプを使う場合に比べて
+カーネルでのオーバヘッドは比べるとずっと小さく、ファイルディスクリプターも 一つしか必要としない (パイプの場合は二つ必要である)。
+.P
+.\" or eventually syslets/threadlets
+カーネル内で使用すると、eventfd ファイルディスクリプターはカーネル空間からユーザー空間へのブリッジ機能を提供することができ、 例えば KAIO
+(kernel AIO)  のような機能が、あるファイルディスクリプターに何らかの操作が完了したことを 通知することができる。
+.P
+eventfd ファイルディスクリプターの重要な点は、 eventfd ファイルディスクリプターが \fBselect\fP(2), \fBpoll\fP(2),
+\fBepoll\fP(7)  を使って他のファイルディスクリプターと全く同様に監視できる点である。 このことは、アプリケーションは「従来の
+(traditional)」 ファイルの状態変化と eventfd インターフェースをサポートする他のカーネル機構の状態変化を同時に監視
+できることを意味する (\fBeventfd\fP()  インターフェースがない時には、これらのカーネル機構は \fBselect\fP(2),
+\fBpoll\fP(2), \fBepoll\fP(7)  経由で多重することはできなかった)。
+.P
+The current value of an eventfd counter can be viewed via the entry for the
+corresponding file descriptor in the process's \fI/proc/\fPpid\fI/fdinfo\fP
+directory.  See \fBproc\fP(5)  for further details.
+.SH 例
+以下のプログラムは eventfd ファイルディスクリプターを生成し、 その後 fork を実行して子プロセスを生成する。 親プロセスが少しの間
+sleep する間に、子プロセスは プログラムのコマンドライン引数で指定された整数(列)をそれぞれ eventfd ファイルディスクリプターに書き込む。
+親プロセスは sleep を完了すると eventfd ファイルディスクリプターから 読み出しを行う。
+.P
+以下に示すシェルセッションにこのプログラムの使い方を示す。
+.P
+.in +4n
+.EX
+$\fB ./a.out 1 2 4 7 14\fP
+Child writing 1 to efd
+Child writing 2 to efd
+Child writing 4 to efd
+Child writing 7 to efd
+Child writing 14 to efd
+Child completed write loop
+Parent about to read
+Parent read 28 (0x1c) from efd
+.EE
+.in
+.SS プログラムのソース
+.\" SRC BEGIN (eventfd.c)
+\&
+.EX
+#include <err.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/eventfd.h>
+#include <sys/types.h>
+#include <unistd.h>
+\&
+int
+main(int argc, char *argv[])
+{
+    int       efd;
+    uint64_t  u;
+    ssize_t   s;
+\&
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <num>...\[rs]n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+\&
+    efd = eventfd(0, 0);
+    if (efd == \-1)
+        err(EXIT_FAILURE, "eventfd");
+\&
+    switch (fork()) {
+    case 0:
+        for (size_t j = 1; j < argc; j++) {
+            printf("Child writing %s to efd\[rs]n", argv[j]);
+            u = strtoull(argv[j], NULL, 0);
+                    /* strtoull() allows various bases */
+            s = write(efd, &u, sizeof(uint64_t));
+            if (s != sizeof(uint64_t))
+                err(EXIT_FAILURE, "write");
+        }
+        printf("Child completed write loop\[rs]n");
+\&
+        exit(EXIT_SUCCESS);
+\&
+    default:
+        sleep(2);
+\&
+        printf("Parent about to read\[rs]n");
+        s = read(efd, &u, sizeof(uint64_t));
+        if (s != sizeof(uint64_t))
+            err(EXIT_FAILURE, "read");
+        printf("Parent read %w64u (%#w64x) from efd\[rs]n", u, u);
+        exit(EXIT_SUCCESS);
+\&
+    case \-1:
+        err(EXIT_FAILURE, "fork");
+    }
+}
+.EE
+.\" SRC END
+.SH 関連項目
+\fBfutex\fP(2), \fBpipe\fP(2), \fBpoll\fP(2), \fBread\fP(2), \fBselect\fP(2),
+\fBsignalfd\fP(2), \fBtimerfd_create\fP(2), \fBwrite\fP(2), \fBepoll\fP(7),
+\fBsem_overview\fP(7)

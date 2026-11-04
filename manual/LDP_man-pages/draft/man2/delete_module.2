@@ -1,0 +1,120 @@
+.\" Copyright 2012, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2006 Akihiro MOTOKI all rights reserved.
+.\" Translated 2006-07-29, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH delete_module 2 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+delete_module \- カーネルモジュールをアンロードする
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#include <fcntl.h>\fP            /* Definition of \fBO_*\fP constants */
+\fB#include <sys/syscall.h>\fP      /* Definition of \fBSYS_*\fP constants */
+\fB#include <unistd.h>\fP
+.P
+\fBint syscall(SYS_delete_module, const char *\fP\fIname\fP\fB, unsigned int \fP\fIflags\fP\fB);\fP
+.fi
+.P
+\fINote\fP: glibc provides no wrapper for \fBdelete_module\fP(), necessitating the
+use of \fBsyscall\fP(2).
+.SH 説明
+\fBdelete_module\fP() システムコールは、 \fIname\fP で特定される未使用のロード可能なモジュールのエントリーを削除しようとする。
+モジュールに \fIexit\fP 関数がある場合、 モジュールをアンロードする前にこの関数が実行される。 \fIflags\fP
+引数は、以下で説明するようにシステムコールの動作を変更するのに使用される。 このシステムコールには特権が必要である。
+.P
+モジュールの削除は以下のルールにしたがって行われる。
+.IP (1) 5
+このモジュールに依存している (このモジュールで定義されているシンボルを参照している) モジュールがロードされている場合、 この呼び出しは失敗する。
+.IP (2)
+それ以外の場合で、 モジュールの参照カウント (このモジュールを現在使用しているプロセス数) が 0 であれば、 モジュールは直ちにアンロードされる。
+.IP (3)
+.\"	O_TRUNC == KMOD_REMOVE_FORCE in kmod library
+.\"	O_NONBLOCK == KMOD_REMOVE_NOWAIT in kmod library
+モジュールの参照カウントが 0 でない場合、 その動作は \fIflags\fP にセットされたビットによって決まる。 通常の使用時は (「注意」参照)、
+\fBO_NONBLOCK\fP は常に指定され、 \fBO_TRUNC\fP フラグが追加で指定されることがある。
+.IP
+\fIflags\fP の組み合わせが持つ効果は以下のとおりである。
+.RS
+.TP 
+\fBflags == O_NONBLOCK\fP
+エラーの場合、 呼び出しは直ちに返る。
+.TP 
+\fBflags == (O_NONBLOCK | O_TRUNC)\fP
+参照カウントが 0 以外かどうかに関わらず、 直ちにモジュールをアンロードする。
+.TP 
+\fB(flags & O_NONBLOCK) == 0\fP
+\fIflags\fP に \fBO_NONBLOCK\fP が指定されなかった場合、 以下のステップで処理が行われる。
+.RS
+.IP \[bu] 3
+新しい参照を許可しないように、 指定されたモジュールにマークを付ける。
+.IP \[bu]
+モジュールの参照カウントが 0 でない場合、 参照カウントが 0 になるまで、 呼び出し元は割り込み不可のスリープ状態
+(\fBTASK_UNINTERRUPTIBLE\fP) に置かれる。 参照カウントが 0 になった時点で、 呼び出し元の停止が解除される。
+.IP \[bu]
+モジュールは通常通りの方法でアンロードされる。
+.RE
+.RE
+.P
+\fBO_TRUNC\fP フラグには上記のルールに加えてもう一つの効果がある。 デフォルトでは、 モジュールに \fIinit\fP 関数があるが \fIexit\fP
+関数がない場合、 そのモジュールを削除しようとすると失敗する。 しかし、 \fBO_TRUNC\fP が指定された場合、 この要件はスキップされる。
+.P
+\fBO_TRUNC\fP フラグの使用は危険である! カーネルが \fBCONFIG_MODULE_FORCE_UNLOAD\fP で作成されていない場合、
+このフラグは黙って無視される (通常は \fBCONFIG_MODULE_FORCE_UNLOAD\fP は有効になっている)。
+このフラグを使うとカーネルにゴミが残ることになる (TAINT_FORCED_RMMOD)。
+.SH 返り値
+On success, zero is returned.  On error, \-1 is returned and \fIerrno\fP is set
+to indicate the error.
+.SH エラー
+.TP 
+\fBEBUSY\fP
+モジュールは"live" ではない (モジュールがまだ初期化中か、 すでに削除のマークが付けられている)。 モジュールに \fIinit\fP 関数があるが
+\fIexit\fP 関数がなく、 \fIflags\fP に \fBO_TRUNC\fP が指定されていなかった。
+.TP 
+\fBEFAULT\fP
+\fIname\fP がプロセスがアクセスできるアドレス空間外の場所を参照している。
+.TP 
+\fBENOENT\fP
+その名前のモジュールが存在しない。
+.TP 
+\fBEPERM\fP
+呼び出し元が特権 (\fBCAP_SYS_MODULE\fP ケーパビリティ) を持っていなかった。 または、 モジュールのアンロードが無効になっている
+(\fBproc\fP(5) の \fI/proc/sys/kernel/modules_disabled\fP を参照)。
+.TP 
+\fBEWOULDBLOCK\fP
+他のモジュールがこのモジュールに依存している。または、 \fIflags\fP に \fBO_NONBLOCK\fP が指定されたが、
+このモジュールの参照カウントが 0 以外で \fIflags\fP に \fBO_TRUNC\fP が指定されていなかった。
+.SH 標準規格
+Linux.
+.SH 歴史
+The \fBdelete_module\fP()  system call is not supported by glibc.  No
+declaration is provided in glibc headers, but, through a quirk of history,
+glibc versions before glibc 2.23 did export an ABI for this system call.
+Therefore, in order to employ this system call, it is (before glibc 2.23)
+sufficient to manually declare the interface in your code; alternatively,
+you can invoke the system call using \fBsyscall\fP(2).
+.SS "Linux 2.4 以前"
+Linux 2.4 以前では、 このシステムコールの引数は 1 つだけであった。
+.P
+\fB int delete_module(const char *\fP\fIname\fP\fB);\fP
+.P
+\fIname\fP が NULL の場合、 auto\-clean のマークがついたすべての未使用のモジュールが削除される。
+.P
+Linux 2.4 以前の \fBdelete_module\fP() の動作のより詳細な違いは、 現在のところこのマニュアルページでは説明\fIしない\fP。
+.SH 注意
+\fIflags\fP に \fBO_NONBLOCK\fP が指定されていない場合に起こる可能性がある割り込み不可のスリープは望ましくないと考えられている。
+なぜなら、 スリープしているプロセスは kill できない状態 (unkillable state) のままになるからである。 Linux 3.7
+時点では、 \fBO_NONBLOCK\fP の指定は省略可能だが、 将来のカーネルでは必須になるだろう。
+.SH 関連項目
+\fBcreate_module\fP(2), \fBinit_module\fP(2), \fBquery_module\fP(2), \fBlsmod\fP(8),
+\fBmodprobe\fP(8), \fBrmmod\fP(8)

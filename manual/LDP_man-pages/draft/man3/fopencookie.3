@@ -1,0 +1,350 @@
+'\" t
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH fopencookie 3 2025\-09\-21 "Linux man\-pages (未リリース)" 
+.SH 名前
+fopencookie \- open a custom stream
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#define _GNU_SOURCE\fP         /* See feature_test_macros(7) */
+\fB#define _FILE_OFFSET_BITS 64\fP
+\fB#include <stdio.h>\fP
+.P
+\fBFILE *fopencookie(void *restrict \fP\fIcookie\fP\fB, const char *restrict \fP\fImode\fP\fB,\fP
+\fB                  cookie_io_functions_t \fP\fIio_funcs\fP\fB);\fP
+.fi
+.SH 説明
+\fBfopencookie\fP() を使うと、 プログラマーは標準 I/O ストリームの独自の実装を作成することができる。
+この実装はストリームのデータを自分が選んだ場所に格納することができる。 例えば、 \fBfopencookie\fP() は \fBfmemopen\fP(3)
+を実装するのに使用されている。 \fBfmemopen\fP(3)
+はメモリー上のバッファーに格納されたデータに対するストリームインターフェースを提供している。
+.P
+独自のストリームを作成するためには、 プログラマーは以下を行う必要がある。
+.IP \[bu] 3
+ストリームに対する I/O を実行する際に標準 I/O ライブラリが内部で使用する 4 つの "フック" 関数を実装する。
+.IP \[bu]
+Define a "cookie" data type, a structure that provides bookkeeping
+information (e.g., where to store data) used by the aforementioned hook
+functions.  The standard I/O package knows nothing about the contents of
+this cookie (thus it is typed as \fIvoid\~*\fP when passed to
+\fBfopencookie\fP()), but automatically supplies the cookie as the first
+argument when calling the hook functions.
+.IP \[bu]
+\fBfopencookie\fP() を呼び出して、新しいストリームをオープンし、 そのストリームに cookie とフック関数を関連付ける。
+.P
+\fBfopencookie\fP() 関数は \fBfopen\fP(3) と同様の機能を持つ。 新しいストリームをオープンし、
+そのストリームに対して操作を行うのに使用する \fIFILE\fP オブジェクトへのポインターを返す。
+.P
+\fIcookie\fP 引数は、 新しいストリームに関連付けられる呼び出し元の cookie 構造体へのポインターである。 このポインターは、 標準 I/O
+ライブラリが以下で説明するフック関数のいずれかを呼び出す際に第 1 引数として渡される。
+.P
+\fImode\fP 引数は \fBfopen\fP(3) と同じ意味を持つ。 指定できるモードは \fIr\fP, \fIw\fP, \fIa\fP, \fIr+\fP, \fIw+\fP,
+\fIa+\fP である。 詳細は \fBfopen\fP(3) を参照。
+.P
+\fIio_funcs\fP 引数は、 このストリームを実装するのに使用されるプログラマーが定義した関数を指す 4 つのフィールドを持つ構造体である。
+この構造体は以下のように定義されている。
+.P
+.in +4n
+.EX
+typedef struct {
+    cookie_read_function_t  *read;
+    cookie_write_function_t *write;
+    cookie_seek_function_t  *seek;
+    cookie_close_function_t *close;
+} cookie_io_functions_t;
+.EE
+.in
+.P
+4 つのフィールドの詳細は以下のとおりである。
+.TP 
+\fIcookie_read_function_t *read\fP
+この関数はストリームに対する read 操作を実装する。 呼び出される際、 3 つの引数を受け取る。
+.IP
+.in +4n
+.EX
+ssize_t read(void *cookie, char *buf, size_t size);
+.EE
+.in
+.IP
+引数 \fIbuf\fP と \fIsize\fP は、 それぞれ、 入力データを配置できるバッファーとそのバッファーのサイズである。 関数の結果として、
+\fIread\fP 関数は \fIbuf\fP にコピーされたバイト数を、 ファイル末尾の場合は 0 を、 エラーの場合は \-1 を返す。 \fIread\fP
+関数はストリームのオフセットを適切に更新すべきである。
+.IP
+\fI*read\fP がヌルポインターの場合、 独自のストリームからの読み出しは常にファイル末尾 (end of file) を返す。
+.TP 
+\fIcookie_write_function_t *write\fP
+この関数はストリームに対する write 操作を実装する。 呼び出される際、 3 つの引数を受け取る。
+.IP
+.in +4n
+.EX
+ssize_t write(void *cookie, const char *buf, size_t size);
+.EE
+.in
+.IP
+引数 \fIbuf\fP と \fIsize\fP は、 それぞれ、 ストリームへの出力するデータが入ったバッファーとそのバッファーのサイズである。
+関数の結果として、 \fIwrite\fP 関数は \fIbuf\fP からコピーされたバイト数を返し、 エラーの場合は \-1 を返す。
+(この関数は負の値を返してはならない。) \fIwrite\fP 関数はストリームのオフセットを適切に更新すべきである。
+.IP
+\fI*write\fP がヌルポインターの場合、 このストリームへの出力は破棄される。
+.TP 
+\fIcookie_seek_function_t *seek\fP
+この関数はストリームに対する seek 操作を実装する。 呼び出される際、 3 つの引数を受け取る。
+.IP
+.in +4n
+.EX
+int seek(void *cookie, off_t *offset, int whence);
+.EE
+.in
+.IP
+\fI*offset\fP 引数は新しいファイルオフセットを指定する。 新しいオフセットは \fIwhence\fP に以下の値のどれが指定されたかに応じて決まる。
+.RS
+.TP 
+\fBSEEK_SET\fP
+ストリームオフセットを、ストリームの先頭から \fI*offset\fP バイトの位置に設定する。
+.TP 
+\fBSEEK_CUR\fP
+ストリームの現在のオフセットに \fI*offset\fP を加算する。
+.TP 
+\fBSEEK_END\fP
+ストリームのオフセットを、ストリームのサイズに \fI*offset\fP を足した場所に設定する。
+.RE
+.IP
+関数が返る前に、 \fIseek\fP 関数はストリームの新しいオフセットを示すように \fI*offset\fP を更新すべきである。
+.IP
+関数の結果として、 \fIseek\fP 関数は成功すると 0 を、 エラーの場合 \-1 を返す。
+.IP
+\fI*seek\fP がヌルポインターの場合、 このストリームに対して seek 操作を行うことができない。
+.TP 
+\fIcookie_close_function_t *close\fP
+この関数はストリームをクローズする。 このフック関数では、 このストリームに割り当てられたバッファーを解放するといったことができる。 呼び出される際、
+1 つの引数を受け取る。
+.IP
+.in +4n
+.EX
+int close(void *cookie);
+.EE
+.in
+.IP
+\fIcookie\fP 引数は \fBfopencookie\fP() の呼び出し時にプログラマーが渡した cookie である。
+.IP
+関数の結果として、 \fIclose\fP 関数は成功すると 0 を、 エラーの場合 \fBEOF\fP を返す。
+.IP
+\fI*close\fP が NULL の場合、 ストリームがクローズされる際に特別な操作は何も行われない。
+.SH 返り値
+.\" .SH ERRORS
+.\" It's not clear if errno ever gets set...
+成功すると \fBfopencookie\fP() は新しいストリームへのポインターを返す。 エラーの場合、 NULL が返される。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbx lb lb
+l l l.
+インターフェース	属性	値
+T{
+.na
+.nh
+\fBfopencookie\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.SH 標準規格
+GNU.
+.SH 例
+以下のプログラムは、 \fBfmemopen\fP(3) で利用できるのと似た (同じではない) 機能を持つ独自のストリームを実装している。
+データがメモリーバッファーに格納されるストリームを実装している。 このプログラムは、 コマンドライン引数をストリームに書き込み、
+それからストリームをたどって 5 文字ごとに 2 文字を読み出して、 それを標準出力に書き込む。 以下のシェルセッションはこのプログラムの使用例である。
+.P
+.in +4n
+.EX
+$\fB ./a.out \[aq]hello world\[aq]\fP
+/he/
+/ w/
+/d/
+Reached end of file
+.EE
+.in
+.P
+このプログラムを改良して様々なエラー状況に強くすることもできる (例えば、 オープン済みのストリームに対応する cookie
+でストリームをオープンしようとした、 すでにクローズされたストリームをクローズしようとした、など)。
+.SS プログラムのソース
+.\" SRC BEGIN (fopencookie.c)
+\&
+.EX
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
+\&
+#define INIT_BUF_SIZE 4
+\&
+struct memfile_cookie {
+    char   *buf;        /* Dynamically sized buffer for data */
+    size_t  allocated;  /* Size of buf */
+    size_t  endpos;     /* Number of characters in buf */
+    off_t   offset;     /* Current file offset in buf */
+};
+\&
+static ssize_t
+memfile_write(void *c, const char *buf, size_t size)
+{
+    char *new_buff;
+    struct memfile_cookie *cookie = c;
+\&
+    /* Buffer too small? Keep doubling size until big enough.  */
+\&
+    while (size + cookie\->offset > cookie\->allocated) {
+        new_buff = realloc(cookie\->buf, cookie\->allocated * 2);
+        if (new_buff == NULL)
+            return \-1;
+        cookie\->allocated *= 2;
+        cookie\->buf = new_buff;
+    }
+\&
+    memcpy(cookie\->buf + cookie\->offset, buf, size);
+\&
+    cookie\->offset += size;
+    if (cookie\->offset > cookie\->endpos)
+        cookie\->endpos = cookie\->offset;
+\&
+    return size;
+}
+\&
+static ssize_t
+memfile_read(void *c, char *buf, size_t size)
+{
+    ssize_t xbytes;
+    struct memfile_cookie *cookie = c;
+\&
+    /* Fetch minimum of bytes requested and bytes available.  */
+\&
+    xbytes = size;
+    if (cookie\->offset + size > cookie\->endpos)
+        xbytes = cookie\->endpos \- cookie\->offset;
+    if (xbytes < 0)     /* offset may be past endpos */
+        xbytes = 0;
+\&
+    memcpy(buf, cookie\->buf + cookie\->offset, xbytes);
+\&
+    cookie\->offset += xbytes;
+    return xbytes;
+}
+\&
+static int
+memfile_seek(void *c, off_t *offset, int whence)
+{
+    off_t new_offset;
+    struct memfile_cookie *cookie = c;
+\&
+    if (whence == SEEK_SET)
+        new_offset = *offset;
+    else if (whence == SEEK_END)
+        new_offset = cookie\->endpos + *offset;
+    else if (whence == SEEK_CUR)
+        new_offset = cookie\->offset + *offset;
+    else
+        return \-1;
+\&
+    if (new_offset < 0)
+        return \-1;
+\&
+    cookie\->offset = new_offset;
+    *offset = new_offset;
+    return 0;
+}
+\&
+static int
+memfile_close(void *c)
+{
+    struct memfile_cookie *cookie = c;
+\&
+    free(cookie\->buf);
+    cookie\->allocated = 0;
+    cookie\->buf = NULL;
+\&
+    return 0;
+}
+\&
+int
+main(int argc, char *argv[])
+{
+    cookie_io_functions_t  memfile_func = {
+        .read  = memfile_read,
+        .write = memfile_write,
+        .seek  = memfile_seek,
+        .close = memfile_close
+    };
+    FILE *stream;
+    struct memfile_cookie mycookie;
+    size_t nread;
+    char buf[1000];
+\&
+    /* Set up the cookie before calling fopencookie().  */
+\&
+    mycookie.buf = malloc(INIT_BUF_SIZE);
+    if (mycookie.buf == NULL) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+\&
+    mycookie.allocated = INIT_BUF_SIZE;
+    mycookie.offset = 0;
+    mycookie.endpos = 0;
+\&
+    stream = fopencookie(&mycookie, "w+", memfile_func);
+    if (stream == NULL) {
+        perror("fopencookie");
+        exit(EXIT_FAILURE);
+    }
+\&
+    /* Write command\-line arguments to our file.  */
+\&
+    for (size_t j = 1; j < argc; j++)
+        if (fputs(argv[j], stream) == EOF) {
+            perror("fputs");
+            exit(EXIT_FAILURE);
+        }
+\&
+    /* Read two bytes out of every five, until EOF.  */
+\&
+    for (long p = 0; ; p += 5) {
+        if (fseek(stream, p, SEEK_SET) == \-1) {
+            perror("fseek");
+            exit(EXIT_FAILURE);
+        }
+        nread = fread(buf, 1, 2, stream);
+        if (nread == 0) {
+            if (ferror(stream) != 0) {
+                fprintf(stderr, "fread failed\[rs]n");
+                exit(EXIT_FAILURE);
+            }
+            printf("Reached end of file\[rs]n");
+            break;
+        }
+\&
+        printf("/%.*s/\[rs]n", (int) nread, buf);
+    }
+\&
+    free(mycookie.buf);
+\&
+    exit(EXIT_SUCCESS);
+}
+.EE
+.\" SRC END
+.SH 注意
+\fB_FILE_OFFSET_BITS\fP should be defined to be 64 in code that uses non\-null
+\fIseek\fP or that takes the address of \fBfopencookie\fP, if the code is intended
+to be portable to traditional 32\-bit x86 and ARM platforms where \fBoff_t\fP's
+width defaults to 32 bits.
+.SH 関連項目
+\fBfclose\fP(3), \fBfmemopen\fP(3), \fBfopen\fP(3), \fBfseek\fP(3)
