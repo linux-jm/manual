@@ -1,0 +1,180 @@
+.\" Copyright 1992, Drew Eckhardt <drew@cs.colorado.edu>
+.\" Copyright 2005-2014, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1996 Takeshi Ueno
+.\"         all rights reserved.
+.\" Translated 1996-07-03, Takeshi Ueno <tueno@vio.co.jp>
+.\" Modified 1997-12-14, HANATAKA Shinya <hanataka@abyss.rim.or.jp>
+.\" Modified 2003-01-16, Akihiro Motoki <amotoki@dd.iij4u.or.jp>
+.\" Updated & Modified 2004-05-19, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated & Modified 2005-09-07, Akihiro MOTOKI
+.\" Updated 2008-02-10, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v2.77
+.\" Updated 2008-11-09, Akihiro MOTOKI, LDP v3.13
+.\"
+.TH dup 2 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+dup, dup2, dup3 \- ファイルディスクリプターを複製する
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#include <unistd.h>\fP
+.P
+\fBint dup(int \fP\fIoldfd\fP\fB);\fP
+\fBint dup2(int \fP\fIoldfd\fP\fB, int \fP\fInewfd\fP\fB);\fP
+.P
+\fB#define _GNU_SOURCE\fP             /* See feature_test_macros(7) */
+\fB#include <fcntl.h>\fP              /* Definition of \fBO_*\fP constants */
+\fB#include <unistd.h>\fP
+.P
+\fBint dup3(int \fP\fIoldfd\fP\fB, int \fP\fInewfd\fP\fB, int \fP\fIflags\fP\fB);\fP
+.fi
+.SH 説明
+The \fBdup\fP()  system call allocates a new file descriptor that refers to the
+same open file description as the descriptor \fIoldfd\fP.  (For an explanation
+of open file descriptions, see \fBopen\fP(2).)  The new file descriptor number
+is guaranteed to be the lowest\-numbered file descriptor that was unused in
+the calling process.
+.P
+After a successful return, the old and new file descriptors may be used
+interchangeably.  Since the two file descriptors refer to the same open file
+description, they share file offset and file status flags; for example, if
+the file offset is modified by using \fBlseek\fP(2)  on one of the file
+descriptors, the offset is also changed for the other file descriptor.
+.P
+.\"
+2つのファイルディスクリプターはファイルディスクリプターフラグ (close\-on\-exec flag)  を共有しない。複製されたディスクリプターの
+close\-on\-exec flag (\fBfcntl\fP(2)  参照) は off となる。
+.SS dup2()
+The \fBdup2\fP()  system call performs the same task as \fBdup\fP(), but instead
+of using the lowest\-numbered unused file descriptor, it uses the file
+descriptor number specified in \fInewfd\fP.  In other words, the file
+descriptor \fInewfd\fP is adjusted so that it now refers to the same open file
+description as \fIoldfd\fP.
+.P
+If the file descriptor \fInewfd\fP was previously open, it is closed before
+being reused; the close is performed silently (i.e., any errors during the
+close are not reported by \fBdup2\fP()).
+.P
+ファイルディスクリプター \fInewfd\fP をクローズして再利用する処理は
+\fIアトミック(不可分)に\fP実行される。これは重要な点である。 なぜなら、
+等価な機能を \fBclose\fP(2) と \fBdup\fP() を使って実装しようとすると、
+2 つの処理の間に \fInewfd\fP が再利用されてしまうという、
+競合状態にさらされることになるからだ。
+このような再利用が起こるのは、
+メインプログラムがファイルディスクリプターを割り当てる
+シグナルハンドラーにより割り込まれたり、並行動作するスレッドが
+ファイルディスクリプターを割り当てたりすることがあるからだ。
+.P
+以下の点について注意すること:
+.IP \[bu] 3
+\fIoldfd\fP が有効なファイルディスクリプターでない場合、その呼び出しは失敗し、 \fInewfd\fP はクローズされない。
+.IP \[bu]
+.\"
+\fIoldfd\fP が有効なファイルディスクリプターで、 \fInewfd\fP が \fIoldfd\fP と同じ値の場合、 \fBdup2\fP()  は何もせず、
+\fInewfd\fP を返す。
+.SS dup3()
+\fBdup3\fP()  は \fBdup2\fP()  と同じだが、以下の点が異なる。
+.IP \[bu] 3
+呼び出し元が、新しいファイルディスクリプターに対して close\-on\-exec フラグを強制的に設定することができる。 これを行うには、
+\fIflags\fP に \fBO_CLOEXEC\fP を指定する。 このフラグが役に立つ理由については、 \fBopen\fP(2)  の \fBO_CLOEXEC\fP
+フラグの説明を参照のこと。
+.IP \[bu]
+.\" Ulrich Drepper, LKML, 2008-10-09:
+.\"	We deliberately decided on this change.  Otherwise, what is the
+.\"	result of dup3(fd, fd, O_CLOEXEC)?
+\fIoldfd\fP が \fInewfd\fP と同じ場合、 \fBdup3\fP()  は \fBEINVAL\fP エラーで失敗する。
+.SH 返り値
+On success, these system calls return the new file descriptor.  On error, \-1
+is returned, and \fIerrno\fP is set to indicate the error.
+.SH エラー
+.TP 
+\fBEBADF\fP
+\fIoldfd\fP がオープンされたファイルディスクリプターではない。
+.TP 
+\fBEBADF\fP
+\fInewfd\fP がファイルディスクリプターとして許可されている範囲ではない (\fBgetrlimit\fP(2) の \fBRLIMIT_NOFILE\fP
+の議論を参照)。
+.TP 
+\fBEBUSY\fP
+(Linux のみ)  \fBopen\fP(2)  や \fBdup\fP()  との競合状態の場合に、 \fBdup2\fP()  や \fBdup3\fP()
+はこのエラーを返すかもしれない。
+.TP 
+\fBEINTR\fP
+\fBdup2\fP()  や \fBdup3\fP()  の呼び出しがシグナルにより割り込まれた。 \fBsignal\fP(7)  参照。
+.TP 
+\fBEINVAL\fP
+(\fBdup3\fP())  \fIflags\fP に無効な値が入っている。
+.TP 
+\fBEINVAL\fP
+(\fBdup3\fP()) \fIoldfd\fP が \fInewfd\fP と同じであった。
+.TP 
+\fBEMFILE\fP
+The per\-process limit on the number of open file descriptors has been
+reached (see the discussion of \fBRLIMIT_NOFILE\fP in \fBgetrlimit\fP(2)).
+.TP 
+\fBENOMEM\fP
+カーネルに十分なメモリーがない。
+.SH 標準規格
+POSIX.1\-2024.
+.SH 歴史
+.TP 
+\fBdup\fP()
+.TQ
+\fBdup2\fP()
+.\" SVr4 documents additional
+.\" EINTR and ENOLINK error conditions.  POSIX.1 adds EINTR.
+.\" The EBUSY return is Linux-specific.
+4.3BSD, SVr4, POSIX.1\-1988.
+.TP 
+\fBdup3\fP()
+POSIX.1\-2024.  Linux 2.6.27, glibc 2.9.
+.SH 注意
+\fInewfd\fP が範囲を超えた時に返されるエラーは、 \fBdup2\fP()  と \fBfcntl(\fP..., \fBF_DUPFD\fP, ...\fB)\fP
+では異っている。 \fBdup2\fP()  が \fBF_DUPFD\fP と同じように \fBEINVAL\fP を返すシステムもある。
+.P
+If \fInewfd\fP was open, any errors that would have been reported at
+\fBclose\fP(2)  time are lost.  If this is of concern, then\[em]unless the
+program is single\-threaded and does not allocate file descriptors in signal
+handlers\[em]the correct approach is \fInot\fP to close \fInewfd\fP before calling
+\fBdup2\fP(), because of the race condition described above.  Instead, code
+something like the following could be used:
+.P
+.in +4n
+.EX
+/* Obtain a duplicate of \[aq]newfd\[aq] that can subsequently
+   be used to check for close() errors; an EBADF error
+   means that \[aq]newfd\[aq] was not open.  */
+\&
+tmpfd = dup(newfd);
+if (tmpfd == \-1 && errno != EBADF) {
+    /* Handle unexpected dup() error.  */
+}
+\&
+/* Atomically duplicate \[aq]oldfd\[aq] on \[aq]newfd\[aq].  */
+\&
+if (dup2(oldfd, newfd) == \-1) {
+    /* Handle dup2() error.  */
+}
+\&
+/* Now check for close() errors on the file originally
+   referred to by \[aq]newfd\[aq].  */
+\&
+if (tmpfd != \-1) {
+    if (close(tmpfd) == \-1) {
+        /* Handle errors from close.  */
+    }
+}
+.EE
+.in
+.SH 関連項目
+\fBclose\fP(2), \fBfcntl\fP(2), \fBopen\fP(2), \fBpidfd_getfd\fP(2)
