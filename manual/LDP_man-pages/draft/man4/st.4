@@ -1,0 +1,605 @@
+.\" Copyright 1995, Robert K. Nichols <Robert.K.Nichols@att.com>
+.\" Copyright 1995-2005, Kai Mäkisara <Kai.Makisara@kolumbus.fi>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1998 ISHIKAWA Mutsumi
+.\"         all rights reserved.
+.\" Translated Tue Feb 10 15:09:29 JST 1998
+.\"	by ISHIKAWA Mutsumi <ishikawa@linux.or.jp>
+.\" Updated Sun Mar 12 2000 by NAKANO Takeo <nakano@st.seikei.ac.jp>
+.\" Updated Sun Apr 24 2005 by NAKANO Takeo <nakano@st.seikei.ac.jp
+.\"
+.TH st 4 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+st \- SCSI テープデバイス
+.SH 書式
+.nf
+\fB#include <sys/mtio.h>\fP
+.P
+\fBint ioctl(int \fP\fIfd\fP\fB, int \fP\fIrequest\fP\fB [, (void *)\fP\fIarg3\fP\fB]);\fP
+\fBint ioctl(int \fP\fIfd\fP\fB, MTIOCTOP, (struct mtop *)\fP\fImt_cmd\fP\fB);\fP
+\fBint ioctl(int \fP\fIfd\fP\fB, MTIOCGET, (struct mtget *)\fP\fImt_status\fP\fB);\fP
+\fBint ioctl(int \fP\fIfd\fP\fB, MTIOCPOS, (struct mtpos *)\fP\fImt_pos\fP\fB);\fP
+.fi
+.SH 説明
+The \fBst\fP driver provides the interface to a variety of SCSI tape devices.
+Currently, the driver takes control of all detected devices of type
+\[lq]sequential\-access\[rq].  The \fBst\fP driver uses major device number 9.
+.P
+Each device uses eight minor device numbers.  The lowermost five bits in the
+minor numbers are assigned sequentially in the order of detection.  In the
+2.6 kernel, the bits above the eight lowermost bits are concatenated to the
+five lowermost bits to form the tape number.  The minor numbers can be
+grouped into two sets of four numbers: the principal (auto\-rewind) minor
+device numbers, \fIn\fP, and the \[lq]no\-rewind\[rq] device numbers, (\fIn\fP +
+128).  Devices opened using the principal device number will be sent a
+\fBREWIND\fP command when they are closed.  Devices opened using the
+\[lq]no\-rewind\[rq] device number will not.  (Note that using an auto\-rewind
+device for positioning the tape with, for instance, mt does not lead to the
+desired result: the tape is rewound after the mt command and the next
+command starts from the beginning of the tape).
+.P
+それぞれのグループで、異なった特性 (ブロックサイズ・圧縮・ 密度など) のデバイスを定義するために 4 つのマイナー番号が利用できる。
+システムが起動したときには、最初のデバイスだけが使える。 他の 3 つはデフォルトの特性が定義されて初めて使えるようになる (後述)。
+(コンパイル時の定数を変更することによって、テープドライブの最大数と、 それぞれのドライブに割り当てられるマイナー番号の個数とを調整できる。
+デフォルトの割り当てでは 32 台までのテープドライブを制御できる。 例えば 64 台までのテープドライブを、異なったオプションを持つ
+二つのマイナー番号で制御するようにもできる。)
+.P
+デバイスは普通次のように作られる:
+.P
+.in +4n
+.EX
+mknod \-m 666 /dev/st0 c 9 0
+mknod \-m 666 /dev/st0l c 9 32
+mknod \-m 666 /dev/st0m c 9 64
+mknod \-m 666 /dev/st0a c 9 96
+mknod \-m 666 /dev/nst0 c 9 128
+mknod \-m 666 /dev/nst0l c 9 160
+mknod \-m 666 /dev/nst0m c 9 192
+mknod \-m 666 /dev/nst0a c 9 224
+.EE
+.in
+.P
+これらには対応するブロックデバイスは存在しない。
+.P
+The driver uses an internal buffer that has to be large enough to hold at
+least one tape block.  Before Linux 2.1.121, the buffer is allocated as one
+contiguous block.  This limits the block size to the largest contiguous
+block of memory the kernel allocator can provide.  The limit is currently
+128\ kB for 32\-bit architectures and 256\ kB for 64\-bit architectures.  In
+newer kernels the driver allocates the buffer in several parts if
+necessary.  By default, the maximum number of parts is 16.  This means that
+the maximum block size is very large (2\ MB if allocation of 16 blocks of
+128\ kB succeeds).
+.P
+The driver's internal buffer size is determined by a compile\-time constant
+which can be overridden with a kernel startup option.  In addition to this,
+the driver tries to allocate a larger temporary buffer at run time if
+necessary.  However, run\-time allocation of large contiguous blocks of
+memory may fail and it is advisable not to rely too much on dynamic buffer
+allocation before Linux 2.1.121 (this applies also to demand\-loading the
+driver with kerneld or kmod).
+.P
+ドライバはドライブのメーカやモデルを特定してサポートするわけではない。 システムが起動すると、テープデバイスのオプションがドライブの
+ファームウェアによって定義される。例えば、 ドライブのファームウェアが固定長ブロックモードを選択すれば、
+テープデバイスは固定長ブロックモードを使うことになる。このオプションは \fBioctl\fP(2)  コールを明示的に使えば変更でき、
+その変更はデバイスがクローズされて再びオープンされたときも残る。 オプションの設定は、 自動巻き戻しデバイスと非巻き戻しデバイスの両方に影響する。
+.P
+4 つのサブグループそれぞれのデバイスに対して異なるオプションを 与えることができる。オプションはデバイスがオープンされたときに
+効力を発揮する。例えば、システム管理者はあるデバイスを 適当なブロックサイズの固定長ブロックモードで書き込むように定義し、
+別のデバイスを可変長ブロックモードで書き込むようにできる (ドライブが 両方のモードをサポートしていれば)。
+.P
+このドライバは、 \fBテープのパーティション\fP をサポートしている (ドライブがサポートしている場合)。
+(テープのパーティションはディスクパーティションとはなんの関係もない。 パーティション化されたテープは、一つのメディアに複数の論理テープが
+存在するかのように見える。)  パーティションのサポートは \fBioctl\fP(2)  によって有効にできる。 パーティションが変更されると、
+テープの位置はそれぞれのパーティション内部で保存される。 パーティションの選択は \fBioctl\fP(2)  で行う。
+それ以降のテープ操作の対象は、そのパーティションになる。 パーティションの切り替えは、次のテープ操作と同時に行われ、
+不必要なテープ移動をしなくてすむようになっている。 一つのテープにおけるパーティションの最大数は コンパイル時の定数によって定義される (通常は 4)。
+ドライバには、テープの 1 つまたは 2 つのパーティションをフォーマットできるような \fBioctl\fP(2)  が用意されている。
+.P
+通常、システムのデフォルトのテープデバイスに対するハードリンク またはソフトリンクとして、デバイス \fI/dev/tape\fP が作成される。
+.P
+Starting from Linux 2.6.2, the driver exports in the sysfs directory
+\fI/sys/class/scsi_tape\fP the attached devices and some parameters assigned to
+the devices.
+.SS データ転送
+このドライバは固定長ブロックモードと可変長ブロックモードの 両方をサポートしている (ドライブがサポートしていれば)。
+固定長ブロックモードでは、ドライブは決まったサイズのブロックを (複数個) 書き込む。このブロックサイズは write
+システムコールのバイト数によらない。 可変長ブロックモードでは、 write コールごとに一つのテープブロックに書き込みが行われる。
+したがってバイト数が対応するテープブロックのサイズを決める。 テープ上のブロックには、書き込みモードの情報は一切含まれない。
+読み込みのときに重要なことは、テープのブロックサイズを受け入れる コマンドを使うかどうかだけである。
+.P
+可変長ブロックモードでは、読み込みバイト数はテープのブロックサイズと 必ずしも一致していなくても良い。バイト数がテープの次のブロックよりも
+大きければ、ドライバはそのデータを返し、関数は実際のブロックサイズを返す。 ブロックサイズがバイト数よりも大きければ、エラーが返される。
+.P
+In fixed\-block mode the read byte counts can be arbitrary if buffering is
+enabled, or a multiple of the tape block size if buffering is disabled.
+Before Linux 2.1.121 allow writes with arbitrary byte count if buffering is
+enabled.  In all other cases (before Linux 2.1.121 with buffering disabled
+or newer kernel) the write byte count must be a multiple of the tape block
+size.
+.P
+In Linux 2.6, the driver tries to use direct transfers between the user
+buffer and the device.  If this is not possible, the driver's internal
+buffer is used.  The reasons for not using direct transfers include improper
+alignment of the user buffer (default is 512 bytes but this can be changed
+by the HBA driver), one or more pages of the user buffer not reachable by
+the SCSI adapter, and so on.
+.P
+テープをクローズする直前のテープ操作命令が書き込みであれば、 ファイルマークが自動的にテープへ書き込まれる。
+.P
+読み込み時にファイルマークに出会うと、以下が実行される。 ファイルマークが見付かったときにバッファーにデータが残っていると、
+バッファーのデータが返される。次の読み込み操作は 0 バイトを返す。 その次の読み込みは次のファイルからのデータを返す。
+記録データの末尾は、読み込み操作が二回続けて 0 バイトを返して来るかたちで通知される。三回目の読み込みはエラーを返す。
+.SS ioctl
+ドライバは 3 つの \fBioctl\fP(2)  要求をサポートしている。 \fBst\fP ドライバによって認識されなかった要求は \fBSCSI\fP
+ドライバにわたされる。 以下の定義は \fI/usr/include/linux/mtio.h\fP による。
+.SS "MTIOCTOP \[em] perform a tape operation"
+この要求は \fI(struct mtop\ *)\fP 型の引数をとる。全てのドライブが全ての操作をサポートしているわけではない。
+ドライブが操作を拒否すると、ドライバは \fBEIO\fP エラーを返す。
+.P
+.in +4n
+.EX
+/* Structure for MTIOCTOP \- mag tape op command: */
+struct mtop {
+    short   mt_op;       /* operations defined below */
+    int     mt_count;    /* how many of them */
+};
+.EE
+.in
+.P
+通常のテープ利用のための磁気テープ操作:
+.TP 
+\fBMTBSF\fP
+\fImt_count\fP 個のファイルマーク (filemark) 分の後方スペース (backward space)。
+.TP 
+\fBMTBSFM\fP
+\fImt_count\fP 個のファイルマーク分の後方スペース。 テープの位置を最後のファイルマークの EOT 側に変更する。
+.TP 
+\fBMTBSR\fP
+\fImt_count\fP 個のレコード (テープブロック) 分の後方スペース。
+.TP 
+\fBMTBSS\fP
+\fImt_count\fP 個のセットマーク分の後方スペース。
+.TP 
+\fBMTCOMPRESSION\fP
+\fImt_count\fP が 0 以外なら、ドライブのデータ圧縮を有効にする。 0 なら圧縮を無効にする。このコマンドは MODE ページ 15
+を用いる。 これはほとんどの DAT でサポートされている。
+.TP 
+\fBMTEOM\fP
+(ファイルを追加するために) メディアの記録部分の最後まで進める。
+.TP 
+\fBMTERASE\fP
+Erase tape.  With Linux 2.6, short erase (mark tape empty) is performed if
+the argument is zero.  Otherwise, long erase (erase all) is done.
+.TP 
+\fBMTFSF\fP
+\fImt_count\fP 個のファイルマーク分の前方スペース (forward space)。
+.TP 
+\fBMTFSFM\fP
+\fImt_count\fP 個のファイルマーク分の前方スペース。 テープの位置は最後のファイルマークの BOT 側変更される。
+.TP 
+\fBMTFSR\fP
+\fImt_count\fP 個のレコード (テープブロック) 分の前方スペース。
+.TP 
+\fBMTFSS\fP
+\fImt_count\fP 個のセットマーク分の前方スペース。
+.TP 
+\fBMTLOAD\fP
+SCSI ロードコマンドを実行する。 HP オートローダーに限って利用できる。 \fImt_count\fP が定数
+\fBMT_ST_HPLOADER_OFFSET\fP とある数値の和である場合、 その数値がドライブに送られ、オートローダーの制御に用いられる。
+.TP 
+\fBMTLOCK\fP
+テープドライブの扉をロックする。
+.TP 
+\fBMTMKPART\fP
+.\" commit 8038e6456a3e6f5c4759e0d73c4f9165b90c93e7
+Format the tape into one or two partitions.  If \fImt_count\fP is positive, it
+gives the size of partition 1 and partition 0 contains the rest of the
+tape.  If \fImt_count\fP is zero, the tape is formatted into one partition.
+From Linux 4.6, a negative \fImt_count\fP specifies the size of partition 0 and
+the rest of the tape contains partition 1.  The physical ordering of
+partitions depends on the drive.  This command is not allowed for a drive
+unless the partition support is enabled for the drive (see
+\fBMT_ST_CAN_PARTITIONS\fP below).
+.TP 
+\fBMTNOP\fP
+No op\[em]flushes the driver's buffer as a side effect.  Should be used
+before reading status with \fBMTIOCGET\fP.
+.TP 
+\fBMTOFFL\fP
+巻き戻し (rewind) を行い、ドライブをオフライン (off line) にする。
+.TP 
+\fBMTRESET\fP
+ドライブをリセットする。
+.TP 
+\fBMTRETEN\fP
+テープをリテンション (re\-tension) する (テープを最後まで巻いた後、最初まで巻き戻す)。
+.TP 
+\fBMTREW\fP
+巻き戻し。
+.TP 
+\fBMTSEEK\fP
+\fImt_count\fP で指定されたテープブロック番号をシークする。 この操作が行えるのは、 \s-1LOCATE\s+1 コマンド
+(デバイス固有のアドレス)  をサポートする SCSI\-2 ドライブか、あるいは Tandberg 互換の SCSI\-1 ドライブ (Tandberg,
+Archive, Viper, Wangtek,…) である。 デバイス固有のアドレスが利用されている場合は、ブロック番号は 以前に
+\s-1MTIOCPOS\s+1 によって返されたものにすべきである。
+.TP 
+\fBMTSETBLK\fP
+\fImt_count\fP の値をドライブのブロック長 (block length) としてセットする。 ブロック長を 0
+にするとドライブは可変長ブロックサイズモードにセッ トされる。
+.TP 
+\fBMTSETDENSITY\fP
+テープ密度 (tape density) を \fImt_count\fP で示されるコードに変更する。ドライブでサポートされている密度コード
+については、ドライブの文書に書いてあるだろう。
+.TP 
+\fBMTSETPART\fP
+アクティブなパーティションを第 \fImt_count\fP 番目に切り替える。パーティションは 0 から数える。
+このコマンドは、パーティションのサポートが有効にされた ドライブでなければ使えない (以下の \fBMT_ST_CAN_PARTITIONS\fP を見よ)。
+.TP 
+\fBMTUNLOAD\fP
+SCSI unload コマンドを実行する (テープのイジェクトは行わない)。
+.TP 
+\fBMTUNLOCK\fP
+テープドライブの扉のロックを解除する。
+.TP 
+\fBMTWEOF\fP
+\fImt_count\fP 個のファイルマークを書き込む。
+.TP 
+\fBMTWSM\fP
+\fImt_count\fP 個のセットマークを書き込む。
+.P
+デバイスオプションの設定のための (スーパーユーザーによる) 磁気テープ操作:
+.TP 
+\fBMTSETDRVBUFFER\fP
+Set various drive and driver options according to bits encoded in
+\fImt_count\fP.  These consist of the drive's buffering mode, a set of Boolean
+driver options, the buffer write threshold, defaults for the block size and
+density, and timeouts (only since Linux 2.1).  A single operation can affect
+only one item in the list below (the Booleans counted as one item.)
+.IP
+高位の4ビットがゼロである値は、 ドライブのバッファーリングモードの設定に使われる。 バッファーリングモードは以下の通り:
+.RS
+.TP 
+\fB0\fP
+ドライブはライトコマンドに対し、 データブロックが実際に媒体に書き込まれるまで \fBGOOD\fP のステータスを返さない。
+.TP 
+\fB1\fP
+ドライブはライトコマンドに対し、 すべてのデータがドライブの内部バッファーに転送されるとすぐに、 \fBGOOD\fP のステータスを返すことができる。
+.TP 
+\fB2\fP
+ライトコマンドに対し、以下の 2 つの条件がそろった場合、 ドライブはすぐに \fBGOOD\fP ステータスを返す事ができる。 (a)
+すべてのデータがドライブの内部バッファーに転送された。 (b) 別々のイニシエーターから来たバッファーデータが、 すべて媒体へ問題なく書き込まれた。
+.RE
+.IP
+書き込み閾値を制御するには、 \fImt_count\fP には、定数 \fBMT_ST_WRITE_THRESHOLD\fP とブロックカウントのビット毎の OR
+をとった値を 下位の 28ビットに含まねばならない。 このブロックカウントは 1024 バイトブロックを単位としたもので、
+テープの物理ブロックサイズを単位としたものではない。 また、閾値はドライバの内部バッファー (上記の説明参照)  のサイズを越える事はできない。
+.IP
+ブール値のフラグを設定・解除するには、 \fImt_count\fP の値は \fBMT_ST_BOOLEANS\fP, \fBMT_ST_SETBOOLEANS\fP,
+\fBMT_ST_CLEARBOOLEANS\fP, \fBMT_ST_DEFBOOLEANS\fP
+のいずれか一つの値に、以下のオプションの任意の組み合わせに対して ビット毎の OR を取ったものを指定する。
+\fBMT_ST_BOOLEANS\fPを用いると、 オプションを対応するビットに対して定義されている値に設定できる。
+\fBMT_ST_SETBOOLEANS\fPを用いると、 オプションは選択的に設定され、 \fBMT_ST_DEFBOOLEANS\fPを用いると
+選択的に解除される。
+.IP
+テープデバイスのデフォルトのオプションは \fBMT_ST_DEFBOOLEANS\fP によって設定される。 アクティブでないテープデバイス (例:
+マイナー番号 が 32 や 160 のデバイス)  は、それらに対するデフォルトのオプションが最初に定義されたときに
+アクティブになる。アクティブにされたデバイスは、 起動時にアクティブにされたデバイスから、 明示的に指定されなかったオプションを継承する。
+.IP
+ブール値のオプションは以下の通り:
+.RS
+.TP 
+\fBMT_ST_BUFFER_WRITES\fP (デフォルト: 真)
+固定長ブロックモードにおけるすべての書き込み操作をバッファーリングする。 このオプションが偽であり、かつドライブが固定長ブロックサイズの時は、
+すべての書き込み操作はブロックサイズの倍数の大きさで行わなければならない。 信頼性のあるマルチボリュームアーカイブを書き込むためには、
+このオプションは偽に設定されていなければならない。
+.TP 
+\fBMT_ST_ASYNC_WRITES\fP (デフォルト: 真)
+このオプションが真の時には、データがドライバのバッファーに収まる時には データがドライブに転送されるのを待たずに、すぐに書き込み操作が返って来る。
+バッファーがどのくらい空いたら次の SCSI write コマンドを発行できるかは、 書き込み閾値によって決まる。
+ドライブが返すすべてのエラーは、次の操作まで保存される。 信頼性のあるマルチボリュームアーカイブを書き込むためには、
+このオプションは偽に設定されていなければならない。
+.TP 
+\fBMT_ST_READ_AHEAD\fP (デフォルト: 真)
+このオプションを指定すると、 ドライバは固定長ブロックモードで読み込みバッファーリングと先読みをするようになる。
+このオプションが偽であり、かつドライブが固定長ブロックサイズの時は、 すべての読み込み操作はブロックサイズの倍数の大きさで行わなければならない。
+.TP 
+\fBMT_ST_TWO_FM\fP (デフォルト: 偽)
+このオプションはファイルがクローズされた時のドライバーの振舞いを変更する。 一つのファイルマークを書き込むのが通常の動作である。
+このオプションが真の時には、 ドライバーは 2 つのファイルマークを書き込んで、 2 つめのファイルマークのところに戻る。
+.IP
+注意： QICテープドライブはファイルマークに上書きすることができないので、 このオプションを真にしてはならない。
+これらのドライブは記録データの末尾の検知に、 ファイルマークが 2つ続けてあるかではなく、 ブランクテープかどうかのテストを用いる。
+現在の他のほとんどのドライブも、記録データの末尾を検知する。 2 つのファイルマークが必要になるのは、 他のシステムとテープをやりとりする場合である。
+.TP 
+\fBMT_ST_DEBUGGING\fP (デフォルト: 偽)
+このオプションを真にすると、 ドライバはいろいろなデバッグ用メッセージを出すようになる (\fBDEBUG\fP
+を非ゼロに定義してドライバをコンパイルしている時のみ有効)。
+.TP 
+\fBMT_ST_FAST_EOM\fP (デフォルト: 偽)
+このオプションを真にすると、 \fBMTEOM\fP 操作が直接ドライブに送られるようになる。 操作が早くなるはずだが、
+ドライバが現在のファイル番号を見失うことになる (これは通常なら \fBMTIOCGET\fP リクエストによって返される)。
+\fBMT_ST_FAST_EOM\fP が偽の時には、ドライバは \fBMTEOM\fP リクエストに応えるとき、前方にファイルを一つ一つ進めていく。
+.TP 
+\fBMT_ST_AUTO_LOCK\fP (デフォルト: 偽)
+このオプションが真の時には、 デバイスファイルがオープンされるとドライブの扉がロックされ、 クローズされるとアンロックされる。
+.TP 
+\fBMT_ST_DEF_WRITES\fP (デフォルト: 偽)
+テープオプション (ブロックサイズ、モード、圧縮など)  があるドライブにリンクされたデバイスで変更されると、
+その同じドライブにリンクされた他のデバイスでも変更されることがある (そのデバイスの定義による)。このオプションは、 ドライバによる変更をいつ SCSI
+コマンドによって反映させるかと、 ドライブの自動検知機能がいつ信頼して良いのかを定義する。 このオプションを偽にしておくと、
+デバイスの変更があるとドライバはすぐに SCSI コマンドを送る。 真にしておくと、 SCSI コマンドは書き込みが要求されるまで送られない。
+後者の場合は、読み込みの際にドライブのファームウェアによって テープ構造の検知が行える。また SCSI コマンドは、
+テープが正しい指定に沿って書き込まれているかどうかの 確認のためだけに用いられる。
+.TP 
+\fBMT_ST_CAN_BSR\fP (デフォルト: 偽)
+When read\-ahead is used, the tape must sometimes be spaced backward to the
+correct position when the device is closed and the SCSI command to space
+backward over records is used for this purpose.  Some older drives can't
+process this command reliably and this option can be used to instruct the
+driver not to use the command.  The end result is that, with read\-ahead and
+fixed\-block mode, the tape may not be correctly positioned within a file
+when the device is closed.  With Linux 2.6, the default is true for drives
+supporting SCSI\-3.
+.TP 
+\fBMT_ST_NO_BLKLIMS\fP (デフォルト: 偽)
+ドライブによっては \fBREAD BLOCK LIMITS SCSI\fP コマンドを受けつけないことがある。
+このオプションを用いると、ドライバはこのコマンドを用いない。 欠点は、指定したブロックサイズがドライブに受理されてしまうと、
+ドライバのコマンド送信前チェックができなくなる点である。
+.TP 
+\fBMT_ST_CAN_PARTITIONS\fP (デフォルト: 偽)
+このオプションは、一つのテープに複数パーティションを置くことを サポートするかどうかを決める。
+このオプションはドライブにリンクされた全てのデバイスに適用される。
+.TP 
+このオプションは、
+seek および tell 操作 (両者とも \fBMTSEEK\fP・\fBMTIOCPOS\fP コマンドを伴い、テープ位置を変更するとき) の際に、
+SCSI\-2 の標準で定義されている論理ブロックアドレスを用いるかどうかを ドライバに伝える。 偽だとデバイス固有のアドレスが用いられる。
+ドライブが論理アドレスをサポートしているときは、 このオプションをセットすることを強く勧める。 このモードではファイルマークもカウントするからである。
+論理ブロックアドレスしかサポートしないドライブもいくつか存在している。
+.TP 
+\fBMT_ST_SYSV\fP (デフォルト: 偽)
+このオプションが真になっていると、テープデバイスは System V のルールを用いる。偽だと BSD のルールを用いる。
+これらのルール間の最も大きな違いは、読み込みを行っていた デバイスがクローズされたときの振舞いである。 System V
+のルールでは、テープは次のファイルマークを越えて移動する (デバイスの利用時にこれが行われなかった場合)。 BSD
+のルールではテープ位置は変更されない。
+.TP 
+\fBMT_NO_WAIT\fP (デフォルト: 偽)
+即時モード (immediate mode; コマンドの終了を待たない)  を、ある種のコマンド (rewind など) に対して有効にする。
+.P
+例:
+.P
+.in +4n
+.EX
+struct mtop mt_cmd;
+mt_cmd.mt_op = MTSETDRVBUFFER;
+mt_cmd.mt_count = MT_ST_BOOLEANS |
+        MT_ST_BUFFER_WRITES | MT_ST_ASYNC_WRITES;
+ioctl(fd, MTIOCTOP, mt_cmd);
+.EE
+.in
+.P
+デバイスのデフォルトのブロックサイズは \fBMT_ST_DEF_BLKSIZE\fP によって設定でき、デフォルトの密度コードは
+\fBMT_ST_DEFDENSITY\fP によって設定できる。 これらのパラメーターの値は操作コードと OR して与える。
+.P
+With Linux 2.1.x and later, the timeout values can be set with the
+subcommand \fBMT_ST_SET_TIMEOUT\fP ORed with the timeout in seconds.  The long
+timeout (used for rewinds and other commands that may take a long time) can
+be set with \fBMT_ST_SET_LONG_TIMEOUT\fP.  The kernel defaults are very long to
+make sure that a successful command is not timed out with any drive.
+Because of this, the driver may seem stuck even if it is only waiting for
+the timeout.  These commands can be used to set more practical values for a
+specific drive.  The timeouts set for one device apply for all devices
+linked to the same drive.
+.P
+Starting from Linux 2.4.19 and Linux 2.5.43, the driver supports a status
+bit which indicates whether the drive requests cleaning.  The method used by
+the drive to return cleaning information is set using the \fBMT_ST_SEL_CLN\fP
+subcommand.  If the value is zero, the cleaning bit is always zero.  If the
+value is one, the TapeAlert data defined in the SCSI\-3 standard is used (not
+yet implemented).  Values 2\[en]17 are reserved.  If the lowest eight bits
+are >= 18, bits from the extended sense data are used.  The bits
+9\[en]16 specify a mask to select the bits to look at and the bits 17\[en]23
+specify the bit pattern to look for.  If the bit pattern is zero, one or
+more bits under the mask indicate the cleaning request.  If the pattern is
+nonzero, the pattern must match the masked sense data byte.
+.RE
+.SS "MTIOCGET \[em] get status"
+このリクエストは \fI(struct mtget\ *)\fP という型の引数をとる。
+.P
+.in +4n
+.EX
+/* structure for MTIOCGET \- mag tape get status command */
+struct mtget {
+    long     mt_type;
+    long     mt_resid;
+    /* the following registers are device dependent */
+    long     mt_dsreg;
+    long     mt_gstat;
+    long     mt_erreg;
+    /* The next two fields are not always used */
+    daddr_t  mt_fileno;
+    daddr_t  mt_blkno;
+};
+.EE
+.in
+.TP 
+\fImt_type\fP
+ヘッダーファイル中には多くの \fImt_type\fP の値が定義されているが、現行のドライバは汎用のタイプである \fBMT_ISSCSI1\fP (汎用
+SCSI\-1 テープ) および \fBMT_ISSCSI2\fP (汎用 SCSI\-2 テープ) のみを返す。
+.TP 
+\fImt_resid\fP
+現在のテープ位置番号。
+.TP 
+\fImt_dsreg\fP
+ドライブのブロックサイズと密度の現在の設定を報告する (下位 24 ビットがブロックサイズ、上位 8 ビットが密度)。 これらのフィールドは、
+\fBMT_ST_BLKSIZE_SHIFT\fP, \fBMT_ST_BLKSIZE_MASK\fP, \fBMT_ST_DENSITY_SHIFT\fP,
+\fBMT_ST_DENSITY_MASK\fP で定義されている。
+.TP 
+\fImt_gstat\fP
+汎用の (デバイスに依存しない) ステータスを報告する。 これらのステータスビットをテストするためのマクロが ヘッダーファイルで定義されている。
+.RS
+.TP 
+\fBGMT_EOF\fP(\f[I]x\fR)
+The tape is positioned just after a filemark (always false after an
+\fBMTSEEK\fP operation).
+.TP 
+\fBGMT_BOT\fP(\f[I]x\fR)
+The tape is positioned at the beginning of the first file (always false
+after an \fBMTSEEK\fP operation).
+.TP 
+\fBGMT_EOT\fP(\f[I]x\fR)
+A tape operation has reached the physical End Of Tape.
+.TP 
+\fBGMT_SM\fP(\f[I]x\fR)
+The tape is currently positioned at a setmark (always false after an
+\fBMTSEEK\fP operation).
+.TP 
+\fBGMT_EOD\fP(\f[I]x\fR)
+The tape is positioned at the end of recorded data.
+.TP 
+\fBGMT_WR_PROT\fP(\f[I]x\fR)
+The drive is write\-protected.  For some drives this can also mean that the
+drive does not support writing on the current medium type.
+.TP 
+\fBGMT_ONLINE\fP(\f[I]x\fR)
+The last \fBopen\fP(2)  found the drive with a tape in place and ready for
+operation.
+.TP 
+\fBGMT_D_6250\fP(\f[I]x\fR)
+.TQ
+\fBGMT_D_1600\fP(\f[I]x\fR)
+.TQ
+\fBGMT_D_800\fP(\f[I]x\fR)
+This \[lq]generic\[rq] status information reports the current density
+setting for 9\-track \(12" tape drives only.
+.TP 
+\fBGMT_DR_OPEN\fP(\f[I]x\fR)
+The drive does not have a tape in place.
+.TP 
+\fBGMT_IM_REP_EN\fP(\f[I]x\fR)
+Immediate report mode.  This bit is set if there are no guarantees that the
+data has been physically written to the tape when the write call returns.
+It is set zero only when the driver does not buffer data and the drive is
+set not to buffer data.
+.TP 
+\fBGMT_CLN\fP(\f[I]x\fR)
+The drive has requested cleaning.  Implemented since Linux 2.4.19 and Linux
+2.5.43.
+.RE
+.TP 
+\fImt_erreg\fP
+\fImt_erreg\fP で定義されているフィールドは一つだけで、 下位の 16 ビットがエラーをリカバーした回数である
+(\fBMT_ST_SOFTERR_SHIFT\fP と \fBMT_ST_SOFTERR_MASK\fP で定義されている)。
+ドライブの報告するエラーリカバー数と矛盾することがあるので、 この数はほとんどの場合維持されない
+(ほとんどのドライブでは、デフォルトではソフトエラーを報告しない。 しかしこれは SCSI MODE SELECT コマンドによって変更できる)。
+.TP 
+\fImt_fileno\fP
+(ゼロから数えた) 現在のファイル番号を報告する。 ファイル番号がわからない時 (例えば \fBMTBSS\fP や \fBMTSEEK\fP の後など) には
+\-1 にセットされる。
+.TP 
+\fImt_blkno\fP
+現在のファイル中の(ゼロから数えた)ブロック番号を報告する。 ブロック番号がわからない時 (例えば \fBMTBSF\fP, \fBMTBSS\fP,
+\fBMTSEEK\fP の後など) には \-1 にセットされる。
+.SS "MTIOCPOS \[em] get tape position"
+This request takes an argument of type \fI(struct mtpos\ *)\fP and reports the
+drive's notion of the current tape block number, which is not the same as
+\fImt_blkno\fP returned by \fBMTIOCGET\fP.  This drive must be a SCSI\-2 drive that
+supports the \fBREAD POSITION\fP command (device\-specific address)  or a
+Tandberg\-compatible SCSI\-1 drive (Tandberg, Archive Viper, Wangtek, ...).
+.P
+.in +4n
+.EX
+/* structure for MTIOCPOS \- mag tape get position command */
+struct mtpos {
+    long mt_blkno;    /* current block number */
+};
+.EE
+.in
+.SH 返り値
+.TP 
+\fBEACCES\fP
+書き込み保護されているテープに書き込みまたは消去を行おうとした。 (このエラーは \fBopen\fP(2)  中には検知されない。)
+.TP 
+\fBEBUSY\fP
+デバイスがすでに使われているか、 ドライバがバッファーを割当てられなかった。
+.TP 
+\fBEFAULT\fP
+コマンドの引数が、 呼びだしプロセスに属していないメモリー位置を指している。
+.TP 
+\fBEINVAL\fP
+\fBioctl\fP(2)  の引数が不正であるか、要求したブロックサイズが不正。
+.TP 
+\fBEIO 14\fP
+要求された操作が最後まで行えなかった。
+.TP 
+\fBENOMEM\fP
+.\" Precisely: Linux 2.6.0-test6
+The byte count in \fBread\fP(2)  is smaller than the next physical block on the
+tape.  (Before Linux 2.2.18 and Linux 2.4.0 the extra bytes have been
+silently ignored.)
+.TP 
+\fBENOSPC\fP
+メディアの終点に達したため、書き込み操作が完了しなかった。
+.TP 
+\fBENOSYS\fP
+不明な \fBioctl\fP(2)。
+.TP 
+\fBENXIO\fP
+オープンする時にテープデバイスが存在しなかった。
+.TP 
+\fBEOVERFLOW\fP
+ドライバの内部バッファーより大きいサイズの可変長ブロックを 読み書きしようとした。
+.TP 
+\fBEROFS\fP
+ドライブに入っているテープがライトプロテクトされている場合に、 \fBO_WRONLY\fP または \fBO_RDWR\fP で open を行おうとした。
+.SH ファイル
+.TP 
+\fI/dev/st*\fP
+自動巻き戻しの SCSI テープデバイス。
+.TP 
+\fI/dev/nst*\fP
+.\" .SH AUTHOR
+.\" The driver has been written by Kai M\(:akisara (Kai.Makisara@metla.fi)
+.\" starting from a driver written by Dwayne Forsyth.
+.\" Several other
+.\" people have also contributed to the driver.
+巻き戻しをしない SCSI テープデバイス。
+.SH 注意
+.IP \[bu] 3
+異なるシステムでデータを相互にやりとりする場合、 両方のシステムで物理的なテープブロックサイズを一致させる必要がある。
+起動直後のドライブのパラメーターは、大多数の OS がそのデバイスに対して 用いている値と異なっていることもよくある。多くのシステムは、
+ドライブが対応していれば可変長ブロックモードを用いる。 DAT、 8mm ヘリカルスキャンドライブ、 DLT などの最近のドライブの
+ほとんどは可変長ブロックモードに対応しているから。 これらのドライブは (少なくとも他のシステムとのデータ交換が ある場合は)、 Linux
+でも可変長ブロックモードで使うほうが 良いかもしれない (つまりシステムの起動時のモード設定に \fBMTSETBLK\fP または
+\fBMTSETDEFBLK\fP を用いる)。 欠点としては、比較的大きなテープブロックサイズを用いなければ、 SCSI
+バス上で満足のいく転送速度が得られないことである。
+.IP \[bu]
+多くのプログラム (\fBtar\fP(1)  など) では、 コマンドラインからユーザーがブロック関連の値を指定できる。
+この値によってテープ上の物理的なブロックサイズを決定できるのは、 可変長ブロックモードに限られることに注意。
+.IP \[bu]
+SCSI テープドライブを用いるには、基本の SCSI ドライバ、 SCSI アダプターのドライバ、 SCSI テープドライバのすべてが
+カーネルに組み込まれているか、あるいはモジュールとしてロードされている 必要がある。 SCSI テープドライバがないと、 ドライブは認識されるが、
+このページで記述されているテープのサポートは利用できない。
+.IP \[bu]
+ドライバはエラーメッセージをコンソールとログとに書き出す。 カーネル設定で verbose SCSI messages が有効にされていると、
+SENSE コードが自動的にテキストに変換されて、 いくつかのメッセージに書きだされる。
+.IP \[bu]
+このドライバの内部バッファーリングは、固定ブロックモードなら \fBread\fP(2)  や \fBwrite\fP(2)
+のバイト数が小さくても良いスループットを出す。 直接転送ではこれは不可能なので、2.6 カーネルに移行したときに驚くかもしれない。
+解決法としては、ソフトウェアにより大きな転送を行うよう伝える (たいていはより大きなブロックを使わせる) ことである。
+これが不可能なら、直接転送を無効にすることもできる。
+.SH 関連項目
+\fBmt\fP(1)
+.P
+The file \fIdrivers/scsi/README.st\fP or \fIDocumentation/scsi/st.rst\fP (kernel
+>= 2.6) in the Linux kernel source tree contains the most recent
+information about the driver and its configuration possibilities

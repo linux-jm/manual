@@ -1,0 +1,749 @@
+'\" t
+.\" Copyright 1996, Andries E. Brouwer <aeb@cwi.nl>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: GPL-2.0-or-later
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1996,1997,1998
+.\"         ISHIKAWA Mutsumi, TAKAHASHI Mutsuji
+.\"                                    all rights reserved.
+.\" Translated Mon Jul 21 03:12:45 JST 1997
+.\"         by ISHIKAWA Mutsumi <ishikawa@linux.or.jp>
+.\"		and TAKAHASHI Mutsuji <muz@ilp.iijnet.or.jp>
+.\"
+.TH console_codes 4 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+console_codes \- Linux コンソールのエスケープシーケンスとコントロール シーケンス
+.SH 説明
+The Linux console implements a large subset of the VT102 and ECMA\-48 /
+ISO/IEC\~6429 / ANSI X3.64 terminal controls, plus certain private\-mode
+sequences for changing the color palette, character\-set mapping, and so on.
+In the tabular descriptions below, the second column gives ECMA\-48 or DEC
+mnemonics (the latter if prefixed with DEC) for the given function.
+Sequences without a mnemonic are neither ECMA\-48 nor VT102.
+.P
+すべての出力作業が終って、実際に印字するために文字のストリームが コンソールドライバーに届いた時、最初に行なわれるのが、処理用コードから
+印字用のコードへの変換である。
+.P
+もし、コンソールが UTF\-8 モードなら、入って来たバイト(byte)は 16 ビットの Unicode に組み立てられる。そうでなければ、それぞれの
+バイトは現在の(各バイトを Unicode の値に変換する)マッピングテーブルに
+従って変換される。これに関しては下のキャラクターセット(Charcter Sets)  節を参照のこと。
+.P
+通常、Unicode の値はフォントインデックス(font index) に変換され、 ビデオメモリーに蓄えられる。そして(ビデオ ROM
+中に見付けられる)  対応するグリフ(glyph)が画面に現れる。 Unicode を用いると、(PC 互換機の設計では) 512 の異なった
+グリフを同時に利用できるようになる。
+.P
+現在の Unicode の値がコントロール文字であるかエスケープシーケンスを 処理している時には、その値は特別に扱われる。
+フォントのインデックスに変換されてグリフとして表示される代わりに、カーソルの 移動やその他のコントロール機能を実行させる。
+詳しいことは、後述の「LINUX コンソールコントロール」のセクションを参照のこと。
+.P
+一般に端末コントロールコードをプログラム中に直接記述するのは 良いことではない。 Linuxでは、端末において実現可能な操作のデータベースである
+\fBterminfo\fP(5)  をサポートしている。 コンソールエスケープシーケンスをわざわざ入力するよりも、ほとんどの場合 terminfo
+の情報を参照する \fBncurses\fP(3), \fBtput\fP(1), や \fBreset\fP(1)
+などのスクリーンライブラリやユーティリティーを使いたいと思うであろう。
+.SS "Linux コンソールコントロール"
+この章では Linux コンソールにおいて特殊な機能(つまり、現在のカーソル位置に
+文字のイメージを印字する以外のこと)を起こさせる全てのコントロール文字と エスケープシーケンスについて述べる。
+.P
+\fBコントロール文字\fP
+.P
+A character is a control character if (before transformation according to
+the mapping table) it has one of the 14 codes 00 (NUL), 07 (BEL), 08 (BS),
+09 (HT), 0a (LF), 0b (VT), 0c (FF), 0d (CR), 0e (SO), 0f (SI), 18 (CAN), 1a
+(SUB), 1b (ESC), 7f (DEL).  One can set a "display control characters" mode
+(see below), and allow 07, 09, 0b, 18, 1a, 7f to be displayed as glyphs.  On
+the other hand, in UTF\-8 mode all codes 00\[en]1f are regarded as control
+characters, regardless of any "display control characters" mode.
+.P
+コントロール文字がある時には、それはすぐに(たとえエスケープシーケンスの 途中でも)実行され、破棄される。エスケープシーケンスは次の文字から続けられる
+(しかし、ESC は新しいエスケープシーケンスを始めるので、 前の終了していないエスケープシーケンスが中止される可能性がある。 さらに、CAN と
+SUB はどんなエスケープシーケンスも中止する)。 認められているコントロール文字は、BEL, BS, HT, LF, VT, FF, CR, SO,
+SI, CAN, SUB, ESC, DEL, CSI である。これらは期待どおりの動作をする:
+.TP 
+BEL\~(0x07,\fB\~\[ha]G\fP)
+beeps;
+.TP 
+BS\~(0x08,\fB\~\[ha]H\fP)
+backspaces one column (but not past the beginning of the line);
+.TP 
+HT\~(0x09,\fB\~\[ha]I\fP)
+goes to the next tab stop or to the end of the line if there is no earlier
+tab stop;
+.TP 
+LF\~(0x0A,\fB\~\[ha]J\fP)
+.TQ
+VT\~(0x0B,\fB\~\[ha]K\fP)
+.TQ
+FF\~(0x0C,\fB\~\[ha]L\fP)
+all give a linefeed, and if LF/NL (new\-line mode) is set also a carriage
+return;
+.TP 
+FF\~(0x0C,\fB\~\[ha]L\fP)
+gives a carriage return;
+.TP 
+SO\~(0x0E,\fB\~\[ha]N\fP)
+activates the G1 character set;
+.TP 
+SI\~(0x0F,\fB\~\[ha]O\fP)
+activates the G0 character set;
+.TP 
+CAN\~(0x18,\fB\~\[ha]X\fP)
+.TQ
+SUB\~(0x1A,\fB\~\[ha]Z\fP)
+abort escape sequences;
+.TP 
+ESC\~(0x1B,\fB\~\[ha][\fP)
+starts an escape sequence;
+.TP 
+DEL (0x7F)
+is ignored;
+.TP 
+CSI (0x9B)
+is equivalent to ESC [.
+.P
+\fBエスケープシーケンスであるが CSI シーケンスでないもの\fP
+.P
+.TS
+l l lx.
+ESC c	RIS	リセット。
+ESC D	IND	ラインフィード。
+ESC E	NEL	ニューライン。
+ESC H	HTS	T{
+現在の桁の位置にタブストップを設定する。
+T}
+ESC M	RI	逆ラインフィード
+ESC Z	DECID	T{
+DEC private identification.
+The kernel returns the string ESC [ ? 6 c,
+claiming that it is a VT102.
+T}
+ESC 7	DECSC	T{
+Save current state
+(cursor coordinates,
+attributes,
+character sets pointed at by G0, G1).
+T}
+ESC 8	DECRC	T{
+最後に ESC 7 でセーブした状態を復帰させる。
+T}
+ESC %		キャラクターセットを選択するシーケンスを開始する。
+.T&
+l l ax.
+ESC % @		T{
+Select default (ISO/IEC\~646 / ISO/IEC\~8859\-1)
+T}
+ESC % G		Select UTF\-8
+ESC % 8		Select UTF\-8 (obsolete)
+.T&
+l l lx.
+ESC # 8	DECALN	T{
+DEC のスクリーン調整テスト \- スクリーンを E でうめる。
+T}
+ESC (		T{
+Start sequence defining G0 character set
+(followed by one of B, 0, U, K, as below)
+T}
+ESC ( B		T{
+Select default (ISO/IEC\~8859\-1 mapping).
+T}
+ESC ( 0		T{
+Select VT100 graphics mapping.
+T}
+ESC ( U		T{
+Select null mapping \- straight to character ROM.
+T}
+ESC ( K		T{
+Select user mapping \- the map that is loaded by the utility
+\fBmapscrn\fP(8).
+T}
+ESC )		T{
+Start sequence defining G1 (followed by one of B, 0, U, K, as above).
+T}
+ESC >	DECPNM	数値キーパッドモード(numeric keypad mode)をセットする。
+ESC =	DECPAM	アプリケーションキーパッドモード(application keypad mode) をセットする。
+ESC ]	OSC	T{
+Operating System Command prefix.
+T}
+ESC ] R		Reset palette.
+ESC ] P		T{
+Set palette, with parameter given in 7 hexadecimal digits
+\fInrrggbb\fP
+after the final P.
+Here
+\fIn\fP
+is the color (0\[en]15),
+and
+\fIrrggbb\fP
+indicates
+the red/green/blue values (0\[en]255).
+T}
+.TE
+.P
+\fBECMA\-48 CSI シーケンス\fP
+.P
+CSI (または ESC [ ) のあとに、最大で NPAR (16) 個のセミコロンで区切られた 10 進数のパラメーターシーケンスが続く。
+空であるかそこにないパラメーターは 0 とされる。 パラメーターシーケンスの前にはひとつのクエスチョンマークがつくことがある。
+.P
+しかし、CSI [ (または ESC [ [ ) の後では、一文字が読まれ、このすべての
+パラメーターシーケンスが無視される(要するにファンクションキーのエコーは 無視されるということである)。
+.P
+CSI シーケンスの動作は、その最後の文字によって決まる。
+.P
+.TS
+l l lx.
+@	ICH	T{
+指示された数の空白文字を挿入する。
+T}
+A	CUU	T{
+指示された数だけカーソルを上方向に移動する。
+T}
+B	CUD	T{
+カーソルを指示された数の行だけ下方向に移動する。
+T}
+C	CUF	T{
+カーソルを指示された数の桁だけ右に移動する。
+T}
+D	CUB	T{
+カーソルを指示された数の桁だけ左に移動する。
+T}
+E	CNL	T{
+カーソルを指示された数の行だけ下の第 1 桁に移動する。
+T}
+F	CPL	T{
+カーソルを指示された数の行だけ上の第 1 桁に移動する。
+T}
+G	CHA	T{
+カーソルを現在の行の指示された桁に移動する。
+T}
+H	CUP	T{
+カーソルを指示された行、桁(1,1を原点とする)に移動する。
+T}
+J	ED	T{
+ディスプレイの消去(デフォルト: カーソルからディスプレイの最後まで)。
+T}
+		T{
+ESC [ 1 J: 最初からカーソルまでの消去。
+T}
+		T{
+ESC [ 2 J: ディスプレイ全体の消去。
+T}
+		T{
+ESC [ 3 J: erase whole display including scroll\-back
+buffer (since Linux 3.0).
+T}
+.\" ESC [ 3 J: commit f8df13e0a901fe55631fed66562369b4dba40f8b
+K	EL	T{
+行の消去(デフォルト: カーソルから行末まで)。
+T}
+		T{
+ESC [ 1 K: 行頭からカーソルまでの消去。
+T}
+		T{
+ESC [ 2 K: 行全体の消去。
+T}
+L	IL	T{
+指示された数の空行を挿入する。
+T}
+M	DL	T{
+指示された数の行を削除する。
+T}
+P	DCH	T{
+現在の行から指示された数の文字を削除する。
+T}
+X	ECH	T{
+現在の行から指示された数の文字を消去する。
+T}
+a	HPR	T{
+カーソルを指示された数の桁だけ右に移動する。
+T}
+c	DA	T{
+ESC [ ? 6 c を返す: "私はVT102です"(ということ)。
+T}
+d	VPA	T{
+カーソルを指示された行の現在の桁に移動する。
+T}
+e	VPR	T{
+カーソルを指示された数の行だけ下方向に移動する。
+T}
+f	HVP	T{
+カーソルを指示された行、桁に移動する。
+T}
+g	TBC	T{
+パラメーターなしの時: 現在位置のタブストップを削除する。
+T}
+		T{
+ESC [ 3 g: すべてのタブストップを削除する。
+T}
+h	SM	モードのセット(後述)。
+l	RM	モードのリセット(後述)。
+m	SGR	属性のセット(後述)。
+n	DSR	状態の報告(後述)。
+q	DECLL	キーボードの LED をセットする。
+		ESC [ 0 q: すべての LED を消す。
+		ESC [ 1 q: スクロールロック LED を点灯。
+		ESC [ 2 q: ナンバーロック LED を点灯。
+		ESC [ 3 q: キャピタルロック LED を点灯。
+r	DECSTBM	T{
+Set scrolling region;
+parameters are top and bottom row.
+T}
+s	SCOSC	カーソル位置の保存。
+u	SCORC	カーソル位置の復帰。
+\`	HPA	T{
+カーソルを現在の行の指示された桁に移動する。
+T}
+.TE
+.P
+\fBECMA\-48 Select Graphic Rendition\fP
+.P
+ECMA\-48 SGR シーケンス ESC [ <パラメーター> m は表示属性を設定する。
+セミコロンで区切ることで、同じシーケンスでいくつかの属性を設定できる。
+空パラメーター(セミコロンか文字列開始文字か文字列終端文字の間)はゼロと解釈される。
+.P
+.TS
+l lx.
+parameter	結果
+0	T{
+すべての属性をデフォルトにリセットする。
+T}
+1	ボールド(bold)をセット。
+2	T{
+ハーフブライト(half\-bright)(カラーディスプレイでは色で代用)をセット。
+T}
+3	T{
+set italic (since Linux 2.6.22; simulated with color on a color display)
+T}
+4	T{
+下線(underscore)をセット(カラーディスプレイでは色で代用)。
+(ディムや下線を代用するのに使われる色は
+ESC ] ... によりセット)
+T}
+5	点滅(blink)をセット。
+7	反転表示(reverce video)をセット。
+10	T{
+選択したマッピング、ディスプレイコントロールフラグ(display control flag)、
+トグルメタフラグ(toggle meta flag)をリセットする (ECMA\-48では"primary font"と呼んでいる)。
+T}
+11	T{
+ヌルマッピングを選択、ディスプレイコントロールフラグをセット、
+トグルメタフラグをリセットする
+(ECMA\-48 では"first alternate font"と呼んでいる)。
+T}
+12	T{
+ヌルマッピングを選択、ディスプレイコントロールフラグをセット、
+トグルメタフラグをセットする (ECMA\-48 では "second alternate font" と呼んでいる)。
+トグルメタフラグがたっていると、
+マッピングテーブルによる変換をする前に、
+バイトの上位の1ビットがトグルされる。
+T}
+21	T{
+set underline;
+before Linux 4.17,
+this value set normal intensity
+(as is done in many other terminals)
+T}
+22	通常の輝度にセット。
+23	italic off (since Linux 2.6.22)
+24	下線オフ。
+25	点滅オフ。
+27	反転表示オフ。
+30	フォアグラウンド(foreground)を黒にセット。
+31	フォアグラウンドを赤にセット。
+32	フォアグラウンドを緑にセット。
+33	フォアグラウンドを茶にセット。
+34	フォアグラウンドを青にセット。
+35	フォアグラウンドをマゼンダにセット。
+36	フォアグラウンドをシアンにセット。
+37	フォアグラウンドを白にセット。
+38	T{
+256/24\-bit foreground color follows, shoehorned into 16 basic colors
+(before Linux 3.16: set underscore on, set default foreground color)
+T}
+39	T{
+デフォルトのフォアグラウンドの色を設定する
+(Linux 3.16 より前: 下線表示を解除し、デフォルトのフォアグラウンドの色をセット)
+T}
+40	バックグラウンド(background)を黒にセット。
+41	バックグラウンドを赤にセット。
+42	バックグラウンドを緑にセット。
+43	バックグラウンドを茶にセット。
+44	バックグラウンドを青にセット。
+45	バックグラウンドをマゼンダにセット。
+46	バックグラウンドをシアンにセット。
+47	バックグラウンドを白にセット。
+48	T{
+256/24\-bit background color follows, shoehorned into 8 basic colors
+T}
+49	バックグラウンドをデフォルトにセット。
+90..97	T{
+set foreground to bright versions of 30..37
+T}
+100..107	T{
+set background, same as 40..47 (bright not supported)
+T}
+.TE
+.P
+Commands 38 and 48 require further arguments:
+.P
+.TS
+l lx.
+;5;x	T{
+256 color: values 0..15 are IBGR (black, red, green, ..., white),
+16..231 a 6x6x6 color cube, 232..255 a grayscale ramp
+T}
+;2;r;g;b	T{
+24\-bit color, r/g/b components are in the range 0..255
+T}
+.TE
+.P
+\fBECMA\-48 モードスイッチ(Mode Switches)\fP
+.TP 
+ESC [ 3 h
+DECCRM (デフォルトではオフ): コントロール文字を表示する。
+.TP 
+ESC [ 4 h
+DECIM (デフォルトではオフ): 挿入モードにする。
+.TP 
+ESC [ 20 h
+.\"
+LF/NL (default off): Automatically follow echo of LF, VT, or FF with CR.
+.P
+.\"
+\fBECMA\-48 状態リポートコマンド(Status Report Commands)\fP
+.TP 
+ESC [ 5 n
+デバイス状態のリポート(DSR): 返事は ESC [ 0 n (端末 OK).
+.TP 
+ESC [ 6 n
+.\"
+カーソル位置のリポート(CPR): 返事は ESC [ \fIy\fP ; \fIx\fP R、 \fIx,y\fP はカーソルの位置をあらわす。
+.P
+\fBDEC プライベートモード (DECSET/DECRST) シーケンス\fP
+.P
+.\"
+These are not described in ECMA\-48.  We list the Set Mode sequences; the
+Reset Mode sequences are obtained by replacing the final \[aq]h\[aq] by
+\[aq]l\[aq].
+.TP 
+ESC [ ? 1 h
+DECCKM (デフォルトはオフ): セットされた時にはカーソルキーは ESC [ ではなく ESC O を前につけて送る。
+.TP 
+ESC [ ? 3 h
+DECCOLM (デフォルトはオフ = 80 桁): 80/132 の桁モード切替え。 ドライバーのソースの注釈には、これだけでは十分でなく
+\fBresizecons\fP(8)  のようなユーザーモードのユーティリティーで、コンソールビデオカードの
+ハードウェアレジスターを変える必要があると書かれている。
+.TP 
+ESC [ ? 5 h
+DECSCNM (デフォルトはオフ): 反転表示モードのセット。
+.TP 
+ESC [ ? 6 h
+DECOM(デフォルトはオフ): セットされた時には、カーソルのアドレッシングが、 スクロール範囲の左上隅からの相対位置になる。
+.TP 
+ESC [ ? 7 h
+DECAWM (default on): Set autowrap on.  In this mode, a graphic character
+emitted after column 80 (or column 132 if DECCOLM is on)  forces a wrap to
+the beginning of the following line first.
+.TP 
+ESC [ ? 8 h
+DECARM(デフォルトはオン): キーボードのオートリピートをオンにセット。
+.TP 
+ESC [ ? 9 h
+X10 Mouse Reporting (default off): Set reporting mode to 1 (or reset to 0)
+\[em]see below\[em].
+.TP 
+ESC [ ? 25 h
+DECTECM (デフォルトはオン): カーソルを可視(visible)にする。
+.TP 
+ESC [ ? 1000 h
+.\"
+X11 Mouse Reporting (default off): Set reporting mode to 2 (or reset to 0)
+\[em]see below\[em].
+.P
+\fBLinux コンソールプライベート CSI シーケンス\fP
+.P
+.\"
+The following sequences are neither ECMA\-48 nor native VT102.  They are
+native to the Linux console driver.  Colors are in SGR parameters: 0 =
+black, 1 = red, 2 = green, 3 = brown, 4 = blue, 5 = magenta, 6 = cyan, 7 =
+white; 8\[en]15 = bright versions of 0\[en]7.
+.P
+.TS
+l lx.
+ESC [ 1 ; \f[I]n\fR ]	T{
+Set color \f[I]n\fR as the underline color.
+T}
+ESC [ 2 ; \f[I]n\fR ]	T{
+Set color \f[I]n\fR as the dim color.
+T}
+ESC [ 8 ]	T{
+現在の色のペアをデフォルト属性にする。
+T}
+ESC [ 9 ; \f[I]n\fR ]	T{
+Set screen blank timeout to
+\fIn\fP
+minutes.
+T}
+ESC [ 10 ; \f[I]n\fR ]	T{
+ベルの周波数(Hz)をセットする。
+T}
+ESC [ 11 ; \f[I]n\fR ]	T{
+ベルの鳴っている時間(msec)をセットする。
+T}
+ESC [ 12 ; \f[I]n\fR ]	T{
+指定のコンソールを前面に持ってくる。
+T}
+ESC [ 13 ]	T{
+スクリーンをアンブランク(unblank)する。
+T}
+ESC [ 14 ; \f[I]n\fR ]	T{
+VESA電源停止インターバル(VESA powerdown interval)をセットする。
+T}
+ ESC [ 15 ]	T{
+直前のコンソールを前面に持ってくる
+(Linux 2.6.0 以降)
+T}
+ESC [ 16 ; \f[I]n\fR ]	T{
+Set the cursor blink interval in milliseconds
+(since Linux 4.2).
+T}
+.\" commit bd63364caa8df38bad2b25b11b2a1b849475cce5
+.TE
+.SS 文字集合
+カーネルは、バイト列からコンソールスクリーン符号の変換を 4 つ 知っている。 4 つの変換テーブルとは、a) Latin1 \-> PC, b)
+VT100 graphics \-> PC, c) PC \-> PC, d) ユーザー定義, である。
+.P
+There are two character sets, called G0 and G1, and one of them is the
+current character set.  (Initially G0.)  Typing \fB\[ha]N\fP causes G1 to
+become current, \fB\[ha]O\fP causes G0 to become current.
+.P
+These variables G0 and G1 point at a translation table, and can be changed
+by the user.  Initially they point at tables a) and b), respectively.  The
+sequences ESC ( B and ESC ( 0 and ESC ( U and ESC ( K cause G0 to point at
+translation table a), b), c), and d), respectively.  The sequences ESC ) B
+and ESC ) 0 and ESC ) U and ESC ) K cause G1 to point at translation table
+a), b), c), and d), respectively.
+.P
+The sequence ESC c causes a terminal reset, which is what you want if the
+screen is all garbled.  The oft\-advised "echo \[ha]V\[ha]O" will make only
+G0 current, but there is no guarantee that G0 points at table a).  In some
+distributions there is a program \fBreset\fP(1)  that just does "echo
+\[ha][c".  If your terminfo entry for the console is correct (and has an
+entry rs1=\[rs]Ec), then "tput reset" will also work.
+.P
+ユーザー定義のマッピングテーブルは \fBmapscrn\fP(8)  を使って定義できる。 マッピングの結果、シンボル c が印字されるとシンボル s =
+map[c] が ビデオメモリーに送られる。s に対応するビットマップはキャラクター ROM にあり、 \fBsetfont\fP(8)
+により変更可能である。
+.SS マウストラッキング
+マウストラッキング機能は、 \fBxterm\fP(1)\-互換の マウスステータスリポート(mouse status
+reports)を返させるためのものである。 コンソールドライバーはマウスのデバイスや種類について知る方法が
+ないので、仮想ターミナルドライバーがマウス更新の ioctl を受け取った時だけ、 マウスステータスリポートがコンソールの入力ストリームに送られる。
+この ioctl は、 \fBgpm\fP(8)  デーモンのようなマウス対応のユーザーモード アプリケーションが発生しなければならない。
+.P
+The mouse tracking escape sequences generated by \fBxterm\fP(1)  encode numeric
+parameters in a single character as \fIvalue\fP+040.  For example, \[aq]!\[aq]
+is 1.  The screen coordinate system is 1\-based.
+.P
+The X10 compatibility mode sends an escape sequence on button press encoding
+the location and the mouse button pressed.  It is enabled by sending ESC [ ?
+9 h and disabled with ESC [ ? 9 l.  On button press, \fBxterm\fP(1)  sends ESC
+[ M \fIbxy\fP (6 characters).  Here \fIb\fP is button\-1, and \fIx\fP and \fIy\fP are the
+x and y coordinates of the mouse when the button was pressed.  This is the
+same code the kernel also produces.
+.P
+Normal tracking mode (not implemented in Linux 2.0.24) sends an escape
+sequence on both button press and release.  Modifier information is also
+sent.  It is enabled by sending ESC [ ? 1000 h and disabled with ESC [ ?
+1000 l.  On button press or release, \fBxterm\fP(1)  sends ESC [ M \fIbxy\fP.  The
+low two bits of \fIb\fP encode button information: 0=MB1 pressed, 1=MB2
+pressed, 2=MB3 pressed, 3=release.  The upper bits encode what modifiers
+were down when the button was pressed and are added together: 4=Shift,
+8=Meta, 16=Control.  Again \fIx\fP and \fIy\fP are the x and y coordinates of the
+mouse event.  The upper left corner is (1,1).
+.SS 他のターミナルとの比較
+.\"
+多くの異なるターミナルタイプが、Linux コンソールのように、"VT100互換"を 名乗っている。 ここでは、Linux コンソールと 2
+つの最も重要なターミナルである DEC VT102 と \fBxterm\fP(1)  との違いについて述べる。
+.P
+\fBコントロール文字の取り扱い\fP
+.P
+VT102 は以下のコントロール文字も認識する:
+.TP 
+NUL (0x00)
+was ignored;
+.TP 
+ENQ (0x05)
+triggered an answerback message;
+.TP 
+DC1\~(0x11,\fB\~\[ha]Q\fP,\~XON)
+resumed transmission;
+.TP 
+DC3\~(0x13,\fB\~\[ha]S\fP,\~XOFF)
+caused VT100 to ignore (and stop transmitting)  all codes except XOFF and
+XON.
+.P
+端末ドライバーにより VT100 に似た DC1/DC3 処理を有効にする。
+.P
+.\"
+\fBxterm\fP(1)  (VT100 モード)は BEL, BS, HT, LF, VT, FF, CR, SO, SI, ESC の
+コントロール文字を認識する。
+.P
+\fBエスケープシーケンス\fP
+.P
+Linux コンソールで実装されていない VT100 コンソールシーケンスは以下の通り:
+.P
+.TS
+l l lx.
+ESC N	SS2	T{
+Single shift 2.
+(Select G2 character set for the next character only.)
+T}
+ESC O	SS3	T{
+Single shift 3.
+(Select G3 character set for the next character only.)
+T}
+ESC P	DCS	T{
+Device control string (ended by ESC \[rs])
+T}
+ESC X	SOS	文字列の始まり。
+ESC \[ha]	PM	Privacy message (ended by ESC \[rs])
+ESC \[rs]	ST	文字列の終端文字。
+ESC * ...		G2 文字集合を指定する。
+ESC + ...		G3 文字集合を指定する。
+.TE
+.P
+The program \fBxterm\fP(1)  (in VT100 mode) recognizes ESC c, ESC # 8, ESC
+>, ESC =, ESC D, ESC E, ESC H, ESC M, ESC N, ESC O, ESC P ...\& ESC
+\[rs], ESC Z (it answers ESC [ ? 1 ; 2 c, "I am a VT100 with advanced video
+option")  and ESC \[ha] ...\& ESC \[rs] with the same meanings as indicated
+above.  It accepts ESC (, ESC ), ESC *, ESC + followed by 0, A, B for the
+DEC special character and line drawing set, UK, and US\-ASCII, respectively.
+.P
+The user can configure \fBxterm\fP(1)  to respond to VT220\-specific control
+sequences, and it will identify itself as a VT52, VT100, and up depending on
+the way it is configured and initialized.
+.P
+It accepts ESC ] (OSC) for the setting of certain resources.  In addition to
+the ECMA\-48 string terminator (ST), \fBxterm\fP(1)  accepts a BEL to terminate
+an OSC string.  These are a few of the OSC control sequences recognized by
+\fBxterm\fP(1):
+.P
+.TS
+l l.
+ESC ] 0 ; \f[I]txt\fR ST	T{
+Set icon name and window title to
+\fItxt\fP.
+T}
+ESC ] 1 ; \f[I]txt\fR ST	Set icon name to \f[I]txt\fR.
+ESC ] 2 ; \f[I]txt\fR ST	Set window title to \f[I]txt\fR.
+ESC ] 4 ; \f[I]num\fR; \f[I]txt\fR ST	Set ANSI color \f[I]num\fR to \f[I]txt\fR.
+ESC ] 10 ; \f[I]txt\fR ST	Set dynamic text color to \f[I]txt\fR.
+ESC ] 4 6 ; \f[I]name\fR ST	T{
+Change log file to
+\fIname\fP
+(normally disabled by a compile\-time option).
+T}
+ESC ] 5 0 ; \f[I]fn\fR ST	Set font to \f[I]fn\fR.
+.TE
+.P
+以下のものは、少し違った意味にとられる (より多くの状態を保存し、より VT100/VT220 に近いふるまいをする):
+.P
+.TS
+l l l.
+ESC 7  DECSC	カーソルの保存。
+ESC 8  DECRC	カーソルの復元。
+.TE
+.P
+また、次のものも認識する:
+.P
+.TS
+l l lx.
+ESC F		T{
+Cursor to lower left corner of screen (if enabled
+by
+\fBxterm\fP(1)'s
+\fBhpLowerleftBugCompat\fP
+resource).
+T}
+ESC l		T{
+Memory lock (per HP terminals).
+Locks memory above the cursor.
+T}
+ESC m		(HP ターミナル毎に)メモリーロックを解除する。
+ESC n	LS2	G2 文字集合の呼び出し。
+ESC o	LS3	G3 文字集合の呼び出し。
+ESC |	LS3R	G3 文字集合を GR として呼び出す。
+ESC }	LS2R	G2 文字集合を GR として呼び出す。
+ESC \[ti]	LS1R	G1 文字集合を GR として呼び出す。
+.TE
+.P
+.\"
+また ESC % を認識し、Linux コンソールより更に完全な UTF\-8 実装を提供する。
+.P
+\fBCSI シーケンス\fP
+.P
+Old versions of \fBxterm\fP(1), for example, from X11R5, interpret the blink
+SGR as a bold SGR.  Later versions which implemented ANSI colors, for
+example, XFree86 3.1.2A in 1995, improved this by allowing the blink
+attribute to be displayed as a color.  Modern versions of \fBxterm\fP(1)
+implement blink SGR as blinking text and still allow colored text as an
+alternate rendering of SGRs.  Stock X11R6 versions did not recognize the
+color\-setting SGRs until the X11R6.8 release, which incorporated XFree86
+\fBxterm\fP(1).  All ECMA\-48 CSI sequences recognized by Linux are also
+recognized by \fBxterm\fP(1), however \fBxterm\fP(1)  implements several ECMA\-48
+and DEC control sequences not recognized by Linux.
+.P
+\fBxterm\fP(1) は上述のすべての DEC プライベートモードのシーケンスを認識するが、 Linux
+プライベートモードのシーケンスはどれも認識しない。 \fBxterm\fP(1) 自身のプライベートモードシーケンスに関しての議論は、 X
+配布とともに入手可能な Edward Moy, Stephen Gildea,Thomas E.\& Dickey による \fIXterm Control Sequences\fP ドキュメントを参照されたい。 このドキュメントは、簡潔なものであるが、このマニュアルページより
+遥かに長いものである。 年代順の概観としては、
+.P
+.RS
+.UR http:\://invisible\-island.net\:/xterm\:/xterm.log.html
+.UE
+.RE
+.P
+details changes to \fBxterm\fP(1).
+.P
+The \fBvttest\fP(1)  program
+.P
+.RS
+.UR http:\://invisible\-island.net\:/vttest/
+.UE
+.RE
+.P
+demonstrates many of these control sequences.  The \fBxterm\fP(1)  source
+distribution also contains sample scripts which exercise other features.
+.SH 注意
+ESC 8 (DECRC) は ESC % で変更された文字集合を復元することはできない。
+.SH バグ
+In Linux 2.0.23, CSI is broken, and NUL is not ignored inside escape
+sequences.
+.P
+Some older kernel versions (after Linux 2.0) interpret 8\-bit control
+sequences.  These "C1 controls" use codes between 128 and 159 to replace ESC
+[, ESC ] and similar two\-byte control sequence initiators.  There are
+fragments of that in modern kernels (either overlooked or broken by changes
+to support UTF\-8), but the implementation is incomplete and should be
+regarded as unreliable.
+.P
+Linux "private mode" sequences do not follow the rules in ECMA\-48 for
+private mode control sequences.  In particular, those ending with ] do not
+use a standard terminating character.  The OSC (set palette) sequence is a
+greater problem, since \fBxterm\fP(1)  may interpret this as a control sequence
+which requires a string terminator (ST).  Unlike the \fBsetterm\fP(1)
+sequences which will be ignored (since they are invalid control sequences),
+the palette sequence will make \fBxterm\fP(1)  appear to hang (though pressing
+the return\-key will fix that).  To accommodate applications which have been
+hardcoded to use Linux control sequences, set the \fBxterm\fP(1)  resource
+\fBbrokenLinuxOSC\fP to true.
+.P
+このドキュメントの古いバージョンでは、Linux が ECMA\-48 の不可視テキストの コントロールシーケンスを認識するかのように書かれていた。
+これは無視される。
+.SH 関連項目
+ \fBioctl_console\fP(2), \fBcharsets\fP(7)
