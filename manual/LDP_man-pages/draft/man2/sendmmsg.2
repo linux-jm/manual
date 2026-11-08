@@ -1,0 +1,166 @@
+.\" Copyright 2012, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2013  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2013-05-22, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH sendmmsg 2 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+sendmmsg \- 複数のメッセージをソケットへ送信する
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#define _GNU_SOURCE\fP         /* feature_test_macros(7) 参照 */
+\fB#include <sys/socket.h>\fP
+.P
+\fBint sendmmsg(\fPunsigned int n;
+\fB             int \fP\fIsockfd\fP\fB, struct mmsghdr \fP\fImsgvec\fP\fB[\fP\fIn\fP\fB], unsigned int \fP\fIn\fP\fB,\fP
+\fB             int \fP\fIflags\fP\fB);\fP
+.fi
+.SH 説明
+.\" See commit 228e548e602061b08ee8e8966f567c12aa079682
+\fBsendmmsg\fP() システムコールは \fBsendmsg\fP(2) の拡張で、
+このシステムコールを使うと一度の呼び出しでソケットに複数のメッセージを送信できる (アプリケーションによっては性能上のメリットがある)。
+.P
+\fIsockfd\fP 引数は、 データを送信するソケットのファイルディスクリプターである。
+.P
+The \fImsgvec\fP argument is a pointer to an array of \fImmsghdr\fP structures.
+The size of this array is specified in \fIn\fP.
+.P
+\fImmsghdr\fP 構造体は \fI<sys/socket.h>\fP で次のように定義されている。
+.P
+.in +4n
+.EX
+struct mmsghdr {
+    struct msghdr msg_hdr;  /* メッセージヘッダー */
+    unsigned int  msg_len;  /* 送信されたバイト数 */
+};
+.EE
+.in
+.P
+\fImsg_hdr\fP フィールドは、 \fBsendmsg\fP(2) で説明されている \fImsghdr\fP 構造体である。 \fImsg_len\fP
+フィールドは \fImsg_hdr\fP から送信されたメッセージのバイト数を返すのに使用される。 この値は \fBsendmsg\fP(2)
+をこのヘッダーに対して呼び出した場合の返り値と同じである。
+.P
+\fIflags\fP 引数には複数のフラグを論理和 (OR) で指定できる。フラグは \fBsendmsg\fP(2) と同じである。
+.P
+A blocking \fBsendmmsg\fP()  call blocks until \fIn\fP messages have been sent.  A
+nonblocking call sends as many messages as possible (up to the limit
+specified by \fIn\fP)  and returns immediately.
+.P
+\fBsendmmsg\fP() が返った際には、 \fImsgvec\fP の送信が行われた要素の \fImsg_len\fP フィールドは、対応する
+\fImsg_hdr\fP から送信されたバイト数が入っている。 呼び出しの返り値は、更新された \fImsgvec\fP の要素数である。
+.SH 返り値
+On success, \fBsendmmsg\fP()  returns the number of messages sent from
+\fImsgvec\fP; if this is less than \fIn\fP, the caller can retry with a further
+\fBsendmmsg\fP()  call to send the remaining messages.
+.P
+エラーの場合、 \-1 を返し、 \fIerrno\fP にエラーを示す値を設定する。
+.SH エラー
+.\" commit 728ffb86f10873aaf4abd26dde691ee40ae731fe
+.\"     ...only return an error if no datagrams could be sent.
+.\"     If less than the requested number of messages were sent, the application
+.\"     must retry starting at the first failed one and if the problem is
+.\"     persistent the error will be returned.
+.\"
+.\"     This matches the behavior of other syscalls like read/write - it
+.\"     is not an error if less than the requested number of elements are sent.
+エラーは \fBsendmsg\fP(2) と同じである。 エラーが返されるのは、 データグラムが全く送信できなかった場合のみである。「バグ」も参照のこと。
+.SH 標準規格
+Linux.
+.SH 歴史
+Linux 3.0, glibc 2.14.
+.SH 注意
+.\" commit 98382f419f32d2c12d021943b87dea555677144b
+.\"     net: Cap number of elements for sendmmsg
+.\"
+.\"     To limit the amount of time we can spend in sendmmsg, cap the
+.\"     number of elements to UIO_MAXIOV (currently 1024).
+.\"
+.\"     For error handling an application using sendmmsg needs to retry at
+.\"     the first unsent message, so capping is simpler and requires less
+.\"     application logic than returning EINVAL.
+The value specified in \fIn\fP is capped to \fBUIO_MAXIOV\fP (1024).
+.SH バグ
+If an error occurs after at least one message has been sent, the call
+succeeds, and returns the number of messages sent.  The error code is lost.
+The caller can retry the transmission, starting at the first failed message,
+but there is no guarantee that, if an error is returned, it will be the same
+as the one that was lost on the previous call.
+.SH 例
+以下の例では、 \fBsendmmsg\fP() を使って、 一度のシステムコールで、 \fIonetwo\fP と \fIthree\fP を二つの別々の UDP
+データグラムで送信する。 一つ目のデータグラムの内容は、二つのバッファーから取得される。
+.P
+.\" SRC BEGIN (sendmmsg.c)
+.EX
+#define _GNU_SOURCE
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+\&
+int
+main(void)
+{
+    int                 retval;
+    int                 sockfd;
+    struct iovec        msg1[2], msg2;
+    struct mmsghdr      msg[2];
+    struct sockaddr_in  addr;
+\&
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd == \-1) {
+        perror("socket()");
+        exit(EXIT_FAILURE);
+    }
+\&
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = htons(1234);
+    if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == \-1) {
+        perror("connect()");
+        exit(EXIT_FAILURE);
+    }
+\&
+    memset(msg1, 0, sizeof(msg1));
+    msg1[0].iov_base = "one";
+    msg1[0].iov_len = 3;
+    msg1[1].iov_base = "two";
+    msg1[1].iov_len = 3;
+\&
+    memset(&msg2, 0, sizeof(msg2));
+    msg2.iov_base = "three";
+    msg2.iov_len = 5;
+\&
+    memset(msg, 0, sizeof(msg));
+    msg[0].msg_hdr.msg_iov = msg1;
+    msg[0].msg_hdr.msg_iovlen = 2;
+\&
+    msg[1].msg_hdr.msg_iov = &msg2;
+    msg[1].msg_hdr.msg_iovlen = 1;
+\&
+    retval = sendmmsg(sockfd, msg, 2, 0);
+    if (retval == \-1)
+        perror("sendmmsg()");
+    else
+        printf("%d messages sent\[rs]n", retval);
+\&
+    exit(0);
+}
+.EE
+.\" SRC END
+.SH 関連項目
+\fBrecvmmsg\fP(2), \fBsendmsg\fP(2), \fBsocket\fP(2), \fBsocket\fP(7)
