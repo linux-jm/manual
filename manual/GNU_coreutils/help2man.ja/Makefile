@@ -6,7 +6,9 @@ FILES = $(sort $(wildcard *.x))
 MANPAGES = $(patsubst %.x,%.1,$(FILES))
 
 LANG = ja_JP.UTF-8
-HELP2MAN = /usr/bin/help2man
+# 1.50.1 --locale=a_JP.UTF-8  option not work
+# HELP2MAN = /home/ribbon/.local/bin/help2man
+HELP2MAN = /usr/local/bin/help2man
 LN_S = ln -s
 INSTALL = install
 AM_V_GEN = @echo "  GEN     " $@;
@@ -38,11 +40,16 @@ $(MANPAGES):	$(srcdir)/locale/ja/LC_MESSAGES/coreutils.mo
 	     mkdir $t;					\
 	     sed -e '/^\.\\\"O/d' ./$*.x > $t/$*.x;	\
 	     (cd $t && $(LN_S) ../$(srcdir)/src/$(mapped_name) $*); \
+	     ( LD_PRELOAD=/usr/local/lib64/help2man/bindtextdomain.so; \
+	     export TEXTDOMAIN=help2man;                 \
+	     export LOCALEDIR=/usr/local/share/locale;  \
 	     $(HELP2MAN)				\
 		--locale=$(LANG)			\
 	        --source='$(PACKAGE_STRING)'		\
 	        --include=$t/$*.x			\
+		--include=translate.txt			\
 	        --output=$t/$@ $t/$*;			\
+	     )						\
 	}						\
 	&& sed 's|$*\.td/||g' $t/$@ > $@-t		\
 	&& rm -rf $t					\
