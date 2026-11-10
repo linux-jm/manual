@@ -1,0 +1,312 @@
+.\" Copyright 2014, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright 2014, Peter Zijlstra <peterz@infradead.org>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.TH sched_setattr 2 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+sched_setattr, sched_getattr \- スケジューリングポリシーと属性の設定と取得を行なう
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#include <sched.h>\fP            /* Definition of \fBSCHED_*\fP constants */
+\fB#include <sys/syscall.h>\fP      /* Definition of \fBSYS_*\fP constants */
+\fB#include <unistd.h>\fP
+.P
+\fBint syscall(SYS_sched_setattr, pid_t \fP\fIpid\fP\fB, struct sched_attr *\fP\fIattr\fP\fB,\fP
+\fB            unsigned int \fP\fIflags\fP\fB);\fP
+\fBint syscall(SYS_sched_getattr, pid_t \fP\fIpid\fP\fB, struct sched_attr *\fP\fIattr\fP\fB,\fP
+\fB            unsigned int \fP\fIsize\fP\fB, unsigned int \fP\fIflags\fP\fB);\fP
+.fi
+.\" FIXME . Add feature test macro requirements
+.P
+\fINote\fP: glibc provides no wrappers for these system calls, necessitating
+the use of \fBsyscall\fP(2).
+.SH 説明
+.SS sched_setattr()
+\fBsched_setattr\fP() システムコールは、 \fIpid\fP で指定された ID
+を持つスレッドのスケジューリングポリシーと関連する属性を設定する。 \fIpid\fP が 0
+の場合、呼び出したスレッド自身のスケジューリングポリシーと属性が設定される。
+.P
+現在のところ、 Linux では、 以下の「通常」の (つまり、リアルタイムではない) スケジューリングポリシーが、 \fIpolicy\fP
+に指定できる値としてサポートされている。
+.TP  14
+\fBSCHED_OTHER\fP
+.\" In the 2.6 kernel sources, SCHED_OTHER is actually called
+.\" SCHED_NORMAL.
+標準の、ラウンドロビンによる時分割型のスケジューリングポリシー。
+.TP 
+\fBSCHED_BATCH\fP
+「バッチ」形式でのプロセスの実行用。
+.TP 
+\fBSCHED_IDLE\fP
+「非常に」低い優先度で動作するバックグラウンドジョブ用。
+.P
+どの実行可能スレッドを選択するかについて、より正確な制御を必要とする 時間の制約が厳しい特別なアプリケーション用として、
+いろいろな「リアルタイム」ポリシーもサポートされている。 プロセスがこれらのポリシーをいつ使用できるかを決めるルールについては、\fBsched\fP(7)
+を参照。 \fIpolicy\fP には以下のリアルタイムポリシーを指定できる。
+.TP  14
+\fBSCHED_FIFO\fP
+ファーストイン、ファーストアウト型のポリシー。
+.TP 
+\fBSCHED_RR\fP
+ラウンドロビン型のポリシー。
+.P
+Linux では以下のポリシーも提供されている。
+.TP  14
+\fBSCHED_DEADLINE\fP
+デッドライン (応答期限) ベースのスケジューリングポリシー。詳細は \fBsched\fP(7) を参照。
+.P
+\fIattr\fP 引数は、 指定したスレッドの新しいスケジューリングポリシーと属性を定義した構造体へのポインターである。 この構造体は以下の形式である。
+.P
+.in +4n
+.EX
+struct sched_attr {
+    u32 size;              /* Size of this structure */
+    u32 sched_policy;      /* Policy (SCHED_*) */
+    u64 sched_flags;       /* Flags */
+    s32 sched_nice;        /* Nice value (SCHED_OTHER,
+                              SCHED_BATCH) */
+    u32 sched_priority;    /* Static priority (SCHED_FIFO,
+                              SCHED_RR) */
+    /* For SCHED_DEADLINE */
+    u64 sched_runtime;
+    u64 sched_deadline;
+    u64 sched_period;
+\&
+    /* Utilization hints */
+    u32 sched_util_min;
+    u32 sched_util_max;
+};
+.EE
+.in
+.P
+構造体 \fIsched_attr\fP のフィールドは以下の通りである。
+.TP 
+\fBsize\fP
+このフィールドには、 構造体のバイト単位のサイズを設定する。 \fIsizeof(struct sched_attr)\fP を指定すればよい。
+指定された構造体がカーネル構造体よりも小さい場合、 追加となるフィールドは 0 とみなされる。 指定された構造体がカーネル構造体よりも大きい場合、
+カーネルは追加のフィールドが 0 であるかを検査する。 0 でない場合は \fBsched_setattr\fP() はエラー \fBE2BIG\fP
+で失敗するので、 \fIsize\fP をカーネル構造体のサイズに更新する必要がある。
+.IP
+ユーザー空間の \fIsched_attr\fP 構造体のサイズがカーネル構造体のサイズと一致しなかった場合の上記の動作は、
+このインターフェースを将来拡張できるようにするためである。 サイズが大きい構造体を渡す行儀の良くないアプリケーションも、 将来カーネルの
+\fIsched_attr\fP 構造体のサイズが大きくなったとしてもおかしくならない。 この仕組みにより、 将来的には、 大きなユーザー空間
+\fIsched_attr\fP 構造体があることを知っているアプリケーションで、
+大きいサイズの構造体に対応していない古いカーネル上で動作しているかを判定することができる。
+.TP 
+\fIsched_policy\fP
+このフィールドはスケジューリングポリシーを指定する。 上記のリストにある \fBSCHED_*\fP 値のいずれかを指定する。
+.TP 
+\fIsched_flags\fP
+This field contains zero or more of the following flags that are ORed
+together to control scheduling behavior:
+.RS
+.TP 
+ \fBSCHED_FLAG_RESET_ON_FORK\fP
+Children created by \fBfork\fP(2)  do not inherit privileged scheduling
+policies.  See \fBsched\fP(7)  for details.
+.TP 
+\fBSCHED_FLAG_RECLAIM\fP (Linux 4.13 以降)
+.\" 2d4283e9d583a3ee8cfb1cbb9c1270614df4c29d
+.\" Bandwidth reclaim is done via the GRUB algorithm; see
+.\" Documentation/scheduler/sched-deadline.rst
+This flag allows a \fBSCHED_DEADLINE\fP thread to reclaim bandwidth unused by
+other real\-time threads.
+.TP 
+\fBSCHED_FLAG_DL_OVERRUN\fP (Linux 4.16 以降)
+.\" commit 34be39305a77b8b1ec9f279163c7cdb6cc719b91
+This flag allows an application to get informed about run\-time overruns in
+\fBSCHED_DEADLINE\fP threads.  Such overruns may be caused by (for example)
+coarse execution time accounting or incorrect parameter assignment.
+Notification takes the form of a \fBSIGXCPU\fP signal which is generated on
+each overrun.
+.IP
+This \fBSIGXCPU\fP signal is \fIprocess\-directed\fP (see \fBsignal\fP(7))  rather
+than thread\-directed.  This is probably a bug.  On the one hand,
+\fBsched_setattr\fP()  is being used to set a per\-thread attribute.  On the
+other hand, if the process\-directed signal is delivered to a thread inside
+the process other than the one that had a run\-time overrun, the application
+has no way of knowing which thread overran.
+.TP 
+\fBSCHED_FLAG_UTIL_CLAMP_MIN\fP
+.TQ
+\fBSCHED_FLAG_UTIL_CLAMP_MAX\fP (両方とも Linux 5.3 以降)
+These flags indicate that the \fIsched_util_min\fP or \fIsched_util_max\fP fields,
+respectively, are present, representing the expected minimum and maximum
+utilization of the thread.
+.IP
+The utilization attributes provide the scheduler with boundaries within
+which it should schedule the thread, potentially informing its decisions
+regarding task placement and frequency selection.
+.RE
+.TP 
+\fIsched_nice\fP
+このフィールドは、 \fIsched_policy\fP に \fBSCHED_OTHER\fP か \fBSCHED_BATCH\fP が指定された場合に設定される
+nice 値を指定する。 nice 値は \-20 (高優先度) から +19 (低優先度) の範囲の数値である。 \fBsched\fP(7) を参照。
+.TP 
+\fIsched_priority\fP
+このフィールドは、 \fIsched_policy\fP に \fBSCHED_FIFO\fP か \fBSCHED_RR\fP
+が指定された場合に設定される静的優先度を指定する。 これらのポリシーで指定できる優先度の範囲は、
+\fBsched_get_priority_min\fP(2) と \fBsched_get_priority_max\fP(2) を使って判定できる。
+他のポリシーでは、 このフィールドには 0 を指定しなければならない。
+.TP 
+\fIsched_runtime\fP
+このフィールドは、 デッドラインスケジューリングの "Runtime" パラメーターを指定する。 この値はナノ秒単位で表現される。 このフィールドと次の
+2 つのフィールドは \fBSCHED_DEADLINE\fP スケジューリングにおいてのみ使用される。 詳細は \fBsched\fP(7) を参照。
+.TP 
+\fIsched_deadline\fP
+このフィールドは、 デッドラインスケジューリングの "Deadline" パラメーターを指定する。 この値はナノ秒単位で表現される。
+.TP 
+\fIsched_period\fP
+このフィールドは、 デッドラインスケジューリングの "Period" パラメーターを指定する。 この値はナノ秒単位で表現される。
+.TP 
+\fIsched_util_min\fP
+.TQ
+\fIsched_util_max\fP (両方とも Linux 5.3 以降)
+These fields specify the expected minimum and maximum utilization,
+respectively.  They are ignored unless their corresponding
+\fBSCHED_FLAG_UTIL_CLAMP_MIN\fP or \fBSCHED_FLAG_UTIL_CLAMP_MAX\fP is set in
+\fIsched_flags\fP.
+.IP
+Utilization is a value in the range [0, 1024], representing the percentage
+of CPU time used by a task when running at the maximum frequency on the
+highest capacity CPU of the system.  This is a fixed point representation,
+where 1024 corresponds to 100%, and 0 corresponds to 0%.  For example, a 20%
+utilization task is a task running for 2ms every 10ms at maximum frequency
+and is represented by a utilization value of \fI0.2\~*\~1024\~=\~205\fP.
+.IP
+A task with a minimum utilization value larger than 0 is more likely
+scheduled on a CPU with a capacity big enough to fit the specified value.  A
+task with a maximum utilization value smaller than 1024 is more likely
+scheduled on a CPU with no more capacity than the specified value.
+.IP
+A task utilization boundary can be reset by setting its field to
+\fBUINT32_MAX\fP (since Linux 5.11).
+.P
+.\"
+.\"
+\fIflags\fP 引数は、このインターフェースの将来の拡張のために用意されている。 現在の実装では 0 を指定しなければならない。
+.SS sched_getattr()
+\fBsched_getattr\fP() システムコールは、 \fIpid\fP で指定された ID
+を持つスレッドのスケジューリングポリシーと関連する属性を取得する。 \fIpid\fP が 0
+の場合、呼び出したスレッド自身のスケジューリングポリシーと関連する属性を取得する。
+.P
+\fIsize\fP 引数には、 ユーザー空間での \fIsched_attr\fP 構造体の大きさを設定する。 この値は、 少なくとも初期バージョンの
+\fIsched_attr\fP 構造体のサイズでなければならない。 そうでなかった場合、 エラー \fBEINVAL\fP で呼び出しが失敗する。
+.P
+取得したスケジューリング属性は、 \fIattr\fP が指す \fIsched_attr\fP 構造体の各フィールドに格納される。 カーネルは
+\fIattr.size\fP に \fIsched_attr\fP 構造体のサイズを設定する。
+.P
+If the caller\-provided \fIattr\fP buffer is larger than the kernel's
+\fIsched_attr\fP structure, the additional bytes in the user\-space structure
+are not touched.  If the caller\-provided structure is smaller than the
+kernel \fIsched_attr\fP structure, the kernel will silently not return any
+values which would be stored outside the provided space.  As with
+\fBsched_setattr\fP(), these semantics allow for future extensibility of the
+interface.
+.P
+\fIflags\fP 引数は、このインターフェースの将来の拡張のために用意されている。 現在の実装では 0 を指定しなければならない。
+.SH 返り値
+On success, \fBsched_setattr\fP()  and \fBsched_getattr\fP()  return 0.  On error,
+\-1 is returned, and \fIerrno\fP is set to indicate the error.
+.SH エラー
+\fBsched_getattr\fP() と \fBsched_setattr\fP() の両方が以下の理由で失敗する。
+.TP 
+\fBEINVAL\fP
+\fIattr\fP が NULL である。 \fIpid\fP が負である。 \fIflags\fP が 0 以外である。
+.TP 
+\fBESRCH\fP
+ID が \fIpid\fP のスレッドが見つからなかった。
+.P
+さらに、 \fBsched_getattr\fP() は以下の理由でも失敗する。
+.TP 
+\fBE2BIG\fP
+\fIsize\fP と \fIattr\fP で指定されたバッファーが小さすぎる。
+.TP 
+\fBEINVAL\fP
+\fIsize\fP が無効である。つまり、 最初のバージョンの \fIsched_attr\fP 構造体 (48 バイト) よりも小さいか、
+システムのページサイズよりも大きい。
+.P
+さらに、 \fBsched_setattr\fP() は以下の理由でも失敗する。
+.TP 
+\fBE2BIG\fP
+\fIsize\fP と \fIattr\fP で指定されたバッファーがカーネル構造体よりも大きく、 一つ以上の超過バイトが 0 でなかった。
+.TP 
+\fBEBUSY\fP
+\fBSCHED_DEADLINE\fP の流入制御の失敗については \fBsched\fP(7) を参照。
+.TP 
+\fBEINVAL\fP
+\fIattr.sched_policy\fP が認識できるポリシーではない。
+.TP 
+\fBEINVAL\fP
+\fIattr.sched_flags\fP contains a flag other than \fBSCHED_FLAG_RESET_ON_FORK\fP.
+.TP 
+\fBEINVAL\fP
+\fIattr.sched_priority\fP is invalid.
+.TP 
+\fBEINVAL\fP
+\fIattr.sched_policy\fP is \fBSCHED_DEADLINE\fP, and the deadline scheduling
+parameters in \fIattr\fP are invalid.
+.TP 
+\fBEINVAL\fP
+\fIattr.sched_flags\fP contains \fBSCHED_FLAG_UTIL_CLAMP_MIN\fP or
+\fBSCHED_FLAG_UTIL_CLAMP_MAX\fP, and \fIattr.sched_util_min\fP or
+\fIattr.sched_util_max\fP are out of bounds.
+.TP 
+\fBEOPNOTSUPP\fP
+\fBSCHED_FLAG_UTIL_CLAMP\fP was provided, but the kernel was not built with
+\fBCONFIG_UCLAMP_TASK\fP support.
+.TP 
+\fBEPERM\fP
+呼び出した元が適切な特権を持っていない。
+.TP 
+\fBEPERM\fP
+\fIpid\fP で指定されたスレッドの CPU affinity マスクにシステムの全ての CPU のうち含まれていないものがある
+(\fBsched_setaffinity\fP(2) を参照)。
+.SH 標準規格
+Linux.
+.SH 歴史
+.\" FIXME . Add glibc version
+Linux 3.14.
+.SH 注意
+glibc does not provide wrappers for these system calls; call them using
+\fBsyscall\fP(2).
+.P
+\fBsched_setattr\fP() は、\fBsched_setscheduler\fP(2), \fBsched_setparam\fP(2),
+\fBnice\fP(2) の機能および \fBsetpriority\fP の一部機能を持つ (ただし、\fBsetpriority\fP(2)
+の、指定されたユーザーに所属するすべてのプロセスまたは指定されたグループのすべてのプロセスの優先度を設定する機能は除く)。 同様に、
+\fBsched_getattr\fP() は \fBsched_getscheduler\fP(2), \fBsched_getparam\fP(2) の機能および
+\fBgetpriority\fP(2) の一部機能を持つ。
+.SH バグ
+.\" FIXME . patch sent to Peter Zijlstra
+バージョン 3.15 までの Linux では、 \fBsched_setattr\fP() は、 エラーの節に書かれている \fBE2BIG\fP
+の場合にエラー\fBEFAULT\fP で失敗していた。
+.P
+.\" In Linux versions up to up 3.15,
+.\" FIXME . patch from Peter Zijlstra pending
+.\" .BR sched_setattr ()
+.\" allowed a negative
+.\" .I attr.sched_policy
+.\" value.
+Up to Linux 5.3, \fBsched_getattr\fP()  failed with the error \fBEFBIG\fP if the
+in\-kernel \fIsched_attr\fP structure was larger than the \fIsize\fP passed by user
+space.
+.SH 関連項目
+.ad l
+.nh
+ \fBchrt\fP(1), \fBnice\fP(2), \fBsched_get_priority_max\fP(2),
+\fBsched_get_priority_min\fP(2), \fBsched_getaffinity\fP(2), \fBsched_getparam\fP(2),
+\fBsched_getscheduler\fP(2), \fBsched_rr_get_interval\fP(2),
+\fBsched_setaffinity\fP(2), \fBsched_setparam\fP(2), \fBsched_setscheduler\fP(2),
+\fBsched_yield\fP(2), \fBsetpriority\fP(2), \fBpthread_getschedparam\fP(3),
+\fBpthread_setschedparam\fP(3), \fBpthread_setschedprio\fP(3), \fBcapabilities\fP(7),
+\fBcpuset\fP(7), \fBsched\fP(7)
+.ad
