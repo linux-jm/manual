@@ -1,0 +1,221 @@
+'\" t
+.\" Copyright 1996, Peter Memishian <meem@gnu.ai.mit.edu>
+.\" Copyright 2010, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 1998 AKAMATSU Kazuo
+.\"         all rights reserved.
+.\" Translated Thu Jan 7 16:00 JST 1999
+.\"         by AKAMATSU Kazuo
+.\" Updated Sun Sep 14 JST 2003 by Kentaro Shirakata <argrath@ub32.org>
+.\" Updated 2012-04-30, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH insque 3 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+insque, remque \- キューにアイテムを挿入/削除する
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#include <search.h>\fP
+.P
+\fBvoid insque(void *\fP\fIelem\fP\fB, void *\fP\fIprev\fP\fB);\fP
+\fBvoid remque(void *\fP\fIelem\fP\fB);\fP
+.fi
+.P
+.RS -4
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.RE
+.P
+\fBinsque\fP(), \fBremque\fP():
+.nf
+.\"    || _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED
+    _XOPEN_SOURCE >= 500
+        || /* glibc >= 2.19: */ _DEFAULT_SOURCE
+        || /* glibc <= 2.19: */ _SVID_SOURCE
+.fi
+.SH 説明
+The \fBinsque\fP()  and \fBremque\fP()  functions manipulate doubly linked lists.
+Each element in the list is a structure of which the first two elements are
+a forward and a backward pointer.  The linked list may be linear (i.e., NULL
+forward pointer at the end of the list and NULL backward pointer at the
+start of the list)  or circular.
+.P
+\fBinsque\fP() 関数は \fIelem\fP で示される要素を \fIprev\fP で示される
+要素の直後に挿入する。
+.P
+リストが線形の場合、\fIinsque(elem, NULL)\fP を呼び出すと、
+リストの最初の要素を挿入することができる。
+この呼び出しを行うと \fIelem\fP の次へのポインターと前へのポインターに
+共に NULL が設定される。
+.P
+リストが環状の場合、呼び出す側が、最初の要素の次へのポインターと前へのポインター
+が自分自身を指し、また  \fBinsque\fP() の呼び出しで \fIprev\fP 引数が最初の要素
+を指すように保証しなければならない。
+.P
+\fBremque\fP() 関数は \fIelem\fP で示される要素を双方向連結リストから取り除く。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbx lb lb
+l l l.
+インターフェース	属性	値
+T{
+.na
+.nh
+\fBinsque\fP(),
+\fBremque\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.SH バージョン
+.\" e.g., SunOS, Linux libc4 and libc5
+とても古いシステムでは、これらの関数の引数は \fIstruct qelem *\fP型であり、これは以下のように定義されている。
+.P
+.in +4n
+.EX
+struct qelem {
+    struct qelem *q_forw;
+    struct qelem *q_back;
+    char          q_data[1];
+};
+.EE
+.in
+.P
+この定義は \fI<search.h>\fP をインクルードする前に \fB_GNU_SOURCE\fP を定義することで得られる。
+.P
+.\" Linux libc4 and libc 5 placed them in
+.\" .IR <stdlib.h> .
+これらの関数のプロトタイプの置かれる場所は、UNIX の種類により異なる。
+上記は POSIX 版である。 \fI<string.h>\fP にあるシステムもある。
+.SH 標準規格
+POSIX.1\-2008.
+.SH 歴史
+POSIX.1\-2001.
+.SH バグ
+glibc 2.4 以前では \fIprev\fP に NULL を指定することができなかった。
+その結果、線形のリストを作成するためには、
+呼び出し側は、最初の呼び出しで、リストの最初の 2 つの要素を持ち、
+各要素の次へのポインターと前へのポインターを適切に初期化したリストを
+作成しなければならなかった。
+.SH 例
+次のプログラムは \fBinsque\fP() の使用法を示したものである。
+下記はプログラムの実行例である。
+.P
+.in +4n
+.EX
+$ \fB./a.out \-c a b c\fP
+Traversing completed list:
+    a
+    b
+    c
+That was a circular list
+.EE
+.in
+.SS プログラムのソース
+.\" SRC BEGIN (insque.c)
+\&
+.EX
+#include <search.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+\&
+struct element {
+    struct element *forward;
+    struct element *backward;
+    char *name;
+};
+\&
+static struct element *
+new_element(void)
+{
+    struct element *e;
+\&
+    e = malloc(sizeof(*e));
+    if (e == NULL) {
+        fprintf(stderr, "malloc() failed\[rs]n");
+        exit(EXIT_FAILURE);
+    }
+\&
+    return e;
+}
+\&
+int
+main(int argc, char *argv[])
+{
+    struct element *first, *elem, *prev;
+    int circular, opt, errfnd;
+\&
+    /* The "\-c" command\-line option can be used to specify that the
+       list is circular.  */
+\&
+    errfnd = 0;
+    circular = 0;
+    while ((opt = getopt(argc, argv, "c")) != \-1) {
+        switch (opt) {
+        case \[aq]c\[aq]:
+            circular = 1;
+            break;
+        default:
+            errfnd = 1;
+            break;
+        }
+    }
+\&
+    if (errfnd || optind >= argc) {
+        fprintf(stderr,  "Usage: %s [\-c] string...\[rs]n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+\&
+    /* Create first element and place it in the linked list.  */
+\&
+    elem = new_element();
+    first = elem;
+\&
+    elem\->name = argv[optind];
+\&
+    if (circular) {
+        elem\->forward = elem;
+        elem\->backward = elem;
+        insque(elem, elem);
+    } else {
+        insque(elem, NULL);
+    }
+\&
+    /* Add remaining command\-line arguments as list elements.  */
+\&
+    while (++optind < argc) {
+        prev = elem;
+\&
+        elem = new_element();
+        elem\->name = argv[optind];
+        insque(elem, prev);
+    }
+\&
+    /* Traverse the list from the start, printing element names.  */
+\&
+    printf("Traversing completed list:\[rs]n");
+    elem = first;
+    do {
+        printf("    %s\[rs]n", elem\->name);
+        elem = elem\->forward;
+    } while (elem != NULL && elem != first);
+\&
+    if (elem == first)
+        printf("That was a circular list\[rs]n");
+\&
+    exit(EXIT_SUCCESS);
+}
+.EE
+.\" SRC END
+.SH 関連項目
+\fBqueue\fP(7)
