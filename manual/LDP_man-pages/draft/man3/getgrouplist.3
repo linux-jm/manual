@@ -1,0 +1,166 @@
+'\" t
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2004 Yuichi SATO
+.\"         all rights reserved.
+.\" Translated 2004-08-07, Yuichi SATO <ysato444@yahoo.co.jp>
+.\" Updated 2008-08-11, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>, LDP v3.05
+.\"
+.TH getgrouplist 3 2025\-09\-21 "Linux man\-pages (未リリース)" 
+.SH 名前
+getgrouplist \- ユーザーが所属するグループのリストを取得する
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#include <grp.h>\fP
+.P
+\fBint getgrouplist(const char *\fP\fIuser\fP\fB, gid_t \fP\fIgroup\fP\fB,\fP
+\fB                 gid_t *\fP\fIgroups\fP\fB, int *\fP\fIngroups\fP\fB);\fP
+.fi
+.P
+.RS -4
+glibc 向けの機能検査マクロの要件 (\fBfeature_test_macros\fP(7)  参照):
+.RE
+.P
+\fBgetgrouplist\fP():
+.nf
+    glibc 2.19 以降:
+        _DEFAULT_SOURCE
+    glibc 2.19 以前:
+        _BSD_SOURCE
+.fi
+.SH 説明
+\fBgetgrouplist\fP()  関数は、グループデータベース (\fBgroup\fP(5)  参照) を調べて、 \fIuser\fP
+が所属するグループのリストを取得する。 見つかったグループのうち最大 \fI*ngroups\fP 個のグループが、配列 \fIgroups\fP
+に格納されて返される。
+.P
+引数 \fIgroup\fP がグループデータベースに \fIuser\fP が所属するグループがなかった場合、 \fBgetgrouplist\fP()
+が返すグループのリストに引数 \fIgroup\fP も追加される。 通常は、この引数にはユーザー \fIuser\fP のパスワードレコードに書かれているグループ
+ID を指定する。
+.P
+引数 \fIngroups\fP は、値渡しと結果の両方に使用される引数 (value\-result argument) であり、 リターン時には、常に
+\fIgroup\fP も含めた \fIuser\fP が所属するグループ数が格納される。 この値は \fIgroups\fP
+に格納されたグループ数より大きくなる可能性がある。
+.SH 返り値
+\fIuser\fP が所属しているグループ数が \fI*ngroups\fP 以下の場合、 \fI*ngroups\fP の値が返される。
+.P
+If the user is a member of more than \fI*ngroups\fP groups, then
+\fBgetgrouplist\fP()  returns \-1.  In this case, the value returned in
+\fI*ngroups\fP can be used to resize the buffer passed to a further call to
+\fBgetgrouplist\fP().
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbx lb lb
+l l l.
+インターフェース	属性	値
+T{
+.na
+.nh
+\fBgetgrouplist\fP()
+T}	Thread safety	MT\-Safe locale
+.TE
+.SH 標準規格
+なし。
+.SH 歴史
+glibc 2.2.4.
+.SH バグ
+Before glibc 2.3.3, the implementation of this function contains a
+buffer\-overrun bug: it returns the complete list of groups for \fIuser\fP in
+the array \fIgroups\fP, even when the number of groups exceeds \fI*ngroups\fP.
+.SH 例
+以下のプログラムは、一つ目のコマンドライン引数で指定された名前のユーザー が所属するグループのリストを表示する。 二番目のコマンドライン引数には、
+\fBgetgrouplist\fP()  に渡す \fIngroups\fP の値を指定する。
+以下のシェルのセッションはこのプログラムの使用例を示したものである。
+.P
+.in +4n
+.EX
+$\fB ./a.out cecilia 0\fP
+getgrouplist() returned \-1
+ngroups = 3
+$\fB ./a.out cecilia 3\fP
+ngroups = 3
+16 (dialout)
+33 (video)
+100 (users)
+.EE
+.in
+.SS プログラムのソース
+.\" SRC BEGIN (getgrouplist.c)
+\&
+.EX
+#include <errno.h>
+#include <grp.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <stdlib.h>
+\&
+int
+main(int argc, char *argv[])
+{
+    int            ngroups;
+    gid_t          *groups;
+    struct group   *gr;
+    struct passwd  *pw;
+\&
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <user> <ngroups>\[rs]n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+\&
+    ngroups = atoi(argv[2]);
+\&
+    groups = malloc(sizeof(*groups) * ngroups);
+    if (groups == NULL) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+\&
+    /* Fetch passwd structure (contains first group ID for user).  */
+\&
+    errno = 0;
+    pw = getpwnam(argv[1]);
+    if (pw == NULL) {
+        if (errno)
+            perror("getpwnam");
+        else
+            fprintf(stderr, "no such user\[rs]n");
+        exit(EXIT_FAILURE);
+    }
+\&
+    /* Retrieve group list.  */
+\&
+    if (getgrouplist(argv[1], pw\->pw_gid, groups, &ngroups) == \-1) {
+        fprintf(stderr, "getgrouplist() returned \-1\[rs]n");
+        fprintf(stderr, "ngroups = %d\[rs]n", ngroups);
+        exit(EXIT_FAILURE);
+    }
+\&
+    /* Display list of retrieved groups, along with group names.  */
+\&
+    fprintf(stderr, "ngroups = %d\[rs]n", ngroups);
+    for (int j = 0; j < ngroups; j++) {
+        printf("%d", groups[j]);
+        gr = getgrgid(groups[j]);
+        if (gr != NULL)
+            printf(" (%s)", gr\->gr_name);
+        printf("\[rs]n");
+    }
+\&
+    exit(EXIT_SUCCESS);
+}
+.EE
+.\" SRC END
+.SH 関連項目
+\fBgetgroups\fP(2), \fBsetgroups\fP(2), \fBgetgrent\fP(3), \fBgroup_member\fP(3),
+\fBgroup\fP(5), \fBpasswd\fP(5)
