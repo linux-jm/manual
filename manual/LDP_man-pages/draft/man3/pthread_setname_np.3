@@ -1,0 +1,171 @@
+'\" t
+.\" Copyright 2012, Chandan Apsangi <chandan.jc@gmail.com>
+.\" Copyright 2013, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2013  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2013-05-06, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-07-17, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH pthread_setname_np 3 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+pthread_setname_np, pthread_getname_np \- スレッド名の設定/取得を行う
+.SH ライブラリ
+POSIX スレッドライブラリ (\fIlibpthread\fP,\~\fI\-lpthread\fP)
+.SH 書式
+.nf
+\fB#define _GNU_SOURCE\fP             /* See feature_test_macros(7) */
+\fB#include <pthread.h>\fP
+.P
+\fBint pthread_setname_np(pthread_t \fP\fIthread\fP\fB, const char *\fP\fIname\fP\fB);\fP
+\fBint pthread_getname_np(\fPsize_t size;
+\fB                       pthread_t \fP\fIthread\fP\fB, char \fP\fIname\fP\fB[\fP\fIsize\fP\fB], size_t \fP\fIsize\fP\fB);\fP
+.fi
+.SH 説明
+By default, all the threads created using \fBpthread_create\fP()  inherit the
+program name.  The \fBpthread_setname_np\fP()  function can be used to set a
+unique name for a thread, which can be useful for debugging multithreaded
+applications.  The thread name is a meaningful C language string, whose
+length is restricted to 16 characters, including the terminating null byte
+(\[aq]\[rs]0\[aq]).  The \fIthread\fP argument specifies the thread whose name
+is to be changed; \fIname\fP specifies the new name.
+.P
+The \fBpthread_getname_np\fP()  function can be used to retrieve the name of
+the thread.  The \fIthread\fP argument specifies the thread whose name is to be
+retrieved.  The buffer \fIname\fP is used to return the thread name; \fIsize\fP
+specifies the number of bytes available in \fIname\fP.  The buffer specified by
+\fIname\fP should be at least 16 characters in length.  The returned thread
+name in the output buffer will be null terminated.
+.SH 返り値
+成功すると、これらの関数は 0 を返す。
+エラーの場合、0 以外のエラー番号を返す。
+.SH エラー
+\fBpthread_setname_np\fP() は以下のエラーで失敗する場合がある。
+.TP 
+\fBERANGE\fP
+\fIname\fP で指定された文字列の長さが、許可されている上限を超えている。
+.P
+\fBpthread_getname_np\fP() は以下のエラーで失敗する場合がある。
+.TP 
+\fBERANGE\fP
+The buffer specified by \fIname\fP and \fIsize\fP is too small to hold the thread
+name.
+.P
+If either of these functions fails to open \fI/proc/self/task/\fPtid\fI/comm\fP,
+then the call may fail with one of the errors described in \fBopen\fP(2).
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbx lb lb
+l l l.
+インターフェース	属性	値
+T{
+.na
+.nh
+\fBpthread_setname_np\fP(),
+\fBpthread_getname_np\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.SH 標準規格
+GNU; そのため、名前に "_np" (nonportable; 移植性がない) という接尾辞が付いている。
+.SH 歴史
+glibc 2.12.
+.SH 注意
+\fBpthread_setname_np\fP()  internally writes to the thread\-specific \fIcomm\fP
+file under the \fI/proc\fP filesystem: \fI/proc/self/task/\fPtid\fI/comm\fP.
+\fBpthread_getname_np\fP()  retrieves it from the same location.
+.SH 例
+以下のプログラムは、 \fBpthread_setname_np\fP() と \fBpthread_getname_np\fP()
+の使用例を示している。
+.P
+以下のシェルセッションは、このプログラムの実行例である。
+.P
+.in +4n
+.EX
+$\fB ./a.out\fP;
+Created a thread.  Default name is: a.out
+The thread name after setting it is THREADFOO.
+\f[B]\[ha]Z\fR                           # Suspend the program
+[1]+  Stopped           ./a.out
+$ \fBps H \-C a.out \-o \[aq]pid tid cmd comm\[aq]\fP
+  PID   TID CMD                         COMMAND
+ 5990  5990 ./a.out                     a.out
+ 5990  5991 ./a.out                     THREADFOO
+$ \fBcat /proc/5990/task/5990/comm\fP
+a.out
+$ \fBcat /proc/5990/task/5991/comm\fP
+THREADFOO
+.EE
+.in
+.SS プログラムのソース
+.\" SRC BEGIN (pthread_setname_np.c)
+\&
+.EX
+#define _GNU_SOURCE
+#include <err.h>
+#include <errno.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+\&
+#define NAMELEN 16
+\&
+static void *
+threadfunc(void *parm)
+{
+    sleep(5);          // allow main program to set the thread name
+    return NULL;
+}
+\&
+int
+main(int argc, char *argv[])
+{
+    pthread_t thread;
+    int rc;
+    char thread_name[NAMELEN];
+\&
+    rc = pthread_create(&thread, NULL, threadfunc, NULL);
+    if (rc != 0)
+        errc(EXIT_FAILURE, rc, "pthread_create");
+\&
+    rc = pthread_getname_np(thread, thread_name, NAMELEN);
+    if (rc != 0)
+        errc(EXIT_FAILURE, rc, "pthread_getname_np");
+\&
+    printf("Created a thread.  Default name is: %s\[rs]n", thread_name);
+    rc = pthread_setname_np(thread, (argc > 1) ? argv[1] : "THREADFOO");
+    if (rc != 0)
+        errc(EXIT_FAILURE, rc, "pthread_setname_np");
+\&
+    sleep(2);
+\&
+    rc = pthread_getname_np(thread, thread_name, NAMELEN);
+    if (rc != 0)
+        errc(EXIT_FAILURE, rc, "pthread_getname_np");
+    printf("The thread name after setting it is %s.\[rs]n", thread_name);
+\&
+    rc = pthread_join(thread, NULL);
+    if (rc != 0)
+        errc(EXIT_FAILURE, rc, "pthread_join");
+\&
+    printf("Done\[rs]n");
+    exit(EXIT_SUCCESS);
+}
+.EE
+.\" SRC END
+.SH 関連項目
+.ad l
+.nh
+\fBprctl\fP(2), \fBpthread_create\fP(3), \fBpthreads\fP(7)

@@ -1,0 +1,191 @@
+'\" t
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2012  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2012-05-03, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH pthread_cancel 3 2025\-09\-21 "Linux man\-pages (未リリース)" 
+.SH 名前
+pthread_cancel \- スレッドにキャンセル要求を送る
+.SH ライブラリ
+POSIX スレッドライブラリ (\fIlibpthread\fP,\~\fI\-lpthread\fP)
+.SH 書式
+.nf
+\fB#include <pthread.h>\fP
+.P
+\fBint pthread_cancel(pthread_t \fP\fIthread\fP\fB);\fP
+.fi
+.SH 説明
+The \fBpthread_cancel\fP()  function sends a cancelation request to the thread
+\fIthread\fP.  Whether and when the target thread reacts to the cancelation
+request depends on two attributes that are under the control of that thread:
+its cancelability \fIstate\fP and \fItype\fP.
+.P
+A thread's cancelability state, determined by \fBpthread_setcancelstate\fP(3),
+can be \fIenabled\fP (the default for new threads) or \fIdisabled\fP.  If a thread
+has disabled cancelation, then a cancelation request remains queued until
+the thread enables cancelation.  If a thread has enabled cancelation, then
+its cancelability type determines when cancelation occurs.
+.P
+A thread's cancelation type, determined by \fBpthread_setcanceltype\fP(3), may
+be either \fIasynchronous\fP or \fIdeferred\fP (the default for new threads).
+Asynchronous cancelability means that the thread can be canceled at any time
+(usually immediately, but the system does not guarantee this).  Deferred
+cancelability means that cancelation will be delayed until the thread next
+calls a function that is a \fIcancelation point\fP.  A list of functions that
+are or may be cancelation points is provided in \fBpthreads\fP(7).
+.P
+When a cancelation request is acted on, the following steps occur for
+\fIthread\fP (in this order):
+.IP (1) 5
+Cancelation clean\-up handlers are popped (in the reverse of the order in
+which they were pushed) and called.  (See \fBpthread_cleanup_push\fP(3).)
+.IP (2)
+スレッド固有データのデストラクタ (destructor) が呼び出される。
+呼び出し順序は規定されていない。
+(\fBpthread_key_create\fP(3) 参照)
+.IP (3)
+スレッドが終了される。 (\fBpthread_exit\fP(3) 参照)
+.P
+The above steps happen asynchronously with respect to the
+\fBpthread_cancel\fP()  call; the return status of \fBpthread_cancel\fP()  merely
+informs the caller whether the cancelation request was successfully queued.
+.P
+After a canceled thread has terminated, a join with that thread using
+\fBpthread_join\fP(3)  obtains \fBPTHREAD_CANCELED\fP as the thread's exit
+status.  (Joining with a thread is the only way to know that cancelation has
+completed.)
+.SH 返り値
+成功すると、 \fBpthread_cancel\fP() は 0 を返す。
+エラーの場合、0 以外のエラー番号を返す。
+.SH エラー
+.TP 
+\fBESRCH\fP
+ID が \fIthread\fP のスレッドが見つからなかった。
+.SH 属性
+この節で使用されている用語の説明については、 \fBattributes\fP(7) を参照。
+.TS
+allbox;
+lbx lb lb
+l l l.
+インターフェース	属性	値
+T{
+.na
+.nh
+\fBpthread_cancel\fP()
+T}	Thread safety	MT\-Safe
+.TE
+.SH バージョン
+On Linux, cancelation is implemented using signals.  Under the NPTL
+threading implementation, the first real\-time signal (i.e., signal 32) is
+used for this purpose.  On LinuxThreads, the second real\-time signal is
+used, if real\-time signals are available, otherwise \fBSIGUSR2\fP is used.
+.SH 標準規格
+POSIX.1\-2008.
+.SH 歴史
+glibc 2.0 POSIX.1\-2001.
+.SH 例
+以下のプログラムは、スレッドを一つ作成してから、そのスレッドをキャンセルする。
+メインスレッドはキャンセルされたスレッドをジョインし、
+キャンセルされたスレッドの終了ステータスが \fBPTHREAD_CANCELED\fP かどうかを
+確認する。以下のシェルセッションはこのプログラムを実行した際の実行例である。
+.P
+.in +4n
+.EX
+$ ./a.out
+thread_func(): started; cancelation disabled
+main(): sending cancelation request
+thread_func(): about to enable cancelation
+main(): thread was canceled
+.EE
+.in
+.SS プログラムのソース
+.\" SRC BEGIN (pthread_cancel.c)
+\&
+.EX
+#include <err.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+\&
+static void *
+thread_func(void *ignored_argument)
+{
+    int s;
+\&
+    /* Disable cancelation for a while, so that we don\[aq]t
+       immediately react to a cancelation request.  */
+\&
+    s = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    if (s != 0)
+        errc(EXIT_FAILURE, s, "pthread_setcancelstate");
+\&
+    printf("%s(): started; cancelation disabled\[rs]n", __func__);
+    sleep(5);
+    printf("%s(): about to enable cancelation\[rs]n", __func__);
+\&
+    s = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    if (s != 0)
+        errc(EXIT_FAILURE, s, "pthread_setcancelstate");
+\&
+    /* sleep() is a cancelation point.  */
+\&
+    sleep(1000);        /* Should get canceled while we sleep */
+\&
+    /* Should never get here.  */
+\&
+    printf("%s(): not canceled!\[rs]n", __func__);
+    return NULL;
+}
+\&
+int
+main(void)
+{
+    pthread_t thr;
+    void *res;
+    int s;
+\&
+    /* Start a thread and then send it a cancelation request.  */
+\&
+    s = pthread_create(&thr, NULL, &thread_func, NULL);
+    if (s != 0)
+        errc(EXIT_FAILURE, s, "pthread_create");
+\&
+    sleep(2);           /* Give thread a chance to get started */
+\&
+    printf("%s(): sending cancelation request\[rs]n", __func__);
+    s = pthread_cancel(thr);
+    if (s != 0)
+        errc(EXIT_FAILURE, s, "pthread_cancel");
+\&
+    /* Join with thread to see what its exit status was.  */
+\&
+    s = pthread_join(thr, &res);
+    if (s != 0)
+        errc(EXIT_FAILURE, s, "pthread_join");
+\&
+    if (res == PTHREAD_CANCELED)
+        printf("%s(): thread was canceled\[rs]n", __func__);
+    else
+        printf("%s(): thread wasn\[aq]t canceled (shouldn\[aq]t happen!)\[rs]n",
+               __func__);
+    exit(EXIT_SUCCESS);
+}
+.EE
+.\" SRC END
+.SH 関連項目
+.ad l
+.nh
+\fBpthread_cleanup_push\fP(3), \fBpthread_create\fP(3), \fBpthread_exit\fP(3),
+\fBpthread_join\fP(3), \fBpthread_key_create\fP(3), \fBpthread_setcancelstate\fP(3),
+\fBpthread_setcanceltype\fP(3), \fBpthread_testcancel\fP(3), \fBpthreads\fP(7)
