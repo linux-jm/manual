@@ -1,0 +1,168 @@
+.\" Copyright 2006, Silicon Graphics, Inc.
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\" FIXME Should programs normally be using move_pages() directly, or should
+.\" they rather be using interfaces in the numactl package?
+.\" (e.g., compare with recommendation in mbind(2)).
+.\" Does this page need to give advice on this topic?
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2008  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2008-10-26, Akihiro MOTOKI <amotoki@dd.iij4u.or.jp>
+.\"
+.TH move_pages 2 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+move_pages \- あるプロセスの個々のページを別のノードに移動する
+.SH ライブラリ
+NUMA (Non\-Uniform Memory Access) ポリシーライブラリ (\fIlibnuma\fP,\~\fI\-lnuma\fP)
+.SH 書式
+.nf
+\fB#include <numaif.h>\fP
+.P
+\fBlong move_pages(int \fP\fIpid\fP\fB, unsigned long \fP\fIcount\fP\fB, void *\fP\fIpages\fP\fB[\fP\fIcount\fP\fB],\fP
+\fB                const int \fP\fInodes\fP\fB[\fP\fIcount\fP\fB], int \fP\fIstatus\fP\fB[\fP\fIcount\fP\fB],\fP
+\fB                int \fP\fIflags\fP\fB);\fP
+.fi
+.SH 説明
+\fBmove_pages\fP()  は、プロセス \fIpid\fP の指定されたページ \fIpages\fP を \fInodes\fP
+で指定されたメモリーノードに移動する。 移動の結果は \fIstatus\fP に反映される。 \fIflags\fP では移動されるページに関する制約を指定する。
+.P
+\fIpid\fP is the ID of the process in which pages are to be moved.  If \fIpid\fP
+is 0, then \fBmove_pages\fP()  moves pages of the calling process.
+.P
+To move pages in another process requires the following privileges:
+.IP \[bu] 3
+Up to and including Linux 4.12: the caller must be privileged
+(\fBCAP_SYS_NICE\fP)  or the real or effective user ID of the calling process
+must match the real or saved\-set user ID of the target process.
+.IP \[bu]
+.\" commit 197e7e521384a23b9e585178f3f11c9fa08274b9
+The older rules allowed the caller to discover various virtual address
+choices made by the kernel that could lead to the defeat of
+address\-space\-layout randomization for a process owned by the same UID as
+the caller, the rules were changed starting with Linux 4.13.  Since Linux
+4.13, permission is governed by a ptrace access mode
+\fBPTRACE_MODE_READ_REALCREDS\fP check with respect to the target process; see
+\fBptrace\fP(2).
+.P
+\fIcount\fP は移動するページ数である。 \fIcount\fP により \fIpages\fP, \fInodes\fP, \fIstatus\fP の 3
+つの配列の大きさが定義される。
+.P
+.\" FIXME Describe the result if pointers in the 'pages' array are
+.\" not aligned to page boundaries
+\fIpages\fP は、移動すべきページへのポインターの配列であり、 各ポインターはページ境界に揃えた値を指定すべきである。 \fIpid\fP
+で指定されたプロセスで見えるアドレスを指定する。
+.P
+\fInodes\fP は、各ページの希望の移動場所を示す整数値の配列であり、 配列の各要素はノード番号である。 \fInodes\fP には NULL
+を指定することもでき、この場合には \fBmove_pages\fP()  はどのページも移動しないが、各ページが現在配置されているノードを配列
+\fIstatus\fP に格納して返す。どのページを移動する必要があるかを判断するために、 各ページの状態の取得が必要な場合もある。
+.P
+\fIstatus\fP is an array of integers that return the status of each page.  The
+array contains valid values only if \fBmove_pages\fP()  did not return an
+error.  Preinitialization of the array to a value which cannot represent a
+real numa node or valid error of status array could help to identify pages
+that have been migrated.
+.P
+\fIflags\fP には、どの種類のページを移動するかを指定する。 \fBMPOL_MF_MOVE\fP
+は、そのプロセスが排他的に使用しているページだけを移動することを意味する。 \fBMPOL_MF_MOVE_ALL\fP
+は、複数のプロセス間で共有されているページも移動できることを意味する。 \fBMPOL_MF_MOVE_ALL\fP を使用するためには、そのプロセスが特権
+(\fBCAP_SYS_NICE\fP)  を持っていなければならない。
+.SS "status 配列に格納されるページ状態"
+\fIstatus\fP 配列の各要素として、以下の値が返される。
+.TP 
+\fB0..MAX_NUMNODES\fP
+そのページが配置されているノードを示す。
+.TP 
+\fB\-EACCES\fP
+そのページは複数のプロセスによりマップされており、 \fBMPOL_MF_MOVE_ALL\fP が指定された場合にのみ移動できる。
+.TP 
+\fB\-EBUSY\fP
+そのページが現在ビジーであり、移動できない。後でもう一度試すこと。 この状況は、ページが I/O の実行中であったり、カーネルの他のサブシステム
+がそのページへの参照を保持している場合に発生する。
+.TP 
+\fB\-EFAULT\fP
+そのページが zero page であるか、そのメモリー領域はそのプロセスにより マップされていない。
+.TP 
+\fB\-EIO\fP
+ページを書き戻す (write back) ことができない。 ページが dirty で、ファイルシステムが dirty なページを移動できるような
+移動機能を提供していないため、そのページを移動するためにはページを 書き戻さなければならない。
+.TP 
+\fB\-EINVAL\fP
+dirty なページを移動できない。 ファイルシステムが dirty なページを移動するための機能を提供しておらず、 ページを書き戻す能力もない。
+.TP 
+\fB\-ENOENT\fP
+ページが存在しない。
+.TP 
+\fB\-ENOMEM\fP
+移動先のノードでメモリーを確保することができない。
+.SH 返り値
+.\" FIXME . Is the following quite true: does the wrapper in numactl
+.\" do the right thing?
+On success \fBmove_pages\fP()  returns zero.  On error, it returns \-1, and sets
+\fIerrno\fP to indicate the error.  If positive value is returned, it is the
+number of nonmigrated pages.
+.SH エラー
+.TP 
+\fBPositive value\fP
+.\" commit a49bd4d7163707de377aee062f17befef6da891b
+The number of nonmigrated pages if they were the result of nonfatal reasons
+(since Linux 4.17).
+.TP 
+\fBE2BIG\fP
+.\" commit 3140a2273009c01c27d316f35ab76a37e105fdd8
+Too many pages to move.  Since Linux 2.6.29, the kernel no longer generates
+this error.
+.TP 
+\fBEACCES\fP
+.\" FIXME Clarify "current cpuset" in the description of the EACCES error.
+.\" Is that the cpuset of the caller or the target?
+移動先のノードのいずれかが現在の CPU 集合では許可されていない。
+.TP 
+\fBEFAULT\fP
+パラメーター配列にアクセスできなかった。
+.TP 
+\fBEINVAL\fP
+\fIflags\fP に \fBMPOL_MF_MOVE\fP でも \fBMPOL_MF_MOVE_ALL\fP
+でもない値が指定されたか、カーネルスレッドのページを移動させようとした。
+.TP 
+\fBENODEV\fP
+移動先のノードのいずれかがオンラインでない。
+.TP 
+\fBEPERM\fP
+呼び出し元は \fBMPOL_MF_MOVE_ALL\fP を指定したが、十分な特権 (\fBCAP_SYS_NICE\fP)  を持っていない。
+または、呼び出し元が他のユーザーに属するプロセスのページを移動しようとしたが、 それを行えるだけの特権 (\fBCAP_SYS_NICE\fP)
+を持っていなかった。
+.TP 
+\fBESRCH\fP
+プロセスが存在しない。
+.SH 標準規格
+Linux.
+.SH 歴史
+Linux 2.6.18.
+.SH 注意
+ライブラリによるサポートについては \fBnuma\fP(7)  を参照。
+.P
+.\" FIXME Clarify "current cpuset".  Is that the cpuset of the caller
+.\" or the target?
+現在の CPU 集合で許可されているノードの集合を取得するには、フラグ \fBMPOL_F_MEMS_ALLOWED\fP を指定して
+\fBget_mempolicy\fP(2)  を使用すればよい。 取得した情報は、CPU 集合の手動または自動での再構成により
+いつ何時変化してしまうか分からない。
+.P
+この関数を使用すると、ページの位置 (ノード) が 指定されたアドレスに対して設定されたメモリーポリシー (\fBmbind\fP(2)  参照)
+や指定されたプロセスに対して設定されたメモリーポリシー (\fBset_mempolicy\fP(2)  参照) に違反してしまう可能性がある。
+つまり、メモリーポリシーは \fBmove_pages\fP()  で使われる移動先ノードを制限しないということである。
+.P
+ヘッダーファイル \fI<numaif.h>\fP は glibc には含まれておらず、 \fIlibnuma\-devel\fP
+か同様のパッケージをインストールする必要がある。
+.SH 関連項目
+\fBget_mempolicy\fP(2), \fBmbind\fP(2), \fBset_mempolicy\fP(2), \fBnuma\fP(3),
+\fBnuma_maps\fP(5), \fBcpuset\fP(7), \fBnuma\fP(7), \fBmigratepages\fP(8),
+\fBnumastat\fP(8)

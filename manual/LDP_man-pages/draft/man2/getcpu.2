@@ -1,0 +1,123 @@
+.\" Copyright 2006, Andi Kleen <ak@muc.de>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-1-para
+.\"
+.\"*******************************************************************
+.\"
+.\" This file was generated with po4a. Translate the source file.
+.\"
+.\"*******************************************************************
+.\"
+.\" Japanese Version Copyright (c) 2012  Akihiro MOTOKI
+.\"         all rights reserved.
+.\" Translated 2012-05-10, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2012-05-29, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-03-26, Akihiro MOTOKI <amotoki@gmail.com>
+.\" Updated 2013-05-04, Akihiro MOTOKI <amotoki@gmail.com>
+.\"
+.TH getcpu 2 2026\-02\-08 "Linux man\-pages (未リリース)" 
+.SH 名前
+getcpu \- 呼び出し元スレッドが動作している CPU と NUMA ノードを判定する
+.SH ライブラリ
+標準 C ライブラリ (\fIlibc\fP,\~\fI\-lc\fP)
+.SH 書式
+.nf
+\fB#define _GNU_SOURCE\fP             /* See feature_test_macros(7) */
+\fB#include <sched.h>\fP
+.P
+\fBint getcpu(unsigned int *_Nullable \fP\fIcpu\fP\fB, unsigned int *_Nullable \fP\fInode\fP\fB);\fP
+.fi
+.SH 説明
+\fBgetcpu\fP() システムコールは、呼び出し元のスレッドやプロセスが
+現在動作しているプロセッサやノードの情報を特定し、
+それぞれ引数 \fIcpu\fP と \fInode\fP が指す整数に書き込む。
+プロセッサ情報は CPU を識別するための一意な小さな整数である。
+ノード情報は NUMAノードを識別するための一意な小さな整数である。
+\fIcpu\fP か \fInode\fP のいずれかが NULL であれば、
+その引数に対応する情報の書き込みは行われない。
+.P
+\fIcpu\fP に格納された情報が最新だと保証できるのは、システムコールが呼ばれ
+た時点だけである。\fBsched_setaffinity\fP(2) を使って CPU affinity が固定
+されていない限り、カーネルはいつでも CPU を変更してもよい (スケジューラ
+はキャッシュが有効に働くように CPU の移動を最小限にしようとするので、
+通常は CPU が変更されることはないが、起きる可能性はある)。
+\fIcpu\fP や \fInode\fP で返された情報が呼び出しが返った時点ですでに
+最新の状況と異なる可能性があり、呼び出し元はこの可能性を考慮して
+おかなければならない。
+.SH 返り値
+成功すると、 0 を返す。エラーの場合、\-1 を返し、 \fIerrno\fP にエラーを示す値を設定する。
+.SH エラー
+.TP 
+\fBEFAULT\fP
+引数が呼び出したプロセスのアドレス空間外を指している。
+.SH 標準規格
+Linux.
+.SH 歴史
+.\"
+Linux 2.6.19 (x86\-64 and i386), glibc 2.29.
+.SS "C library/kernel differences"
+The kernel system call has a third argument:
+.P
+.in +4n
+.nf
+\fBint getcpu(unsigned int *\fP\fIcpu\fP\fB, unsigned int *\fP\fInode\fP\fB,\fP
+\fB           struct getcpu_cache *\fP\fItcache\fP\fB);\fP
+.fi
+.in
+.P
+The \fItcache\fP argument is unused since Linux 2.6.24, and (when invoking the
+system call directly)  should be specified as NULL, unless portability to
+Linux 2.6.23 or earlier is required.
+.P
+.\" commit 4307d1e5ada595c87f9a4d16db16ba5edb70dcb1
+.\" Author: Ingo Molnar <mingo@elte.hu>
+.\" Date:   Wed Nov 7 18:37:48 2007 +0100
+.\" x86: ignore the sys_getcpu() tcache parameter
+.\"
+.\" ===== Before Linux 2.6.24: =====
+.\" .I tcache
+.\" is a pointer to a
+.\" .IR "struct getcpu_cache"
+.\" that is used as a cache by
+.\" .BR getcpu ().
+.\" The caller should put the cache into a thread-local variable
+.\" if the process is multithreaded,
+.\" because the cache cannot be shared between different threads.
+.\" .I tcache
+.\" can be NULL.
+.\" If it is not NULL
+.\" .BR getcpu ()
+.\" will use it to speed up operation.
+.\" The information inside the cache is private to the system call
+.\" and should not be accessed by the user program.
+.\" The information placed in the cache can change between Linux releases.
+.\"
+.\" When no cache is specified
+.\" .BR getcpu ()
+.\" will be slower,
+.\" but always retrieve the current CPU and node information.
+.\" With a cache
+.\" .BR getcpu ()
+.\" is faster.
+.\" However, the cached information is updated only once per jiffy (see
+.\" .BR time (7)).
+.\" This means that the information could theoretically be out of date,
+.\" although in practice the scheduler's attempt to maintain
+.\" soft CPU affinity means that the information is unlikely to change
+.\" over the course of the caching interval.
+In Linux 2.6.23 and earlier, if the \fItcache\fP argument was non\-NULL, then it
+specified a pointer to a caller\-allocated buffer in thread\-local storage
+that was used to provide a caching mechanism for \fBgetcpu\fP().  Use of the
+cache could speed \fBgetcpu\fP()  calls, at the cost that there was a very
+small chance that the returned information would be out of date.  The
+caching mechanism was considered to cause problems when migrating threads
+between CPUs, and so the argument is now ignored.
+.SH 注意
+Linux makes a best effort to make this call as fast as possible.  (On some
+architectures, this is done via an implementation in the \fBvdso\fP(7).)  The
+intention of \fBgetcpu\fP()  is to allow programs to make optimizations with
+per\-CPU data or for NUMA optimization.
+.SH 関連項目
+\fBmbind\fP(2), \fBsched_setaffinity\fP(2), \fBset_mempolicy\fP(2),
+\fBsched_getcpu\fP(3), \fBcpuset\fP(7), \fBvdso\fP(7)
