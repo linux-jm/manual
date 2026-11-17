@@ -165,13 +165,14 @@ upgrade:
 	$(MAKE) setup
 	cd man-pages \
 	  && ../../../admin/JM-orig-upd.sh ../original \
-	  && cp README man-pages-* Changes* ../original
+	  && cp README Changes* ../original \
+	  && cp lsm ../original/man-pages.lsm
 	git add --all original/
-	#git status original | ../../admin/git2upd > upd.txt
-	#../../admin/upd_tl.perl translation_list upd.txt $(V)
-	#mv translation_list.* translation_list
-	#$(MAKE) FLAGS="--no-translations -v --force" translate-pages
-	#$(MAKE) update-stats
+	git status original | ../../admin/git2upd > upd.txt
+	../../admin/upd_tl.perl translation_list upd.txt $(V)
+	mv translation_list.* translation_list
+	$(MAKE) FLAGS="--no-translations -v --force" translate-pages
+	$(MAKE) update-stats
 	#git add translation_list
 	#git commit -m "LDP: Update original to LDP v$(V)" original/ translation_list
 	#git add po4a/ stats/ untrans.html
