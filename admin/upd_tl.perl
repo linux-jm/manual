@@ -172,7 +172,9 @@ foreach my $n (keys %Lfile) {
     (my $lsec, my $lname) = split(/:/, $lpage);
 
     ${$tl{$n}}{kind} = "link";
-    if(${$tl{$lpage}}{odat} eq undef) {die "no link file $lname for $n\n";}
+    if(${$tl{$lpage}}{odat} eq undef) {
+        print STDERR "WARN: no link file $lname for $n\n";
+    }
 
     ${$tl{$n}}{pkg}  = $package;
     ${$tl{$n}}{fname} = $pname;
