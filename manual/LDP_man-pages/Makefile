@@ -173,10 +173,10 @@ upgrade:
 	mv translation_list.* translation_list
 	$(MAKE) FLAGS="--no-translations -v --force" translate-pages
 	$(MAKE) update-stats
-	#git add translation_list
-	#git commit -m "LDP: Update original to LDP v$(V)" original/ translation_list
-	#git add po4a/ stats/ untrans.html
-	#git commit -m "LDP: Update POT and ja.po to LDP v$(V)" po4a/ stats/ untrans.html
+	git add translation_list
+	git commit -m "LDP: Update original to LDP v$(V)" original/ translation_list
+	git add po4a/ stats/ untrans.html
+	git commit -m "LDP: Update POT and ja.po to LDP v$(V)" po4a/ stats/ untrans.html
 
 disable-removed:
 	@set -e; for f in po4a/*/*.cfg; do \
