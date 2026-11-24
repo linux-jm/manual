@@ -1,32 +1,26 @@
-.\" This man page is Copyright (C) 1999 Andi Kleen <ak@muc.de>.
+.\" Copyright 1999, Andi Kleen <andi@firstfloor.org>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM_ONE_PARA)
-.\" Permission is granted to distribute possibly modified copies
-.\" of this page provided the header is included verbatim,
-.\" and in case of nontrivial modification author and date
-.\" of the modification is added to the header.
-.\" %%%LICENSE_END
+.\" SPDX-License-Identifier: Linux-man-pages-1-para
 .\"
-.\" $Id: udp.7,v 1.7 2000/01/22 01:55:05 freitag Exp $
-.\"
-.TH UDP  7 2020-04-11 "Linux" "Linux Programmer's Manual"
+.TH udp 7 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 udp \- User Datagram Protocol for IPv4
 .SH SYNOPSIS
+.nf
 .B #include <sys/socket.h>
-.br
 .B #include <netinet/in.h>
-.br
 .B #include <netinet/udp.h>
-.PP
-.B udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+.P
+.IB udp_socket " = socket(AF_INET, SOCK_DGRAM, 0);"
+.fi
 .SH DESCRIPTION
 This is an implementation of the User Datagram Protocol
 described in RFC\ 768.
 It implements a connectionless, unreliable datagram packet service.
 Packets may be reordered or duplicated before they arrive.
 UDP generates and checks checksums to catch transmission errors.
-.PP
+.P
 When a UDP socket is created,
 its local and remote addresses are unspecified.
 Datagrams can be sent immediately using
@@ -55,15 +49,17 @@ a free local port out of the range defined by
 .I /proc/sys/net/ipv4/ip_local_port_range
 and bind the socket to
 .BR INADDR_ANY .
-.PP
+.P
 All receive operations return only one packet.
-When the packet is smaller than the passed buffer, only that much
-data is returned; when it is bigger, the packet is truncated and the
+When the packet is smaller than the passed buffer,
+only that much data is returned;
+when it is bigger,
+the packet is truncated and the
 .B MSG_TRUNC
 flag is set.
 .B MSG_WAITALL
 is not supported.
-.PP
+.P
 IP options may be sent or received using the socket options described in
 .BR ip (7).
 They are processed by the kernel only when the appropriate
@@ -72,12 +68,12 @@ parameter
 is enabled (but still passed to the user even when it is turned off).
 See
 .BR ip (7).
-.PP
+.P
 When the
 .B MSG_DONTROUTE
 flag is set on sending, the destination address must refer to a local
 interface address and the packet is sent only to that interface.
-.PP
+.P
 By default, Linux UDP does path MTU (Maximum Transmission Unit) discovery.
 This means the kernel
 will keep track of the MTU to a specific target IP address and return
@@ -88,7 +84,8 @@ Path MTU discovery can be also turned off using the
 .B IP_MTU_DISCOVER
 socket option or the
 .I /proc/sys/net/ipv4/ip_no_pmtu_disc
-file; see
+file;
+see
 .BR ip (7)
 for details.
 When turned off, UDP will fragment outgoing UDP packets
@@ -111,7 +108,7 @@ This behavior differs from many other BSD socket implementations
 which don't pass any errors unless the socket is connected.
 Linux's behavior is mandated by
 .BR RFC\ 1122 .
-.PP
+.P
 For compatibility with legacy code, in Linux 2.0 and 2.2
 it was possible to set the
 .B SO_BSDCOMPAT
@@ -122,10 +119,11 @@ connected (except for
 and
 .BR EMSGSIZE ).
 Locally generated errors are always passed.
-Support for this socket option was removed in later kernels; see
+Support for this socket option was removed in later kernels;
+see
 .BR socket (7)
 for further information.
-.PP
+.P
 When the
 .B IP_RECVERR
 option is enabled, all errors are stored in the socket error queue,
@@ -151,7 +149,7 @@ this number, UDP starts to moderate memory usage.
 .TP
 .I pressure
 This value was introduced to follow the format of
-.IR tcp_mem
+.I tcp_mem
 (see
 .BR tcp (7)).
 .TP
@@ -186,7 +184,7 @@ Unless otherwise noted,
 .I optval
 is a pointer to an
 .IR int .
-.PP
+.P
 Following is a list of UDP-specific socket options.
 For details of some other socket options that are also applicable
 for UDP sockets, see
@@ -198,17 +196,60 @@ is accumulated into a single datagram that is transmitted when
 the option is disabled.
 This option should not be used in code intended to be
 portable.
-.\" FIXME document UDP_ENCAP (new in kernel 2.5.67)
+.\" FIXME document UDP_ENCAP (new in Linux 2.5.67)
 .\" From include/linux/udp.h:
 .\"     UDP_ENCAP_ESPINUDP_NON_IKE draft-ietf-ipsec-nat-t-ike-00/01
 .\"     UDP_ENCAP_ESPINUDP draft-ietf-ipsec-udp-encaps-06
 .\"     UDP_ENCAP_L2TPINUDP rfc2661
 .\" FIXME Document UDP_NO_CHECK6_TX and UDP_NO_CHECK6_RX, added in Linux 3.16
+.TP
+.BR UDP_SEGMENT " (since Linux 4.18)"
+Enables UDP segmentation offload.
+Segmentation offload reduces
+.BR send (2)
+cost by transferring multiple datagrams worth of data
+as a single large packet through the kernel transmit path,
+even when that exceeds MTU.
+As late as possible,
+the large packet is split by segment size into a series of datagrams.
+This segmentation offload step is deferred to hardware if supported,
+else performed in software.
+This option takes a value in the range
+.RB [ 0 ,\~ USHRT_MAX ]
+that sets the segment size:
+the size of datagram payload,
+excluding the UDP header.
+The segment size must be chosen such that
+at most 64 datagrams are sent in a single call
+and that the datagrams after segmentation meet
+the same MTU rules that apply to datagrams sent without this option.
+Segmentation offload depends on checksum offload,
+as datagram checksums are computed after segmentation.
+The option may also be set for individual
+.BR sendmsg (2)
+calls by passing it as a
+.BR cmsg (3).
+A value of zero disables the feature.
+This option should not be used in code intended to be portable.
+.TP
+.BR UDP_GRO " (since Linux 5.0)"
+Enables UDP receive offload.
+If enabled,
+the socket may receive multiple datagrams worth of data
+as a single large buffer,
+together with a
+.BR cmsg (3)
+that holds the segment size.
+This option is the inverse of segmentation offload.
+It reduces receive cost by handling multiple datagrams worth of data
+as a single large packet in the kernel receive path,
+even when that exceeds MTU.
+This option should not be used in code intended to be portable.
 .SS Ioctls
 These ioctls can be accessed using
 .BR ioctl (2).
 The correct syntax is:
-.PP
+.P
 .RS
 .nf
 .BI int " value";
@@ -237,7 +278,7 @@ to distinguish these cases.
 .BR TIOCOUTQ " (" SIOCOUTQ )
 Returns the number of data bytes in the local send queue.
 Supported only with Linux 2.4 and above.
-.PP
+.P
 In addition, all ioctls documented in
 .BR ip (7)
 and
@@ -263,21 +304,12 @@ is a new feature in Linux 2.2.
 .BR raw (7),
 .BR socket (7),
 .BR udplite (7)
-.PP
+.P
 The kernel source file
-.IR Documentation/networking/ip-sysctl.txt .
-.PP
+.IR Documentation/networking/ip\-sysctl.rst .
+.P
 RFC\ 768 for the User Datagram Protocol.
 .br
 RFC\ 1122 for the host requirements.
 .br
 RFC\ 1191 for a description of path MTU discovery.
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

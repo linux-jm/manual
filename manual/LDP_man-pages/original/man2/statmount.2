@@ -1,0 +1,460 @@
+'\" t
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.TH statmount 2 2026-03-19 "Linux man-pages (unreleased)"
+.SH NAME
+statmount \- get a mount status
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
+.SH SYNOPSIS
+.nf
+.BR "#include <linux/mount.h>" "  /* Definition of STATMOUNT_* constants */"
+.B #include <unistd.h>
+.P
+.BI "int syscall(SYS_statmount, struct mnt_id_req *" req ,
+.BI "            struct statmount *" smbuf ", size_t " bufsize ,
+.BI "            unsigned long " flags );
+.P
+.B #include <linux/mount.h>
+.fi
+.P
+.EX
+.B struct mnt_id_req {
+.BR "    __u32  size;" "        /* sizeof(struct mnt_id_req) */"
+.B "    union {"
+.BR "        __u32  mnt_ns_fd;" "  /* fd of mnt_ns to query the mnt_id in */"
+.BR "        __u32  mnt_fd;" "     /* fd on the mount being queried */"
+.B "    };"
+.BR "    __u64  mnt_id;" "      /* The mnt_id being queried */"
+.BR "    __u64  param;" "       /* ORed combination of the STATMOUNT_ constants */"
+.BR "    __u32  mnt_ns_id;" "   /* The id of mnt_ns to query the mnt_id in */"
+.B };
+.P
+.B struct statmount {
+.B "    __u32  size;"
+.B "    __u32  mnt_opts;"
+.B "    __u64  mask;"
+.B "    __u32  sb_dev_major;"
+.B "    __u32  sb_dev_minor;"
+.B "    __u64  sb_magic;"
+.B "    __u32  sb_flags;"
+.B "    __u32  fs_type;"
+.B "    __u64  mnt_id;"
+.B "    __u64  mnt_parent_id;"
+.B "    __u32  mnt_id_old;"
+.B "    __u32  mnt_parent_id_old;"
+.B "    __u64  mnt_attr;"
+.B "    __u64  mnt_propagation;"
+.B "    __u64  mnt_peer_group;"
+.B "    __u64  mnt_master;"
+.B "    __u64  propagate_from;"
+.B "    __u32  mnt_root;"
+.B "    __u32  mnt_point;"
+.B "    __u64  mnt_ns_id;"
+.B "    __u32  fs_subtype;"
+.B "    __u32  sb_source;"
+.B "    __u32  opt_num;"
+.B "    __u32  opt_array;"
+.B "    __u32  opt_sec_num;"
+.B "    __u32  opt_sec_array;"
+.B "    __u32  mnt_uidmap_num;"
+.B "    __u32  mnt_uidmap;"
+.B "    __u32  mnt_gidmap_num;"
+.B "    __u32  mnt_gidmap;"
+.B "    __u64  supported_mask;"
+.B "    char   str[];"
+.B };
+.EE
+.P
+.IR Note :
+glibc provides no wrapper for
+.BR statmount (),
+necessitating the use of
+.BR syscall (2).
+.SH DESCRIPTION
+To access a mount's status,
+the caller must have CAP_SYS_ADMIN in the user namespace.
+In case of accessing a mount in a foreign mount namespace (specified via
+.I req.mnt_ns_id
+or
+.IR req.mnt_ns_fd ),
+the foreign mount namespace should be child of the current namespace.
+.P
+This function returns information about a mount,
+storing it in the buffer pointed to by
+.IR smbuf .
+The returned buffer is a
+.I struct statmount
+which is of size
+.I bufsize
+with the fields filled in as described below.
+.I flags
+must either be 0 or
+.BR STATMOUNT_BY_FD .
+.P
+(Note that reserved space and padding is omitted.)
+.SS The mnt_id_req structure
+.I req.size
+is used by the kernel to determine which
+.I struct\~mnt_id_req
+is being passed in;
+it should always be set to
+.IR sizeof(struct\~mnt_id_req) .
+.P
+.I req.mnt_ns_fd
+can be obtained from
+.B PIDFD_GET_MNT_NAMESPACE
+.BR ioctl (2)
+operation or by opening a file descriptor to
+.IR /proc/ pid /ns/mnt
+and is used to specify a foreign mount namespace in which to query
+.I req.mnt_id
+(since Linux 6.18).
+.P
+.I req.mnt_fd
+is a file descriptor on a mount.
+If
+.B STATMOUNT_BY_FD
+flag is specified,
+.I req.mnt_id
+and
+.I req.mnt_ns_id
+are zeroed,
+the function will return information about
+the mount the file descriptor is on
+(since Linux 7.0).
+.P
+The fd can also be on a mount that has been lazily unmounted (see
+.BR umount2 (2)
+with
+.BR MNT_DETACH ).
+In this case,
+.B STATMOUNT_MNT_POINT
+and
+.B STATMOUNT_MNT_NS_ID
+will be unset, since an unmounted mount is no longer a part of the filesystem.
+.P
+.I req.mnt_id
+can be obtained from either
+.BR statx (2)
+using
+.B STATX_MNT_ID_UNIQUE
+or from
+.BR listmount (2)
+and is used as the identifier to query the status of the desired mount point.
+.P
+.I req.param
+is used to tell the kernel which fields the caller is interested in.
+It is an ORed combination of the following constants
+.P
+.in +4n
+.TS
+lB l.
+STATMOUNT_SB_BASIC	/* Want/got sb_* */
+STATMOUNT_MNT_BASIC	/* Want/got mnt_* */
+STATMOUNT_PROPAGATE_FROM	/* Want/got propagate_from */
+STATMOUNT_MNT_ROOT	/* Want/got mnt_root  */
+STATMOUNT_MNT_POINT	/* Want/got mnt_point */
+STATMOUNT_FS_TYPE	/* Want/got fs_type */
+STATMOUNT_MNT_NS_ID	/* Want/got mnt_ns_id */
+STATMOUNT_MNT_OPTS	/* Want/got mnt_opts */
+STATMOUNT_FS_SUBTYPE	/* Want/got fs_subtype */
+STATMOUNT_SB_SOURCE	/* Want/got sb_source */
+STATMOUNT_OPT_ARRAY	/* Want/got opt_{num,array} */
+STATMOUNT_OPT_SEC_ARRAY	/* Want/got opt_sec_{num,array} */
+STATMOUNT_MNT_UIDMAP	/* Want/got uidmap{_num,} */
+STATMOUNT_MNT_GIDMAP	/* Want/got gidmap{_num,} */
+STATMOUNT_SUPPORTED_MASK	/* Want/got supported mask flags */
+.TE
+.in
+.P
+In general,
+the kernel does
+.I not
+reject values in
+.I req.param
+other than the above.
+(For an exception,
+see
+.B EINVAL
+in errors.)
+Instead,
+it simply informs the caller which values are supported
+by this kernel and filesystem via the
+.I statmount.mask
+field.
+Therefore,
+.I do not
+simply set
+.I req.param
+to
+.B UINT_MAX
+(all bits set),
+as one or more bits may,
+in the future,
+be used to specify an extension to the buffer.
+.P
+.I req.mnt_ns_id
+can be obtained from
+.B NS_GET_MNTNS_ID
+.BR ioctl (2)
+operation and is used to specify a foreign mount namespace in which to query
+.I req.mnt_id
+(since Linux 6.11).
+.SS The returned information
+The status information for the target mount is returned in the
+.I statmount
+structure pointed to by
+.IR smbuf .
+.P
+The fields in the
+.I statmount
+structure are:
+.TP
+.I smbuf.size
+The size of the returned
+.I smbuf
+structure,
+including any of the strings fields that were filled.
+.TP
+.IR smbuf.mnt_opts " (since Linux 6.11)"
+The offset to the location in the
+.I smbuf.str
+buffer that contains a comma separated list of mount options,
+similiar to those in
+.BR proc_pid_mountinfo (5) .
+It is a null-terminated string.
+.TP
+.I smbuf.mask
+The ORed combination of
+.BI STATMOUNT_ *
+flags indicating which fields were filled in and thus valid.
+The kernel may return fields that weren't requested,
+and may fail to return fields that were requested,
+depending on what the backing file system and kernel supports.
+In either case,
+.I req.param
+will not be equal to
+.IR mask .
+.TP
+.I smbuf.sb_dev_major
+.TQ
+.I smbuf.sb_dev_minor
+The device that is mounted at this mount point.
+.TP
+.I smbuf.sb_magic
+The file system specific super block magic.
+.TP
+.I smbuf.sb_flags
+The flags that are set on the super block,
+an ORed combination of
+.BR SB_RDONLY ,
+.BR SB_SYNCHRONOUS ,
+.BR SB_DIRSYNC ,
+.BR SB_LAZYTIME .
+.TP
+.I smbuf.fs_type
+The offset to the location in the
+.I smbuf.str
+buffer that contains the string representation of the mounted file system.
+It is a null-terminated string.
+.TP
+.I smbuf.mnt_id
+The unique mount ID of the mount.
+.TP
+.I smbuf.mnt_parent_id
+The unique mount ID of the parent mount point of this mount.
+If this is the root mount point then
+.IR smbuf.mnt_id\~==\~smbuf.parent_mount_id .
+.TP
+.I smbuf.mnt_id_old
+This corresponds to the mount ID that is exported by
+.IR /proc/ pid /mountinfo .
+.TP
+.I smbuf.mnt_parent_id_old
+This corresponds to the parent mount ID that is exported by
+.IR /proc/ pid /mountinfo .
+.TP
+.I smbuf.mnt_attr
+The
+.BI MOUNT_ATTR_ *
+flags set on this mount point.
+.TP
+.I smbuf.mnt_propagation
+The mount propagation flags,
+which can be one of
+.BR MS_SHARED ,
+.BR MS_SLAVE ,
+.BR MS_PRIVATE ,
+.BR MS_UNBINDABLE .
+.TP
+.I smbuf.mnt_peer_group
+The ID of the shared peer group.
+.TP
+.I smbuf.mnt_master
+The mount point receives its propagation from this mount ID.
+.TP
+.I smbuf.propagate_from
+The ID from the namespace we propagated from.
+.TP
+.I smbuf.mnt_root
+The offset to the location in the
+.I smbuf.str
+buffer that contains the string representation of the mount
+relative to the root of the file system.
+It is a null-terminated string.
+.TP
+.I smbuf.mnt_point
+The offset to the location in the
+.I smbuf.str
+buffer that contains the string representation of the mount
+relative to the current root (ie if you are in a
+.BR chroot ).
+It is a null-terminated string.
+.TP
+.IR smbuf.mnt_ns_id " (since Linux 6.11)"
+The unique ID of the mount namespace the mount belongs to.
+.TP
+.IR smbuf.fs_subtype " (since Linux 6.13)"
+The offset to the location in the
+.I smbuf.str
+buffer that contains the string representation of the file system subtype.
+This is particularly useful for disambiguating FUSE mounts.
+It is a null-terminated string.
+.TP
+.IR smbuf.sb_source " (since Linux 6.13)"
+The offset to the location in the
+.I smbuf.str
+that contains the source of the mount.
+It is a null-terminated string.
+.TP
+.IR smbuf.opt_num " (since Linux 6.13)"
+The number of filesystem options set on the mount.
+.TP
+.IR smbuf.opt_array " (since Linux 6.13)"
+The offset to the location in the
+.I smbuf.str
+buffer that contains file system options separated by null bytes.
+They can be iterated over with the help of
+.IR smbuf.opt_num .
+.TP
+.IR smbuf.opt_sec_num " (since Linux 6.13)"
+The number of security options set on the mount.
+.TP
+.IR smbuf.opt_sec_array " (since Linux 6.13)"
+The offset to the location in the
+.I smbuf.str
+buffer that contains security options separated by null bytes.
+They can be iterated over with the help of
+.IR smbuf.opt_sec_num .
+.TP
+.IR smbuf.mnt_uidmap_num " (since Linux 6.15)"
+The number of uid mappings applied on the mount.
+If
+.I smbuf.mask
+has STATMOUNT_MNT_UIDMAP set and this field is 0,
+then uid mappings applied on the mount
+cannot be resolved in the user namespace of the caller.
+.TP
+.IR smbuf.mnt_uidmap " (since Linux 6.15)"
+The offset to the location in the
+.I smbuf.str
+buffer that contains uid mappings as consecutive null-terminated strings.
+They can be iterated over with the help of
+.IR smbuf.mnt_uidmap_num .
+The whole range of uid mappings must be resolvable in the user namespace
+of the caller.
+.TP
+.IR smbuf.mnt_gidmap_num " (since Linux 6.15)"
+The number of gid mappings applied on the mount.
+If
+.I smbuf.mask
+has STATMOUNT_MNT_GIDMAP set and this field is 0,
+then gid mappings applied on the mount
+cannot be resolved in the user namespace of the caller.
+.TP
+.IR smbuf.mnt_gidmap " (since Linux 6.15)"
+The offset to the location in the
+.I smbuf.str
+buffer that contains gid mappings as consecutive null-terminated strings.
+They can be iterated over with the help of
+.IR smbuf.mnt_gidmap_num .
+The whole range of gid mappings must be resolvable in the user namespace
+of the caller.
+.TP
+.IR smbuf.supported_mask " (since Linux 6.15)"
+The ORed combination of
+.BI STATMOUNT_ *
+flags supported by the current kernel.
+.SH RETURN VALUE
+On success, zero is returned.
+On error, \-1 is returned, and
+.I errno
+is set to indicate the error.
+.SH ERRORS
+.TP
+.B EPERM
+Permission is denied for accessing this mount.
+.TP
+.B EFAULT
+.I req
+or
+.I smbuf
+points to a location outside the process's accessible
+address space.
+.TP
+.B EINVAL
+Invalid flag specified in
+.IR flags .
+.TP
+.B EINVAL
+.I req
+is of insufficient size to be utilized.
+.TP
+.B EINVAL
+Both
+.I req.mnt_ns_id
+and
+.I req.mnt_ns_fd
+were set.
+.TP
+.B EINVAL
+.I req.mnt_id
+or
+.I req.mnt_ns_id
+was specified alongside
+.IR req.mnt_fd .
+.TP
+.B EBADF
+.I req.mnt_fd
+is an invalid file descriptor.
+.TP
+.B E2BIG
+.I req
+is too large.
+.TP
+.B EOVERFLOW
+The size of
+.I smbuf
+is too small to contain either the
+.IR smbuf.fs_type ,
+.IR smbuf.mnt_root ,
+or
+.IR smbuf.mnt_point .
+Allocate a larger buffer and retry the call.
+.TP
+.B ENOENT
+The specified
+.I req.mnt_id
+doesn't exist.
+.TP
+.B ENOMEM
+Out of memory (i.e., kernel memory).
+.SH STANDARDS
+Linux.
+.SH SEE ALSO
+.BR listmount (2),
+.BR statx (2)

@@ -1,86 +1,86 @@
-.\" Copyright (C), 1995, Graeme W. Wilford. (Wilf.)
+'\" t
+.\" Copyright 1995, Graeme W. Wilford <G.Wilford@ee.surrey.ac.uk>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.\" Wed Jun 14 16:10:28 BST 1995 Wilf. (G.Wilford@ee.surrey.ac.uk)
-.\" Tiny change in formatting - aeb, 950812
-.\" Modified 8 May 1998 by Joseph S. Myers (jsm28@cam.ac.uk)
-.\"
-.\" show the synopsis section nicely
-.TH REGEX 3 2020-08-13 "GNU" "Linux Programmer's Manual"
+.TH regex 3 2026-02-22 "Linux man-pages (unreleased)"
 .SH NAME
 regcomp, regexec, regerror, regfree \- POSIX regex functions
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
 .B #include <regex.h>
-.PP
-.BI "int regcomp(regex_t *" preg ", const char *" regex ", int " cflags );
-.PP
-.BI "int regexec(const regex_t *" preg ", const char *" string \
-", size_t " nmatch ,
-.BI "            regmatch_t " pmatch[] ", int " eflags );
-.PP
-.BI "size_t regerror(int " errcode ", const regex_t *" preg ", char *" errbuf ,
-.BI "                size_t " errbuf_size );
-.PP
+.P
+.BI "int regcomp(regex_t *restrict " preg ", const char *restrict " regex ,
+.BI "            int " cflags );
+.BI "int regexec(const regex_t *restrict " preg ,
+.BI "            const char *restrict " string ,
+.BI "            size_t " n ", regmatch_t " pmatch "[_Nullable restrict " n ],
+.BI "            int " eflags );
+.P
+.BR "size_t regerror(" "size_t errbuf_size;"
+.BI "            int " errcode ", const regex_t *_Nullable restrict " preg ,
+.BI "            char " errbuf "[_Nullable restrict " errbuf_size ],
+.BI "            size_t " errbuf_size );
 .BI "void regfree(regex_t *" preg );
+.P
+.B typedef struct {
+.B "    size_t    re_nsub;"
+.B } regex_t;
+.P
+.B typedef struct {
+.B "    regoff_t  rm_so;"
+.B "    regoff_t  rm_eo;"
+.B } regmatch_t;
+.P
+.BR typedef " /* ... */  " regoff_t;
 .fi
 .SH DESCRIPTION
-.SS POSIX regex compiling
+.SS Compilation
 .BR regcomp ()
 is used to compile a regular expression into a form that is suitable
 for subsequent
 .BR regexec ()
 searches.
-.PP
+.P
+On success, the pattern buffer at
+.I *preg
+is initialized.
+.I regex
+is a null-terminated string.
+The locale must be the same when running
+.BR regexec ().
+.P
+After
 .BR regcomp ()
-is supplied with
-.IR preg ,
-a pointer to a pattern buffer storage area;
-.IR regex ,
-a pointer to the null-terminated string and
-.IR cflags ,
-flags used to determine the type of compilation.
-.PP
-All regular expression searching must be done via a compiled pattern
-buffer, thus
+succeeds,
+.I preg->re_nsub
+holds the number of subexpressions in
+.IR regex .
+Thus, a value of
+.I preg->re_nsub
++ 1
+passed as
+.I n
+to
 .BR regexec ()
-must always be supplied with the address of a
-.BR regcomp ()
-initialized pattern buffer.
-.PP
+is sufficient to capture all matches.
+.P
 .I cflags
 is the
-.RB bitwise- or
+bitwise OR
 of zero or more of the following:
 .TP
 .B REG_EXTENDED
 Use
-.B POSIX
+POSIX
 Extended Regular Expression syntax when interpreting
 .IR regex .
 If not set,
-.B POSIX
+POSIX
 Basic Regular Expression syntax is used.
 .TP
 .B REG_ICASE
@@ -90,24 +90,24 @@ Subsequent
 searches using this pattern buffer will be case insensitive.
 .TP
 .B REG_NOSUB
-Do not report position of matches.
-The
-.I nmatch
-and
-.I pmatch
-arguments to
+Report only overall success.
 .BR regexec ()
-are ignored if the pattern buffer supplied was compiled with this flag set.
+will use only
+.I pmatch
+for
+.BR REG_STARTEND ,
+ignoring
+.IR n .
 .TP
 .B REG_NEWLINE
 Match-any-character operators don't match a newline.
 .IP
 A nonmatching list
-.RB ( [\(ha...] )
+.RB ( [\[ha]...\&] )
 not containing a newline does not match a newline.
 .IP
 Match-beginning-of-line operator
-.RB ( \(ha )
+.RB ( \[ha] )
 matches the empty string immediately after a newline, regardless of
 whether
 .IR eflags ,
@@ -123,18 +123,16 @@ whether
 .I eflags
 contains
 .BR REG_NOTEOL .
-.SS POSIX regex matching
+.SS Matching
 .BR regexec ()
 is used to match a null-terminated string
-against the precompiled pattern buffer,
-.IR preg .
-.I nmatch
-and
-.I pmatch
-are used to provide information regarding the location of any matches.
+against the compiled pattern buffer in
+.IR *preg ,
+which must have been initialised with
+.BR regcomp ().
 .I eflags
 is the
-.RB bitwise- or
+bitwise OR
 of zero or more of the following flags:
 .TP
 .B REG_NOTBOL
@@ -154,119 +152,104 @@ compilation flag
 above).
 .TP
 .B REG_STARTEND
-Use
-.I pmatch[0]
-on the input string, starting at byte
-.I pmatch[0].rm_so
-and ending before byte
-.IR pmatch[0].rm_eo .
-This allows matching embedded NUL bytes
-and avoids a
-.BR strlen (3)
-on large strings.
-It does not use
-.I nmatch
-on input, and does not change
-.B REG_NOTBOL
-or
-.B REG_NEWLINE
-processing.
+Match
+.RI [ "string + pmatch[0].rm_so" , " string + pmatch[0].rm_eo" )
+instead of
+.RI [ string ,\~ strnul(string) ).
+This allows matching embedded NUL bytes.
+If any matches are returned
+.RB ( REG_NOSUB
+wasn't passed to
+.BR regcomp (),
+the match succeeded, and
+.I n
+> 0), they overwrite
+.I pmatch
+as usual, and the match offsets remain relative to
+.I string
+(not
+.IR "string + pmatch[0].rm_so" ).
 This flag is a BSD extension, not present in POSIX.
-.SS Byte offsets
+.SS Match offsets
 Unless
 .B REG_NOSUB
-was set for the compilation of the pattern buffer, it is possible to
-obtain match addressing information.
-.I pmatch
-must be dimensioned to have at least
-.I nmatch
-elements.
-These are filled in by
+was passed to
+.BR regcomp (),
+it is possible to
+obtain the locations of matches within
+.IR string :
 .BR regexec ()
-with substring match addresses.
-The offsets of the subexpression starting at the
-.IR i th
-open parenthesis are stored in
-.IR pmatch[i] .
-The entire regular expression's match addresses are stored in
-.IR pmatch[0] .
-(Note that to return the offsets of
-.I N
-subexpression matches,
-.I nmatch
-must be at least
-.IR N+1 .)
-Any unused structure elements will contain the value \-1.
-.PP
-The
-.I regmatch_t
-structure which is the type of
+fills
+.I n
+elements of
 .I pmatch
-is defined in
-.IR <regex.h> .
-.PP
-.in +4n
-.EX
-typedef struct {
-    regoff_t rm_so;
-    regoff_t rm_eo;
-} regmatch_t;
-.EE
-.in
-.PP
-Each
-.I rm_so
-element that is not \-1 indicates the start offset of the next largest
-substring match within the string.
-The relative
-.I rm_eo
-element indicates the end offset of the match,
-which is the offset of the first character after the matching text.
-.SS POSIX error reporting
+with results:
+.I pmatch[0]
+corresponds to the entire match,
+.I pmatch[1]
+to the first subexpression, etc.
+If there were more matches than
+.IR n ,
+they are discarded;
+if fewer,
+unused elements of
+.I pmatch
+are filled with
+.BR \-1 s.
+.P
+Each returned valid
+.RB (non- \-1 )
+match corresponds to the range
+.RI [ "string + rm_so" , " string + rm_eo" ).
+.P
+.I regoff_t
+is a signed integer type
+capable of storing the largest value that can be stored in either an
+.I ptrdiff_t
+type or a
+.I ssize_t
+type.
+.SS Error reporting
 .BR regerror ()
 is used to turn the error codes that can be returned by both
 .BR regcomp ()
 and
 .BR regexec ()
 into error message strings.
-.PP
-.BR regerror ()
-is passed the error code,
-.IR errcode ,
-the pattern buffer,
-.IR preg ,
-a pointer to a character string buffer,
-.IR errbuf ,
-and the size of the string buffer,
-.IR errbuf_size .
-It returns the size of the
-.I errbuf
-required to contain the null-terminated error message string.
-If both
-.I errbuf
-and
-.I errbuf_size
-are nonzero,
-.I errbuf
-is filled in with the first
-.I "errbuf_size \- 1"
-characters of the error message and a terminating null byte (\(aq\e0\(aq).
-.SS POSIX pattern buffer freeing
-Supplying
-.BR regfree ()
-with a precompiled pattern buffer,
+.P
+If
 .I preg
-will free the memory allocated to the pattern buffer by the compiling
-process,
+isn't a null pointer,
+.I errcode
+must be the latest error returned from an operation on
+.IR preg .
+.P
+If
+.I errbuf_size
+isn't 0, up to
+.I errbuf_size
+bytes are copied to
+.IR errbuf ;
+the error string is always null-terminated, and truncated to fit.
+.SS Freeing
+.BR regfree ()
+deinitializes the pattern buffer at
+.IR *preg ,
+freeing any associated memory;
+.I *preg
+must have been initialized via
 .BR regcomp ().
 .SH RETURN VALUE
 .BR regcomp ()
 returns zero for a successful compilation or an error code for failure.
-.PP
+.P
 .BR regexec ()
 returns zero for a successful match or
 .B REG_NOMATCH
 for failure.
+.P
+.BR regerror ()
+returns the size of the buffer required to hold the string.
 .SH ERRORS
 The following errors can be returned by
 .BR regcomp ():
@@ -278,7 +261,7 @@ Invalid use of back reference operator.
 Invalid use of pattern operators such as group or list.
 .TP
 .B REG_BADRPT
-Invalid use of repetition operators such as using \(aq*\(aq
+Invalid use of repetition operators such as using \[aq]*\[aq]
 as the first character.
 .TP
 .B REG_EBRACE
@@ -295,7 +278,7 @@ Unknown character class name.
 .TP
 .B REG_EEND
 Nonspecific error.
-This is not defined by POSIX.2.
+This is not defined by POSIX.
 .TP
 .B REG_EESCAPE
 Trailing backslash.
@@ -304,12 +287,14 @@ Trailing backslash.
 Un-matched parenthesis group operators.
 .TP
 .B REG_ERANGE
-Invalid use of the range operator; for example, the ending point of the range
+Invalid use of the range operator;
+for example,
+the ending point of the range
 occurs prior to the starting point.
 .TP
 .B REG_ESIZE
 Compiled regular expression requires a pattern buffer larger than 64\ kB.
-This is not defined by POSIX.2.
+This is not defined by POSIX.
 .TP
 .B REG_ESPACE
 The regex routines ran out of memory.
@@ -321,77 +306,98 @@ For an explanation of the terms used in this section, see
 .BR attributes (7).
 .TS
 allbox;
-lbw20 lb lb
+lbx lb lb
 l l l.
 Interface	Attribute	Value
 T{
+.na
+.nh
 .BR regcomp (),
 .BR regexec ()
 T}	Thread safety	MT-Safe locale
 T{
+.na
+.nh
 .BR regerror ()
 T}	Thread safety	MT-Safe env
 T{
+.na
+.nh
 .BR regfree ()
 T}	Thread safety	MT-Safe
 .TE
-.SH CONFORMING TO
-POSIX.1-2001, POSIX.1-2008.
+.SH STANDARDS
+POSIX.1-2008.
+.SH HISTORY
+POSIX.1-2001.
+.P
+Prior to POSIX.1-2008,
+.I regoff_t
+was required to be
+capable of storing the largest value that can be stored in either an
+.I off_t
+type or a
+.I ssize_t
+type.
+.SH CAVEATS
+.I re_nsub
+is only required to be initialized if
+.B REG_NOSUB
+wasn't specified, but all known implementations initialize it regardless.
+.\" glibc, musl, 4.4BSD, illumos
+.P
+Both
+.I regex_t
+and
+.I regmatch_t
+may (and do) have more members, in any order.
+Always reference them by name.
+.\" illumos has two more start/end pairs and the first one is of pointers
 .SH EXAMPLES
 .EX
+#include <stdcountof.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <regex.h>
-
-#define ARRAY_SIZE(arr) (sizeof((arr)) / sizeof((arr)[0]))
-
+\&
 static const char *const str =
-        "1) John Driverhacker;\en2) John Doe;\en3) John Foo;\en";
+        "1) John Driverhacker;\[rs]n2) John Doe;\[rs]n3) John Foo;\[rs]n";
 static const char *const re = "John.*o";
-
+\&
 int main(void)
 {
     static const char *s = str;
     regex_t     regex;
     regmatch_t  pmatch[1];
     regoff_t    off, len;
-
+\&
     if (regcomp(&regex, re, REG_NEWLINE))
         exit(EXIT_FAILURE);
-
-    printf("String = \e"%s\e"\en", str);
-    printf("Matches:\en");
-
-    for (int i = 0; ; i++) {
-        if (regexec(&regex, s, ARRAY_SIZE(pmatch), pmatch, 0))
+\&
+    printf("String = \[rs]"%s\[rs]"\[rs]n", str);
+    printf("Matches:\[rs]n");
+\&
+    for (unsigned int i = 0; ; i++) {
+        if (regexec(&regex, s, countof(pmatch), pmatch, 0))
             break;
-
+\&
         off = pmatch[0].rm_so + (s \- str);
         len = pmatch[0].rm_eo \- pmatch[0].rm_so;
-        printf("#%d:\en", i);
-        printf("offset = %jd; length = %jd\en", (intmax_t) off,
+        printf("#%u:\[rs]n", i);
+        printf("offset = %jd; length = %jd\[rs]n", (intmax_t) off,
                 (intmax_t) len);
-        printf("substring = \e"%.*s\e"\en", len, s + pmatch[0].rm_so);
-
+        printf("substring = \[rs]"%.*s\[rs]"\[rs]n", len, s + pmatch[0].rm_so);
+\&
         s += pmatch[0].rm_eo;
     }
-
+\&
     exit(EXIT_SUCCESS);
 }
 .EE
 .SH SEE ALSO
 .BR grep (1),
 .BR regex (7)
-.PP
+.P
 The glibc manual section,
 .I "Regular Expressions"
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

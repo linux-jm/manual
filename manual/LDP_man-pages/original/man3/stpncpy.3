@@ -1,118 +1,177 @@
-.\" Copyright (c) Bruno Haible <haible@clisp.cons.org>
+'\" t
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(GPLv2+_DOC_ONEPARA)
-.\" This is free documentation; you can redistribute it and/or
-.\" modify it under the terms of the GNU General Public License as
-.\" published by the Free Software Foundation; either version 2 of
-.\" the License, or (at your option) any later version.
-.\" %%%LICENSE_END
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" References consulted:
-.\"   GNU glibc-2 source code and manual
-.\"
-.\" Corrected, aeb, 990824
-.TH STPNCPY 3  2019-03-06 "GNU" "Linux Programmer's Manual"
+.TH stpncpy 3 2026-02-25 "Linux man-pages (unreleased)"
 .SH NAME
-stpncpy \- copy a fixed-size string, returning a pointer to its end
+stpncpy, strncpy
+\-
+fill a fixed-size buffer with non-null bytes from a string,
+padding with null bytes as needed
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
 .B #include <string.h>
-.PP
-.BI "char *stpncpy(char *" dest ", const char *" src ", size_t " n );
+.P
+.BR "char *strncpy(" "size_t dsize;"
+.BI "              char " dst "[restrict " dsize "], const char *restrict " src ,
+.BI "              size_t " dsize );
+.BR "char *stpncpy(" "size_t dsize;"
+.BI "              char " dst "[restrict " dsize "], const char *restrict " src ,
+.BI "              size_t " dsize );
 .fi
-.PP
+.P
 .RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
 .RE
-.PP
+.P
 .BR stpncpy ():
-.PD 0
-.ad l
-.RS 4
-.TP 4
-Since glibc 2.10:
-_POSIX_C_SOURCE\ >=\ 200809L
-.TP
-Before glibc 2.10:
-_GNU_SOURCE
-.RE
-.ad
-.PD
+.nf
+    Since glibc 2.10:
+        _POSIX_C_SOURCE >= 200809L
+    Before glibc 2.10:
+        _GNU_SOURCE
+.fi
 .SH DESCRIPTION
-The
+These functions copy non-null bytes from the string pointed to by
+.I src
+into the array pointed to by
+.IR dst .
+If the source has too few non-null bytes to fill the destination,
+the functions pad the destination with trailing null bytes.
+If the destination buffer,
+limited by its size,
+isn't large enough to hold the copy,
+the resulting character sequence is truncated.
+For the difference between the two functions, see RETURN VALUE.
+.TP
+.BR strncpy ()
+It is equivalent to
+.IP
+.in +4n
+.EX
+stpncpy(dst, src, dsize), dst
+.EE
+.in
+.TP
 .BR stpncpy ()
-function copies at most
-.I n
-characters from the string
-pointed to by
-.IR src ,
-including the terminating null byte (\(aq\e0\(aq),
-to the array pointed to by
-.IR dest .
-Exactly
-.I n
-characters are written at
-.IR dest .
-If the length
-.I strlen(src)
-is smaller than
-.IR n ,
-the
-remaining characters in the array pointed to by
-.I dest
-are filled
-with null bytes (\(aq\e0\(aq),
-If the length
-.I strlen(src)
-is greater than or equal to
-.IR n ,
-the string pointed to by
-.I dest
-will
-not be null-terminated.
-.PP
-The strings may not overlap.
-.PP
-The programmer must ensure that there is room for at least
-.I n
-characters
-at
-.IR dest .
+It is equivalent to
+.IP
+.in +4n
+.EX
+memset(mempcpy(dst, src, strnlen(src, dsize)), \[aq]\[rs]0\[aq],
+       dsize \- strnlen(src, dsize))
+.EE
+.in
 .SH RETURN VALUE
+.TP
+.BR strncpy ()
+returns
+.IR dst .
+.TP
 .BR stpncpy ()
-returns a pointer to the terminating null byte
-in
-.IR dest ,
-or, if
-.I dest
-is not null-terminated,
-.IR dest + n .
+returns a pointer to
+one past the last non-null character written,
+that is,
+.IR dest\~+\~strnlen(src,\~n) .
 .SH ATTRIBUTES
 For an explanation of the terms used in this section, see
 .BR attributes (7).
 .TS
 allbox;
-lb lb lb
+lbx lb lb
 l l l.
 Interface	Attribute	Value
 T{
-.BR stpncpy ()
+.na
+.nh
+.BR stpncpy (),
+.BR strncpy ()
 T}	Thread safety	MT-Safe
 .TE
-.SH CONFORMING TO
-This function was added to POSIX.1-2008.
-Before that, it was a GNU extension.
-It first appeared in version 1.07 of the GNU C library in 1993.
+.SH STANDARDS
+.TP
+.BR strncpy ()
+C11, POSIX.1-2008.
+.TP
+.BR stpncpy ()
+POSIX.1-2008.
+.SH HISTORY
+.TP
+.BR strncpy ()
+C89, POSIX.1-2001, SVr4, 4.3BSD.
+.TP
+.BR stpncpy ()
+glibc 1.07.
+POSIX.1-2008.
+.SH CAVEATS
+The name of these functions is confusing.
+These functions produce a null-padded character sequence,
+not a string (see
+.BR string_copying (7)).
+For example:
+.P
+.in +4n
+.EX
+strncpy(buf, "1", 5);       // { \[aq]1\[aq],   0,   0,   0,   0 }
+strncpy(buf, "1234", 5);    // { \[aq]1\[aq], \[aq]2\[aq], \[aq]3\[aq], \[aq]4\[aq],   0 }
+strncpy(buf, "12345", 5);   // { \[aq]1\[aq], \[aq]2\[aq], \[aq]3\[aq], \[aq]4\[aq], \[aq]5\[aq] }
+strncpy(buf, "123456", 5);  // { \[aq]1\[aq], \[aq]2\[aq], \[aq]3\[aq], \[aq]4\[aq], \[aq]5\[aq] }
+.EE
+.in
+.P
+It's impossible to distinguish truncation by the result of the call,
+from a character sequence that just fits the destination buffer;
+truncation should be detected by
+comparing the length of the input string
+with the size of the destination buffer.
+.P
+If you're going to use this function in chained calls,
+it would be useful to develop a similar function that accepts
+a pointer to the end (one after the last element) of the destination buffer
+instead of its size.
+.SH EXAMPLES
+.\" SRC BEGIN (stpncpy.c)
+.EX
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+\&
+int
+main(void)
+{
+    char    *p;
+    char    buf1[20];
+    char    buf2[20];
+    size_t  len;
+\&
+    if (sizeof(buf2) < strlen("Hello world!"))
+        errx("strncpy: truncating character sequence");
+    strncpy(buf2, "Hello world!", sizeof(buf2));
+    len = strnlen(buf2, sizeof(buf2));
+\&
+    printf("[len = %zu]: ", len);
+    fwrite(buf2, 1, len, stdout);
+    putchar(\[aq]\[rs]n\[aq]);
+\&
+    if (sizeof(buf1) < strlen("Hello world!"))
+        errx("stpncpy: truncating character sequence");
+    p = stpncpy(buf1, "Hello world!", sizeof(buf1));
+    len = p \- buf1;
+\&
+    printf("[len = %zu]: ", len);
+    fwrite(buf1, 1, len, stdout);
+    putchar(\[aq]\[rs]n\[aq]);
+\&
+    exit(EXIT_SUCCESS);
+}
+.EE
+.\" SRC END
 .SH SEE ALSO
-.BR strncpy (3),
-.BR wcpncpy (3)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.
+.BR wcpncpy (3),
+.BR string_copying (7)

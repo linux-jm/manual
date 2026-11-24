@@ -1,40 +1,31 @@
-.\" Copyright 2015-2017 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+'\" t
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH MEMBARRIER 2 2020-11-01 "Linux" "Linux Programmer's Manual"
+.TH membarrier 2 2025-09-21 "Linux man-pages (unreleased)"
 .SH NAME
 membarrier \- issue memory barriers on a set of threads
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
-.PP
-.B #include <linux/membarrier.h>
-.PP
-.BI "int membarrier(int " cmd ", unsigned int " flags ", int " cpu_id );
+.P
+.BR "#include <linux/membarrier.h>" \
+" /* Definition of " MEMBARRIER_* " constants */"
+.BR "#include <sys/syscall.h>" "      /* Definition of " SYS_* " constants */"
+.B #include <unistd.h>
+.P
+.BI "int syscall(SYS_membarrier, int " cmd ", unsigned int " flags \
+", int " cpu_id );
 .fi
-.PP
+.P
 .IR Note :
-There is no glibc wrapper for this system call; see NOTES.
+glibc provides no wrapper for
+.BR membarrier (),
+necessitating the use of
+.BR syscall (2).
 .SH DESCRIPTION
 The
 .BR membarrier ()
@@ -45,12 +36,12 @@ effectively is
 .I not
 as simple as replacing memory barriers with this
 system call, but requires understanding of the details below.
-.PP
+.P
 Use of memory barriers needs to be done taking into account that a
 memory barrier always needs to be either matched with its memory barrier
 counterparts, or that the architecture's memory model doesn't require the
 matching barriers.
-.PP
+.P
 There are cases where one side of the matching barriers (which we will
 refer to as "fast side") is executed much more often than the other
 (which we will refer to as "slow side").
@@ -59,22 +50,22 @@ This is a prime target for the use of
 The key idea is to replace, for these matching
 barriers, the fast-side memory barriers by simple compiler barriers,
 for example:
-.PP
+.P
 .in +4n
 .EX
 asm volatile ("" : : : "memory")
 .EE
 .in
-.PP
+.P
 and replace the slow-side memory barriers by calls to
 .BR membarrier ().
-.PP
+.P
 This will add overhead to the slow side, and remove overhead from the
 fast side, thus resulting in an overall performance increase as long as
 the slow side is infrequent enough that the overhead of the
 .BR membarrier ()
 calls does not outweigh the performance gain on the fast side.
-.PP
+.P
 The
 .I cmd
 argument is one of the following:
@@ -113,7 +104,7 @@ previously registered with
 .IP
 Given that registration is about the intent to receive the barriers, it
 is valid to invoke
-.BR MEMBARRIER_CMD_GLOBAL_EXPEDITED
+.B MEMBARRIER_CMD_GLOBAL_EXPEDITED
 from a process that has not employed
 .BR MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED .
 .IP
@@ -122,7 +113,7 @@ they never block, but have the downside of causing extra overhead.
 .TP
 .BR MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED " (since Linux 4.16)"
 Register the process's intent to receive
-.BR MEMBARRIER_CMD_GLOBAL_EXPEDITED
+.B MEMBARRIER_CMD_GLOBAL_EXPEDITED
 memory barriers.
 .TP
 .BR MEMBARRIER_CMD_PRIVATE_EXPEDITED " (since Linux 4.14)"
@@ -170,7 +161,8 @@ Ensure the caller thread, upon return from system call, that all its
 running thread siblings have any currently running rseq critical sections
 restarted if
 .I flags
-parameter is 0; if
+parameter is 0;
+if
 .I flags
 parameter is
 .BR MEMBARRIER_CMD_FLAG_CPU ,
@@ -190,9 +182,9 @@ Register the process's intent to use
 .TP
 .BR MEMBARRIER_CMD_SHARED " (since Linux 4.3)"
 This is an alias for
-.BR MEMBARRIER_CMD_GLOBAL
+.B MEMBARRIER_CMD_GLOBAL
 that exists for header backward compatibility.
-.PP
+.P
 The
 .I flags
 argument must be specified as 0 unless the command is
@@ -201,7 +193,7 @@ in which case
 .I flags
 can be either 0 or
 .BR MEMBARRIER_CMD_FLAG_CPU .
-.PP
+.P
 The
 .I cpu_id
 argument is ignored unless
@@ -210,11 +202,11 @@ is
 .BR MEMBARRIER_CMD_FLAG_CPU ,
 in which case it must specify the CPU targeted by this membarrier
 command.
-.PP
+.P
 All memory accesses performed in program order from each targeted thread
 are guaranteed to be ordered with respect to
 .BR membarrier ().
-.PP
+.P
 If we use the semantic
 .I barrier()
 to represent a compiler barrier forcing memory
@@ -228,11 +220,16 @@ each pairing of
 and
 .IR smp_mb() .
 The pair ordering is detailed as (O: ordered, X: not ordered):
-.PP
-                       barrier()  smp_mb()  membarrier()
-       barrier()          X          X          O
-       smp_mb()           X          O          O
-       membarrier()       O          O          O
+.P
+.RS
+.TS
+l c c c.
+\&	barrier()	smp_mb()	membarrier()
+barrier()	X	X	O
+smp_mb()	X	O	O
+membarrier()	O	O	O
+.TE
+.RE
 .SH RETURN VALUE
 On success, the
 .B MEMBARRIER_CMD_QUERY
@@ -249,8 +246,8 @@ operations return zero.
 On error, \-1 is returned,
 and
 .I errno
-is set appropriately.
-.PP
+is set to indicate the error.
+.P
 For a given command, with
 .I flags
 set to 0, this system call is
@@ -267,13 +264,13 @@ set to 0, error handling is required only for the first call to
 is invalid, or
 .I flags
 is nonzero, or the
-.BR MEMBARRIER_CMD_GLOBAL
+.B MEMBARRIER_CMD_GLOBAL
 command is disabled because the
 .I nohz_full
 CPU parameter has been set, or the
-.BR MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE
+.B MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE
 and
-.BR MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE
+.B MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE
 commands are not implemented by the architecture.
 .TP
 .B ENOSYS
@@ -284,27 +281,18 @@ system call is not implemented by this kernel.
 .B EPERM
 The current process was not registered prior to using private expedited
 commands.
-.SH VERSIONS
-The
-.BR membarrier ()
-system call was added in Linux 4.3.
-.PP
-Before Linux 5.10, the prototype for
-.BR membarrier ()
-was:
-.PP
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 4.3.
+.P
+Before Linux 5.10, the prototype was:
+.P
 .in +4n
 .EX
 .BI "int membarrier(int " cmd ", int " flags );
 .EE
 .in
-.SH CONFORMING TO
-.BR membarrier ()
-is Linux-specific.
-.\" .SH SEE ALSO
-.\" FIXME See if the following syscalls make it into Linux 4.15 or later
-.\" .BR cpu_opv (2),
-.\" .BR rseq (2)
 .SH NOTES
 A memory barrier instruction is part of the instruction set of
 architectures with weakly ordered memory models.
@@ -314,29 +302,27 @@ matching barriers on other cores.
 For instance, a load fence can order
 loads prior to and following that fence with respect to stores ordered
 by store fences.
-.PP
+.P
 Program order is the order in which instructions are ordered in the
 program assembly code.
-.PP
+.P
 Examples where
 .BR membarrier ()
 can be useful include implementations
 of Read-Copy-Update libraries and garbage collectors.
-.PP
-Glibc does not provide a wrapper for this system call; call it using
-.BR syscall (2).
 .SH EXAMPLES
 Assuming a multithreaded application where "fast_path()" is executed
 very frequently, and where "slow_path()" is executed infrequently, the
 following code (x86) can be transformed using
 .BR membarrier ():
-.PP
+.P
 .in +4n
+.\" SRC BEGIN (membarrier.c)
 .EX
 #include <stdlib.h>
-
+\&
 static volatile int a, b;
-
+\&
 static void
 fast_path(int *read_b)
 {
@@ -344,7 +330,7 @@ fast_path(int *read_b)
     asm volatile ("mfence" : : : "memory");
     *read_b = b;
 }
-
+\&
 static void
 slow_path(int *read_a)
 {
@@ -352,38 +338,39 @@ slow_path(int *read_a)
     asm volatile ("mfence" : : : "memory");
     *read_a = a;
 }
-
+\&
 int
-main(int argc, char **argv)
+main(void)
 {
     int read_a, read_b;
-
+\&
     /*
      * Real applications would call fast_path() and slow_path()
-     * from different threads. Call those from main() to keep
+     * from different threads.  Call those from main() to keep
      * this example short.
      */
-
+\&
     slow_path(&read_a);
     fast_path(&read_b);
-
+\&
     /*
      * read_b == 0 implies read_a == 1 and
      * read_a == 0 implies read_b == 1.
      */
-
+\&
     if (read_b == 0 && read_a == 0)
         abort();
-
+\&
     exit(EXIT_SUCCESS);
 }
 .EE
+.\" SRC END
 .in
-.PP
+.P
 The code above transformed to use
 .BR membarrier ()
 becomes:
-.PP
+.P
 .in +4n
 .EX
 #define _GNU_SOURCE
@@ -392,37 +379,37 @@ becomes:
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <linux/membarrier.h>
-
+\&
 static volatile int a, b;
-
+\&
 static int
 membarrier(int cmd, unsigned int flags, int cpu_id)
 {
     return syscall(__NR_membarrier, cmd, flags, cpu_id);
 }
-
+\&
 static int
 init_membarrier(void)
 {
     int ret;
-
-    /* Check that membarrier() is supported. */
-
+\&
+    /* Check that membarrier() is supported.  */
+\&
     ret = membarrier(MEMBARRIER_CMD_QUERY, 0, 0);
     if (ret < 0) {
         perror("membarrier");
         return \-1;
     }
-
+\&
     if (!(ret & MEMBARRIER_CMD_GLOBAL)) {
         fprintf(stderr,
-            "membarrier does not support MEMBARRIER_CMD_GLOBAL\en");
+            "membarrier does not support MEMBARRIER_CMD_GLOBAL\[rs]n");
         return \-1;
     }
-
+\&
     return 0;
 }
-
+\&
 static void
 fast_path(int *read_b)
 {
@@ -430,7 +417,7 @@ fast_path(int *read_b)
     asm volatile ("" : : : "memory");
     *read_b = b;
 }
-
+\&
 static void
 slow_path(int *read_a)
 {
@@ -438,42 +425,37 @@ slow_path(int *read_a)
     membarrier(MEMBARRIER_CMD_GLOBAL, 0, 0);
     *read_a = a;
 }
-
+\&
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
     int read_a, read_b;
-
+\&
     if (init_membarrier())
         exit(EXIT_FAILURE);
-
+\&
     /*
      * Real applications would call fast_path() and slow_path()
-     * from different threads. Call those from main() to keep
+     * from different threads.  Call those from main() to keep
      * this example short.
      */
-
+\&
     slow_path(&read_a);
     fast_path(&read_b);
-
+\&
     /*
      * read_b == 0 implies read_a == 1 and
      * read_a == 0 implies read_b == 1.
      */
-
+\&
     if (read_b == 0 && read_a == 0)
         abort();
-
+\&
     exit(EXIT_SUCCESS);
 }
 .EE
 .in
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.
+.\" .SH SEE ALSO
+.\" FIXME See if the following syscalls make it into Linux 4.15 or later
+.\" .BR cpu_opv (2),
+.\" .BR rseq (2)

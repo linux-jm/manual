@@ -1,28 +1,9 @@
-.\" Copyright (C) 2016 Intel Corporation
+.\" Copyright 2016, Intel Corp.
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH PKEYS 7 2020-06-09 "Linux" "Linux Programmer's Manual"
+.TH pkeys 7 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 pkeys \- overview of Memory Protection Keys
 .SH DESCRIPTION
@@ -34,32 +15,33 @@ when changing permissions.
 Memory Protection Keys provide a mechanism for changing
 protections without requiring modification of the page tables on
 every permission change.
-.PP
+.P
 To use pkeys, software must first "tag" a page in the page tables
 with a pkey.
 After this tag is in place, an application only has
 to change the contents of a register in order to remove write
 access, or all access to a tagged page.
-.PP
+.P
 Protection keys work in conjunction with the existing
-.BR PROT_READ /
-.BR PROT_WRITE /
-.BR PROT_EXEC
+.BR PROT_READ ,
+.BR PROT_WRITE ,
+and
+.B PROT_EXEC
 permissions passed to system calls such as
 .BR mprotect (2)
 and
 .BR mmap (2),
 but always act to further restrict these traditional permission
 mechanisms.
-.PP
+.P
 If a process performs an access that violates pkey
 restrictions, it receives a
-.BR SIGSEGV
+.B SIGSEGV
 signal.
 See
 .BR sigaction (2)
 for details of the information available with that signal.
-.PP
+.P
 To use the pkeys feature, the processor must support it, and the kernel
 must contain support for the feature on a given processor.
 As of early 2016 only future Intel x86 processors are supported,
@@ -69,7 +51,7 @@ are available for actual application use.
 The default key is assigned to any memory region for which a
 pkey has not been explicitly assigned via
 .BR pkey_mprotect (2).
-.PP
+.P
 Protection keys have the potential to add a layer of security and
 reliability to applications.
 But they have not been primarily designed as
@@ -77,7 +59,7 @@ a security feature.
 For instance, WRPKRU is a completely unprivileged
 instruction, so pkeys are useless in any case that an attacker controls
 the PKRU register or can execute arbitrary instructions.
-.PP
+.P
 Applications should be very careful to ensure that they do not "leak"
 protection keys.
 For instance, before calling
@@ -92,11 +74,11 @@ called on them because it would have processor or memory performance
 implications to perform the additional checks needed to disallow it.
 Implementation of the necessary checks is left up to applications.
 Applications may implement these checks by searching the
-.IR /proc/[pid]/smaps
+.IR /proc/ pid /smaps
 file for memory regions with the pkey assigned.
 Further details can be found in
 .BR proc (5).
-.PP
+.P
 Any application wanting to use protection keys needs to be able
 to function without them.
 They might be unavailable because the hardware that the
@@ -110,7 +92,7 @@ keys should simply call
 and test whether the call succeeds,
 instead of attempting to detect support for the
 feature in any other way.
-.PP
+.P
 Although unnecessary, hardware support for protection keys may be
 enumerated with the
 .I cpuid
@@ -118,12 +100,12 @@ instruction.
 Details of how to do this can be found in the Intel Software
 Developers Manual.
 The kernel performs this enumeration and exposes the information in
-.IR /proc/cpuinfo
+.I /proc/cpuinfo
 under the "flags" field.
 The string "pku" in this field indicates hardware support for protection
 keys and the string "ospke" indicates that the kernel contains and has
 enabled protection keys support.
-.PP
+.P
 Applications using threads and protection keys should be especially
 careful.
 Threads inherit the protection key rights of the parent at the time
@@ -145,7 +127,7 @@ key rights upon entering a signal handler if the desired rights differ
 from the defaults.
 The rights of any interrupted context are restored when the signal
 handler returns.
-.PP
+.P
 This signal behavior is unusual and is due to the fact that the x86 PKRU
 register (which stores protection key access rights) is managed with the
 same hardware mechanism (XSAVE) that manages floating-point registers.
@@ -157,13 +139,12 @@ The Linux kernel implements the following pkey-related system calls:
 .BR pkey_alloc (2),
 and
 .BR pkey_free (2).
-.PP
+.P
 The Linux pkey system calls are available only if the kernel was
 configured and built with the
-.BR CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+.B CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 option.
 .SH EXAMPLES
-.PP
 The program below allocates a page of memory with read and write permissions.
 It then writes some data to the memory and successfully reads it
 back.
@@ -171,7 +152,7 @@ After that, it attempts to allocate a protection key and
 disallows access to the page by using the WRPKRU instruction.
 It then tries to access the page,
 which we now expect to cause a fatal signal to the application.
-.PP
+.P
 .in +4n
 .EX
 .RB "$" " ./a.out"
@@ -184,87 +165,48 @@ Segmentation fault (core dumped)
 \&
 .EX
 #define _GNU_SOURCE
+#include <err.h>
 #include <unistd.h>
-#include <sys/syscall.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/mman.h>
-
-static inline void
-wrpkru(unsigned int pkru)
-{
-    unsigned int eax = pkru;
-    unsigned int ecx = 0;
-    unsigned int edx = 0;
-
-    asm volatile(".byte 0x0f,0x01,0xef\en\et"
-                 : : "a" (eax), "c" (ecx), "d" (edx));
-}
-
-int
-pkey_set(int pkey, unsigned long rights, unsigned long flags)
-{
-    unsigned int pkru = (rights << (2 * pkey));
-    return wrpkru(pkru);
-}
-
-int
-pkey_mprotect(void *ptr, size_t size, unsigned long orig_prot,
-              unsigned long pkey)
-{
-    return syscall(SYS_pkey_mprotect, ptr, size, orig_prot, pkey);
-}
-
-int
-pkey_alloc(void)
-{
-    return syscall(SYS_pkey_alloc, 0, 0);
-}
-
-int
-pkey_free(unsigned long pkey)
-{
-    return syscall(SYS_pkey_free, pkey);
-}
-
-#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
-                           } while (0)
-
+\&
 int
 main(void)
 {
     int status;
     int pkey;
     int *buffer;
-
+\&
     /*
-     *Allocate one page of memory
+     * Allocate one page of memory.
      */
     buffer = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE,
                   MAP_ANONYMOUS | MAP_PRIVATE, \-1, 0);
     if (buffer == MAP_FAILED)
-        errExit("mmap");
-
+        err(EXIT_FAILURE, "mmap");
+\&
     /*
-     * Put some random data into the page (still OK to touch)
+     * Put some random data into the page (still OK to touch).
      */
     *buffer = __LINE__;
-    printf("buffer contains: %d\en", *buffer);
-
+    printf("buffer contains: %d\[rs]n", *buffer);
+\&
     /*
      * Allocate a protection key:
      */
-    pkey = pkey_alloc();
+    pkey = pkey_alloc(0, 0);
     if (pkey == \-1)
-        errExit("pkey_alloc");
-
+        err(EXIT_FAILURE, "pkey_alloc");
+\&
     /*
      * Disable access to any memory with "pkey" set,
-     * even though there is none right now
+     * even though there is none right now.
      */
-    status = pkey_set(pkey, PKEY_DISABLE_ACCESS, 0);
+    status = pkey_set(pkey, PKEY_DISABLE_ACCESS);
     if (status)
-        errExit("pkey_set");
-
+        err(EXIT_FAILURE, "pkey_set");
+\&
     /*
      * Set the protection key on "buffer".
      * Note that it is still read/write as far as mprotect() is
@@ -272,20 +214,20 @@ main(void)
      */
     status = pkey_mprotect(buffer, getpagesize(),
                            PROT_READ | PROT_WRITE, pkey);
-    if (status == -1)
-        errExit("pkey_mprotect");
-
-    printf("about to read buffer again...\en");
-
+    if (status == \-1)
+        err(EXIT_FAILURE, "pkey_mprotect");
+\&
+    printf("about to read buffer again...\[rs]n");
+\&
     /*
-     * This will crash, because we have disallowed access
+     * This will crash, because we have disallowed access.
      */
-    printf("buffer contains: %d\en", *buffer);
-
+    printf("buffer contains: %d\[rs]n", *buffer);
+\&
     status = pkey_free(pkey);
-    if (status == -1)
-        errExit("pkey_free");
-
+    if (status == \-1)
+        err(EXIT_FAILURE, "pkey_free");
+\&
     exit(EXIT_SUCCESS);
 }
 .EE
@@ -294,12 +236,3 @@ main(void)
 .BR pkey_free (2),
 .BR pkey_mprotect (2),
 .BR sigaction (2)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

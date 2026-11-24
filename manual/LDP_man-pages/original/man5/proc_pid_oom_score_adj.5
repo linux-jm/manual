@@ -1,0 +1,116 @@
+.\" Copyright 1994-1995, Daniel Quinlan <Daniel.Quinlan@linux.org>
+.\" Copyright 2002-2017, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: GPL-3.0-or-later
+.\"
+.TH proc_pid_oom_score_adj 5 2026-02-08 "Linux man-pages (unreleased)"
+.SH NAME
+/proc/pid/oom_score_adj \- OOM-killer score adjustment
+.SH DESCRIPTION
+.TP
+.IR /proc/ pid /oom_score_adj " (since Linux 2.6.36)"
+This file can be used to adjust the badness heuristic used to select which
+process gets killed in out-of-memory conditions.
+.IP
+The badness heuristic assigns a value to each candidate task ranging from 0
+(never kill) to 1000 (always kill) to determine which process is targeted.
+The units are roughly a proportion along that range of
+allowed memory the process may allocate from,
+based on an estimation of its current memory and swap use.
+For example, if a task is using all allowed memory,
+its badness score will be 1000.
+If it is using half of its allowed memory, its score will be 500.
+.IP
+There is an additional factor included in the badness score: root
+processes are given 3% extra memory over other tasks.
+.IP
+The amount of "allowed" memory depends on the context
+in which the OOM-killer was called.
+If it is due to the memory assigned to the allocating task's cpuset
+being exhausted,
+the allowed memory represents the set of mems assigned to that
+cpuset (see
+.BR cpuset (7)).
+If it is due to a mempolicy's node(s) being exhausted,
+the allowed memory represents the set of mempolicy nodes.
+If it is due to a memory limit (or swap limit) being reached,
+the allowed memory is that configured limit.
+Finally, if it is due to the entire system being out of memory, the
+allowed memory represents all allocatable resources.
+.IP
+The value of
+.I oom_score_adj
+is added to the badness score before it
+is used to determine which task to kill.
+Acceptable values range from \-1000
+(OOM_SCORE_ADJ_MIN) to +1000 (OOM_SCORE_ADJ_MAX).
+This allows user space to control the preference for OOM-killing,
+ranging from always preferring a certain
+task or completely disabling it from OOM-killing.
+The lowest possible value, \-1000, is
+equivalent to disabling OOM-killing entirely for that task,
+since it will always report a badness score of 0.
+.IP
+Consequently, it is very simple for user space to define
+the amount of memory to consider for each task.
+Setting an
+.I oom_score_adj
+value of +500, for example,
+is roughly equivalent to allowing the remainder of tasks sharing the
+same system, cpuset, mempolicy, or memory controller resources
+to use at least 50% more memory.
+A value of \-500, on the other hand, would be roughly
+equivalent to discounting 50% of the task's
+allowed memory from being considered as scoring against the task.
+.IP
+For backward compatibility with previous kernels,
+.IR /proc/ pid /oom_adj
+can still be used to tune the badness score.
+Its value is
+scaled linearly with
+.IR oom_score_adj .
+.IP
+Writing to
+.IR /proc/ pid /oom_score_adj
+or
+.IR /proc/ pid /oom_adj
+will change the other with its scaled value.
+.IP
+The
+.BR choom (1)
+program provides a command-line interface for adjusting the
+.I oom_score_adj
+value of a running process or a newly executed command.
+.SH HISTORY
+.TP
+.IR /proc/ pid /oom_adj " (since Linux 2.6.11)"
+This file can be used to adjust the score used to select which process
+should be killed in an out-of-memory (OOM) situation.
+The kernel uses this value for a bit-shift operation of the process's
+.I oom_score
+value:
+valid values are in the range \-16 to +15,
+plus the special value \-17,
+which disables OOM-killing altogether for this process.
+A positive score increases the likelihood of this
+process being killed by the OOM-killer;
+a negative score decreases the likelihood.
+.IP
+The default value for this file is 0;
+a new process inherits its parent's
+.I oom_adj
+setting.
+A process must be privileged
+.RB ( CAP_SYS_RESOURCE )
+to update this file,
+although a process can always increase its own
+.I oom_adj
+setting (since Linux 2.6.20).
+.IP
+Since Linux 2.6.36, use of this file is deprecated in favor of
+.IR /proc/ pid /oom_score_adj ,
+and finally removed in Linux 3.7.
+.SH SEE ALSO
+.BR proc (5),
+.BR proc_pid_oom_score (5)

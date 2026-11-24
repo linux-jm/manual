@@ -1,0 +1,224 @@
+.\" Copyright 2017-2020, Mickaël Salaün <mic@digikod.net>
+.\" Copyright 2019-2020, ANSSI
+.\" Copyright 2021, Microsoft Corp.
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.TH landlock_create_ruleset 2 2026-04-21 "Linux man-pages (unreleased)"
+.SH NAME
+landlock_create_ruleset \- create a new Landlock ruleset
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
+.SH SYNOPSIS
+.nf
+.BR "#include <linux/landlock.h>" "  /* Definition of " LANDLOCK_* " constants */"
+.BR "#include <sys/syscall.h>" "     /* Definition of " SYS_* " constants */"
+.B #include <unistd.h>
+.P
+.B int syscall(SYS_landlock_create_ruleset,
+.BI "            const struct landlock_ruleset_attr *" attr ,
+.BI "            size_t " size " , uint32_t " flags );
+.fi
+.SH DESCRIPTION
+A Landlock ruleset identifies a set of rules (i.e., actions on objects).
+This
+.BR landlock_create_ruleset ()
+system call creates a new file descriptor
+which identifies a ruleset.
+This file descriptor can then be used by
+.BR landlock_add_rule (2)
+and
+.BR landlock_restrict_self (2).
+See
+.BR landlock (7)
+for a global overview.
+.P
+.I attr
+specifies the properties of the new ruleset.
+It points to the following structure:
+.IP
+.in +4n
+.EX
+struct landlock_ruleset_attr {
+    __u64 handled_access_fs;
+    __u64 handled_access_net;
+    __u64 scoped;
+};
+.EE
+.in
+.IP
+.I handled_access_fs
+is a bitmask of handled filesystem actions
+(see
+.B Filesystem actions
+in
+.BR landlock (7)).
+.IP
+.I handled_access_net
+is a bitmask of handled network actions
+(see
+.B Network actions
+in
+.BR landlock (7)).
+.IP
+.I scoped
+is a bitmask of scope flags
+(see
+.B Scope flags
+in
+.BR landlock (7)).
+.IP
+This structure defines a set of
+.IR "handled access rights" ,
+a set of actions on different object types,
+which should be denied by default
+when the ruleset is enacted.
+Vice versa,
+access rights that are not specifically listed here
+are not going to be denied by this ruleset when it is enacted.
+.IP
+For historical reasons, the
+.B LANDLOCK_ACCESS_FS_REFER
+right is always denied by default,
+even when its bit is not set in
+.IR handled_access_fs .
+In order to add new rules with this access right,
+the bit must still be set explicitly
+(see
+.B Filesystem actions
+in
+.BR landlock (7)).
+.IP
+The explicit listing of
+.I handled access rights
+is required for backwards compatibility reasons.
+In most use cases,
+processes that use Landlock will
+.I handle
+a wide range or all access rights that they know about at build time
+(and that they have tested with a kernel that supported them all).
+.IP
+This structure can grow in future Landlock versions.
+.P
+.I size
+must be specified as
+.I sizeof(struct landlock_ruleset_attr)
+for compatibility reasons.
+.P
+.I flags
+must be 0 if
+.I attr
+is used.
+Otherwise,
+.I flags
+can be set to:
+.TP
+.B LANDLOCK_CREATE_RULESET_VERSION
+Return the highest supported Landlock ABI version
+(starting at 1).
+This version can be used for a best-effort security approach,
+which is encouraged when user space is not pinned to a specific kernel
+version.
+.IP
+Unless noted otherwise,
+all features documented in these manual pages are available with the
+version 1.
+.TP
+.B LANDLOCK_CREATE_RULESET_ERRATA
+Return a bitmask of fixed issues
+for the current Landlock ABI version.
+If bit N is set (i.e.,
+.IR errata\~&\~(1\~<<\~(N\~\-\~1)) ),
+then erratum N has been fixed in the running kernel.
+.IP
+In addition to ABI versions,
+Landlock's errata mechanism
+tracks fixes for issues that
+may affect backwards compatibility
+or require userspace awareness.
+.IP
+Only check errata if your application specifically relies on behavior
+that changed due to the fix.
+.IP
+The full list of Landlock errata is available at
+.UR https:\://docs.kernel.org/\:userspace\-api/\:landlock.html#landlock\-errata
+.UE .
+.IP
+This flag is available on all Linux versions
+where Landlock errata were fixed.
+This specifically includes
+all newest bugfix releases
+of stable kernels
+where Landlock is supported.
+.P
+If
+.B LANDLOCK_CREATE_RULESET_VERSION
+or
+.B LANDLOCK_CREATE_RULESET_ERRATA
+is set,
+then
+.I attr
+must be NULL and
+.I size
+must be 0.
+.SH RETURN VALUE
+On success,
+.BR landlock_create_ruleset ()
+returns a new Landlock ruleset file descriptor,
+a Landlock ABI version,
+or a Landlock errata bitmask,
+according to
+.IR flags .
+.P
+On error,
+\-1 is returned and
+.I errno
+is set to indicate the error.
+.SH ERRORS
+.BR landlock_create_ruleset ()
+can fail for the following reasons:
+.TP
+.B E2BIG
+.I size
+is too big.
+.TP
+.B EFAULT
+.I attr
+was not a valid address.
+.TP
+.B EINVAL
+Unknown
+.IR flags ,
+or unknown access, or unknown scope, or too small
+.IR size .
+.TP
+.B EINVAL
+Non-NULL
+.I attr
+or non-zero
+.I size
+in combination with
+.B LANDLOCK_CREATE_RULESET_VERSION
+or
+.BR LANDLOCK_CREATE_RULESET_ERRATA .
+.TP
+.B ENOMSG
+Empty accesses (i.e.,
+.I attr
+did not specify any access rights to restrict).
+.TP
+.B EOPNOTSUPP
+Landlock is supported by the kernel but disabled at boot time.
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 5.13.
+.SH EXAMPLES
+See
+.BR landlock (7).
+.SH SEE ALSO
+.BR landlock_add_rule (2),
+.BR landlock_restrict_self (2),
+.BR landlock (7)

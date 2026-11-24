@@ -1,27 +1,32 @@
-.\" Copyright: written by Andrew Morgan <morgan@kernel.org>
-.\" and Copyright 2006, 2008, Michael Kerrisk <tmk.manpages@gmail.com>
+.\" Copyright, Andrew Morgan <morgan@kernel.org>
+.\" Copyright 2006-2008, Michael Kerrisk <tmk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(GPL_NOVERSION_ONELINE)
-.\" may be distributed as per GPL
-.\" %%%LICENSE_END
+.\" SPDX-License-Identifier: GPL-1.0-or-later
 .\"
-.\" Modified by David A. Wheeler <dwheeler@ida.org>
-.\" Modified 2004-05-27, mtk
-.\" Modified 2004-06-21, aeb
-.\" Modified 2008-04-28, morgan of kernel.org
-.\"     Update in line with addition of file capabilities and
-.\"     64-bit capability sets in kernel 2.6.2[45].
-.\" Modified 2009-01-26, andi kleen
-.\"
-.TH CAPGET 2 2020-02-09 "Linux" "Linux Programmer's Manual"
+.TH capget 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 capget, capset \- set/get capabilities of thread(s)
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
-.B #include <sys/capability.h>
-.PP
-.BI "int capget(cap_user_header_t " hdrp ", cap_user_data_t " datap );
-.PP
-.BI "int capset(cap_user_header_t " hdrp ", const cap_user_data_t " datap );
+.nf
+.BR "#include <linux/capability.h>" " /* Definition of " CAP_* " and"
+.BR "                                 _LINUX_CAPABILITY_*" " constants */"
+.BR "#include <sys/syscall.h>" "      /* Definition of " SYS_* " constants */"
+.B #include <unistd.h>
+.P
+.BI "int syscall(SYS_capget, cap_user_header_t " hdrp ,
+.BI "            cap_user_data_t " datap );
+.BI "int syscall(SYS_capset, cap_user_header_t " hdrp ,
+.BI "            const cap_user_data_t " datap );
+.fi
+.P
+.IR Note :
+glibc provides no wrappers for these system calls,
+necessitating the use of
+.BR syscall (2).
 .SH DESCRIPTION
 These two system calls are the raw kernel interface for getting and
 setting thread capabilities.
@@ -31,38 +36,39 @@ these system calls (in particular the format of the
 .I cap_user_*_t
 types) is subject to extension with each kernel revision,
 but old programs will keep working.
-.PP
+.P
 The portable interfaces are
 .BR cap_set_proc (3)
 and
 .BR cap_get_proc (3);
-if possible, you should use those interfaces in applications.
+if possible, you should use those interfaces in applications;
+see NOTES.
 .\"
 .SS Current details
 Now that you have been warned, some current kernel details.
 The structures are defined as follows.
-.PP
+.P
 .in +4n
 .EX
 #define _LINUX_CAPABILITY_VERSION_1  0x19980330
 #define _LINUX_CAPABILITY_U32S_1     1
-
+\&
         /* V2 added in Linux 2.6.25; deprecated */
 #define _LINUX_CAPABILITY_VERSION_2  0x20071026
 .\" commit e338d263a76af78fe8f38a72131188b58fceb591
 .\" Added 64 bit capability support
 #define _LINUX_CAPABILITY_U32S_2     2
-
+\&
         /* V3 added in Linux 2.6.26 */
 #define _LINUX_CAPABILITY_VERSION_3  0x20080522
 .\" commit ca05a99a54db1db5bca72eccb5866d2a86f8517f
 #define _LINUX_CAPABILITY_U32S_3     2
-
+\&
 typedef struct __user_cap_header_struct {
    __u32 version;
    int pid;
 } *cap_user_header_t;
-
+\&
 typedef struct __user_cap_data_struct {
    __u32 effective;
    __u32 permitted;
@@ -70,7 +76,7 @@ typedef struct __user_cap_data_struct {
 } *cap_user_data_t;
 .EE
 .in
-.PP
+.P
 The
 .IR effective ,
 .IR permitted ,
@@ -87,35 +93,35 @@ To define the structures for passing to the system call, you have to use the
 and
 .I struct __user_cap_data_struct
 names because the typedefs are only pointers.
-.PP
-Kernels prior to 2.6.25 prefer
+.P
+Kernels prior to Linux 2.6.25 prefer
 32-bit capabilities with version
 .BR _LINUX_CAPABILITY_VERSION_1 .
 Linux 2.6.25 added 64-bit capability sets, with version
 .BR _LINUX_CAPABILITY_VERSION_2 .
 There was, however, an API glitch, and Linux 2.6.26 added
-.BR _LINUX_CAPABILITY_VERSION_3
+.B _LINUX_CAPABILITY_VERSION_3
 to fix the problem.
-.PP
+.P
 Note that 64-bit capabilities use
 .I datap[0]
 and
 .IR datap[1] ,
 whereas 32-bit capabilities use only
 .IR datap[0] .
-.PP
+.P
 On kernels that support file capabilities (VFS capabilities support),
 these system calls behave slightly differently.
 This support was added as an option in Linux 2.6.24,
 and became fixed (nonoptional) in Linux 2.6.33.
-.PP
+.P
 For
 .BR capget ()
 calls, one can probe the capabilities of any process by specifying its
 process ID with the
-.I hdrp->pid
+.I hdrp\->pid
 field value.
-.PP
+.P
 For details on the data, see
 .BR capabilities (7).
 .\"
@@ -128,7 +134,7 @@ asynchronously setting the capabilities of another.
 That is, on kernels that have VFS capabilities support, when calling
 .BR capset (),
 the only permitted values for
-.I hdrp->pid
+.I hdrp\->pid
 are 0 or, equivalently, the value returned by
 .BR gettid (2).
 .\"
@@ -136,7 +142,7 @@ are 0 or, equivalently, the value returned by
 On older kernels that do not provide VFS capabilities support
 .BR capset ()
 can, if the caller has the
-.BR CAP_SETPCAP
+.B CAP_SETPCAP
 capability, be used to change not only the caller's own capabilities,
 but also the capabilities of other threads.
 The call operates on the capabilities of the thread specified by the
@@ -161,13 +167,14 @@ can also be: \-1, meaning perform the change on all threads except the
 caller and
 .BR init (1);
 or a value less than \-1, in which case the change is applied
-to all members of the process group whose ID is \-\fIpid\fP.
+to all members of the process group whose ID is
+.IR \-pid .
 .SH RETURN VALUE
 On success, zero is returned.
 On error, \-1 is returned, and
 .I errno
-is set appropriately.
-.PP
+is set to indicate the error.
+.P
 The calls fail with the error
 .BR EINVAL ,
 and set the
@@ -202,9 +209,10 @@ permitted set.
 .B EPERM
 An attempt was made to add a capability to the inheritable set, and either:
 .RS
-.IP * 3
-that capability was not in the caller's bounding set; or
-.IP *
+.IP \[bu] 3
+that capability was not in the caller's bounding set;
+or
+.IP \[bu]
 the capability was not in the caller's permitted set
 and the caller lacked the
 .B CAP_SETPCAP
@@ -222,7 +230,7 @@ For kernels lacking VFS
 support, the
 .B CAP_SETPCAP
 capability is required.
-(A bug in kernels before 2.6.11 meant that this error could also
+(A bug in kernels before Linux 2.6.11 meant that this error could also
 occur if a thread without this capability tried to change its
 own capabilities by specifying the
 .I pid
@@ -232,26 +240,17 @@ instead of 0.)
 .TP
 .B ESRCH
 No such thread.
-.SH CONFORMING TO
-These system calls are Linux-specific.
+.SH STANDARDS
+Linux.
 .SH NOTES
 The portable interface to the capability querying and setting
 functions is provided by the
 .I libcap
 library and is available here:
 .br
-.UR http://git.kernel.org/cgit\:/linux\:/kernel\:/git\:/morgan\:\:/libcap.git
+.UR http:\://git.kernel.org/cgit\:/linux\:/kernel\:/git\:/morgan\:\:/libcap.git
 .UE
 .SH SEE ALSO
 .BR clone (2),
 .BR gettid (2),
 .BR capabilities (7)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

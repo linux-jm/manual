@@ -1,0 +1,205 @@
+.\" Copyright 2017-2020, Mickaël Salaün <mic@digikod.net>
+.\" Copyright 2019-2020, ANSSI
+.\" Copyright 2021, Microsoft Corp.
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.TH landlock_add_rule 2 2026-04-06 "Linux man-pages (unreleased)"
+.SH NAME
+landlock_add_rule \- add a new Landlock rule to a ruleset
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
+.SH SYNOPSIS
+.nf
+.BR "#include <linux/landlock.h>" "  /* Definition of " LANDLOCK_* " constants */"
+.BR "#include <sys/syscall.h>" "     /* Definition of " SYS_* " constants */"
+.P
+.BI "int syscall(SYS_landlock_add_rule, int " ruleset_fd ,
+.BI "            enum landlock_rule_type " rule_type ,
+.BI "            const void *" rule_attr ", uint32_t " flags );
+.fi
+.SH DESCRIPTION
+A Landlock rule describes an action on an object
+which the process intends to perform.
+A set of rules is aggregated in a ruleset,
+which can then restrict the thread enforcing it, and its future children.
+.P
+The
+.BR landlock_add_rule ()
+system call adds a new Landlock rule to an existing ruleset.
+See
+.BR landlock (7)
+for a global overview.
+.P
+.I ruleset_fd
+is a Landlock ruleset file descriptor obtained with
+.BR landlock_create_ruleset (2).
+.P
+.I rule_type
+identifies the structure type pointed to by
+.IR rule_attr .
+Currently, Linux supports the following
+.I rule_type
+values:
+.TP
+.B LANDLOCK_RULE_PATH_BENEATH
+For these rules,
+the object is a file hierarchy,
+and the related filesystem actions
+are defined with
+.IR "filesystem access rights" .
+.IP
+In this case,
+.I rule_attr
+points to the following structure:
+.IP
+.in +4n
+.EX
+struct landlock_path_beneath_attr {
+    __u64 allowed_access;
+    __s32 parent_fd;
+} __attribute__((packed));
+.EE
+.in
+.IP
+.I allowed_access
+contains a bitmask of allowed filesystem actions,
+which can be applied on the given
+.I parent_fd
+(see
+.B Filesystem actions
+in
+.BR landlock (7)).
+.IP
+.I parent_fd
+is an opened file descriptor, preferably with the
+.I O_PATH
+flag,
+which identifies the parent directory of the file hierarchy or
+just a file.
+.TP
+.B LANDLOCK_RULE_NET_PORT
+For these rules,
+the object is a TCP port,
+and the related actions are defined with
+.IR "network access rights" .
+.IP
+In this case,
+.I rule_attr
+points to the following structure:
+.IP
+.in +4n
+.EX
+struct landlock_net_port_attr {
+    __u64 allowed_access;
+    __u64 port;
+};
+.EE
+.in
+.IP
+.I allowed_access
+contains a bitmask of allowed network actions,
+which can be applied on the given port.
+.IP
+.I port
+is the network port in host endianness.
+.IP
+It should be noted that port 0 passed to
+.BR bind (2)
+will bind to an available port from the ephemeral port range.
+This can be configured in the
+.I /proc/sys/net/ipv4/ip_local_port_range
+sysctl (also used for IPv6).
+.IP
+A Landlock rule with port 0
+and the
+.B LANDLOCK_ACCESS_NET_BIND_TCP
+right means that requesting to bind on port 0 is allowed
+and it will automatically translate to binding on the related port range.
+.P
+.I flags
+must be 0.
+.SH RETURN VALUE
+On success,
+.BR landlock_add_rule ()
+returns 0.
+On error,
+\-1 is returned and
+.I errno
+is set to indicate the error.
+.SH ERRORS
+.BR landlock_add_rule ()
+can fail for the following reasons:
+.TP
+.B EAFNOSUPPORT
+.I rule_type
+is
+.BR LANDLOCK_RULE_NET_PORT ,
+but TCP is not supported by the running kernel.
+.TP
+.B EBADF
+.I ruleset_fd
+is not a file descriptor for the current thread,
+or a member of
+.I rule_attr
+is not a file descriptor as expected.
+.TP
+.B EBADFD
+.I ruleset_fd
+is not a ruleset file descriptor,
+or a member of
+.I rule_attr
+is not the expected file descriptor type.
+.TP
+.B EFAULT
+.I rule_attr
+was not a valid address.
+.TP
+.B EINVAL
+.I flags
+is not 0.
+.TP
+.B EINVAL
+The rule accesses are inconsistent (i.e.,
+.I rule_attr\->allowed_access
+is not a subset of the ruleset handled accesses).
+.TP
+.B EINVAL
+In
+.IR \%struct\~landlock_path_beneath_attr ,
+the rule accesses are not applicable to the file
+(i.e., some access rights in
+.I \%rule_attr\->allowed_access
+are only applicable to directories, but
+.I \%rule_attr\->parent_fd
+does not refer to a directory).
+.TP
+.B EINVAL
+In
+.IR \%struct\~landlock_net_port_attr ,
+the port number is greater than 65535.
+.TP
+.B ENOMSG
+Empty accesses (i.e.,
+.I rule_attr\->allowed_access
+is 0).
+.TP
+.B EOPNOTSUPP
+Landlock is supported by the kernel but disabled at boot time.
+.TP
+.B EPERM
+.I ruleset_fd
+has no write access to the underlying ruleset.
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 5.13.
+.SH EXAMPLES
+See
+.BR landlock (7).
+.SH SEE ALSO
+.BR landlock_create_ruleset (2),
+.BR landlock_restrict_self (2),
+.BR landlock (7)

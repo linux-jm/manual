@@ -1,39 +1,24 @@
-.\" This manpage is Copyright (C) 2006 Jens Axboe
-.\" and Copyright (C) 2006 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright 2006, Jens Axboe <axboe@kernel.dk>
+.\" Copyright 2006, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH SPLICE 2 2020-06-09 "Linux" "Linux Programmer's Manual"
+.TH splice 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 splice \- splice data to/from a pipe
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
 .BR "#define _GNU_SOURCE" "         /* See feature_test_macros(7) */"
+.B #define _FILE_OFFSET_BITS  64
 .B #include <fcntl.h>
-.PP
-.BI "ssize_t splice(int " fd_in ", loff_t *" off_in ", int " fd_out ,
-.BI "               loff_t *" off_out ", size_t " len \
-", unsigned int " flags );
+.P
+.BI "ssize_t splice(int " fd_in ", off_t *_Nullable " off_in ,
+.BI "               int " fd_out ", off_t *_Nullable " off_out ,
+.BI "               size_t " size ", unsigned int " flags );
 .\" Return type was long before glibc 2.7
 .fi
 .SH DESCRIPTION
@@ -41,24 +26,24 @@ splice \- splice data to/from a pipe
 moves data between two file descriptors
 without copying between kernel address space and user address space.
 It transfers up to
-.I len
+.I size
 bytes of data from the file descriptor
 .I fd_in
 to the file descriptor
 .IR fd_out ,
 where one of the file descriptors must refer to a pipe.
-.PP
+.P
 The following semantics apply for
 .I fd_in
 and
 .IR off_in :
-.IP * 3
+.IP \[bu] 3
 If
 .I fd_in
 refers to a pipe, then
 .I off_in
 must be NULL.
-.IP *
+.IP \[bu]
 If
 .I fd_in
 does not refer to a pipe and
@@ -67,7 +52,7 @@ is NULL, then bytes are read from
 .I fd_in
 starting from the file offset,
 and the file offset is adjusted appropriately.
-.IP *
+.IP \[bu]
 If
 .I fd_in
 does not refer to a pipe and
@@ -79,13 +64,16 @@ offset from which bytes will be read from
 .IR fd_in ;
 in this case, the file offset of
 .I fd_in
-is not changed.
-.PP
+is not changed,
+and the offset pointed to by
+.I off_in
+is adjusted appropriately instead.
+.P
 Analogous statements apply for
 .I fd_out
 and
 .IR off_out .
-.PP
+.P
 The
 .I flags
 argument is a bit mask that is composed by ORing together
@@ -137,14 +125,14 @@ Upon successful completion,
 .BR splice ()
 returns the number of bytes
 spliced to or from the pipe.
-.PP
+.P
 A return value of 0 means end of input.
 If
 .I fd_in
 refers to a pipe, then this means that there was no data to transfer,
 and it would not make sense to block because there are no writers
 connected to the write end of the pipe.
-.PP
+.P
 On error,
 .BR splice ()
 returns \-1 and
@@ -155,7 +143,7 @@ is set to indicate the error.
 .B EAGAIN
 .B SPLICE_F_NONBLOCK
 was specified in
-.IR flags
+.I flags
 or one of the file descriptors had been marked as nonblocking
 .RB ( O_NONBLOCK ) ,
 and the operation would block.
@@ -169,7 +157,7 @@ The target filesystem doesn't support splicing.
 .TP
 .B EINVAL
 The target file is opened in append mode.
-.\" The append-mode error is given since 2.6.27; in earlier kernels,
+.\" The append-mode error is given since Linux 2.6.27; in earlier kernels,
 .\" splice() in append mode was broken
 .TP
 .B EINVAL
@@ -193,13 +181,21 @@ Either
 or
 .I off_out
 was not NULL, but the corresponding file descriptor refers to a pipe.
-.SH VERSIONS
-The
-.BR splice ()
-system call first appeared in Linux 2.6.17;
-library support was added to glibc in version 2.5.
-.SH CONFORMING TO
-This system call is Linux-specific.
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 2.6.17,
+glibc 2.5.
+.P
+In Linux 2.6.30 and earlier,
+exactly one of
+.I fd_in
+and
+.I fd_out
+was required to be a pipe.
+Since Linux 2.6.31,
+.\" commit 7c77f0b3f9208c339a4b40737bb2cb0f0319bb8d
+both arguments may refer to pipes.
 .SH NOTES
 The three system calls
 .BR splice (),
@@ -210,17 +206,17 @@ provide user-space programs with full control over an arbitrary
 kernel buffer, implemented within the kernel using the same type
 of buffer that is used for a pipe.
 In overview, these system calls perform the following tasks:
-.IP \(bu 2
+.TP
 .BR splice ()
 moves data from the buffer to an arbitrary file descriptor, or vice versa,
 or from one buffer to another.
-.IP \(bu
+.TP
 .BR tee (2)
 "copies" the data from one buffer to another.
-.IP \(bu
+.TP
 .BR vmsplice (2)
 "copies" data from user space into the buffer.
-.PP
+.P
 Though we talk of copying, actual copies are generally avoided.
 The kernel does this by implementing a pipe buffer as a set
 of reference-counted pointers to pages of kernel memory.
@@ -251,31 +247,74 @@ only pointers are copied, not the pages of the buffer.
 .\" the data and choose to forward it to two or more different
 .\" users - for things like logging etc.).
 .\"
-.PP
-In Linux 2.6.30 and earlier,
-exactly one of
-.I fd_in
-and
-.I fd_out
-was required to be a pipe.
-Since Linux 2.6.31,
-.\" commit 7c77f0b3f9208c339a4b40737bb2cb0f0319bb8d
-both arguments may refer to pipes.
+.P
+.B _FILE_OFFSET_BITS
+should be defined to be 64 in code that uses non-null
+.I off_in
+or
+.I off_out
+or that takes the address of
+.BR splice ,
+if the code is intended to be portable
+to traditional 32-bit x86 and ARM platforms where
+.BR off_t 's
+width defaults to 32 bits.
 .SH EXAMPLES
 See
-.BR tee (2).
+.BR tee (2)
+for another example.
+.P
+.\" SRC BEGIN (splice.c)
+.EX
+\&
+#define _GNU_SOURCE
+#define _FILE_OFFSET_BITS 64
+#include <err.h>
+#include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+\&
+int
+main(void)
+{
+        int         fd;
+        int         pfd[2];
+        off_t       off;
+        [[gnu::nonstring]]
+	const char  s[12] = "Hello, world";
+\&
+        fd = open("out", O_WRONLY | O_CREAT | O_EXCL, 0666);
+        if (fd == \-1)
+                err(EXIT_FAILURE, "open");
+\&
+        if (pipe(pfd) == \-1)
+                err(EXIT_FAILURE, "pipe");
+\&
+        if (write(pfd[1], s, sizeof(s)) != sizeof(s))
+                err(EXIT_FAILURE, "write");
+        if (close(pfd[1]) == \-1)
+                err(EXIT_FAILURE, "close");
+\&
+        off = 10;
+        if (splice(pfd[0], NULL, fd, &off, sizeof(s), 0) != sizeof(s))
+                err(EXIT_FAILURE, "splice");
+        if (close(pfd[0]) == \-1)
+                err(EXIT_FAILURE, "close");
+\&
+        printf("New offset is %jd\[rs]n", (intmax_t) off);
+\&
+        if (close(fd) == \-1)
+                err(EXIT_FAILURE, "close");
+        exit(EXIT_SUCCESS);
+}
+.EE
+.\" SRC END
 .SH SEE ALSO
 .BR copy_file_range (2),
 .BR sendfile (2),
 .BR tee (2),
 .BR vmsplice (2),
 .BR pipe (7)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

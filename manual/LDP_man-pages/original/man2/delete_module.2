@@ -1,37 +1,28 @@
-.\" Copyright (C) 2012 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright 2012, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH DELETE_MODULE 2 2017-09-15 "Linux" "Linux Programmer's Manual"
+.TH delete_module 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 delete_module \- unload a kernel module
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
-.BI "int delete_module(const char *" name ", int " flags );
+.BR "#include <fcntl.h>" "            /* Definition of " O_* " constants */"
+.BR "#include <sys/syscall.h>" "      /* Definition of " SYS_* " constants */"
+.B #include <unistd.h>
+.P
+.BI "int syscall(SYS_delete_module, const char *" name ", unsigned int " flags );
 .fi
-.PP
+.P
 .IR Note :
-No declaration of this system call is provided in glibc headers; see NOTES.
+glibc provides no wrapper for
+.BR delete_module (),
+necessitating the use of
+.BR syscall (2).
 .SH DESCRIPTION
 The
 .BR delete_module ()
@@ -42,36 +33,36 @@ If the module has an
 .I exit
 function, then that function is executed before unloading the module.
 The
-.IR flags
+.I flags
 argument is used to modify the behavior of the system call,
 as described below.
 This system call requires privilege.
-.PP
+.P
 Module removal is attempted according to the following rules:
-.IP 1. 4
+.IP (1) 5
 If there are other loaded modules that depend on
 (i.e., refer to symbols defined in) this module,
 then the call fails.
-.IP 2.
+.IP (2)
 Otherwise, if the reference count for the module
 (i.e., the number of processes currently using the module)
 is zero, then the module is immediately unloaded.
-.IP 3.
+.IP (3)
 If a module has a nonzero reference count,
 then the behavior depends on the bits set in
 .IR flags .
 In normal usage (see NOTES), the
-.BR O_NONBLOCK
+.B O_NONBLOCK
 flag is always specified, and the
-.BR O_TRUNC
+.B O_TRUNC
 flag may additionally be specified.
-.\"  	O_TRUNC == KMOD_REMOVE_FORCE in kmod library
-.\"  	O_NONBLOCK == KMOD_REMOVE_NOWAIT in kmod library
+.\"	O_TRUNC == KMOD_REMOVE_FORCE in kmod library
+.\"	O_NONBLOCK == KMOD_REMOVE_NOWAIT in kmod library
 .IP
 The various combinations for
 .I flags
 have the following effect:
-.RS 4
+.RS
 .TP
 .B flags == O_NONBLOCK
 The call returns immediately, with an error.
@@ -87,18 +78,18 @@ does not specify
 .BR O_NONBLOCK ,
 the following steps occur:
 .RS
-.IP * 3
+.IP \[bu] 3
 The module is marked so that no new references are permitted.
-.IP *
+.IP \[bu]
 If the module's reference count is nonzero,
 the caller is placed in an uninterruptible sleep state
 .RB ( TASK_UNINTERRUPTIBLE )
 until the reference count is zero, at which point the call unblocks.
-.IP *
+.IP \[bu]
 The module is unloaded in the usual way.
 .RE
 .RE
-.PP
+.P
 The
 .B O_TRUNC
 flag has one further effect on the rules described above.
@@ -108,9 +99,9 @@ function but no
 .I exit
 function, then an attempt to remove the module fails.
 However, if
-.BR O_TRUNC
+.B O_TRUNC
 was specified, this requirement is bypassed.
-.PP
+.P
 Using the
 .B O_TRUNC
 flag is dangerous!
@@ -118,14 +109,14 @@ If the kernel was not built with
 .BR CONFIG_MODULE_FORCE_UNLOAD ,
 this flag is silently ignored.
 (Normally,
-.BR CONFIG_MODULE_FORCE_UNLOAD
+.B CONFIG_MODULE_FORCE_UNLOAD
 is enabled.)
 Using this flag taints the kernel (TAINT_FORCED_RMMOD).
 .SH RETURN VALUE
 On success, zero is returned.
 On error, \-1 is returned and
 .I errno
-is set appropriately.
+is set to indicate the error.
 .SH ERRORS
 .TP
 .B EBUSY
@@ -155,58 +146,57 @@ The caller was not privileged
 capability),
 or module unloading is disabled
 (see
-.IR /proc/sys/kernel/modules_disabled
+.I /proc/sys/kernel/modules_disabled
 in
 .BR proc (5)).
 .TP
 .B EWOULDBLOCK
 Other modules depend on this module;
 or,
-.BR O_NONBLOCK
+.B O_NONBLOCK
 was specified in
 .IR flags ,
 but the reference count of this module is nonzero and
 .B O_TRUNC
 was not specified in
 .IR flags .
-.SH CONFORMING TO
-.BR delete_module ()
-is Linux-specific.
-.SH NOTES
+.SH STANDARDS
+Linux.
+.SH HISTORY
 The
 .BR delete_module ()
 system call is not supported by glibc.
 No declaration is provided in glibc headers, but, through a quirk of history,
-glibc versions before 2.23 did export an ABI for this system call.
+glibc versions before glibc 2.23 did export an ABI for this system call.
 Therefore, in order to employ this system call,
 it is (before glibc 2.23) sufficient to
 manually declare the interface in your code;
 alternatively, you can invoke the system call using
 .BR syscall (2).
-.PP
-The uninterruptible sleep that may occur if
-.BR O_NONBLOCK
-is omitted from
-.IR flags
-is considered undesirable, because the sleeping process is left
-in an unkillable state.
-As at Linux 3.7, specifying
-.BR O_NONBLOCK
-is optional, but in future kernels it is likely to become mandatory.
 .SS Linux 2.4 and earlier
 In Linux 2.4 and earlier, the system call took only one argument:
-.PP
+.P
 .BI "   int delete_module(const char *" name );
-.PP
+.P
 If
 .I name
 is NULL, all unused modules marked auto-clean are removed.
-.PP
+.P
 Some further details of differences in the behavior of
 .BR delete_module ()
 in Linux 2.4 and earlier are
 .I not
 currently explained in this manual page.
+.SH NOTES
+The uninterruptible sleep that may occur if
+.B O_NONBLOCK
+is omitted from
+.I flags
+is considered undesirable, because the sleeping process is left
+in an unkillable state.
+As at Linux 3.7, specifying
+.B O_NONBLOCK
+is optional, but in future kernels it is likely to become mandatory.
 .SH SEE ALSO
 .BR create_module (2),
 .BR init_module (2),
@@ -214,12 +204,3 @@ currently explained in this manual page.
 .BR lsmod (8),
 .BR modprobe (8),
 .BR rmmod (8)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

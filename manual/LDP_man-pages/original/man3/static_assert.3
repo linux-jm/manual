@@ -1,0 +1,120 @@
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.TH static_assert 3 2026-04-20 "Linux man-pages (unreleased)"
+.SH NAME
+static_assert, _Static_assert \- fail compilation if assertion is false
+.SH LIBRARY
+Standard C library
+.RI ( libc )
+.SH SYNOPSIS
+.nf
+.B #include <assert.h>
+.P
+.BI "void static_assert(bool " constant-expression ", const char *" msg );
+.P
+/* Since C23: */
+.BI "void static_assert(bool " constant-expression );
+.fi
+.SH DESCRIPTION
+This macro is similar to
+.BR \%assert (3),
+but it works at compile time,
+generating a compilation error (with an optional message)
+when the input is false (i.e., compares equal to zero).
+.P
+If the input is nonzero,
+no code is emitted.
+.P
+.I msg
+must be a string literal.
+Since C23, this argument is optional.
+.P
+There's a keyword,
+.BR \%_Static_assert (),
+that behaves identically,
+and can be used without including
+.IR <assert.h> .
+.SH RETURN VALUE
+No value is returned.
+.SH STANDARDS
+C23.
+.SH HISTORY
+C11.
+.P
+In C11,
+the second argument
+.RI ( msg )
+was mandatory;
+since C23,
+it can be omitted.
+.SH EXAMPLES
+.BR static_assert ()
+can't be used in some places,
+like for example at global scope.
+For that,
+a macro
+.BR \%must_be ()
+can be written in terms of
+.BR \%static_assert ().
+The following program uses the macro to get the size of an array safely.
+.P
+.in +4n
+.\" SRC BEGIN (must_be.c)
+.EX
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+\&
+/*
+ * This macro behaves like static_assert(), failing to
+ * compile if its argument is not true.  However, it always
+ * returns 0, which allows using it everywhere an expression
+ * can be used.
+ */
+#define must_be(e)                                        \[rs]
+(                                                         \[rs]
+    0 * (int) sizeof(                                     \[rs]
+        struct {                                          \[rs]
+            static_assert(e);                             \[rs]
+            int  ISO_C_forbids_a_struct_with_no_members;  \[rs]
+        }                                                 \[rs]
+    )                                                     \[rs]
+)
+\&
+#define is_same_type(a, b)  \[rs]
+    __builtin_types_compatible_p(typeof(a), typeof(b))
+\&
+#define is_array(arr)       (!is_same_type((arr), &*(arr)))
+#define must_be_array(arr)  must_be(is_array(arr))
+\&
+#define sizeof_array(arr)   (sizeof(arr) + must_be_array(arr))
+#define NITEMS(arr)         (sizeof((arr)) / sizeof((arr)[0]) \[rs]
+                             + must_be_array(arr))
+\&
+int     foo[10];
+int8_t  bar[sizeof_array(foo)];
+\&
+int
+main(void)
+{
+    for (size_t i = 0; i < NITEMS(foo); i++) {
+        foo[i] = i;
+    }
+\&
+    memcpy(bar, foo, sizeof_array(bar));
+\&
+    for (size_t i = 0; i < NITEMS(bar); i++) {
+        printf("%d,", bar[i]);
+    }
+\&
+    exit(EXIT_SUCCESS);
+}
+.EE
+.\" SRC END
+.in
+.SH SEE ALSO
+.BR assert (3)

@@ -1,42 +1,30 @@
-.\" Copyright (c) 2016, IBM Corporation.
-.\" Written by Mike Rapoport <rppt@linux.vnet.ibm.com>
-.\" and Copyright (C) 2017 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright 2016, International Business Machines Corp.
+.\" Copyright 2017, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH USERFAULTFD 2 2020-11-01 "Linux" "Linux Programmer's Manual"
+.TH userfaultfd 2 2026-02-16 "Linux man-pages (unreleased)"
 .SH NAME
 userfaultfd \- create a file descriptor for handling page faults in user space
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
-.B #include <sys/types.h>
-.B #include <linux/userfaultfd.h>
-.PP
-.BI "int userfaultfd(int " flags );
+.BR "#include <fcntl.h>" "             /* Definition of " O_* " constants */"
+.BR "#include <sys/syscall.h>" "       /* Definition of " SYS_* " constants */"
+.BR "#include <linux/userfaultfd.h>" " /* Definition of " UFFD_* " constants */"
+.B #include <unistd.h>
+.P
+.BI "int syscall(SYS_userfaultfd, int " flags );
 .fi
-.PP
+.P
 .IR Note :
-There is no glibc wrapper for this system call; see NOTES.
+glibc provides no wrapper for
+.BR userfaultfd (),
+necessitating the use of
+.BR syscall (2).
 .SH DESCRIPTION
 .BR userfaultfd ()
 creates a new userfaultfd object that can be used for delegation of page-fault
@@ -44,7 +32,7 @@ handling to a user-space application,
 and returns a file descriptor that refers to the new object.
 The new userfaultfd object is configured using
 .BR ioctl (2).
-.PP
+.P
 Once the userfaultfd object is configured, the application can use
 .BR read (2)
 to receive userfaultfd notifications.
@@ -53,30 +41,85 @@ depending on the value of
 .I flags
 used for the creation of the userfaultfd or subsequent calls to
 .BR fcntl (2).
-.PP
+.P
 The following values may be bitwise ORed in
-.IR flags
+.I flags
 to change the behavior of
 .BR userfaultfd ():
 .TP
-.BR O_CLOEXEC
+.B O_CLOEXEC
 Enable the close-on-exec flag for the new userfaultfd file descriptor.
 See the description of the
 .B O_CLOEXEC
 flag in
 .BR open (2).
 .TP
-.BR O_NONBLOCK
+.B O_NONBLOCK
 Enables non-blocking operation for the userfaultfd object.
 See the description of the
-.BR O_NONBLOCK
+.B O_NONBLOCK
 flag in
 .BR open (2).
-.PP
+.TP
+.B UFFD_USER_MODE_ONLY
+This is an userfaultfd-specific flag that was introduced in Linux 5.11.
+When set, the userfaultfd object will only be able to handle
+page faults originated from the user space on the registered regions.
+When a kernel-originated fault was triggered
+on the registered range with this userfaultfd, a
+.B SIGBUS
+signal will be delivered.
+.P
 When the last file descriptor referring to a userfaultfd object is closed,
 all memory ranges that were registered with the object are unregistered
 and unread events are flushed.
 .\"
+.P
+Userfaultfd supports three modes of registration:
+.TP
+.BR UFFDIO_REGISTER_MODE_MISSING " (since Linux 4.10)"
+When registered with
+.B UFFDIO_REGISTER_MODE_MISSING
+mode, user-space will receive a page-fault notification
+when a missing page is accessed.
+The faulted thread will be stopped from execution until the page fault is
+resolved from user-space by either an
+.B UFFDIO_COPY
+or an
+.B UFFDIO_ZEROPAGE
+ioctl.
+.TP
+.BR UFFDIO_REGISTER_MODE_MINOR " (since Linux 5.13)"
+When registered with
+.B UFFDIO_REGISTER_MODE_MINOR
+mode, user-space will receive a page-fault notification
+when a minor page fault occurs.
+That is,
+when a backing page is in the page cache,
+but page table entries don't yet exist.
+The faulted thread will be stopped from execution
+until the page fault is resolved from user-space by an
+.B UFFDIO_CONTINUE
+ioctl.
+.TP
+.BR UFFDIO_REGISTER_MODE_WP " (since Linux 5.7)"
+When registered with
+.B UFFDIO_REGISTER_MODE_WP
+mode, user-space will receive a page-fault notification
+when a write-protected page is written.
+The faulted thread will be stopped from execution
+until user-space write-unprotects the page using an
+.B UFFDIO_WRITEPROTECT
+ioctl.
+.P
+Multiple modes can be enabled at the same time for the same memory range.
+.P
+Since Linux 4.14, a userfaultfd page-fault notification can selectively embed
+faulting thread ID information into the notification.
+One needs to enable this feature explicitly using the
+.B UFFD_FEATURE_THREAD_ID
+feature bit when initializing the userfaultfd context.
+By default, thread ID reporting is disabled.
 .SS Usage
 The userfaultfd mechanism is designed to allow a thread in a multithreaded
 program to perform user-space paging for the other threads in the process.
@@ -89,7 +132,7 @@ them using the operations described in
 .BR ioctl_userfaultfd (2).
 When servicing the page fault events,
 the fault-handling thread can trigger a wake-up for the sleeping thread.
-.PP
+.P
 It is possible for the faulting threads and the fault-handling threads
 to run in the context of different processes.
 In this case, these threads may belong to different programs,
@@ -99,8 +142,8 @@ In such non-cooperative mode,
 the process that monitors userfaultfd and handles page faults
 needs to be aware of the changes in the virtual memory layout
 of the faulting process to avoid memory corruption.
-.PP
-Starting from Linux 4.11,
+.P
+Since Linux 4.11,
 userfaultfd can also notify the fault-handling threads about changes
 in the virtual memory layout of the faulting process.
 In addition, if the faulting process invokes
@@ -123,19 +166,32 @@ soon as the userfaultfd manager executes
 The userfaultfd manager should carefully synchronize calls to
 .B UFFDIO_COPY
 with the processing of events.
-.PP
+.P
 The current asynchronous model of the event delivery is optimal for
 single threaded non-cooperative userfaultfd manager implementations.
 .\" Regarding the preceding sentence, Mike Rapoport says:
 .\"     The major point here is that current events delivery model could be
-.\"     problematic for multi-threaded monitor. I even suspect that it would be
+.\"     problematic for multi-threaded monitor.  I even suspect that it would be
 .\"     impossible to ensure synchronization between page faults and non-page
 .\"     fault events in multi-threaded monitor.
-.\" .PP
+.\" .P
 .\" FIXME elaborate about non-cooperating mode, describe its limitations
-.\" for kernels before 4.11, features added in 4.11
-.\" and limitations remaining in 4.11
+.\" for kernels before Linux 4.11, features added in Linux 4.11
+.\" and limitations remaining in Linux 4.11
 .\" Maybe it's worth adding a dedicated sub-section...
+.\"
+.P
+Since Linux 5.7, userfaultfd is able to do
+synchronous page dirty tracking using the new write-protect register mode.
+One should check against the feature bit
+.B UFFD_FEATURE_PAGEFAULT_FLAG_WP
+before using this feature.
+Similar to the original userfaultfd missing mode, the write-protect mode will
+generate a userfaultfd notification when the protected page is written.
+The user needs to resolve the page fault by unprotecting the faulted page and
+kicking the faulted thread to continue.
+For more information,
+please refer to the "Userfaultfd write-protect mode" section.
 .\"
 .SS Userfaultfd operation
 After the userfaultfd object is created with
@@ -144,14 +200,15 @@ the application must enable it using the
 .B UFFDIO_API
 .BR ioctl (2)
 operation.
-This operation allows a handshake between the kernel and user space
-to determine the API version and supported features.
+This operation allows a two-step handshake between the kernel and user space
+to determine what API version and features the kernel supports,
+and then to enable those features user space wants.
 This operation must be performed before any of the other
 .BR ioctl (2)
 operations described below (or those operations fail with the
-.BR EINVAL
+.B EINVAL
 error).
-.PP
+.P
 After a successful
 .B UFFDIO_API
 operation,
@@ -165,14 +222,15 @@ operation,
 a page fault occurring in the requested memory range, and satisfying
 the mode defined at the registration time, will be forwarded by the kernel to
 the user-space application.
-The application can then use the
-.B UFFDIO_COPY
+The application can then use various (e.g.,
+.BR UFFDIO_COPY ,
+.BR UFFDIO_ZEROPAGE ,
 or
-.B UFFDIO_ZEROPAGE
+.BR UFFDIO_CONTINUE )
 .BR ioctl (2)
 operations to resolve the page fault.
-.PP
-Starting from Linux 4.14, if the application sets the
+.P
+Since Linux 4.14, if the application sets the
 .B UFFD_FEATURE_SIGBUS
 feature bit using the
 .B UFFDIO_API
@@ -190,28 +248,144 @@ accesses.
 For example, this feature can be useful for applications that
 want to prevent the kernel from automatically allocating pages and filling
 holes in sparse files when the hole is accessed through a memory mapping.
-.PP
+.P
 The
 .B UFFD_FEATURE_SIGBUS
 feature is implicitly inherited through
 .BR fork (2)
 if used in combination with
 .BR UFFD_FEATURE_FORK .
-.PP
+.P
 Details of the various
 .BR ioctl (2)
 operations can be found in
 .BR ioctl_userfaultfd (2).
-.PP
+.P
 Since Linux 4.11, events other than page-fault may enabled during
 .B UFFDIO_API
 operation.
-.PP
+.P
 Up to Linux 4.11,
 userfaultfd can be used only with anonymous private memory mappings.
 Since Linux 4.11,
 userfaultfd can be also used with hugetlbfs and shared memory mappings.
-.PP
+.\"
+.SS Userfaultfd write-protect mode (since Linux 5.7)
+Since Linux 5.7, userfaultfd supports write-protect mode for anonymous memory.
+The user needs to first check availability of this feature using
+.B UFFDIO_API
+ioctl against the feature bit
+.B UFFD_FEATURE_PAGEFAULT_FLAG_WP
+before using this feature.
+.P
+Since Linux 5.19,
+the write-protection mode was also supported on
+shmem and hugetlbfs memory types.
+It can be detected with the feature bit
+.BR UFFD_FEATURE_WP_HUGETLBFS_SHMEM .
+.P
+To register with userfaultfd write-protect mode, the user needs to initiate the
+.B UFFDIO_REGISTER
+ioctl with mode
+.B UFFDIO_REGISTER_MODE_WP
+set.
+Note that it is legal to monitor the same memory range with multiple modes.
+For example, the user can do
+.B UFFDIO_REGISTER
+with the mode set to
+.BR "UFFDIO_REGISTER_MODE_MISSING | UFFDIO_REGISTER_MODE_WP" .
+When there is only
+.B UFFDIO_REGISTER_MODE_WP
+registered, user-space will
+.I not
+receive any notification when a missing page is written.
+Instead, user-space will receive a write-protect page-fault notification
+only when an existing but write-protected page got written.
+.P
+After the
+.B UFFDIO_REGISTER
+ioctl completed with
+.B UFFDIO_REGISTER_MODE_WP
+mode set,
+the user can write-protect any existing memory within the range using the ioctl
+.B UFFDIO_WRITEPROTECT
+where
+.I uffdio_writeprotect.mode
+should be set to
+.BR UFFDIO_WRITEPROTECT_MODE_WP .
+.P
+When a write-protect event happens,
+user-space will receive a page-fault notification whose
+.I uffd_msg.pagefault.flags
+will be with
+.B UFFD_PAGEFAULT_FLAG_WP
+flag set.
+Note: since only writes can trigger this kind of fault,
+write-protect notifications will always have the
+.B UFFD_PAGEFAULT_FLAG_WRITE
+bit set along with the
+.B UFFD_PAGEFAULT_FLAG_WP
+bit.
+.P
+To resolve a write-protection page fault, the user should initiate another
+.B UFFDIO_WRITEPROTECT
+ioctl, whose
+.I uffd_msg.pagefault.flags
+should have the flag
+.B UFFDIO_WRITEPROTECT_MODE_WP
+cleared upon the faulted page or range.
+.\"
+.SS Userfaultfd minor fault mode (since Linux 5.13)
+Since Linux 5.13,
+userfaultfd supports minor fault mode.
+In this mode,
+fault messages are produced not for major faults
+(where the page was missing),
+but rather for minor faults,
+where a page exists in the page cache,
+but the page table entries are not yet present.
+The user needs to first check availability of this feature using the
+.B UFFDIO_API
+ioctl with the appropriate feature bits set before using this feature:
+.B UFFD_FEATURE_MINOR_HUGETLBFS
+since Linux 5.13,
+or
+.B UFFD_FEATURE_MINOR_SHMEM
+since Linux 5.14.
+.P
+To register with userfaultfd minor fault mode,
+the user needs to initiate the
+.B UFFDIO_REGISTER
+ioctl with mode
+.B UFFD_REGISTER_MODE_MINOR
+set.
+.P
+When a minor fault occurs,
+user-space will receive a page-fault notification
+whose
+.I uffd_msg.pagefault.flags
+will have the
+.B UFFD_PAGEFAULT_FLAG_MINOR
+flag set.
+.P
+To resolve a minor page fault,
+the handler should decide whether or not
+the existing page contents need to be modified first.
+If so,
+this should be done in-place via a second,
+non-userfaultfd-registered mapping
+to the same backing page
+(e.g., by mapping the shmem or hugetlbfs file twice).
+Once the page is considered "up to date",
+the fault can be resolved by initiating an
+.B UFFDIO_CONTINUE
+ioctl,
+which installs the page table entries and
+(by default)
+wakes up the faulting thread(s).
+.P
+Minor fault mode supports only hugetlbfs-backed (since Linux 5.13)
+and shmem-backed (since Linux 5.14) memory.
 .\"
 .SS Reading from the userfaultfd structure
 Each
@@ -220,7 +394,7 @@ from the userfaultfd file descriptor returns one or more
 .I uffd_msg
 structures, each of which describes a page-fault event
 or an event required for the non-cooperative userfaultfd usage:
-.PP
+.P
 .in +4n
 .EX
 struct uffd_msg {
@@ -230,31 +404,34 @@ struct uffd_msg {
         struct {
             __u64 flags;    /* Flags describing fault */
             __u64 address;  /* Faulting address */
+            union {
+                __u32 ptid; /* Thread ID of the fault */
+            } feat;
         } pagefault;
-
+\&
         struct {            /* Since Linux 4.11 */
             __u32 ufd;      /* Userfault file descriptor
                                of the child process */
         } fork;
-
+\&
         struct {            /* Since Linux 4.11 */
             __u64 from;     /* Old address of remapped area */
             __u64 to;       /* New address of remapped area */
-            __u64 len;      /* Original mapping length */
+            __u64 len;      /* Original mapping size */
         } remap;
-
+\&
         struct {            /* Since Linux 4.11 */
             __u64 start;    /* Start address of removed area */
             __u64 end;      /* End address of removed area */
         } remove;
         ...
     } arg;
-
+\&
     /* Padding fields omitted */
 } __packed;
 .EE
 .in
-.PP
+.P
 If multiple events are available and the supplied buffer is large enough,
 .BR read (2)
 returns as many events as will fit in the supplied buffer.
@@ -266,7 +443,7 @@ structure, the
 .BR read (2)
 fails with the error
 .BR EINVAL .
-.PP
+.P
 The fields set in the
 .I uffd_msg
 structure are as follows:
@@ -299,7 +476,7 @@ Generated when the faulting process invokes
 (or
 .BR clone (2)
 without the
-.BR CLONE_VM
+.B CLONE_VM
 flag).
 The event details are available in the
 .I fork
@@ -317,9 +494,9 @@ field.
 Generated when the faulting process invokes
 .BR madvise (2)
 with
-.BR MADV_DONTNEED
+.B MADV_DONTNEED
 or
-.BR MADV_REMOVE
+.B MADV_REMOVE
 advice.
 The event details are available in the
 .I remove
@@ -348,16 +525,24 @@ For
 the following flag may appear:
 .RS
 .TP
+.B UFFD_PAGEFAULT_FLAG_WP
+If this flag is set, then the fault was a write-protect fault.
+.TP
+.B UFFD_PAGEFAULT_FLAG_MINOR
+If this flag is set, then the fault was a minor fault.
+.TP
 .B UFFD_PAGEFAULT_FLAG_WRITE
-If the address is in a range that was registered with the
-.B UFFDIO_REGISTER_MODE_MISSING
-flag (see
-.BR ioctl_userfaultfd (2))
-and this flag is set, this a write fault;
-otherwise it is a read fault.
-.\"
-.\" UFFD_PAGEFAULT_FLAG_WP is not yet supported.
+If this flag is set, then the fault was a write fault.
+.P
+If neither
+.B UFFD_PAGEFAULT_FLAG_WP
+nor
+.B UFFD_PAGEFAULT_FLAG_MINOR
+are set, then the fault was a missing fault.
 .RE
+.TP
+.I pagefault.feat.pid
+The thread ID that triggered the page fault.
 .TP
 .I fork.ufd
 The file descriptor associated with the userfault object
@@ -373,7 +558,7 @@ The new address of the memory range that was remapped using
 .BR mremap (2).
 .TP
 .I remap.len
-The original length of the memory range that was remapped using
+The original size of the memory range that was remapped using
 .BR mremap (2).
 .TP
 .I remove.start
@@ -385,17 +570,17 @@ or unmapped
 The end address of the memory range that was freed using
 .BR madvise (2)
 or unmapped
-.PP
+.P
 A
 .BR read (2)
 on a userfaultfd file descriptor can fail with the following errors:
 .TP
 .B EINVAL
 The userfaultfd object has not yet been enabled using the
-.BR UFFDIO_API
+.B UFFDIO_API
 .BR ioctl (2)
 operation
-.PP
+.P
 If the
 .B O_NONBLOCK
 flag is enabled in the associated open file description,
@@ -410,7 +595,7 @@ If the
 flag is not enabled, then
 .BR poll (2)
 (always) indicates the file as having a
-.BR POLLERR
+.B POLLERR
 condition, and
 .BR select (2)
 indicates the file descriptor as both readable and writable.
@@ -423,14 +608,14 @@ On success,
 returns a new file descriptor that refers to the userfaultfd object.
 On error, \-1 is returned, and
 .I errno
-is set appropriately.
+is set to indicate the error.
 .SH ERRORS
 .TP
 .B EINVAL
 An unsupported value was specified in
 .IR flags .
 .TP
-.BR EMFILE
+.B EMFILE
 The per-process limit on the number of open file descriptors has been
 reached
 .TP
@@ -448,24 +633,17 @@ The caller is not privileged (does not have the
 capability in the initial user namespace), and
 .I /proc/sys/vm/unprivileged_userfaultfd
 has the value 0.
-.SH VERSIONS
-The
-.BR userfaultfd ()
-system call first appeared in Linux 4.3.
-.PP
-The support for hugetlbfs and shared memory areas and
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 4.3.
+.P
+Support for hugetlbfs and shared memory areas and
 non-page-fault events was added in Linux 4.11
-.SH CONFORMING TO
-.BR userfaultfd ()
-is Linux-specific and should not be used in programs intended to be
-portable.
 .SH NOTES
-Glibc does not provide a wrapper for this system call; call it using
-.BR syscall (2).
-.PP
 The userfaultfd mechanism can be used as an alternative to
 traditional user-space paging techniques based on the use of the
-.BR SIGSEGV
+.B SIGSEGV
 signal and
 .BR mmap (2).
 It can also be used to implement lazy restore
@@ -489,7 +667,7 @@ The program creates two threads, one of which acts as the
 page-fault handler for the process, for the pages in a demand-page zero
 region created using
 .BR mmap (2).
-.PP
+.P
 The program takes one command-line argument,
 which is the number of pages that will be created in a mapping
 whose page faults will be handled via userfaultfd.
@@ -501,13 +679,13 @@ and registers the address range of that mapping using the
 operation.
 The program then creates a second thread that will perform the
 task of handling page faults.
-.PP
+.P
 The main thread then walks through the pages of the mapping fetching
 bytes from successive pages.
 Because the pages have not yet been accessed,
 the first access of a byte in each page will trigger a page-fault event
 on the userfaultfd file descriptor.
-.PP
+.P
 Each of the page-fault events is handled by the second thread,
 which sits in a loop processing input from the userfaultfd file descriptor.
 In each loop iteration, the second thread first calls
@@ -522,14 +700,14 @@ the faulting region using the
 .B UFFDIO_COPY
 .BR ioctl (2)
 operation.
-.PP
+.P
 The following is an example of what we see when running the program:
-.PP
+.P
 .in +4n
 .EX
-$ \fB./userfaultfd_demo 3\fP
+.RB $ " ./userfaultfd_demo 3" ;
 Address returned by mmap() = 0x7fd30106c000
-
+\&
 fault_handler_thread():
     poll() returns: nready = 1; POLLIN = 1; POLLERR = 0
     UFFD_EVENT_PAGEFAULT event: flags = 0; address = 7fd30106c00f
@@ -538,7 +716,7 @@ Read address 0x7fd30106c00f in main(): A
 Read address 0x7fd30106c40f in main(): A
 Read address 0x7fd30106c80f in main(): A
 Read address 0x7fd30106cc0f in main(): A
-
+\&
 fault_handler_thread():
     poll() returns: nready = 1; POLLIN = 1; POLLERR = 0
     UFFD_EVENT_PAGEFAULT event: flags = 0; address = 7fd30106d00f
@@ -547,7 +725,7 @@ Read address 0x7fd30106d00f in main(): B
 Read address 0x7fd30106d40f in main(): B
 Read address 0x7fd30106d80f in main(): B
 Read address 0x7fd30106dc0f in main(): B
-
+\&
 fault_handler_thread():
     poll() returns: nready = 1; POLLIN = 1; POLLERR = 0
     UFFD_EVENT_PAGEFAULT event: flags = 0; address = 7fd30106e00f
@@ -560,219 +738,215 @@ Read address 0x7fd30106ec0f in main(): C
 .in
 .SS Program source
 \&
+.\" SRC BEGIN (userfaultfd.c)
 .EX
 /* userfaultfd_demo.c
-
+\&
    Licensed under the GNU General Public License version 2 or later.
 */
 #define _GNU_SOURCE
-#include <inttypes.h>
-#include <sys/types.h>
-#include <stdio.h>
-#include <linux/userfaultfd.h>
-#include <pthread.h>
+#include <err.h>
 #include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <fcntl.h>
-#include <signal.h>
+#include <inttypes.h>
+#include <linux/userfaultfd.h>
 #include <poll.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
-#include <sys/ioctl.h>
-#include <poll.h>
-
-#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \e
-                        } while (0)
-
+#include <unistd.h>
+\&
 static int page_size;
-
+\&
 static void *
 fault_handler_thread(void *arg)
 {
-    static struct uffd_msg msg;   /* Data read from userfaultfd */
-    static int fault_cnt = 0;     /* Number of faults so far handled */
-    long uffd;                    /* userfaultfd file descriptor */
-    static char *page = NULL;
-    struct uffdio_copy uffdio_copy;
-    ssize_t nread;
-
+    long  uffd;   /* userfaultfd file descriptor */
+\&
+    static int      fault_cnt = 0; /* Number of faults so far handled */
+    static char     *page = NULL;
+    static struct uffd_msg  msg;  /* Data read from userfaultfd */
+\&
     uffd = (long) arg;
-
-    /* Create a page that will be copied into the faulting region */
-
+\&
+    /* Create a page that will be copied into the faulting region.  */
+\&
     if (page == NULL) {
         page = mmap(NULL, page_size, PROT_READ | PROT_WRITE,
                     MAP_PRIVATE | MAP_ANONYMOUS, \-1, 0);
         if (page == MAP_FAILED)
-            errExit("mmap");
+            err(EXIT_FAILURE, "mmap");
     }
-
+\&
     /* Loop, handling incoming events on the userfaultfd
-       file descriptor */
-
+       file descriptor.  */
+\&
     for (;;) {
-
-        /* See what poll() tells us about the userfaultfd */
-
-        struct pollfd pollfd;
-        int nready;
+        int                 nready;
+        ssize_t             nread;
+        struct pollfd       pollfd;
+        struct uffdio_copy  uffdio_copy;
+\&
+        /* See what poll() tells us about the userfaultfd.  */
+\&
         pollfd.fd = uffd;
         pollfd.events = POLLIN;
         nready = poll(&pollfd, 1, \-1);
         if (nready == \-1)
-            errExit("poll");
-
-        printf("\enfault_handler_thread():\en");
+            err(EXIT_FAILURE, "poll");
+\&
+        printf("\[rs]nfault_handler_thread():\[rs]n");
         printf("    poll() returns: nready = %d; "
-                "POLLIN = %d; POLLERR = %d\en", nready,
-                (pollfd.revents & POLLIN) != 0,
-                (pollfd.revents & POLLERR) != 0);
-
-        /* Read an event from the userfaultfd */
-
+               "POLLIN = %d; POLLERR = %d\[rs]n", nready,
+               (pollfd.revents & POLLIN) != 0,
+               (pollfd.revents & POLLERR) != 0);
+\&
+        /* Read an event from the userfaultfd.  */
+\&
         nread = read(uffd, &msg, sizeof(msg));
         if (nread == 0) {
-            printf("EOF on userfaultfd!\en");
+            printf("EOF on userfaultfd!\[rs]n");
             exit(EXIT_FAILURE);
         }
-
+\&
         if (nread == \-1)
-            errExit("read");
-
-        /* We expect only one kind of event; verify that assumption */
-
+            err(EXIT_FAILURE, "read");
+\&
+        /* We expect only one kind of event; verify that assumption.  */
+\&
         if (msg.event != UFFD_EVENT_PAGEFAULT) {
-            fprintf(stderr, "Unexpected event on userfaultfd\en");
+            fprintf(stderr, "Unexpected event on userfaultfd\[rs]n");
             exit(EXIT_FAILURE);
         }
-
-        /* Display info about the page\-fault event */
-
+\&
+        /* Display info about the page\-fault event.  */
+\&
         printf("    UFFD_EVENT_PAGEFAULT event: ");
-        printf("flags = %"PRIx64"; ", msg.arg.pagefault.flags);
-        printf("address = %"PRIx64"\en", msg.arg.pagefault.address);
-
-        /* Copy the page pointed to by \(aqpage\(aq into the faulting
-           region. Vary the contents that are copied in, so that it
-           is more obvious that each fault is handled separately. */
-
-        memset(page, \(aqA\(aq + fault_cnt % 20, page_size);
+        printf("flags = %w64x; ", msg.arg.pagefault.flags);
+        printf("address = %w64x\[rs]n", msg.arg.pagefault.address);
+\&
+        /* Copy the page pointed to by \[aq]page\[aq] into the faulting
+           region.  Vary the contents that are copied in, so that it
+           is more obvious that each fault is handled separately.  */
+\&
+        memset(page, \[aq]A\[aq] + fault_cnt % 20, page_size);
         fault_cnt++;
-
+\&
         uffdio_copy.src = (unsigned long) page;
-
+\&
         /* We need to handle page faults in units of pages(!).
-           So, round faulting address down to page boundary */
-
+           So, round faulting address down to page boundary.  */
+\&
         uffdio_copy.dst = (unsigned long) msg.arg.pagefault.address &
-                                           \(ti(page_size \- 1);
+                                           \[ti](page_size \- 1);
         uffdio_copy.len = page_size;
         uffdio_copy.mode = 0;
         uffdio_copy.copy = 0;
         if (ioctl(uffd, UFFDIO_COPY, &uffdio_copy) == \-1)
-            errExit("ioctl\-UFFDIO_COPY");
-
-        printf("        (uffdio_copy.copy returned %"PRId64")\en",
-                uffdio_copy.copy);
+            err(EXIT_FAILURE, "ioctl\-UFFDIO_COPY");
+\&
+        printf("        (uffdio_copy.copy returned %w64d)\[rs]n",
+               uffdio_copy.copy);
     }
 }
-
+\&
 int
 main(int argc, char *argv[])
 {
-    long uffd;          /* userfaultfd file descriptor */
-    char *addr;         /* Start of region handled by userfaultfd */
-    uint64_t len;       /* Length of region handled by userfaultfd */
-    pthread_t thr;      /* ID of thread that handles page faults */
-    struct uffdio_api uffdio_api;
-    struct uffdio_register uffdio_register;
-    int s;
-
+    int        s;
+    char       *addr;   /* Start of region handled by userfaultfd */
+    long       uffd;    /* userfaultfd file descriptor */
+    size_t     size, i;  /* Size of region handled by userfaultfd */
+    pthread_t  thr;     /* ID of thread that handles page faults */
+    struct uffdio_api       uffdio_api;
+    struct uffdio_register  uffdio_register;
+\&
     if (argc != 2) {
-        fprintf(stderr, "Usage: %s num\-pages\en", argv[0]);
+        fprintf(stderr, "Usage: %s num\-pages\[rs]n", argv[0]);
         exit(EXIT_FAILURE);
     }
-
+\&
     page_size = sysconf(_SC_PAGE_SIZE);
-    len = strtoull(argv[1], NULL, 0) * page_size;
-
-    /* Create and enable userfaultfd object */
-
-    uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
+    size = strtoull(argv[1], NULL, 0) * page_size;
+\&
+    /* Create and enable userfaultfd object.  */
+\&
+    uffd = syscall(SYS_userfaultfd, O_CLOEXEC | O_NONBLOCK);
     if (uffd == \-1)
-        errExit("userfaultfd");
-
+        err(EXIT_FAILURE, "userfaultfd");
+\&
+    /* NOTE: Two-step feature handshake is not needed here, since this
+       example doesn't require any specific features.
+\&
+       Programs that *do* should call UFFDIO_API twice: once with
+       `features = 0` to detect features supported by this kernel, and
+       again with the subset of features the program actually wants to
+       enable.  */
     uffdio_api.api = UFFD_API;
     uffdio_api.features = 0;
     if (ioctl(uffd, UFFDIO_API, &uffdio_api) == \-1)
-        errExit("ioctl\-UFFDIO_API");
-
-    /* Create a private anonymous mapping. The memory will be
-       demand\-zero paged\-\-that is, not yet allocated. When we
+        err(EXIT_FAILURE, "ioctl\-UFFDIO_API");
+\&
+    /* Create a private anonymous mapping.  The memory will be
+       demand\-zero paged\-\-that is, not yet allocated.  When we
        actually touch the memory, it will be allocated via
-       the userfaultfd. */
-
-    addr = mmap(NULL, len, PROT_READ | PROT_WRITE,
+       the userfaultfd.  */
+\&
+    addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_ANONYMOUS, \-1, 0);
     if (addr == MAP_FAILED)
-        errExit("mmap");
-
-    printf("Address returned by mmap() = %p\en", addr);
-
+        err(EXIT_FAILURE, "mmap");
+\&
+    printf("Address returned by mmap() = %p\[rs]n", addr);
+\&
     /* Register the memory range of the mapping we just created for
-       handling by the userfaultfd object. In mode, we request to track
-       missing pages (i.e., pages that have not yet been faulted in). */
-
+       handling by the userfaultfd object.  In mode, we request to track
+       missing pages (i.e., pages that have not yet been faulted in).  */
+\&
     uffdio_register.range.start = (unsigned long) addr;
-    uffdio_register.range.len = len;
+    uffdio_register.range.len = size;
     uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
     if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register) == \-1)
-        errExit("ioctl\-UFFDIO_REGISTER");
-
-    /* Create a thread that will process the userfaultfd events */
-
+        err(EXIT_FAILURE, "ioctl\-UFFDIO_REGISTER");
+\&
+    /* Create a thread that will process the userfaultfd events.  */
+\&
     s = pthread_create(&thr, NULL, fault_handler_thread, (void *) uffd);
     if (s != 0) {
-        errno = s;
-        errExit("pthread_create");
+        errc(EXIT_FAILURE, s, "pthread_create");
     }
-
+\&
     /* Main thread now touches memory in the mapping, touching
-       locations 1024 bytes apart. This will trigger userfaultfd
-       events for all pages in the region. */
-
-    int l;
-    l = 0xf;    /* Ensure that faulting address is not on a page
+       locations 1024 bytes apart.  This will trigger userfaultfd
+       events for all pages in the region.  */
+\&
+    i = 0xf;    /* Ensure that faulting address is not on a page
                    boundary, in order to test that we correctly
-                   handle that case in fault_handling_thread() */
-    while (l < len) {
-        char c = addr[l];
-        printf("Read address %p in main(): ", addr + l);
-        printf("%c\en", c);
-        l += 1024;
+                   handle that case in fault_handling_thread().  */
+    while (i < size) {
+        char  c;
+\&
+        c = addr[i];
+        printf("Read address %p in %s(): ", addr + i, __func__);
+        printf("%c\[rs]n", c);
+        i += 1024;
         usleep(100000);         /* Slow things down a little */
     }
-
+\&
     exit(EXIT_SUCCESS);
 }
 .EE
+.\" SRC END
 .SH SEE ALSO
 .BR fcntl (2),
 .BR ioctl (2),
 .BR ioctl_userfaultfd (2),
 .BR madvise (2),
 .BR mmap (2)
-.PP
-.IR Documentation/admin-guide/mm/userfaultfd.rst
+.P
+.I Documentation/admin\-guide/mm/userfaultfd.rst
 in the Linux kernel source tree
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

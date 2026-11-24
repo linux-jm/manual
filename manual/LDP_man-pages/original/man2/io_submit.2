@@ -1,53 +1,57 @@
-.\" Copyright (C) 2003 Free Software Foundation, Inc.
-.\" and Copyright (C) 2017 Goldwyn Rodrigues <rgoldwyn@suse.de>
+.\" Copyright 2003, Free Software Foundation, Inc.
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(GPL_NOVERSION_ONELINE)
-.\" This file is distributed according to the GNU General Public License.
-.\" %%%LICENSE_END
+.\" SPDX-License-Identifier: GPL-1.0-or-later
 .\"
-.TH IO_SUBMIT 2 2020-12-21 "Linux" "Linux Programmer's Manual"
+.TH io_submit 2 2026-04-11 "Linux man-pages (unreleased)"
 .SH NAME
 io_submit \- submit asynchronous I/O blocks for processing
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
-.BR "#include <linux/aio_abi.h>" "          /* Defines needed types */"
-.PP
-.BI "int io_submit(aio_context_t " ctx_id ", long " nr \
-", struct iocb **" iocbpp );
+.B #include <linux/aio_abi.h>
+.BR "#include <sys/syscall.h>" "    /* Definition of SYS_* constants */"
+.B #include <unistd.h>
+.P
+.BI "int\~syscall(SYS_io_submit, aio_context_t\~" ctx_id ,
+.BI "            long\~" n ", struct\~iocb\~*" iocbpp [ n ]);
 .fi
-.PP
-.IR Note :
-There is no glibc wrapper for this system call; see NOTES.
 .SH DESCRIPTION
 .IR Note :
-this page describes the raw Linux system call interface.
-The wrapper function provided by
-.I libaio
-uses a different type for the
-.I ctx_id
-argument.
-See NOTES.
-.PP
+you probably want to use the
+.BR io_setup (3)
+wrapper function provided by
+.IR libaio ;
+see VERSIONS.
+.P
 The
 .BR io_submit ()
 system call
-queues \fInr\fP I/O request blocks for processing in
-the AIO context \fIctx_id\fP.
+queues
+.I n
+I/O request blocks for processing in
+the AIO context
+.IR ctx_id .
 The
 .I iocbpp
-argument should be an array of \fInr\fP AIO control blocks,
-which will be submitted to context \fIctx_id\fP.
-.PP
+argument should be an array of
+.I n
+AIO control blocks,
+which will be submitted to context
+.IR ctx_id .
+.P
 The
 .I iocb
 (I/O control block) structure defined in
-.IR linux/aio_abi.h
+.I linux/aio_abi.h
 defines the parameters that control the I/O operation.
-.PP
+.P
 .in +4n
 .EX
 #include <linux/aio_abi.h>
-
+\&
 struct iocb {
     __u64   aio_data;
     __u32   PADDED(aio_key, aio_rw_flags);
@@ -63,7 +67,7 @@ struct iocb {
 };
 .EE
 .in
-.PP
+.P
 The fields of this structure are as follows:
 .TP
 .I aio_data
@@ -135,6 +139,35 @@ as well the description of
 .B O_SYNC
 in
 .BR open (2).
+.TP
+.BR RWF_NOAPPEND " (since Linux 6.9)"
+Do not honor
+.B O_APPEND
+.BR open (2)
+flag.
+See the description of
+.B RWF_NOAPPEND
+in
+.BR pwritev2 (2).
+.TP
+.BR RWF_ATOMIC " (since Linux 6.11)"
+Write a block of data such that
+a write will never be torn from power fail or similar.
+See the description of
+.B RWF_ATOMIC
+in
+.BR pwritev2 (2).
+For usage with
+.BR IOCB_CMD_PWRITEV ,
+the upper vector limit is
+.I stx_atomic_write_segments_max.
+See
+.B STATX_WRITE_ATOMIC
+and
+.I stx_atomic_write_segments_max
+description
+in
+.BR statx (2).
 .RE
 .TP
 .I aio_lio_opcode
@@ -183,7 +216,7 @@ structure.
 The valid values are:
 .RS
 .TP
-.BR IOCB_FLAG_RESFD
+.B IOCB_FLAG_RESFD
 Asynchronous I/O control must signal the file
 descriptor mentioned in
 .I aio_resfd
@@ -204,27 +237,58 @@ The file descriptor to signal in the event of asynchronous I/O completion.
 .SH RETURN VALUE
 On success,
 .BR io_submit ()
-returns the number of \fIiocb\fPs submitted (which may be
-less than \fInr\fP, or 0 if \fInr\fP is zero).
-For the failure return, see NOTES.
+returns the number of
+.IR iocb s
+submitted
+(which may be
+less than
+.IR n ,
+or 0 if
+.I n
+is zero).
+.P
+On error,
+\-1 is returned,
+and
+.I errno
+is set to indicate the error.
 .SH ERRORS
 .TP
 .B EAGAIN
-Insufficient resources are available to queue any \fIiocb\fPs.
+Insufficient resources are available to queue any
+.IR iocb s.
 .TP
 .B EBADF
-The file descriptor specified in the first \fIiocb\fP is invalid.
+The file descriptor specified in the first
+.I iocb
+is invalid.
 .TP
 .B EFAULT
 One of the data structures points to invalid data.
 .TP
 .B EINVAL
-The AIO context specified by \fIctx_id\fP is invalid.
-\fInr\fP is less than 0.
-The \fIiocb\fP at
+The AIO context specified by
+.I ctx_id
+is invalid.
+.TP
+.B EINVAL
+.I n
+is less than 0.
+.TP
+.B EINVAL
+The
+.I iocb
+at
 .I *iocbpp[0]
-is not properly initialized, the operation specified is invalid for the file
-descriptor in the \fIiocb\fP, or the value in the
+is not properly initialized.
+.TP
+.B EINVAL
+The operation specified is invalid for the file
+descriptor in the
+.IR iocb .
+.TP
+.B EINVAL
+The value in the
 .I aio_reqprio
 field is invalid.
 .TP
@@ -241,55 +305,22 @@ but the submitting context does not have the
 .B CAP_SYS_ADMIN
 capability.
 .SH VERSIONS
-The asynchronous I/O system calls first appeared in Linux 2.5.
-.SH CONFORMING TO
-.BR io_submit ()
-is Linux-specific and should not be used in
-programs that are intended to be portable.
-.SH NOTES
-Glibc does not provide a wrapper function for this system call.
-You could invoke it using
-.BR syscall (2).
-But instead, you probably want to use the
-.BR io_submit ()
-wrapper function provided by
-.\" http://git.fedorahosted.org/git/?p=libaio.git
-.IR libaio .
-.PP
-Note that the
+.UR https://pagure.io/libaio
 .I libaio
-wrapper function uses a different type
-.RI ( io_context_t )
-.\" But glibc is confused, since <libaio.h> uses 'io_context_t' to declare
-.\" the system call.
-for the
-.I ctx_id
-argument.
-Note also that the
-.I libaio
-wrapper does not follow the usual C library conventions for indicating errors:
-on error it returns a negated error number
-(the negative of one of the values listed in ERRORS).
-If the system call is invoked via
-.BR syscall (2),
-then the return value follows the usual conventions for
-indicating an error: \-1, with
-.I errno
-set to a (positive) value that indicates the error.
+.UE
+provides a wrapper function with the same name,
+but different prototype and return value.
+You probably want to use that wrapper.
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 2.5.
 .SH SEE ALSO
 .BR io_cancel (2),
 .BR io_destroy (2),
 .BR io_getevents (2),
 .BR io_setup (2),
+.BR io_submit (3),
 .BR aio (7)
 .\" .SH AUTHOR
 .\" Kent Yoder.
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

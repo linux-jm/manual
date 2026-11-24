@@ -1,68 +1,72 @@
-.\" Copyright (C) 2003 Free Software Foundation, Inc.
-.\" Copyright (C) 2015 Andrew Lutomirski
-.\" Author: Kent Yoder
+.\" Copyright 2003, Free Software Foundation, Inc.
+.\" Copyright 2015, Andrew Lutomirski <luto@kernel.org>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(GPL_NOVERSION_ONELINE)
-.\" This file is distributed according to the GNU General Public License.
-.\" %%%LICENSE_END
+.\" SPDX-License-Identifier: GPL-1.0-or-later
 .\"
-.TH SET_THREAD_AREA 2 2020-02-09 "Linux" "Linux Programmer's Manual"
+.TH set_thread_area 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 get_thread_area, set_thread_area \- manipulate thread-local storage information
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
-.B #include <linux/unistd.h>
-
+.BR "#include <sys/syscall.h>" "     /* Definition of " SYS_* " constants */"
+.B #include <unistd.h>
+.P
 .B #if defined __i386__ || defined __x86_64__
-.B # include <asm/ldt.h>
-.PP
-.BI "int get_thread_area(struct user_desc *" u_info );
-.BI "int set_thread_area(struct user_desc *" u_info );
-.PP
+.BR "# include <asm/ldt.h>" "        /* Definition of " "struct user_desc" " */"
+.P
+.BI "int syscall(SYS_get_thread_area, struct user_desc *" u_info );
+.BI "int syscall(SYS_set_thread_area, struct user_desc *" u_info );
+.P
 .B #elif defined __m68k__
-.PP
-.B "int get_thread_area(void);"
-.BI "int set_thread_area(unsigned long " tp );
-.PP
-.B #elif defined __mips__
-.PP
-.BI "int set_thread_area(unsigned long " addr );
-.PP
+.P
+.B "int syscall(SYS_get_thread_area);"
+.BI "int syscall(SYS_set_thread_area, unsigned long " tp );
+.P
+.B #elif defined __mips__ || defined __csky__
+.P
+.BI "int syscall(SYS_set_thread_area, unsigned long " addr );
+.P
 .B #endif
 .fi
-.PP
+.P
 .IR Note :
-There are no glibc wrappers for these system calls; see NOTES.
+glibc provides no wrappers for these system calls,
+necessitating the use of
+.BR syscall (2).
 .SH DESCRIPTION
 These calls provide architecture-specific support for a thread-local storage
 implementation.
 At the moment,
 .BR set_thread_area ()
-is available on m68k, MIPS, and x86 (both 32-bit and 64-bit variants);
+is available on m68k, MIPS, C-SKY, and x86 (both 32-bit and 64-bit variants);
 .BR get_thread_area ()
 is available on m68k and x86.
-.PP
-On m68k and MIPS,
+.P
+On m68k, MIPS and C-SKY,
 .BR set_thread_area ()
 allows storing an arbitrary pointer (provided in the
 .B tp
 argument on m68k and in the
 .B addr
-argument on MIPS)
+argument on MIPS and C-SKY)
 in the kernel data structure associated with the calling thread;
 this pointer can later be retrieved using
 .BR get_thread_area ()
 (see also NOTES
 for information regarding obtaining the thread pointer on MIPS).
-.PP
+.P
 On x86, Linux dedicates three global descriptor table (GDT) entries for
 thread-local storage.
 For more information about the GDT, see the
 Intel Software Developer's Manual or the AMD Architecture Programming Manual.
-.PP
+.P
 Both of these system calls take an argument that is a pointer
 to a structure of the following type:
-.PP
+.P
 .in +4n
 .EX
 struct user_desc {
@@ -81,16 +85,16 @@ struct user_desc {
 };
 .EE
 .in
-.PP
+.P
 .BR get_thread_area ()
 reads the GDT entry indicated by
 .I u_info\->entry_number
 and fills in the rest of the fields in
 .IR u_info .
-.PP
+.P
 .BR set_thread_area ()
 sets a TLS entry in the GDT.
-.PP
+.P
 The TLS array entry set by
 .BR set_thread_area ()
 corresponds to the value of
@@ -101,7 +105,7 @@ If this value is in bounds,
 writes the TLS descriptor pointed to by
 .I u_info
 into the thread's TLS array.
-.PP
+.P
 When
 .BR set_thread_area ()
 is passed an
@@ -112,7 +116,7 @@ If
 finds a free TLS entry, the value of
 .I u_info\->entry_number
 is set upon return to show which entry was changed.
-.PP
+.P
 A
 .I user_desc
 is considered "empty" if
@@ -124,7 +128,7 @@ If an "empty" descriptor is passed to
 .BR set_thread_area (),
 the corresponding TLS entry will be cleared.
 See BUGS for additional details.
-.PP
+.P
 Since Linux 3.19,
 .BR set_thread_area ()
 cannot be used to write non-present segments, 16-bit segments, or code
@@ -133,9 +137,9 @@ segments, although clearing a segment is still acceptable.
 On x86, these system calls
 return 0 on success, and \-1 on failure, with
 .I errno
-set appropriately.
-.PP
-On MIPS and m68k,
+set to indicate the error.
+.P
+On C-SKY, MIPS and m68k,
 .BR set_thread_area ()
 always returns 0.
 On m68k,
@@ -146,10 +150,12 @@ returns the thread area pointer value
 .SH ERRORS
 .TP
 .B EFAULT
-\fIu_info\fP is an invalid pointer.
+.I u_info
+is an invalid pointer.
 .TP
 .B EINVAL
-\fIu_info\->entry_number\fP is out of bounds.
+.I u_info\->entry_number
+is out of bounds.
 .TP
 .B ENOSYS
 .BR get_thread_area ()
@@ -160,23 +166,18 @@ was invoked as a 64-bit system call.
 .B ESRCH
 .RB ( set_thread_area ())
 A free TLS entry could not be located.
-.SH VERSIONS
+.SH STANDARDS
+Linux.
+.SH HISTORY
+.TP
 .BR set_thread_area ()
-first appeared in Linux 2.5.29.
+Linux 2.5.29.
+.TP
 .BR get_thread_area ()
-first appeared in Linux 2.5.32.
-.SH CONFORMING TO
-.BR set_thread_area ()
-and
-.BR get_thread_area ()
-are Linux-specific and should not be used in programs that are intended
-to be portable.
+Linux 2.5.32.
 .SH NOTES
-Glibc does not provide wrappers for these system calls,
-since they are generally intended for use only by threading libraries.
-In the unlikely event that you want to call them directly, use
-.BR syscall (2).
-.PP
+These system calls are generally intended for use only by threading libraries.
+.P
 .BR arch_prctl (2)
 can interfere with
 .BR set_thread_area ()
@@ -187,16 +188,16 @@ for more details.
 This is not normally a problem, as
 .BR arch_prctl (2)
 is normally used only by 64-bit programs.
-.PP
+.P
 On MIPS, the current value of the thread area pointer can be obtained
 using the instruction:
-.PP
+.P
 .in +4n
 .EX
 rdhwr dest, $29
 .EE
 .in
-.PP
+.P
 This instruction traps and is handled by kernel.
 .SH BUGS
 On 64-bit kernels before Linux 3.19,
@@ -220,7 +221,7 @@ consisting entirely of zeros except for
 .I entry_number
 will also be interpreted as a request to clear a TLS entry, but this
 behaved differently on older kernels.
-.PP
+.P
 Prior to Linux 3.19, the DS and ES segment registers must not reference
 TLS entries.
 .SH SEE ALSO
@@ -228,12 +229,3 @@ TLS entries.
 .BR modify_ldt (2),
 .BR ptrace (2)
 .RB ( PTRACE_GET_THREAD_AREA " and " PTRACE_SET_THREAD_AREA )
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

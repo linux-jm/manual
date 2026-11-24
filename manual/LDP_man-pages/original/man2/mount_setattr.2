@@ -1,0 +1,1075 @@
+.\" Copyright 2021, Christian Brauner <brauner@kernel.org>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.TH mount_setattr 2 2026-02-11 "Linux man-pages (unreleased)"
+.SH NAME
+mount_setattr \- change properties of a mount or mount tree
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
+.SH SYNOPSIS
+.nf
+.BR "#include <fcntl.h>" "       /* Definition of " AT_* " constants */"
+.B #include <sys/mount.h>
+.P
+.BI "int mount_setattr(int " dirfd ", const char *" path ", unsigned int " flags ","
+.BI "                  struct mount_attr *" attr ", size_t " size );
+.fi
+.SH DESCRIPTION
+The
+.BR mount_setattr ()
+system call is part of
+the suite of file-descriptor-based mount facilities in Linux.
+.P
+.BR mount_setattr ()
+changes the mount properties of a mount or an entire mount tree.
+If
+.I path
+is relative,
+then it is interpreted relative to
+the directory referred to by the file descriptor
+.IR dirfd .
+If
+.I dirfd
+is the special value
+.BR AT_FDCWD ,
+then
+.I path
+is interpreted relative to
+the current working directory of the calling process.
+If
+.I path
+is the empty string and
+.B AT_EMPTY_PATH
+is specified in
+.IR flags ,
+then the mount properties of the mount identified by
+.I dirfd
+are changed.
+(See
+.BR openat (2)
+for an explanation of why the
+.I dirfd
+argument is useful.)
+.P
+The
+.BR mount_setattr ()
+system call uses an extensible structure
+.RI ( "struct mount_attr" )
+to allow for future extensions.
+Any non-flag extensions to
+.BR mount_setattr ()
+will be implemented as new fields appended to the this structure,
+with a zero value in a new field resulting in the kernel behaving
+as though that extension field was not present.
+Therefore,
+the caller
+.I must
+zero-fill this structure on initialization.
+See the "Extensibility" subsection under
+.B NOTES
+for more details.
+.P
+The
+.I size
+argument should usually be specified as
+.IR "sizeof(struct mount_attr)" .
+However, if the caller is using a kernel that supports an extended
+.IR "struct mount_attr" ,
+but the caller does not intend to make use of these features,
+it is possible to pass the size of an earlier
+version of the structure together with the extended structure.
+This allows the kernel to not copy later parts of the structure
+that aren't used anyway.
+With each extension that changes the size of
+.IR "struct mount_attr" ,
+the kernel will expose a definition of the form
+.BI MOUNT_ATTR_SIZE_VER number\c
+\&.
+For example, the macro for the size of the initial version of
+.I struct mount_attr
+is
+.BR MOUNT_ATTR_SIZE_VER0 .
+.P
+The
+.I flags
+argument can be used to alter the pathname resolution behavior.
+The supported values are:
+.TP
+.B AT_EMPTY_PATH
+If
+.I path
+is the empty string,
+change the mount properties on
+.I dirfd
+itself.
+.TP
+.B AT_RECURSIVE
+Change the mount properties of the entire mount tree.
+.TP
+.B AT_SYMLINK_NOFOLLOW
+Don't follow trailing symbolic links.
+.TP
+.B AT_NO_AUTOMOUNT
+Don't trigger automounts.
+.P
+The
+.I attr
+argument of
+.BR mount_setattr ()
+is a pointer to a
+.I mount_attr
+structure,
+described in
+.BR mount_attr (2type).
+.P
+The
+.I attr_set
+and
+.I attr_clr
+members are used to specify the mount properties that
+are supposed to be set or cleared for a mount or mount tree.
+Flags set in
+.I attr_set
+enable a property on a mount or mount tree,
+and flags set in
+.I attr_clr
+remove a property from a mount or mount tree.
+.P
+When changing mount properties,
+the kernel will first clear the flags specified
+in the
+.I attr_clr
+field,
+and then set the flags specified in the
+.I attr_set
+field.
+For example, these settings:
+.P
+.in +4n
+.EX
+struct mount_attr attr = {
+    .attr_clr = MOUNT_ATTR_NOEXEC | MOUNT_ATTR_NODEV,
+    .attr_set = MOUNT_ATTR_RDONLY | MOUNT_ATTR_NOSUID,
+};
+.EE
+.in
+.P
+are equivalent to the following steps:
+.P
+.in +4n
+.EX
+unsigned int current_mnt_flags = mnt\->mnt_flags;
+\&
+/*
+ * Clear all flags set in .attr_clr,
+ * clearing MOUNT_ATTR_NOEXEC and MOUNT_ATTR_NODEV.
+ */
+current_mnt_flags &= \(tiattr\->attr_clr;
+\&
+/*
+ * Now set all flags set in .attr_set,
+ * applying MOUNT_ATTR_RDONLY and MOUNT_ATTR_NOSUID.
+ */
+current_mnt_flags |= attr\->attr_set;
+\&
+mnt\->mnt_flags = current_mnt_flags;
+.EE
+.in
+.P
+As a result of this change, the mount or mount tree (a) is read-only;
+(b) blocks the execution of set-user-ID and set-group-ID programs;
+(c) allows execution of programs;
+and
+(d) allows access to devices.
+.P
+Multiple changes with the same set of flags requested
+in
+.I attr_clr
+and
+.I attr_set
+are guaranteed to be idempotent after the changes have been applied.
+.P
+The following mount attributes can be specified in the
+.I attr_set
+or
+.I attr_clr
+fields:
+.TP
+.B MOUNT_ATTR_RDONLY
+If set in
+.IR attr_set ,
+makes the mount read-only.
+If set in
+.IR attr_clr ,
+removes the read-only setting if set on the mount.
+.TP
+.B MOUNT_ATTR_NOSUID
+If set in
+.IR attr_set ,
+causes the mount not to honor the set-user-ID and set-group-ID mode bits and
+file capabilities when executing programs.
+If set in
+.IR attr_clr ,
+clears the set-user-ID, set-group-ID,
+and file capability restriction if set on this mount.
+.TP
+.B MOUNT_ATTR_NODEV
+If set in
+.IR attr_set ,
+prevents access to devices on this mount.
+If set in
+.IR attr_clr ,
+removes the restriction that prevented accessing devices on this mount.
+.TP
+.B MOUNT_ATTR_NOEXEC
+If set in
+.IR attr_set ,
+prevents executing programs on this mount.
+If set in
+.IR attr_clr ,
+removes the restriction that prevented executing programs on this mount.
+.TP
+.B MOUNT_ATTR_NOSYMFOLLOW
+If set in
+.IR attr_set ,
+prevents following symbolic links on this mount.
+If set in
+.IR attr_clr ,
+removes the restriction that prevented following symbolic links on this mount.
+.TP
+.B MOUNT_ATTR_NODIRATIME
+If set in
+.IR attr_set ,
+prevents updating access time for directories on this mount.
+If set in
+.IR attr_clr ,
+removes the restriction that prevented updating access time for directories.
+Note that
+.B MOUNT_ATTR_NODIRATIME
+can be combined with other access-time settings
+and is implied by the noatime setting.
+All other access-time settings are mutually exclusive.
+.TP
+.BR MOUNT_ATTR__ATIME " - changing access-time settings"
+The access-time values listed below are an enumeration that
+includes the value zero, expressed in the bits defined by the mask
+.BR MOUNT_ATTR__ATIME .
+Even though these bits are an enumeration
+(in contrast to the other mount flags such as
+.BR MOUNT_ATTR_NOEXEC ),
+they are nonetheless passed in
+.I attr_set
+and
+.I attr_clr
+for consistency with
+.BR fsmount (2),
+which introduced this behavior.
+.IP
+Note that,
+since the access-time values are an enumeration rather than bit values,
+a caller wanting to transition to a different access-time setting
+cannot simply specify the access-time setting in
+.IR attr_set ,
+but must also include
+.B MOUNT_ATTR__ATIME
+in the
+.I attr_clr
+field.
+The kernel will verify that
+.B MOUNT_ATTR__ATIME
+isn't partially set in
+.I attr_clr
+(i.e., either all bits in the
+.B MOUNT_ATTR__ATIME
+bit field are either set or clear), and that
+.I attr_set
+doesn't have any access-time bits set if
+.B MOUNT_ATTR__ATIME
+isn't set in
+.IR attr_clr .
+.RS
+.TP
+.B MOUNT_ATTR_RELATIME
+When a file is accessed via this mount,
+update the file's last access time (atime)
+only if the current value of atime is less than or equal to
+the file's last modification time (mtime) or last status change time (ctime).
+.IP
+To enable this access-time setting on a mount or mount tree,
+.B MOUNT_ATTR_RELATIME
+must be set in
+.I attr_set
+and
+.B MOUNT_ATTR__ATIME
+must be set in the
+.I attr_clr
+field.
+.TP
+.B MOUNT_ATTR_NOATIME
+Do not update access times for (all types of) files on this mount.
+.IP
+To enable this access-time setting on a mount or mount tree,
+.B MOUNT_ATTR_NOATIME
+must be set in
+.I attr_set
+and
+.B MOUNT_ATTR__ATIME
+must be set in the
+.I attr_clr
+field.
+.TP
+.B MOUNT_ATTR_STRICTATIME
+Always update the last access time (atime)
+when files are accessed on this mount.
+.IP
+To enable this access-time setting on a mount or mount tree,
+.B MOUNT_ATTR_STRICTATIME
+must be set in
+.I attr_set
+and
+.B MOUNT_ATTR__ATIME
+must be set in the
+.I attr_clr
+field.
+.RE
+.TP
+.B MOUNT_ATTR_IDMAP
+If set in
+.IR attr_set ,
+creates an ID-mapped mount.
+The ID mapping is taken from the user namespace specified in
+.I userns_fd
+and attached to the mount.
+.IP
+Since it is not supported to
+change the ID mapping of a mount after it has been ID mapped,
+it is invalid to specify
+.B MOUNT_ATTR_IDMAP
+in
+.IR attr_clr .
+.IP
+For further details, see the subsection "ID-mapped mounts" under NOTES.
+.P
+The
+.I propagation
+field is used to specify the propagation type of the mount or mount tree.
+This field either has the value zero,
+meaning leave the propagation type unchanged, or it has one of
+the following values:
+.TP
+.B MS_PRIVATE
+Turn all mounts into private mounts.
+.TP
+.B MS_SHARED
+Turn all mounts into shared mounts.
+.TP
+.B MS_SLAVE
+Turn all mounts into dependent mounts.
+.TP
+.B MS_UNBINDABLE
+Turn all mounts into unbindable mounts.
+.P
+For further details on the above propagation types, see
+.BR mount_namespaces (7).
+.SH RETURN VALUE
+On success,
+.BR mount_setattr ()
+returns zero.
+On error,
+\-1 is returned and
+.I errno
+is set to indicate the error.
+.SH ERRORS
+.TP
+.B EBADF
+.I path
+is relative but
+.I dirfd
+is neither
+.B AT_FDCWD
+nor a valid file descriptor.
+.TP
+.B EBADF
+.I userns_fd
+is not a valid file descriptor.
+.TP
+.B EBUSY
+The caller tried to change the mount to
+.BR MOUNT_ATTR_RDONLY ,
+but the mount still holds files open for writing.
+.TP
+.B EBUSY
+The caller tried to create an ID-mapped mount raising
+.B MOUNT_ATTR_IDMAP
+and specifying
+.I userns_fd
+but the mount still holds files open for writing.
+.TP
+.B EINVAL
+The pathname specified via the
+.I dirfd
+and
+.I path
+arguments to
+.BR mount_setattr ()
+isn't a mount point.
+.TP
+.B EINVAL
+An unsupported value was set in
+.IR flags .
+.TP
+.B EINVAL
+An unsupported value was specified in the
+.I attr_set
+field of
+.IR mount_attr .
+.TP
+.B EINVAL
+An unsupported value was specified in the
+.I attr_clr
+field of
+.IR mount_attr .
+.TP
+.B EINVAL
+An unsupported value was specified in the
+.I propagation
+field of
+.IR mount_attr .
+.TP
+.B EINVAL
+More than one of
+.BR MS_SHARED ,
+.BR MS_SLAVE ,
+.BR MS_PRIVATE ,
+or
+.B MS_UNBINDABLE
+was set in the
+.I propagation
+field of
+.IR mount_attr .
+.TP
+.B EINVAL
+An access-time setting was specified in the
+.I attr_set
+field without
+.B MOUNT_ATTR__ATIME
+being set in the
+.I attr_clr
+field.
+.TP
+.B EINVAL
+.B MOUNT_ATTR_IDMAP
+was specified in
+.IR attr_clr .
+.TP
+.B EINVAL
+A file descriptor value was specified in
+.I userns_fd
+which exceeds
+.BR INT_MAX .
+.TP
+.B EINVAL
+A valid file descriptor value was specified in
+.IR userns_fd ,
+but the file descriptor did not refer to a user namespace.
+.TP
+.B EINVAL
+The underlying filesystem does not support ID-mapped mounts.
+.TP
+.B EINVAL
+The mount that is to be ID mapped is not a detached mount;
+that is, the mount has not previously been visible in a mount namespace.
+.TP
+.B EINVAL
+A partial access-time setting was specified in
+.I attr_clr
+instead of
+.B MOUNT_ATTR__ATIME
+being set.
+.TP
+.B EINVAL
+The mount is located outside the caller's mount namespace.
+.TP
+.B EINVAL
+The underlying filesystem has been mounted in a mount namespace that is
+owned by a noninitial user namespace
+.TP
+.B ENOENT
+A pathname was empty or had a nonexistent component.
+.TP
+.B ENOMEM
+When changing mount propagation to
+.BR MS_SHARED ,
+a new peer group ID needs to be allocated for all mounts without a peer group
+ID set.
+This allocation failed because there was not
+enough memory to allocate the relevant internal structures.
+.TP
+.B ENOSPC
+When changing mount propagation to
+.BR MS_SHARED ,
+a new peer group ID needs to be allocated for all mounts without a peer group
+ID set.
+This allocation failed because
+the kernel has run out of IDs.
+.\" Christian Brauner: i.e., someone has somehow managed to
+.\" allocate so many peer groups and managed to keep the kernel running
+.\" (???) that the ida has ran out of ids
+.\" Note that technically further error codes are possible that are
+.\" specific to the ID allocation implementation used.
+.TP
+.B EPERM
+One of the mounts had at least one of
+.BR MOUNT_ATTR_NOATIME ,
+.BR MOUNT_ATTR_NODEV ,
+.BR MOUNT_ATTR_NODIRATIME ,
+.BR MOUNT_ATTR_NOEXEC ,
+.BR MOUNT_ATTR_NOSUID ,
+or
+.B MOUNT_ATTR_RDONLY
+set and the flag is locked.
+Mount attributes become locked on a mount if:
+.RS
+.IP \[bu] 3
+A new mount or mount tree is created causing mount propagation across user
+namespaces
+(i.e., propagation to a mount namespace owned by a different user namespace).
+The kernel will lock the aforementioned flags to prevent these sensitive
+properties from being altered.
+.IP \[bu]
+A new mount and user namespace pair is created.
+This happens for example when specifying
+.B CLONE_NEWUSER | CLONE_NEWNS
+in
+.BR unshare (2),
+.BR clone (2),
+or
+.BR clone3 (2).
+The aforementioned flags become locked in the new mount namespace
+to prevent sensitive mount properties from being altered.
+Since the newly created mount namespace will be owned by the
+newly created user namespace,
+a calling process that is privileged in the new
+user namespace would\[em]in the absence of such locking\[em]be
+able to alter sensitive mount properties (e.g., to remount a mount
+that was marked read-only as read-write in the new mount namespace).
+.RE
+.TP
+.B EPERM
+A valid file descriptor value was specified in
+.IR userns_fd ,
+but the file descriptor refers to the initial user namespace.
+.TP
+.B EPERM
+An attempt was made to add an ID mapping to a mount that is already ID mapped.
+.TP
+.B EPERM
+The caller does not have
+.B CAP_SYS_ADMIN
+in the initial user namespace.
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 5.12,
+.\" commit 7d6beb71da3cc033649d641e1e608713b8220290
+.\" commit 2a1867219c7b27f928e2545782b86daaf9ad50bd
+.\" commit 9caccd41541a6f7d6279928d9f971f6642c361af
+glibc 2.36.
+.SH NOTES
+.SS ID-mapped mounts
+Creating an ID-mapped mount makes it possible to
+change the ownership of all files located under a mount.
+Thus, ID-mapped mounts make it possible to
+change ownership in a temporary and localized way.
+It is a localized change because the ownership changes are
+visible only via a specific mount.
+All other users and locations where the filesystem is exposed are unaffected.
+It is a temporary change because
+the ownership changes are tied to the lifetime of the mount.
+.P
+Whenever callers interact with the filesystem through an ID-mapped mount,
+the ID mapping of the mount will be applied to
+user and group IDs associated with filesystem objects.
+This encompasses the user and group IDs associated with inodes
+and also the following
+.BR xattr (7)
+keys:
+.IP \[bu] 3
+.IR security.capability ,
+whenever filesystem capabilities
+are stored or returned in the
+.B VFS_CAP_REVISION_3
+format,
+which stores a root user ID alongside the capabilities
+(see
+.BR capabilities (7)).
+.IP \[bu]
+.I system.posix_acl_access
+and
+.IR system.posix_acl_default ,
+whenever user IDs or group IDs are stored in
+.B ACL_USER
+or
+.B ACL_GROUP
+entries.
+.P
+The following conditions must be met in order to create an ID-mapped mount:
+.IP \[bu] 3
+The caller must have the
+.B CAP_SYS_ADMIN
+capability in the user namespace the filesystem was mounted in.
+.\" commit bd303368b776eead1c29e6cdda82bde7128b82a7
+.\" Christian Brauner
+.\"     Note, currently no filesystems mountable in non-initial user namespaces
+.\"     support ID-mapped mounts.
+.IP \[bu]
+The underlying filesystem must support ID-mapped mounts.
+Currently, the following filesystems support ID-mapped mounts:
+.\" fs_flags = FS_ALLOW_IDMAP in kernel sources
+.RS
+.IP \[bu] 3
+.PD 0
+.BR xfs (5)
+(since Linux 5.12)
+.IP \[bu]
+.BR ext4 (5)
+(since Linux 5.12)
+.IP \[bu]
+.B FAT
+(since Linux 5.12)
+.IP \[bu]
+.BR btrfs (5)
+(since Linux 5.15)
+.\" commit 5b9b26f5d0b88b74001dcfe4ab8a8f2f4e744112
+.IP \[bu]
+.B ntfs3
+(since Linux 5.15)
+.\" commit 82cae269cfa953032fbb8980a7d554d60fb00b17
+.IP \[bu]
+.B f2fs
+(since Linux 5.18)
+.\" commit 984fc4e76d63345499f01c0c198a4b44860cf027
+.IP \[bu]
+.B erofs
+(since Linux 5.19)
+.\" commit 6c459b78d4793afbba6d864c466cc5cd2932459d
+.IP \[bu]
+.B overlayfs
+(ID-mapped lower and upper layers supported since Linux 5.19)
+.IP \[bu]
+.B squashfs
+(since Linux 6.2)
+.IP \[bu]
+.B tmpfs
+(since Linux 6.3)
+.IP \[bu]
+.B cephfs
+(since Linux 6.7)
+.IP \[bu]
+.B hugetlbfs
+(since Linux 6.9)
+.PD
+.RE
+.IP \[bu]
+The mount must not already be ID-mapped.
+This also implies that the ID mapping of a mount cannot be altered.
+.IP \[bu]
+The mount must not have any writers.
+.\" commit 1bbcd277a53e08d619ffeec56c5c9287f2bf42f
+.IP \[bu]
+The mount must be a detached mount;
+that is,
+it must have been created by calling
+.BR open_tree (2)
+with the
+.B OPEN_TREE_CLONE
+flag and it must not already have been visible in a mount namespace.
+(To put things another way:
+the mount must not have been attached to the filesystem hierarchy
+with a system call such as
+.BR move_mount (2).)
+.P
+ID mappings can be created for user IDs, group IDs, and project IDs.
+An ID mapping is essentially a mapping of a range of user or group IDs into
+another or the same range of user or group IDs.
+ID mappings are written to map files as three numbers
+separated by white space.
+The first two numbers specify the starting user or group ID
+in each of the two user namespaces.
+The third number specifies the range of the ID mapping.
+For example,
+a mapping for user IDs such as "1000\ 1001\ 1" would indicate that
+user ID 1000 in the caller's user namespace is mapped to
+user ID 1001 in its ancestor user namespace.
+Since the map range is 1,
+only user ID 1000 is mapped.
+.P
+It is possible to specify up to 340 ID mappings for each ID mapping type.
+If any user IDs or group IDs are not mapped,
+all files owned by that unmapped user or group ID will appear as
+being owned by the overflow user ID or overflow group ID respectively.
+.P
+Further details on setting up ID mappings can be found in
+.BR user_namespaces (7).
+.P
+In the common case, the user namespace passed in
+.I userns_fd
+(together with
+.B MOUNT_ATTR_IDMAP
+in
+.IR attr_set )
+to create an ID-mapped mount will be the user namespace of a container.
+In other scenarios it will be a dedicated user namespace associated with
+a user's login session as is the case for portable home directories in
+.BR systemd-homed.service (8)).
+It is also perfectly fine to create a dedicated user namespace
+for the sake of ID mapping a mount.
+.P
+ID-mapped mounts can be useful in the following
+and a variety of other scenarios:
+.IP \[bu] 3
+Sharing files or filesystems
+between multiple users or multiple machines,
+especially in complex scenarios.
+For example,
+ID-mapped mounts are used to implement portable home directories in
+.BR systemd-homed.service (8),
+where they allow users to move their home directory
+to an external storage device
+and use it on multiple computers
+where they are assigned different user IDs and group IDs.
+This effectively makes it possible to
+assign random user IDs and group IDs at login time.
+.IP \[bu]
+Sharing files or filesystems
+from the host with unprivileged containers.
+This allows a user to avoid having to change ownership permanently through
+.BR chown (2).
+.IP \[bu]
+ID mapping a container's root filesystem.
+Users don't need to change ownership permanently through
+.BR chown (2).
+Especially for large root filesystems, using
+.BR chown (2)
+can be prohibitively expensive.
+.IP \[bu]
+Sharing files or filesystems
+between containers with non-overlapping ID mappings.
+.IP \[bu]
+Implementing discretionary access (DAC) permission checking
+for filesystems lacking a concept of ownership.
+.IP \[bu]
+Efficiently changing ownership on a per-mount basis.
+In contrast to
+.BR chown (2),
+changing ownership of large sets of files is instantaneous with
+ID-mapped mounts.
+This is especially useful when ownership of
+an entire root filesystem of a virtual machine or container
+is to be changed as mentioned above.
+With ID-mapped mounts,
+a single
+.BR mount_setattr ()
+system call will be sufficient to change the ownership of all files.
+.IP \[bu]
+Taking the current ownership into account.
+ID mappings specify precisely
+what a user or group ID is supposed to be mapped to.
+This contrasts with the
+.BR chown (2)
+system call which cannot by itself
+take the current ownership of the files it changes into account.
+It simply changes the ownership to the specified user ID and group ID.
+.IP \[bu]
+Locally and temporarily restricted ownership changes.
+ID-mapped mounts make it possible to change ownership locally,
+restricting the ownership changes to specific mounts,
+and temporarily as the ownership changes only apply as long as the mount exists.
+By contrast,
+changing ownership via the
+.BR chown (2)
+system call changes the ownership globally and permanently.
+.\"
+.SS Mount attributes and filesystem parameters
+Some mount attributes
+(traditionally associated with
+.BR mount (8)-style
+options)
+have a sibling filesystem parameter
+with superficially similar user-facing behavior.
+For example, the
+.I \-o\~ro
+option to
+.BR mount (8)
+can refer to the
+"read-only" filesystem parameter,
+or the "read-only" mount attribute.
+Both of these result in mount objects becoming read-only,
+but they do have different behavior.
+.P
+The distinction between these two kinds of option is that
+mount object attributes are applied per-mount-object
+(allowing different mount objects
+derived from a given filesystem instance
+to have different attributes),
+while filesystem instance parameters
+("superblock flags" in kernel-developer parlance)
+apply to all mount objects
+derived from the same filesystem instance.
+.P
+When using
+.BR mount (2),
+the line between these two types of mount options was blurred.
+However, with
+.BR mount_setattr ()
+and
+.BR fsconfig (2),
+the distinction is made much clearer.
+Mount attributes are configured with
+.BR mount_setattr (),
+while filesystem parameters are configured using
+.BR fsconfig (2).
+.SS Extensibility
+In order to allow for future extensibility,
+.BR mount_setattr ()
+requires the user-space application to specify the size of the
+.I mount_attr
+structure that it is passing.
+By providing this information, it is possible for
+.BR mount_setattr ()
+to provide both forwards- and backwards-compatibility, with
+.I size
+acting as an implicit version number.
+(Because new extension fields will always
+be appended, the structure size will always increase.)
+This extensibility design is very similar to other system calls such as
+.BR perf_setattr (2),
+.BR perf_event_open (2),
+.BR clone3 (2)
+and
+.BR openat2 (2).
+.P
+Let
+.I usize
+be the size of the structure as specified by the user-space application,
+and let
+.I ksize
+be the size of the structure which the kernel supports,
+then there are three cases to consider:
+.IP \[bu] 3
+If
+.I ksize
+equals
+.IR usize ,
+then there is no version mismatch and
+.I attr
+can be used verbatim.
+.IP \[bu]
+If
+.I ksize
+is larger than
+.IR usize ,
+then there are some extension fields that the kernel supports
+which the user-space application is unaware of.
+Because a zero value in any added extension field signifies a no-op,
+the kernel treats all of the extension fields
+not provided by the user-space application
+as having zero values.
+This provides backwards-compatibility.
+.IP \[bu]
+If
+.I ksize
+is smaller than
+.IR usize ,
+then there are some extension fields which the user-space application is aware
+of but which the kernel does not support.
+Because any extension field must have its zero values signify a no-op,
+the kernel can safely ignore the unsupported extension fields
+if they are all zero.
+If any unsupported extension fields are non-zero,
+then \-1 is returned and
+.I errno
+is set to
+.BR E2BIG .
+This provides forwards-compatibility.
+.P
+Because the definition of
+.I struct mount_attr
+may change in the future
+(with new fields being added when system headers are updated),
+user-space applications should zero-fill
+.I struct mount_attr
+to ensure that recompiling the program with new headers will not result in
+spurious errors at run time.
+The simplest way is to use a designated initializer:
+.P
+.in +4n
+.EX
+struct mount_attr attr = {
+    .attr_set = MOUNT_ATTR_RDONLY,
+    .attr_clr = MOUNT_ATTR_NODEV
+};
+.EE
+.in
+.P
+Alternatively, the structure can be zero-filled using
+.BR memset (3)
+or similar functions:
+.P
+.in +4n
+.EX
+struct mount_attr attr;
+memset(&attr, 0, sizeof(attr));
+attr.attr_set = MOUNT_ATTR_RDONLY;
+attr.attr_clr = MOUNT_ATTR_NODEV;
+.EE
+.in
+.P
+A user-space application that wishes to determine which extensions the running
+kernel supports can do so by conducting a binary search on
+.I size
+with a structure which has every byte nonzero
+(to find the largest value which doesn't produce an error of
+.BR E2BIG ).
+.SH EXAMPLES
+.\" SRC BEGIN (mount_setattr.c)
+.EX
+/*
+ * This program allows the caller to create a new detached mount
+ * and set various properties on it.
+ */
+#define _GNU_SOURCE
+#include <err.h>
+#include <fcntl.h>
+#include <getopt.h>
+#include <sys/mount.h>
+#include <sys/types.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+\&
+static const struct option longopts[] = {
+    {"map\-mount",       required_argument,  NULL,  \[aq]a\[aq]},
+    {"recursive",       no_argument,        NULL,  \[aq]b\[aq]},
+    {"read\-only",       no_argument,        NULL,  \[aq]c\[aq]},
+    {"block\-setid",     no_argument,        NULL,  \[aq]d\[aq]},
+    {"block\-devices",   no_argument,        NULL,  \[aq]e\[aq]},
+    {"block\-exec",      no_argument,        NULL,  \[aq]f\[aq]},
+    {"no\-access\-time",  no_argument,        NULL,  \[aq]g\[aq]},
+    { NULL,             0,                  NULL,   0 },
+};
+\&
+int
+main(int argc, char *argv[])
+{
+    int                fd_userns = \-1;
+    int                fd_tree;
+    int                index = 0;
+    int                ret;
+    bool               recursive = false;
+    const char         *source;
+    const char         *target;
+    struct mount_attr  *attr = &(struct mount_attr){};
+\&
+    while ((ret = getopt_long_only(argc, argv, "",
+                                   longopts, &index)) != \-1) {
+        switch (ret) {
+        case \[aq]a\[aq]:
+            fd_userns = open(optarg, O_RDONLY | O_CLOEXEC);
+            if (fd_userns == \-1)
+                err(EXIT_FAILURE, "open(%s)", optarg);
+            break;
+        case \[aq]b\[aq]:
+            recursive = true;
+            break;
+        case \[aq]c\[aq]:
+            attr\->attr_set |= MOUNT_ATTR_RDONLY;
+            break;
+        case \[aq]d\[aq]:
+            attr\->attr_set |= MOUNT_ATTR_NOSUID;
+            break;
+        case \[aq]e\[aq]:
+            attr\->attr_set |= MOUNT_ATTR_NODEV;
+            break;
+        case \[aq]f\[aq]:
+            attr\->attr_set |= MOUNT_ATTR_NOEXEC;
+            break;
+        case \[aq]g\[aq]:
+            attr\->attr_set |= MOUNT_ATTR_NOATIME;
+            attr\->attr_clr |= MOUNT_ATTR__ATIME;
+            break;
+        default:
+            errx(EXIT_FAILURE, "Invalid argument specified");
+        }
+    }
+\&
+    if ((argc \- optind) < 2)
+        errx(EXIT_FAILURE, "Missing source or target mount point");
+\&
+    source = argv[optind];
+    target = argv[optind + 1];
+\&
+    /* In the following, \-1 as the \[aq]dirfd\[aq] argument ensures that
+       open_tree() fails if \[aq]source\[aq] is not an absolute pathname.  */
+.\" Christian Brauner
+.\"     When writing programs I like to never use relative paths with AT_FDCWD
+.\"     because.  Because making assumptions about the current working directory
+.\"     of the calling process is just too easy to get wrong; especially when
+.\"     pivot_root() or chroot() are in play.
+.\"     My absolut preference (joke intended) is to open a well-known starting
+.\"     point with an absolute path to get a dirfd and then scope all future
+.\"     operations beneath that dirfd.  This already works with old-style
+.\"     openat() and _very_ cautious programming but openat2() and its
+.\"     resolve-flag space have made this **chef's kiss**.
+.\"     If I can't operate based on a well-known dirfd I use absolute paths
+.\"     with a -EBADF dirfd passed to *at() functions.
+\&
+    fd_tree = open_tree(\-1, source,
+                        OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC |
+                        AT_EMPTY_PATH | (recursive ? AT_RECURSIVE : 0));
+    if (fd_tree == \-1)
+        err(EXIT_FAILURE, "open(%s)", source);
+\&
+    if (fd_userns >= 0) {
+        attr\->attr_set  |= MOUNT_ATTR_IDMAP;
+        attr\->userns_fd = fd_userns;
+    }
+\&
+    ret = mount_setattr(fd_tree, "",
+                        AT_EMPTY_PATH | (recursive ? AT_RECURSIVE : 0),
+                        attr, sizeof(struct mount_attr));
+    if (ret == \-1)
+        err(EXIT_FAILURE, "mount_setattr");
+\&
+    close(fd_userns);
+\&
+    /* In the following, \-1 as the \[aq]to_dirfd\[aq] argument ensures that
+       open_tree() fails if \[aq]target\[aq] is not an absolute pathname.  */
+\&
+    ret = move_mount(fd_tree, "", \-1, target,
+                     MOVE_MOUNT_F_EMPTY_PATH);
+    if (ret == \-1)
+        err(EXIT_FAILURE, "move_mount() to %s", target);
+\&
+    close(fd_tree);
+\&
+    exit(EXIT_SUCCESS);
+}
+.EE
+.\" SRC END
+.SH SEE ALSO
+.BR newgidmap (1),
+.BR newuidmap (1),
+.BR clone (2),
+.BR mount (2),
+.BR unshare (2),
+.BR proc (5),
+.BR capabilities (7),
+.BR mount_namespaces (7),
+.BR user_namespaces (7),
+.BR xattr (7)

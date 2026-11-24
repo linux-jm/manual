@@ -1,1 +1,249 @@
-.so man3/printf.3
+'\" t
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: GPL-2.0-or-later
+.\"
+.TH snprintf 3 2025-12-07 "Linux man-pages (unreleased)"
+.SH NAME
+snprintf,
+vsnprintf
+\-
+string print formatted
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
+.SH SYNOPSIS
+.nf
+.B #include <stdio.h>
+.P
+.BR "int snprintf(" "size_t size;"
+.BI "            char " str "[restrict " size "], size_t " size ,
+.BI "            const char *restrict " format ", ...);"
+.BR "int vsnprintf(" "size_t size;"
+.BI "            char " str "[restrict " size "], size_t " size ,
+.BI "            const char *restrict " format ", va_list " ap );
+.fi
+.P
+.RS -4
+Feature Test Macro Requirements for glibc (see
+.BR feature_test_macros (7)):
+.RE
+.P
+.BR snprintf (),
+.BR vsnprintf ():
+.nf
+    _XOPEN_SOURCE >= 500 || _ISOC99_SOURCE
+        || /* glibc <= 2.19: */ _BSD_SOURCE
+.fi
+.SH DESCRIPTION
+These functions are similar to
+.BR printf (3),
+except that they write to the character string
+.I str
+instead of a stream.
+.P
+The functions
+.BR snprintf ()
+and
+.BR vsnprintf ()
+write at most
+.I size
+bytes (including the terminating null byte (\[aq]\[rs]0\[aq])) to
+.IR str .
+.P
+.BR vsnprintf ()
+is equivalent to
+.BR snprintf (),
+except that it is called with a
+.I va_list
+instead of a variable number of arguments.
+This function does not call the
+.I va_end
+macro.
+Because it invokes the
+.I va_arg
+macro, the value of
+.I ap
+is undefined after the call.
+See
+.BR stdarg (3).
+.P
+C99 and POSIX.1-2001 specify that the results are undefined if a call to
+.BR snprintf ()
+or
+.BR vsnprintf ()
+would cause copying to take place between objects that overlap
+(e.g., if the target string array and one of the supplied input arguments
+refer to the same buffer).
+See CAVEATS.
+.SS Format of the format string
+See
+.BR printf (3).
+.SH RETURN VALUE
+Upon successful return, these functions return the number of bytes
+printed (excluding the null byte used to end output to strings).
+.P
+The functions
+.BR snprintf ()
+and
+.BR vsnprintf ()
+do not write more than
+.I size
+bytes (including the terminating null byte (\[aq]\[rs]0\[aq])).
+If the output was truncated due to this limit, then the return value
+is the number of characters (excluding the terminating null byte)
+which would have been written to the final string if enough space
+had been available.
+Thus, a return value of
+.I size
+or more means that the output was truncated.
+(See also below under CAVEATS.)
+.P
+On error,
+a negative value is returned,
+and
+.I errno
+is set to indicate the error.
+.SH ERRORS
+See
+.BR printf (3).
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbx lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.na
+.nh
+.BR snprintf (),
+.BR vsnprintf ()
+T}	Thread safety	MT-Safe locale
+.TE
+.SH STANDARDS
+C11, POSIX.1-2008.
+.SH HISTORY
+SUSv2, C99, POSIX.1-2001.
+.IP
+Concerning the return value,
+SUSv2 and C99 contradict each other: when
+.BR snprintf ()
+is called with
+.IR size =0
+then SUSv2 stipulates an unspecified return value less than 1,
+while C99 allows
+.I str
+to be NULL in this case, and gives the return value (as always)
+as the number of characters that would have been written in case
+the output string has been large enough.
+POSIX.1-2001 and later align their specification of
+.BR snprintf ()
+with C99.
+.SH CAVEATS
+Some programs imprudently rely on code such as the following
+.P
+.in +4n
+.EX
+snprintf(buf, countof(buf), "%s some further text", buf);
+.EE
+.in
+.P
+to append text to
+.IR buf .
+However, the standards explicitly note that the results are undefined
+if source and destination buffers overlap when calling
+.BR snprintf ()
+and
+.BR vsnprintf ().
+.\" http://sourceware.org/bugzilla/show_bug.cgi?id=7075
+Depending on the version of
+.BR gcc (1)
+used, and the compiler options employed, calls such as the above will
+.B not
+produce the expected results.
+.P
+The glibc implementation of the functions
+.BR snprintf ()
+and
+.BR vsnprintf ()
+conforms to the C99 standard, that is, behaves as described above,
+since glibc 2.1.
+Until glibc 2.0.6, they would return \-1
+when the output was truncated.
+.\" .SH HISTORY
+.\" UNIX V7 defines the three routines
+.\" .BR sprintf ().
+.\" 2.11BSD has
+.\" .BR vsprintf ().
+.\" 4.4BSD introduces the functions
+.\" .BR snprintf ()
+.\" and
+.\" .BR vsnprintf ().
+.\" FreeBSD also has functions
+.\" .BR asprintf ()
+.\" and
+.\" .BR vasprintf (),
+.\" that allocate a buffer large enough for
+.\" .BR sprintf ().
+.SH BUGS
+See
+.BR printf (3).
+.SH EXAMPLES
+To allocate a sufficiently large string and print into it
+(code correct for both glibc 2.0 and glibc 2.1):
+.P
+.EX
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+\&
+char *
+make_message(const char *fmt, ...)
+{
+    int n = 0;
+    size_t size = 0;
+    char *p = NULL;
+    va_list ap;
+\&
+    /* Determine required size.  */
+\&
+    va_start(ap, fmt);
+    n = vsnprintf(p, size, fmt, ap);
+    va_end(ap);
+\&
+    if (n < 0)
+        return NULL;
+\&
+    size = (size_t) n + 1;      /* One extra byte for \[aq]\[rs]0\[aq] */
+    p = malloc(size);
+    if (p == NULL)
+        return NULL;
+\&
+    va_start(ap, fmt);
+    n = vsnprintf(p, size, fmt, ap);
+    va_end(ap);
+\&
+    if (n < 0) {
+        free(p);
+        return NULL;
+    }
+\&
+    return p;
+}
+.EE
+.P
+If truncation occurs in glibc versions prior to glibc 2.0.6,
+this is treated as an error instead of being handled gracefully.
+.SH SEE ALSO
+.BR printf (1),
+.BR asprintf (3),
+.BR printf (3),
+.BR puts (3),
+.BR scanf (3),
+.BR setlocale (3),
+.BR strfromd (3),
+.BR wcrtomb (3),
+.BR wprintf (3),
+.BR locale (5)

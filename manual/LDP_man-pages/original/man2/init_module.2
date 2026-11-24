@@ -1,47 +1,33 @@
-.\" Copyright (C) 2012 Michael Kerrisk <mtk.manpages@gmail.com>
-.\" A few fragments remain from a version
-.\" Copyright (C) 1996 Free Software Foundation, Inc.
+.\" Copyright 1996, Free Software Foundation, Inc.
+.\" Copyright 2012, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH INIT_MODULE 2 2017-09-15 "Linux" "Linux Programmer's Manual"
+.TH init_module 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 init_module, finit_module \- load a kernel module
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
-.BI "int init_module(void *" module_image ", unsigned long " len ,
-.BI "                const char *" param_values );
-.PP
-.BI "int finit_module(int " fd ", const char *" param_values ,
-.BI "                 int " flags );
+.BR "#include <linux/module.h>" "    /* Definition of " MODULE_* " constants */"
+.BR "#include <sys/syscall.h>" "     /* Definition of " SYS_* " constants */"
+.B #include <unistd.h>
+.P
+.BR "int syscall(" "unsigned long size;"
+.B  "            SYS_init_module,"
+.BI "            void " module_image [ size "], unsigned long " size ,
+.BI "            const char *" param_values );
+.BI "int syscall(SYS_finit_module, int " fd ,
+.BI "            const char *" param_values ", int " flags );
 .fi
-.PP
+.P
 .IR Note :
-glibc provides no header file declaration of
-.BR init_module ()
-and no wrapper function for
-.BR finit_module ();
-see NOTES.
+glibc provides no wrappers for these system calls,
+necessitating the use of
+.BR syscall (2).
 .SH DESCRIPTION
 .BR init_module ()
 loads an ELF image into kernel space,
@@ -51,15 +37,15 @@ and then runs the module's
 .I init
 function.
 This system call requires privilege.
-.PP
+.P
 The
 .I module_image
 argument points to a buffer containing the binary image
 to be loaded;
-.I len
+.I size
 specifies the size of that buffer.
 The module image should be a valid ELF image, built for the running kernel.
-.PP
+.P
 The
 .I param_values
 argument is a string containing space-delimited specifications of the
@@ -70,12 +56,12 @@ and
 The kernel parses this string and initializes the specified
 parameters.
 Each of the parameter specifications has the form:
-.PP
+.P
 .RI "        " name [\c
 .BI = value\c
 .RB [ ,\c
 .IR value ...]]
-.PP
+.P
 The parameter
 .I name
 is one of those defined within the module using
@@ -108,7 +94,7 @@ The
 .I param_values
 argument is as for
 .BR init_module ().
-.PP
+.P
 The
 .I flags
 argument modifies the operation of
@@ -122,7 +108,11 @@ Ignore symbol version hashes.
 .TP
 .B MODULE_INIT_IGNORE_VERMAGIC
 Ignore kernel version magic.
-.PP
+.TP
+.BR MODULE_INIT_COMPRESSED_FILE " (since Linux 5.17)"
+.\" commit b1ae6dc41eaaa98bb75671e0f3665bfda248c3e7
+Use in-kernel module decompression.
+.P
 There are some safety checks built into a module to ensure that
 it matches the kernel against which it is loaded.
 .\" http://www.tldp.org/HOWTO/Module-HOWTO/basekerncompat.html
@@ -140,7 +130,7 @@ for the function named by the symbol.
 In this case, the kernel version number within the
 "vermagic" string is ignored,
 as the symbol version hashes are assumed to be sufficiently reliable.
-.PP
+.P
 Using the
 .B MODULE_INIT_IGNORE_VERMAGIC
 flag indicates that the "vermagic" string is to be ignored, and the
@@ -151,11 +141,45 @@ If the kernel is built to permit forced loading (i.e., configured with
 then loading continues, otherwise it fails with the error
 .B ENOEXEC
 as expected for malformed modules.
+.P
+If the kernel was build with
+.BR CONFIG_MODULE_DECOMPRESS ,
+the in-kernel decompression feature can be used.
+User-space code can check if the kernel supports decompression
+by reading the
+.I /sys/module/compression
+attribute.
+If the kernel supports decompression,
+the compressed file can directly be passed to
+.BR finit_module ()
+using the
+.B MODULE_INIT_COMPRESSED_FILE
+flag.
+The in-kernel module decompressor supports the following compression algorithms:
+.P
+.RS 4
+.PD 0
+.IP \[bu] 3
+.I gzip
+(since Linux 5.17)
+.IP \[bu]
+.I xz
+(since Linux 5.17)
+.IP \[bu]
+.I zstd
+.\" commit 169a58ad824d896b9e291a27193342616e651b82
+(since Linux 6.2)
+.PD
+.RE
+.P
+The kernel only implements a single decompression method.
+This is selected during module generation accordingly to the compression method
+chosen in the kernel configuration.
 .SH RETURN VALUE
 On success, these system calls return 0.
 On error, \-1 is returned and
 .I errno
-is set appropriately.
+is set to indicate the error.
 .SH ERRORS
 .TP
 .BR EBADMSG " (since Linux 3.7)"
@@ -189,10 +213,10 @@ The caller was not privileged
 capability),
 or module loading is disabled
 (see
-.IR /proc/sys/kernel/modules_disabled
+.I /proc/sys/kernel/modules_disabled
 in
 .BR proc (5)).
-.PP
+.P
 The following errors may additionally occur for
 .BR init_module ():
 .TP
@@ -202,7 +226,7 @@ A module with this name is already loaded.
 .B EINVAL
 .I param_values
 is invalid, or some part of the ELF image in
-.IR module_image
+.I module_image
 contains inconsistencies.
 .\" .TP
 .\" .BR EINVAL " (Linux 2.4 and earlier)"
@@ -220,7 +244,7 @@ The binary image supplied in
 .I module_image
 is not an ELF image,
 or is an ELF image that is invalid or for a different architecture.
-.PP
+.P
 The following errors may additionally occur for
 .BR finit_module ():
 .TP
@@ -238,10 +262,29 @@ is too large.
 .I flags
 is invalid.
 .TP
+.B EINVAL
+The decompressor sanity checks failed,
+while loading a compressed module with flag
+.B MODULE_INIT_COMPRESSED_FILE
+set.
+.TP
 .B ENOEXEC
 .I fd
 does not refer to an open file.
-.PP
+.TP
+.BR EOPNOTSUPP " (since Linux 5.17)"
+The flag
+.B MODULE_INIT_COMPRESSED_FILE
+is set to load a compressed module,
+and the kernel was built without
+.BR CONFIG_MODULE_DECOMPRESS .
+.TP
+.BR ETXTBSY " (since Linux 4.7)"
+.\" commit 39d637af5aa7577f655c58b9e55587566c63a0af
+The file referred to by
+.I fd
+is opened for read-write.
+.P
 In addition to the above errors, if the module's
 .I init
 function is executed and returns an error, then
@@ -253,56 +296,40 @@ fails and
 is set to the value returned by the
 .I init
 function.
-.SH VERSIONS
+.SH STANDARDS
+Linux.
+.SH HISTORY
+.TP
 .BR finit_module ()
-is available since Linux 3.8.
-.SH CONFORMING TO
-.BR init_module ()
-and
-.BR finit_module ()
-are Linux-specific.
-.SH NOTES
+Linux 3.8.
+.P
 The
 .BR init_module ()
 system call is not supported by glibc.
 No declaration is provided in glibc headers, but, through a quirk of history,
-glibc versions before 2.23 did export an ABI for this system call.
+glibc versions before glibc 2.23 did export an ABI for this system call.
 Therefore, in order to employ this system call,
 it is (before glibc 2.23) sufficient to
 manually declare the interface in your code;
 alternatively, you can invoke the system call using
 .BR syscall (2).
-.PP
-Glibc does not provide a wrapper for
-.BR finit_module ();
-call it using
-.BR syscall (2).
-.PP
-Information about currently loaded modules can be found in
-.IR /proc/modules
-and in the file trees under the per-module subdirectories under
-.IR /sys/module .
-.PP
-See the Linux kernel source file
-.I include/linux/module.h
-for some useful background information.
 .SS Linux 2.4 and earlier
 In Linux 2.4 and earlier, the
 .BR init_module ()
 system call was rather different:
-.PP
+.P
 .B "    #include <linux/module.h>"
-.PP
+.P
 .BI "    int init_module(const char *" name ", struct module *" image );
-.PP
+.P
 (User-space applications can detect which version of
 .BR init_module ()
 is available by calling
 .BR query_module ();
 the latter call fails with the error
-.BR ENOSYS
+.B ENOSYS
 on Linux 2.6 and later.)
-.PP
+.P
 The older version of the system call
 loads the relocated module image pointed to by
 .I image
@@ -313,11 +340,11 @@ The caller is responsible for providing the relocated image (since
 Linux 2.6, the
 .BR init_module ()
 system call does the relocation).
-.PP
+.P
 The module image begins with a module structure and is followed by
 code and data as appropriate.
 Since Linux 2.2, the module structure is defined as follows:
-.PP
+.P
 .in +4n
 .EX
 struct module {
@@ -332,8 +359,8 @@ struct module {
     struct module_symbol *syms;
     struct module_ref    *deps;
     struct module_ref    *refs;
-    int                 (*init)(void);
-    void                (*cleanup)(void);
+    typeof(int (void))   *init;
+    typeof(void (void))  *cleanup;
     const struct exception_table_entry *ex_table_start;
     const struct exception_table_entry *ex_table_end;
 #ifdef __alpha__
@@ -342,7 +369,7 @@ struct module {
 };
 .EE
 .in
-.PP
+.P
 All of the pointer fields, with the exception of
 .I next
 and
@@ -350,18 +377,18 @@ and
 are expected to point within the module body and be
 initialized as appropriate for kernel space, that is, relocated with
 the rest of the module.
+.SH NOTES
+Information about currently loaded modules can be found in
+.I /proc/modules
+and in the file trees under the per-module subdirectories under
+.IR /sys/module .
+.P
+See the Linux kernel source file
+.I include/linux/module.h
+for some useful background information.
 .SH SEE ALSO
 .BR create_module (2),
 .BR delete_module (2),
 .BR query_module (2),
 .BR lsmod (8),
 .BR modprobe (8)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

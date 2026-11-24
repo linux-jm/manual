@@ -1,61 +1,34 @@
-.\" Copyright (C) 2001 David Gómez <davidge@jazzfree.com>
+.\" Copyright 2001, David Gómez <davidge@jazzfree.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.\" Based on comments from mm/filemap.c. Last modified on 10-06-2001
-.\" Modified, 25 Feb 2002, Michael Kerrisk, <mtk.manpages@gmail.com>
-.\"	Added notes on MADV_DONTNEED
-.\" 2010-06-19, mtk, Added documentation of MADV_MERGEABLE and
-.\"     MADV_UNMERGEABLE
-.\" 2010-06-15, Andi Kleen, Add documentation of MADV_HWPOISON.
-.\" 2010-06-19, Andi Kleen, Add documentation of MADV_SOFT_OFFLINE.
-.\" 2011-09-18, Doug Goldstein <cardoe@cardoe.com>
-.\"     Document MADV_HUGEPAGE and MADV_NOHUGEPAGE
-.\"
-.TH MADVISE 2 2020-04-11 "Linux" "Linux Programmer's Manual"
+.TH madvise 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 madvise \- give advice about use of memory
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
+.nf
 .B #include <sys/mman.h>
-.PP
-.BI "int madvise(void *" addr ", size_t " length ", int " advice );
-.PP
+.P
+.BR "int madvise(" "size_t size;"
+.BI "            void " addr [ size "], size_t " size ", int " advice );
+.fi
+.P
 .RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
 .RE
-.PP
+.P
 .BR madvise ():
-.PD 0
-.RS 4
-.TP 4
-Since glibc 2.19:
-_DEFAULT_SOURCE
-.TP
-Up to and including glibc 2.19:
-_BSD_SOURCE
-.RE
-.PD
+.nf
+    Since glibc 2.19:
+        _DEFAULT_SOURCE
+    Up to and including glibc 2.19:
+        _BSD_SOURCE
+.fi
 .SH DESCRIPTION
 The
 .BR madvise ()
@@ -63,11 +36,17 @@ system call is used to give advice or directions to the kernel
 about the address range beginning at address
 .I addr
 and with size
-.I length
-bytes
+.IR size .
+.BR madvise ()
+only operates on whole pages, therefore
+.I addr
+must be page-aligned.
+The value of
+.I size
+is rounded up to a multiple of page size.
 In most cases,
 the goal of such advice is to improve system or application performance.
-.PP
+.P
 Initially, the system call supported a set of "conventional"
 .I advice
 values, which are also available on several other implementations.
@@ -75,7 +54,7 @@ values, which are also available on several other implementations.
 .BR madvise ()
 is not specified in POSIX.)
 Subsequently, a number of Linux-specific
-.IR advice
+.I advice
 values have been added.
 .\"
 .\" ======================================================================
@@ -99,7 +78,7 @@ values listed here have analogs in the POSIX-specified
 .BR posix_madvise (3)
 function, and the values have the same meanings, with the exception of
 .BR MADV_DONTNEED .
-.PP
+.P
 The advice is indicated in the
 .I advice
 argument, which is one of the following:
@@ -138,15 +117,15 @@ and shmem-based techniques such as System V shared memory segments)
 or zero-fill-on-demand pages for anonymous private mappings.
 .IP
 Note that, when applied to shared mappings,
-.BR MADV_DONTNEED
+.B MADV_DONTNEED
 might not lead to immediate freeing of the pages in the range.
 The kernel is free to delay freeing the pages until an appropriate moment.
 The resident set size (RSS) of the calling process will be immediately
 reduced however.
 .IP
 .B MADV_DONTNEED
-cannot be applied to locked pages, Huge TLB pages, or
-.BR VM_PFNMAP
+cannot be applied to locked pages, or
+.B VM_PFNMAP
 pages.
 (Pages marked with the kernel-internal
 .B VM_PFNMAP
@@ -155,6 +134,12 @@ flag are special memory areas that are not managed
 by the virtual memory subsystem.
 Such pages are typically created by device drivers that
 map the pages into user space.)
+.IP
+Support for Huge TLB pages was added in Linux 5.18.
+Addresses within a mapping backed by Huge TLB pages must be aligned
+to the underlying Huge TLB page size,
+and the range size is rounded up
+to a multiple of the underlying Huge TLB page size.
 .\"
 .\" ======================================================================
 .\"
@@ -172,36 +157,38 @@ Note that some of these operations change the semantics of memory accesses.
 .\" commit f6b3ec238d12c8cc6cc71490c6e3127988460349
 Free up a given range of pages
 and its associated backing store.
-This is equivalent to punching a hole in the corresponding byte
+This is equivalent to punching a hole in the corresponding
 range of the backing store (see
 .BR fallocate (2)).
 Subsequent accesses in the specified address range will see
-bytes containing zero.
+data with a value of zero.
 .\" Databases want to use this feature to drop a section of their
 .\" bufferpool (shared memory segments) - without writing back to
 .\" disk/swap space.  This feature is also useful for supporting
 .\" hot-plug memory on UML.
 .IP
 The specified address range must be mapped shared and writable.
-This flag cannot be applied to locked pages, Huge TLB pages, or
-.BR VM_PFNMAP
+This flag cannot be applied to locked pages, or
+.B VM_PFNMAP
 pages.
 .IP
 In the initial implementation, only
 .BR tmpfs (5)
-was supported
+supported
 .BR MADV_REMOVE ;
 but since Linux 3.5,
 .\" commit 3f31d07571eeea18a7d34db9af21d2285b807a17
 any filesystem which supports the
 .BR fallocate (2)
-.BR FALLOC_FL_PUNCH_HOLE
+.B FALLOC_FL_PUNCH_HOLE
 mode also supports
 .BR MADV_REMOVE .
-Hugetlbfs fails with the error
-.BR EINVAL
-and other filesystems fail with the error
+Filesystems which do not support
+.B MADV_REMOVE
+fail with the error
 .BR EOPNOTSUPP .
+.IP
+Support for the Huge TLB filesystem was added in Linux 4.3.
 .TP
 .BR MADV_DONTFORK " (since Linux 2.6.16)"
 .\" commit f822566165dd46ff5de9bf895cfa6c51f53bb0c4
@@ -227,7 +214,7 @@ DMAs into the page.)
 .\" and into user pages all the time.
 .\"
 .\" This patch adds madvise options to control whether memory range is
-.\" inherited across fork. Useful e.g. for when hardware is doing DMA
+.\" inherited across fork.  Useful, e.g., for when hardware is doing DMA
 .\" from/into these pages.  Could also be useful to an application
 .\" wanting to speed up its forks by cutting large areas out of
 .\" consideration.
@@ -246,7 +233,7 @@ restoring the default behavior, whereby a mapping is inherited across
 Poison the pages in the range specified by
 .I addr
 and
-.IR length
+.I size
 and handle subsequent references to those pages
 like a hardware memory corruption.
 This operation is available only for privileged
@@ -265,7 +252,7 @@ it is available only if the kernel was configured with
 Enable Kernel Samepage Merging (KSM) for the pages in the range specified by
 .I addr
 and
-.IR length .
+.IR size .
 The kernel regularly scans those areas of user memory that have
 been marked as mergeable,
 looking for pages with identical content.
@@ -276,33 +263,34 @@ KSM merges only private anonymous pages (see
 .IP
 The KSM feature is intended for applications that generate many
 instances of the same data (e.g., virtualization systems such as KVM).
-It can consume a lot of processing power; use with care.
+It can consume a lot of processing power;
+use with care.
 See the Linux kernel source file
-.I Documentation/admin-guide/mm/ksm.rst
+.I Documentation/admin\-guide/mm/ksm.rst
 for more details.
 .IP
 The
-.BR MADV_MERGEABLE
+.B MADV_MERGEABLE
 and
-.BR MADV_UNMERGEABLE
+.B MADV_UNMERGEABLE
 operations are available only if the kernel was configured with
 .BR CONFIG_KSM .
 .TP
 .BR MADV_UNMERGEABLE " (since Linux 2.6.32)"
 Undo the effect of an earlier
-.BR MADV_MERGEABLE
+.B MADV_MERGEABLE
 operation on the specified address range;
 KSM unmerges whatever pages it had merged in the address range specified by
-.IR addr
+.I addr
 and
-.IR length .
+.IR size .
 .TP
 .BR MADV_SOFT_OFFLINE " (since Linux 2.6.33)"
 .\" commit afcf938ee0aac4ef95b1a23bac704c6fbeb26de6
 Soft offline the pages in the range specified by
 .I addr
 and
-.IR length .
+.IR size .
 The memory of each page in the specified range is preserved
 (i.e., when next accessed, the same content will be visible,
 but in a new physical page frame),
@@ -324,9 +312,7 @@ it is available only if the kernel was configured with
 Enable Transparent Huge Pages (THP) for pages in the range specified by
 .I addr
 and
-.IR length .
-Currently, Transparent Huge Pages work only with private anonymous pages (see
-.BR mmap (2)).
+.IR size .
 The kernel will regularly scan the areas marked as huge page candidates
 to replace them with huge pages.
 The kernel will also allocate huge pages directly when the region is
@@ -339,13 +325,13 @@ systems such as QEMU).
 It can very easily waste memory (e.g., a 2\ MB mapping that only ever accesses
 1 byte will result in 2\ MB of wired memory instead of one 4\ KB page).
 See the Linux kernel source file
-.I Documentation/admin-guide/mm/transhuge.rst
+.I Documentation/admin\-guide/mm/transhuge.rst
 for more details.
 .IP
 Most common kernels configurations provide
 .BR MADV_HUGEPAGE -style
 behavior by default, and thus
-.BR MADV_HUGEPAGE
+.B MADV_HUGEPAGE
 is normally not necessary.
 It is mostly intended for embedded systems, where
 .BR MADV_HUGEPAGE -style
@@ -353,25 +339,139 @@ behavior may not be enabled by default in the kernel.
 On such systems,
 this flag can be used in order to selectively enable THP.
 Whenever
-.BR MADV_HUGEPAGE
+.B MADV_HUGEPAGE
 is used, it should always be in regions of memory with
 an access pattern that the developer knows in advance won't risk
 to increase the memory footprint of the application when transparent
 hugepages are enabled.
 .IP
+.\" commit 99cb0dbd47a15d395bf3faa78dc122bc5efe3fc0
+Since Linux 5.4,
+automatic scan of eligible areas and replacement by huge pages works with
+private anonymous pages (see
+.BR mmap (2)),
+shmem pages,
+and file-backed pages.
+For all memory types,
+memory may only be replaced by huge pages on hugepage-aligned boundaries.
+For file-mapped memory
+\[em]including tmpfs (see
+.BR tmpfs (2))\[em]
+the mapping must also be naturally hugepage-aligned within the file.
+Additionally,
+for file-backed,
+non-tmpfs memory,
+the file must not be open for write and the mapping must be executable.
+.IP
+The VMA must not be marked
+.BR VM_NOHUGEPAGE ,
+.BR VM_HUGETLB ,
+.BR VM_IO ,
+.BR VM_DONTEXPAND ,
+.BR VM_MIXEDMAP ,
+or
+.BR VM_PFNMAP ,
+nor can it be stack memory or backed by a DAX-enabled device
+(unless the DAX device is hot-plugged as System RAM).
+The process can have
+.B PR_SET_THP_DISABLE
+set only if
+.B PR_THP_DISABLE_EXCEPT_ADVISED
+is set (see
+.BR prctl (2)).
+.IP
 The
-.BR MADV_HUGEPAGE
+.BR MADV_HUGEPAGE ,
+.BR MADV_NOHUGEPAGE ,
 and
-.BR MADV_NOHUGEPAGE
+.B MADV_COLLAPSE
 operations are available only if the kernel was configured with
-.BR CONFIG_TRANSPARENT_HUGEPAGE .
+.B CONFIG_TRANSPARENT_HUGEPAGE
+and file/shmem memory is only supported if the kernel was configured with
+.BR CONFIG_READ_ONLY_THP_FOR_FS .
 .TP
 .BR MADV_NOHUGEPAGE " (since Linux 2.6.38)"
 Ensures that memory in the address range specified by
-.IR addr
+.I addr
 and
-.IR length
+.I size
 will not be backed by transparent hugepages.
+.TP
+.BR MADV_COLLAPSE " (since Linux 6.1)"
+.\" commit 7d8faaf155454f8798ec56404faca29a82689c77
+.\" commit 34488399fa08faaf664743fa54b271eb6f9e1321
+Perform a best-effort synchronous collapse of
+the native pages mapped by the memory range
+into Transparent Huge Pages (THPs).
+.B MADV_COLLAPSE
+operates on the current state of memory of the calling process and
+makes no persistent changes or guarantees on how pages will be mapped,
+constructed,
+or faulted in the future.
+.IP
+.B MADV_COLLAPSE
+supports private anonymous pages (see
+.BR mmap (2)),
+shmem pages,
+and file-backed pages.
+See
+.B MADV_HUGEPAGE
+for general information on memory requirements for THP.
+If the range provided spans multiple VMAs,
+the semantics of the collapse over each VMA is independent from the others.
+If collapse of a given huge page-aligned/sized region fails,
+the operation may continue to attempt collapsing
+the remainder of the specified memory.
+.B MADV_COLLAPSE
+will automatically clamp the provided range to be hugepage-aligned.
+.IP
+All non-resident pages covered by the range
+will first be swapped/faulted-in,
+before being copied onto a freshly allocated hugepage.
+If the native pages compose the same PTE-mapped hugepage,
+and are suitably aligned,
+allocation of a new hugepage may be elided and
+collapse may happen in-place.
+Unmapped pages will have their data directly initialized to 0
+in the new hugepage.
+However,
+for every eligible hugepage-aligned/sized region to be collapsed,
+at least one page must currently be backed by physical memory.
+.IP
+.B MADV_COLLAPSE
+is independent of any sysfs
+(see
+.BR sysfs (5))
+setting under
+.IR /sys/kernel/mm/transparent_hugepage ,
+both in terms of determining THP eligibility,
+and allocation semantics.
+See Linux kernel source file
+.I Documentation/admin\-guide/mm/transhuge.rst
+for more information.
+.B MADV_COLLAPSE
+also ignores
+.B huge=
+tmpfs mount when operating on tmpfs files.
+Allocation for the new hugepage may enter direct reclaim and/or compaction,
+regardless of VMA flags
+(though
+.B VM_NOHUGEPAGE
+is still respected).
+.IP
+When the system has multiple NUMA nodes,
+the hugepage will be allocated from
+the node providing the most native pages.
+.IP
+If all hugepage-sized/aligned regions covered by the provided range were
+either successfully collapsed,
+or were already PMD-mapped THPs,
+this operation will be deemed successful.
+Note that this doesn't guarantee anything about
+other possible mappings of the memory.
+In the event multiple hugepage-aligned/sized areas fail to collapse,
+only the most-recently\[en]failed code will be set in
+.IR errno .
 .TP
 .BR MADV_DONTDUMP " (since Linux 3.4)"
 .\" commit 909af768e88867016f427264ae39d27a57b6a8ed
@@ -379,13 +479,13 @@ will not be backed by transparent hugepages.
 Exclude from a core dump those pages in the range specified by
 .I addr
 and
-.IR length .
+.IR size .
 This is useful in applications that have large areas of memory
 that are known not to be useful in a core dump.
 The effect of
-.BR MADV_DONTDUMP
+.B MADV_DONTDUMP
 takes precedence over the bit mask that is set via the
-.I /proc/[pid]/coredump_filter
+.IR /proc/ pid /coredump_filter
 file (see
 .BR core (5)).
 .TP
@@ -395,9 +495,9 @@ Undo the effect of an earlier
 .TP
 .BR MADV_FREE " (since Linux 4.5)"
 The application no longer requires the pages in the range specified by
-.IR addr
+.I addr
 and
-.IR len .
+.IR size .
 The kernel can thus free these pages,
 but the freeing could be delayed until memory pressure occurs.
 For each of the pages that has been marked to be freed
@@ -420,7 +520,7 @@ The
 operation
 can be applied only to private anonymous pages (see
 .BR mmap (2)).
-In Linux before version 4.12,
+Before Linux 4.12,
 .\" commit 93e06c7a645343d222c9a838834a51042eebbbf7
 when freeing pages on a swapless system,
 the pages in the given range are freed instantly,
@@ -452,13 +552,248 @@ This setting is cleared during
 .\" commit d2cd9ede6e193dd7d88b6d27399e96229a551b19
 Undo the effect of an earlier
 .BR MADV_WIPEONFORK .
+.TP
+.BR MADV_COLD " (since Linux 5.4)"
+.\" commit 9c276cc65a58faf98be8e56962745ec99ab87636
+Deactivate a given range of pages.
+This will make the pages a more probable
+reclaim target should there be a memory pressure.
+This is a nondestructive operation.
+The advice might be ignored for some pages in the range when it is not
+applicable.
+.TP
+.BR MADV_PAGEOUT " (since Linux 5.4)"
+.\" commit 1a4e58cce84ee88129d5d49c064bd2852b481357
+Reclaim a given range of pages.
+This is done to free up memory occupied by these pages.
+If a page is anonymous, it will be swapped out.
+If a page is file-backed and dirty, it will be written back to the backing
+storage.
+The advice might be ignored for some pages in the range when it is not
+applicable.
+.TP
+.BR MADV_POPULATE_READ " (since Linux 5.14)"
+"Populate (prefault) page tables readable,
+faulting in all pages in the range just as if manually reading from each page;
+however,
+avoid the actual memory access that would have been performed after handling
+the fault.
+.IP
+In contrast to
+.BR MAP_POPULATE ,
+.B MADV_POPULATE_READ
+does not hide errors,
+can be applied to (parts of) existing mappings and will always populate
+(prefault) page tables readable.
+One example use case is prefaulting a file mapping,
+reading all file content from disk;
+however,
+pages won't be dirtied and consequently won't have to be written back to disk
+when evicting the pages from memory.
+.IP
+Depending on the underlying mapping,
+map the shared zeropage,
+preallocate memory or read the underlying file;
+files with holes might or might not preallocate blocks.
+If populating fails,
+a
+.B SIGBUS
+signal is not generated;
+instead, an error is returned.
+.IP
+If
+.B MADV_POPULATE_READ
+succeeds,
+all page tables have been populated (prefaulted) readable once.
+If
+.B MADV_POPULATE_READ
+fails,
+some page tables might have been populated.
+.IP
+.B MADV_POPULATE_READ
+cannot be applied to mappings without read permissions
+and special mappings,
+for example,
+mappings marked with kernel-internal flags such as
+.B VM_PFNMAP
+or
+.BR VM_IO ,
+or secret memory regions created using
+.BR memfd_secret(2) .
+.IP
+Note that with
+.BR MADV_POPULATE_READ ,
+the process can be killed at any moment when the system runs out of memory.
+.TP
+.BR MADV_POPULATE_WRITE " (since Linux 5.14)"
+Populate (prefault) page tables writable,
+faulting in all pages in the range just as if manually writing to each
+each page;
+however,
+avoid the actual memory access that would have been performed after handling
+the fault.
+.IP
+In contrast to
+.BR MAP_POPULATE ,
+MADV_POPULATE_WRITE does not hide errors,
+can be applied to (parts of) existing mappings and will always populate
+(prefault) page tables writable.
+One example use case is preallocating memory,
+breaking any CoW (Copy on Write).
+.IP
+Depending on the underlying mapping,
+preallocate memory or read the underlying file;
+files with holes will preallocate blocks.
+If populating fails,
+a
+.B SIGBUS
+signal is not generated;
+instead, an error is returned.
+.IP
+If
+.B MADV_POPULATE_WRITE
+succeeds,
+all page tables have been populated (prefaulted) writable once.
+If
+.B MADV_POPULATE_WRITE
+fails,
+some page tables might have been populated.
+.IP
+.B MADV_POPULATE_WRITE
+cannot be applied to mappings without write permissions
+and special mappings,
+for example,
+mappings marked with kernel-internal flags such as
+.B VM_PFNMAP
+or
+.BR VM_IO ,
+or secret memory regions created using
+.BR memfd_secret(2) .
+.IP
+Note that with
+.BR MADV_POPULATE_WRITE ,
+the process can be killed at any moment when the system runs out of memory.
+.TP
+.BR MADV_GUARD_INSTALL " (since Linux 6.13)"
+Install a lightweight guard region
+into the range specified by
+.I addr
+and
+.IR size ,
+causing any read or write in the range to result in a
+.B SIGSEGV
+signal being raised.
+.IP
+If the region maps memory pages
+those mappings will be replaced
+as part of the operation,
+though if
+.B MADV_GUARD_INSTALL
+is applied to regions
+containing pre-existing lightweight guard regions,
+they are left in place.
+.IP
+Prior to Linux 6.15,
+this operation was supported
+only for writable anonymous private mappings.
+Since Linux 6.15,
+both anonymous and file-backed mappings are supported,
+including read-only mappings.
+.IP
+The mapping must not be mlock'd,
+map hugetlb ranges,
+nor contain special mappings.
+For example,
+mappings marked with kernel-internal flags such as
+.B VM_PFNMAP
+or
+.BR VM_IO ,
+or secret memory regions created using
+.BR memfd_secret (2).
+.IP
+An
+.B EINVAL
+error is returned if it is attempted on any other kind of mapping.
+.IP
+This operation is more efficient than mapping a new region of memory
+.BR PROT_NONE ,
+as it does not require the establishment of new mappings.
+Instead,
+regions of an existing mapping
+simply have their page tables
+manipulated to establish the desired behavior.
+No additional memory is used.
+.IP
+Lightweight guard regions remain on fork
+(except for any parts which have had
+.B MADV_WIPEONFORK
+applied to them),
+and are not removed by
+.BR MADV_DONTNEED ,
+.BR MADV_FREE ,
+.BR MADV_PAGEOUT ,
+or
+.BR MADV_COLD .
+.IP
+Attempting to
+.BR mlock (2)
+lightweight guard regions will fail,
+as will
+.B MADV_POPULATE_READ
+or
+.BR MADV_POPULATE_WRITE .
+.IP
+If the mapping has its attributes changed,
+or is split or partially unmapped,
+any existing guard regions remain in place
+(except if they are unmapped).
+.IP
+If a mapping is moved using
+.BR mremap (2),
+lightweight guard regions are moved with it.
+.IP
+Lightweight guard regions are removed when unmapped,
+on process teardown,
+or when the
+.B MADV_GUARD_REMOVE
+operation is applied to them.
+.TP
+.BR MADV_GUARD_REMOVE " (since Linux 6.13)"
+Remove any lightweight guard regions
+which exist in the range specified by
+.I addr
+and
+.IR size .
+.IP
+All mappings in the range
+other than lightweight guard regions
+are left in place.
+The operation is supported on those mappings
+permitted by
+.B MADV_GUARD_INSTALL
+in addition to mlock()'d mappings,
+returning an
+.B EINVAL
+error otherwise.
+.IP
+When lightweight guard regions are removed,
+they act as empty regions of the containing mapping.
+Therefore,
+anonymous private mappings become
+zero-fill-on-demand pages,
+and file-backed mappings are repopulated with the
+memory contents from the up-to-date contents of the
+underlying mapped file.
+.IP
+If any transparent huge pages are encountered in the operation,
+they are left in place.
 .SH RETURN VALUE
 On success,
 .BR madvise ()
 returns zero.
 On error, it returns \-1 and
 .I errno
-is set appropriately.
+is set to indicate the error.
 .SH ERRORS
 .TP
 .B EACCES
@@ -473,12 +808,40 @@ A kernel resource was temporarily unavailable.
 .B EBADF
 The map exists, but the area maps something that isn't a file.
 .TP
+.B EBUSY
+(for
+.BR MADV_COLLAPSE )
+Could not charge hugepage to cgroup: cgroup limit exceeded.
+.TP
+.B EBUSY
+(for
+.BR MADV_SOFT_OFFLINE )
+Any pages within the specified address range
+could not be offlined.
+This might occur if the page is currently in use or locked.
+.TP
+.B EFAULT
+.I advice
+is
+.B MADV_POPULATE_READ
+or
+.BR MADV_POPULATE_WRITE ,
+and populating (prefaulting) page tables failed because a
+.B SIGBUS
+would have been generated on actual memory access and the reason is not a
+HW poisoned page
+(HW poisoned pages can,
+for example,
+be created using the
+.B MADV_HWPOISON
+flag described elsewhere in this page).
+.TP
 .B EINVAL
 .I addr
 is not page-aligned or
-.I length
+.I size
 is negative.
-.\" .I length
+.\" .I size
 .\" is zero,
 .TP
 .B EINVAL
@@ -488,9 +851,9 @@ is not a valid.
 .B EINVAL
 .I advice
 is
-.B MADV_DONTNEED
+.B MADV_COLD
 or
-.BR MADV_REMOVE
+.B MADV_PAGEOUT
 and the specified address range includes locked, Huge TLB pages, or
 .B VM_PFNMAP
 pages.
@@ -498,7 +861,17 @@ pages.
 .B EINVAL
 .I advice
 is
-.BR MADV_MERGEABLE
+.B MADV_DONTNEED
+or
+.B MADV_REMOVE
+and the specified address range includes locked, Huge TLB pages, or
+.B VM_PFNMAP
+pages.
+.TP
+.B EINVAL
+.I advice
+is
+.B MADV_MERGEABLE
 or
 .BR MADV_UNMERGEABLE ,
 but the kernel was not configured with
@@ -507,14 +880,38 @@ but the kernel was not configured with
 .B EINVAL
 .I advice
 is
-.BR MADV_FREE
+.B MADV_FREE
 or
-.BR MADV_WIPEONFORK
+.B MADV_WIPEONFORK
 but the specified address range includes file, Huge TLB,
 .BR MAP_SHARED ,
 or
-.BR VM_PFNMAP
+.B VM_PFNMAP
 ranges.
+.TP
+.B EINVAL
+.I advice
+is
+.B MADV_POPULATE_READ
+or
+.BR MADV_POPULATE_WRITE ,
+but the specified address range includes ranges with insufficient permissions
+or special mappings,
+for example,
+mappings marked with kernel-internal flags such a
+.B VM_IO
+or
+.BR VM_PFNMAP ,
+or secret memory regions created using
+.BR memfd_secret(2) .
+.TP
+.B EINVAL
+.I advice
+is
+.B MADV_GUARD_INSTALL
+or
+.BR MADV_GUARD_REMOVE ,
+but the specified address range contains an unsupported mapping.
 .TP
 .B EIO
 (for
@@ -528,8 +925,22 @@ maximum resident set size.
 Not enough memory: paging in failed.
 .TP
 .B ENOMEM
+(for
+.BR MADV_COLLAPSE )
+Not enough memory: could not allocate hugepage.
+.TP
+.B ENOMEM
 Addresses in the specified range are not currently
 mapped, or are outside the address space of the process.
+.TP
+.B ENOMEM
+.I advice
+is
+.B MADV_POPULATE_READ
+or
+.BR MADV_POPULATE_WRITE ,
+and populating (prefaulting) page tables failed because there was not enough
+memory.
 .TP
 .B EPERM
 .I advice
@@ -538,16 +949,21 @@ is
 but the caller does not have the
 .B CAP_SYS_ADMIN
 capability.
+.TP
+.B EHWPOISON
+.I advice
+is
+.B MADV_POPULATE_READ
+or
+.BR MADV_POPULATE_WRITE ,
+and populating (prefaulting) page tables failed because a HW poisoned page
+(HW poisoned pages can,
+for example,
+be created using the
+.B MADV_HWPOISON
+flag described elsewhere in this page)
+was encountered.
 .SH VERSIONS
-Since Linux 3.18,
-.\" commit d3ac21cacc24790eb45d735769f35753f5b56ceb
-support for this system call is optional,
-depending on the setting of the
-.B CONFIG_ADVISE_SYSCALLS
-configuration option.
-.SH CONFORMING TO
-.BR madvise ()
-is not specified by any standards.
 Versions of this system call, implementing a wide variety of
 .I advice
 values, exist on many other implementations.
@@ -555,7 +971,7 @@ Other implementations typically implement at least the flags listed
 above under
 .IR "Conventional advice flags" ,
 albeit with some variation in semantics.
-.PP
+.P
 POSIX.1-2001 describes
 .BR posix_madvise (3)
 with constants
@@ -566,12 +982,11 @@ with constants
 and
 .BR POSIX_MADV_DONTNEED ,
 and so on, with behavior close to the similarly named flags listed above.
-.SH NOTES
-.SS Linux notes
+.SS Linux
 The Linux implementation requires that the address
 .I addr
 be page-aligned, and allows
-.I length
+.I size
 to be zero.
 If there are some parts of the specified address range
 that are not mapped, the Linux version of
@@ -579,26 +994,31 @@ that are not mapped, the Linux version of
 ignores them and applies the call to the rest (but returns
 .B ENOMEM
 from the system call, as it should).
-.\" .SH HISTORY
-.\" The
-.\" .BR madvise ()
-.\" function first appeared in 4.4BSD.
+.P
+.I madvise(0,\ 0,\ advice)
+will return zero iff
+.I advice
+is supported by the kernel and can be relied on to probe for support.
+.SH STANDARDS
+None.
+.SH HISTORY
+First appeared in 4.4BSD.
+.P
+Since Linux 3.18,
+.\" commit d3ac21cacc24790eb45d735769f35753f5b56ceb
+support for this system call is optional,
+depending on the setting of the
+.B CONFIG_ADVISE_SYSCALLS
+configuration option.
 .SH SEE ALSO
 .BR getrlimit (2),
+.BR memfd_secret (2),
 .BR mincore (2),
 .BR mmap (2),
 .BR mprotect (2),
 .BR msync (2),
 .BR munmap (2),
 .BR prctl (2),
+.BR process_madvise (2),
 .BR posix_madvise (3),
 .BR core (5)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

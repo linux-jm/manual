@@ -1,0 +1,185 @@
+.\" Copyright 2021-2025, Jeremy Kerr <jk@codeconstruct.com.au>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.TH mctp 7 2026-02-08 "Linux man-pages (unreleased)"
+.SH NAME
+mctp \- Management Component Transport Protocol
+.SH SYNOPSIS
+.nf
+.BR "#include <linux/mctp.h>" \
+"  /* MCTP address type and protocol constants */"
+.B #include <sys/socket.h>
+.P
+.IB mctp_socket " = socket(AF_MCTP, SOCK_DGRAM, 0);"
+.fi
+.SH DESCRIPTION
+Linux implements the Management Component Transport Protocol (MCTP),
+specified by DMTF spec DSP0236,
+currently at version 1.
+This is a connectionless protocol,
+typically used between devices within a server system.
+Message reliability and ordering are not guaranteed,
+but message boundaries are preserved.
+.P
+The API for MCTP messaging uses a standard sockets interface,
+using the
+.BR sendto (2)
+and
+.BR recvfrom (2)
+classes of system calls to transfer messages.
+Messages may be fragmented into packets before transmission,
+and reassembled at the remote endpoint.
+This fragmentation and reassembly is transparent to user space.
+.SS Address format
+MCTP addresses
+(also referred to as EIDs, or Endpoint Identifiers)
+are single-byte values,
+typed as
+.IR mctp_eid_t .
+Packets between a local and remote endpoint
+are identified by
+the source and destination EIDs,
+plus a three-bit tag value.
+.P
+Addressing data is passed in socket system calls through a
+.I sockaddr_mctp
+structure,
+defined as:
+.P
+.in +4n
+.EX
+typedef uint8_t        mctp_eid_t;
+\&
+struct mctp_addr {
+    mctp_eid_t         s_addr;
+};
+\&
+struct sockaddr_mctp {
+    unsigned short     smctp_family;  /* = AF_MCTP */
+    uint16_t           __smctp_pad0;
+    int                smctp_network; /* local network identifier */
+    struct mctp_addr   smctp_addr;    /* EID */
+    uint8_t            smctp_type;    /* message type byte */
+    uint8_t            smctp_tag;     /* tag value & owner */
+    uint8_t            __smctp_pad1;
+};
+.EE
+.in
+.SS Sending messages
+Messages can be transmitted using the
+.BR sendto (2)
+and
+.BR sendmsg (2)
+system calls,
+by providing a
+.I sockaddr_mctp
+structure
+describing the addressing parameters.
+.P
+.in +4n
+.EX
+ssize_t               n;
+const char            *buf;
+struct sockaddr_mctp  addr;
+\&
+/* unused fields must be zero */
+memset(&addr, 0, sizeof(addr));
+\&
+/* set message destination */
+addr.smctp_family = AF_MCTP;
+addr.smctp_network = 0;
+addr.smctp_addr.s_addr = 8;  /* remote EID */
+addr.smctp_tag = MCTP_TAG_OWNER;
+addr.smctp_type = MYPROGRAM_MCTP_TYPE_ECHO;  /* example type */
+\&
+buf = "hello, world!"
+\&
+n = sendto(sd, buf, 13, 0,
+           (struct sockaddr *) &addr, sizeof(addr));
+.EE
+.in
+.P
+Here, the sender owns the message tag;
+so
+.B MCTP_TAG_OWNER
+is used as the tag data.
+The kernel will allocate a specific tag value for this message.
+If no tag is available,
+.BR sendto (2)
+will return an error,
+with errno set to
+.BR EBUSY .
+This allocated tag remains associated with the socket,
+so that any replies to the sent message will be received by the same socket.
+.P
+Sending a MCTP message requires the
+.B CAP_NET_RAW
+capability.
+.SS Receiving messages
+Messages can be received using the
+.BR recvfrom (2)
+and
+.BR recvmsg (2)
+system calls.
+.P
+.in +4n
+.EX
+char                  buf[13];
+socklen_t             addrlen;
+struct sockaddr_mctp  addr;
+\&
+addrlen = sizeof(addr);
+\&
+n = recvfrom(sd, buf, sizeof(buf), 0,
+             (struct sockaddr *) &addr, &addrlen);
+.EE
+.in
+.P
+In order to receive an incoming message,
+the receiver will need to
+either have previously sent a message to the same endpoint,
+or performed a
+.BR bind (2)
+to receive all messages of a certain type:
+.P
+.in +4n
+.EX
+struct sockaddr_mctp  addr;
+\&
+addr.smctp_family = AF_MCTP;
+addr.smctp_network = MCTP_NET_ANY;
+addr.smctp_addr.s_addr = MCTP_ADDR_ANY;
+addr.smctp_type = MYPROGRAM_MCTP_TYPE_ECHO;  /* our 'echo' type */
+\&
+int rc = bind(sd, (struct sockaddr *) &addr, sizeof(addr));
+.EE
+.in
+.P
+This call requires the
+.B CAP_NET_BIND_SERVICE
+capability,
+and will result in
+the socket receiving all messages sent to locally-assigned EIDs,
+for the specified message type.
+.P
+After a
+.BR recvfrom (2)
+or
+.BR recvmsg (2)
+returns a success condition,
+the provided address argument
+will be populated with the sender's network and EID,
+as well as the tag value used for the message.
+Any reply to this message should pass the same address and tag value
+(with the TO bit cleared)
+to indicate that is is directed to the same remote endpoint.
+.SH SEE ALSO
+.BR socket (7)
+.P
+.I linux.git/Documentation/networking/mctp.rst
+.P
+.UR https:\://www.dmtf.org/\:standards/\:pmci
+The DSP0236 specification
+.UE .

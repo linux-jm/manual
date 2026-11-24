@@ -1,25 +1,24 @@
-.\" Copyright 7/93 by Darren Senn <sinster@scintilla.santa-clara.ca.us>
-.\" and Copyright (C) 2016, Michael Kerrisk <mtk.manpages@gmail.com>
-.\" Based on a similar page Copyright 1992 by Rick Faith
+.\" Copyright 1993, Darren Senn <sinster@scintilla.santa-clara.ca.us>
+.\" Copyright 2016, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
 .\" %%%LICENSE_START(FREELY_REDISTRIBUTABLE)
 .\" May be freely distributed and modified
 .\" %%%LICENSE_END
 .\"
-.\" Modified Tue Oct 22 00:22:35 EDT 1996 by Eric S. Raymond <esr@thyrsus.com>
-.\" 2005-04-06 mtk, Matthias Lang <matthias@corelatus.se>
-.\" 	Noted MAX_SEC_IN_JIFFIES ceiling
-.\"
-.TH GETITIMER 2 2020-04-11 "Linux" "Linux Programmer's Manual"
+.TH getitimer 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 getitimer, setitimer \- get or set value of an interval timer
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
 .B #include <sys/time.h>
-.PP
+.P
 .BI "int getitimer(int " which ", struct itimerval *" curr_value );
-.BI "int setitimer(int " which ", const struct itimerval *" new_value ,
-.BI "              struct itimerval *" old_value );
+.BI "int setitimer(int " which ", const struct itimerval *restrict " new_value ,
+.BI "              struct itimerval *_Nullable restrict " old_value );
 .fi
 .SH DESCRIPTION
 These system calls provide access to interval timers, that is,
@@ -28,10 +27,10 @@ and (optionally) at regular intervals after that.
 When a timer expires, a signal is generated for the calling process,
 and the timer is reset to the specified interval
 (if the interval is nonzero).
-.PP
-Three types of timers\(emspecified via the
-.IR which
-argument\(emare provided,
+.P
+Three types of timers\[em]specified via the
+.I which
+argument\[em]are provided,
 each of which counts against a different clock and
 generates a different signal on timer expiration:
 .TP
@@ -60,18 +59,18 @@ In conjunction with
 .BR ITIMER_VIRTUAL ,
 this timer can be used to profile user and system CPU time
 consumed by the process.
-.PP
+.P
 A process has only one of each of the three types of timers.
-.PP
+.P
 Timer values are defined by the following structures:
-.PP
+.P
 .in +4n
 .EX
 struct itimerval {
     struct timeval it_interval; /* Interval for periodic timer */
     struct timeval it_value;    /* Time until next expiration */
 };
-
+\&
 struct timeval {
     time_t      tv_sec;         /* seconds */
     suseconds_t tv_usec;        /* microseconds */
@@ -83,26 +82,26 @@ struct timeval {
 The function
 .BR getitimer ()
 places the current value of the timer specified by
-.IR which
+.I which
 in the buffer pointed to by
 .IR curr_value .
-.PP
+.P
 The
-.IR it_value
+.I it_value
 substructure is populated with the amount of time remaining until
 the next expiration of the specified timer.
 This value changes as the timer counts down, and will be reset to
-.IR it_interval
+.I it_interval
 when the timer expires.
 If both fields of
-.IR it_value
+.I it_value
 are zero, then this timer is currently disarmed (inactive).
-.PP
+.P
 The
-.IR it_interval
+.I it_interval
 substructure is populated with the timer interval.
 If both fields of
-.IR it_interval
+.I it_interval
 are zero, then this is a single-shot timer (i.e., it expires just once).
 .SS setitimer()
 The function
@@ -117,24 +116,24 @@ is non-NULL,
 the buffer it points to is used to return the previous value of the timer
 (i.e., the same information that is returned by
 .BR getitimer ()).
-.PP
+.P
 If either field in
-.IR new_value.it_value
+.I new_value.it_value
 is nonzero,
 then the timer is armed to initially expire at the specified time.
 If both fields in
-.IR new_value.it_value
+.I new_value.it_value
 are zero, then the timer is disarmed.
-.PP
+.P
 The
-.IR new_value.it_interval
+.I new_value.it_interval
 field specifies the new interval for the timer;
 if both of its subfields are zero, the timer is single-shot.
 .SH RETURN VALUE
 On success, zero is returned.
 On error, \-1 is returned, and
 .I errno
-is set appropriately.
+is set to indicate the error.
 .SH ERRORS
 .TP
 .B EFAULT
@@ -142,7 +141,7 @@ is set appropriately.
 .IR old_value ,
 or
 .I curr_value
-is not valid a pointer.
+is not a valid pointer.
 .TP
 .B EINVAL
 .I which
@@ -155,10 +154,40 @@ or (since Linux 2.6.22) one of the
 .I tv_usec
 fields in the structure pointed to by
 .I new_value
-contains a value outside the range 0 to 999999.
-.SH CONFORMING TO
-POSIX.1-2001, SVr4, 4.4BSD (this call first appeared in 4.2BSD).
-POSIX.1-2008 marks
+contains a value outside the range [0, 999999].
+.SH VERSIONS
+The standards are silent on the meaning of the call:
+.P
+.in +4n
+.EX
+setitimer(which, NULL, &old_value);
+.EE
+.in
+.P
+Many systems (Solaris, the BSDs, and perhaps others)
+treat this as equivalent to:
+.P
+.in +4n
+.EX
+getitimer(which, &old_value);
+.EE
+.in
+.P
+In Linux, this is treated as being equivalent to a call in which the
+.I new_value
+fields are zero;
+that is,
+the timer is disabled.
+.IR "Don't use this Linux misfeature" :
+it is nonportable and unnecessary.
+.SH STANDARDS
+None.
+.SH HISTORY
+4.2BSD,
+SVr4,
+SUSv1,
+POSIX.1-2001.
+POSIX.1-2008 marked
 .BR getitimer ()
 and
 .BR setitimer ()
@@ -166,22 +195,24 @@ obsolete, recommending the use of the POSIX timers API
 .RB ( timer_gettime (2),
 .BR timer_settime (2),
 etc.) instead.
+POSIX.1-2024 removed them.
 .SH NOTES
 Timers will never expire before the requested time,
 but may expire some (short) time afterward, which depends
-on the system timer resolution and on the system load; see
+on the system timer resolution and on the system load;
+see
 .BR time (7).
 (But see BUGS below.)
 If the timer expires while the process is active (always true for
 .BR ITIMER_VIRTUAL ),
 the signal will be delivered immediately when generated.
-.PP
+.P
 A child created via
 .BR fork (2)
 does not inherit its parent's interval timers.
 Interval timers are preserved across an
 .BR execve (2).
-.PP
+.P
 POSIX.1 leaves the
 interaction between
 .BR setitimer ()
@@ -191,21 +222,6 @@ and the three interfaces
 and
 .BR usleep (3)
 unspecified.
-.PP
-The standards are silent on the meaning of the call:
-.PP
-    setitimer(which, NULL, &old_value);
-.PP
-Many systems (Solaris, the BSDs, and perhaps others)
-treat this as equivalent to:
-.PP
-    getitimer(which, &old_value);
-.PP
-In Linux, this is treated as being equivalent to a call in which the
-.I new_value
-fields are zero; that is, the timer is disabled.
-.IR "Don't use this Linux misfeature" :
-it is nonportable and unnecessary.
 .SH BUGS
 The generation and delivery of a signal are distinct, and
 only one instance of each of the signals listed above may be pending
@@ -215,8 +231,8 @@ Under very heavy loading, an
 timer may expire before the signal from a previous expiration
 has been delivered.
 The second signal in such an event will be lost.
-.PP
-On Linux kernels before 2.6.16, timer values are represented in jiffies.
+.P
+Before Linux 2.6.16, timer values are represented in jiffies.
 If a request is made set a timer with a value whose jiffies
 representation exceeds
 .B MAX_SEC_IN_JIFFIES
@@ -230,23 +246,23 @@ approximately 99.42 days.
 Since Linux 2.6.16,
 the kernel uses a different internal representation for times,
 and this ceiling is removed.
-.PP
+.P
 On certain systems (including i386),
-Linux kernels before version 2.6.12 have a bug which will produce
+Linux kernels before Linux 2.6.12 have a bug which will produce
 premature timer expirations of up to one jiffy under some circumstances.
-This bug is fixed in kernel 2.6.12.
-.\" 4 Jul 2005: It looks like this bug may remain in 2.4.x.
+This bug is fixed in Linux 2.6.12.
+.\" 4 Jul 2005: It looks like this bug may remain in Linux 2.4.x.
 .\"	http://lkml.org/lkml/2005/7/1/165
-.PP
+.P
 POSIX.1-2001 says that
 .BR setitimer ()
 should fail if a
 .I tv_usec
-value is specified that is outside of the range 0 to 999999.
-However, in kernels up to and including 2.6.21,
+value is specified that is outside of the range [0, 999999].
+However, up to and including Linux 2.6.21,
 Linux does not give an error, but instead silently
 adjusts the corresponding seconds value for the timer.
-From kernel 2.6.22 onward,
+From Linux 2.6.22 onward,
 this nonconformance has been repaired:
 an improper
 .I tv_usec
@@ -263,12 +279,3 @@ error.
 .BR timer_create (2),
 .BR timerfd_create (2),
 .BR time (7)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

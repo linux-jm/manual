@@ -1,37 +1,30 @@
-.\" Copyright (c) 2019 by Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright 2019, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH PIDFD_SEND_SIGNAL 2 2020-06-09 "Linux" "Linux Programmer's Manual"
+.TH pidfd_send_signal 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 pidfd_send_signal \- send a signal to a process specified by a file descriptor
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
-.B "#include <signal.h>"
-.PP
-.BI "int pidfd_send_signal(int " pidfd ", int " sig ", siginfo_t *" info ,
-.BI "                      unsigned int " flags );
+.BR "#include <linux/signal.h>" "     /* Definition of " SIG* " constants */"
+.BR "#include <signal.h>" "           /* Definition of " SI_* " constants */"
+.BR "#include <sys/syscall.h>" "      /* Definition of " SYS_* " constants */"
+.B #include <unistd.h>
+.P
+.BI "int syscall(SYS_pidfd_send_signal, int " pidfd ", int " sig ,
+.BI "            siginfo_t *_Nullable " info ", unsigned int " flags );
 .fi
+.P
+.IR Note :
+glibc provides no wrapper for
+.BR pidfd_send_signal (),
+necessitating the use of
+.BR syscall (2).
 .SH DESCRIPTION
 The
 .BR pidfd_send_signal ()
@@ -42,58 +35,116 @@ to the target process referred to by
 a PID file descriptor that refers to a process.
 .\" See the very detailed commit message for kernel commit
 .\" 3eb39f47934f9d5a3027fe00d906a45fe3a15fad
-.PP
+.P
 If the
 .I info
 argument points to a
 .I siginfo_t
 buffer, that buffer should be populated as described in
 .BR rt_sigqueueinfo (2).
-.PP
+.P
 If the
 .I info
-argument is a NULL pointer,
+argument is a null pointer,
 this is equivalent to specifying a pointer to a
 .I siginfo_t
 buffer whose fields match the values that are
 implicitly supplied when a signal is sent using
 .BR kill (2):
-.PP
+.P
 .PD 0
-.IP * 3
+.IP \[bu] 3
 .I si_signo
 is set to the signal number;
-.IP *
+.IP \[bu]
 .I si_errno
 is set to 0;
-.IP *
+.IP \[bu]
 .I si_code
 is set to
 .BR SI_USER ;
-.IP *
+.IP \[bu]
 .I si_pid
-is set to the caller's PID; and
-.IP *
+is set to the caller's PID;
+and
+.IP \[bu]
 .I si_uid
 is set to the caller's real user ID.
 .PD
-.PP
+.P
 The calling process must either be in the same PID namespace as the
 process referred to by
 .IR pidfd ,
 or be in an ancestor of that namespace.
-.PP
+.P
 The
 .I flags
-argument is reserved for future use;
-currently, this argument must be specified as 0.
+argument allows to modify the scope of the signal.
+By default,
+the scope of the signal will be inferred from the
+.I pidfd
+argument.
+For example,
+if
+.I pidfd
+refers to a specific thread
+\[em]i.e.,
+the
+.I pidfd
+was created through
+.BR pidfd_open (2)
+using the
+.B PIDFD_THREAD
+flag
+or through
+.BR clone3 (2)
+using the
+.B CLONE_PIDFD
+flag together with the
+.B CLONE_THREAD
+flag\[em]
+then passing
+.I pidfd
+to
+.BR pidfd_send_signal (2)
+and leaving the
+.I flags
+argument as
+.B 0
+will cause the signal to be sent to the specific thread referenced by the
+.IR pidfd .
+.TP
+.BR PIDFD_SIGNAL_THREAD " (since Linux 6.9)"
+.\" commit e1fb1dc08e73466830612bcf2f9f72180965c9ba
+Ensure that the signal is sent to the specific thread referenced by
+.IR pidfd .
+.TP
+.BR PIDFD_SIGNAL_THREAD_GROUP " (since Linux 6.9)"
+.\" commit e1fb1dc08e73466830612bcf2f9f72180965c9ba
+If
+.I pidfd
+refers to a thread-group leader,
+ensure that the signal is sent to the thread-group,
+even if
+.I pidfd
+was created to refer to a specific thread.
+.TP
+.BR PIDFD_SIGNAL_PROCESS_GROUP " (since Linux 6.9)"
+.\" commit e1fb1dc08e73466830612bcf2f9f72180965c9ba
+If
+.I pidfd
+refers to a process-group leader,
+ensure that the signal is sent to the process-group,
+even if
+.I pidfd
+was created to refer to a specific thread or to a thread-group leader.
 .SH RETURN VALUE
 On success,
 .BR pidfd_send_signal ()
 returns 0.
 On error, \-1 is returned and
 .I errno
-is set to indicate the cause of the error.
+is set to indicate the error.
 .SH ERRORS
 .TP
 .B EBADF
@@ -110,7 +161,7 @@ send a signal to the target process.
 .TP
 .B EINVAL
 .I flags
-is not 0.
+is not valid.
 .TP
 .B EPERM
 The calling process does not have permission to send the signal
@@ -119,46 +170,41 @@ to the target process.
 .B EPERM
 .I pidfd
 doesn't refer to the calling process, and
-.IR info.si_code
+.I info.si_code
 is invalid (see
 .BR rt_sigqueueinfo (2)).
 .TP
 .B ESRCH
 The target process does not exist
 (i.e., it has terminated and been waited on).
-.SH VERSIONS
-.BR pidfd_send_signal ()
-first appeared in Linux 5.1.
-.SH CONFORMING TO
-.BR pidfd_send_signal ()
-is Linux specific.
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 5.1.
 .SH NOTES
-Currently, there is no glibc wrapper for this system call; call it using
-.BR syscall (2).
-.\"
 .SS PID file descriptors
 The
 .I pidfd
 argument is a PID file descriptor,
-a file descriptor that refers to  process.
+a file descriptor that refers to process.
 Such a file descriptor can be obtained in any of the following ways:
-.IP * 3
+.IP \[bu] 3
 by opening a
-.IR /proc/[pid]
+.IR /proc/ pid
 directory;
-.IP *
+.IP \[bu]
 using
 .BR pidfd_open (2);
 or
-.IP *
+.IP \[bu]
 via the PID file descriptor that is returned by a call to
 .BR clone (2)
 or
 .BR clone3 (2)
 that specifies the
-.BR CLONE_PIDFD
+.B CLONE_PIDFD
 flag.
-.PP
+.P
 The
 .BR pidfd_send_signal ()
 system call allows the avoidance of race conditions that occur
@@ -177,56 +223,53 @@ if that process terminates,
 fails with the error
 .BR ESRCH .
 .SH EXAMPLES
+.\" SRC BEGIN (pidfd_send_signal.c)
 .EX
 #define _GNU_SOURCE
+#include <fcntl.h>
 #include <limits.h>
 #include <signal.h>
-#include <fcntl.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <string.h>
 #include <sys/syscall.h>
-
-#ifndef __NR_pidfd_send_signal
-#define __NR_pidfd_send_signal 424
-#endif
-
+#include <unistd.h>
+\&
 static int
 pidfd_send_signal(int pidfd, int sig, siginfo_t *info,
-        unsigned int flags)
+                  unsigned int flags)
 {
-    return syscall(__NR_pidfd_send_signal, pidfd, sig, info, flags);
+    return syscall(SYS_pidfd_send_signal, pidfd, sig, info, flags);
 }
-
+\&
 int
 main(int argc, char *argv[])
 {
-    siginfo_t info;
-    char path[PATH_MAX];
-    int pidfd, sig;
-
+    int        pidfd, sig;
+    char       path[PATH_MAX];
+    siginfo_t  info;
+\&
     if (argc != 3) {
-        fprintf(stderr, "Usage: %s <pid> <signal>\en", argv[0]);
+        fprintf(stderr, "Usage: %s <pid> <signal>\[rs]n", argv[0]);
         exit(EXIT_FAILURE);
     }
-
+\&
     sig = atoi(argv[2]);
-
+\&
     /* Obtain a PID file descriptor by opening the /proc/PID directory
-       of the target process */
-
+       of the target process.  */
+\&
     snprintf(path, sizeof(path), "/proc/%s", argv[1]);
-
+\&
     pidfd = open(path, O_RDONLY);
     if (pidfd == \-1) {
         perror("open");
         exit(EXIT_FAILURE);
     }
-
-    /* Populate a \(aqsiginfo_t\(aq structure for use with
-       pidfd_send_signal() */
-
+\&
+    /* Populate a \[aq]siginfo_t\[aq] structure for use with
+       pidfd_send_signal().  */
+\&
     memset(&info, 0, sizeof(info));
     info.si_code = SI_QUEUE;
     info.si_signo = sig;
@@ -234,17 +277,18 @@ main(int argc, char *argv[])
     info.si_uid = getuid();
     info.si_pid = getpid();
     info.si_value.sival_int = 1234;
-
-    /* Send the signal */
-
+\&
+    /* Send the signal.  */
+\&
     if (pidfd_send_signal(pidfd, sig, &info, 0) == \-1) {
         perror("pidfd_send_signal");
         exit(EXIT_FAILURE);
     }
-
+\&
     exit(EXIT_SUCCESS);
 }
 .EE
+.\" SRC END
 .SH SEE ALSO
 .BR clone (2),
 .BR kill (2),
@@ -253,12 +297,3 @@ main(int argc, char *argv[])
 .BR sigaction (2),
 .BR pid_namespaces (7),
 .BR signal (7)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

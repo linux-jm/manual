@@ -1,1 +1,796 @@
-.so man3/scanf.3
+'\" t
+.\" Copyright 1990-1991, The Regents of the University of California.
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: BSD-4-Clause-UC
+.\"
+.TH sscanf 3 2026-02-16 "Linux man-pages (unreleased)"
+.SH NAME
+sscanf, vsscanf \- input string format conversion
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
+.SH SYNOPSIS
+.nf
+.B #include <stdio.h>
+.P
+.BI "int sscanf(const char *restrict " str ,
+.BI "           const char *restrict " format ", ...);"
+.P
+.B #include <stdarg.h>
+.P
+.BI "int vsscanf(const char *restrict " str ,
+.BI "           const char *restrict " format ", va_list " ap );
+.fi
+.P
+.RS -4
+Feature Test Macro Requirements for glibc (see
+.BR feature_test_macros (7)):
+.RE
+.P
+.BR vsscanf ():
+.nf
+    _ISOC99_SOURCE || _POSIX_C_SOURCE >= 200112L
+.fi
+.SH DESCRIPTION
+The
+.BR sscanf ()
+family of functions scans formatted input according to
+.I format
+as described below.
+This format may contain
+.IR "conversion specifications" ;
+the results from such conversions, if any,
+are stored in the locations pointed to by the
+.I pointer
+arguments that follow
+.IR format .
+Each
+.I pointer
+argument must be of a type that is appropriate for the value returned
+by the corresponding conversion specification.
+.P
+If the number of conversion specifications in
+.I format
+exceeds the number of
+.I pointer
+arguments, the results are undefined.
+If the number of
+.I pointer
+arguments exceeds the number of conversion specifications, then the excess
+.I pointer
+arguments are evaluated, but are otherwise ignored.
+.P
+.BR sscanf ()
+These functions
+read their input from the string pointed to by
+.IR str .
+.P
+The
+.BR vsscanf ()
+function is analogous to
+.BR vsprintf (3).
+.P
+The
+.I format
+string consists of a sequence of
+.I directives
+which describe how to process the sequence of input characters.
+If processing of a directive fails, no further input is read, and
+.BR sscanf ()
+returns.
+A "failure" can be either of the following:
+.IR "input failure" ,
+meaning that input characters were unavailable, or
+.IR "matching failure" ,
+meaning that the input was inappropriate (see below).
+.P
+A directive is one of the following:
+.TP
+\[bu]
+A sequence of white-space characters
+(space, tab, newline, etc.;
+see
+.BR isspace (3)).
+This directive matches any amount of white space,
+including none, in the input.
+.TP
+\[bu]
+An ordinary character (i.e., one other than white space or \[aq]%\[aq]).
+This character must exactly match the next character of input.
+.TP
+\[bu]
+A conversion specification,
+which commences with a \[aq]%\[aq] (percent) character.
+A sequence of characters from the input is converted according to
+this specification, and the result is placed in the corresponding
+.I pointer
+argument.
+If the next item of input does not match the conversion specification,
+the conversion fails\[em]this is a
+.IR "matching failure" .
+.P
+Each
+.I conversion specification
+in
+.I format
+begins with either the character \[aq]%\[aq] or the character sequence
+.RB \[dq] % \f[I]n\f[] $ \[dq]
+(see below for the distinction) followed by:
+.TP
+\[bu]
+An optional \[aq]*\[aq] assignment-suppression character:
+.BR sscanf ()
+reads input as directed by the conversion specification,
+but discards the input.
+No corresponding
+.I pointer
+argument is required, and this specification is not
+included in the count of successful assignments returned by
+.BR sscanf ().
+.TP
+\[bu]
+For decimal conversions, an optional quote character (\[aq]).
+This specifies that the input number may include thousands'
+separators as defined by the
+.B LC_NUMERIC
+category of the current locale.
+(See
+.BR setlocale (3).)
+The quote character may precede or follow the \[aq]*\[aq]
+assignment-suppression character.
+.TP
+\[bu]
+An optional \[aq]m\[aq] character.
+This is used with string conversions
+.RI ( %s ,
+.IR %c ,
+.IR %[ ),
+and relieves the caller of the
+need to allocate a corresponding buffer to hold the input: instead,
+.BR sscanf ()
+allocates a buffer of sufficient size,
+and assigns the address of this buffer to the corresponding
+.I pointer
+argument,
+which should be
+a pointer to a
+.I "char\ *"
+variable (this variable does not need to be initialized before the call).
+The caller should subsequently
+.BR free (3)
+this buffer when it is no longer required.
+.TP
+\[bu]
+An optional decimal integer which specifies the
+.IR "maximum field width" .
+Reading of characters stops either when this maximum is reached or
+when a nonmatching character is found, whichever happens first.
+Most conversions discard initial white space characters (the exceptions
+are noted below),
+and these discarded characters don't count toward the maximum field width.
+String input conversions store a terminating null byte (\[aq]\[rs]0\[aq])
+to mark the end of the input;
+the maximum field width does not include this terminator.
+Some conversions require exactly
+the number of characters specified in the maximum field width,
+or they fail.
+.TP
+\[bu]
+An optional
+.IR "type modifier character" .
+For example, the
+.B l
+type modifier is used with integer conversions such as
+.B %d
+to specify that the corresponding
+.I pointer
+argument refers to a
+.I "long"
+rather than
+a pointer to an
+.IR int .
+.TP
+\[bu]
+A
+.I "conversion specifier"
+that specifies the type of input conversion to be performed.
+.P
+The conversion specifications in
+.I format
+are of two forms, either beginning with \[aq]%\[aq] or beginning with
+.RB \[dq] % \f[I]n\f[] $ \[dq].
+The two forms should not be mixed in the same
+.I format
+string, except that a string containing
+.RB \[dq] % \f[I]n\f[] $ \[dq]
+specifications can include
+.B %%
+and
+.BR %* .
+If
+.I format
+contains \[aq]%\[aq]
+specifications, then these correspond in order with successive
+.I pointer
+arguments.
+In the
+.RB \[dq] % \f[I]n\f[] $ \[dq]
+form (which is specified in POSIX.1-2001, but not C99),
+.I n
+is a decimal integer that specifies that the converted input should
+be placed in the location referred to by the
+.IR n -th
+.I pointer
+argument following
+.IR format .
+.SS Conversions
+The following
+.I "type modifier characters"
+can appear in a conversion specification:
+.TP
+.B h
+Indicates that the conversion will be one of
+.BR d ,
+.BR i ,
+.BR o ,
+.BR u ,
+.BR x ,
+.BR X ,
+or
+.BR n ,
+and the next pointer is
+a pointer to a
+.I short
+or
+.I unsigned short
+(rather than
+.IR int ).
+.TP
+.B hh
+As for
+.BR h ,
+but the next pointer is
+a pointer to a
+.I signed char
+or
+.IR "unsigned char" .
+.TP
+.B j
+As for
+.BR h ,
+but the next pointer is
+a pointer to an
+.I intmax_t
+or a
+.IR uintmax_t .
+This modifier was introduced in C99.
+.TP
+.B l
+Indicates either that the conversion will be one of
+.BR d ,
+.BR i ,
+.BR o ,
+.BR u ,
+.BR x ,
+.BR X ,
+or
+.BR n ,
+and the next pointer is
+a pointer to a
+.I long
+or
+.I unsigned long
+(rather than
+.IR int ),
+or that the conversion will be one of
+.BR e ,
+.BR f ,
+or
+.BR g ,
+and the next pointer is
+a pointer to
+.I double
+(rather than
+.IR float ).
+If used with
+.B %c
+or
+.BR %s ,
+the corresponding parameter is considered as
+a pointer to a wide character or wide-character string respectively.
+.\" This use of l was introduced in Amendment 1 to ISO C90.
+.TP
+.B ll
+(ell-ell)
+Indicates that the conversion will be one of
+.BR b ,
+.BR d ,
+.BR i ,
+.BR o ,
+.BR u ,
+.BR x ,
+.BR X ,
+or
+.BR n ,
+and the next pointer is
+a pointer to a
+.I long long
+or
+.I unsigned long long
+(rather than
+.IR int ).
+.TP
+.B L
+Indicates that the conversion will be either
+.BR e ,
+.BR f ,
+or
+.BR g ,
+and the next pointer is
+a pointer to
+.I "long double"
+or
+(as a GNU extension)
+the conversion will be
+.BR d ,
+.BR i ,
+.BR o ,
+.BR u ,
+or
+.BR x ,
+and the next pointer is
+a pointer to
+.IR "long long" .
+.\" MTK, Jul 05: The following is no longer true for modern
+.\" ANSI C (i.e., C99):
+.\" (Note that long long is not an
+.\" ANSI C
+.\" type.  Any program using this will not be portable to all
+.\" architectures).
+.TP
+.B q
+equivalent to
+.BR L .
+This specifier does not exist in ANSI C.
+.TP
+.B t
+As for
+.BR h ,
+but the next pointer is
+a pointer to a
+.IR ptrdiff_t .
+This modifier was introduced in C99.
+.TP
+.BI w N
+A following integer conversion corresponds to
+an integer of a width of
+.I N
+bits
+(C23).
+.TP
+.B z
+As for
+.BR h ,
+but the next pointer is
+a pointer to a
+.IR size_t .
+This modifier was introduced in C99.
+.P
+The following
+.I "conversion specifiers"
+are available:
+.TP
+.B %
+Matches a literal \[aq]%\[aq].
+That is,
+.B %\&%
+in the format string matches a
+single input \[aq]%\[aq] character.
+No conversion is done (but initial white space characters are discarded),
+and assignment does not occur.
+.TP
+.B d
+Matches an optionally signed decimal integer;
+the next pointer must be
+a pointer to
+.IR int .
+.\" .TP
+.\" .B D
+.\" Equivalent to
+.\" .IR ld ;
+.\" this exists only for backward compatibility.
+.\" (Note: thus only in libc4
+.\" In libc5 and glibc the
+.\" .B %D
+.\" is silently ignored, causing old programs to fail mysteriously.)
+.TP
+.B i
+Matches an optionally signed integer;
+the next pointer must be
+a pointer to
+.IR int .
+The integer is read in base 16 if it begins with
+.I 0x
+or
+.IR 0X ,
+in base 8 if it begins with
+.IR 0 ,
+and in base 10 otherwise.
+Only characters that correspond to the base are used.
+.TP
+.B o
+Matches an unsigned octal integer;
+the next pointer must be
+a pointer to
+.IR "unsigned int" .
+.TP
+.B u
+Matches an unsigned decimal integer;
+the next pointer must be
+a pointer to
+.IR "unsigned int" .
+.TP
+.B x
+Matches an unsigned hexadecimal integer
+(that may optionally begin with a prefix of
+.I 0x
+or
+.IR 0X ,
+which is discarded);
+the next pointer must be
+a pointer to
+.IR "unsigned int" .
+.TP
+.B X
+Equivalent to
+.BR x .
+.TP
+.B f
+Matches an optionally signed floating-point number;
+the next pointer must be
+a pointer to
+.IR float .
+.TP
+.B e
+Equivalent to
+.BR f .
+.TP
+.B g
+Equivalent to
+.BR f .
+.TP
+.B E
+Equivalent to
+.BR f .
+.TP
+.B a
+(C99) Equivalent to
+.BR f .
+.TP
+.B s
+Matches a sequence of non-white-space characters;
+the next pointer must be
+a pointer to
+the initial element of a character array
+that is long enough to hold
+the input sequence and the terminating null byte (\[aq]\[rs]0\[aq]),
+which is added automatically.
+The input string stops at white space or at the maximum field width,
+whichever occurs first.
+.TP
+.B c
+Matches a sequence of characters whose length is specified by the
+.I maximum field width
+(default 1);
+the next pointer must be
+a pointer to
+.IR char ,
+and there must be enough room for all the characters
+(no terminating null byte is added).
+The usual skip of leading white space is suppressed.
+To skip white space first, use an explicit space in the format.
+.\" glibc commit 2b16c76609350ec887d49afd4447743da38f7fab
+This conversion only succeeds
+if the number of characters specified by the maximum field
+can be matched.
+.TP
+.B \&[
+Matches a nonempty sequence of characters from the specified set of
+accepted characters;
+the next pointer must be
+a pointer to
+.IR char ,
+and there must be enough room for all the characters in the string,
+plus a terminating null byte.
+The usual skip of leading white space is suppressed.
+The string is to be made up of characters in (or not in) a particular set;
+the set is defined by the characters between the open bracket
+.B [
+character and a close bracket
+.B ]
+character.
+The set
+.I excludes
+those characters if the first character after the open bracket is a
+circumflex
+.RB ( \[ha] ).
+To include a close bracket in the set,
+make it the first character after the open bracket or the circumflex;
+any other position will end the set.
+The hyphen character
+.B \-
+is also special;
+when placed between two other characters,
+it adds all intervening characters to the set.
+To include a hyphen,
+make it the last character before the final close bracket.
+For instance,
+.B [\[ha]]0\-9\-]
+means
+the set "everything except close bracket, zero through nine, and hyphen".
+The string ends with the appearance of a character not in the
+(or, with a circumflex, in)
+set
+or when the field width runs out.
+.TP
+.B p
+Matches a pointer value (as printed by
+.B %p
+in
+.BR printf (3));
+the next pointer must be
+a pointer to a pointer to
+.IR void .
+.TP
+.B n
+Nothing is expected;
+instead,
+the number of characters consumed thus far from the input
+is stored through the next pointer,
+which must be
+a pointer to
+.IR int ,
+or variant whose size matches the
+(optionally) supplied integer length modifier.
+This is
+.I not
+a conversion and does
+.I not
+increase the count returned by the function.
+The assignment can be suppressed with the
+.B *
+assignment-suppression character, but the effect on the
+return value is undefined.
+Therefore
+.B %*n
+conversions should not be used.
+.SH RETURN VALUE
+On success, these functions return the number of input items
+successfully matched and assigned;
+this can be fewer than provided for,
+or even zero, in the event of an early matching failure.
+.P
+The value
+.B EOF
+is returned if the end of input is reached before either the first
+successful conversion or a matching failure occurs.
+.SH ERRORS
+.TP
+.B EILSEQ
+Input byte sequence does not form a valid character.
+.TP
+.B EINVAL
+Not enough arguments;
+or
+.I format
+is NULL.
+.TP
+.B ENOMEM
+Out of memory.
+.SH ATTRIBUTES
+For an explanation of the terms used in this section, see
+.BR attributes (7).
+.TS
+allbox;
+lbx lb lb
+l l l.
+Interface	Attribute	Value
+T{
+.na
+.nh
+.BR sscanf (),
+.BR vsscanf ()
+T}	Thread safety	MT-Safe locale
+.TE
+.SH STANDARDS
+C11, POSIX.1-2008.
+.SH HISTORY
+C89, POSIX.1-2001.
+.P
+The
+.B q
+specifier is the 4.4BSD notation for
+.IR "long long" ,
+while
+.B ll
+or the usage of
+.B L
+in integer conversions is the GNU notation.
+.P
+The Linux version of these functions is based on the
+.I GNU
+.I libio
+library.
+Take a look at the
+.BR info (1)
+documentation of
+.I GNU
+.I libc (glibc-1.08)
+for a more concise description.
+.SH NOTES
+.SS The 'a' assignment-allocation modifier
+Originally, the GNU C library supported dynamic allocation for string inputs
+(as a nonstandard extension) via the
+.B a
+character.
+(This feature is present at least as far back as glibc 2.0.)
+Thus, one could write the following to have
+.BR sscanf ()
+allocate a buffer for a string,
+with a pointer to that buffer being returned in
+.IR *buf :
+.P
+.in +4n
+.EX
+char *buf;
+sscanf(str, "%as", &buf);
+.EE
+.in
+.P
+The use of the letter
+.B a
+for this purpose was problematic, since
+.B a
+is also specified by the ISO C standard as a synonym for
+.B f
+(floating-point input).
+POSIX.1-2008 instead specifies the
+.B m
+modifier for assignment allocation (as documented in DESCRIPTION, above).
+.P
+Note that the
+.B a
+modifier is not available if the program is compiled with
+.I gcc\~\-std=c99
+or
+.I gcc\~\-D_ISOC99_SOURCE
+(unless
+.B _GNU_SOURCE
+is also specified), in which case the
+.B a
+is interpreted as a specifier for floating-point numbers (see above).
+.P
+Support for the
+.B m
+modifier was added to glibc 2.7,
+and new programs should use that modifier instead of
+.BR a .
+.P
+As well as being standardized by POSIX, the
+.B m
+modifier has the following further advantages over
+the use of
+.BR a :
+.IP \[bu] 3
+It may also be applied to
+.B %c
+conversion specifiers (e.g.,
+.BR %3mc ).
+.IP \[bu]
+It avoids ambiguity with respect to the
+.B %a
+floating-point conversion specifier (and is unaffected by
+.I gcc\~\-std=c99
+etc.).
+.SH BUGS
+.SS Numeric conversion specifiers
+Use of the numeric conversion specifiers produces undefined behavior
+for invalid input.
+See
+.UR https:\://port70.net/\:%7Ensz/\:c/\:c11/\:n1570.html\:#7.21.6.2p10
+C11 7.21.6.2/10
+.UE .
+This is a bug in the ISO C standard,
+and not an inherent design issue with the API.
+However,
+current implementations are not safe from that bug,
+so it is not recommended to use them.
+Instead,
+programs should use functions such as
+.BR strtol (3)
+to parse numeric input.
+Alternatively,
+mitigate it by specifying a maximum field width.
+.SS Nonstandard modifiers
+These functions are fully C99 conformant, but provide the
+additional modifiers
+.B q
+and
+.B a
+as well as an additional behavior of the
+.B L
+and
+.B ll
+modifiers.
+The latter may be considered to be a bug, as it changes the
+behavior of modifiers defined in C99.
+.P
+Some combinations of the type modifiers and conversion
+specifiers defined by C99 do not make sense
+(e.g.,
+.BR "%Ld" ).
+While they may have a well-defined behavior on Linux, this need not
+to be so on other systems.
+Therefore it usually is better to use
+modifiers that are not defined by C99 at all, that is, use
+.B q
+instead of
+.B L
+in combination with
+.BR d ,
+.BR i ,
+.BR o ,
+.BR u ,
+.BR x ,
+and
+.B X
+conversions or
+.BR ll .
+.P
+The usage of
+.B q
+is not the same as on 4.4BSD,
+as it may be used in float conversions equivalently to
+.BR L .
+.SH EXAMPLES
+To use the dynamic allocation conversion specifier, specify
+.B m
+as a length modifier (thus
+.B %ms
+or
+.BR %m[ \f[I]range\f[] ] ).
+The caller must
+.BR free (3)
+the returned string, as in the following example:
+.P
+.in +4n
+.EX
+char *p;
+int n;
+\&
+errno = 0;
+n = sscanf(str, "%m[a\-z]", &p);
+if (n == 1) {
+    printf("read: %s\[rs]n", p);
+    free(p);
+} else if (errno != 0) {
+    perror("sscanf");
+} else {
+    fprintf(stderr, "No matching characters\[rs]n");
+}
+.EE
+.in
+.P
+As shown in the above example, it is necessary to call
+.BR free (3)
+only if the
+.BR sscanf ()
+call successfully read a string.
+.SH SEE ALSO
+.BR getc (3),
+.BR printf (3),
+.BR setlocale (3),
+.BR strtod (3),
+.BR strtol (3),
+.BR strtoul (3)

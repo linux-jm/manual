@@ -1,0 +1,278 @@
+.\" Copyright 2020, Stephen Kitt <steve@sk2.org>
+.\" Copyright 2021, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.TH close_range 2 2026-02-08 "Linux man-pages (unreleased)"
+.SH NAME
+close_range \- close all file descriptors in a given range
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
+.SH SYNOPSIS
+.nf
+.BR "#define _GNU_SOURCE" "         /* See feature_test_macros(7) */"
+.B #include <unistd.h>
+.P
+.BR "#include <linux/close_range.h>" " /* Definition of " CLOSE_RANGE_*
+.BR "" "                                  constants */"
+.P
+.BI "int close_range(unsigned int " first ", unsigned int " last \
+", int " flags );
+.fi
+.SH DESCRIPTION
+The
+.BR close_range ()
+system call closes all open file descriptors from
+.I first
+to
+.I last
+(included).
+.P
+Errors closing a given file descriptor are currently ignored.
+.P
+.I flags
+is a bit mask containing 0 or more of the following:
+.TP
+.BR CLOSE_RANGE_CLOEXEC " (since Linux 5.11)"
+Set the close-on-exec flag on the specified file descriptors,
+rather than immediately closing them.
+.TP
+.B CLOSE_RANGE_UNSHARE
+Unshare the specified file descriptors from any other processes
+before closing them,
+avoiding races with other threads sharing the file descriptor table.
+.SH RETURN VALUE
+On success,
+.BR close_range ()
+returns 0.
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+.SH ERRORS
+.TP
+.B EINVAL
+.I flags
+is not valid, or
+.I first
+is greater than
+.IR last .
+.P
+The following can occur with
+.B CLOSE_RANGE_UNSHARE
+(when constructing the new descriptor table):
+.TP
+.B EMFILE
+The number of open file descriptors exceeds the limit specified in
+.I /proc/sys/fs/nr_open
+(see
+.BR proc (5)).
+This error can occur in situations where that limit was lowered before
+a call to
+.BR close_range ()
+where the
+.B CLOSE_RANGE_UNSHARE
+flag is specified.
+.TP
+.B ENOMEM
+Insufficient kernel memory was available.
+.SH STANDARDS
+None.
+.SH HISTORY
+FreeBSD.
+Linux 5.9,
+glibc 2.34.
+.SH NOTES
+.SS Closing all open file descriptors
+.\" 278a5fbaed89dacd04e9d052f4594ffd0e0585de
+To avoid blindly closing file descriptors
+in the range of possible file descriptors,
+this is sometimes implemented (on Linux)
+by listing open file descriptors in
+.I /proc/self/fd/
+and calling
+.BR close (2)
+on each one.
+.BR close_range ()
+can take care of this without requiring
+.I /proc
+and within a single system call,
+which provides significant performance benefits.
+.SS Closing file descriptors before exec
+.\" 60997c3d45d9a67daf01c56d805ae4fec37e0bd8
+File descriptors can be closed safely using
+.P
+.in +4n
+.EX
+/* we don't want anything past stderr here */
+close_range(3, \[ti]0U, CLOSE_RANGE_UNSHARE);
+execve(....);
+.EE
+.in
+.P
+.B CLOSE_RANGE_UNSHARE
+is conceptually equivalent to
+.P
+.in +4n
+.EX
+unshare(CLONE_FILES);
+close_range(first, last, 0);
+.EE
+.in
+.P
+but can be more efficient:
+if the unshared range extends past
+the current maximum number of file descriptors allocated
+in the caller's file descriptor table
+(the common case when
+.I last
+is \[ti]0U),
+the kernel will unshare a new file descriptor table for the caller up to
+.IR first ,
+copying as few file descriptors as possible.
+This avoids subsequent
+.BR close (2)
+calls entirely;
+the whole operation is complete once the table is unshared.
+.SS Closing files on \f[I]exec\f[]
+.\" 582f1fb6b721facf04848d2ca57f34468da1813e
+This is particularly useful in cases where multiple
+.RB pre- exec
+setup steps risk conflicting with each other.
+For example, setting up a
+.BR seccomp (2)
+profile can conflict with a
+.BR close_range ()
+call:
+if the file descriptors are closed before the
+.BR seccomp (2)
+profile is set up,
+the profile setup can't use them itself,
+or control their closure;
+if the file descriptors are closed afterwards,
+the seccomp profile can't block the
+.BR close_range ()
+call or any fallbacks.
+Using
+.B CLOSE_RANGE_CLOEXEC
+avoids this:
+the descriptors can be marked before the
+.BR seccomp (2)
+profile is set up,
+and the profile can control access to
+.BR close_range ()
+without affecting the calling process.
+.SH EXAMPLES
+The program shown below opens the files named in its command-line arguments,
+displays the list of files that it has opened
+(by iterating through the entries in
+.IR /proc/PID/fd ),
+uses
+.BR close_range ()
+to close all file descriptors greater than or equal to 3,
+and then once more displays the process's list of open files.
+The following example demonstrates the use of the program:
+.P
+.in +4n
+.EX
+.RB $ " touch /tmp/a /tmp/b /tmp/c" ;
+.RB $ " ./a.out /tmp/a /tmp/b /tmp/c" ;
+/tmp/a opened as FD 3
+/tmp/b opened as FD 4
+/tmp/c opened as FD 5
+/proc/self/fd/0 ==> /dev/pts/1
+/proc/self/fd/1 ==> /dev/pts/1
+/proc/self/fd/2 ==> /dev/pts/1
+/proc/self/fd/3 ==> /tmp/a
+/proc/self/fd/4 ==> /tmp/b
+/proc/self/fd/5 ==> /tmp/c
+/proc/self/fd/6 ==> /proc/9005/fd
+========= About to call close_range() =======
+/proc/self/fd/0 ==> /dev/pts/1
+/proc/self/fd/1 ==> /dev/pts/1
+/proc/self/fd/2 ==> /dev/pts/1
+/proc/self/fd/3 ==> /proc/9005/fd
+.EE
+.in
+.P
+Note that the lines showing the pathname
+.I /proc/9005/fd
+result from the calls to
+.BR opendir (3).
+.SS Program source
+\&
+.\" SRC BEGIN (close_range.c)
+.EX
+#define _GNU_SOURCE
+#include <dirent.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+\&
+/* Show the contents of the symbolic links in /proc/self/fd */
+\&
+static void
+show_fds(void)
+{
+    DIR            *dirp;
+    char           path[PATH_MAX], target[PATH_MAX];
+    ssize_t        len;
+    struct dirent  *dp;
+\&
+    dirp = opendir("/proc/self/fd");
+    if (dirp  == NULL) {
+        perror("opendir");
+        exit(EXIT_FAILURE);
+    }
+\&
+    for (;;) {
+        dp = readdir(dirp);
+        if (dp == NULL)
+            break;
+\&
+        if (dp\->d_type == DT_LNK) {
+            snprintf(path, sizeof(path), "/proc/self/fd/%s",
+                     dp\->d_name);
+\&
+            len = readlink(path, target, sizeof(target));
+            printf("%s ==> %.*s\[rs]n", path, (int) len, target);
+        }
+    }
+\&
+    closedir(dirp);
+}
+\&
+int
+main(int argc, char *argv[])
+{
+    int  fd;
+\&
+    for (size_t j = 1; j < argc; j++) {
+        fd = open(argv[j], O_RDONLY);
+        if (fd == \-1) {
+            perror(argv[j]);
+            exit(EXIT_FAILURE);
+        }
+        printf("%s opened as FD %d\[rs]n", argv[j], fd);
+    }
+\&
+    show_fds();
+\&
+    printf("========= About to call close_range() =======\[rs]n");
+\&
+    if (close_range(3, \[ti]0U, 0) == \-1) {
+        perror("close_range");
+        exit(EXIT_FAILURE);
+    }
+\&
+    show_fds();
+    exit(EXIT_FAILURE);
+}
+.EE
+.\" SRC END
+.SH SEE ALSO
+.BR close (2)

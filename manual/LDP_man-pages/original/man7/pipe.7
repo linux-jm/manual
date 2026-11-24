@@ -1,28 +1,9 @@
-.\" Copyright (C) 2005 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright 2005, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH PIPE 7 2017-09-15 "Linux" "Linux Programmer's Manual"
+.TH pipe 7 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 pipe \- overview of pipes and FIFOs
 .SH DESCRIPTION
@@ -34,17 +15,18 @@ and a
 .IR "write end" .
 Data written to the write end of a pipe can be read
 from the read end of the pipe.
-.PP
+.P
 A pipe is created using
 .BR pipe (2),
 which creates a new pipe and returns two file descriptors,
 one referring to the read end of the pipe,
 the other referring to the write end.
 Pipes can be used to create a communication channel between related
-processes; see
+processes;
+see
 .BR pipe (2)
 for an example.
-.PP
+.P
 A FIFO (short for First In First Out) has a name within the filesystem
 (created using
 .BR mkfifo (3)),
@@ -53,7 +35,8 @@ and is opened using
 Any process may open a FIFO, assuming the file permissions allow it.
 The read end is opened using the
 .B O_RDONLY
-flag; the write end is opened using the
+flag;
+the write end is opened using the
 .B O_WRONLY
 flag.
 See
@@ -68,7 +51,7 @@ The only difference between pipes and FIFOs is the manner in which
 they are created and opened.
 Once these tasks have been accomplished,
 I/O on pipes and FIFOs has exactly the same semantics.
-.PP
+.P
 If a process attempts to read from an empty pipe, then
 .BR read (2)
 will block until data is available.
@@ -76,17 +59,24 @@ If a process attempts to write to a full pipe (see below), then
 .BR write (2)
 blocks until sufficient data has been read from the pipe
 to allow the write to complete.
+.P
 Nonblocking I/O is possible by using the
 .BR fcntl (2)
 .B F_SETFL
 operation to enable the
 .B O_NONBLOCK
-open file status flag.
-.PP
+open file status flag or by opening a
+.BR fifo (7)
+with
+.BR O_NONBLOCK .
+If any process has the pipe open for writing, reads fail with
+.BR EAGAIN ;
+otherwise\[em]with no potential writers\[em]reads succeed and return empty.
+.P
 The communication channel provided by a pipe is a
 .IR "byte stream" :
 there is no concept of message boundaries.
-.PP
+.P
 If all file descriptors referring to the write end of a pipe
 have been closed, then an attempt to
 .BR read (2)
@@ -113,7 +103,7 @@ calls to close unnecessary duplicate file descriptors;
 this ensures that end-of-file and
 .BR SIGPIPE / EPIPE
 are delivered when appropriate.
-.PP
+.P
 It is not possible to apply
 .BR lseek (2)
 to a pipe.
@@ -129,22 +119,25 @@ Applications should not rely on a particular capacity:
 an application should be designed so that a reading process consumes data
 as soon as it is available,
 so that a writing process does not remain blocked.
-.PP
-In Linux versions before 2.6.11, the capacity of a pipe was the same as
+.P
+Before Linux 2.6.11, the capacity of a pipe was the same as
 the system page size (e.g., 4096 bytes on i386).
 Since Linux 2.6.11, the pipe capacity is 16 pages
 (i.e., 65,536 bytes in a system with a page size of 4096 bytes).
 Since Linux 2.6.35, the default pipe capacity is 16 pages,
 but the capacity can be queried and set using the
 .BR fcntl (2)
-.BR F_GETPIPE_SZ
+.B F_GETPIPE_SZ
 and
-.BR F_SETPIPE_SZ
+.B F_SETPIPE_SZ
 operations.
 See
 .BR fcntl (2)
 for more information.
-.PP
+Since Linux 4.5, the default pipe capacity is lower than 16 pages when the
+.I pipe\-user\-pages\-soft
+limit is exceeded.
+.P
 The following
 .BR ioctl (2)
 operation, which can be applied to a file descriptor
@@ -152,9 +145,13 @@ that refers to either end of a pipe,
 places a count of the number of unread bytes in the pipe in the
 .I int
 buffer pointed to by the final argument of the call:
-.PP
-    ioctl(fd, FIONREAD, &nbytes);
-.PP
+.P
+.in +4n
+.EX
+ioctl(fd, FIONREAD, &nbytes);
+.EE
+.in
+.P
 The
 .B FIONREAD
 operation is not specified in any standard,
@@ -163,21 +160,22 @@ but is provided on many implementations.
 .SS /proc files
 On Linux, the following files control how much memory can be used for pipes:
 .TP
-.IR /proc/sys/fs/pipe-max-pages " (only in Linux 2.6.34)"
+.IR /proc/sys/fs/pipe\-max\-pages " (only in Linux 2.6.34)"
 .\" commit b492e95be0ae672922f4734acf3f5d35c30be948
 An upper limit, in pages, on the capacity that an unprivileged user
 (one without the
-.BR CAP_SYS_RESOURCE
+.B CAP_SYS_RESOURCE
 capability)
 can set for a pipe.
 .IP
 The default value for this limit is 16 times the default pipe capacity
-(see above); the lower limit is two pages.
+(see above);
+the lower limit is two pages.
 .IP
 This interface was removed in Linux 2.6.35, in favor of
-.IR /proc/sys/fs/pipe-max-size .
+.IR /proc/sys/fs/pipe\-max\-size .
 .TP
-.IR /proc/sys/fs/pipe-max-size " (since Linux 2.6.35)"
+.IR /proc/sys/fs/pipe\-max\-size " (since Linux 2.6.35)"
 .\" commit ff9da691c0498ff81fdd014e7a0731dab2337dac
 The maximum size (in bytes) of individual pipes that can be set
 .\" This limit is not checked on pipe creation, where the capacity is
@@ -202,7 +200,7 @@ Since Linux 4.9,
 the value on this file also acts as a ceiling on the default capacity
 of a new pipe or newly opened FIFO.
 .TP
-.IR /proc/sys/fs/pipe-user-pages-hard " (since Linux 4.5)"
+.IR /proc/sys/fs/pipe\-user\-pages\-hard " (since Linux 4.5)"
 .\" commit 759c01142a5d0f364a462346168a56de28a80f52
 The hard limit on the total size (in pages) of all pipes created or set by
 a single unprivileged user (i.e., one with neither the
@@ -220,7 +218,7 @@ no hard limit is applied.
 .\" The default was chosen to avoid breaking existing applications that
 .\" make intensive use of pipes (e.g., for splicing).
 .TP
-.IR /proc/sys/fs/pipe-user-pages-soft " (since Linux 4.5)"
+.IR /proc/sys/fs/pipe\-user\-pages\-soft " (since Linux 4.5)"
 .\" commit 759c01142a5d0f364a462346168a56de28a80f52
 The soft limit on the total size (in pages) of all pipes created or set by
 a single unprivileged user (i.e., one with neither the
@@ -230,23 +228,24 @@ nor the
 capability).
 So long as the total number of pages allocated to pipe buffers
 for this user is at this limit,
-individual pipes created by a user will be limited to one page,
+individual pipes created by a user will be
+limited to two pages
+(one page before Linux 5.14),
 and attempts to increase a pipe's capacity will be denied.
 .IP
 When the value of this limit is zero, no soft limit is applied.
 The default value for this file is 16384,
 which permits creating up to 1024 pipes with the default capacity.
-.PP
+.P
 Before Linux 4.9, some bugs affected the handling of the
-.IR pipe-user-pages-soft
+.I pipe\-user\-pages\-soft
 and
-.IR pipe-user-pages-hard
-limits; see BUGS.
+.I pipe\-user\-pages\-hard
+limits;
+see BUGS.
 .\"
 .SS PIPE_BUF
-POSIX.1 says that
-.BR write (2)s
-of less than
+POSIX.1 says that writes of less than
 .B PIPE_BUF
 bytes must be atomic: the output data is written to the pipe as a
 contiguous sequence.
@@ -266,7 +265,7 @@ whether there are multiple writers to the pipe, and on
 .IR n ,
 the number of bytes to be written:
 .TP
-\fBO_NONBLOCK\fP disabled, \fIn\fP <= \fBPIPE_BUF\fP
+.BR O_NONBLOCK " disabled, \f[I]n\f[] <= " PIPE_BUF
 All
 .I n
 bytes are written atomically;
@@ -275,21 +274,22 @@ may block if there is not room for
 .I n
 bytes to be written immediately
 .TP
-\fBO_NONBLOCK\fP enabled, \fIn\fP <= \fBPIPE_BUF\fP
+.BR O_NONBLOCK " enabled, \f[I]n\f[] <= " PIPE_BUF
 If there is room to write
 .I n
 bytes to the pipe, then
 .BR write (2)
 succeeds immediately, writing all
 .I n
-bytes; otherwise
+bytes;
+otherwise
 .BR write (2)
 fails, with
 .I errno
 set to
 .BR EAGAIN .
 .TP
-\fBO_NONBLOCK\fP disabled, \fIn\fP > \fBPIPE_BUF\fP
+.BR O_NONBLOCK " disabled, \f[I]n\f[] > " PIPE_BUF
 The write is nonatomic: the data given to
 .BR write (2)
 may be interleaved with
@@ -301,7 +301,7 @@ blocks until
 .I n
 bytes have been written.
 .TP
-\fBO_NONBLOCK\fP enabled, \fIn\fP > \fBPIPE_BUF\fP
+.BR O_NONBLOCK " enabled, \f[I]n\f[] > " PIPE_BUF
 If the pipe is full, then
 .BR write (2)
 fails, with
@@ -321,7 +321,7 @@ a pipe or FIFO are
 .B O_NONBLOCK
 and
 .BR O_ASYNC .
-.PP
+.P
 Setting the
 .B O_ASYNC
 flag for the read end of a pipe causes a signal
@@ -333,7 +333,7 @@ The target for delivery of signals must be set using the
 command.
 On Linux,
 .B O_ASYNC
-is supported for pipes and FIFOs only since kernel 2.6.
+is supported for pipes and FIFOs only since Linux 2.6.
 .SS Portability notes
 On some systems (but not Linux), pipes are bidirectional:
 data can be transmitted in both directions between the pipe ends.
@@ -342,17 +342,17 @@ Portable applications should avoid reliance on
 bidirectional pipe semantics.
 .SS BUGS
 Before Linux 4.9, some bugs affected the handling of the
-.IR pipe-user-pages-soft
+.I pipe\-user\-pages\-soft
 and
-.IR pipe-user-pages-hard
+.I pipe\-user\-pages\-hard
 limits when using the
 .BR fcntl (2)
-.BR F_SETPIPE_SZ
+.B F_SETPIPE_SZ
 operation to change a pipe's capacity:
 .\" These bugs where remedied by a series of patches, in particular,
 .\" commit b0b91d18e2e97b741b294af9333824ecc3fadfd8 and
 .\" commit a005ca0e6813e1d796a7422a7e31d8b8d6555df1
-.IP (1) 5
+.IP (a) 5
 When increasing the pipe capacity, the checks against the soft and
 hard limits were made against existing consumption,
 and excluded the memory required for the increased pipe capacity.
@@ -362,7 +362,7 @@ memory used by the user for pipes (possibly far) over a limit.
 .IP
 Starting with Linux 4.9,
 the limit checking includes the memory required for the new pipe capacity.
-.IP (2)
+.IP (b)
 The limit checks were performed even when the new pipe capacity was
 less than the existing pipe capacity.
 This could lead to problems if a user set a large pipe capacity,
@@ -372,31 +372,30 @@ no longer decrease the pipe capacity.
 Starting with Linux 4.9, checks against the limits
 are performed only when increasing a pipe's capacity;
 an unprivileged user can always decrease a pipe's capacity.
-.IP (3)
-The accounting and checking against the limits were done as follows:
-.IP
-.RS
-.PD 0
-.IP (a) 4
-Test whether the user has exceeded the limit.
-.IP (b)
-Make the new pipe buffer allocation.
 .IP (c)
+The accounting and checking against the limits were done as follows:
+.RS
+.IP (1) 5
+.PD 0
+Test whether the user has exceeded the limit.
+.IP (2)
+Make the new pipe buffer allocation.
+.IP (3)
 Account new allocation against the limits.
 .PD
 .RE
 .IP
 This was racey.
-Multiple processes could pass point (a) simultaneously,
-and then allocate pipe buffers that were accounted for only in step (c),
+Multiple processes could pass point (1) simultaneously,
+and then allocate pipe buffers that were accounted for only in step (3),
 with the result that the user's pipe buffer
 allocation could be pushed over the limit.
 .IP
 Starting with Linux 4.9,
 the accounting step is performed before doing the allocation,
 and the operation fails if the limit would be exceeded.
-.PP
-Before Linux 4.9, bugs similar to points (1) and (3) could also occur
+.P
+Before Linux 4.9, bugs similar to points (a) and (c) could also occur
 when the kernel allocated memory for a new pipe buffer;
 that is, when calling
 .BR pipe (2)
@@ -417,12 +416,3 @@ and when opening a previously unopened FIFO.
 .BR mkfifo (3),
 .BR epoll (7),
 .BR fifo (7)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

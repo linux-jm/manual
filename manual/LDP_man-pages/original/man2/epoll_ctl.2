@@ -1,31 +1,20 @@
-.\"  Copyright (C) 2003  Davide Libenzi
-.\"  Davide Libenzi <davidel@xmailserver.org>
-.\" and Copyright 2009, 2014, 2016, 2018, 2019 Michael Kerrisk <tk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(GPLv2+_SW_3_PARA)
-.\"  This program is free software; you can redistribute it and/or modify
-.\"  it under the terms of the GNU General Public License as published by
-.\"  the Free Software Foundation; either version 2 of the License, or
-.\"  (at your option) any later version.
+.\" SPDX-License-Identifier: GPL-2.0-or-later
 .\"
-.\"  This program is distributed in the hope that it will be useful,
-.\"  but WITHOUT ANY WARRANTY; without even the implied warranty of
-.\"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-.\"  GNU General Public License for more details.
-.\"
-.\" You should have received a copy of the GNU General Public
-.\" License along with this manual; if not, see
-.\" <http://www.gnu.org/licenses/>.
-.\" %%%LICENSE_END
-.\"
-.TH EPOLL_CTL 2 2020-11-01 "Linux" "Linux Programmer's Manual"
+.TH epoll_ctl 2 2025-12-25 "Linux man-pages (unreleased)"
 .SH NAME
 epoll_ctl \- control interface for an epoll file descriptor
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
+.nf
 .B #include <sys/epoll.h>
-.PP
-.BI "int epoll_ctl(int " epfd ", int " op ", int " fd \
-", struct epoll_event *" event );
+.P
+.BI "int epoll_ctl(int " epfd ", int " op ", int " fd ,
+.BI "              struct epoll_event *_Nullable " event );
+.fi
 .SH DESCRIPTION
 This system call is used to add, modify, or remove
 entries in the interest list of the
@@ -37,7 +26,7 @@ It requests that the operation
 .I op
 be performed for the target file descriptor,
 .IR fd .
-.PP
+.P
 Valid values for the
 .I op
 argument are:
@@ -56,7 +45,7 @@ and the settings specified in
 .TP
 .B EPOLL_CTL_MOD
 Change the settings associated with
-.IR fd
+.I fd
 in the interest list to the new settings specified in
 .IR event .
 .TP
@@ -67,31 +56,16 @@ from the interest list.
 The
 .I event
 argument is ignored and can be NULL (but see BUGS below).
-.PP
+.P
 The
 .I event
 argument describes the object linked to the file descriptor
 .IR fd .
 The
 .I struct epoll_event
-is defined as:
-.PP
-.in +4n
-.EX
-typedef union epoll_data {
-    void        *ptr;
-    int          fd;
-    uint32_t     u32;
-    uint64_t     u64;
-} epoll_data_t;
-
-struct epoll_event {
-    uint32_t     events;      /* Epoll events */
-    epoll_data_t data;        /* User data variable */
-};
-.EE
-.in
-.PP
+is described in
+.BR epoll_event (3type).
+.P
 The
 .I data
 member of the
@@ -99,13 +73,16 @@ member of the
 structure specifies data that the kernel should save and then return (via
 .BR epoll_wait (2))
 when this file descriptor becomes ready.
-.PP
+.P
 The
 .I events
 member of the
 .I epoll_event
-structure is a bit mask composed by ORing together zero or more of
-the following available event types:
+structure is a bit mask composed by ORing together zero or more event types,
+returned by
+.BR epoll_wait (2),
+and input flags, which affect its behavior, but aren't returned.
+The available event types are:
 .TP
 .B EPOLLIN
 The associated file is available for
@@ -136,8 +113,9 @@ This event is also reported for the write end of a pipe when the read end
 has been closed.
 .IP
 .BR epoll_wait (2)
-will always report for this event; it is not necessary to set it in
-.IR events
+will always report for this event;
+it is not necessary to set it in
+.I events
 when calling
 .BR epoll_ctl ().
 .TP
@@ -145,8 +123,9 @@ when calling
 Hang up happened on the associated file descriptor.
 .IP
 .BR epoll_wait (2)
-will always wait for this event; it is not necessary to set it in
-.IR events
+will always wait for this event;
+it is not necessary to set it in
+.I events
 when calling
 .BR epoll_ctl ().
 .IP
@@ -154,6 +133,8 @@ Note that when reading from a channel such as a pipe or a stream socket,
 this event merely indicates that the peer closed its end of the channel.
 Subsequent reads from the channel will return 0 (end of file)
 only after all outstanding data in the channel has been consumed.
+.P
+And the available input flags are:
 .TP
 .B EPOLLET
 Requests edge-triggered notification for the associated file descriptor.
@@ -164,13 +145,6 @@ See
 .BR epoll (7)
 for more detailed information about edge-triggered and
 level-triggered notification.
-.IP
-This flag is an input flag for the
-.I event.events
-field when calling
-.BR epoll_ctl ();
-it is never returned by
-.BR epoll_wait (2).
 .TP
 .BR EPOLLONESHOT " (since Linux 2.6.2)"
 Requests one-shot notification for the associated file descriptor.
@@ -185,13 +159,6 @@ The user must call
 with
 .B EPOLL_CTL_MOD
 to rearm the file descriptor with a new event mask.
-.IP
-This flag is an input flag for the
-.I event.events
-field when calling
-.BR epoll_ctl ();
-it is never returned by
-.BR epoll_wait (2).
 .TP
 .BR EPOLLWAKEUP " (since Linux 3.5)"
 .\" commit 4d7e30d98939a0340022ccd49325a3d70f7e0238
@@ -220,13 +187,6 @@ or the clearing of
 for the event file descriptor with
 .BR EPOLL_CTL_MOD .
 See also BUGS.
-.IP
-This flag is an input flag for the
-.I event.events
-field when calling
-.BR epoll_ctl ();
-it is never returned by
-.BR epoll_wait (2).
 .TP
 .BR EPOLLEXCLUSIVE " (since Linux 4.5)"
 Sets an exclusive wakeup mode for the epoll file descriptor that is being
@@ -238,14 +198,14 @@ are attached to the same target file using
 one or more of the epoll file descriptors will receive an event with
 .BR epoll_wait (2).
 The default in this scenario (when
-.BR EPOLLEXCLUSIVE
+.B EPOLLEXCLUSIVE
 is not set) is for all epoll file descriptors to receive an event.
-.BR EPOLLEXCLUSIVE
+.B EPOLLEXCLUSIVE
 is thus useful for avoiding thundering herd problems in certain scenarios.
 .IP
 If the same file descriptor is in multiple epoll instances,
 some with the
-.BR EPOLLEXCLUSIVE
+.B EPOLLEXCLUSIVE
 flag, and others without, then events will be provided to all epoll
 instances that did not specify
 .BR EPOLLEXCLUSIVE ,
@@ -259,9 +219,9 @@ The following values may be specified in conjunction with
 .BR EPOLLWAKEUP ,
 and
 .BR EPOLLET .
-.BR EPOLLHUP
+.B EPOLLHUP
 and
-.BR EPOLLERR
+.B EPOLLERR
 can also be specified, but this is not required:
 as usual, these events are always reported if they occur,
 regardless of whether they are specified in
@@ -274,7 +234,8 @@ yield the error
 .B EPOLLEXCLUSIVE
 may be used only in an
 .B EPOLL_CTL_ADD
-operation; attempts to employ it with
+operation;
+attempts to employ it with
 .B EPOLL_CTL_MOD
 yield an error.
 If
@@ -284,7 +245,7 @@ has been set using
 then a subsequent
 .B EPOLL_CTL_MOD
 on the same
-.IR epfd ",\ " fd
+.IR epfd ,\~ fd
 pair yields an error.
 A call to
 .BR epoll_ctl ()
@@ -297,15 +258,6 @@ and specifies the target file descriptor
 as an epoll instance will likewise fail.
 The error in all of these cases is
 .BR EINVAL .
-.IP
-The
-.BR EPOLLEXCLUSIVE
-flag is an input flag for the
-.I event.events
-field when calling
-.BR epoll_ctl ();
-it is never returned by
-.BR epoll_wait (2).
 .SH RETURN VALUE
 When successful,
 .BR epoll_ctl ()
@@ -314,7 +266,7 @@ When an error occurs,
 .BR epoll_ctl ()
 returns \-1 and
 .I errno
-is set appropriately.
+is set to indicate the error.
 .SH ERRORS
 .TP
 .B EBADF
@@ -355,7 +307,7 @@ in
 was
 .B EPOLL_CTL_MOD
 and
-.IR events
+.I events
 included
 .BR EPOLLEXCLUSIVE .
 .TP
@@ -364,15 +316,15 @@ included
 was
 .B EPOLL_CTL_MOD
 and the
-.BR EPOLLEXCLUSIVE
+.B EPOLLEXCLUSIVE
 flag has previously been applied to this
-.IR epfd ",\ " fd
+.IR epfd ,\~ fd
 pair.
 .TP
 .B EINVAL
-.BR EPOLLEXCLUSIVE
+.B EPOLLEXCLUSIVE
 was specified in
-.IR event
+.I event
 and
 .I fd
 refers to an epoll instance.
@@ -418,22 +370,20 @@ does not support
 This error can occur if
 .I fd
 refers to, for example, a regular file or a directory.
-.SH VERSIONS
-.BR epoll_ctl ()
-was added to the kernel in version 2.6.
-.\" To be precise: kernel 2.5.44.
-.\" The interface should be finalized by Linux kernel 2.5.66.
-Library support is provided in glibc starting with version 2.3.2.
-.SH CONFORMING TO
-.BR epoll_ctl ()
-is Linux-specific.
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 2.6,
+.\" To be precise: Linux 2.5.44.
+.\" The interface should be finalized by Linux 2.5.66.
+glibc 2.3.2.
 .SH NOTES
 The
 .B epoll
 interface supports all file descriptors that support
 .BR poll (2).
 .SH BUGS
-In kernel versions before 2.6.9, the
+Before Linux 2.6.9, the
 .B EPOLL_CTL_DEL
 operation required a non-null pointer in
 .IR event ,
@@ -443,23 +393,23 @@ Since Linux 2.6.9,
 can be specified as NULL
 when using
 .BR EPOLL_CTL_DEL .
-Applications that need to be portable to kernels before 2.6.9
+Applications that need to be portable to kernels before Linux 2.6.9
 should specify a non-null pointer in
 .IR event .
-.PP
+.P
 If
 .B EPOLLWAKEUP
 is specified in
 .IR flags ,
 but the caller does not have the
-.BR CAP_BLOCK_SUSPEND
+.B CAP_BLOCK_SUSPEND
 capability, then the
 .B EPOLLWAKEUP
 flag is
 .IR "silently ignored" .
 This unfortunate behavior is necessary because no validity
 checks were performed on the
-.IR flags
+.I flags
 argument in the original implementation, and the addition of the
 .B EPOLLWAKEUP
 with a check that caused the call to fail if the caller did not have the
@@ -476,14 +426,6 @@ flag.
 .SH SEE ALSO
 .BR epoll_create (2),
 .BR epoll_wait (2),
+.BR ioctl_eventpoll (2),
 .BR poll (2),
 .BR epoll (7)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

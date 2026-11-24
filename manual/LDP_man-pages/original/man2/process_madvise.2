@@ -1,0 +1,209 @@
+.\" Copyright 2021, Suren Baghdasaryan <surenb@google.com>
+.\" Copyright 2021, Minchan Kim <minchan@kernel.org>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.\" Commit ecb8ac8b1f146915aa6b96449b66dd48984caacc
+.\"
+.TH process_madvise 2 2026-02-22 "Linux man-pages (unreleased)"
+.SH NAME
+process_madvise \- give advice about use of memory to a process
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
+.SH SYNOPSIS
+.nf
+.B #include <sys/mman.h>
+.P
+.BI "ssize_t process_madvise(size_t " n ;
+.BI "                        int " pidfd ", const struct iovec " iovec [ n ],
+.BI "                        size_t " n ", int " advice \
+", unsigned int " flags );
+.fi
+.SH DESCRIPTION
+The
+.BR process_madvise ()
+system call is used to give advice or directions to the kernel about the
+address ranges of another process or of the calling process.
+It provides the advice for the address ranges described by
+.I iovec
+and
+.IR n .
+The goal of such advice is to improve system or application performance.
+.P
+The
+.I pidfd
+argument is a PID file descriptor (see
+.BR pidfd_open (2))
+that specifies the process to which the advice is to be applied.
+.P
+The pointer
+.I iovec
+points to an array of
+.I iovec
+structures, described in
+.BR iovec (3type).
+.P
+.I n
+specifies the number of elements in the array of
+.I iovec
+structures.
+This value must be less than or equal to
+.B IOV_MAX
+(defined in
+.I <limits.h>
+or accessible via the call
+.IR sysconf(_SC_IOV_MAX) ).
+.P
+If manipulating another process,
+or before Linux 6.13,
+the
+.I advice
+argument is one of the following values:
+.TP
+.B MADV_COLD
+See
+.BR madvise (2).
+.TP
+.B MADV_COLLAPSE
+See
+.BR madvise (2).
+.TP
+.B MADV_PAGEOUT
+See
+.BR madvise (2).
+.TP
+.B MADV_WILLNEED
+See
+.BR madvise (2).
+.P
+Since Linux 6.13,
+when manipulating the calling process,
+any advice flag is permitted.
+.P
+The
+.I flags
+argument is reserved for future use;
+currently,
+this argument must be specified as 0.
+.P
+The
+.I n
+and
+.I iovec
+arguments are checked before applying any advice.
+If
+.I n
+is too big, or
+.I iovec
+is invalid,
+then an error will be returned immediately and no advice will be applied.
+.P
+The advice might be applied to only a part of
+.I iovec
+if one of its elements points to an invalid memory region in the
+remote process.
+No further elements will be processed beyond that point.
+(See the discussion regarding partial advice in RETURN VALUE.)
+.P
+.\" commit 96cfe2c0fd23ea7c2368d14f769d287e7ae1082e
+Since Linux 5.12,
+permission to apply advice to another process is governed by
+ptrace access mode
+.B PTRACE_MODE_READ_FSCREDS
+check (see
+.BR ptrace (2));
+in addition,
+because of the performance implications of applying the advice,
+the caller must have the
+.B CAP_SYS_NICE
+capability
+(see
+.BR capabilities (7)).
+.SH RETURN VALUE
+On success,
+.BR process_madvise ()
+returns the number of bytes advised.
+This return value may be less than the total number of requested bytes,
+if an error occurred after some
+.I iovec
+elements were already processed.
+The caller should check the return value to determine whether a partial
+advice occurred.
+.P
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+.SH ERRORS
+.TP
+.B EBADF
+.I pidfd
+is not a valid PID file descriptor.
+.TP
+.B EFAULT
+The memory described by
+.I iovec
+is outside the accessible address space of the process referred to by
+.IR pidfd .
+.TP
+.B EINVAL
+.I flags
+is not 0.
+.TP
+.B EINVAL
+The sum of the
+.I iov_len
+values of
+.I iovec
+overflows a
+.I ssize_t
+value.
+.TP
+.B EINVAL
+.I n
+is too large.
+.TP
+.B ENOMEM
+Could not allocate memory for internal copies of the
+.I iovec
+structures.
+.TP
+.B EPERM
+The caller does not have permission to access the address space of the process
+.IR pidfd .
+.TP
+.B ESRCH
+The target process does not exist (i.e., it has terminated and been waited on).
+.P
+See
+.BR madvise (2)
+for
+.IR advice -specific
+errors.
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 5.10,
+.\" Linux commit ecb8ac8b1f146915aa6b96449b66dd48984caacc
+glibc 2.36.
+.\" glibc commit d19ee3473d68ca0e794f3a8b7677a0983ae1342e
+.P
+Support for this system call is optional,
+depending on the setting of the
+.B CONFIG_ADVISE_SYSCALLS
+configuration option.
+.P
+When this system call first appeared in Linux 5.10,
+permission to apply advice to another process was entirely governed by
+ptrace access mode
+.B PTRACE_MODE_ATTACH_FSCREDS
+check (see
+.BR ptrace (2)).
+This requirement was relaxed in Linux 5.12 so that the caller didn't require
+full control over the target process.
+.SH SEE ALSO
+.BR madvise (2),
+.BR pidfd_open (2),
+.BR process_vm_readv (2),
+.BR process_vm_write (2)

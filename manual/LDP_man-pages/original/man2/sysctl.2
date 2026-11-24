@@ -1,58 +1,34 @@
-.\" Copyright (C) 1996 Andries Brouwer (aeb@cwi.nl)
+.\" Copyright 1996, Andries E. Brouwer <aeb@cwi.nl>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.\" Written 11 April 1996 by Andries Brouwer <aeb@cwi.nl>
-.\" 960412: Added comments from Stephen Tweedie
-.\" Modified Tue Oct 22 22:28:41 1996 by Eric S. Raymond <esr@thyrsus.com>
-.\" Modified Mon Jan  5 20:31:04 1998 by aeb.
-.\"
-.TH SYSCTL 2 2020-11-01 "Linux" "Linux Programmer's Manual"
+.TH sysctl 2 2026-02-10 "Linux man-pages (unreleased)"
 .SH NAME
 sysctl \- read/write system parameters
 .SH SYNOPSIS
 .nf
 .B #include <unistd.h>
 .B #include <linux/sysctl.h>
-.PP
-.BI "int _sysctl(struct __sysctl_args *" args );
+.P
+.BI "[[deprecated]] int _sysctl(struct __sysctl_args *" args );
 .fi
 .SH DESCRIPTION
 .B This system call no longer exists on current kernels!
 See NOTES.
-.PP
+.P
 The
 .BR _sysctl ()
 call reads and/or writes kernel parameters.
 For example, the hostname,
 or the maximum number of open files.
 The argument has the form
-.PP
+.P
 .in +4n
 .EX
 struct __sysctl_args {
     int    *name;    /* integer vector describing variable */
-    int     nlen;    /* length of this vector */
+    int     nlen;    /* number of elements of this vector */
     void   *oldval;  /* 0 or address where to store old value */
     size_t *oldlenp; /* available room for old value,
                         overwritten by actual size of old value */
@@ -61,7 +37,7 @@ struct __sysctl_args {
 };
 .EE
 .in
-.PP
+.P
 This call does a search in a tree structure, possibly resembling
 a directory tree under
 .IR /proc/sys ,
@@ -76,7 +52,9 @@ Otherwise, a value of \-1 is returned and
 is set to indicate the error.
 .SH ERRORS
 .TP
-.BR EACCES ", " EPERM
+.B EACCES
+.TQ
+.B EPERM
 No search permission for one of the encountered "directories",
 or no read permission where
 .I oldval
@@ -93,14 +71,13 @@ non-NULL, but allowed zero room in
 .B ENOTDIR
 .I name
 was not found.
-.SH VERSIONS
-This system call first appeared in Linux 1.3.57.
-It was removed in Linux 5.5; glibc support was removed in version 2.32.
-.SH CONFORMING TO
-This call is Linux-specific, and should not be used in programs
-intended to be portable.
-It originated in
-4.4BSD.
+.SH STANDARDS
+Linux.
+.SH HISTORY
+4.4BSD,
+Linux 1.3.57.
+Removed in Linux 5.5, glibc 2.32.
+.P
 Only Linux has the
 .I /proc/sys
 mirror, and the object naming schemes differ between Linux and 4.4BSD,
@@ -115,69 +92,63 @@ and in Linux 5.5, the system call was finally removed.
 Use the
 .I /proc/sys
 interface instead.
-.PP
+.P
 Note that on older kernels where this system call still exists,
 it is available only if the kernel was configured with the
 .B CONFIG_SYSCTL_SYSCALL
 option.
-Furthermore,
-glibc does not provide a wrapper for this system call,
+Furthermore, glibc does not provide a wrapper for this system call,
 necessitating the use of
 .BR syscall (2).
 .SH BUGS
 The object names vary between kernel versions,
 making this system call worthless for applications.
-.PP
+.P
 Not all available objects are properly documented.
-.PP
+.P
 It is not yet possible to change operating system by writing to
 .IR /proc/sys/kernel/ostype .
 .SH EXAMPLES
+.\" SRC BEGIN (sysctl.c)
 .EX
 #define _GNU_SOURCE
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <string.h>
+#include <stdcountof.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+\&
 #include <linux/sysctl.h>
-
-int _sysctl(struct __sysctl_args *args );
-
+\&
+int _sysctl(struct __sysctl_args *args);
+\&
 #define OSNAMESZ 100
-
+\&
 int
 main(void)
 {
-    struct __sysctl_args args;
-    char osname[OSNAMESZ];
-    size_t osnamelth;
-    int name[] = { CTL_KERN, KERN_OSTYPE };
-
+    int                   name[] = { CTL_KERN, KERN_OSTYPE };
+    char                  osname[OSNAMESZ];
+    size_t                osnamelth;
+    struct __sysctl_args  args;
+\&
     memset(&args, 0, sizeof(args));
     args.name = name;
-    args.nlen = sizeof(name)/sizeof(name[0]);
+    args.nlen = countof(name);
     args.oldval = osname;
     args.oldlenp = &osnamelth;
-
+\&
     osnamelth = sizeof(osname);
-
+\&
     if (syscall(SYS__sysctl, &args) == \-1) {
         perror("_sysctl");
         exit(EXIT_FAILURE);
     }
-    printf("This machine is running %*s\en", osnamelth, osname);
+    printf("This machine is running %*s\[rs]n", (int) osnamelth, osname);
     exit(EXIT_SUCCESS);
 }
 .EE
+.\" SRC END
 .SH SEE ALSO
 .BR proc (5)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

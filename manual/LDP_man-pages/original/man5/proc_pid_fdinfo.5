@@ -1,0 +1,289 @@
+.\" Copyright 1994-1995, Daniel Quinlan <Daniel.Quinlan@linux.org>
+.\" Copyright 2002-2017, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: GPL-3.0-or-later
+.\"
+.TH proc_pid_fdinfo 5 2026-02-08 "Linux man-pages (unreleased)"
+.SH NAME
+/proc/pid/fdinfo/ \- information about file descriptors
+.SH DESCRIPTION
+This is a subdirectory containing one entry for each file which the
+process has open, named by its file descriptor.
+The files in this directory are readable only by the owner of the process.
+The contents of each file can be read to obtain information
+about the corresponding file descriptor.
+The content depends on the type of file referred to by the
+corresponding file descriptor.
+.P
+For regular files and directories, we see something like:
+.P
+.in +4n
+.EX
+.RB "$" " cat /proc/12015/fdinfo/4"
+pos:    1000
+flags:  01002002
+mnt_id: 21
+.EE
+.in
+.P
+The fields are as follows:
+.TP
+.I pos
+This is a decimal number showing the file offset.
+.TP
+.I flags
+This is an octal number that displays the
+file access mode and file status flags (see
+.BR open (2)).
+If the close-on-exec file descriptor flag is set, then
+.I flags
+will also include the value
+.BR O_CLOEXEC .
+.IP
+Before Linux 3.1,
+.\" commit 1117f72ea0217ba0cc19f05adbbd8b9a397f5ab7
+this field incorrectly displayed the setting of
+.B O_CLOEXEC
+at the time the file was opened,
+rather than the current setting of the close-on-exec flag.
+.TP
+.I mnt_id
+This field, present since Linux 3.15,
+.\" commit 49d063cb353265c3af701bab215ac438ca7df36d
+is the ID of the mount containing this file.
+See the description of
+.IR /proc/ pid /mountinfo .
+.P
+For eventfd file descriptors (see
+.BR eventfd (2)),
+we see (since Linux 3.8)
+.\" commit cbac5542d48127b546a23d816380a7926eee1c25
+the following fields:
+.P
+.in +4n
+.EX
+pos:	0
+flags:	02
+mnt_id:	10
+eventfd\-count:               40
+.EE
+.in
+.P
+.I eventfd\-count
+is the current value of the eventfd counter, in hexadecimal.
+.P
+For epoll file descriptors (see
+.BR epoll (7)),
+we see (since Linux 3.8)
+.\" commit 138d22b58696c506799f8de759804083ff9effae
+the following fields:
+.P
+.in +4n
+.EX
+pos:	0
+flags:	02
+mnt_id:	10
+tfd:        9 events:       19 data: 74253d2500000009
+tfd:        7 events:       19 data: 74253d2500000007
+.EE
+.in
+.P
+Each of the lines beginning
+.I tfd
+describes one of the file descriptors being monitored via
+the epoll file descriptor (see
+.BR epoll_ctl (2)
+for some details).
+The
+.I tfd
+field is the number of the file descriptor.
+The
+.I events
+field is a hexadecimal mask of the events being monitored for this file
+descriptor.
+The
+.I data
+field is the data value associated with this file descriptor.
+.P
+For signalfd file descriptors (see
+.BR signalfd (2)),
+we see (since Linux 3.8)
+.\" commit 138d22b58696c506799f8de759804083ff9effae
+the following fields:
+.P
+.in +4n
+.EX
+pos:	0
+flags:	02
+mnt_id:	10
+sigmask:	0000000000000006
+.EE
+.in
+.P
+.I sigmask
+is the hexadecimal mask of signals that are accepted via this
+signalfd file descriptor.
+(In this example, bits 2 and 3 are set, corresponding to the signals
+.B SIGINT
+and
+.BR SIGQUIT ;
+see
+.BR signal (7).)
+.P
+For inotify file descriptors (see
+.BR inotify (7)),
+we see (since Linux 3.8)
+the following fields:
+.P
+.in +4n
+.EX
+pos:	0
+flags:	00
+mnt_id:	11
+inotify wd:2 ino:7ef82a sdev:800001 mask:800afff ignored_mask:0 fhandle\-bytes:8 fhandle\-type:1 f_handle:2af87e00220ffd73
+inotify wd:1 ino:192627 sdev:800001 mask:800afff ignored_mask:0 fhandle\-bytes:8 fhandle\-type:1 f_handle:27261900802dfd73
+.EE
+.in
+.P
+Each of the lines beginning with "inotify" displays information about
+one file or directory that is being monitored.
+The fields in this line are as follows:
+.TP
+.I wd
+A watch descriptor number (in decimal).
+.TP
+.I ino
+The inode number of the target file (in hexadecimal).
+.TP
+.I sdev
+The ID of the device where the target file resides (in hexadecimal).
+.TP
+.I mask
+The mask of events being monitored for the target file (in hexadecimal).
+.P
+If the kernel was built with exportfs support, the path to the target
+file is exposed as a file handle, via three hexadecimal fields:
+.IR fhandle\-bytes ,
+.IR fhandle\-type ,
+and
+.IR f_handle .
+.P
+For fanotify file descriptors (see
+.BR fanotify (7)),
+we see (since Linux 3.8)
+the following fields:
+.P
+.in +4n
+.EX
+pos:	0
+flags:	02
+mnt_id:	11
+fanotify flags:0 event\-flags:88002
+fanotify ino:19264f sdev:800001 mflags:0 mask:1 ignored_mask:0 fhandle\-bytes:8 fhandle\-type:1 f_handle:4f261900a82dfd73
+.EE
+.in
+.P
+The fourth line displays information defined when the fanotify group
+was created via
+.BR fanotify_init (2):
+.TP
+.I flags
+The
+.I flags
+argument given to
+.BR fanotify_init (2)
+(expressed in hexadecimal).
+.TP
+.I event\-flags
+The
+.I event_f_flags
+argument given to
+.BR fanotify_init (2)
+(expressed in hexadecimal).
+.P
+Each additional line shown in the file contains information
+about one of the marks in the fanotify group.
+Most of these fields are as for inotify, except:
+.TP
+.I mflags
+The flags associated with the mark
+(expressed in hexadecimal).
+.TP
+.I mask
+The events mask for this mark
+(expressed in hexadecimal).
+.TP
+.I ignored_mask
+The mask of events that are ignored for this mark
+(expressed in hexadecimal).
+.P
+For details on these fields, see
+.BR fanotify_mark (2).
+.P
+For timerfd file descriptors (see
+.BR timerfd (2)),
+we see (since Linux 3.17)
+.\" commit af9c4957cf212ad9cf0bee34c95cb11de5426e85
+the following fields:
+.P
+.in +4n
+.EX
+pos:    0
+flags:  02004002
+mnt_id: 13
+clockid: 0
+ticks: 0
+settime flags: 03
+it_value: (7695568592, 640020877)
+it_interval: (0, 0)
+.EE
+.in
+.TP
+.I clockid
+This is the numeric value of the clock ID
+(corresponding to one of the
+.B CLOCK_*
+constants defined via
+.IR <time.h> )
+that is used to mark the progress of the timer (in this example, 0 is
+.BR CLOCK_REALTIME ).
+.TP
+.I ticks
+This is the number of timer expirations that have occurred,
+(i.e., the value that
+.BR read (2)
+on it would return).
+.TP
+.I settime flags
+This field lists the flags with which the timerfd was last armed (see
+.BR timerfd_settime (2)),
+in octal
+(in this example, both
+.B TFD_TIMER_ABSTIME
+and
+.B TFD_TIMER_CANCEL_ON_SET
+are set).
+.TP
+.I it_value
+This field contains the amount of time until the timer will next expire,
+expressed in seconds and nanoseconds.
+This is always expressed as a relative value,
+regardless of whether the timer was created using the
+.B TFD_TIMER_ABSTIME
+flag.
+.TP
+.I it_interval
+This field contains the interval of the timer,
+in seconds and nanoseconds.
+(The
+.I it_value
+and
+.I it_interval
+fields contain the values that
+.BR timerfd_gettime (2)
+on this file descriptor would return.)
+.SH HISTORY
+Linux 2.6.22.
+.SH SEE ALSO
+.BR proc (5)

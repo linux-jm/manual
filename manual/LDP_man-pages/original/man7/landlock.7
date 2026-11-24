@@ -1,0 +1,728 @@
+'\" t
+.\" Copyright 2017-2020, Mickaël Salaün <mic@digikod.net>
+.\" Copyright 2019-2020, ANSSI
+.\" Copyright 2021, Microsoft Corp.
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.TH Landlock 7 2026-04-21 "Linux man-pages (unreleased)"
+.SH NAME
+Landlock \- unprivileged access-control
+.SH DESCRIPTION
+Landlock is an access-control system that enables any processes to
+securely restrict themselves and their future children.
+Because Landlock is a stackable Linux Security Module (LSM),
+it makes it possible to create safe security sandboxes
+as new security layers in addition to
+the existing system-wide access-controls.
+This kind of sandbox is expected to help mitigate
+the security impact of bugs,
+and unexpected or malicious behaviors in applications.
+.P
+A Landlock security policy is a set of access rights
+(e.g., open a file in read-only, make a directory, etc.)
+tied to a file hierarchy.
+Such policy can be configured and enforced by processes for themselves
+using three system calls:
+.IP \[bu] 3
+.BR landlock_create_ruleset (2)
+creates a new ruleset;
+.IP \[bu]
+.BR landlock_add_rule (2)
+adds a new rule to a ruleset;
+.IP \[bu]
+.BR landlock_restrict_self (2)
+enforces a ruleset on the calling thread.
+.P
+To be able to use these system calls,
+the running kernel must support Landlock and
+it must be enabled at boot time.
+.\"
+.SS Landlock rules
+A Landlock rule describes an action on an object
+which the process intends to perform.
+A set of rules is aggregated in a ruleset,
+which can then restrict the thread enforcing it,
+and its future children.
+.P
+The two existing types of rules are:
+.TP
+.B Filesystem rules
+For these rules, the object is a file hierarchy,
+and the related filesystem actions are defined with
+.IR "filesystem access rights" .
+.TP
+.BR "Network rules" " (since ABI v4)"
+For these rules, the object is a TCP port,
+and the related actions are defined with
+.IR "network access rights" .
+.\"
+.SS Filesystem actions
+These flags enable to restrict a sandboxed process to a
+set of actions on files and directories.
+Files or directories opened before the sandboxing
+are not subject to these restrictions.
+See
+.BR landlock_add_rule (2)
+and
+.BR landlock_create_ruleset (2)
+for more context.
+.P
+The following access rights apply only to files:
+.TP
+.B LANDLOCK_ACCESS_FS_EXECUTE
+Execute a file.
+.TP
+.B LANDLOCK_ACCESS_FS_WRITE_FILE
+Open a file with write access.
+.IP
+When opening files for writing,
+you will often additionally need the
+.B LANDLOCK_ACCESS_FS_TRUNCATE
+right.
+In many cases,
+these system calls truncate existing files when overwriting them
+(e.g.,
+.BR creat (2)).
+.TP
+.B LANDLOCK_ACCESS_FS_READ_FILE
+Open a file with read access.
+.TP
+.B LANDLOCK_ACCESS_FS_TRUNCATE
+Truncate a file with
+.BR truncate (2),
+.BR ftruncate (2),
+.BR creat (2),
+or
+.BR open (2)
+with
+.BR O_TRUNC .
+.IP
+This access right is available since the third version of the Landlock ABI.
+.TP
+.B LANDLOCK_ACCESS_FS_IOCTL_DEV
+Invoke
+.BR ioctl (2)
+commands on an opened character or block device.
+.IP
+This access right applies to all
+.BR ioctl (2)
+commands implemented by device drivers.
+However, the following common IOCTL commands continue to be invokable
+independent of the
+.B LANDLOCK_ACCESS_FS_IOCTL_DEV
+right:
+.RS
+.IP \[bu] 3
+IOCTL commands targeting file descriptors
+.RB ( FIOCLEX ,
+.BR FIONCLEX ),
+.IP \[bu]
+IOCTL commands targeting file descriptions
+.RB ( FIONBIO ,
+.BR FIOASYNC ),
+.IP \[bu]
+IOCTL commands targeting file systems
+.RB ( FIFREEZE ,
+.BR FITHAW ,
+.BR FIGETBSZ ,
+.BR FS_IOC_GETFSUUID ,
+.BR FS_IOC_GETFSSYSFSPATH )
+.IP \[bu]
+Some IOCTL commands which do not make sense when used with devices, but
+whose implementations are safe and return the right error codes
+.RB ( FS_IOC_FIEMAP ,
+.BR FICLONE ,
+.BR FICLONERANGE ,
+.BR FIDEDUPERANGE )
+.RE
+.IP
+This access right is available since the fifth version of the Landlock ABI.
+.P
+Whether an opened file can be truncated with
+.BR ftruncate (2)
+or used with
+.BR ioctl (2)
+is determined during
+.BR open (2),
+in the same way as read and write permissions are checked during
+.BR open (2)
+using
+.B LANDLOCK_ACCESS_FS_READ_FILE
+and
+.BR LANDLOCK_ACCESS_FS_WRITE_FILE .
+.P
+A directory can receive access rights related to files or directories.
+The following access right is applied to the directory itself,
+and the directories beneath it:
+.TP
+.B LANDLOCK_ACCESS_FS_READ_DIR
+Open a directory or list its content.
+.P
+However,
+the following access rights only apply to the content of a directory,
+not the directory itself:
+.TP
+.B LANDLOCK_ACCESS_FS_REMOVE_DIR
+Remove an empty directory or rename one.
+.TP
+.B LANDLOCK_ACCESS_FS_REMOVE_FILE
+Unlink (or rename) a file.
+.TP
+.B LANDLOCK_ACCESS_FS_MAKE_CHAR
+Create (or rename or link) a character device.
+.TP
+.B LANDLOCK_ACCESS_FS_MAKE_DIR
+Create (or rename) a directory.
+.TP
+.B LANDLOCK_ACCESS_FS_MAKE_REG
+Create (or rename or link) a regular file.
+.TP
+.B LANDLOCK_ACCESS_FS_MAKE_SOCK
+Create (or rename or link) a UNIX domain socket.
+.TP
+.B LANDLOCK_ACCESS_FS_MAKE_FIFO
+Create (or rename or link) a named pipe.
+.TP
+.B LANDLOCK_ACCESS_FS_MAKE_BLOCK
+Create (or rename or link) a block device.
+.TP
+.B LANDLOCK_ACCESS_FS_MAKE_SYM
+Create (or rename or link) a symbolic link.
+.TP
+.B LANDLOCK_ACCESS_FS_REFER
+Link or rename a file from or to a different directory
+(i.e., reparent a file hierarchy).
+.IP
+This access right is available since the second version of the Landlock ABI.
+.IP
+This is the only access right which is denied by default by any ruleset,
+even if the right is not specified as handled at ruleset creation time.
+The only way to make a ruleset grant this right
+is to explicitly allow it for a specific directory
+by adding a matching rule to the ruleset.
+.IP
+In particular, when using the first Landlock ABI version,
+Landlock will always deny attempts to reparent files
+between different directories.
+.IP
+In addition to the source and destination directories having the
+.B LANDLOCK_ACCESS_FS_REFER
+access right,
+the attempted link or rename operation must meet the following constraints:
+.RS
+.IP \[bu] 3
+The reparented file may not gain more access rights in the destination directory
+than it previously had in the source directory.
+If this is attempted, the operation results in an
+.B EXDEV
+error.
+.IP \[bu]
+When linking or renaming, the
+.BI LANDLOCK_ACCESS_FS_MAKE_ *
+right for the respective file type must be granted
+for the destination directory.
+Otherwise, the operation results in an
+.B EACCES
+error.
+.IP \[bu]
+When renaming, the
+.BI LANDLOCK_ACCESS_FS_REMOVE_ *
+right for the respective file type must be granted
+for the source directory.
+Otherwise, the operation results in an
+.B EACCES
+error.
+.RE
+.IP
+If multiple requirements are not met, the
+.B EACCES
+error code takes precedence over
+.BR EXDEV .
+.\"
+.SS Network flags
+These flags enable to restrict a sandboxed process
+to a set of network actions.
+.P
+This is supported since Landlock ABI version 4.
+.P
+The following access rights apply to TCP port numbers:
+.TP
+.B LANDLOCK_ACCESS_NET_BIND_TCP
+Bind a TCP socket to a local port.
+.TP
+.B LANDLOCK_ACCESS_NET_CONNECT_TCP
+Connect an active TCP socket to a remote port.
+.\"
+.SS Scope flags
+These flags enable isolating a sandboxed process from a set of IPC actions.
+Setting a flag for a ruleset will isolate the Landlock domain
+to forbid connections to resources outside the domain.
+.P
+This is supported since Landlock ABI version 6.
+.P
+The following scopes exist:
+.TP
+.B LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET
+Restrict a sandboxed process from connecting to an abstract UNIX socket
+created by a process outside the related Landlock domain
+(e.g., a parent domain or a non-sandboxed process).
+.TP
+.B LANDLOCK_SCOPE_SIGNAL
+Restrict a sandboxed process from sending a signal
+to another process outside the domain.
+.\"
+.SS Layers of file path access rights
+Each time a thread enforces a ruleset on itself,
+it updates its Landlock domain with a new layer of policy.
+Indeed, this complementary policy is composed with the
+potentially other rulesets already restricting this thread.
+A sandboxed thread can then safely add more constraints to itself with a
+new enforced ruleset.
+.P
+One policy layer grants access to a file path
+if at least one of its rules encountered on the path grants the access.
+A sandboxed thread can only access a file path
+if all its enforced policy layers grant the access
+as well as all the other system access controls
+(e.g., filesystem DAC, other LSM policies, etc.).
+.\"
+.SS Bind mounts and OverlayFS
+Landlock enables restricting access to file hierarchies,
+which means that these access rights can be propagated with bind mounts
+(cf.
+.BR mount_namespaces (7))
+but not with OverlayFS.
+.P
+A bind mount mirrors a source file hierarchy to a destination.
+The destination hierarchy is then composed of the exact same files,
+on which Landlock rules can be tied,
+either via the source or the destination path.
+These rules restrict access when they are encountered on a path,
+which means that they can restrict access to
+multiple file hierarchies at the same time,
+whether these hierarchies are the result of bind mounts or not.
+.P
+An OverlayFS mount point consists of upper and lower layers.
+These layers are combined in a merge directory, result of the mount point.
+This merge hierarchy may include files from the upper and lower layers,
+but modifications performed on the merge hierarchy
+only reflect on the upper layer.
+From a Landlock policy point of view,
+each of the OverlayFS layers and merge hierarchies is standalone and
+contains its own set of files and directories,
+which is different from a bind mount.
+A policy restricting an OverlayFS layer will not restrict
+the resulted merged hierarchy, and vice versa.
+Landlock users should then only think about file hierarchies they want to
+allow access to, regardless of the underlying filesystem.
+.\"
+.SS Inheritance
+Every new thread resulting from a
+.BR clone (2)
+inherits Landlock domain restrictions from its parent.
+This is similar to the
+.BR seccomp (2)
+inheritance or any other LSM dealing with tasks'
+.BR credentials (7).
+For instance, one process's thread may apply Landlock rules to itself,
+but they will not be automatically applied to other sibling threads
+(unlike POSIX thread credential changes, cf.
+.BR nptl (7)).
+.P
+When a thread sandboxes itself,
+we have the guarantee that the related security policy
+will stay enforced on all this thread's descendants.
+This allows creating standalone and modular security policies
+per application,
+which will automatically be composed between themselves
+according to their run-time parent policies.
+.\"
+.SS Ptrace restrictions
+A sandboxed process has less privileges than a non-sandboxed process and
+must then be subject to additional restrictions
+when manipulating another process.
+To be allowed to use
+.BR ptrace (2)
+and related syscalls on a target process,
+a sandboxed process should have a subset of the target process rules,
+which means the tracee must be in a sub-domain of the tracer.
+.\"
+.SS IPC scoping
+Similar to the implicit
+.BR "Ptrace restrictions" ,
+we may want to further restrict interactions between sandboxes.
+Therefore, at ruleset creation time,
+each Landlock domain can restrict the scope for certain operations,
+so that these operations can only reach out to processes
+within the same Landlock domain or in a nested Landlock domain (the "scope").
+.P
+The operations which can be scoped are:
+.TP
+.B LANDLOCK_SCOPE_SIGNAL
+This limits the sending of signals to target processes
+which run within the same or a nested Landlock domain.
+.TP
+.B LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET
+This limits the set of abstract
+.BR unix (7)
+sockets to which we can
+.BR connect (2)
+to socket addresses which were created
+by a process in the same or a nested Landlock domain.
+.IP
+A
+.BR sendto (2)
+on a non-connected datagram socket is treated as if it were doing an implicit
+.BR connect (2)
+and will be blocked if the remote end does not stem
+from the same or a nested Landlock domain.
+.IP
+A
+.BR sendto (2)
+on a socket which was previously connected will not be restricted.
+This works for both datagram and stream sockets.
+.P
+IPC scoping does not support exceptions via
+.BR landlock_add_rule (2).
+If an operation is scoped within a domain,
+no rules can be added to allow access to
+resources or processes outside of the scope.
+.\"
+.SS Truncating files
+The operations covered by
+.B LANDLOCK_ACCESS_FS_WRITE_FILE
+and
+.B LANDLOCK_ACCESS_FS_TRUNCATE
+both change the contents of a file and sometimes overlap in
+non-intuitive ways.
+It is recommended to always specify both of these together.
+.P
+A particularly surprising example is
+.BR creat (2).
+The name suggests that this system call requires
+the rights to create and write files.
+However, it also requires the truncate right
+if an existing file under the same name is already present.
+.P
+It should also be noted that truncating files does not require the
+.B LANDLOCK_ACCESS_FS_WRITE_FILE
+right.
+Apart from the
+.BR truncate (2)
+system call, this can also be done through
+.BR open (2)
+with the flags
+.IR "O_RDONLY\ |\ O_TRUNC" .
+.P
+When opening a file, the availability of the
+.B LANDLOCK_ACCESS_FS_TRUNCATE
+right is associated with the newly created file descriptor
+and will be used for subsequent truncation attempts using
+.BR ftruncate (2).
+The behavior is similar to opening a file for reading or writing,
+where permissions are checked during
+.BR open (2),
+but not during the subsequent
+.BR read (2)
+and
+.BR write (2)
+calls.
+.P
+As a consequence,
+it is possible to have multiple open file descriptors for the same file,
+where one grants the right to truncate the file and the other does not.
+It is also possible to pass such file descriptors between processes,
+keeping their Landlock properties,
+even when these processes do not have an enforced Landlock ruleset.
+.SH VERSIONS
+Landlock was introduced in Linux 5.13.
+.P
+To determine which Landlock features are available,
+users should query the Landlock ABI version:
+.TS
+box;
+ntb| ntb| lbx
+nt| nt| lbx.
+ABI	Kernel	Newly introduced constants
+_	_	_
+1	5.13	LANDLOCK_ACCESS_FS_EXECUTE
+\^	\^	LANDLOCK_ACCESS_FS_WRITE_FILE
+\^	\^	LANDLOCK_ACCESS_FS_READ_FILE
+\^	\^	LANDLOCK_ACCESS_FS_READ_DIR
+\^	\^	LANDLOCK_ACCESS_FS_REMOVE_DIR
+\^	\^	LANDLOCK_ACCESS_FS_REMOVE_FILE
+\^	\^	LANDLOCK_ACCESS_FS_MAKE_CHAR
+\^	\^	LANDLOCK_ACCESS_FS_MAKE_DIR
+\^	\^	LANDLOCK_ACCESS_FS_MAKE_REG
+\^	\^	LANDLOCK_ACCESS_FS_MAKE_SOCK
+\^	\^	LANDLOCK_ACCESS_FS_MAKE_FIFO
+\^	\^	LANDLOCK_ACCESS_FS_MAKE_BLOCK
+\^	\^	LANDLOCK_ACCESS_FS_MAKE_SYM
+_	_	_
+2	5.19	LANDLOCK_ACCESS_FS_REFER
+_	_	_
+3	6.2	LANDLOCK_ACCESS_FS_TRUNCATE
+_	_	_
+4	6.7	LANDLOCK_ACCESS_NET_BIND_TCP
+\^	\^	LANDLOCK_ACCESS_NET_CONNECT_TCP
+_	_	_
+5	6.10	LANDLOCK_ACCESS_FS_IOCTL_DEV
+_	_	_
+6	6.12	LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET
+\^	\^	LANDLOCK_SCOPE_SIGNAL
+_	_	_
+7	6.15	LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF
+\^	\^	LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON
+\^	\^	LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF
+_	_	_
+8	7.0	LANDLOCK_RESTRICT_SELF_TSYNC
+.TE
+.P
+Users should use the Landlock ABI version rather than the kernel version
+to determine which features are available.
+The mainline kernel versions listed here are only included for orientation.
+Kernels from other sources may contain backported features,
+and their version numbers may not match.
+.P
+To query the running kernel's Landlock ABI version,
+programs may pass the
+.B LANDLOCK_CREATE_RULESET_VERSION
+flag to
+.BR landlock_create_ruleset (2).
+.P
+When building fallback mechanisms for compatibility with older kernels,
+users are advised to consider the special semantics of the
+.B LANDLOCK_ACCESS_FS_REFER
+access right:
+In ABI v1,
+linking and moving of files between different directories is always forbidden,
+so programs relying on such operations are only compatible
+with Landlock ABI v2 and higher.
+.SH NOTES
+Landlock is enabled by
+.BR CONFIG_SECURITY_LANDLOCK .
+The
+.I lsm=lsm1,...,lsmN
+command line parameter controls the sequence of the initialization of
+Linux Security Modules.
+It must contain the string
+.I landlock
+to enable Landlock.
+If the command line parameter is not specified,
+the initialization falls back to the value of the deprecated
+.I security=
+command line parameter and further to the value of
+.BR CONFIG_LSM .
+We can check that Landlock is enabled by looking for
+.I landlock: Up and running.
+in kernel logs.
+.SH CAVEATS
+It is currently not possible to restrict some file-related actions
+accessible through these system call families:
+.BR chdir (2),
+.BR stat (2),
+.BR flock (2),
+.BR chmod (2),
+.BR chown (2),
+.BR setxattr (2),
+.BR utime (2),
+.BR fcntl (2),
+.BR access (2).
+Future Landlock evolutions will enable to restrict them.
+.SH EXAMPLES
+We first need to create the ruleset that will contain our rules.
+.P
+For this example,
+the ruleset will contain rules that only allow read actions,
+but write actions will be denied.
+The ruleset then needs to handle both of these kinds of actions.
+See the
+.B DESCRIPTION
+section for the description of filesystem actions.
+.P
+.in +4n
+.EX
+struct landlock_ruleset_attr attr = {0};
+int ruleset_fd;
+\&
+attr.handled_access_fs =
+        LANDLOCK_ACCESS_FS_EXECUTE |
+        LANDLOCK_ACCESS_FS_WRITE_FILE |
+        LANDLOCK_ACCESS_FS_READ_FILE |
+        LANDLOCK_ACCESS_FS_READ_DIR |
+        LANDLOCK_ACCESS_FS_REMOVE_DIR |
+        LANDLOCK_ACCESS_FS_REMOVE_FILE |
+        LANDLOCK_ACCESS_FS_MAKE_CHAR |
+        LANDLOCK_ACCESS_FS_MAKE_DIR |
+        LANDLOCK_ACCESS_FS_MAKE_REG |
+        LANDLOCK_ACCESS_FS_MAKE_SOCK |
+        LANDLOCK_ACCESS_FS_MAKE_FIFO |
+        LANDLOCK_ACCESS_FS_MAKE_BLOCK |
+        LANDLOCK_ACCESS_FS_MAKE_SYM |
+        LANDLOCK_ACCESS_FS_REFER |
+        LANDLOCK_ACCESS_FS_TRUNCATE |
+        LANDLOCK_ACCESS_FS_IOCTL_DEV;
+.EE
+.in
+.P
+To be compatible with older Linux versions,
+we detect the available Landlock ABI version,
+and only use the available subset of access rights:
+.P
+.in +4n
+.EX
+/*
+ * Table of available file system access rights by ABI version,
+ * numbers hardcoded to keep the example short.
+ */
+__u64 landlock_fs_access_rights[] = {
+    (LANDLOCK_ACCESS_FS_MAKE_SYM  << 1) \- 1,  /* v1                  */
+    (LANDLOCK_ACCESS_FS_REFER     << 1) \- 1,  /* v2: add "refer"     */
+    (LANDLOCK_ACCESS_FS_TRUNCATE  << 1) \- 1,  /* v3: add "truncate"  */
+    (LANDLOCK_ACCESS_FS_TRUNCATE  << 1) \- 1,  /* v4: TCP support     */
+    (LANDLOCK_ACCESS_FS_IOCTL_DEV << 1) \- 1,  /* v5: add "ioctl_dev" */
+};
+\&
+int abi = landlock_create_ruleset(NULL, 0,
+                                  LANDLOCK_CREATE_RULESET_VERSION);
+if (abi == \-1) {
+    /*
+     * Kernel too old, not compiled with Landlock,
+     * or Landlock was not enabled at boot time.
+     */
+    perror("Unable to use Landlock");
+    return;  /* Graceful fallback: Do nothing.  */
+}
+abi = MIN(abi, 3);
+\&
+/* Only use the available rights in the ruleset.  */
+attr.handled_access_fs &= landlock_fs_access_rights[abi \- 1];
+.EE
+.in
+.P
+The available access rights for each ABI version are listed in the
+.B VERSIONS
+section.
+.P
+If our program needed to create hard links
+or rename files between different directories
+.RB ( LANDLOCK_ACCESS_FS_REFER ),
+we would require the following change to the backwards compatibility logic:
+Directory reparenting is not possible
+in a process restricted with Landlock ABI version 1.
+Therefore,
+if the program needed to do file reparenting,
+and if only Landlock ABI version 1 was available,
+we could not restrict the process.
+.P
+Now that the ruleset attributes are determined,
+we create the Landlock ruleset
+and acquire a file descriptor as a handle to it,
+using
+.BR landlock_create_ruleset (2):
+.P
+.in +4n
+.EX
+ruleset_fd = landlock_create_ruleset(&attr, sizeof(attr), 0);
+if (ruleset_fd == \-1) {
+    perror("Failed to create a ruleset");
+    exit(EXIT_FAILURE);
+}
+.EE
+.in
+.P
+We can now add a new rule to the ruleset through the ruleset's file descriptor.
+The requested access rights must be a subset of the access rights
+which were specified in
+.I attr.handled_access_fs
+at ruleset creation time.
+.P
+In this example, the rule will only allow reading the file hierarchy
+.IR /usr .
+Without another rule, write actions would then be denied by the ruleset.
+To add
+.I /usr
+to the ruleset, we open it with the
+.I O_PATH
+flag and fill the
+.I struct landlock_path_beneath_attr
+with this file descriptor.
+.P
+.in +4n
+.EX
+struct landlock_path_beneath_attr path_beneath = {0};
+int err;
+\&
+path_beneath.allowed_access =
+        LANDLOCK_ACCESS_FS_EXECUTE |
+        LANDLOCK_ACCESS_FS_READ_FILE |
+        LANDLOCK_ACCESS_FS_READ_DIR;
+\&
+path_beneath.parent_fd = open("/usr", O_PATH | O_CLOEXEC);
+if (path_beneath.parent_fd == \-1) {
+    perror("Failed to open file");
+    close(ruleset_fd);
+    exit(EXIT_FAILURE);
+}
+err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+                        &path_beneath, 0);
+close(path_beneath.parent_fd);
+if (err) {
+    perror("Failed to update ruleset");
+    close(ruleset_fd);
+    exit(EXIT_FAILURE);
+}
+.EE
+.in
+.P
+We now have a ruleset with one rule allowing read access to
+.I /usr
+while denying all other handled accesses for the filesystem.
+The next step is to restrict the current thread from gaining more
+privileges
+(e.g., thanks to a set-user-ID binary).
+.P
+.in +4n
+.EX
+if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
+    perror("Failed to restrict privileges");
+    close(ruleset_fd);
+    exit(EXIT_FAILURE);
+}
+.EE
+.in
+.P
+The current thread is now ready to sandbox itself with the ruleset.
+.P
+.in +4n
+.EX
+if (landlock_restrict_self(ruleset_fd, 0)) {
+    perror("Failed to enforce ruleset");
+    close(ruleset_fd);
+    exit(EXIT_FAILURE);
+}
+close(ruleset_fd);
+.EE
+.in
+.P
+If the
+.BR landlock_restrict_self (2)
+system call succeeds, the current thread is now restricted and
+this policy will be enforced on all its subsequently created children as well.
+Once a thread is landlocked, there is no way to remove its security policy;
+only adding more restrictions is allowed.
+These threads are now in a new Landlock domain,
+merge of their parent one (if any) with the new ruleset.
+.P
+Full working code can be found in
+.UR https:\://git.kernel.org/\:pub/\:scm/\:linux/\:kernel/\:git/\:stable/\:linux.git/\:tree/\:samples/\:landlock/\:sandboxer.c
+.UE
+.SH SEE ALSO
+.BR landlock_create_ruleset (2),
+.BR landlock_add_rule (2),
+.BR landlock_restrict_self (2)
+.P
+.UR https:\://landlock.io/
+.UE

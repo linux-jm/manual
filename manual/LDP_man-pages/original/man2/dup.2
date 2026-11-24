@@ -1,71 +1,48 @@
-.\" This manpage is Copyright (C) 1992 Drew Eckhardt;
-.\" and Copyright (C) 1993 Michael Haardt, Ian Jackson.
-.\" and Copyright (C) 2005, 2008 Michael Kerrisk <mtk.manpages@gmail.com>
-.\" and Copyright (C) 2014 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright 1992, Drew Eckhardt <drew@cs.colorado.edu>
+.\" Copyright 2005-2014, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.\" Modified 1993-07-21, Rik Faith <faith@cs.unc.edu>
-.\" Modified 1994-08-21, Michael Chastain <mec@shell.portal.com>:
-.\"   Fixed typos.
-.\" Modified 1997-01-31, Eric S. Raymond <esr@thyrsus.com>
-.\" Modified 2002-09-28, aeb
-.\" 2009-01-12, mtk, reordered text in DESCRIPTION and added some
-.\"     details for dup2().
-.\" 2008-10-09, mtk: add description of dup3()
-.\"
-.TH DUP 2 2020-11-01 "Linux" "Linux Programmer's Manual"
+.TH dup 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 dup, dup2, dup3 \- duplicate a file descriptor
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
 .B #include <unistd.h>
-.PP
+.P
 .BI "int dup(int " oldfd );
 .BI "int dup2(int " oldfd ", int " newfd );
-
+.P
 .BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
-.BR "#include <fcntl.h>" "              /* Obtain O_* constant definitions */"
+.BR "#include <fcntl.h>" "              /* Definition of " O_* " constants */"
 .B #include <unistd.h>
-.PP
+.P
 .BI "int dup3(int " oldfd ", int " newfd ", int " flags );
 .fi
 .SH DESCRIPTION
 The
 .BR dup ()
-system call creates a copy of the file descriptor
-.IR oldfd ,
-using the lowest-numbered unused file descriptor for the new descriptor.
-.PP
+system call allocates a new file descriptor that refers to the same
+open file description as the descriptor
+.IR oldfd .
+(For an explanation of open file descriptions, see
+.BR open (2).)
+The new file descriptor number is guaranteed to be the lowest-numbered
+file descriptor that was unused in the calling process.
+.P
 After a successful return,
 the old and new file descriptors may be used interchangeably.
-They refer to the same open file description (see
-.BR open (2))
-and thus share file offset and file status flags;
+Since the two file descriptors refer to the same open file description,
+they share file offset and file status flags;
 for example, if the file offset is modified by using
 .BR lseek (2)
-on one of the file descriptors, the offset is also changed for the other.
-.PP
+on one of the file descriptors,
+the offset is also changed for the other file descriptor.
+.P
 The two file descriptors do not share file descriptor flags
 (the close-on-exec flag).
 The close-on-exec flag
@@ -82,12 +59,21 @@ system call performs the same task as
 but instead of using the lowest-numbered unused file descriptor,
 it uses the file descriptor number specified in
 .IR newfd .
+In other words,
+the file descriptor
+.I newfd
+is adjusted so that it now refers to the same open file description as
+.IR oldfd .
+.P
 If the file descriptor
-.IR newfd
-was previously open, it is silently closed before being reused.
-.PP
+.I newfd
+was previously open, it is closed before being reused;
+the close is performed silently
+(i.e., any errors during the close are not reported by
+.BR dup2 ()).
+.P
 The steps of closing and reusing the file descriptor
-.IR newfd
+.I newfd
 are performed
 .IR atomically .
 This is important, because trying to implement equivalent functionality using
@@ -101,15 +87,15 @@ might be reused between the two steps.
 Such reuse could happen because the main program is interrupted
 by a signal handler that allocates a file descriptor,
 or because a parallel thread allocates a file descriptor.
-.PP
+.P
 Note the following points:
-.IP * 3
+.IP \[bu] 3
 If
 .I oldfd
 is not a valid file descriptor, then the call fails, and
 .I newfd
 is not closed.
-.IP *
+.IP \[bu]
 If
 .I oldfd
 is a valid file descriptor, and
@@ -126,21 +112,21 @@ does nothing, and returns
 is the same as
 .BR dup2 (),
 except that:
-.IP * 3
+.IP \[bu] 3
 The caller can force the close-on-exec flag to be set
 for the new file descriptor by specifying
-.BR O_CLOEXEC
+.B O_CLOEXEC
 in
 .IR flags .
 See the description of the same flag in
 .BR open (2)
 for reasons why this may be useful.
-.IP *
+.IP \[bu]
 .\" Ulrich Drepper, LKML, 2008-10-09:
 .\"	We deliberately decided on this change.  Otherwise, what is the
 .\"	result of dup3(fd, fd, O_CLOEXEC)?
 If
-.IR oldfd
+.I oldfd
 equals
 .IR newfd ,
 then
@@ -152,7 +138,7 @@ On success, these system calls
 return the new file descriptor.
 On error, \-1 is returned, and
 .I errno
-is set appropriately.
+is set to indicate the error.
 .SH ERRORS
 .TP
 .B EBADF
@@ -162,7 +148,7 @@ isn't an open file descriptor.
 .B EBADF
 .I newfd
 is out of the allowed range for file descriptors (see the discussion of
-.BR RLIMIT_NOFILE
+.B RLIMIT_NOFILE
 in
 .BR getrlimit (2)).
 .TP
@@ -181,7 +167,8 @@ The
 .BR dup2 ()
 or
 .BR dup3 ()
-call was interrupted by a signal; see
+call was interrupted by a signal;
+see
 .BR signal (7).
 .TP
 .B EINVAL
@@ -198,24 +185,30 @@ was equal to
 .B EMFILE
 The per-process limit on the number of open file descriptors has been reached
 (see the discussion of
-.BR RLIMIT_NOFILE
+.B RLIMIT_NOFILE
 in
 .BR getrlimit (2)).
-.SH VERSIONS
-.BR dup3 ()
-was added to Linux in version 2.6.27;
-glibc support is available starting with
-version 2.9.
-.SH CONFORMING TO
-.BR dup (),
-.BR dup2 ():
-POSIX.1-2001, POSIX.1-2008, SVr4, 4.3BSD.
-.PP
-.BR dup3 ()
-is Linux-specific.
+.TP
+.B ENOMEM
+Insufficient kernel memory was available.
+.SH STANDARDS
+POSIX.1-2024.
+.SH HISTORY
+.TP
+.BR dup ()
+.TQ
+.BR dup2 ()
+4.3BSD,
+SVr4,
+POSIX.1-1988.
 .\" SVr4 documents additional
 .\" EINTR and ENOLINK error conditions.  POSIX.1 adds EINTR.
 .\" The EBUSY return is Linux-specific.
+.TP
+.BR dup3 ()
+POSIX.1-2024.
+Linux 2.6.27,
+glibc 2.9.
 .SH NOTES
 The error returned by
 .BR dup2 ()
@@ -230,15 +223,15 @@ also sometimes returns
 .B EINVAL
 like
 .BR F_DUPFD .
-.PP
+.P
 If
 .I newfd
 was open, any errors that would have been reported at
 .BR close (2)
 time are lost.
 If this is of concern,
-then\(emunless the program is single-threaded and does not allocate
-file descriptors in signal handlers\(emthe correct approach is
+then\[em]unless the program is single-threaded and does not allocate
+file descriptors in signal handlers\[em]the correct approach is
 .I not
 to close
 .I newfd
@@ -246,30 +239,30 @@ before calling
 .BR dup2 (),
 because of the race condition described above.
 Instead, code something like the following could be used:
-.PP
+.P
 .in +4n
 .EX
-/* Obtain a duplicate of \(aqnewfd\(aq that can subsequently
+/* Obtain a duplicate of \[aq]newfd\[aq] that can subsequently
    be used to check for close() errors; an EBADF error
-   means that \(aqnewfd\(aq was not open. */
-
+   means that \[aq]newfd\[aq] was not open.  */
+\&
 tmpfd = dup(newfd);
 if (tmpfd == \-1 && errno != EBADF) {
-    /* Handle unexpected dup() error */
+    /* Handle unexpected dup() error.  */
 }
-
-/* Atomically duplicate \(aqoldfd\(aq on \(aqnewfd\(aq */
-
+\&
+/* Atomically duplicate \[aq]oldfd\[aq] on \[aq]newfd\[aq].  */
+\&
 if (dup2(oldfd, newfd) == \-1) {
-    /* Handle dup2() error */
+    /* Handle dup2() error.  */
 }
-
+\&
 /* Now check for close() errors on the file originally
-   referred to by \(aqnewfd\(aq */
-
+   referred to by \[aq]newfd\[aq].  */
+\&
 if (tmpfd != \-1) {
     if (close(tmpfd) == \-1) {
-        /* Handle errors from close */
+        /* Handle errors from close.  */
     }
 }
 .EE
@@ -279,12 +272,3 @@ if (tmpfd != \-1) {
 .BR fcntl (2),
 .BR open (2),
 .BR pidfd_getfd (2)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

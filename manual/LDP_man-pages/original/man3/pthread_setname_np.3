@@ -1,41 +1,25 @@
-.\" Copyright (C) 2012 Chandan Apsangi <chandan.jc@gmail.com>
-.\" and Copyright (C) 2013 Michael Kerrisk <mtk.manpages@gmail.com>
+'\" t
+.\" Copyright 2012, Chandan Apsangi <chandan.jc@gmail.com>
+.\" Copyright 2013, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH PTHREAD_SETNAME_NP 3 2020-11-01 "Linux" "Linux Programmer's Manual"
+.TH pthread_setname_np 3 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 pthread_setname_np, pthread_getname_np \- set/get the name of a thread
+.SH LIBRARY
+POSIX threads library
+.RI ( libpthread ,\~ \-lpthread )
 .SH SYNOPSIS
 .nf
 .BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
 .B #include <pthread.h>
+.P
 .BI "int pthread_setname_np(pthread_t " thread ", const char *" name );
-.BI "int pthread_getname_np(pthread_t " thread ,
-.BI "                       char *" name ", size_t " len );
+.BR "int pthread_getname_np(" "size_t size;"
+.BI "                       pthread_t " thread ", char " name [ size "], size_t " size );
 .fi
-.PP
-Compile and link with \fI\-pthread\fP.
 .SH DESCRIPTION
 By default, all the threads created using
 .BR pthread_create ()
@@ -45,14 +29,15 @@ The
 function can be used to set a unique name for a thread,
 which can be useful for debugging
 multithreaded applications.
-The thread name is a meaningful C language string, whose length is
-restricted to 16 characters, including the terminating null byte (\(aq\e0\(aq).
+The thread name is a meaningful C language string,
+whose length is restricted to 16 characters,
+including the terminating null byte (\[aq]\[rs]0\[aq]).
 The
 .I thread
 argument specifies the thread whose name is to be changed;
 .I name
 specifies the new name.
-.PP
+.P
 The
 .BR pthread_getname_np ()
 function can be used to retrieve the name of the thread.
@@ -62,7 +47,7 @@ argument specifies the thread whose name is to be retrieved.
 The buffer
 .I name
 is used to return the thread name;
-.I len
+.I size
 specifies the number of bytes available in
 .IR name .
 The buffer specified by
@@ -81,7 +66,7 @@ function can fail with the following error:
 The length of the string specified pointed to by
 .I name
 exceeds the allowed limit.
-.PP
+.P
 The
 .BR pthread_getname_np ()
 function can fail with the following error:
@@ -90,40 +75,41 @@ function can fail with the following error:
 The buffer specified by
 .I name
 and
-.I len
+.I size
 is too small to hold the thread name.
-.PP
+.P
 If either of these functions fails to open
-.IR /proc/self/task/[tid]/comm ,
+.IR /proc/self/task/ tid /comm ,
 then the call may fail with one of the errors described in
 .BR open (2).
-.SH VERSIONS
-These functions first appeared in glibc in version 2.12.
 .SH ATTRIBUTES
 For an explanation of the terms used in this section, see
 .BR attributes (7).
 .TS
 allbox;
-lbw21 lb lb
+lbx lb lb
 l l l.
 Interface	Attribute	Value
 T{
+.na
+.nh
 .BR pthread_setname_np (),
 .BR pthread_getname_np ()
 T}	Thread safety	MT-Safe
 .TE
-.sp 1
-.SH CONFORMING TO
-These functions are nonstandard GNU extensions;
+.SH STANDARDS
+GNU;
 hence the suffix "_np" (nonportable) in the names.
+.SH HISTORY
+glibc 2.12.
 .SH NOTES
 .BR pthread_setname_np ()
 internally writes to the thread-specific
 .I comm
 file under the
-.IR /proc
+.I /proc
 filesystem:
-.IR /proc/self/task/[tid]/comm .
+.IR /proc/self/task/ tid /comm .
 .BR pthread_getname_np ()
 retrieves it from the same location.
 .SH EXAMPLES
@@ -131,17 +117,17 @@ The program below demonstrates the use of
 .BR pthread_setname_np ()
 and
 .BR pthread_getname_np ().
-.PP
+.P
 The following shell session shows a sample run of the program:
-.PP
+.P
 .in +4n
 .EX
-.RB "$" " ./a.out"
-Created a thread. Default name is: a.out
+.RB $ " ./a.out" ;
+Created a thread.  Default name is: a.out
 The thread name after setting it is THREADFOO.
-\fB\(haZ\fP                           # Suspend the program
+\f[B]\[ha]Z\f[]                           # Suspend the program
 [1]+  Stopped           ./a.out
-.RB "$ " "ps H \-C a.out \-o \(aqpid tid cmd comm\(aq"
+.RB "$ " "ps H \-C a.out \-o \[aq]pid tid cmd comm\[aq]"
   PID   TID CMD                         COMMAND
  5990  5990 ./a.out                     a.out
  5990  5991 ./a.out                     THREADFOO
@@ -153,76 +139,65 @@ THREADFOO
 .in
 .SS Program source
 \&
+.\" SRC BEGIN (pthread_setname_np.c)
 .EX
 #define _GNU_SOURCE
+#include <err.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
-#include <stdlib.h>
-
+\&
 #define NAMELEN 16
-
-#define errExitEN(en, msg) \e
-                        do { errno = en; perror(msg); \e
-                             exit(EXIT_FAILURE); } while (0)
-
+\&
 static void *
 threadfunc(void *parm)
 {
     sleep(5);          // allow main program to set the thread name
     return NULL;
 }
-
+\&
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
     pthread_t thread;
     int rc;
     char thread_name[NAMELEN];
-
+\&
     rc = pthread_create(&thread, NULL, threadfunc, NULL);
     if (rc != 0)
-        errExitEN(rc, "pthread_create");
-
+        errc(EXIT_FAILURE, rc, "pthread_create");
+\&
     rc = pthread_getname_np(thread, thread_name, NAMELEN);
     if (rc != 0)
-        errExitEN(rc, "pthread_getname_np");
-
-    printf("Created a thread. Default name is: %s\en", thread_name);
+        errc(EXIT_FAILURE, rc, "pthread_getname_np");
+\&
+    printf("Created a thread.  Default name is: %s\[rs]n", thread_name);
     rc = pthread_setname_np(thread, (argc > 1) ? argv[1] : "THREADFOO");
     if (rc != 0)
-        errExitEN(rc, "pthread_setname_np");
-
+        errc(EXIT_FAILURE, rc, "pthread_setname_np");
+\&
     sleep(2);
-
-    rc = pthread_getname_np(thread, thread_name,
-                            (argc > 2) ? atoi(argv[1]) : NAMELEN);
+\&
+    rc = pthread_getname_np(thread, thread_name, NAMELEN);
     if (rc != 0)
-        errExitEN(rc, "pthread_getname_np");
-    printf("The thread name after setting it is %s.\en", thread_name);
-
+        errc(EXIT_FAILURE, rc, "pthread_getname_np");
+    printf("The thread name after setting it is %s.\[rs]n", thread_name);
+\&
     rc = pthread_join(thread, NULL);
     if (rc != 0)
-        errExitEN(rc, "pthread_join");
-
-    printf("Done\en");
+        errc(EXIT_FAILURE, rc, "pthread_join");
+\&
+    printf("Done\[rs]n");
     exit(EXIT_SUCCESS);
 }
 .EE
+.\" SRC END
 .SH SEE ALSO
 .ad l
 .nh
 .BR prctl (2),
 .BR pthread_create (3),
 .BR pthreads (7)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

@@ -1,0 +1,415 @@
+.\" Copyright 1994-1995, Daniel Quinlan <Daniel.Quinlan@linux.org>
+.\" Copyright 2002-2017, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, Andries E. Brouwer <aeb@cwi.nl>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: GPL-3.0-or-later
+.\"
+.TH proc_sys_vm 5 2026-02-08 "Linux man-pages (unreleased)"
+.SH NAME
+/proc/sys/vm/ \- virtual memory subsystem
+.SH DESCRIPTION
+.TP
+.I /proc/sys/vm/
+This directory contains files for memory management tuning, buffer, and
+cache management.
+.TP
+.IR /proc/sys/vm/admin_reserve_kbytes " (since Linux 3.10)"
+.\" commit 4eeab4f5580d11bffedc697684b91b0bca0d5009
+This file defines the amount of free memory (in KiB) on the system that
+should be reserved for users with the capability
+.BR CAP_SYS_ADMIN .
+.IP
+The default value in this file is the minimum of [3% of free pages, 8MiB]
+expressed as KiB.
+The default is intended to provide enough for the superuser
+to log in and kill a process, if necessary,
+under the default overcommit 'guess' mode (i.e., 0 in
+.IR /proc/sys/vm/overcommit_memory ).
+.IP
+Systems running in "overcommit never" mode (i.e., 2 in
+.IR /proc/sys/vm/overcommit_memory )
+should increase the value in this file to account
+for the full virtual memory size of the programs used to recover (e.g.,
+.BR login (1)
+.BR ssh (1),
+and
+.BR top (1))
+Otherwise, the superuser may not be able to log in to recover the system.
+For example, on x86-64 a suitable value is 131072 (128MiB reserved).
+.IP
+Changing the value in this file takes effect whenever
+an application requests memory.
+.TP
+.IR /proc/sys/vm/compact_memory " (since Linux 2.6.35)"
+When 1 is written to this file, all zones are compacted such that free
+memory is available in contiguous blocks where possible.
+The effect of this action can be seen by examining
+.IR /proc/buddyinfo .
+.IP
+Present only if the kernel was configured with
+.BR CONFIG_COMPACTION .
+.TP
+.IR /proc/sys/vm/drop_caches " (since Linux 2.6.16)"
+Writing to this file causes the kernel to drop clean caches, dentries, and
+inodes from memory, causing that memory to become free.
+This can be useful for memory management testing and
+performing reproducible filesystem benchmarks.
+Because writing to this file causes the benefits of caching to be lost,
+it can degrade overall system performance.
+.IP
+To free pagecache, use:
+.IP
+.in +4n
+.EX
+echo 1 > /proc/sys/vm/drop_caches
+.EE
+.in
+.IP
+To free dentries and inodes, use:
+.IP
+.in +4n
+.EX
+echo 2 > /proc/sys/vm/drop_caches
+.EE
+.in
+.IP
+To free pagecache, dentries, and inodes, use:
+.IP
+.in +4n
+.EX
+echo 3 > /proc/sys/vm/drop_caches
+.EE
+.in
+.IP
+Because writing to this file is a nondestructive operation and dirty objects
+are not freeable, the
+user should run
+.BR sync (1)
+first.
+.TP
+.IR  /proc/sys/vm/hugetlb_shm_group " (since Linux 2.6.7)"
+This writable file contains a group ID that is allowed
+to allocate memory using huge pages.
+If a process has a filesystem group ID or any supplementary group ID that
+matches this group ID,
+then it can make huge-page allocations without holding the
+.B CAP_IPC_LOCK
+capability;
+see
+.BR memfd_create (2),
+.BR mmap (2),
+and
+.BR shmget (2).
+.TP
+.IR /proc/sys/vm/legacy_va_layout " (since Linux 2.6.9)"
+If nonzero, this disables the new 32-bit memory-mapping layout;
+the kernel will use the legacy (2.4) layout for all processes.
+.TP
+.IR /proc/sys/vm/memory_failure_early_kill " (since Linux 2.6.32)"
+Control how to kill processes when an uncorrected memory error
+(typically a 2-bit error in a memory module)
+that cannot be handled by the kernel
+is detected in the background by hardware.
+In some cases (like the page still having a valid copy on disk),
+the kernel will handle the failure
+transparently without affecting any applications.
+But if there is no other up-to-date copy of the data,
+it will kill processes to prevent any data corruptions from propagating.
+.IP
+The file has one of the following values:
+.RS
+.TP
+.B 1
+Kill all processes that have the corrupted-and-not-reloadable page mapped
+as soon as the corruption is detected.
+Note that this is not supported for a few types of pages,
+such as kernel internally
+allocated data or the swap cache, but works for the majority of user pages.
+.TP
+.B 0
+Unmap the corrupted page from all processes and kill a process
+only if it tries to access the page.
+.RE
+.IP
+The kill is performed using a
+.B SIGBUS
+signal with
+.I si_code
+set to
+.BR BUS_MCEERR_AO .
+Processes can handle this if they want to;
+see
+.BR sigaction (2)
+for more details.
+.IP
+This feature is active only on architectures/platforms with advanced machine
+check handling and depends on the hardware capabilities.
+.IP
+Applications can override the
+.I memory_failure_early_kill
+setting individually with the
+.BR prctl (2)
+.B PR_MCE_KILL
+operation.
+.IP
+Present only if the kernel was configured with
+.BR CONFIG_MEMORY_FAILURE .
+.TP
+.IR /proc/sys/vm/memory_failure_recovery " (since Linux 2.6.32)"
+Enable memory failure recovery (when supported by the platform).
+.RS
+.TP
+.B 1
+Attempt recovery.
+.TP
+.B 0
+Always panic on a memory failure.
+.RE
+.IP
+Present only if the kernel was configured with
+.BR CONFIG_MEMORY_FAILURE .
+.TP
+.IR /proc/sys/vm/oom_dump_tasks " (since Linux 2.6.25)"
+Enables a system-wide task dump (excluding kernel threads) to be
+produced when the kernel performs an OOM-killing.
+The dump includes the following information
+for each task (thread, process):
+thread ID, real user ID, thread group ID (process ID),
+virtual memory size, resident set size,
+the CPU that the task is scheduled on,
+oom_adj score (see the description of
+.IR /proc/ pid /oom_adj ),
+and command name.
+This is helpful to determine why the OOM-killer was invoked
+and to identify the rogue task that caused it.
+.IP
+If this contains the value zero, this information is suppressed.
+On very large systems with thousands of tasks,
+it may not be feasible to dump the memory state information for each one.
+Such systems should not be forced to incur a performance penalty in
+OOM situations when the information may not be desired.
+.IP
+If this is set to nonzero, this information is shown whenever the
+OOM-killer actually kills a memory-hogging task.
+.IP
+The default value is 0.
+.TP
+.IR /proc/sys/vm/oom_kill_allocating_task " (since Linux 2.6.24)"
+This enables or disables killing the OOM-triggering task in
+out-of-memory situations.
+.IP
+If this is set to zero, the OOM-killer will scan through the entire
+tasklist and select a task based on heuristics to kill.
+This normally selects a rogue memory-hogging task that
+frees up a large amount of memory when killed.
+.IP
+If this is set to nonzero, the OOM-killer simply kills the task that
+triggered the out-of-memory condition.
+This avoids a possibly expensive tasklist scan.
+.IP
+If
+.I /proc/sys/vm/panic_on_oom
+is nonzero, it takes precedence over whatever value is used in
+.IR /proc/sys/vm/oom_kill_allocating_task .
+.IP
+The default value is 0.
+.TP
+.IR /proc/sys/vm/overcommit_kbytes " (since Linux 3.14)"
+.\" commit 49f0ce5f92321cdcf741e35f385669a421013cb7
+This writable file provides an alternative to
+.I /proc/sys/vm/overcommit_ratio
+for controlling the
+.I CommitLimit
+when
+.I /proc/sys/vm/overcommit_memory
+has the value 2.
+It allows the amount of memory overcommitting to be specified as
+an absolute value (in kB),
+rather than as a percentage, as is done with
+.IR overcommit_ratio .
+This allows for finer-grained control of
+.I CommitLimit
+on systems with extremely large memory sizes.
+.IP
+Only one of
+.I overcommit_kbytes
+or
+.I overcommit_ratio
+can have an effect:
+if
+.I overcommit_kbytes
+has a nonzero value, then it is used to calculate
+.IR CommitLimit ,
+otherwise
+.I overcommit_ratio
+is used.
+Writing a value to either of these files causes the
+value in the other file to be set to zero.
+.TP
+.I /proc/sys/vm/overcommit_memory
+This file contains the kernel virtual memory accounting mode.
+Values are:
+.RS
+.IP
+0: heuristic overcommit (this is the default)
+.br
+1: always overcommit, never check
+.br
+2: always check, never overcommit
+.RE
+.IP
+In mode 0, calls of
+.BR mmap (2)
+with
+.B MAP_NORESERVE
+are not checked, and the default check is very weak,
+leading to the risk of getting a process "OOM-killed".
+.IP
+In mode 1, the kernel pretends there is always enough memory,
+until memory actually runs out.
+One use case for this mode is scientific computing applications
+that employ large sparse arrays.
+Before Linux 2.6.0, any nonzero value implies mode 1.
+.IP
+In mode 2 (available since Linux 2.6), the total virtual address space
+that can be allocated
+.RI ( CommitLimit
+in
+.IR /proc/meminfo )
+is calculated as
+.IP
+.in +4n
+.EX
+CommitLimit = (total_RAM \- total_huge_TLB) *
+	      overcommit_ratio / 100 + total_swap
+.EE
+.in
+.IP
+where:
+.RS
+.IP \[bu] 3
+.I total_RAM
+is the total amount of RAM on the system;
+.IP \[bu]
+.I total_huge_TLB
+is the amount of memory set aside for huge pages;
+.IP \[bu]
+.I overcommit_ratio
+is the value in
+.IR /proc/sys/vm/overcommit_ratio ;
+and
+.IP \[bu]
+.I total_swap
+is the amount of swap space.
+.RE
+.IP
+For example, on a system with 16 GB of physical RAM, 16 GB
+of swap, no space dedicated to huge pages, and an
+.I overcommit_ratio
+of 50, this formula yields a
+.I CommitLimit
+of 24 GB.
+.IP
+Since Linux 3.14, if the value in
+.I /proc/sys/vm/overcommit_kbytes
+is nonzero, then
+.I CommitLimit
+is instead calculated as:
+.IP
+.in +4n
+.EX
+CommitLimit = overcommit_kbytes + total_swap
+.EE
+.in
+.IP
+See also the description of
+.I /proc/sys/vm/admin_reserve_kbytes
+and
+.IR /proc/sys/vm/user_reserve_kbytes .
+.TP
+.IR /proc/sys/vm/overcommit_ratio " (since Linux 2.6.0)"
+This writable file defines a percentage by which memory
+can be overcommitted.
+The default value in the file is 50.
+See the description of
+.IR /proc/sys/vm/overcommit_memory .
+.TP
+.IR /proc/sys/vm/panic_on_oom " (since Linux 2.6.18)"
+This enables or disables a kernel panic in
+an out-of-memory situation.
+.IP
+If this file is set to the value 0,
+the kernel's OOM-killer will kill some rogue process.
+Usually, the OOM-killer is able to kill a rogue process and the
+system will survive.
+.IP
+If this file is set to the value 1,
+then the kernel normally panics when out-of-memory happens.
+However, if a process limits allocations to certain nodes
+using memory policies
+.RB ( mbind (2)
+.BR MPOL_BIND )
+or cpusets
+.RB ( cpuset (7))
+and those nodes reach memory exhaustion status,
+one process may be killed by the OOM-killer.
+No panic occurs in this case:
+because other nodes' memory may be free,
+this means the system as a whole may not have reached
+an out-of-memory situation yet.
+.IP
+If this file is set to the value 2,
+the kernel always panics when an out-of-memory condition occurs.
+.IP
+The default value is 0.
+1 and 2 are for failover of clustering.
+Select either according to your policy of failover.
+.TP
+.I /proc/sys/vm/swappiness
+The value in this file controls how aggressively the kernel will swap
+memory pages.
+Higher values increase aggressiveness, lower values
+decrease aggressiveness.
+The default value is 60.
+.TP
+.IR /proc/sys/vm/user_reserve_kbytes " (since Linux 3.10)"
+.\" commit c9b1d0981fcce3d9976d7b7a56e4e0503bc610dd
+Specifies an amount of memory (in KiB) to reserve for user processes.
+This is intended to prevent a user from starting a single memory hogging
+process, such that they cannot recover (kill the hog).
+The value in this file has an effect only when
+.I /proc/sys/vm/overcommit_memory
+is set to 2 ("overcommit never" mode).
+In this case, the system reserves an amount of memory that is the minimum
+of [3% of current process size,
+.IR user_reserve_kbytes ].
+.IP
+The default value in this file is the minimum of [3% of free pages, 128MiB]
+expressed as KiB.
+.IP
+If the value in this file is set to zero,
+then a user will be allowed to allocate all free memory with a single process
+(minus the amount reserved by
+.IR /proc/sys/vm/admin_reserve_kbytes ).
+Any subsequent attempts to execute a command will result in
+"fork: Cannot allocate memory".
+.IP
+Changing the value in this file takes effect whenever
+an application requests memory.
+.TP
+.IR /proc/sys/vm/unprivileged_userfaultfd " (since Linux 5.2)"
+.\" cefdca0a86be517bc390fc4541e3674b8e7803b0
+This (writable) file exposes a flag that controls whether
+unprivileged processes are allowed to employ
+.BR userfaultfd (2).
+If this file has the value 1, then unprivileged processes may use
+.BR userfaultfd (2).
+If this file has the value 0, then only processes that have the
+.B CAP_SYS_PTRACE
+capability may employ
+.BR userfaultfd (2).
+The default value in this file is 1.
+.SH SEE ALSO
+.BR proc (5),
+.BR proc_sys (5)

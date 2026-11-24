@@ -1,49 +1,36 @@
-.\" Copyright (c) 2002 Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright 2002, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH SIGWAITINFO 2 2017-09-15 "Linux" "Linux Programmer's Manual"
+.TH sigwaitinfo 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 sigwaitinfo, sigtimedwait, rt_sigtimedwait \- synchronously wait
 for queued signals
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
 .B #include <signal.h>
-.PP
-.BI "int sigwaitinfo(const sigset_t *" set ", siginfo_t *" info ");"
-.PP
-.BI "int sigtimedwait(const sigset_t *" set ", siginfo_t *" info ,
-.BI "                 const struct timespec *" timeout ");"
+.P
+.BI "int sigwaitinfo(const sigset_t *restrict " set ,
+.BI "                siginfo_t *_Nullable restrict " info );
+.BI "int sigtimedwait(const sigset_t *restrict " set ,
+.BI "                siginfo_t *_Nullable restrict " info ,
+.BI "                const struct timespec *restrict " timeout );
 .fi
-.PP
+.P
 .RS -4
 Feature Test Macro Requirements for glibc (see
 .BR feature_test_macros (7)):
 .RE
-.PP
+.P
 .BR sigwaitinfo (),
 .BR sigtimedwait ():
-_POSIX_C_SOURCE\ >=\ 199309L
+.nf
+    _POSIX_C_SOURCE >= 199309L
+.fi
 .SH DESCRIPTION
 .BR sigwaitinfo ()
 suspends execution of the calling thread until one of the signals in
@@ -54,7 +41,7 @@ is pending
 is already pending for the calling thread,
 .BR sigwaitinfo ()
 will return immediately.)
-.PP
+.P
 .BR sigwaitinfo ()
 removes the signal from the set of pending
 signals and returns the signal number as its function result.
@@ -66,15 +53,17 @@ then the buffer that it points to is used to return a structure of type
 (see
 .BR sigaction (2))
 containing information about the signal.
-.PP
+.P
 If multiple signals in
 .I set
-are pending for the caller, the signal that is retrieved by
+are pending for the caller,
+the signal that is retrieved by
 .BR sigwaitinfo ()
-is determined according to the usual ordering rules; see
+is determined according to the usual ordering rules;
+see
 .BR signal (7)
 for further details.
-.PP
+.P
 .BR sigtimedwait ()
 operates in exactly the same way as
 .BR sigwaitinfo ()
@@ -85,17 +74,10 @@ the thread is suspended waiting for a signal.
 (This interval will be rounded up to the system clock granularity,
 and kernel scheduling delays mean that the interval
 may overrun by a small amount.)
-This argument is of the following type:
-.PP
-.in +4n
-.EX
-struct timespec {
-    long    tv_sec;         /* seconds */
-    long    tv_nsec;        /* nanoseconds */
-}
-.EE
-.in
-.PP
+This argument is a
+.BR timespec (3)
+structure.
+.P
 If both fields of this structure are specified as 0, a poll is performed:
 .BR sigtimedwait ()
 returns immediately, either with information about a signal that
@@ -117,13 +99,14 @@ set to indicate the error.
 .B EAGAIN
 No signal in
 .I set
-was became pending within the
+became pending within the
 .I timeout
 period specified to
 .BR sigtimedwait ().
 .TP
 .B EINTR
-The wait was interrupted by a signal handler; see
+The wait was interrupted by a signal handler;
+see
 .BR signal (7).
 (This handler was for a signal other than one of those in
 .IR set .)
@@ -131,8 +114,53 @@ The wait was interrupted by a signal handler; see
 .B EINVAL
 .I timeout
 was invalid.
-.SH CONFORMING TO
-POSIX.1-2001, POSIX.1-2008.
+.SH VERSIONS
+.SS C library/kernel differences
+On Linux,
+.BR sigwaitinfo ()
+is a library function implemented on top of
+.BR sigtimedwait ().
+.P
+The glibc wrapper functions for
+.BR sigwaitinfo ()
+and
+.BR sigtimedwait ()
+silently ignore attempts to wait for the two real-time signals that
+are used internally by the NPTL threading implementation.
+See
+.BR nptl (7)
+for details.
+.P
+The original Linux system call was named
+.BR sigtimedwait ().
+However, with the addition of real-time signals in Linux 2.2,
+the fixed-size, 32-bit
+.I sigset_t
+type supported by that system call was no longer fit for purpose.
+Consequently, a new system call,
+.BR rt_sigtimedwait (),
+was added to support an enlarged
+.I sigset_t
+type.
+The new system call takes a fourth argument,
+.IR "size_t sigsetsize" ,
+which specifies the size in bytes of the signal set in
+.IR set .
+This argument is currently required to have the value
+.I sizeof(sigset_t)
+(or the error
+.B EINVAL
+results).
+The glibc
+.BR sigtimedwait ()
+wrapper function hides these details from us, transparently calling
+.BR rt_sigtimedwait ()
+when the kernel provides it.
+.\"
+.SH STANDARDS
+POSIX.1-2024.
+.SH HISTORY
+POSIX.1-2001.
 .SH NOTES
 In normal usage, the calling program blocks the signals in
 .I set
@@ -151,18 +179,18 @@ a thread other than the one calling
 .BR sigwaitinfo ()
 or
 .BR sigtimedwait ()).
-.PP
+.P
 The set of signals that is pending for a given thread is the
 union of the set of signals that is pending specifically for that thread
 and the set of signals that is pending for the process as a whole (see
 .BR signal (7)).
-.PP
+.P
 Attempts to wait for
 .B SIGKILL
 and
 .B SIGSTOP
 are silently ignored.
-.PP
+.P
 If multiple threads of a process are blocked
 waiting for the same signal(s) in
 .BR sigwaitinfo ()
@@ -171,19 +199,19 @@ or
 then exactly one of the threads will actually receive the
 signal if it becomes pending for the process as a whole;
 which of the threads receives the signal is indeterminate.
-.PP
+.P
 .BR sigwaitinfo ()
 or
 .BR sigtimedwait (),
 can't be used to receive signals that
 are synchronously generated, such as the
-.BR SIGSEGV
+.B SIGSEGV
 signal that results from accessing an invalid memory address
 or the
-.BR SIGFPE
+.B SIGFPE
 signal that results from an arithmetic error.
 Such signals can be caught only via signal handler.
-.PP
+.P
 POSIX leaves the meaning of a NULL value for the
 .I timeout
 argument of
@@ -192,49 +220,6 @@ unspecified, permitting the possibility that this has the same meaning
 as a call to
 .BR sigwaitinfo (),
 and indeed this is what is done on Linux.
-.\"
-.SS C library/kernel differences
-On Linux,
-.BR sigwaitinfo ()
-is a library function implemented on top of
-.BR sigtimedwait ().
-.PP
-The glibc wrapper functions for
-.BR sigwaitinfo ()
-and
-.BR sigtimedwait ()
-silently ignore attempts to wait for the two real-time signals that
-are used internally by the NPTL threading implementation.
-See
-.BR nptl (7)
-for details.
-.PP
-The original Linux system call was named
-.BR sigtimedwait ().
-However, with the addition of real-time signals in Linux 2.2,
-the fixed-size, 32-bit
-.I sigset_t
-type supported by that system call was no longer fit for purpose.
-Consequently, a new system call,
-.BR rt_sigtimedwait (),
-was added to support an enlarged
-.IR sigset_t
-type.
-The new system call takes a fourth argument,
-.IR "size_t sigsetsize" ,
-which specifies the size in bytes of the signal set in
-.IR set .
-This argument is currently required to have the value
-.IR sizeof(sigset_t)
-(or the error
-.B EINVAL
-results).
-The glibc
-.BR sigtimedwait ()
-wrapper function hides these details from us, transparently calling
-.BR rt_sigtimedwait ()
-when the kernel provides it.
-.\"
 .SH SEE ALSO
 .BR kill (2),
 .BR sigaction (2),
@@ -245,14 +230,6 @@ when the kernel provides it.
 .BR sigqueue (3),
 .BR sigsetops (3),
 .BR sigwait (3),
+.BR timespec (3),
 .BR signal (7),
 .BR time (7)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

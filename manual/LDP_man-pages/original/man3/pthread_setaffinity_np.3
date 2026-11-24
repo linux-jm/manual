@@ -1,43 +1,24 @@
-.\" Copyright (c) 2008 Linux Foundation, written by Michael Kerrisk
-.\"     <mtk.manpages@gmail.com>
+'\" t
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH PTHREAD_SETAFFINITY_NP 3 2020-11-01 "Linux" "Linux Programmer's Manual"
+.TH pthread_setaffinity_np 3 2025-09-21 "Linux man-pages (unreleased)"
 .SH NAME
 pthread_setaffinity_np, pthread_getaffinity_np \- set/get
 CPU affinity of a thread
+.SH LIBRARY
+POSIX threads library
+.RI ( libpthread ,\~ \-lpthread )
 .SH SYNOPSIS
 .nf
 .BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
 .B #include <pthread.h>
-.PP
+.P
 .BI "int pthread_setaffinity_np(pthread_t " thread ", size_t " cpusetsize ,
 .BI "                           const cpu_set_t *" cpuset );
 .BI "int pthread_getaffinity_np(pthread_t " thread ", size_t " cpusetsize ,
 .BI "                           cpu_set_t *" cpuset );
-.PP
-Compile and link with \fI\-pthread\fP.
 .fi
 .SH DESCRIPTION
 The
@@ -51,20 +32,20 @@ If the call is successful,
 and the thread is not currently running on one of the CPUs in
 .IR cpuset ,
 then it is migrated to one of those CPUs.
-.PP
+.P
 The
 .BR pthread_getaffinity_np ()
 function returns the CPU affinity mask of the thread
 .I thread
 in the buffer pointed to by
 .IR cpuset .
-.PP
+.P
 For more details on CPU affinity masks, see
 .BR sched_setaffinity (2).
 For a description of a set of macros
 that can be used to manipulate and inspect CPU sets, see
 .BR CPU_SET (3).
-.PP
+.P
 The argument
 .I cpusetsize
 is the length (in bytes) of the buffer pointed to by
@@ -91,12 +72,12 @@ and permitted to the thread according to any restrictions that
 may be imposed by the "cpuset" mechanism described in
 .BR cpuset (7).
 .TP
-.BR EINVAL
+.B EINVAL
 .RB ( pthread_setaffinity_np ())
 .I cpuset
 specified a CPU that was outside the set supported by the kernel.
 (The kernel configuration option
-.BR CONFIG_NR_CPUS
+.B CONFIG_NR_CPUS
 defines the range of the set supported by the kernel data type
 .\" cpumask_t
 used to represent CPU sets.)
@@ -112,24 +93,33 @@ is smaller than the size of the affinity mask used by the kernel.
 No thread with the ID
 .I thread
 could be found.
-.SH VERSIONS
-These functions are provided by glibc since version 2.3.4.
 .SH ATTRIBUTES
 For an explanation of the terms used in this section, see
 .BR attributes (7).
 .TS
 allbox;
-lbw25 lb lb
+lbx lb lb
 l l l.
 Interface	Attribute	Value
 T{
+.na
+.nh
 .BR pthread_setaffinity_np (),
 .BR pthread_getaffinity_np ()
 T}	Thread safety	MT-Safe
 .TE
-.SH CONFORMING TO
-These functions are nonstandard GNU extensions;
+.SH STANDARDS
+GNU;
 hence the suffix "_np" (nonportable) in the names.
+.SH HISTORY
+glibc 2.3.4.
+.P
+In glibc 2.3.3 only,
+versions of these functions were provided that did not have a
+.I cpusetsize
+argument.
+Instead the CPU set size given to the underlying system calls was always
+.IR sizeof(cpu_set_t) .
 .SH NOTES
 After a call to
 .BR pthread_setaffinity_np (),
@@ -143,20 +133,13 @@ runs if the "cpuset" mechanism described in
 is being used.
 These restrictions on the actual set of CPUs on which the thread
 will run are silently imposed by the kernel.
-.PP
+.P
 These functions are implemented on top of the
 .BR sched_setaffinity (2)
 and
 .BR sched_getaffinity (2)
 system calls.
-.PP
-In glibc 2.3.3 only,
-versions of these functions were provided that did not have a
-.I cpusetsize
-argument.
-Instead the CPU set size given to the underlying system calls was always
-.IR sizeof(cpu_set_t) .
-.PP
+.P
 A new thread created by
 .BR pthread_create (3)
 inherits a copy of its creator's CPU affinity mask.
@@ -168,50 +151,50 @@ to set its CPU affinity mask to include CPUs 0 to 7
 and then calls
 .BR pthread_getaffinity_np ()
 to check the resulting CPU affinity mask of the thread.
-.PP
+.P
+.\" SRC BEGIN (pthread_setaffinity_np.c)
 .EX
 #define _GNU_SOURCE
+#include <err.h>
 #include <pthread.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-
-#define handle_error_en(en, msg) \e
-        do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
-
+\&
 int
-main(int argc, char *argv[])
+main(void)
 {
     int s;
     cpu_set_t cpuset;
     pthread_t thread;
-
+\&
     thread = pthread_self();
-
-    /* Set affinity mask to include CPUs 0 to 7 */
-
+\&
+    /* Set affinity mask to include CPUs 0 to 7.  */
+\&
     CPU_ZERO(&cpuset);
-    for (int j = 0; j < 8; j++)
+    for (size_t j = 0; j < 8; j++)
         CPU_SET(j, &cpuset);
-
+\&
     s = pthread_setaffinity_np(thread, sizeof(cpuset), &cpuset);
     if (s != 0)
-        handle_error_en(s, "pthread_setaffinity_np");
-
-    /* Check the actual affinity mask assigned to the thread */
-
+        errc(EXIT_FAILURE, s, "pthread_setaffinity_np");
+\&
+    /* Check the actual affinity mask assigned to the thread.  */
+\&
     s = pthread_getaffinity_np(thread, sizeof(cpuset), &cpuset);
     if (s != 0)
-        handle_error_en(s, "pthread_getaffinity_np");
-
-    printf("Set returned by pthread_getaffinity_np() contained:\en");
-    for (int j = 0; j < CPU_SETSIZE; j++)
+        errc(EXIT_FAILURE, s, "pthread_getaffinity_np");
+\&
+    printf("Set returned by pthread_getaffinity_np() contained:\[rs]n");
+    for (size_t j = 0; j < CPU_SETSIZE; j++)
         if (CPU_ISSET(j, &cpuset))
-            printf("    CPU %d\en", j);
-
+            printf("    CPU %zu\[rs]n", j);
+\&
     exit(EXIT_SUCCESS);
 }
 .EE
+.\" SRC END
 .SH SEE ALSO
 .BR sched_setaffinity (2),
 .BR CPU_SET (3),
@@ -221,12 +204,3 @@ main(int argc, char *argv[])
 .BR cpuset (7),
 .BR pthreads (7),
 .BR sched (7)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

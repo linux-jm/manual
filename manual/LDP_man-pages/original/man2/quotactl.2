@@ -1,38 +1,33 @@
-.\" Copyright (c) 2010, Jan Kara
-.\" A few pieces copyright (c) 1996 Andries Brouwer (aeb@cwi.nl)
-.\" and copyright 2010 (c) Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright 1996, Andries E. Brouwer <aeb@cwi.nl>
+.\" Copyright 2010, Jan Kara <jack@suse.cz>
+.\" Copyright 2010, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of
-.\" this manual under the conditions for verbatim copying, provided that
-.\" the entire resulting derived work is distributed under the terms of
-.\" a permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume
-.\" no responsibility for errors or omissions, or for damages resulting
-.\" from the use of the information contained herein.  The author(s) may
-.\" not have taken the same level of care in the production of this
-.\" manual, which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH QUOTACTL 2 2020-04-11 "Linux" "Linux Programmer's Manual"
+.TH quotactl 2 2026-04-19 "Linux man-pages (unreleased)"
 .SH NAME
-quotactl \- manipulate disk quotas
+quotactl, quotactl_fd \- manipulate disk quotas
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
+.BR "#include <xfs/xqm.h>" " /* Definition of " Q_X* " and " XFS_QUOTA_* \
+" constants"
+.RB    "                        (or " <linux/dqblk_xfs.h> "; see NOTES) */"
 .B #include <sys/quota.h>
-.B #include <xfs/xqm.h> /* for XFS quotas */
-.PP
-.BI "int quotactl(int " cmd ", const char *" special ", int " id \
+.P
+.BI "int quotactl(int " op ", const char *_Nullable " special ", int " id ,
+.BI "             caddr_t " addr );
+.P
+.BR "#include <xfs/xqm.h>" " /* Definition of " Q_X* " and " XFS_QUOTA_* \
+" constants"
+.RB    "                        (or " <linux/dqblk_xfs.h> "; see NOTES) */"
+.BR "#include <sys/syscall.h>" "    /* Definition of " SYS_* " constants */"
+.B #include <unistd.h>
+.P
+.BI "int syscall(SYS_quotactl_fd, int " fd ", int " op ", int " id \
 ", caddr_t " addr );
 .fi
 .SH DESCRIPTION
@@ -45,19 +40,26 @@ The soft limit can be exceeded, but warnings will ensue.
 Moreover, the user can't exceed the soft limit for more than grace period
 duration (one week by default) at a time;
 after this, the soft limit counts as a hard limit.
-.PP
+.P
 The
 .BR quotactl ()
-call manipulates disk quotas.
+and
+.BR quotactl_fd ()
+calls manipulate disk quotas.
+The difference between these functions is
+the way the filesystem being manipulated is specified,
+see description of the arguments below.
+See NOTES for why one variant might be preferred over the other.
+.P
 The
-.I cmd
-argument indicates a command to be applied to the user or
+.I op
+argument indicates an operation to be applied to the user or
 group ID specified in
 .IR id .
 To initialize the
-.IR cmd
+.I op
 argument, use the
-.IR "QCMD(subcmd, type)"
+.I QCMD(subop, type)
 macro.
 The
 .I type
@@ -70,24 +72,34 @@ for group quotas, or (since Linux 4.1)
 .BR PRJQUOTA ,
 for project quotas.
 The
-.I subcmd
+.I subop
 value is described below.
-.PP
-The
+.P
+For
+.BR quotactl (),
+the
 .I special
 argument is a pointer to a null-terminated string containing the pathname
 of the (mounted) block special device for the filesystem being manipulated.
-.PP
+.P
+For
+.BR quotactl_fd (),
+the
+.I fd
+argument is a file descriptor (which may be opened with the
+.B O_PATH
+flag) referring to a file or directory on the filesystem being manipulated.
+.P
 The
 .I addr
-argument is the address of an optional, command-specific, data structure
+argument is the address of an optional, operation-specific, data structure
 that is copied in or out of the system.
 The interpretation of
 .I addr
 is given with each operation below.
-.PP
+.P
 The
-.I subcmd
+.I subop
 value is one of the following operations:
 .TP
 .B Q_QUOTAON
@@ -98,23 +110,24 @@ argument is the identification number of the quota format to be used.
 Currently, there are three supported quota formats:
 .RS
 .TP 13
-.BR QFMT_VFS_OLD
+.B QFMT_VFS_OLD
 The original quota format.
 .TP
-.BR QFMT_VFS_V0
+.B QFMT_VFS_V0
 The standard VFS v0 quota format, which can handle 32-bit UIDs and GIDs
-and quota limits up to 2^42 bytes and 2^32 inodes.
+and quota limits up to 2\[ha]42 bytes and 2\[ha]32 inodes.
 .TP
-.BR QFMT_VFS_V1
+.B QFMT_VFS_V1
 A quota format that can handle 32-bit UIDs and GIDs
-and quota limits of 2^64 bytes and 2^64 inodes.
+and quota limits of 2\[ha]63 \- 1 bytes and 2\[ha]63 \- 1 inodes.
 .RE
 .IP
 The
-.IR addr
+.I addr
 argument points to the pathname of a file containing the quotas for
 the filesystem.
-The quota file must exist; it is normally created with the
+The quota file must exist;
+it is normally created with the
 .BR quotacheck (8)
 program
 .IP
@@ -134,6 +147,18 @@ flag in the
 field returned by the
 .B Q_GETINFO
 operation.
+.IP
+The
+.BR quotactl_fd ()
+variant of this system call ignores the
+.I addr
+and
+.I id
+arguments, so the
+.B Q_QUOTAON
+operation of
+.BR quotactl_fd ()
+is only suitable for work with hidden system inodes.
 .IP
 This operation requires privilege
 .RB ( CAP_SYS_ADMIN ).
@@ -156,14 +181,11 @@ The
 argument is a pointer to a
 .I dqblk
 structure defined in
-.IR <sys/quota.h>
+.I <sys/quota.h>
 as follows:
 .IP
 .in +4n
 .EX
-/* uint64_t is an unsigned 64\-bit integer;
-   uint32_t is an unsigned 32\-bit integer */
-
 struct dqblk {      /* Definition since Linux 2.4.22 */
     uint64_t dqb_bhardlimit;  /* Absolute limit on disk
                                  quota blocks alloc */
@@ -183,10 +205,10 @@ struct dqblk {      /* Definition since Linux 2.4.22 */
     uint32_t dqb_valid;       /* Bit mask of QIF_*
                                  constants */
 };
-
+\&
 /* Flags in dqb_valid that indicate which fields in
-   dqblk structure are valid. */
-
+   dqblk structure are valid.  */
+\&
 #define QIF_BLIMITS   1
 #define QIF_SPACE     2
 #define QIF_ILIMITS   4
@@ -220,7 +242,7 @@ can retrieve the quotas of any user.
 This operation is the same as
 .BR Q_GETQUOTA ,
 but it returns quota information for the next ID greater than or equal to
-.IR id
+.I id
 that has a quota set.
 .IP
 The
@@ -279,15 +301,12 @@ argument should be a pointer to a
 .I dqinfo
 structure.
 This structure is defined in
-.IR <sys/quota.h>
+.I <sys/quota.h>
 as follows:
 .IP
 .in +4n
 .EX
-/* uint64_t is an unsigned 64\-bit integer;
-   uint32_t is an unsigned 32\-bit integer */
-
-struct dqinfo {         /* Defined since kernel 2.4.22 */
+struct dqinfo {         /* Defined since Linux 2.4.22 */
     uint64_t dqi_bgrace;  /* Time before block soft limit
                              becomes hard limit */
     uint64_t dqi_igrace;  /* Time before inode soft limit
@@ -296,23 +315,23 @@ struct dqinfo {         /* Defined since kernel 2.4.22 */
                              (DQF_*) */
     uint32_t dqi_valid;
 };
-
+\&
 /* Bits for dqi_flags */
-
+\&
 /* Quota format QFMT_VFS_OLD */
-
+\&
 #define DQF_ROOT_SQUASH (1 << 0) /* Root squash enabled */
-              /* Before Linux v4.0, this had been defined
+              /* Before Linux 4.0, this had been defined
                  privately as V1_DQF_RSQUASH */
-
+\&
 /* Quota format QFMT_VFS_V0 / QFMT_VFS_V1 */
-
+\&
 #define DQF_SYS_FILE    (1 << 16)   /* Quota stored in
                                        a system file */
-
+\&
 /* Flags in dqi_valid that indicate which fields in
-   dqinfo structure are valid. */
-
+   dqinfo structure are valid.  */
+\&
 #define IIF_BGRACE  1
 #define IIF_IGRACE  2
 #define IIF_FLAGS   4
@@ -367,10 +386,14 @@ where the format number will be stored.
 .TP
 .B Q_SYNC
 Update the on-disk copy of quota usages for a filesystem.
-If
+For
+.BR quotactl (),
+if
 .I special
 is NULL, then all filesystems with active quotas are sync'ed.
-The
+.RB ( quotactl_fd ()
+always sync's only one filesystem.)
+In both cases, the
 .I addr
 and
 .I id
@@ -395,7 +418,7 @@ This operation is obsolete and was removed in Linux 2.4.22.
 Files in
 .I /proc/sys/fs/quota/
 carry the information instead.
-.PP
+.P
 For XFS filesystems making use of the XFS Quota Manager (XQM),
 the above operations are bypassed and the following operations are used:
 .TP
@@ -457,14 +480,14 @@ as follows:
 .in +4n
 .EX
 /* All the blk units are in BBs (Basic Blocks) of
-   512 bytes. */
-
+   512 bytes.  */
+\&
 #define FS_DQUOT_VERSION  1  /* fs_disk_quota.d_version */
-
+\&
 #define XFS_USER_QUOTA    (1<<0)  /* User quota type */
 #define XFS_PROJ_QUOTA    (1<<1)  /* Project quota type */
 #define XFS_GROUP_QUOTA   (1<<2)  /* Group quota type */
-
+\&
 struct fs_disk_quota {
     int8_t   d_version;   /* Version of this structure */
     int8_t   d_flags;     /* XFS_{USER,PROJ,GROUP}_QUOTA */
@@ -488,7 +511,7 @@ struct fs_disk_quota {
                              respect to # of inodes */
     uint16_t d_bwarns;    /* # warnings issued with
                              respect to disk blocks */
-    int32_t  d_padding2;  /* Padding - for future use */
+    int32_t  d_padding2;  /* Padding \- for future use */
     uint64_t d_rtb_hardlimit; /* Absolute limit on realtime
                                  (RT) disk blocks */
     uint64_t d_rtb_softlimit; /* Preferred limit on RT
@@ -498,7 +521,7 @@ struct fs_disk_quota {
                              disk blocks */
     uint16_t d_rtbwarns;  /* # warnings issued with
                              respect to RT disk blocks */
-    int16_t  d_padding3;  /* Padding - for future use */
+    int16_t  d_padding3;  /* Padding \- for future use */
     char     d_padding4[8];   /* Yet more padding */
 };
 .EE
@@ -518,7 +541,7 @@ but it returns (in the
 structure pointed by
 .IR addr )
 quota information for the next ID greater than or equal to
-.IR id
+.I id
 that has a quota set.
 Note that since
 .I fs_disk_quota
@@ -556,14 +579,14 @@ structure itself is defined as follows:
 .in +4n
 .EX
 #define FS_QSTAT_VERSION 1  /* fs_quota_stat.qs_version */
-
+\&
 struct fs_qfilestat {
     uint64_t qfs_ino;       /* Inode number */
     uint64_t qfs_nblks;     /* Number of BBs
-                               512-byte-blocks */
+                               512\-byte\-blocks */
     uint32_t qfs_nextents;  /* Number of extents */
 };
-
+\&
 struct fs_quota_stat {
     int8_t   qs_version; /* Version number for
                             future changes */
@@ -605,19 +628,19 @@ structure itself is defined as follows:
 .in +4n
 .EX
 #define FS_QSTATV_VERSION1 1 /* fs_quota_statv.qs_version */
-
+\&
 struct fs_qfilestatv {
     uint64_t qfs_ino;       /* Inode number */
     uint64_t qfs_nblks;     /* Number of BBs
-                               512-byte-blocks */
+                               512\-byte\-blocks */
     uint32_t qfs_nextents;  /* Number of extents */
-    uint32_t qfs_pad;       /* Pad for 8-byte alignment */
+    uint32_t qfs_pad;       /* Pad for 8\-byte alignment */
 };
-
+\&
 struct fs_quota_statv {
     int8_t   qs_version;    /* Version for future
                                changes */
-    uint8_t  qs_pad1;       /* Pad for 16-bit alignment */
+    uint8_t  qs_pad1;       /* Pad for 16\-bit alignment */
     uint16_t qs_flags;      /* XFS_QUOTA_.* flags */
     uint32_t qs_incoredqs;  /* Number of dquots incore */
     struct fs_qfilestatv qs_uquota;  /* User quota
@@ -649,7 +672,7 @@ The
 .I id
 argument is ignored.
 .TP
-.B Q_XQUOTARM " (since Linux 3.16)"
+.BR Q_XQUOTARM " (buggy until Linux 3.16)"
 .\" 9da93f9b7cdf8ab28da6b364cdc1fafc8670b4dc
 Free the disk space taken by disk quotas.
 The
@@ -664,7 +687,7 @@ structure)
 which identify what types of quota
 should be removed.
 (Note that the quota type passed in the
-.I cmd
+.I op
 argument is ignored, but should remain valid in order to pass preliminary
 quotactl syscall handler checks.)
 .IP
@@ -689,14 +712,16 @@ arguments are ignored.
 .SH RETURN VALUE
 On success,
 .BR quotactl ()
-returns 0; on error \-1
-is returned, and
+returns 0;
+on error,
+\-1 is returned,
+and
 .I errno
 is set to indicate the error.
 .SH ERRORS
 .TP
 .B EACCES
-.I cmd
+.I op
 is
 .BR Q_QUOTAON ,
 and the quota file pointed to by
@@ -706,7 +731,7 @@ is not on the filesystem pointed to by
 .IR special .
 .TP
 .B EBUSY
-.I cmd
+.I op
 is
 .BR Q_QUOTAON ,
 but another
@@ -720,20 +745,20 @@ or
 is invalid.
 .TP
 .B EINVAL
-.I cmd
+.I op
 or
 .I type
 is invalid.
 .TP
 .B EINVAL
-.I cmd
+.I op
 is
 .BR Q_QUOTAON ,
 but the specified quota file is corrupted.
 .TP
 .BR EINVAL " (since Linux 5.5)"
 .\" 3dd4d40b420846dd35869ccc8f8627feef2cff32
-.I cmd
+.I op
 is
 .BR Q_XQUOTARM ,
 but
@@ -762,7 +787,7 @@ The caller lacked the required privilege
 for the specified operation.
 .TP
 .B ERANGE
-.I cmd
+.I op
 is
 .BR Q_SETQUOTA ,
 but the specified limits are out of the range allowed by the quota format.
@@ -772,37 +797,38 @@ No disk quota is found for the indicated user.
 Quotas have not been turned on for this filesystem.
 .TP
 .B ESRCH
-.I cmd
+.I op
 is
 .BR Q_QUOTAON ,
 but the specified quota format was not found.
 .TP
 .B ESRCH
-.I cmd
+.I op
 is
 .B Q_GETNEXTQUOTA
 or
 .BR Q_XGETNEXTQUOTA ,
 but there is no ID greater than or equal to
-.IR id
+.I id
 that has an active quota.
 .SH NOTES
+.SS Alternative XFS header
 Instead of
 .I <xfs/xqm.h>
 one can use
 .IR <linux/dqblk_xfs.h> ,
 taking into account that there are several naming discrepancies:
-.IP \(bu 3
+.IP \[bu] 3
 Quota enabling flags (of format
 .BR XFS_QUOTA_[UGP]DQ_{ACCT,ENFD} )
 are defined without a leading "X", as
 .BR FS_QUOTA_[UGP]DQ_{ACCT,ENFD} .
-.IP \(bu
+.IP \[bu]
 The same is true for
 .B XFS_{USER,GROUP,PROJ}_QUOTA
 quota type flags, which are defined as
 .BR FS_{USER,GROUP,PROJ}_QUOTA .
-.IP \(bu
+.IP \[bu]
 The
 .I dqblk_xfs.h
 header file defines its own
@@ -810,21 +836,39 @@ header file defines its own
 .BR XQM_GRPQUOTA ,
 and
 .B XQM_PRJQUOTA
-constants for the available quota types, but their values are the same as for
+constants for the available quota types,
+but their values are the same as for
 constants without the
 .B XQM_
 prefix.
+.SS quotactl() versus quotactl_fd()
+The original
+.BR quotactl ()
+variant of this system call requires specifying
+the block device containing the filesystem to operate on.
+This makes it impossible to use
+in cases where the filesystem has no backing block device
+(e.g., tmpfs).
+Even when the block device does exist,
+it might be difficult to locate
+(requires scanning
+.I /proc/self/mounts
+and even some filesystem-specific parsing in the case of,
+for example,
+bcachefs).
+.BR quotactl_fd ()
+instead works on the mount point,
+which avoids this limitation and is simpler to use
+(since the filesystem to manipulate
+is typically specified by its mount point anyway).
+.SH STANDARDS
+Linux.
+.SH HISTORY
+.TP
+.BR quotactl_fd ()
+Linux 5.14.
 .SH SEE ALSO
 .BR quota (1),
 .BR getrlimit (2),
 .BR quotacheck (8),
 .BR quotaon (8)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

@@ -1,65 +1,58 @@
-.\" Copyright (c) 2012, Vincent Weaver
+.\" Copyright 2012, Vincent Weaver <vincent.weaver@maine.edu>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(GPLv2+_DOC_FULL)
-.\" This is free documentation; you can redistribute it and/or
-.\" modify it under the terms of the GNU General Public License as
-.\" published by the Free Software Foundation; either version 2 of
-.\" the License, or (at your option) any later version.
+.\" SPDX-License-Identifier: GPL-2.0-or-later
 .\"
-.\" The GNU General Public License's references to "object code"
-.\" and "executables" are to be interpreted as the output of any
-.\" document formatting or typesetting system, including
-.\" intermediate and printed output.
-.\"
-.\" This manual is distributed in the hope that it will be useful,
-.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
-.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-.\" GNU General Public License for more details.
-.\"
-.\" You should have received a copy of the GNU General Public
-.\" License along with this manual; if not, see
-.\" <http://www.gnu.org/licenses/>.
-.\" %%%LICENSE_END
-.\"
-.\" This document is based on the perf_event.h header file, the
-.\" tools/perf/design.txt file, and a lot of bitter experience.
-.\"
-.TH PERF_EVENT_OPEN 2 2020-11-01 "Linux" "Linux Programmer's Manual"
+.TH perf_event_open 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 perf_event_open \- set up performance monitoring
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
-.B #include <linux/perf_event.h>
-.B #include <linux/hw_breakpoint.h>
-.PP
-.BI "int perf_event_open(struct perf_event_attr *" attr ,
-.BI "                    pid_t " pid ", int " cpu ", int " group_fd ,
-.BI "                    unsigned long " flags  );
+.BR "#include <linux/perf_event.h>" "    /* Definition of " PERF_* " constants */"
+.BR "#include <linux/hw_breakpoint.h>" " /* Definition of " HW_* " constants */"
+.BR "#include <sys/syscall.h>" "         /* Definition of " SYS_* " constants */"
+.B #include <unistd.h>
+.P
+.BI "int syscall(SYS_perf_event_open, struct perf_event_attr *" attr ,
+.BI "            pid_t " pid ", int " cpu ", int " group_fd \
+", unsigned long " flags  );
 .fi
-.PP
+.P
 .IR Note :
-There is no glibc wrapper for this system call; see NOTES.
+glibc provides no wrapper for
+.BR perf_event_open (),
+necessitating the use of
+.BR syscall (2).
 .SH DESCRIPTION
 Given a list of parameters,
 .BR perf_event_open ()
 returns a file descriptor, for use in subsequent system calls
-.RB ( read "(2), " mmap "(2), " prctl "(2), " fcntl "(2), etc.)."
+(\c
+.BR read (2),
+.BR mmap (2),
+.BR prctl (2),
+.BR fcntl (2),
+etc.).
 .PP
 A call to
 .BR perf_event_open ()
 creates a file descriptor that allows measuring performance
 information.
 Each file descriptor corresponds to one
-event that is measured; these can be grouped together
+event that is measured;
+these can be grouped together
 to measure multiple events simultaneously.
-.PP
+.P
 Events can be enabled and disabled in two ways: via
 .BR ioctl (2)
 and via
 .BR prctl (2).
 When an event is disabled it does not count or generate overflows but does
 continue to exist and maintain its count value.
-.PP
+.P
 Events come in two flavors: counting and sampled.
 A
 .I counting
@@ -106,17 +99,19 @@ value of less than 1.
 .TP
 .BR "pid == \-1" " and " "cpu == \-1"
 This setting is invalid and will return an error.
-.PP
+.P
 When
 .I pid
 is greater than zero, permission to perform this system call
 is governed by
 .B CAP_PERFMON
-(since Linux 5.9) and a ptrace access mode
+(since Linux 5.9)
+and a ptrace access mode
 .B PTRACE_MODE_READ_REALCREDS
-check on older Linux versions; see
+check on older Linux versions;
+see
 .BR ptrace (2).
-.PP
+.P
 The
 .I group_fd
 argument allows event groups to be created.
@@ -131,14 +126,14 @@ being set to the file descriptor of the group leader.
 (A single event on its own is created with
 .IR group_fd " = \-1"
 and is considered to be a group with only 1 member.)
-An event group is scheduled onto the CPU as a unit: it will
-be put onto the CPU only if all of the events in the group can be put onto
-the CPU.
-This means that the values of the member events can be
-meaningfully compared\(emadded, divided (to get ratios), and so on\(emwith each
-other, since they have counted events for the same set of executed
-instructions.
-.PP
+An event group is scheduled onto the CPU as a unit:
+it will be put onto the CPU
+only if all of the events in the group can be put onto the CPU.
+This means that the values of the member events can be meaningfully compared
+\[em]added, divided (to get ratios), and so on\[em]
+with each other,
+since they have counted events for the same set of executed instructions.
+.P
 The
 .I flags
 argument is formed by ORing together zero or more of the following values:
@@ -160,7 +155,7 @@ at the same time as another thread calls
 then
 .BR execve (2).
 .TP
-.BR PERF_FLAG_FD_NO_GROUP
+.B PERF_FLAG_FD_NO_GROUP
 This flag tells the event to ignore the
 .I group_fd
 parameter except for the purpose of setting up output redirection
@@ -197,35 +192,35 @@ must be passed as the
 parameter.
 cgroup monitoring is available only
 for system-wide events and may therefore require extra permissions.
-.PP
+.P
 The
 .I perf_event_attr
 structure provides detailed configuration information
 for the event being created.
-.PP
+.P
 .in +4n
 .EX
 struct perf_event_attr {
     __u32 type;                 /* Type of event */
     __u32 size;                 /* Size of attribute structure */
-    __u64 config;               /* Type-specific configuration */
-
+    __u64 config;               /* Type\-specific configuration */
+\&
     union {
         __u64 sample_period;    /* Period of sampling */
         __u64 sample_freq;      /* Frequency of sampling */
     };
-
+\&
     __u64 sample_type;  /* Specifies values included in sample */
     __u64 read_format;  /* Specifies values returned in read */
-
+\&
     __u64 disabled       : 1,   /* off by default */
           inherit        : 1,   /* children inherit it */
           pinned         : 1,   /* must always be on PMU */
           exclusive      : 1,   /* only group on PMU */
-          exclude_user   : 1,   /* don\(aqt count user */
-          exclude_kernel : 1,   /* don\(aqt count kernel */
-          exclude_hv     : 1,   /* don\(aqt count hypervisor */
-          exclude_idle   : 1,   /* don\(aqt count when idle */
+          exclude_user   : 1,   /* don\[aq]t count user */
+          exclude_kernel : 1,   /* don\[aq]t count kernel */
+          exclude_hv     : 1,   /* don\[aq]t count hypervisor */
+          exclude_idle   : 1,   /* don\[aq]t count when idle */
           mmap           : 1,   /* include mmap data */
           comm           : 1,   /* include comm data */
           freq           : 1,   /* use freq, not period */
@@ -234,10 +229,10 @@ struct perf_event_attr {
           task           : 1,   /* trace fork/exit */
           watermark      : 1,   /* wakeup_watermark */
           precise_ip     : 2,   /* skid constraint */
-          mmap_data      : 1,   /* non-exec mmap data */
+          mmap_data      : 1,   /* non\-exec mmap data */
           sample_id_all  : 1,   /* sample_type all events */
-          exclude_host   : 1,   /* don\(aqt count in host */
-          exclude_guest  : 1,   /* don\(aqt count in guest */
+          exclude_host   : 1,   /* don\[aq]t count in host */
+          exclude_guest  : 1,   /* don\[aq]t count in guest */
           exclude_callchain_kernel : 1,
                                 /* exclude kernel callchains */
           exclude_callchain_user   : 1,
@@ -256,25 +251,32 @@ struct perf_event_attr {
                                    instead of events */
           cgroup         :  1,  /* include cgroup events */
           text_poke      :  1,  /* include text poke events */
-
-          __reserved_1   : 30;
-
+          build_id       :  1,  /* use build id in mmap2 events */
+          inherit_thread :  1,  /* children only inherit */
+                                /* if cloned with CLONE_THREAD */
+          remove_on_exec :  1,  /* event is removed from task
+                                   on exec */
+          sigtrap        :  1,  /* send synchronous SIGTRAP
+                                   on event */
+\&
+          __reserved_1   : 26;
+\&
     union {
         __u32 wakeup_events;    /* wakeup every n events */
         __u32 wakeup_watermark; /* bytes before wakeup */
     };
-
+\&
     __u32     bp_type;          /* breakpoint type */
-
+\&
     union {
         __u64 bp_addr;          /* breakpoint address */
         __u64 kprobe_func;      /* for perf_kprobe */
         __u64 uprobe_path;      /* for perf_uprobe */
         __u64 config1;          /* extension of config */
     };
-
+\&
     union {
-        __u64 bp_len;           /* breakpoint length */
+        __u64 bp_len;           /* breakpoint size */
         __u64 kprobe_addr;      /* with kprobe_func == NULL */
         __u64 probe_offset;     /* for perf_[k,u]probe */
         __u64 config2;          /* extension of config1 */
@@ -288,11 +290,14 @@ struct perf_event_attr {
     __u32 aux_watermark;        /* aux bytes before wakeup */
     __u16 sample_max_stack;     /* max frames in callchain */
     __u16 __reserved_2;         /* align to u64 */
-
+    __u32 aux_sample_size;      /* max aux sample size */
+    __u32 __reserved_3;         /* align to u64 */
+    __u64 sig_data;             /* user data for sigtrap */
+\&
 };
 .EE
 .in
-.PP
+.P
 The fields of the
 .I perf_event_attr
 structure are described in more detail below:
@@ -353,7 +358,9 @@ For instance,
 .I /sys/bus/event_source/devices/cpu/type
 contains the value for the core CPU PMU, which is usually 4.
 .TP
-.BR kprobe " and " uprobe " (since Linux 4.17)"
+.B kprobe
+.TQ
+.BR uprobe " (both since Linux 4.17)"
 .\" commit 65074d43fc77bcae32776724b7fa2696923c78e4
 .\" commit e12f03d7031a977356e3d7b75a68c2185ff8d155
 .\" commit 33ea4b24277b06dbc55d7f5772a46f029600255e
@@ -380,12 +387,13 @@ the struct size at the time of compilation.
 .IP
 The related define
 .B PERF_ATTR_SIZE_VER0
-is set to 64; this was the size of the first published struct.
+is set to 64;
+this was the size of the first published struct.
 .B PERF_ATTR_SIZE_VER1
 is 72, corresponding to the addition of breakpoints in Linux 2.6.33.
 .\" commit cb5d76999029ae7a517cb07dfa732c1b5a934fc2
 .\" this was added much later when PERF_ATTR_SIZE_VER2 happened
-.\" but the actual attr_size had increased in 2.6.33
+.\" but the actual attr_size had increased in Linux 2.6.33
 .B PERF_ATTR_SIZE_VER2
 is 80 corresponding to the addition of branch sampling in Linux 3.4.
 .\" commit cb5d76999029ae7a517cb07dfa732c1b5a934fc2
@@ -456,12 +464,14 @@ issues, most notably hardware interrupt counts.
 Cache accesses.
 Usually this indicates Last Level Cache accesses but this may
 vary depending on your CPU.
-This may include prefetches and coherency messages; again this
-depends on the design of your CPU.
+This may include prefetches and coherency messages;
+again,
+this depends on the design of your CPU.
 .TP
 .B PERF_COUNT_HW_CACHE_MISSES
 Cache misses.
-Usually this indicates Last Level Cache misses; this is intended to be
+Usually this indicates Last Level Cache misses;
+this is intended to be
 used in conjunction with the
 .B PERF_COUNT_HW_CACHE_REFERENCES
 event to calculate cache miss rates.
@@ -488,7 +498,8 @@ Stalled cycles during retirement.
 .TP
 .BR PERF_COUNT_HW_REF_CPU_CYCLES  " (since Linux 3.3)"
 .\" commit c37e17497e01fc0f5d2d6feb5723b210b3ab8890
-Total cycles; not affected by CPU frequency scaling.
+Total cycles;
+not affected by CPU frequency scaling.
 .RE
 .IP
 If
@@ -531,8 +542,9 @@ These required disk I/O to handle.
 .BR PERF_COUNT_SW_ALIGNMENT_FAULTS " (since Linux 2.6.33)"
 .\" commit f7d7986060b2890fc26db6ab5203efbd33aa2497
 This counts the number of alignment faults.
-These happen when unaligned memory accesses happen; the kernel
-can handle these but it reduces performance.
+These happen when unaligned memory accesses happen;
+the kernel can handle these
+but it reduces performance.
 This happens only on some architectures (never on x86).
 .TP
 .BR PERF_COUNT_SW_EMULATION_FAULTS " (since Linux 2.6.33)"
@@ -549,8 +561,21 @@ Informational sample record types such as mmap or comm
 must be associated with an active event.
 This dummy event allows gathering such records without requiring
 a counting event.
+.TP
+.BR PERF_COUNT_SW_BPF_OUTPUT " (since Linux 4.4)"
+.\" commit a43eec304259a6c637f4014a6d4767159b6a3aa3
+This is used to generate raw sample data from BPF.
+BPF programs can write to this event using
+.B bpf_perf_event_output
+helper.
+.TP
+.BR PERF_COUNT_SW_CGROUP_SWITCHES " (since Linux 5.13)"
+.\" commit d0d1dd628527c77db2391ce0293c1ed344b2365f
+This counts context switches to a task in a different cgroup.
+In other words, if the next task is in the same cgroup,
+it won't count the switch.
 .RE
-.PP
+.P
 .RS
 If
 .I type
@@ -563,7 +588,7 @@ can be obtained from under debugfs
 .I tracing/events/*/*/id
 if ftrace is enabled in the kernel.
 .RE
-.PP
+.P
 .RS
 If
 .I type
@@ -574,7 +599,7 @@ To calculate the appropriate
 .I config
 value, use the following equation:
 .RS 4
-.PP
+.P
 .in +4n
 .EX
 config = (perf_hw_cache_id) |
@@ -582,7 +607,7 @@ config = (perf_hw_cache_id) |
          (perf_hw_cache_op_result_id << 16);
 .EE
 .in
-.PP
+.P
 where
 .I perf_hw_cache_id
 is one of:
@@ -610,7 +635,7 @@ for measuring the branch prediction unit
 .\" commit 89d6c0b5bdbb1927775584dcf532d98b3efe1477
 for measuring local memory accesses
 .RE
-.PP
+.P
 and
 .I perf_hw_cache_op_id
 is one of:
@@ -625,7 +650,7 @@ for write accesses
 .B PERF_COUNT_HW_CACHE_OP_PREFETCH
 for prefetch accesses
 .RE
-.PP
+.P
 and
 .I perf_hw_cache_op_result_id
 is one of:
@@ -638,7 +663,7 @@ to measure accesses
 to measure misses
 .RE
 .RE
-.PP
+.P
 If
 .I type
 is
@@ -647,14 +672,16 @@ then a custom "raw"
 .I config
 value is needed.
 Most CPUs support events that are not covered by the "generalized" events.
-These are implementation defined; see your CPU manual (for example
-the Intel Volume 3B documentation or the AMD BIOS and Kernel Developer
-Guide).
+These are implementation defined;
+see your CPU manual
+(for example,
+the Intel Volume 3B documentation,
+or the AMD BIOS and Kernel Developer Guide).
 The libpfm4 library can be used to translate from the name in the
 architectural manuals to the raw hex value
 .BR perf_event_open ()
 expects in this field.
-.PP
+.P
 If
 .I type
 is
@@ -663,7 +690,7 @@ then leave
 .I config
 set to zero.
 Its parameters are set in other places.
-.PP
+.P
 If
 .I type
 is
@@ -686,7 +713,13 @@ and
 for more details.
 .RE
 .TP
-.IR kprobe_func ", " uprobe_path ", " kprobe_addr ", and " probe_offset
+.I kprobe_func
+.TQ
+.I uprobe_path
+.TQ
+.I kprobe_addr
+.TQ
+.I probe_offset
 These fields describe the kprobe/uprobe for dynamic PMUs
 .B kprobe
 and
@@ -709,7 +742,9 @@ use
 and
 .IR probe_offset .
 .TP
-.IR sample_period ", " sample_freq
+.I sample_period
+.TQ
+.I sample_freq
 A "sampling" event is one that generates an overflow notification
 every N events, where N is given by
 .IR sample_period .
@@ -890,6 +925,42 @@ This corresponds to the
 field in the
 .B PERF_RECORD_CGROUP
 event.
+.TP
+.BR PERF_SAMPLE_DATA_PAGE_SIZE " (since Linux 5.11)"
+.\" commit 8d97e71811aaafe4abf611dc24822fd6e73df1a1
+Records page size of data like in
+.BR PERF_SAMPLE_ADDR .
+.TP
+.BR PERF_SAMPLE_CODE_PAGE_SIZE " (since Linux 5.11)"
+.\" commit 995f088efebe1eba0282a6ffa12411b37f8990c2
+Records page size of ip like in
+.BR PERF_SAMPLE_IP .
+.TP
+.BR PERF_SAMPLE_WEIGHT_STRUCT " (since Linux 5.12)"
+.\" commit 2a6c6b7d7ad346f0679d0963cb19b3f0ea7ef32c
+Records hardware provided weight values like in
+.BR PERF_SAMPLE_WEIGHT ,
+but it can represent multiple values in a struct.
+This shares the same space as
+.BR PERF_SAMPLE_WEIGHT ,
+so users can apply either of those,
+not both.
+It has the following format and
+the meaning of each field is
+dependent on the hardware implementation.
+.P
+.in +4n
+.EX
+union perf_sample_weight {
+    u64  full;           /* PERF_SAMPLE_WEIGHT */
+    struct {             /* PERF_SAMPLE_WEIGHT_STRUCT */
+        u32  var1_dw;
+        u16  var2_w;
+        u16  var3_w;
+    };
+};
+.EE
+.in
 .RE
 .TP
 .I read_format
@@ -919,6 +990,15 @@ Adds a 64-bit unique value that corresponds to the event group.
 .TP
 .B PERF_FORMAT_GROUP
 Allows all counter values in an event group to be read with one read.
+.TP
+.B PERF_FORMAT_LOST " (since Linux 6.0)"
+.\" commit 119a784c81270eb88e573174ed2209225d646656
+Adds a 64-bit value that is the number of lost samples for this event.
+This would be only meaningful when
+.I sample_period
+or
+.I sample_freq
+is set.
 .RE
 .TP
 .I disabled
@@ -952,9 +1032,13 @@ the time the counter is created (nor to any new children of
 existing children).
 .IP
 Inherit does not work for some combinations of
-.IR read_format
+.I read_format
 values, such as
 .BR PERF_FORMAT_GROUP .
+Additionally, using it together with
+.I cpu == \-1
+prevents the creation of the mmap ring-buffer used for
+logging asynchronous events in sampled mode.
 .TP
 .I pinned
 The
@@ -1022,7 +1106,7 @@ so that addresses can be mapped back to the original code.
 The
 .I comm
 bit enables tracking of process command name as modified by the
-.BR exec (2)
+.BR execve (2)
 and
 .BR prctl (PR_SET_NAME)
 system calls as well as writing to
@@ -1034,7 +1118,7 @@ flag is also successfully set (possible since Linux 3.16),
 then the misc flag
 .B PERF_RECORD_MISC_COMM_EXEC
 can be used to differentiate the
-.BR exec (2)
+.BR execve (2)
 case from the others.
 .TP
 .I freq
@@ -1054,7 +1138,7 @@ field is set.
 .I enable_on_exec
 If this bit is set, a counter is automatically
 enabled after a call to
-.BR exec (2).
+.BR execve (2).
 .TP
 .I task
 If this bit is set, then
@@ -1081,16 +1165,20 @@ with how small this can be.
 .IP
 The possible values of this field are the following:
 .RS
-.IP 0 3
+.TP
+.B 0
 .B SAMPLE_IP
 can have arbitrary skid.
-.IP 1
+.TP
+.B 1
 .B SAMPLE_IP
 must have constant skid.
-.IP 2
+.TP
+.B 2
 .B SAMPLE_IP
 requested to have 0 skid.
-.IP 3
+.TP
+.B 3
 .B SAMPLE_IP
 must have 0 skid.
 See also the description of
@@ -1149,8 +1237,9 @@ VM instances (i.e., have executed a
 .B KVM_RUN
 .BR ioctl (2)),
 only measure events happening inside a guest instance.
-This is only meaningful outside the guests; this setting does
-not change counts gathered inside of a guest.
+This is only meaningful outside the guests;
+this setting does not change
+counts gathered inside of a guest.
 Currently, this functionality is x86 only.
 .TP
 .IR exclude_guest " (since Linux 3.2)"
@@ -1160,8 +1249,9 @@ VM instances (i.e., have executed a
 .B KVM_RUN
 .BR ioctl (2)),
 do not measure events happening inside guest instances.
-This is only meaningful outside the guests; this setting does
-not change counts gathered inside of a guest.
+This is only meaningful outside the guests;
+this setting does not change
+counts gathered inside of a guest.
 Currently, this functionality is x86 only.
 .TP
 .IR exclude_callchain_kernel " (since Linux 3.7)"
@@ -1176,8 +1266,8 @@ Do not include user callchains.
 .\" commit 13d7a2410fa637f450a29ecb515ac318ee40c741
 .\" This is tricky; was committed during 3.12 development
 .\" but right before release was disabled.
-.\" So while you could select mmap2 starting with 3.12
-.\" it did not work until 3.16
+.\" So while you could select mmap2 starting with Linux 3.12
+.\" it did not work until Linux 3.16
 .\" commit a5a5ba72843dd05f991184d6cb9a4471acce1005
 Generate an extended executable mmap record that contains enough
 additional information to uniquely identify shared mappings.
@@ -1197,7 +1287,7 @@ flag will be set in the
 .I misc
 field of a comm record header if the rename event being
 reported was caused by a call to
-.BR exec (2).
+.BR execve (2).
 This allows tools to distinguish between the various
 types of process renaming.
 .TP
@@ -1250,7 +1340,7 @@ This enables the generation of
 .B PERF_RECORD_BPF_EVENT
 records when an eBPF program is loaded or unloaded.
 .TP
-.IR auxevent " (since Linux 5.4)"
+.IR aux_output " (since Linux 5.4)"
 .\" commit ab43762ef010967e4ccd53627f70a2eecbeafefb
 This allows normal (non-AUX) events to generate data for AUX events
 if the hardware supports it.
@@ -1265,10 +1355,37 @@ records when a new cgroup is created (and activated).
 .\" commit e17d43b93e544f5016c0251d2074c15568d5d963
 This enables the generation of
 .B PERF_RECORD_TEXT_POKE
-records when there's a changes to the kernel text
+records when there's a change to the kernel text
 (i.e., self-modifying code).
 .TP
-.IR wakeup_events ", " wakeup_watermark
+.IR build_id " (since Linux 5.12)"
+.\" commit 88a16a1309333e43d328621ece3e9fa37027e8eb
+This changes the contents in the
+.B PERF_RECORD_MMAP2
+to have a build-id instead of device and inode numbers.
+.TP
+.IR inherit_thread " (since Linux 5.13)"
+.\" commit 2b26f0aa004995f49f7b6f4100dd0e4c39a9ed5f
+This disables the inheritance of the event to a child process.
+Only new threads in the same process
+(which is cloned with
+.BR CLONE_THREAD )
+will inherit the event.
+.TP
+.IR remove_on_exec " (since Linux 5.13)"
+.\" commit 2e498d0a74e5b88a6689ae1b811f247f91ff188e
+This closes the event when it starts a new process image by
+.BR execve (2).
+.TP
+.IR sigtrap " (since Linux 5.13)"
+.\" commit 97ba62b278674293762c3d91f724f1bb922f04e0
+This enables synchronous signal delivery of
+.B SIGTRAP
+on event overflow.
+.TP
+.I wakeup_events
+.TQ
+.I wakeup_watermark
 This union sets how many samples
 .RI ( wakeup_events )
 or bytes
@@ -1314,7 +1431,7 @@ Count when we read or write the memory location.
 .TP
 .B HW_BREAKPOINT_X
 Count when we execute code at the memory location.
-.PP
+.P
 The values can be combined via a bitwise or, but the
 combination of
 .B HW_BREAKPOINT_R
@@ -1328,8 +1445,11 @@ is not allowed.
 .IR bp_addr " (since Linux 2.6.33)"
 .\" commit 24f1e32c60c45c89a997c73395b69c8af6f0a84e
 This is the address of the breakpoint.
-For execution breakpoints, this is the memory address of the instruction
-of interest; for read and write breakpoints, it is the memory address
+For execution breakpoints,
+this is the memory address
+of the instruction of interest;
+for read and write breakpoints,
+it is the memory address
 of the memory location of interest.
 .TP
 .IR config1 " (since Linux 2.6.39)"
@@ -1343,7 +1463,7 @@ on Linux 3.3 and later kernels.
 .IR bp_len " (since Linux 2.6.33)"
 .\" commit 24f1e32c60c45c89a997c73395b69c8af6f0a84e
 .I bp_len
-is the length of the breakpoint being measured if
+is the size of the breakpoint being measured if
 .I type
 is
 .BR PERF_TYPE_BREAKPOINT .
@@ -1388,7 +1508,7 @@ Branch target is in hypervisor.
 .TP
 .B PERF_SAMPLE_BRANCH_PLM_ALL
 A convenience value that is the three preceding values ORed together.
-.PP
+.P
 In addition to the privilege value, at least one or more of the
 following bits must be set.
 .TP
@@ -1478,6 +1598,23 @@ includes
 .BR PERF_SAMPLE_CALLCHAIN ,
 this field specifies how many stack frames to report when
 generating the callchain.
+.TP
+.IR aux_sample_size " (since Linux 5.5)"
+.\" commit a4faf00d994c40e64f656805ac375c65e324eefb
+When
+.B PERF_SAMPLE_AUX
+flag is set,
+specify the desired size of AUX data.
+Note that it can get smaller data than the specified size.
+.TP
+.IR sig_data " (since Linux 5.13)"
+.\" commit 97ba62b278674293762c3d91f724f1bb922f04e0
+This data will be copied to user's signal handler
+(through
+.I si_perf
+in the
+.IR siginfo_t )
+to disambiguate which event triggered the signal.
 .SS Reading results
 Once a
 .BR perf_event_open ()
@@ -1488,14 +1625,14 @@ The values that are there are specified by the
 field in the
 .I attr
 structure at open time.
-.PP
+.P
 If you attempt to read into a buffer that is not big enough to hold the
 data, the error
 .B ENOSPC
 results.
-.PP
+.P
 Here is the layout of the data returned by a read:
-.IP * 2
+.IP \[bu] 3
 If
 .B PERF_FORMAT_GROUP
 was specified to allow reading all events in a group at once:
@@ -1509,11 +1646,12 @@ struct read_format {
     struct {
         u64 value;     /* The value of the event */
         u64 id;        /* if PERF_FORMAT_ID */
+        u64 lost;      /* if PERF_FORMAT_LOST */
     } values[nr];
 };
 .EE
 .in
-.IP *
+.IP \[bu]
 If
 .B PERF_FORMAT_GROUP
 was
@@ -1527,10 +1665,11 @@ struct read_format {
     u64 time_enabled;  /* if PERF_FORMAT_TOTAL_TIME_ENABLED */
     u64 time_running;  /* if PERF_FORMAT_TOTAL_TIME_RUNNING */
     u64 id;            /* if PERF_FORMAT_ID */
+    u64 lost;          /* if PERF_FORMAT_LOST */
 };
 .EE
 .in
-.PP
+.P
 The values read are as follows:
 .TP
 .I nr
@@ -1539,7 +1678,9 @@ Available only if
 .B PERF_FORMAT_GROUP
 was specified.
 .TP
-.IR time_enabled ", " time_running
+.I time_enabled
+.TQ
+.I time_running
 Total time the event was enabled and running.
 Normally these values are the same.
 Multiplexing happens if the number of events is more than the
@@ -1554,8 +1695,16 @@ values can be used to scale an estimated value for the count.
 An unsigned 64-bit value containing the counter result.
 .TP
 .I id
-A globally unique value for this particular event; only present if
+A globally unique value for this particular event;
+only present if
 .B PERF_FORMAT_ID
+was specified in
+.IR read_format .
+.TP
+.I lost
+The number of lost samples of this event;
+only present if
+.B PERF_FORMAT_LOST
 was specified in
 .IR read_format .
 .SS MMAP layout
@@ -1568,18 +1717,18 @@ mmap tracking)
 are logged into a ring-buffer.
 This ring-buffer is created and accessed through
 .BR mmap (2).
-.PP
-The mmap size should be 1+2^n pages, where the first page is a
+.P
+The mmap size should be 1+2\[ha]n pages, where the first page is a
 metadata page
 .RI ( "struct perf_event_mmap_page" )
 that contains various
 bits of information such as where the ring-buffer head is.
-.PP
-Before kernel 2.6.39, there is a bug that means you must allocate an mmap
+.P
+Before Linux 2.6.39, there is a bug that means you must allocate an mmap
 ring buffer when sampling even if you do not plan to access it.
-.PP
+.P
 The structure of the first metadata mmap page is as follows:
-.PP
+.P
 .in +4n
 .EX
 struct perf_event_mmap_page {
@@ -1606,18 +1755,18 @@ struct perf_event_mmap_page {
     __u64 time_offset;
     __u64 __reserved[120];   /* Pad to 1 k */
     __u64 data_head;         /* head in the data section */
-    __u64 data_tail;         /* user-space written tail */
+    __u64 data_tail;         /* user\-space written tail */
     __u64 data_offset;       /* where the buffer starts */
     __u64 data_size;         /* data buffer size */
     __u64 aux_head;
     __u64 aux_tail;
     __u64 aux_offset;
     __u64 aux_size;
-
+\&
 }
 .EE
 .in
-.PP
+.P
 The following list describes the fields in the
 .I perf_event_mmap_page
 structure in more detail:
@@ -1695,28 +1844,28 @@ the following code can be used to do a read:
 u32 seq, time_mult, time_shift, idx, width;
 u64 count, enabled, running;
 u64 cyc, time_offset;
-
+\&
 do {
     seq = pc\->lock;
     barrier();
     enabled = pc\->time_enabled;
     running = pc\->time_running;
-
+\&
     if (pc\->cap_usr_time && enabled != running) {
         cyc = rdtsc();
         time_offset = pc\->time_offset;
         time_mult   = pc\->time_mult;
         time_shift  = pc\->time_shift;
     }
-
+\&
     idx = pc\->index;
     count = pc\->offset;
-
+\&
     if (pc\->cap_usr_rdpmc && idx) {
         width = pc\->pmc_width;
         count += rdpmc(idx \- 1);
     }
-
+\&
     barrier();
 } while (pc\->lock != seq);
 .EE
@@ -1744,12 +1893,16 @@ This can be used to sign extend the result like:
 .in +4n
 .EX
 pmc <<= 64 \- pmc_width;
-pmc >>= 64 \- pmc_width; // signed shift right
+pmc >>= 64 \- pmc_width;  // signed shift right
 count += pmc;
 .EE
 .in
 .TP
-.IR time_shift ", " time_mult ", " time_offset
+.I time_shift
+.TQ
+.I time_mult
+.TQ
+.I time_offset
 .IP
 If
 .IR cap_usr_time ,
@@ -1762,7 +1915,7 @@ delta since
 .EX
 u64 quot, rem;
 u64 delta;
-
+\&
 quot  = cyc >> time_shift;
 rem   = cyc & (((u64)1 << time_shift) \- 1);
 delta = time_offset + quot * time_mult +
@@ -1807,7 +1960,7 @@ values:
 .IP
 .in +4n
 .EX
-time = timestamp - time_zero;
+time = timestamp \- time_zero;
 quot = time / time_mult;
 rem  = time % time_mult;
 cyc  = (quot << time_shift) + (rem << time_shift) / time_mult;
@@ -1819,7 +1972,7 @@ And vice versa:
 .in +4n
 .EX
 quot = cyc >> time_shift;
-rem  = cyc & (((u64)1 << time_shift) - 1);
+rem  = cyc & (((u64)1 << time_shift) \- 1);
 timestamp = time_zero + quot * time_mult +
             ((rem * time_mult) >> time_shift);
 .EE
@@ -1854,7 +2007,13 @@ where perf sample data begins.
 Contains the size of the perf sample region within
 the mmap buffer.
 .TP
-.IR aux_head ", " aux_tail ", " aux_offset ", " aux_size " (since Linux 4.1)"
+.I aux_head
+.TQ
+.I aux_tail
+.TQ
+.I aux_offset
+.TQ
+.I aux_size " (since Linux 4.1)"
 .\" commit 45bfb2e50471abbbfd83d40d28c986078b0d24ff
 The AUX region allows
 .BR mmap (2)-ing
@@ -1899,9 +2058,9 @@ rules as the previous described
 .I data_head
 and
 .IR data_tail .
-.PP
+.P
 The following 2^n ring-buffer pages have the layout described below.
-.PP
+.P
 If
 .I perf_event_attr.sample_id_all
 is set, then all event types will
@@ -1915,9 +2074,9 @@ fields, that is, at the end of the payload.
 This allows a newer perf.data
 file to be supported by older perf tools, with the new optional
 fields being ignored.
-.PP
+.P
 The mmap values start with a header:
-.PP
+.P
 .in +4n
 .EX
 struct perf_event_header {
@@ -1927,7 +2086,7 @@ struct perf_event_header {
 };
 .EE
 .in
-.PP
+.P
 Below, we describe the
 .I perf_event_header
 fields in more detail.
@@ -1968,7 +2127,7 @@ Sample happened in the guest kernel.
 .\" commit 39447b386c846bbf1c56f6403c5282837486200f
 Sample happened in guest user code.
 .RE
-.PP
+.P
 .RS
 Since the following three statuses are generated by
 different record types, they alias to the same bit:
@@ -1984,7 +2143,7 @@ This is set for a
 .B PERF_RECORD_COMM
 record on kernels more recent than Linux 3.16
 if a process name change was caused by an
-.BR exec (2)
+.BR execve (2)
 system call.
 .TP
 .BR PERF_RECORD_MISC_SWITCH_OUT " (since Linux 4.3)"
@@ -1997,7 +2156,7 @@ record is generated, this bit indicates that the
 context switch is away from the current process
 (instead of into the current process).
 .RE
-.PP
+.P
 .RS
 In addition, the following bits can be set:
 .TP
@@ -2009,6 +2168,22 @@ to the actual instruction that triggered the event.
 See also
 .IR perf_event_attr.precise_ip .
 .TP
+.BR PERF_RECORD_MISC_SWITCH_OUT_PREEMPT " (since Linux 4.17)"
+.\" commit 101592b4904ecf6b8ed2a4784d41d180319d95a1
+When a
+.B PERF_RECORD_SWITCH
+or
+.B PERF_RECORD_SWITCH_CPU_WIDE
+record is generated,
+this indicates the context switch was a preemption.
+.TP
+.BR PERF_RECORD_MISC_MMAP_BUILD_ID " (since Linux 5.12)"
+.\" commit 88a16a1309333e43d328621ece3e9fa37027e8eb
+This indicates that the content of
+.B PERF_SAMPLE_MMAP2
+contains build-ID data instead of device major and minor numbers
+as well as the inode number.
+.TP
 .BR PERF_RECORD_MISC_EXT_RESERVED " (since Linux 2.6.35)"
 .\" commit 1676b8a077c352085d52578fb4f29350b58b6e74
 This indicates there is extended data available (currently not used).
@@ -2017,7 +2192,7 @@ This indicates there is extended data available (currently not used).
 .\" commit 930e6fcd2bcce9bcd9d4aa7e755678d33f3fe6f4
 This bit is not set by the kernel.
 It is reserved for the user-space perf utility to indicate that
-.I /proc/i[pid]/maps
+.IR /proc/ pid /maps
 parsing was taking too long and was stopped, and thus the mmap
 records may be truncated.
 .RE
@@ -2062,7 +2237,7 @@ is the thread ID.
 .I addr
 is the address of the allocated memory.
 .I len
-is the length of the allocated memory.
+is the size of the allocated memory.
 .I pgoff
 is the page offset of the allocated memory.
 .I filename
@@ -2132,7 +2307,9 @@ struct {
 .EE
 .in
 .TP
-.BR PERF_RECORD_THROTTLE ", " PERF_RECORD_UNTHROTTLE
+.B PERF_RECORD_THROTTLE
+.TQ
+.B PERF_RECORD_UNTHROTTLE
 This record indicates a throttle/unthrottle event.
 .IP
 .in +4n
@@ -2208,7 +2385,9 @@ struct {
     char   data[size];  /* if PERF_SAMPLE_STACK_USER */
     u64    dyn_size;    /* if PERF_SAMPLE_STACK_USER &&
                            size != 0 */
-    u64    weight;      /* if PERF_SAMPLE_WEIGHT */
+    union perf_sample_weight weight;
+                        /* if PERF_SAMPLE_WEIGHT */
+                        /* || PERF_SAMPLE_WEIGHT_STRUCT */
     u64    data_src;    /* if PERF_SAMPLE_DATA_SRC */
     u64    transaction; /* if PERF_SAMPLE_TRANSACTION */
     u64    abi;         /* if PERF_SAMPLE_REGS_INTR */
@@ -2216,6 +2395,12 @@ struct {
                         /* if PERF_SAMPLE_REGS_INTR */
     u64    phys_addr;   /* if PERF_SAMPLE_PHYS_ADDR */
     u64    cgroup;      /* if PERF_SAMPLE_CGROUP */
+    u64    data_page_size;
+                      /* if PERF_SAMPLE_DATA_PAGE_SIZE */
+    u64    code_page_size;
+                      /* if PERF_SAMPLE_CODE_PAGE_SIZE */
+    u64    size;        /* if PERF_SAMPLE_AUX */
+    char   data[size];  /* if PERF_SAMPLE_AUX */
 };
 .EE
 .in
@@ -2237,7 +2422,9 @@ If
 is enabled, then a 64-bit instruction
 pointer value is included.
 .TP
-.IR pid ", " tid
+.I pid
+.TQ
+.I tid
 If
 .B PERF_SAMPLE_TID
 is enabled, then a 32-bit process ID
@@ -2254,9 +2441,13 @@ if available and the jiffies value if not.
 .I addr
 If
 .B PERF_SAMPLE_ADDR
-is enabled, then a 64-bit address is included.
-This is usually the address of a tracepoint,
-breakpoint, or software event; otherwise the value is 0.
+is enabled,
+then a 64-bit address is included.
+This is usually the address of
+a tracepoint,
+breakpoint,
+or software event;
+otherwise the value is 0.
 .TP
 .I id
 If
@@ -2276,7 +2467,9 @@ the actual ID is returned, not the group leader.
 This ID is the same as the one returned by
 .BR PERF_FORMAT_ID .
 .TP
-.IR cpu ", " res
+.I cpu
+.TQ
+.I res
 If
 .B PERF_SAMPLE_CPU
 is enabled, this is a 32-bit value indicating
@@ -2300,7 +2493,9 @@ value used at
 .BR perf_event_open ()
 time.
 .TP
-.IR nr ", " ips[nr]
+.I nr
+.TQ
+.I ips[nr]
 If
 .B PERF_SAMPLE_CALLCHAIN
 is enabled, then a 64-bit number is included
@@ -2308,11 +2503,14 @@ which indicates how many following 64-bit instruction pointers will
 follow.
 This is the current callchain.
 .TP
-.IR size ", " data[size]
+.I size
+.TQ
+.I data[size]
 If
 .B PERF_SAMPLE_RAW
 is enabled, then a 32-bit value indicating size
-is included followed by an array of 8-bit values of length size.
+is included followed by an array of 8-bit values of size
+.IR size .
 The values are padded with 0 to have 64-bit alignment.
 .IP
 This RAW record data is opaque with respect to the ABI.
@@ -2320,7 +2518,9 @@ The ABI doesn't make any promises with respect to the stability
 of its content, it may vary depending
 on event, hardware, and kernel version.
 .TP
-.IR bnr ", " lbr[bnr]
+.I bnr
+.TQ
+.I lbr[bnr]
 If
 .B PERF_SAMPLE_BRANCH_STACK
 is enabled, then a 64-bit value indicating
@@ -2354,24 +2554,27 @@ The branch was in an aborted transactional memory transaction.
 .\" commit 71ef3c6b9d4665ee7afbbe4c208a98917dcfc32f
 This reports the number of cycles elapsed since the
 previous branch stack update.
-.PP
+.P
 The entries are from most to least recent, so the first entry
 has the most recent branch.
-.PP
+.P
 Support for
 .IR mispred ,
 .IR predicted ,
 and
 .I cycles
-is optional; if not supported, those
-values will be 0.
-.PP
+is optional;
+if not supported,
+those values will be 0.
+.P
 The type of branches recorded is specified by the
 .I branch_sample_type
 field.
 .RE
 .TP
-.IR abi ", " regs[weight(mask)]
+.I abi
+.TQ
+.I regs[weight(mask)]
 If
 .B PERF_SAMPLE_REGS_USER
 is enabled, then the user CPU registers are recorded.
@@ -2394,7 +2597,11 @@ The number of values is the number of bits set in the
 .I sample_regs_user
 bit mask.
 .TP
-.IR size ", " data[size] ", " dyn_size
+.I size
+.TQ
+.I data[size]
+.TQ
+.I dyn_size
 If
 .B PERF_SAMPLE_STACK_USER
 is enabled, then the user stack is recorded.
@@ -2418,6 +2625,8 @@ is 0.
 .I weight
 If
 .B PERF_SAMPLE_WEIGHT
+or
+.B PERF_SAMPLE_WEIGHT_STRUCT
 is enabled, then a 64-bit value provided by the hardware
 is recorded that indicates how costly the event was.
 This allows expensive events to stand out more clearly
@@ -2616,7 +2825,9 @@ the high 32 bits of the field by shifting right by
 and masking with the value
 .BR PERF_TXN_ABORT_MASK .
 .TP
-.IR abi ", " regs[weight(mask)]
+.I abi
+.TQ
+.I regs[weight(mask)]
 If
 .B PERF_SAMPLE_REGS_INTR
 is enabled, then the user CPU registers are recorded.
@@ -2650,7 +2861,31 @@ If the
 flag is set,
 then the 64-bit cgroup ID (for the perf_event subsystem) is recorded.
 To get the pathname of the cgroup, the ID should match to one in a
-.B PERF_RECORD_CGROUP .
+.BR PERF_RECORD_CGROUP .
+.TP
+.I data_page_size
+If the
+.B PERF_SAMPLE_DATA_PAGE_SIZE
+flag is set,
+then the 64-bit page size value of the
+.B data
+address is recorded.
+.TP
+.I code_page_size
+If the
+.B PERF_SAMPLE_CODE_PAGE_SIZE
+flag is set,
+then the 64-bit page size value of the
+.B ip
+address is recorded.
+.TP
+.I size
+.TQ
+.IR data [ size ]
+If
+.B PERF_SAMPLE_AUX
+is enabled,
+a snapshot of the aux buffer is recorded.
 .RE
 .TP
 .B PERF_RECORD_MMAP2
@@ -2661,6 +2896,10 @@ The format is similar to that of the
 .B PERF_RECORD_MMAP
 record, but includes extra values that allow uniquely identifying
 shared mappings.
+Depending on the
+.B PERF_RECORD_MISC_MMAP_BUILD_ID
+bit in the header,
+the extra values have different layout and meanings.
 .IP
 .in +4n
 .EX
@@ -2671,10 +2910,20 @@ struct {
     u64    addr;
     u64    len;
     u64    pgoff;
-    u32    maj;
-    u32    min;
-    u64    ino;
-    u64    ino_generation;
+    union {
+        struct {
+            u32    maj;
+            u32    min;
+            u64    ino;
+            u64    ino_generation;
+        };
+        struct {   /* if PERF_RECORD_MISC_MMAP_BUILD_ID */
+            u8     build_id_size;
+            u8     __reserved_1;
+            u16    __reserved_2;
+            u8     build_id[20];
+        };
+    };
     u32    prot;
     u32    flags;
     char   filename[];
@@ -2694,7 +2943,7 @@ is the thread ID.
 is the address of the allocated memory.
 .TP
 .I len
-is the length of the allocated memory.
+is the size of the allocated memory.
 .TP
 .I pgoff
 is the page offset of the allocated memory.
@@ -2710,6 +2959,14 @@ is the inode number.
 .TP
 .I ino_generation
 is the inode generation.
+.TP
+.I build_id_size
+is the actual size of
+.I build_id
+field (up to 20).
+.TP
+.I build_id
+is a raw data to identify a binary.
 .TP
 .I prot
 is the protection information.
@@ -2939,7 +3196,7 @@ struct {
 is the address of the kernel symbol.
 .TP
 .I len
-is the length of the kernel symbol.
+is the size of the kernel symbol.
 .TP
 .I ksym_type
 is the type of the kernel symbol.
@@ -3025,7 +3282,7 @@ is the path of the cgroup from the root.
 .\" commit e17d43b93e544f5016c0251d2074c15568d5d963
 This record indicates a change in the kernel text.
 This includes addition and removal of the text
-and the corresponding length is zero in this case.
+and the corresponding size is zero in this case.
 .IP
 .in +4n
 .EX
@@ -3045,10 +3302,10 @@ struct {
 is the address of the change
 .TP
 .I old_len
-is the old length
+is the old size
 .TP
 .I new_len
-is the new length
+is the new size
 .TP
 .I bytes
 contains old bytes immediately followed by new bytes.
@@ -3063,20 +3320,22 @@ event file descriptor with
 .BR select (2),
 or
 .BR epoll (7).
-Alternatively, the overflow events can be captured via sa signal handler,
-by enabling I/O signaling on the file descriptor; see the discussion of the
-.BR F_SETOWN
+Alternatively,
+the overflow events can be captured via sa signal handler,
+by enabling I/O signaling on the file descriptor;
+see the discussion of the
+.B F_SETOWN
 and
-.BR F_SETSIG
+.B F_SETSIG
 operations in
 .BR fcntl (2).
-.PP
+.P
 Overflows are generated only by sampling events
 .RI ( sample_period
 must have a nonzero value).
-.PP
+.P
 There are two ways to generate overflow notifications.
-.PP
+.P
 The first is to set a
 .I wakeup_events
 or
@@ -3086,7 +3345,7 @@ or bytes have been written to the mmap ring buffer.
 In this case,
 .B POLL_IN
 is indicated.
-.PP
+.P
 The other way is by use of the
 .B PERF_EVENT_IOC_REFRESH
 ioctl.
@@ -3098,13 +3357,13 @@ once the counter reaches 0
 .B POLL_HUP
 is indicated and
 the underlying event is disabled.
-.PP
+.P
 Refreshing an event group leader refreshes all siblings and
 refreshing with a parameter of 0 currently enables infinite
 refreshes;
 these behaviors are unsupported and should not be relied on.
 .\" See https://lkml.org/lkml/2011/5/24/337
-.PP
+.P
 Starting with Linux 3.18,
 .\" commit 179033b3e064d2cd3f5f9945e76b0a0f0fbf4883
 .B POLL_HUP
@@ -3118,12 +3377,13 @@ instruction to get low-latency reads without having to enter the kernel.
 Note that using
 .I rdpmc
 is not necessarily faster than other methods for reading event values.
-.PP
+.P
 Support for this can be detected with the
 .I cap_usr_rdpmc
-field in the mmap page; documentation on how
-to calculate event values can be found in that section.
-.PP
+field in the mmap page;
+documentation on how to calculate event values
+can be found in that section.
+.P
 Originally, when rdpmc support was enabled, any process (not just ones
 with an active perf event) could use the rdpmc instruction to access
 the counters.
@@ -3152,12 +3412,16 @@ enabled, even if the event specified is not the group leader
 This disables the individual counter or event group specified by the
 file descriptor argument.
 .IP
-Enabling or disabling the leader of a group enables or disables the
-entire group; that is, while the group leader is disabled, none of the
-counters in the group will count.
+Enabling or disabling the leader of a group
+enables or disables the entire group;
+that is,
+while the group leader is disabled,
+none of the counters in the group will count.
 Enabling or disabling a member of a group other than the leader
-affects only that counter; disabling a non-leader
-stops that counter from counting but doesn't affect any other counter.
+affects only that counter;
+disabling a non-leader
+stops that counter from counting
+but doesn't affect any other counter.
 .IP
 If the
 .B PERF_IOC_FLAG_GROUP
@@ -3173,17 +3437,18 @@ Subsequent calls of this ioctl add the argument value to the current
 count.
 An overflow notification with
 .B POLL_IN
-set will happen on each overflow until the
-count reaches 0; when that happens a notification with
+set will happen on each overflow
+until the count reaches 0;
+when that happens a notification with
 .B POLL_HUP
 set is sent and the event is disabled.
 Using an argument of 0 is considered undefined behavior.
 .TP
 .B PERF_EVENT_IOC_RESET
-Reset the event count specified by the
-file descriptor argument to zero.
-This resets only the counts; there is no way to reset the
-multiplexing
+Reset the event count specified by the file descriptor argument
+to zero.
+This resets only the counts;
+there is no way to reset the multiplexing
 .I time_enabled
 or
 .I time_running
@@ -3256,7 +3521,7 @@ This allows pausing and resuming the event's ring-buffer.
 A paused ring-buffer does not prevent generation of samples,
 but simply discards them.
 The discarded samples are considered lost, and cause a
-.BR PERF_RECORD_LOST
+.B PERF_RECORD_LOST
 sample to be generated when possible.
 An overflow signal may still be triggered by the discarded sample
 even though the ring-buffer remains empty.
@@ -3344,14 +3609,18 @@ file can be set to restrict access to the performance counters.
 .IP
 .PD 0
 .RS
-.IP 2 4
+.TP
+.B 2
 allow only user-space measurements (default since Linux 4.6).
 .\" default changed in commit 0161028b7c8aebef64194d3d73e43bc3b53b5c66
-.IP 1
+.TP
+.B 1
 allow both kernel and user measurements (default before Linux 4.6).
-.IP 0
+.TP
+.B 0
 allow access to CPU-specific data but not raw tracepoint samples.
-.IP \-1
+.TP
+.B \-1
 no restrictions.
 .RE
 .PD
@@ -3379,10 +3648,10 @@ Maximum number of pages an unprivileged user can
 .BR mlock (2).
 The default is 516 (kB).
 .RE
-.PP
+.P
 Files in
 .I /sys/bus/event_source/devices/
-.PP
+.P
 .RS 4
 Since Linux 2.6.34, the kernel supports having multiple PMUs
 available for monitoring.
@@ -3427,7 +3696,7 @@ For example, the file
 .I event
 may contain the value
 .I config1:1,6\-10,44
-which indicates that event is an attribute that occupies bits 1,6\(en10, and 44
+which indicates that event is an attribute that occupies bits 1,6\[en]10, and 44
 of
 .IR perf_event_attr::config1 .
 .TP
@@ -3464,11 +3733,12 @@ This is needed when setting up uncore or northbridge events, as
 those PMUs present socket-wide events.
 .RE
 .SH RETURN VALUE
+On success,
 .BR perf_event_open ()
-returns the new file descriptor, or \-1 if an error occurred
-(in which case,
+returns the new file descriptor.
+On error, \-1 is returned and
 .I errno
-is set appropriately).
+is set to indicate the error.
 .SH ERRORS
 The errors returned by
 .BR perf_event_open ()
@@ -3528,6 +3798,10 @@ Returned if the
 .I attr
 pointer points at an invalid memory address.
 .TP
+.B EINTR
+Returned when trying to mix perf and ftrace handling
+for a uprobe.
+.TP
 .B EINVAL
 Returned if the specified event is invalid.
 There are many possible reasons for this.
@@ -3551,12 +3825,9 @@ set and the event is not a group leader;
 the event
 .I config
 values are out of range or set reserved bits;
-the generic event selected is not supported; or
+the generic event selected is not supported;
+or
 there is not enough room to add the selected event.
-.TP
-.B EINTR
-Returned when trying to mix perf and ftrace handling
-for a uprobe.
 .TP
 .B EMFILE
 Each opened event uses one file descriptor.
@@ -3627,29 +3898,22 @@ and (since Linux 3.13) setting a kernel function-trace tracepoint.
 .TP
 .B ESRCH
 Returned if attempting to attach to a process that does not exist.
-.SH VERSION
+.SH STANDARDS
+Linux.
+.SH HISTORY
 .BR perf_event_open ()
 was introduced in Linux 2.6.31 but was called
 .\" commit 0793a61d4df8daeac6492dbf8d2f3e5713caae5e
 .BR perf_counter_open ().
 It was renamed in Linux 2.6.32.
 .\" commit cdd6c482c9ff9c55475ee7392ec8f672eddb7be6
-.SH CONFORMING TO
-This
-.BR perf_event_open ()
-system call Linux-specific
-and should not be used in programs intended to be portable.
 .SH NOTES
-Glibc does not provide a wrapper for this system call; call it using
-.BR syscall (2).
-See the example below.
-.PP
 The official way of knowing if
 .BR perf_event_open ()
 support is enabled is checking
 for the existence of the file
 .IR /proc/sys/kernel/perf_event_paranoid .
-.PP
+.P
 .B CAP_PERFMON
 capability (since Linux 5.8) provides secure approach to
 performance monitoring and observability operations in a system
@@ -3673,7 +3937,7 @@ option to
 is needed to properly get overflow signals in threads.
 This was introduced in Linux 2.6.32.
 .\" commit ba0a6c9f6fceed11c6a99e8326f0477fe383e6b5
-.PP
+.P
 Prior to Linux 2.6.33 (at least for x86),
 .\" commit b690081d4d3f6a23541493f1682835c3cd5c54a1
 the kernel did not check
@@ -3683,40 +3947,40 @@ This means to see if a given set of events works you have to
 .BR perf_event_open (),
 start, then read before you know for sure you
 can get valid measurements.
-.PP
+.P
 Prior to Linux 2.6.34,
 .\" FIXME . cannot find a kernel commit for this one
 event constraints were not enforced by the kernel.
 In that case, some events would silently return "0" if the kernel
 scheduled them in an improper counter slot.
-.PP
+.P
 Prior to Linux 2.6.34, there was a bug when multiplexing where the
 wrong results could be returned.
 .\" commit 45e16a6834b6af098702e5ea6c9a40de42ff77d8
-.PP
+.P
 Kernels from Linux 2.6.35 to Linux 2.6.39 can quickly crash the kernel if
 "inherit" is enabled and many threads are started.
 .\" commit 38b435b16c36b0d863efcf3f07b34a6fac9873fd
-.PP
+.P
 Prior to Linux 2.6.35,
 .\" commit 050735b08ca8a016bbace4445fa025b88fee770b
 .B PERF_FORMAT_GROUP
 did not work with attached processes.
-.PP
+.P
 There is a bug in the kernel code between
 Linux 2.6.36 and Linux 3.0 that ignores the
 "watermark" field and acts as if a wakeup_event
 was chosen if the union has a
 nonzero value in it.
 .\" commit 4ec8363dfc1451f8c8f86825731fe712798ada02
-.PP
+.P
 From Linux 2.6.31 to Linux 3.4, the
 .B PERF_IOC_FLAG_GROUP
 ioctl argument was broken and would repeatedly operate
 on the event specified rather than iterating across
 all sibling events in a group.
 .\" commit 724b6daa13e100067c30cfc4d1ad06629609dc4e
-.PP
+.P
 From Linux 3.4 to Linux 3.11, the mmap
 .\" commit fa7315871046b9a4c48627905691dbde57e51033
 .I cap_usr_rdpmc
@@ -3728,7 +3992,7 @@ Code should migrate to the new
 and
 .I cap_user_time
 fields instead.
-.PP
+.P
 Always double-check your results!
 Various generalized events have had wrong values.
 For example, retired branches measured
@@ -3738,34 +4002,37 @@ the wrong thing on AMD machines until Linux 2.6.35.
 The following is a short example that measures the total
 instruction count of a call to
 .BR printf (3).
-.PP
+.P
+.\" SRC BEGIN (perf_event_open.c)
 .EX
-#include <stdlib.h>
+#include <err.h>
+#include <linux/perf_event.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <linux/perf_event.h>
-#include <asm/unistd.h>
-
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <unistd.h>
+\&
 static long
 perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
                 int cpu, int group_fd, unsigned long flags)
 {
     int ret;
-
-    ret = syscall(__NR_perf_event_open, hw_event, pid, cpu,
-                   group_fd, flags);
+\&
+    ret = syscall(SYS_perf_event_open, hw_event, pid, cpu,
+                  group_fd, flags);
     return ret;
 }
-
+\&
 int
-main(int argc, char **argv)
+main(void)
 {
-    struct perf_event_attr pe;
-    long long count;
-    int fd;
-
+    int                     fd;
+    long long               count;
+    struct perf_event_attr  pe;
+\&
     memset(&pe, 0, sizeof(pe));
     pe.type = PERF_TYPE_HARDWARE;
     pe.size = sizeof(pe);
@@ -3773,26 +4040,30 @@ main(int argc, char **argv)
     pe.disabled = 1;
     pe.exclude_kernel = 1;
     pe.exclude_hv = 1;
-
+\&
     fd = perf_event_open(&pe, 0, \-1, \-1, 0);
-    if (fd == \-1) {
-       fprintf(stderr, "Error opening leader %llx\en", pe.config);
-       exit(EXIT_FAILURE);
-    }
-
-    ioctl(fd, PERF_EVENT_IOC_RESET, 0);
-    ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
-
-    printf("Measuring instruction count for this printf\en");
-
-    ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
-    read(fd, &count, sizeof(count));
-
-    printf("Used %lld instructions\en", count);
-
-    close(fd);
+    if (fd == \-1)
+        err(EXIT_FAILURE, "Error opening leader %llx\[rs]n", pe.config);
+\&
+    if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) == \-1)
+        err(EXIT_FAILURE, "PERF_EVENT_IOC_RESET");
+    if (ioctl(fd, PERF_EVENT_IOC_ENABLE, 0) == \-1)
+        err(EXIT_FAILURE, "PERF_EVENT_IOC_ENABLE");
+\&
+    printf("Measuring instruction count for this printf\[rs]n");
+\&
+    if (ioctl(fd, PERF_EVENT_IOC_DISABLE, 0) == \-1)
+        err(EXIT_FAILURE, "PERF_EVENT_IOC_DISABLE");
+    if (read(fd, &count, sizeof(count)) != sizeof(count))
+        err(EXIT_FAILURE, "read");
+\&
+    printf("Used %lld instructions\[rs]n", count);
+\&
+    if (close(fd) == \-1)
+        err(EXIT_FAILURE, "close");
 }
 .EE
+.\" SRC END
 .SH SEE ALSO
 .BR perf (1),
 .BR fcntl (2),
@@ -3800,15 +4071,6 @@ main(int argc, char **argv)
 .BR open (2),
 .BR prctl (2),
 .BR read (2)
-.PP
-.IR Documentation/admin-guide/perf-security.rst
+.P
+.I Documentation/admin\-guide/perf\-security.rst
 in the kernel source tree
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

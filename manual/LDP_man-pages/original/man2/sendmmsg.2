@@ -1,40 +1,22 @@
-.\" Copyright (c) 2012 by Michael Kerrisk <mtk.manpages@gmail.com>
-.\" with some material from a draft by
-.\" Stephan Mueller <stephan.mueller@atsec.com>
-.\" in turn based on Andi Kleen's recvmmsg.2 page.
+.\" Copyright 2012, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.TH SENDMMSG 2 2020-06-09 "Linux" "Linux Programmer's Manual"
+.TH sendmmsg 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 sendmmsg \- send multiple messages on a socket
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
 .BR "#define _GNU_SOURCE" "         /* See feature_test_macros(7) */"
-.BI "#include <sys/socket.h>"
-.PP
-.BI "int sendmmsg(int " sockfd ", struct mmsghdr *" msgvec \
-", unsigned int " vlen ","
+.B #include <sys/socket.h>
+.P
+.BR "int sendmmsg(" "unsigned int n;"
+.BI "             int " sockfd \
+", struct mmsghdr " msgvec [ n "], unsigned int " n ,
 .BI "             int " flags ");"
 .fi
 .SH DESCRIPTION
@@ -46,26 +28,26 @@ that allows the caller to transmit multiple messages on a socket
 using a single system call.
 (This has performance benefits for some applications.)
 .\" See commit 228e548e602061b08ee8e8966f567c12aa079682
-.PP
+.P
 The
 .I sockfd
 argument is the file descriptor of the socket
 on which data is to be transmitted.
-.PP
+.P
 The
 .I msgvec
 argument is a pointer to an array of
 .I mmsghdr
 structures.
 The size of this array is specified in
-.IR vlen .
-.PP
+.IR n .
+.P
 The
 .I mmsghdr
 structure is defined in
 .I <sys/socket.h>
 as:
-.PP
+.P
 .in +4n
 .EX
 struct mmsghdr {
@@ -74,7 +56,7 @@ struct mmsghdr {
 };
 .EE
 .in
-.PP
+.P
 The
 .I msg_hdr
 field is a
@@ -84,33 +66,33 @@ structure, as described in
 The
 .I msg_len
 field is used to return the number of bytes sent from the message in
-.IR msg_hdr
+.I msg_hdr
 (i.e., the same as the return value from a single
 .BR sendmsg (2)
 call).
-.PP
+.P
 The
 .I flags
 argument contains flags ORed together.
 The flags are the same as for
 .BR sendmsg (2).
-.PP
+.P
 A blocking
 .BR sendmmsg ()
 call blocks until
-.I vlen
+.I n
 messages have been sent.
 A nonblocking call sends as many messages as possible
 (up to the limit specified by
-.IR vlen )
+.IR n )
 and returns immediately.
-.PP
+.P
 On return from
 .BR sendmmsg (),
 the
 .I msg_len
 fields of successive elements of
-.IR msgvec
+.I msgvec
 are updated to contain the number of bytes transmitted from the corresponding
 .IR msg_hdr .
 The return value of the call indicates the number of elements of
@@ -122,11 +104,11 @@ On success,
 returns the number of messages sent from
 .IR msgvec ;
 if this is less than
-.IR vlen ,
+.IR n ,
 the caller can retry with a further
 .BR sendmmsg ()
 call to send the remaining messages.
-.PP
+.P
 On error, \-1 is returned, and
 .I errno
 is set to indicate the error.
@@ -136,24 +118,21 @@ Errors are as for
 An error is returned only if no datagrams could be sent.
 See also BUGS.
 .\" commit 728ffb86f10873aaf4abd26dde691ee40ae731fe
-.\"     ... only return an error if no datagrams could be sent.
+.\"     ...only return an error if no datagrams could be sent.
 .\"     If less than the requested number of messages were sent, the application
 .\"     must retry starting at the first failed one and if the problem is
 .\"     persistent the error will be returned.
 .\"
 .\"     This matches the behavior of other syscalls like read/write - it
 .\"     is not an error if less than the requested number of elements are sent.
-.SH VERSIONS
-The
-.BR sendmmsg ()
-system call was added in Linux 3.0.
-Support in glibc was added in version 2.14.
-.SH CONFORMING TO
-.BR sendmmsg ()
-is Linux-specific.
+.SH STANDARDS
+Linux.
+.SH HISTORY
+Linux 3.0,
+glibc 2.14.
 .SH NOTES
 The value specified in
-.I vlen
+.I n
 is capped to
 .B UIO_MAXIOV
 (1024).
@@ -183,31 +162,33 @@ and
 .I three
 in two distinct UDP datagrams using one system call.
 The contents of the first datagram originates from a pair of buffers.
-.PP
+.P
+.\" SRC BEGIN (sendmmsg.c)
 .EX
 #define _GNU_SOURCE
-#include <netinet/ip.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-
+#include <sys/types.h>
+\&
 int
 main(void)
 {
-    int sockfd;
-    struct sockaddr_in addr;
-    struct mmsghdr msg[2];
-    struct iovec msg1[2], msg2;
-    int retval;
-
+    int                 retval;
+    int                 sockfd;
+    struct iovec        msg1[2], msg2;
+    struct mmsghdr      msg[2];
+    struct sockaddr_in  addr;
+\&
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd == \-1) {
         perror("socket()");
         exit(EXIT_FAILURE);
     }
-
+\&
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     addr.sin_port = htons(1234);
@@ -215,44 +196,36 @@ main(void)
         perror("connect()");
         exit(EXIT_FAILURE);
     }
-
+\&
     memset(msg1, 0, sizeof(msg1));
     msg1[0].iov_base = "one";
     msg1[0].iov_len = 3;
     msg1[1].iov_base = "two";
     msg1[1].iov_len = 3;
-
+\&
     memset(&msg2, 0, sizeof(msg2));
     msg2.iov_base = "three";
     msg2.iov_len = 5;
-
+\&
     memset(msg, 0, sizeof(msg));
     msg[0].msg_hdr.msg_iov = msg1;
     msg[0].msg_hdr.msg_iovlen = 2;
-
+\&
     msg[1].msg_hdr.msg_iov = &msg2;
     msg[1].msg_hdr.msg_iovlen = 1;
-
+\&
     retval = sendmmsg(sockfd, msg, 2, 0);
     if (retval == \-1)
         perror("sendmmsg()");
     else
-        printf("%d messages sent\en", retval);
-
+        printf("%d messages sent\[rs]n", retval);
+\&
     exit(0);
 }
 .EE
+.\" SRC END
 .SH SEE ALSO
 .BR recvmmsg (2),
 .BR sendmsg (2),
 .BR socket (2),
 .BR socket (7)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.

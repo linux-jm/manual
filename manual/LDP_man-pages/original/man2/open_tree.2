@@ -1,0 +1,711 @@
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.TH open_tree 2 2026-02-22 "Linux man-pages (unreleased)"
+.SH NAME
+open_tree \- open path or create detached mount object and attach to fd
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
+.SH SYNOPSIS
+.nf
+.BR "#define _GNU_SOURCE         " "/* See feature_test_macros(7) */"
+.BR "#include <fcntl.h>" "          /* Definition of " AT_* " constants */"
+.B #include <sys/mount.h>
+.P
+.BI "int open_tree(int " dirfd ", const char *" path ", unsigned int " flags );
+.P
+.BR "#include <sys/syscall.h>" "    /* Definition of " SYS_* " constants */"
+.P
+.B int syscall(SYS_open_tree_attr,
+.BI "            int " dirfd ", const char *" path ", unsigned int " flags ,
+.BI "            struct mount_attr *_Nullable " attr ", size_t " size );
+.fi
+.P
+.IR Note :
+glibc provides no wrapper for
+.BR open_tree_attr (),
+necessitating the use of
+.BR syscall (2).
+.SH DESCRIPTION
+The
+.BR open_tree ()
+system call is part of
+the suite of file-descriptor-based mount facilities in Linux.
+.IP \[bu] 3
+If
+.I flags
+contains
+.BR \%OPEN_TREE_CLONE ,
+.BR open_tree ()
+creates a detached mount object
+which consists of a bind-mount of
+the path specified by the
+.IR path .
+A new file descriptor
+associated with the detached mount object
+is then returned.
+The mount object is equivalent to a bind-mount
+that would be created by
+.BR mount (2)
+called with
+.BR \%MS_BIND ,
+except that it is tied to a file descriptor
+and is not mounted onto the filesystem.
+.IP
+As with file descriptors returned from
+.BR fsmount (2),
+the resultant file descriptor can then be used with
+.BR move_mount (2),
+.BR mount_setattr (2),
+or other such system calls to do further mount operations.
+.IP
+This mount object will be unmounted and destroyed
+when the file descriptor is closed
+if it was not otherwise attached to a mount point
+by calling
+.BR move_mount (2).
+This implicit unmount operation is lazy\[em]\c
+akin to calling
+.BR umount2 (2)
+with
+.BR \%MNT_DETACH ;
+thus,
+any existing open references to files
+from the mount object
+will continue to work,
+and the mount object will only be completely destroyed
+once it ceases to be busy.
+.IP \[bu]
+If
+.I flags
+does not contain
+.BR \%OPEN_TREE_CLONE ,
+.BR open_tree ()
+returns a file descriptor
+that is exactly equivalent to
+one produced by
+.BR openat (2)
+when called with the same
+.I dirfd
+and
+.IR path .
+.P
+In either case, the resultant file descriptor
+acts the same as one produced by
+.BR open (2)
+with
+.BR O_PATH ,
+meaning it can also be used as a
+.I dirfd
+argument to
+"*at()" system calls.
+However,
+unlike
+.BR open (2)
+called with
+.BR O_PATH ,
+automounts will
+by default
+be triggered by
+.BR open_tree ()
+unless
+.B \%AT_NO_AUTOMOUNT
+is included in
+.IR flags .
+.P
+As with "*at()" system calls,
+.BR open_tree ()
+uses the
+.I dirfd
+argument in conjunction with the
+.I path
+argument to determine the path to operate on, as follows:
+.IP \[bu] 3
+If the pathname given in
+.I path
+is absolute, then
+.I dirfd
+is ignored.
+.IP \[bu]
+If the pathname given in
+.I path
+is relative and
+.I dirfd
+is the special value
+.BR \%AT_FDCWD ,
+then
+.I path
+is interpreted relative to
+the current working directory
+of the calling process (like
+.BR open (2)).
+.IP \[bu]
+If the pathname given in
+.I path
+is relative,
+then it is interpreted relative to
+the directory referred to by the file descriptor
+.I dirfd
+(rather than relative to
+the current working directory
+of the calling process,
+as is done by
+.BR open (2)
+for a relative pathname).
+In this case,
+.I dirfd
+must be a directory
+that was opened for reading
+.RB ( \%O_RDONLY )
+or using the
+.B O_PATH
+flag.
+.IP \[bu]
+If
+.I path
+is an empty string,
+and
+.I flags
+contains
+.BR \%AT_EMPTY_PATH ,
+then the file descriptor
+.I dirfd
+is operated on directly.
+In this case,
+.I dirfd
+may refer to any type of file,
+not just a directory.
+.P
+See
+.BR openat (2)
+for an explanation of why the
+.I dirfd
+argument is useful.
+.P
+.I flags
+can be used to control aspects of the path lookup
+and properties of the returned file descriptor.
+A value for
+.I flags
+is constructed by bitwise ORing
+zero or more of the following constants:
+.RS
+.TP
+.B \%AT_EMPTY_PATH
+If
+.I path
+is an empty string, operate on the file referred to by
+.I dirfd
+(which may have been obtained from
+.BR open (2),
+.BR fsmount (2),
+or from another
+.BR open_tree ()
+call).
+In this case,
+.I dirfd
+may refer to any type of file, not just a directory.
+If
+.I dirfd
+is
+.BR \%AT_FDCWD ,
+.BR open_tree ()
+will operate on the current working directory
+of the calling process.
+This flag is Linux-specific;
+define
+.B \%_GNU_SOURCE
+to obtain its definition.
+.TP
+.B \%AT_NO_AUTOMOUNT
+Do not automount the terminal ("basename") component of
+.I path
+if it is a directory that is an automount point.
+This allows you to create a handle to the automount point itself,
+rather than the location it would mount.
+This flag has no effect if the mount point has already been mounted over.
+This flag is Linux-specific;
+define
+.B \%_GNU_SOURCE
+to obtain its definition.
+.TP
+.B \%AT_SYMLINK_NOFOLLOW
+If
+.I path
+is a symbolic link, do not dereference it;
+instead,
+create either a handle to the link itself
+or a bind-mount of it.
+The resultant file descriptor is indistinguishable from one produced by
+.BR openat (2)
+with
+.BR \%O_PATH | O_NOFOLLLOW .
+.TP
+.B \%OPEN_TREE_CLOEXEC
+Set the close-on-exec
+.RB ( FD_CLOEXEC )
+flag on the new file descriptor.
+See the description of the
+.B O_CLOEXEC
+flag in
+.BR open (2)
+for reasons why this may be useful.
+.TP
+.B \%OPEN_TREE_CLONE
+Rather than creating an
+.BR openat (2)-style
+.B O_PATH
+file descriptor,
+create a bind-mount of
+.I path
+(akin to
+.IR \%mount\~\-\-bind )
+as a detached mount object.
+In order to do this operation,
+the calling process must have the
+.B \%CAP_SYS_ADMIN
+capability.
+.TP
+.B \%AT_RECURSIVE
+Create a recursive bind-mount of the path
+(akin to
+.IR \%mount\~\-\-rbind )
+as a detached mount object.
+This flag is only permitted in conjunction with
+.BR \%OPEN_TREE_CLONE .
+.SS open_tree_attr()
+The
+.BR open_tree_attr ()
+system call operates in exactly the same way as
+.BR open_tree (),
+except for the differences described here.
+.P
+After performing the same operation as with
+.BR open_tree (),
+.BR open_tree_attr ()
+will apply the mount attribute changes described in
+.I attr
+to the file descriptor before it is returned.
+(See
+.BR mount_attr (2type)
+for a description of the
+.I \%mount_attr
+structure.
+As described in
+.BR mount_setattr (2),
+.I size
+must be set to
+.I \%sizeof(struct mount_attr)
+in order to support future extensions.)
+If
+.I attr
+is NULL,
+or has
+.IR \%attr.attr_clr ,
+.IR \%attr.attr_set ,
+and
+.I \%attr.propagation
+all set to zero,
+then
+.BR open_tree_attr ()
+has identical behavior to
+.BR open_tree ().
+.P
+The application of
+.I attr
+to the resultant file descriptor
+has identical semantics to
+.BR mount_setattr (2),
+except for the following extensions and general caveats:
+.IP \[bu] 3
+Unlike
+.BR mount_setattr (2)
+called with a regular
+.B OPEN_TREE_CLONE
+detached mount object from
+.BR open_tree (),
+.BR open_tree_attr ()
+can specify a different setting for
+.B \%MOUNT_ATTR_IDMAP
+to the original mount object cloned with
+.BR \%OPEN_TREE_CLONE .
+.IP
+Adding
+.B \%MOUNT_ATTR_IDMAP
+to
+.I \%attr.attr_clr
+will disable ID-mapping for the new mount object;
+adding
+.B \%MOUNT_ATTR_IDMAP
+to
+.I \%attr.attr_set
+will configure the mount object to have the ID-mapping defined by
+the user namespace referenced by the file descriptor
+.IR \%attr.userns_fd .
+(The semantics of which are identical to when
+.BR mount_setattr (2)
+is used to configure
+.BR \%MOUNT_ATTR_IDMAP .)
+.IP
+Changing or removing the mapping
+of an ID-mapped mount is only permitted
+if a new detached mount object is being created with
+.I flags
+including
+.BR \%OPEN_TREE_CLONE .
+.\" Aleksa Sarai
+.\"  At time of writing, this is not actually true because of a bug where
+.\"  open_tree_attr() would accidentally permit changing MOUNT_ATTR_IDMAP for
+.\"  existing detached mount objects without setting OPEN_TREE_CLONE, but a
+.\"  patch to fix it has been slated for 6.18 and will be backported to 6.15+.
+.\"  <https://lore.kernel.org/r/20250808-open_tree_attr-bugfix-idmap-v1-0-0ec7bc05646c@cyphar.com/>
+.IP \[bu]
+If
+.I flags
+contains
+.BR \%AT_RECURSIVE ,
+then the attributes described in
+.I attr
+are applied recursively
+(just as when
+.BR mount_setattr (2)
+is called with
+.BR \%AT_RECURSIVE ).
+However, this applies in addition to the
+.BR open_tree ()-specific
+behavior regarding
+.BR \%AT_RECURSIVE ,
+and thus
+.I flags
+must also contain
+.BR \%OPEN_TREE_CLONE .
+.P
+Note that if
+.I flags
+does not contain
+.BR \%OPEN_TREE_CLONE ,
+.BR open_tree_attr ()
+will attempt to modify the mount attributes of
+the mount object attached at
+the path described by
+.I dirfd
+and
+.IR path .
+As with
+.BR mount_setattr (2),
+if said path is not a mount point,
+.BR open_tree_attr ()
+will return an error.
+.SH RETURN VALUE
+On success, a new file descriptor is returned.
+On error, \-1 is returned, and
+.I errno
+is set to indicate the error.
+.SH ERRORS
+.TP
+.B EACCES
+Search permission is denied for one of the directories
+in the path prefix of
+.IR path .
+(See also
+.BR path_resolution (7).)
+.TP
+.B EBADF
+.I path
+is relative but
+.I dirfd
+is neither
+.B \%AT_FDCWD
+nor a valid file descriptor.
+.TP
+.B EFAULT
+.I path
+is NULL
+or a pointer to a location
+outside the calling process's accessible address space.
+.TP
+.B EINVAL
+Invalid flag specified in
+.IR flags .
+.TP
+.B ELOOP
+Too many symbolic links encountered when resolving
+.IR path .
+.TP
+.B EMFILE
+The calling process has too many open files to create more.
+.TP
+.B ENAMETOOLONG
+.I path
+is longer than
+.BR PATH_MAX .
+.TP
+.B ENFILE
+The system has too many open files to create more.
+.TP
+.B ENOENT
+A component of
+.I path
+does not exist, or is a dangling symbolic link.
+.TP
+.B ENOENT
+.I path
+is an empty string, but
+.B AT_EMPTY_PATH
+is not specified in
+.IR flags .
+.TP
+.B ENOTDIR
+A component of the path prefix of
+.I path
+is not a directory, or
+.I path
+is relative and
+.I dirfd
+is a file descriptor referring to a file other than a directory.
+.TP
+.B ENOSPC
+The "anonymous" mount namespace
+necessary to contain the
+.B \%OPEN_TREE_CLONE
+detached bind-mount mount object
+could not be allocated,
+as doing so would exceed
+the configured per-user limit on
+the number of mount namespaces in the current user namespace.
+(See also
+.BR namespaces (7).)
+.TP
+.B ENOMEM
+The kernel could not allocate sufficient memory to complete the operation.
+.TP
+.B EPERM
+.I flags
+contains
+.B \%OPEN_TREE_CLONE
+but the calling process does not have the required
+.B CAP_SYS_ADMIN
+capability.
+.SH STANDARDS
+Linux.
+.SH HISTORY
+.TP
+.BR open_tree ()
+Linux 5.2,
+.\" commit a07b20004793d8926f78d63eb5980559f7813404
+.\" commit 400913252d09f9cfb8cce33daee43167921fc343
+glibc 2.36.
+.TP
+.BR open_tree_attr ()
+Linux 6.15.
+.\" commit c4a16820d90199409c9bf01c4f794e1e9e8d8fd8
+.\" commit 7a54947e727b6df840780a66c970395ed9734ebe
+.SH NOTES
+.SS Mount propagation
+The bind-mount mount objects created by
+.BR open_tree ()
+with
+.B \%OPEN_TREE_CLONE
+are not associated with
+the mount namespace of the calling process.
+Instead, each mount object is placed
+in a newly allocated "anonymous" mount namespace
+associated with the calling process.
+.P
+One of the side-effects of this is that
+(unlike bind-mounts created with
+.BR mount (2)),
+mount propagation
+(as described in
+.BR mount_namespaces (7))
+will not be applied to bind-mounts created by
+.BR open_tree ()
+until the bind-mount is attached with
+.BR move_mount (2),
+at which point the mount object
+will be associated with the mount namespace
+where it was attached
+and mount propagation will resume.
+Note that any mount propagation events that occurred
+before the mount object was attached
+will
+.I not
+be propagated to the mount object,
+even after it is attached.
+.SH EXAMPLES
+The following examples show how
+.BR open_tree ()
+can be used in place of more traditional
+.BR mount (2)
+calls with
+.BR MS_BIND .
+.P
+.in +4n
+.EX
+int srcfd = open_tree(AT_FDCWD, "/var", OPEN_TREE_CLONE);
+move_mount(srcfd, "", AT_FDCWD, "/mnt", MOVE_MOUNT_F_EMPTY_PATH);
+.EE
+.in
+.P
+First,
+a detached bind-mount mount object of
+.I /var
+is created
+and associated with the file descriptor
+.IR srcfd .
+Then, the mount object is attached to
+.I /mnt
+using
+.BR move_mount (2)
+with
+.B \%MOVE_MOUNT_F_EMPTY_PATH
+to request that the detached mount object
+associated with the file descriptor
+.I srcfd
+be moved (and thus attached) to
+.IR /mnt .
+.P
+The above procedure is functionally equivalent to
+the following mount operation using
+.BR mount (2):
+.P
+.in +4n
+.EX
+mount("/var", "/mnt", NULL, MS_BIND, NULL);
+.EE
+.in
+.P
+.B \%OPEN_TREE_CLONE
+can be combined with
+.B \%AT_RECURSIVE
+to create recursive detached bind-mount mount objects,
+which in turn can be attached to mount points
+to create recursive bind-mounts.
+.P
+.in +4n
+.EX
+int srcfd = open_tree(AT_FDCWD, "/var",
+                      OPEN_TREE_CLONE | AT_RECURSIVE);
+move_mount(srcfd, "", AT_FDCWD, "/mnt", MOVE_MOUNT_F_EMPTY_PATH);
+.EE
+.in
+.P
+The above procedure is functionally equivalent to
+the following mount operation using
+.BR mount (2):
+.P
+.in +4n
+.EX
+mount("/var", "/mnt", NULL, MS_BIND | MS_REC, NULL);
+.EE
+.in
+.P
+One of the primary benefits of using
+.BR open_tree ()
+and
+.BR move_mount (2)
+over the traditional
+.BR mount (2)
+is that operating with
+.IR dirfd -style
+file descriptors is far easier and more intuitive.
+.P
+.in +4n
+.EX
+int srcfd = open_tree(100, "", AT_EMPTY_PATH | OPEN_TREE_CLONE);
+move_mount(srcfd, "", 200, "foo", MOVE_MOUNT_F_EMPTY_PATH);
+.EE
+.in
+.P
+The above procedure is roughly equivalent to
+the following mount operation using
+.BR mount (2):
+.P
+.in +4n
+.EX
+mount("/proc/self/fd/100",
+      "/proc/self/fd/200/foo",
+      NULL, MS_BIND, NULL);
+.EE
+.in
+.P
+In addition, you can use the file descriptor returned by
+.BR open_tree ()
+as the
+.I dirfd
+argument to any "*at()" system calls:
+.P
+.in +4n
+.EX
+int dirfd, fd;
+\&
+dirfd = open_tree(AT_FDCWD, "/etc", OPEN_TREE_CLONE);
+fd = openat(dirfd, "passwd", O_RDONLY);
+fchmodat(dirfd, "shadow", 0000, 0);
+close(dirfd);
+close(fd);
+/* The bind-mount is now destroyed */
+.EE
+.in
+.SS open_tree_attr()
+The following is an example of how
+.BR open_tree_attr ()
+can be used to
+take an existing id-mapped mount and
+construct a new bind-mount mount object
+with a different
+.B \%MOUNT_ATTR_IDMAP
+attribute.
+The resultant detached mount object
+can be used
+like any other mount object
+returned by
+.BR open_tree ().
+.P
+.in +4n
+.EX
+int nsfd1, nsfd2;
+int mntfd1, mntfd2, mntfd3;
+struct mount_attr attr;
+mntfd1 = open_tree(AT_FDCWD, "/foo", OPEN_TREE_CLONE);
+\&
+/* Configure the id-mapping of mntfd1 */
+nsfd1 = open("/proc/1234/ns/user", O_RDONLY);
+memset(&attr, 0, sizeof(attr));
+attr.attr_set = MOUNT_ATTR_IDMAP;
+attr.userns_fd = nsfd1;
+mount_setattr(mntfd1, "", AT_EMPTY_PATH, &attr, sizeof(attr));
+\&
+/* Create a new copy with a different id-mapping */
+nsfd2 = open("/proc/5678/ns/user", O_RDONLY);
+memset(&attr, 0, sizeof(attr));
+attr.attr_clr = MOUNT_ATTR_IDMAP;
+.\" Using .attr_clr is not strictly necessary but makes the intent clearer.
+attr.attr_set = MOUNT_ATTR_IDMAP;
+attr.userns_fd = nsfd2;
+mntfd2 = open_tree_attr(mntfd1, "", OPEN_TREE_CLONE,
+                        &attr, sizeof(attr));
+\&
+/* Create a new copy with the id-mapping cleared */
+memset(&attr, 0, sizeof(attr));
+attr.attr_clr = MOUNT_ATTR_IDMAP;
+mntfd3 = open_tree_attr(mntfd1, "", OPEN_TREE_CLONE,
+                        &attr, sizeof(attr));
+.EE
+.in
+.P
+.BR open_tree_attr ()
+can also be used
+with attached mount objects;
+the above example is only intended to be illustrative.
+.SH SEE ALSO
+.BR fsconfig (2),
+.BR fsmount (2),
+.BR fsopen (2),
+.BR fspick (2),
+.BR mount (2),
+.BR mount_setattr (2),
+.BR move_mount (2),
+.BR mount_namespaces (7)

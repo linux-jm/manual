@@ -1,0 +1,120 @@
+.\" Copyright 1994-1995, Daniel Quinlan <Daniel.Quinlan@linux.org>
+.\" Copyright 2002-2017, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: GPL-3.0-or-later
+.\"
+.TH proc_pid_mountinfo 5 2026-02-08 "Linux man-pages (unreleased)"
+.SH NAME
+/proc/pid/mountinfo \- mount information
+.SH DESCRIPTION
+.TP
+.IR /proc/ pid /mountinfo " (since Linux 2.6.26)"
+.\" commit 2d4d4864ac08caff5c204a752bd004eed4f08760
+This file contains information about mounts
+in the process's mount namespace (see
+.BR mount_namespaces (7)).
+It supplies various information
+(e.g., propagation state, root of mount for bind mounts,
+identifier for each mount and its parent) that is missing from the (older)
+.IR /proc/ pid /mounts
+file, and fixes various other problems with that file
+(e.g., nonextensibility,
+failure to distinguish per-mount versus per-superblock options).
+.IP
+The file contains lines of the form:
+.IP
+.EX
+36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 \- ext3 /dev/root rw,errors=continue
+(1)(2)(3)   (4)   (5)      (6)      (7)   (8) (9)   (10)         (11)
+.EE
+.IP
+The numbers in parentheses are labels for the descriptions below:
+.RS 7
+.TP 5
+(1)
+mount ID: a unique ID for the mount (may be reused after
+.BR umount (2)).
+.TP
+(2)
+parent ID: the ID of the parent mount
+(or of self for the root of this mount namespace's mount tree).
+.IP
+If a new mount is stacked on top of a previous existing mount
+(so that it hides the existing mount) at pathname P,
+then the parent of the new mount is the previous mount at that location.
+Thus, when looking at all the mounts stacked at a particular location,
+the top-most mount is the one that is not the parent
+of any other mount at the same location.
+(Note, however, that this top-most mount will be accessible only if
+the longest path subprefix of P that is a mount point
+is not itself hidden by a stacked mount.)
+.IP
+If the parent mount lies outside the process's root directory (see
+.BR chroot (2)),
+the ID shown here won't have a corresponding record in
+.I mountinfo
+whose mount ID (field 1) matches this parent mount ID
+(because mounts that lie outside the process's root directory
+are not shown in
+.IR mountinfo ).
+As a special case of this point,
+the process's root mount may have a parent mount
+(for the initramfs filesystem) that lies
+.\" Miklos Szeredi, Nov 2017: The hidden one is the initramfs, I believe
+.\" mtk: In the initial mount namespace, this hidden ID has the value 0
+outside the process's root directory,
+and an entry for that mount will not appear in
+.IR mountinfo .
+.TP
+(3)
+major:minor: the value of
+.I st_dev
+for files on this filesystem (see
+.BR stat (2)).
+.TP
+(4)
+root: the pathname of the directory in the filesystem
+which forms the root of this mount.
+.TP
+(5)
+mount point: the pathname of the mount point relative
+to the process's root directory.
+.TP
+(6)
+mount options: per-mount options (see
+.BR mount (2)).
+.TP
+(7)
+optional fields: zero or more fields of the form "tag[:value]"; see below.
+.TP
+(8)
+separator: the end of the optional fields is marked by a single hyphen.
+.TP
+(9)
+filesystem type: the filesystem type in the form "type[.subtype]".
+.TP
+(10)
+mount source: filesystem-specific information or "none".
+.TP
+(11)
+super options: per-superblock options (see
+.BR mount (2)).
+.RE
+.IP
+Currently, the possible optional fields are
+.IR shared ,
+.IR master ,
+.IR propagate_from ,
+and
+.IR unbindable .
+See
+.BR mount_namespaces (7)
+for a description of these fields.
+Parsers should ignore all unrecognized optional fields.
+.IP
+For more information on mount propagation see
+.I Documentation/filesystems/sharedsubtree.rst
+in the Linux kernel source tree.
+.SH SEE ALSO
+.BR proc (5)

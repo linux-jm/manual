@@ -1,84 +1,60 @@
-.\" Copyright (C) 2005, 2008, Michael Kerrisk <mtk.manpages@gmail.com>
-.\" (A few fragments remain from an earlier (1992) version by
-.\" Drew Eckhardt <drew@cs.colorado.edu>.)
+.\" Copyright 2005-2008, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
 .\"
-.\" %%%LICENSE_START(VERBATIM)
-.\" Permission is granted to make and distribute verbatim copies of this
-.\" manual provided the copyright notice and this permission notice are
-.\" preserved on all copies.
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
 .\"
-.\" Permission is granted to copy and distribute modified versions of this
-.\" manual under the conditions for verbatim copying, provided that the
-.\" entire resulting derived work is distributed under the terms of a
-.\" permission notice identical to this one.
-.\"
-.\" Since the Linux kernel and libraries are constantly changing, this
-.\" manual page may be incorrect or out-of-date.  The author(s) assume no
-.\" responsibility for errors or omissions, or for damages resulting from
-.\" the use of the information contained herein.  The author(s) may not
-.\" have taken the same level of care in the production of this manual,
-.\" which is licensed free of charge, as they might when working
-.\" professionally.
-.\"
-.\" Formatted or processed versions of this manual, if unaccompanied by
-.\" the source, must acknowledge the copyright and authors of this work.
-.\" %%%LICENSE_END
-.\"
-.\" Modified by Michael Haardt <michael@moria.de>
-.\" Modified 1993-07-23 by Rik Faith <faith@cs.unc.edu>
-.\" Modified 1996-10-22 by Eric S. Raymond <esr@thyrsus.com>
-.\" Modified 2004-06-17 by Michael Kerrisk <mtk.manpages@gmail.com>
-.\" Modified 2005, mtk: added an example program
-.\" Modified 2008-01-09, mtk: rewrote DESCRIPTION; minor additions
-.\"     to EXAMPLE text.
-.\" 2008-10-10, mtk: add description of pipe2()
-.\"
-.TH PIPE 2 2020-06-09 "Linux" "Linux Programmer's Manual"
+.TH pipe 2 2026-02-08 "Linux man-pages (unreleased)"
 .SH NAME
 pipe, pipe2 \- create pipe
+.SH LIBRARY
+Standard C library
+.RI ( libc ,\~ \-lc )
 .SH SYNOPSIS
 .nf
 .B #include <unistd.h>
-.PP
-/* On Alpha, IA-64, MIPS, SuperH, and SPARC/SPARC64; see NOTES */
+.P
+.BI "int pipe(int " pipefd [2]);
+.P
+.BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
+.BR "#include <fcntl.h>" "              /* Definition of " O_* " constants */"
+.B #include <unistd.h>
+.P
+.BI "int pipe2(int " pipefd "[2], int " flags );
+.P
+/* On Alpha, IA-64, MIPS, SuperH, and SPARC/SPARC64, pipe() has the
+   following prototype; see VERSIONS */
+.P
+.B #include <unistd.h>
+.P
 .B struct fd_pair {
 .B "    long fd[2];"
 .B "};"
-.B struct fd_pair pipe();
-.PP
-/* On all other architectures */
-.BI "int pipe(int " pipefd "[2]);"
-
-.BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
-.BR "#include <fcntl.h>" "              /* Obtain O_* constant definitions */"
-.B #include <unistd.h>
-.PP
-.BI "int pipe2(int " pipefd "[2], int " flags );
+.B struct fd_pair pipe(void);
 .fi
 .SH DESCRIPTION
 .BR pipe ()
 creates a pipe, a unidirectional data channel that
 can be used for interprocess communication.
 The array
-.IR pipefd
+.I pipefd
 is used to return two file descriptors referring to the ends of the pipe.
-.IR pipefd[0]
+.I pipefd[0]
 refers to the read end of the pipe.
-.IR pipefd[1]
+.I pipefd[1]
 refers to the write end of the pipe.
 Data written to the write end of the pipe is buffered by the kernel
 until it is read from the read end of the pipe.
 For further details, see
 .BR pipe (7).
-.PP
+.P
 If
-.IR flags
+.I flags
 is 0, then
 .BR pipe2 ()
 is the same as
 .BR pipe ().
 The following values can be bitwise ORed in
-.IR flags
+.I flags
 to obtain different behavior:
 .TP
 .B O_CLOEXEC
@@ -99,27 +75,27 @@ to the pipe is dealt with as a separate packet, and
 from the pipe will read one packet at a time.
 Note the following points:
 .RS
-.IP * 3
+.IP \[bu] 3
 Writes of greater than
-.BR PIPE_BUF
+.B PIPE_BUF
 bytes (see
 .BR pipe (7))
 will be split into multiple packets.
 The constant
-.BR PIPE_BUF
+.B PIPE_BUF
 is defined in
 .IR <limits.h> .
-.IP *
+.IP \[bu]
 If a
 .BR read (2)
 specifies a buffer size that is smaller than the next packet,
 then the requested number of bytes are read,
 and the excess bytes in the packet are discarded.
 Specifying a buffer size of
-.BR PIPE_BUF
+.B PIPE_BUF
 will be sufficient to read the largest possible packets
 (see the previous point).
-.IP *
+.IP \[bu]
 Zero-length packets are not supported.
 (A
 .BR read (2)
@@ -140,20 +116,29 @@ setting of a pipe file descriptor using
 .TP
 .B O_NONBLOCK
 Set the
-.BR O_NONBLOCK
+.B O_NONBLOCK
 file status flag on the open file descriptions
 referred to by the new file descriptors.
 Using this flag saves extra calls to
 .BR fcntl (2)
 to achieve the same result.
+.TP
+.B O_NOTIFICATION_PIPE
+Since Linux 5.8,
+.\" commit c73be61cede5882f9605a852414db559c0ebedfd
+general notification mechanism is built on the top of the pipe where
+kernel splices notification messages into pipes opened by user space.
+The owner of the pipe has to tell the kernel which sources of events to watch
+and filters can also be applied to select
+which subevents should be placed into the pipe.
 .SH RETURN VALUE
 On success, zero is returned.
 On error, \-1 is returned,
 .I errno
-is set appropriately, and
+is set to indicate the error, and
 .I pipefd
 is left unchanged.
-.PP
+.P
 On Linux (and other systems),
 .BR pipe ()
 does not modify
@@ -186,24 +171,26 @@ The system-wide limit on the total number of open files has been reached.
 .TP
 .B ENFILE
 The user hard limit on memory that can be allocated for pipes
-has been reached and the caller is not privileged; see
+has been reached
+and the caller is not privileged;
+see
 .BR pipe (7).
+.TP
+.B ENOPKG
+.RB ( pipe2 ())
+.B O_NOTIFICATION_PIPE
+was passed in
+.I flags
+and support for notifications
+.RB ( CONFIG_WATCH_QUEUE )
+is not compiled into the kernel.
 .SH VERSIONS
-.BR pipe2 ()
-was added to Linux in version 2.6.27;
-glibc support is available starting with
-version 2.9.
-.SH CONFORMING TO
-.BR pipe ():
-POSIX.1-2001, POSIX.1-2008.
-.PP
-.BR pipe2 ()
-is Linux-specific.
-.SH NOTES
 .\" See http://math-atlas.sourceforge.net/devel/assembly/64.psabi.1.33.ps.Z
 .\" for example, section 3.2.1 "Registers and the Stack Frame".
-The System V ABI on some architectures allows the use of more than one register
-for returning multiple values; several architectures
+The System V ABI on some architectures
+allows the use of more than one register
+for returning multiple values;
+several architectures
 (namely, Alpha, IA-64, MIPS, SuperH, and SPARC/SPARC64)
 (ab)use this feature in order to implement the
 .BR pipe ()
@@ -216,6 +203,17 @@ wrapper function transparently deals with this.
 See
 .BR syscall (2)
 for information regarding registers used for storing second file descriptor.
+.SH STANDARDS
+POSIX.1-2024.
+.SH HISTORY
+.TP
+.BR pipe ()
+POSIX.1-2001.
+.TP
+.BR pipe2 ()
+POSIX.1-2024.
+Linux 2.6.27,
+glibc 2.9.
 .SH EXAMPLES
 .\" fork.2 refers to this example program.
 The following program creates a pipe, and then
@@ -233,56 +231,64 @@ command-line argument to the pipe,
 and the child reads this string a byte at a time from the pipe
 and echoes it on standard output.
 .SS Program source
+.\" SRC BEGIN (pipe.c)
 .EX
-#include <sys/types.h>
-#include <sys/wait.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+\&
 int
 main(int argc, char *argv[])
 {
-    int pipefd[2];
-    pid_t cpid;
-    char buf;
-
+    int    pipefd[2];
+    char   buf;
+    pid_t  cpid;
+\&
     if (argc != 2) {
-        fprintf(stderr, "Usage: %s <string>\en", argv[0]);
+        fprintf(stderr, "Usage: %s <string>\[rs]n", argv[0]);
         exit(EXIT_FAILURE);
     }
-
-    if (pipe(pipefd) == \-1) {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
-
+\&
+    if (pipe(pipefd) == \-1)
+        err(EXIT_FAILURE, "pipe");
+\&
     cpid = fork();
-    if (cpid == \-1) {
-        perror("fork");
-        exit(EXIT_FAILURE);
-    }
-
+    if (cpid == \-1)
+        err(EXIT_FAILURE, "fork");
+\&
     if (cpid == 0) {    /* Child reads from pipe */
-        close(pipefd[1]);          /* Close unused write end */
-
-        while (read(pipefd[0], &buf, 1) > 0)
-            write(STDOUT_FILENO, &buf, 1);
-
-        write(STDOUT_FILENO, "\en", 1);
-        close(pipefd[0]);
+        if (close(pipefd[1]) == \-1)  /* Close unused write end */
+            err(EXIT_FAILURE, "close");
+\&
+        while (read(pipefd[0], &buf, 1) > 0) {
+            if (write(STDOUT_FILENO, &buf, 1) != 1)
+                err(EXIT_FAILURE, "write");
+        }
+\&
+        if (write(STDOUT_FILENO, "\[rs]n", 1) != 1)
+            err(EXIT_FAILURE, "write");
+        if (close(pipefd[0]) == \-1)
+            err(EXIT_FAILURE, "close");
         _exit(EXIT_SUCCESS);
-
+\&
     } else {            /* Parent writes argv[1] to pipe */
-        close(pipefd[0]);          /* Close unused read end */
-        write(pipefd[1], argv[1], strlen(argv[1]));
-        close(pipefd[1]);          /* Reader will see EOF */
-        wait(NULL);                /* Wait for child */
+        if (close(pipefd[0]) == \-1)  /* Close unused read end */
+            err(EXIT_FAILURE, "close");
+        if (write(pipefd[1], argv[1], strlen(argv[1])) != strlen(argv[1]))
+            err(EXIT_FAILURE, "write");
+        if (close(pipefd[1]) == \-1)  /* Reader will see EOF */
+            err(EXIT_FAILURE, "close");
+        if (wait(NULL) == \-1)        /* Wait for child */
+            err(EXIT_FAILURE, "wait");
         exit(EXIT_SUCCESS);
     }
 }
 .EE
+.\" SRC END
 .SH SEE ALSO
 .BR fork (2),
 .BR read (2),
@@ -293,12 +299,3 @@ main(int argc, char *argv[])
 .BR write (2),
 .BR popen (3),
 .BR pipe (7)
-.SH COLOPHON
-This page is part of release 5.10 of the Linux
-.I man-pages
-project.
-A description of the project,
-information about reporting bugs,
-and the latest version of this page,
-can be found at
-\%https://www.kernel.org/doc/man\-pages/.
